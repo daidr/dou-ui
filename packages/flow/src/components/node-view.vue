@@ -141,8 +141,12 @@ const resizable = computed(
   () => !!resizeOf(props.spec, props.node) && !props.readonly && !collapsed.value,
 )
 
+/** How far the node is drawn turned, so its selection outline turns with it. */
+const rotation = computed(() => props.spec?.rotation?.(props.node) ?? 0)
+
 const style = computed<CSSProperties>(() => ({
   transform: `translate(${props.node.x}px, ${props.node.y}px)`,
+  '--dou-flow-node-rotation': rotation.value ? `${rotation.value}deg` : undefined,
   width: props.node.width != null ? `${props.node.width}px` : undefined,
   height: props.node.height != null && !collapsed.value ? `${props.node.height}px` : undefined,
 }))
@@ -168,6 +172,7 @@ const viewProps = computed(() => ({
       'is-sized': node.width != null,
       'is-container': container,
       'is-bare': spec?.frame === false,
+      'is-turned': !!rotation,
       'is-collapsed': collapsed,
       'is-drop-target': dropTarget,
     }"

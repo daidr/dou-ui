@@ -1,3 +1,4 @@
+import { turn } from '../core/geometry'
 import type { FlowNode, Point } from '../core/model'
 import type { WhiteboardInkData } from './model'
 
@@ -146,18 +147,6 @@ export function inkOutline(points: readonly InkPoint[], size = INK_SIZE): string
     `A${rEnd} ${rEnd} 0 0 0 ${fmt(right[0]!)}${side(right)}` +
     `A${rStart} ${rStart} 0 0 0 ${fmt(left[0]!)}Z`
   )
-}
-
-/** Turns `point` by `degrees` around `centre`. */
-export function turn(point: Point, centre: Point, degrees: number): Point {
-  if (!degrees) return point
-  const a = (degrees * Math.PI) / 180
-  const dx = point.x - centre.x
-  const dy = point.y - centre.y
-  return {
-    x: centre.x + dx * Math.cos(a) - dy * Math.sin(a),
-    y: centre.y + dx * Math.sin(a) + dy * Math.cos(a),
-  }
 }
 
 function segmentDistance(p: Point, a: Point, b: Point) {

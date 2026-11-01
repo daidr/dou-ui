@@ -125,3 +125,51 @@ export function snapBox(
   }
   return { dx, dy, guides }
 }
+
+/** Turns `point` by `degrees` around `centre`. */
+export function turn(point: Point, centre: Point, degrees: number): Point {
+  if (!degrees) return point
+  const a = (degrees * Math.PI) / 180
+  const dx = point.x - centre.x
+  const dy = point.y - centre.y
+  return {
+    x: centre.x + dx * Math.cos(a) - dy * Math.sin(a),
+    y: centre.y + dx * Math.sin(a) + dy * Math.cos(a),
+  }
+}
+
+/** The box around `rect` turned by `degrees` about its centre. */
+export function turnedBox(rect: Rect, degrees: number): Rect {
+  if (!degrees) return rect
+  const centre = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }
+  const corners = [
+    { x: rect.x, y: rect.y },
+    { x: rect.x + rect.width, y: rect.y },
+    { x: rect.x, y: rect.y + rect.height },
+    { x: rect.x + rect.width, y: rect.y + rect.height },
+  ].map((corner) => turn(corner, centre, degrees))
+  return boundsOf(corners.map((p) => ({ ...p, width: 0, height: 0 })))!
+}
+
+/** Whether `box` and `rect` turned by `degrees` about its centre overlap. */
+export function intersectsTurned(box: Rect, rect: Rect, degrees: number): boolean {
+  if (!degrees) return intersects(box, rect)
+  if (!intersects(box, turnedBox(rect, degrees))) return false
+  // Upright, the box's axes already part them if they can; the turned
+  // rectangle's own axes are the only others that can.
+  const centre = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }
+  const corners = [
+    { x: box.x, y: box.y },
+    { x: box.x + box.width, y: box.y },
+    { x: box.x, y: box.y + box.height },
+    { x: box.x + box.width, y: box.y + box.height },
+  ].map((corner) => turn(corner, centre, -degrees))
+  const xs = corners.map((p) => p.x)
+  const ys = corners.map((p) => p.y)
+  return (
+    Math.min(...xs) < rect.x + rect.width &&
+    Math.max(...xs) > rect.x &&
+    Math.min(...ys) < rect.y + rect.height &&
+    Math.max(...ys) > rect.y
+  )
+}

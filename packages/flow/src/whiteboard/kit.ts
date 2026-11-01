@@ -4,7 +4,7 @@ import type { FlowMenuItem } from '../core/menu'
 import type { FlowEditorContext } from '../context'
 import { defineFlowExtension, type FlowExtension } from '../core/extension'
 import { createId, type FlowData, type FlowNode, type Point, type Rect } from '../core/model'
-import { defineNodeType, type NodeResize } from '../core/node-types'
+import { defineNodeType } from '../core/node-types'
 import { format, type FlowMessages } from '../locale'
 import BoardNode from './board-node.vue'
 import BoardDraft from './board-draft.vue'
@@ -25,7 +25,6 @@ import {
 import { imageFiles, insertImages, pickImages, type WhiteboardUpload } from './image'
 import { connectorEdge, connectorToolbar } from './connector'
 import { drawBoardNode } from './draw'
-import { turn } from './ink'
 import { drawInk, erase } from './pen'
 import { boardState } from './state'
 
@@ -36,32 +35,8 @@ const BOARD_TYPES = new Set(['shape', 'sticky', 'text', 'ink', 'image'])
 const nameOf = (kind: string, text: string | undefined, t: FlowMessages) =>
   text ? format(t.board.named, { kind, text }) : kind
 
-/**
- * The editor's corner handle, while the node isn't turned; a turned node
- * has its own, which grows it along its own sides.
- */
-const unlessTurned =
-  (min: { minWidth: number; minHeight: number }) =>
-  (node: FlowNode<WhiteboardNodeData>): NodeResize =>
-    node.data?.rotation ? false : min
-
-/** The box around a turned node, so the toolbar over it clears its corners. */
-function turnedBounds(node: FlowNode<WhiteboardNodeData>, rect: Rect): Rect {
-  const degrees = node.data?.rotation
-  if (!degrees) return rect
-  const centre = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }
-  const corners = [
-    { x: rect.x, y: rect.y },
-    { x: rect.x + rect.width, y: rect.y },
-    { x: rect.x, y: rect.y + rect.height },
-    { x: rect.x + rect.width, y: rect.y + rect.height },
-  ].map((corner) => turn(corner, centre, degrees))
-  const xs = corners.map((p) => p.x)
-  const ys = corners.map((p) => p.y)
-  const x = Math.min(...xs)
-  const y = Math.min(...ys)
-  return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y }
-}
+/** How far a board node is turned, from `data.rotation`. */
+const turnedBy = (node: FlowNode<WhiteboardNodeData>) => node.data?.rotation ?? 0
 
 /** A rectangle, ellipse or diamond with centred text; `data.shape` says which. */
 export const shapeNode = defineNodeType<WhiteboardShapeData>({
@@ -69,8 +44,8 @@ export const shapeNode = defineNodeType<WhiteboardShapeData>({
   component: BoardNode,
   ports: anchorPorts,
   frame: false,
-  resizable: unlessTurned({ minWidth: 24, minHeight: 24 }),
-  bounds: turnedBounds,
+  resizable: { minWidth: 24, minHeight: 24 },
+  rotation: turnedBy,
   draw: drawBoardNode,
   size: { width: 160, height: 100 },
   defaults: () => ({ shape: 'rect' }),
@@ -83,8 +58,8 @@ export const stickyNode = defineNodeType<WhiteboardStickyData>({
   component: BoardNode,
   ports: anchorPorts,
   frame: false,
-  resizable: unlessTurned({ minWidth: 64, minHeight: 64 }),
-  bounds: turnedBounds,
+  resizable: { minWidth: 64, minHeight: 64 },
+  rotation: turnedBy,
   draw: drawBoardNode,
   size: { width: 160, height: 160 },
   defaults: () => ({}),
@@ -97,8 +72,8 @@ export const textNode = defineNodeType<WhiteboardTextData>({
   component: BoardNode,
   ports: anchorPorts,
   frame: false,
-  resizable: unlessTurned({ minWidth: 24, minHeight: 24 }),
-  bounds: turnedBounds,
+  resizable: { minWidth: 24, minHeight: 24 },
+  rotation: turnedBy,
   draw: drawBoardNode,
   size: { width: 200, height: 40 },
   defaults: () => ({}),
@@ -110,8 +85,8 @@ export const inkNode = defineNodeType<WhiteboardInkData>({
   type: 'ink',
   component: BoardNode,
   frame: false,
-  resizable: unlessTurned({ minWidth: 8, minHeight: 8 }),
-  bounds: turnedBounds,
+  resizable: { minWidth: 8, minHeight: 8 },
+  rotation: turnedBy,
   draw: drawBoardNode,
   defaults: () => ({ points: [], box: [0, 0] }),
   label: (_, t) => t.board.ink,
@@ -123,8 +98,8 @@ export const imageNode = defineNodeType<WhiteboardImageData>({
   component: BoardNode,
   ports: anchorPorts,
   frame: false,
-  resizable: unlessTurned({ minWidth: 24, minHeight: 24 }),
-  bounds: turnedBounds,
+  resizable: { minWidth: 24, minHeight: 24 },
+  rotation: turnedBy,
   draw: drawBoardNode,
   size: { width: 240, height: 180 },
   defaults: () => ({ src: '' }),

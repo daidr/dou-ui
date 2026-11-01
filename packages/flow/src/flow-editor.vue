@@ -42,7 +42,15 @@ import {
   type PortState,
 } from './context'
 import { bezierEdge, type EdgeAnchor, type EdgeRoute, type EdgeTypeSpec } from './core/edge-types'
-import { boundsOf, intersects, rectFrom, snapBox, type Guide, type SnapLink } from './core/geometry'
+import {
+  boundsOf,
+  intersects,
+  intersectsTurned,
+  rectFrom,
+  snapBox,
+  type Guide,
+  type SnapLink,
+} from './core/geometry'
 import {
   canJoin,
   displacedEdges,
@@ -78,7 +86,7 @@ import {
   type Rect,
 } from './core/model'
 import { containerAt, FlowTree } from './core/groups'
-import { labelOf, portsOf, resizeOf, type NodeTypeSpec } from './core/node-types'
+import { labelOf, nodeBounds, portsOf, resizeOf, type NodeTypeSpec } from './core/node-types'
 import { FlowTransaction, type FlowTransactionMeta } from './core/transaction'
 import { format, useFlowMessages } from './locale'
 import { drawTools, type DrawTools, type FlowDrawContext } from './export/context'
@@ -319,6 +327,11 @@ const nodeById = computed(() => new Map(shownNodes.value.map((node) => [node.id,
 
 const tree = computed(() => new FlowTree(doc.value.nodes))
 const isContainer = (node: FlowNode) => !!specOf(node).container
+/** How far a node is drawn turned, as its type says, in degrees. */
+function nodeRotation(id: string) {
+  const node = nodeById.value.get(id)
+  return (node && specOf(node).rotation?.(node)) || 0
+}
 
 /** For each node inside a collapsed container: the outermost collapsed one, where its edges end. */
 const hiddenIn = computed(() => {
@@ -1531,7 +1544,9 @@ function updateBox(g: Extract<Gesture, { kind: 'box' }>) {
     .filter((node) => {
       if (hiddenIn.value.has(node.id)) return false
       const rect = rectOf(node)
-      return isContainer(node) ? inside(rect) : intersects(box, rect)
+      if (isContainer(node)) return inside(rect)
+      // a turned node is picked by what it covers, not by its upright box
+      return intersectsTurned(box, rect, specOf(node).rotation?.(node) ?? 0)
     })
     .map((n) => n.id)
   const nodes = [...new Set([...g.base.nodes, ...hit])]
@@ -2344,8 +2359,7 @@ const toolbarAnchor = computed(() => {
       ? nodes.flatMap((id) => {
           const node = nodeById.value.get(id)
           if (!node) return []
-          const rect = rectOf(node)
-          return specOf(node).bounds?.(node, rect) ?? rect
+          return nodeBounds(specOf(node), node, rectOf(node))
         })
       : edgeRoutes.value
           .filter((item) => edges.includes(item.edge.id))
@@ -3168,7 +3182,8 @@ const drawnNodes = computed(() => {
     if (hidden.has(node.id)) return false
     const m = metrics.get(node.id)
     if (!m || keep.has(node.id) || node.id === focusedNode.value) return true
-    return intersects({ x: node.x, y: node.y, width: m.width, height: m.height }, area)
+    const rect = { x: node.x, y: node.y, width: m.width, height: m.height }
+    return intersects(nodeBounds(specOf(node), node, rect), area)
   })
 })
 
@@ -3241,6 +3256,7 @@ const context: FlowEditorContext = {
   leaveGroup,
   tree,
   isContainer,
+  nodeRotation,
   gesturing,
   previewNode,
   connectingPath: previewPath,
@@ -3341,8 +3357,7 @@ function drawing(options: FlowExportOptions, imageHref?: (src: string) => string
   const nodes = shownNodes.value.filter((node) => {
     if (hidden.has(node.id) || (keep && !keep.has(node.id))) return false
     if (!frame) return true
-    const rect = rectOf(node)
-    return intersects(specOf(node).bounds?.(node, rect) ?? rect, frame)
+    return intersects(nodeBounds(specOf(node), node, rectOf(node)), frame)
   })
   const index = new Map(nodes.map((node, i) => [node.id, i]))
   // oxlint-disable-next-line unicorn/no-array-sort -- sorts a fresh array

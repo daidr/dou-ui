@@ -1764,9 +1764,10 @@
     overscroll-behavior: contain;
     border: 1px solid var(--dou-color-border);
     border-radius: calc(var(--dou-radius-control) + 4px);
-    background-color: light-dark(
-      var(--dou-color-bg-surface),
-      color-mix(in oklab, var(--dou-color-text) 4%, var(--dou-color-bg-surface))
+    background-color: color-mix(
+      in oklab,
+      var(--dou-color-text) calc(4% * var(--dou-scheme-dark)),
+      var(--dou-color-bg-surface)
     );
     box-shadow: var(--dou-shadow-md);
     color: var(--dou-color-text);

@@ -100,6 +100,8 @@ const analysis = computed<{ document?: FormDocument; findings: Finding[] }>(() =
     problems = checkDocument(document, {
       fields: [...state.fields.values()],
       functions: state.functionNames.value,
+      // Names are checked only when the builder was given validators.
+      validators: state.validators() ? Object.keys(state.validators()!) : undefined,
     })
   } catch {
     // Content too far off its shape to read; the shape problems say why.
@@ -182,6 +184,7 @@ function download() {
       v-model="draft"
       :rows="16"
       :invalid="blocked"
+      :readonly="state.readonly"
       :aria-label="messages.title"
       spellcheck="false"
       class="dou-form-builder__json-text"
@@ -214,6 +217,7 @@ function download() {
           @change="onFile"
         />
         <DouButton
+          v-if="!state.readonly"
           size="sm"
           variant="ghost"
           :disabled="formatted === undefined || formatted === draft"
@@ -222,7 +226,7 @@ function download() {
           <template #leading><IndentIcon /></template>
           {{ messages.format }}
         </DouButton>
-        <DouButton size="sm" variant="ghost" @click="file?.click()">
+        <DouButton v-if="!state.readonly" size="sm" variant="ghost" @click="file?.click()">
           <template #leading><FileUpIcon /></template>
           {{ messages.file }}
         </DouButton>
@@ -238,12 +242,17 @@ function download() {
           {{ copied ? messages.copied : messages.copy }}
         </DouButton>
         <span class="dou-form-builder__json-spacer" />
-        <DouButton size="sm" variant="outline" @click="open = false">
-          {{ messages.cancel }}
+        <DouButton v-if="state.readonly" size="sm" variant="outline" @click="open = false">
+          {{ messages.close }}
         </DouButton>
-        <DouButton size="sm" tone="primary" :disabled="!changed || blocked" @click="apply">
-          {{ messages.apply }}
-        </DouButton>
+        <template v-else>
+          <DouButton size="sm" variant="outline" @click="open = false">
+            {{ messages.cancel }}
+          </DouButton>
+          <DouButton size="sm" tone="primary" :disabled="!changed || blocked" @click="apply">
+            {{ messages.apply }}
+          </DouButton>
+        </template>
       </div>
     </template>
   </DouDialog>

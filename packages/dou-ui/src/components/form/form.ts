@@ -131,6 +131,14 @@ export interface FormExpose {
   clearValidate: (props?: string | string[]) => void
   /** Scroll a field into view and focus it. */
   scrollToField: (prop: string) => void
+  /**
+   * Show errors by field path, e.g. ones a server returned after submit.
+   * Each stays until the field's value changes or it is checked again; an
+   * empty or `undefined` message clears the field's error. `items[0].name`
+   * is read as `items.0.name`. Returns the paths with a message that no
+   * field in the form shows, e.g. to list them above the form.
+   */
+  setErrors: (errors: Partial<FormErrors>) => string[]
 }
 
 export interface FormItemProps {
@@ -163,6 +171,8 @@ export interface FormItemExpose {
   validate: () => Promise<string | null>
   reset: () => void
   clear: () => void
+  /** Show an error until the value changes or it is checked again; `''` clears it. */
+  setError: (message: string) => void
 }
 
 /** What a form item registers with its form. */
@@ -172,6 +182,7 @@ export interface FormItemHandle {
   validate: () => Promise<string | null>
   reset: () => void
   clear: () => void
+  setError: (message: string) => void
   focus: () => void
 }
 
@@ -212,3 +223,16 @@ export interface FormItemContext {
 
 export const formKey: InjectionKey<FormContext> = Symbol('DouForm')
 export const formItemKey: InjectionKey<FormItemContext> = Symbol('DouFormItem')
+/** Where a DouForm instance keeps `setErrors` without the dev warning. */
+export const formShowErrorsKey = Symbol('DouFormShowErrors')
+
+/**
+ * @internal `setErrors` on a DouForm instance without its dev warning, for
+ * a component built on DouForm that warns in its own name.
+ */
+export function showFormErrors(form: FormExpose, errors: Partial<FormErrors>): string[] {
+  const quiet = (form as unknown as Record<symbol, typeof form.setErrors | undefined>)[
+    formShowErrorsKey
+  ]
+  return (quiet ?? form.setErrors)(errors)
+}

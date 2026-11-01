@@ -22,7 +22,7 @@ export function checkVersion(document: FormDocument) {
   if (document.version === 1 || warnedVersion) return
   warnedVersion = true
   console.warn(
-    `[dou-ui] form document version ${String(document.version)} is not supported; it is read as version 1`,
+    `[@dou-ui/form-builder] form document version ${String(document.version)} is not supported; it is read as version 1`,
   )
 }
 

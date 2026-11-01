@@ -19,9 +19,10 @@
     margin: 0;
     border: 1px solid var(--dou-color-border);
     border-radius: var(--dou-radius-full);
-    background-color: light-dark(
-      var(--dou-color-bg-surface),
-      color-mix(in oklab, var(--dou-color-text) 6%, var(--dou-color-bg-surface))
+    background-color: color-mix(
+      in oklab,
+      var(--dou-color-text) calc(6% * var(--dou-scheme-dark)),
+      var(--dou-color-bg-surface)
     );
     box-shadow: var(--dou-shadow-highlight), var(--dou-shadow-md);
     color: var(--dou-color-text-secondary);

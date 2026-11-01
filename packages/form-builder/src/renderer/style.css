@@ -255,6 +255,99 @@
     }
   }
 
+  /*
+   * A read-only form: values as text. Beside their labels, a value's
+   * first line sits where a field's text would, on the label's line.
+   */
+  .dou-form-renderer__value {
+    min-width: 0;
+    color: var(--dou-color-text);
+    font-size: var(--dou-font-size-md);
+    line-height: var(--dou-font-line-height);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+
+    &.is-empty {
+      color: var(--dou-color-text-tertiary);
+    }
+  }
+
+  /*
+   * Beside the label, a value's first line is centered on the label's line
+   * the way the label is: both trimmed to the cap height, so the centers
+   * match whatever the font's ascent and descent.
+   */
+  .dou-form-renderer--readonly:is(.dou-form-renderer--horizontal, .dou-form-renderer--inline)
+    .dou-form-item__control {
+    align-items: flex-start;
+
+    & > .dou-form-renderer__value {
+      padding-block: calc((var(--dou-form-item-control-height) - 1cap) / 2);
+      text-box: trim-both cap alphabetic;
+    }
+
+    & > :is(.dou-form-renderer__color, .dou-form-renderer__files) {
+      padding-block: calc((var(--dou-form-item-control-height) - 1lh) / 2);
+    }
+  }
+
+  .dou-form-renderer__color {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--dou-space-sm);
+    color: var(--dou-color-text);
+    font-family: var(--dou-font-family-mono);
+    font-size: var(--dou-font-size-sm);
+    line-height: var(--dou-font-line-height);
+  }
+
+  /* On a small checkerboard, so transparency reads. */
+  .dou-form-renderer__swatch {
+    position: relative;
+    flex: none;
+    width: 16px;
+    height: 16px;
+    overflow: hidden;
+    border-radius: 4px;
+    background:
+      conic-gradient(
+          color-mix(in oklab, var(--dou-color-text) 10%, transparent) 25%,
+          transparent 0 50%,
+          color-mix(in oklab, var(--dou-color-text) 10%, transparent) 0 75%,
+          transparent 0
+        )
+        0 0 / 8px 8px,
+      var(--dou-color-bg-surface);
+
+    & > span {
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--dou-color-text) 12%, transparent);
+    }
+  }
+
+  .dou-form-renderer__files {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    color: var(--dou-color-text);
+    font-size: var(--dou-font-size-md);
+    line-height: var(--dou-font-line-height);
+    overflow-wrap: anywhere;
+  }
+
+  /* Read-only steps: every page in turn, each under its title. */
+  .dou-form-renderer__steps.is-readonly {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+
   .dou-form-renderer__title,
   .dou-form-renderer__paragraph {
     margin: 0;

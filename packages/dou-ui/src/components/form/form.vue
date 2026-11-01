@@ -2,8 +2,15 @@
 import { computed, provide } from 'vue'
 import { useReducedMotion } from '../../composables/use-motion'
 import { useNamespace } from '../../utils/namespace'
-import { formKey } from './form'
-import type { FormEmits, FormExpose, FormItemHandle, FormProps, FormSlots } from './form'
+import { formKey, formShowErrorsKey } from './form'
+import type {
+  FormEmits,
+  FormErrors,
+  FormExpose,
+  FormItemHandle,
+  FormProps,
+  FormSlots,
+} from './form'
 import { toArray } from './rules'
 
 defineOptions({ name: 'DouForm' })
@@ -71,6 +78,27 @@ function clearValidate(paths?: string | string[]) {
   for (const item of pick(paths)) item.clear()
 }
 
+function showErrors(errors: Partial<FormErrors>) {
+  const byPath = new Map(pick().map((item) => [item.prop()!, item]))
+  const missed: string[] = []
+  for (const [path, message] of Object.entries(errors)) {
+    // `items[0].name`, as many servers write it, is `items.0.name` here.
+    const item = byPath.get(path) ?? byPath.get(path.replace(/\[(\d+)\]/g, '.$1'))
+    if (item) item.setError(message ?? '')
+    else if (message) missed.push(path)
+  }
+  return missed
+}
+
+function setErrors(errors: Partial<FormErrors>) {
+  const missed = showErrors(errors)
+  if (missed.length && process.env.NODE_ENV !== 'production')
+    console.warn(
+      `[dou-ui] DouForm.setErrors: no field shows ${missed.map((path) => `"${path}"`).join(', ')}. Show these errors elsewhere, e.g. above the form.`,
+    )
+  return missed
+}
+
 function scrollToField(prop: string) {
   const [item] = pick(prop)
   item?.el()?.scrollIntoView?.({
@@ -110,7 +138,10 @@ const classes = computed(() => [
   ns.is('readonly', props.readonly),
 ])
 
-defineExpose<FormExpose>({ validate, resetFields, clearValidate, scrollToField })
+const exposed: FormExpose = { validate, resetFields, clearValidate, scrollToField, setErrors }
+// Kept off the public type: read through `showFormErrors`.
+Object.defineProperty(exposed, formShowErrorsKey, { value: showErrors })
+defineExpose<FormExpose>(exposed)
 </script>
 
 <template>

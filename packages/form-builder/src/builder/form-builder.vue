@@ -40,7 +40,7 @@ import type {
 
 defineOptions({ name: 'DouFormBuilder' })
 
-const props = defineProps<FormBuilderProps>()
+const props = withDefaults(defineProps<FormBuilderProps>(), { readonly: false })
 const emit = defineEmits<FormBuilderEmits>()
 defineSlots<FormBuilderSlots>()
 
@@ -71,6 +71,8 @@ const state = createBuilderState({
   },
   functions: () => props.functions,
   sources: () => props.sources,
+  validators: () => props.validators,
+  readonly: () => props.readonly,
   extensions: () => extensions.value,
 })
 provide(builderKey, state)
@@ -123,6 +125,13 @@ watch(
 onBeforeUnmount(teardownExtensions)
 
 const side = ref<'fields' | 'outline'>('fields')
+// A read-only builder has nothing to add, so its side panel is the outline alone.
+const sideLabel = computed(() =>
+  props.readonly ? messages.value.panels.outline : messages.value.panels.fields,
+)
+const sideTitle = computed(() =>
+  props.readonly ? messages.value.panels.outline : messages.value.panels.side,
+)
 // On narrow builders the fields and the outline open from the toolbar,
 // and close once a node is added or picked; focus moves to the canvas,
 // where the node now is.
@@ -202,6 +211,9 @@ defineExpose<FormBuilderExpose>({
   get canRedo() {
     return state.canRedo
   },
+  get readonly() {
+    return state.readonly
+  },
   get mode() {
     return state.mode
   },
@@ -227,12 +239,18 @@ defineExpose<FormBuilderExpose>({
 <template>
   <div
     ref="root"
-    :class="['dou-form-builder', compact && 'is-compact', previewing && 'is-previewing']"
+    :class="[
+      'dou-form-builder',
+      compact && 'is-compact',
+      previewing && 'is-previewing',
+      readonly && 'is-readonly',
+    ]"
   >
     <slot>
       <div class="dou-form-builder__layout">
-        <aside v-if="!previewing" class="dou-form-builder__side" :aria-label="messages.panels.side">
-          <DouTabs v-model="side" size="sm" class="dou-form-builder__side-tabs">
+        <aside v-if="!previewing" class="dou-form-builder__side" :aria-label="sideTitle">
+          <FormBuilderOutline v-if="readonly" />
+          <DouTabs v-else v-model="side" size="sm" class="dou-form-builder__side-tabs">
             <DouTabPanel value="fields" :label="messages.panels.fields">
               <FormBuilderPalette />
             </DouTabPanel>
@@ -252,21 +270,22 @@ defineExpose<FormBuilderExpose>({
               @click="sideOpen = true"
             >
               <PanelLeftIcon />
-              <span>{{ messages.panels.fields }}</span>
+              <span>{{ sideLabel }}</span>
             </button>
             <DouPopover
               v-else
               v-model:open="sideOpen"
               placement="bottom-start"
-              :aria-label="messages.panels.side"
+              :aria-label="sideTitle"
               class="dou-form-builder__side-popover"
             >
               <button type="button" class="dou-form-builder__tool dou-form-builder__side-toggle">
                 <PanelLeftIcon />
-                <span>{{ messages.panels.fields }}</span>
+                <span>{{ sideLabel }}</span>
               </button>
               <template #content>
-                <DouTabs v-model="side" size="sm" class="dou-form-builder__side-tabs">
+                <FormBuilderOutline v-if="readonly" />
+                <DouTabs v-else v-model="side" size="sm" class="dou-form-builder__side-tabs">
                   <DouTabPanel value="fields" :label="messages.panels.fields">
                     <FormBuilderPalette />
                   </DouTabPanel>
@@ -276,7 +295,7 @@ defineExpose<FormBuilderExpose>({
                 </DouTabs>
               </template>
             </DouPopover>
-            <template v-if="!previewing">
+            <template v-if="!previewing && !readonly">
               <DouTooltip :content="messages.actions.undo" shortcut="mod+z" placement="bottom">
                 <button
                   type="button"
@@ -387,12 +406,13 @@ defineExpose<FormBuilderExpose>({
         <DouDrawer
           v-model:open="sideOpen"
           placement="bottom"
-          :title="messages.panels.side"
+          :title="sideTitle"
           :snap-points="['50%', '90%']"
           swipeable
           class="dou-form-builder__drawer"
         >
-          <DouTabs v-model="side" size="sm" class="dou-form-builder__side-tabs">
+          <FormBuilderOutline v-if="readonly" />
+          <DouTabs v-else v-model="side" size="sm" class="dou-form-builder__side-tabs">
             <DouTabPanel value="fields" :label="messages.panels.fields">
               <FormBuilderPalette />
             </DouTabPanel>

@@ -132,6 +132,11 @@ function clear() {
   validationError.value = ''
 }
 
+function setError(message: string) {
+  run++
+  validationError.value = message
+}
+
 function reset() {
   if (props.prop) setPath(form?.model(), props.prop, clone(initial))
   clear()
@@ -154,6 +159,7 @@ const handle: FormItemHandle = {
   validate,
   reset,
   clear,
+  setError,
   focus,
 }
 
@@ -196,6 +202,7 @@ defineExpose<FormItemExpose>({
   validate,
   reset,
   clear,
+  setError,
 })
 </script>
 

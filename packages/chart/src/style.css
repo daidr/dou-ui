@@ -559,9 +559,10 @@
   }
 
   .dou-chart__tooltip {
-    --dou-chart-tooltip-bg: light-dark(
-      var(--dou-color-bg-surface),
-      color-mix(in oklab, var(--dou-color-text) 4%, var(--dou-color-bg-surface))
+    --dou-chart-tooltip-bg: color-mix(
+      in oklab,
+      var(--dou-color-text) calc(4% * var(--dou-scheme-dark)),
+      var(--dou-color-bg-surface)
     );
 
     box-sizing: border-box;

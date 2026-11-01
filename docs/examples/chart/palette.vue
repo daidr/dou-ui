@@ -2,7 +2,7 @@
 import { DouChart, DouChartAxis, DouChartLine } from '@dou-ui/chart'
 
 // 三个渠道近半年的订单量：品牌色在前，其余用语气色；
-// light-dark() 分别给浅色和深色主题一个颜色，切换主题时图表自动重绘
+// 用 --dou-scheme-dark 在浅色和深色主题的两个颜色之间取值，切换主题时图表自动重绘
 const months = ['5月', '6月', '7月', '8月', '9月', '10月']
 const rows = months.map((month, i) => ({
   month,
@@ -11,7 +11,11 @@ const rows = months.map((month, i) => ({
   shop: 180 + ((i * 37) % 60),
 }))
 
-const palette = ['light-dark(#2f6f73, #6fb3ae)', 'light-dark(#a8744a, #d3a47c)', 'neutral']
+const palette = [
+  'color-mix(in oklab, #6fb3ae calc(100% * var(--dou-scheme-dark)), #2f6f73)',
+  'color-mix(in oklab, #d3a47c calc(100% * var(--dou-scheme-dark)), #a8744a)',
+  'neutral',
+]
 </script>
 
 <template>

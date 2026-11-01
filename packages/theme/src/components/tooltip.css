@@ -7,14 +7,22 @@
  */
 @layer dou.components {
   .dou-tooltip {
-    --dou-tooltip-bg: light-dark(
-      var(--dou-color-neutral),
+    --dou-tooltip-bg: color-mix(
+      in oklab,
       color-mix(in oklab, var(--dou-color-text) 12%, var(--dou-color-bg-surface))
+        calc(100% * var(--dou-scheme-dark)),
+      var(--dou-color-neutral)
     );
-    --dou-tooltip-color: light-dark(var(--dou-color-neutral-on), var(--dou-color-text));
-    --dou-tooltip-border: light-dark(
-      var(--dou-color-neutral),
+    --dou-tooltip-color: color-mix(
+      in oklab,
+      var(--dou-color-text) calc(100% * var(--dou-scheme-dark)),
+      var(--dou-color-neutral-on)
+    );
+    --dou-tooltip-border: color-mix(
+      in oklab,
       color-mix(in oklab, var(--dou-color-text) 6%, var(--dou-color-border-strong))
+        calc(100% * var(--dou-scheme-dark)),
+      var(--dou-color-neutral)
     );
     --dou-tooltip-max-width: 280px;
 

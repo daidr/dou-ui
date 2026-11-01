@@ -68,7 +68,11 @@ export interface FormBuilderInspectorSection {
   key: string
   /** The heading over it. */
   title: string
-  /** Rendered with `props`; it can call `useFormBuilder()`. */
+  /**
+   * Rendered with `props`; it can call `useFormBuilder()`. It is not made
+   * read-only for you: read `useFormBuilder().readonly` and do not change
+   * the form while it is `true`.
+   */
   component: Component
   props?: Record<string, unknown>
 }
@@ -91,7 +95,8 @@ export interface FormBuilderExtension {
    * written as text), e.g. with the code input of
    * `@dou-ui/form-builder/code`. It gets the built-in box's props:
    * `modelValue`, `names`, `itemNames`, `readsValue`, `placeholder`,
-   * `disabled`, and emits `update:modelValue`. The first one by priority
+   * `disabled`, `readonly` (the builder's `readonly`), and emits
+   * `update:modelValue`. The first one by priority
    * is used.
    */
   expressionInput?: Component

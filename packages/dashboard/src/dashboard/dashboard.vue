@@ -1,6 +1,15 @@
 <script setup lang="ts">
 import { LayoutGridPlusIcon } from '@dou-ui/icons'
-import { DouDialog, DouDrawer, DouEmpty, DouInput, matchesHotkey } from 'dou-ui'
+import type { SheetExporter, SheetWorkbook } from '@dou-ui/sheet/core'
+import {
+  DouDialog,
+  DouDrawer,
+  DouEmpty,
+  DouInput,
+  downloadBlob,
+  matchesHotkey,
+  useLocale,
+} from 'dou-ui'
 import {
   computed,
   nextTick,
@@ -8,6 +17,7 @@ import {
   onMounted,
   provide,
   ref,
+  shallowReactive,
   shallowRef,
   toRaw,
   watch,
@@ -43,7 +53,14 @@ import type { GridItem, GridLayoutOptions } from '../layout/types'
 import { format, useDashboardMessages } from '../locale'
 import { DEFAULT_WIDGET_SIZE, defaultPropsOf } from '../widget/define'
 import type { DashboardWidgetType } from '../widget/define'
-import type { DashboardAddOptions, DashboardEmits, DashboardExpose, DashboardProps } from './types'
+import type {
+  DashboardAddOptions,
+  DashboardEmits,
+  DashboardExportErrorEvent,
+  DashboardExportOptions,
+  DashboardExpose,
+  DashboardProps,
+} from './types'
 import { createObservers, observersKey } from './observers'
 import { elementToPNG } from './export'
 import type { DashboardImageOptions } from './export'
@@ -51,7 +68,7 @@ import WidgetBody from './widget-body.vue'
 import WidgetFrame from './widget-frame.vue'
 import WidgetSettings from './widget-settings.vue'
 import { frameContextKey } from './frame-context'
-import type { WidgetAction } from './frame-context'
+import type { FrameExporter, WidgetAction } from './frame-context'
 
 defineOptions({ name: 'DouDashboard' })
 
@@ -603,7 +620,117 @@ provide(frameContextKey, {
   linked: (id) => linksByWidget.value.get(id) ?? NO_LINKS,
   clearFilter: (key) => setFilter(undefined, key, undefined),
   peers: (id) => props.collaboration?.peers?.(id) ?? NO_PEERS,
+  setWorkbook,
+  exporters: (id) => (workbooks.has(id) ? exporterList.value : NO_EXPORTERS),
+  exportTo: (id, name) => void downloadWidget(id, name),
+  exportError: (id) => exportErrors.get(id),
+  clearExportError: (id) => exportErrors.delete(id),
 })
+
+// ---------------------------------------------------------------------------
+// Exporting a widget's content as a file
+
+/** How each mounted widget gives its content as a workbook; see `setWorkbook`. */
+const workbooks = shallowReactive(new Map<string, () => SheetWorkbook | undefined>())
+function setWorkbook(id: string, get: () => SheetWorkbook | undefined) {
+  workbooks.set(id, get)
+  return () => {
+    if (workbooks.get(id) === get) workbooks.delete(id)
+  }
+}
+
+// the file code comes with the first exporter, in a chunk of its own
+type SheetCore = typeof import('@dou-ui/sheet/core')
+const sheetCore = shallowRef<SheetCore>()
+let loadingCore: Promise<SheetCore> | undefined
+function loadSheetCore() {
+  loadingCore ??= import('@dou-ui/sheet/core').then((core) => (sheetCore.value = core))
+  return loadingCore
+}
+watch(
+  () => props.exporters?.length,
+  (count) => count && void loadSheetCore(),
+  { immediate: true },
+)
+
+const NO_EXPORTERS: FrameExporter[] = []
+const { locale } = useLocale()
+/** The exporters of the menu, without those that draw a sheet's grid. */
+const exporterList = computed<FrameExporter[]>(() => {
+  const core = sheetCore.value
+  if (!core) return NO_EXPORTERS
+  const sheetMessages = core.sheetMessagesFor(locale.value.name)
+  return (props.exporters ?? [])
+    .filter((exporter) => exporter.needs !== 'view')
+    .map((exporter) => ({
+      name: exporter.name,
+      label: typeof exporter.label === 'function' ? exporter.label(sheetMessages) : exporter.label,
+      icon: exporter.icon,
+    }))
+})
+
+function exporterOf(exporter: string | SheetExporter) {
+  if (typeof exporter !== 'string') return exporter
+  const found = props.exporters?.find((item) => item.name === exporter)
+  if (!found) throw new RangeError(`[@dou-ui/dashboard] there is no exporter "${exporter}"`)
+  return found
+}
+
+/**
+ * A widget's content as a file: its workbook written by the exporter, a
+ * name from `exporters` or an exporter itself.
+ */
+async function exportWidget(
+  id: string,
+  exporter: string | SheetExporter,
+  options: DashboardExportOptions = {},
+): Promise<Blob> {
+  const chosen = exporterOf(exporter)
+  const widget = widgetMap.value.get(id)
+  if (!widget) throw new RangeError(`[@dou-ui/dashboard] there is no widget "${id}"`)
+  const get = workbooks.get(id)
+  const book = get?.()
+  if (!book)
+    throw new Error(
+      `[@dou-ui/dashboard] the widget "${id}" has nothing to export while it isn't shown`,
+    )
+  const core = await loadSheetCore()
+  return core.exportWorkbook(book, chosen, {
+    options: options.options,
+    signal: options.signal,
+    locale: locale.value.name,
+  })
+}
+
+/** Why the last export from each widget's menu failed, shown in its title bar until closed. */
+const exportErrors = shallowReactive(new Map<string, string>())
+
+async function downloadWidget(id: string, name: string) {
+  exportErrors.delete(id)
+  const widget = widgetMap.value.get(id)
+  const exporter = props.exporters?.find((item) => item.name === name)
+  if (!widget || !exporter) return
+  try {
+    const blob = await exportWidget(id, exporter)
+    const title = titleOf(widget).trim() || widget.type
+    downloadBlob(blob, `${title}.${exporter.extension}`)
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error)
+    const event: DashboardExportErrorEvent = {
+      widget: id,
+      exporter: name,
+      error,
+      message: format(messages.value.exportFailed, { reason }),
+      defaultPrevented: false,
+      preventDefault() {
+        this.defaultPrevented = true
+      },
+    }
+    emit('export-error', event)
+    if (!event.defaultPrevented) exportErrors.set(id, event.message)
+    say(event.message)
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Data and filters
@@ -872,6 +999,7 @@ defineExpose<DashboardExpose>({
   clearFilters,
   refresh: (source) => store.reload(source),
   exportPNG,
+  exportWidget,
   print,
 })
 </script>

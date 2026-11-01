@@ -2,6 +2,7 @@
 import { AlertCircleIcon } from '@dou-ui/icons'
 import { DouButton, DouEmpty, DouSpinner } from 'dou-ui'
 import { inject, onBeforeUnmount, onMounted, ref } from 'vue'
+import type { SheetWorkbook } from '@dou-ui/sheet/core'
 import type { DashboardWidget } from '../core/types'
 import type { DashboardMessages } from '../locale'
 import { format } from '../locale'
@@ -18,6 +19,8 @@ const props = defineProps<{
   fullscreen?: boolean
   messages: DashboardMessages
   setProps: (id: string, patch: Record<string, unknown>, options?: { group?: string }) => void
+  /** Where the widget's workbook goes, for its export menu; the full-screen copy has none. */
+  setWorkbook?: (id: string, get: () => SheetWorkbook | undefined) => () => void
 }>()
 
 const body = ref<HTMLElement>()
@@ -40,6 +43,7 @@ const { status } = provideWidgetContext({
   fullscreen: () => !!props.fullscreen,
   size: { width, height },
   setProps: props.setProps,
+  setWorkbook: props.setWorkbook,
 })
 </script>
 

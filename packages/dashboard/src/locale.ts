@@ -29,6 +29,12 @@ export interface DashboardMessages {
   /** Menu items. */
   settings: string
   fullscreen: string
+  /** The menu of file types a widget's content can be exported as. */
+  export: string
+  /** A failed export, in the widget's title bar: `{reason}`. */
+  exportFailed: string
+  /** The button closing that notice. */
+  dismiss: string
   duplicate: string
   remove: string
   /** The settings drawer's title: `{title}`. */
@@ -116,6 +122,9 @@ const zhCN: DashboardMessages = {
   widgetMenu: '格子操作',
   settings: '设置',
   fullscreen: '全屏查看',
+  export: '导出',
+  exportFailed: '导出失败：{reason}',
+  dismiss: '关闭',
   duplicate: '复制一份',
   remove: '删除',
   settingsTitle: '{title}的设置',
@@ -185,6 +194,9 @@ const zhTW: DashboardMessages = {
   widgetMenu: '格子操作',
   settings: '設定',
   fullscreen: '全螢幕檢視',
+  export: '匯出',
+  exportFailed: '匯出失敗：{reason}',
+  dismiss: '關閉',
   duplicate: '複製一份',
   remove: '刪除',
   settingsTitle: '{title}的設定',
@@ -255,6 +267,9 @@ const en: DashboardMessages = {
   widgetMenu: 'Widget actions',
   settings: 'Settings',
   fullscreen: 'View full screen',
+  export: 'Export',
+  exportFailed: 'Export failed: {reason}',
+  dismiss: 'Dismiss',
   duplicate: 'Duplicate',
   remove: 'Remove',
   settingsTitle: '{title} settings',

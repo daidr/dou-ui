@@ -2,7 +2,7 @@
 import { computed, provide } from 'vue'
 import { useReducedMotion } from '../../composables/use-motion'
 import { useNamespace } from '../../utils/namespace'
-import { formKey } from './form'
+import { formKey, formShowErrorsKey } from './form'
 import type {
   FormEmits,
   FormErrors,
@@ -78,7 +78,7 @@ function clearValidate(paths?: string | string[]) {
   for (const item of pick(paths)) item.clear()
 }
 
-function setErrors(errors: Partial<FormErrors>) {
+function showErrors(errors: Partial<FormErrors>) {
   const byPath = new Map(pick().map((item) => [item.prop()!, item]))
   const missed: string[] = []
   for (const [path, message] of Object.entries(errors)) {
@@ -87,6 +87,11 @@ function setErrors(errors: Partial<FormErrors>) {
     if (item) item.setError(message ?? '')
     else if (message) missed.push(path)
   }
+  return missed
+}
+
+function setErrors(errors: Partial<FormErrors>) {
+  const missed = showErrors(errors)
   if (missed.length && process.env.NODE_ENV !== 'production')
     console.warn(
       `[dou-ui] DouForm.setErrors: no field shows ${missed.map((path) => `"${path}"`).join(', ')}. Show these errors elsewhere, e.g. above the form.`,
@@ -133,7 +138,14 @@ const classes = computed(() => [
   ns.is('readonly', props.readonly),
 ])
 
-defineExpose<FormExpose>({ validate, resetFields, clearValidate, scrollToField, setErrors })
+defineExpose<FormExpose & { [formShowErrorsKey]: typeof showErrors }>({
+  validate,
+  resetFields,
+  clearValidate,
+  scrollToField,
+  setErrors,
+  [formShowErrorsKey]: showErrors,
+})
 </script>
 
 <template>

@@ -11,8 +11,8 @@ import {
   useTemplateRef,
   watch,
 } from 'vue'
-import { DouForm } from 'dou-ui'
-import type { FormInstance, FormModel } from 'dou-ui'
+import { DouForm, formShowErrorsKey } from 'dou-ui'
+import type { FormErrors, FormInstance, FormModel } from 'dou-ui'
 import { checkVersion, cloneValue, getPath, isSteps, setPath } from '../core/document'
 import { equalValues } from '../core/expression'
 import { fillValues, visibleValues } from '../core/values'
@@ -219,6 +219,19 @@ function onReset() {
   emit('reset')
 }
 
+/** Shows errors through the form, warning in the renderer's own name about the ones it cannot show. */
+function setErrors(errors: Partial<FormErrors>) {
+  const form = formRef.value
+  const missed = form
+    ? form[formShowErrorsKey](errors)
+    : Object.keys(errors).filter((path) => errors[path])
+  if (missed.length && process.env.NODE_ENV !== 'production')
+    console.warn(
+      `[@dou-ui/form-builder] DouFormRenderer.setErrors: no field shows ${missed.map((path) => `"${path}"`).join(', ')}. Show these errors elsewhere, e.g. above the form.`,
+    )
+  return missed
+}
+
 defineExpose<FormRendererExpose>({
   get model() {
     return model.value
@@ -226,8 +239,7 @@ defineExpose<FormRendererExpose>({
   validate,
   resetFields,
   clearValidate: (names) => formRef.value?.clearValidate(names),
-  setErrors: (errors) =>
-    formRef.value?.setErrors(errors) ?? Object.keys(errors).filter((path) => errors[path]),
+  setErrors,
   scrollToField,
   reloadSource,
   getValues,

@@ -182,6 +182,7 @@ describe('setErrors', () => {
       }),
     ).toEqual(['nick', 'typo'])
     expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn.mock.calls[0]![0]).toMatch(/^\[@dou-ui\/form-builder\] DouFormRenderer\.setErrors/)
     warn.mockRestore()
   })
 

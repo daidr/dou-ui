@@ -1,3 +1,4 @@
+import { FileJsonIcon, FileTextIcon } from '@dou-ui/icons'
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
@@ -65,6 +66,17 @@ describe('exportWorkbook', () => {
       options: { bom: false },
     })
     expect(await blob.text()).toBe('场地\r\n餐饮')
+    // an exporter picked at run time, of two with different options, goes in as it is
+    const json = defineSheetExporter<{ indent?: number }>({
+      name: 'json',
+      label: 'JSON',
+      extension: 'json',
+      mime: 'application/json',
+      export: (source, o) => JSON.stringify(source.sheets[0]!.data.cells, null, o?.indent),
+    })
+    const pick = (kind: string) => (kind === 'json' ? json : csvExporter)
+    const either = await exportWorkbook(book(), pick('json'), { scope: 'sheet' })
+    expect(either.type).toBe('application/json')
     await expect(exportWorkbook(book(), csvExporter, { scope: 'workbook' })).rejects.toThrow(
       /can't export a workbook/,
     )
@@ -336,6 +348,10 @@ describe('DouSheet files', () => {
       extensions: [defineSheetExtension({ name: 'json', exporters: [jsonOut] })],
     })
     expect(context().exporters.value.map((e) => e.name)).toEqual(['csv', 'png', 'svg', 'json'])
+    // an exporter without an icon gets one for the file it writes
+    const icons = Object.fromEntries(context().exporters.value.map((e) => [e.name, e.icon]))
+    expect(icons.csv).toBe(FileTextIcon)
+    expect(icons.json).toBe(FileJsonIcon)
     expect(context().importAccept.value).toContain('.csv')
     wrapper.unmount()
     const twice = [

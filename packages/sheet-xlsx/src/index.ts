@@ -1,4 +1,3 @@
-import { FileSpreadsheetIcon } from '@dou-ui/icons'
 import type { SheetExtension, SheetLabel } from '@dou-ui/sheet'
 // only the file side of the sheet, so that a Worker writing .xlsx files loads no components
 import { defineSheetExporter } from '@dou-ui/sheet/core'
@@ -53,7 +52,6 @@ export function xlsx(options: SheetXlsxOptions = {}): SheetExtension {
       {
         ...xlsxExporter,
         label: label ?? xlsxExporter.label,
-        icon: FileSpreadsheetIcon,
         export: (source, own) => xlsxExporter.export(source, { ...defaults, ...own }),
       },
     ],

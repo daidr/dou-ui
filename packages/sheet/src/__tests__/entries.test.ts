@@ -42,14 +42,11 @@ describe('entries that load no components', () => {
     expect(loaded(resolve(packages, 'sheet/src/formula/index.ts'))).toEqual([])
   })
 
-  it("@dou-ui/sheet-xlsx's exporter needs only the file side of the sheet", () => {
+  it('@dou-ui/sheet-xlsx loads neither Vue nor the components', () => {
     const aliases = {
       '@dou-ui/sheet/core': resolve(packages, 'sheet/src/core/index.ts'),
       '@dou-ui/sheet/formula': resolve(packages, 'sheet/src/formula/index.ts'),
     }
-    // the icon only goes into the toolbar's menu, through `xlsx()`; bundlers leave it out otherwise
-    expect(new Set(loaded(resolve(packages, 'sheet-xlsx/src/index.ts'), aliases))).toEqual(
-      new Set(['@dou-ui/icons', '@dou-ui/theme']),
-    )
+    expect(loaded(resolve(packages, 'sheet-xlsx/src/index.ts'), aliases)).toEqual(['@dou-ui/theme'])
   })
 })

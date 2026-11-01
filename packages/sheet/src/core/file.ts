@@ -105,9 +105,8 @@ export interface SheetExporter<Options = any> {
   /** Its name in the toolbar's export menu. */
   label: SheetLabel
   /**
-   * Its icon in the toolbar's export menu. Give it where the exporter goes
-   * into an extension, not on the exporter itself, so that a Worker that only
-   * writes files doesn't load the icon, and Vue with it.
+   * Its icon in the toolbar's export menu; by default a file icon for its
+   * `extension`, so an exporter needn't load icons (and Vue), as in a Worker.
    */
   icon?: Component
   /** The file name's extension, without the dot, e.g. `xlsx`. */
@@ -125,6 +124,15 @@ export interface SheetExporter<Options = any> {
   /** Writes the file. A string is wrapped in a `Blob` of `mime`. */
   export: (source: SheetFileSource, options?: Options) => Blob | string | Promise<Blob | string>
 }
+
+/**
+ * The options an exporter or importer takes; for either of two, either's,
+ * so one picked at run time, e.g. by a message, can be passed as it is.
+ */
+type OptionsOf<Handler> = Handler extends
+  SheetExporter<infer Options> | SheetImporter<infer Options>
+  ? Options
+  : never
 
 /** Declares an exporter; only gives it a type. */
 export function defineSheetExporter<Options = any>(
@@ -438,10 +446,10 @@ export const toBlob = (out: Blob | string, mime: string) =>
  * Writes a workbook with an exporter, without a grid: in a script, a
  * worker or on a server. Formulas are worked out on the way.
  */
-export async function exportWorkbook<Options>(
+export async function exportWorkbook<Exporter extends SheetExporter>(
   book: SheetWorkbook,
-  exporter: SheetExporter<Options>,
-  options: SheetExportWorkbookOptions<Options> = {},
+  exporter: Exporter,
+  options: SheetExportWorkbookOptions<OptionsOf<Exporter>> = {},
 ): Promise<Blob> {
   if (exporter.needs === 'view')
     throw new Error(
@@ -489,10 +497,10 @@ export interface SheetReadWorkbookOptions<Options = any> {
 }
 
 /** Reads a file with an importer, without a grid. */
-export async function readWorkbook<Options>(
+export async function readWorkbook<Importer extends SheetImporter>(
   file: Blob,
-  importer: SheetImporter<Options>,
-  options: SheetReadWorkbookOptions<Options> = {},
+  importer: Importer,
+  options: SheetReadWorkbookOptions<OptionsOf<Importer>> = {},
 ): Promise<SheetImportResult> {
   const messages = options.messages ?? sheetMessagesFor(options.locale)
   return importer.import(

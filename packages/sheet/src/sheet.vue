@@ -59,7 +59,6 @@ import {
   SortDescendingIcon,
   SortIcon,
   CellsSplitIcon,
-  FileTextIcon,
   TrashIcon,
   UnfoldVerticalIcon,
 } from '@dou-ui/icons'
@@ -169,6 +168,7 @@ import {
   type SheetHistoryHandler,
 } from './core/extension'
 import { format } from './locale'
+import { fileIconOf } from './components/file-icons'
 import { useSheetMessages } from './use-messages'
 import { sheetToCSV, type SheetCSVWriteOptions } from './core/csv'
 import { createSheetExport, type SheetExportTarget } from './export'
@@ -2814,7 +2814,7 @@ function imageScope(source: SheetFileSource) {
 
 const exporters = computed(() =>
   mergeFileHandlers(
-    [{ ...csvExporter, icon: FileTextIcon }, pngExporter, svgExporter],
+    [csvExporter, pngExporter, svgExporter],
     resolved.value.exporters.map(({ extension, exporter }) => ({ extension, handler: exporter })),
     'exporter',
   ),
@@ -5422,7 +5422,12 @@ const context: SheetContext = {
   exportFile: exportFile as SheetExpose['exportFile'],
   saveFile: saveFile as SheetExpose['saveFile'],
   importFile,
-  exporters: computed(() => exporters.value.map((e) => exporterInfo(e, messages.value))),
+  exporters: computed(() =>
+    exporters.value.map((e) => {
+      const info = exporterInfo(e, messages.value)
+      return { ...info, icon: info.icon ?? fileIconOf(info.extension) }
+    }),
+  ),
   importers: computed(() => importers.value.map((i) => importerInfo(i, messages.value))),
   importAccept,
   toolbarItems: computed(() => resolved.value.toolbars.flatMap((items) => items(context))),

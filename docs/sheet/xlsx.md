@@ -42,7 +42,7 @@ await grid.value.saveFile('xlsx', { fileName: '门店营收.xlsx' })
 const blob = await grid.value.exportFile('xlsx', { scope: 'sheet', options: { formulas: false } })
 ```
 
-不经过组件时，把 `xlsxExporter` 交给 `exportWorkbook`，在脚本、Worker 或服务端都能用。`exportWorkbook` 从[不含组件的入口](./extensions#不含组件的入口) `@dou-ui/sheet/core` 引入，`xlsxExporter` 也不带图标，打包 Worker 时就不会带上 Vue 和组件。表格的 `col-width`、`row-height` 不是默认的 96、28 时，在这里一并传入，文件里的列宽行高才和表格一致：
+不经过组件时，把 `xlsxExporter` 交给 `exportWorkbook`，在脚本、Worker 或服务端都能用。`exportWorkbook` 从[不含组件的入口](./extensions#不含组件的入口) `@dou-ui/sheet/core` 引入，`@dou-ui/sheet-xlsx` 也不引入组件和图标，Worker 里就不会加载 Vue。表格的 `col-width`、`row-height` 不是默认的 96、28 时，在这里一并传入，文件里的列宽行高才和表格一致：
 
 ```ts
 import { exportWorkbook } from '@dou-ui/sheet/core'

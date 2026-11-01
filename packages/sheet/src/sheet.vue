@@ -4727,7 +4727,7 @@ const styleCommand = (
   icon,
   shortcut,
   enabled: writable,
-  active: () => !!styleAt(active.value)[name],
+  pressed: () => !!styleAt(active.value)[name],
   // with `true` or `false` sets it; without, switches it as the key does
   run: (_, on) => {
     if (on === undefined && name !== 'wrap') return toggleStyle(name)
@@ -4742,7 +4742,7 @@ const alignCommand = (
   label: (m) => m[label],
   icon,
   enabled: writable,
-  active: () =>
+  pressed: () =>
     (styleAt(active.value).align ?? alignOf(valueAt(active.value.row, active.value.col))) === value,
   run: () => styleSelection({ align: value }),
 })
@@ -4754,7 +4754,7 @@ const valignCommand = (
   label: (m) => m[label],
   icon,
   enabled: writable,
-  active: () => (styleAt(active.value).valign ?? 'middle') === value,
+  pressed: () => (styleAt(active.value).valign ?? 'middle') === value,
   run: () => styleSelection({ valign: value === 'middle' ? undefined : value }),
 })
 
@@ -4822,7 +4822,7 @@ const builtinCommands: Record<string, SheetCommand> = {
     label: (m) => (merged.value ? m.unmergeCells : m.mergeCells),
     icon: CellsMergeIcon,
     enabled: () => writable() && (merged.value || canMerge.value),
-    active: () => merged.value,
+    pressed: () => merged.value,
     run: () => (merged.value ? unmergeSelection() : mergeSelection()),
   },
   'sort.asc': {
@@ -4842,7 +4842,7 @@ const builtinCommands: Record<string, SheetCommand> = {
     icon: FilterIcon,
     shortcut: 'mod+shift+l',
     enabled: writable,
-    active: () => !!sheet.value.filter,
+    pressed: () => !!sheet.value.filter,
     run: () => toggleFilter(),
   },
   clear: {
@@ -4986,7 +4986,9 @@ const keymaps = computed(() =>
 
 let cleanups: (() => void)[] = []
 function setupExtensions() {
-  // reads the keys now, so a key naming a command that isn't there is found at once
+  // puts the commands together and reads the keys now, so a clash or a key
+  // naming a command that isn't there is found at once, not on a key press
+  void commandMap.value
   void keymaps.value
   for (const cleanup of cleanups) cleanup()
   cleanups = []
@@ -5044,6 +5046,7 @@ function editNoteTarget(target?: SheetCellTarget) {
 }
 
 defineExpose<SheetExpose>({
+  commands,
   transact: (run, meta) => transact(run, meta),
   undo: () => travel('undo'),
   redo: () => travel('redo'),

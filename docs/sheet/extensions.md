@@ -133,35 +133,37 @@ const today = defineSheetExtension({
 })
 ```
 
-| 名称       | 说明                                                                             | 类型                                                 |
-| ---------- | -------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| `label`    | 名字，显示在菜单和提示里；写成函数时跟着语言变化                                 | `string \| ((messages) => string)`                   |
-| `icon`     | 图标                                                                             | `Component`                                          |
-| `shortcut` | 显示在旁边的快捷键，只是提示，按键要在 `keymap` 里绑定                           | `string`                                             |
-| `run`      | 执行命令，`arg` 是调用时传入的参数；返回 `false` 表示没做任何事                  | `(ctx, arg?) => boolean \| void \| Promise<unknown>` |
-| `enabled`  | 现在能不能执行，不能时按钮和菜单项变灰，默认总是可以                             | `(ctx) => boolean`                                   |
-| `active`   | 开关类命令现在是否打开，比如当前单元格是否加粗；有它时工具栏按钮是可以按下的开关 | `(ctx) => boolean`                                   |
-| `override` | 替换同名的内置命令；没有它时和内置命令重名会抛出错误，以免无意中替换             | `boolean`                                            |
+| 名称       | 说明                                                                                                                     | 类型                                                 |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------- |
+| `label`    | 名字，显示在菜单和提示里；写成函数时跟着语言变化                                                                         | `string \| ((messages) => string)`                   |
+| `icon`     | 图标                                                                                                                     | `Component`                                          |
+| `shortcut` | 显示在旁边的快捷键，只是提示，按键要在 `keymap` 里绑定                                                                   | `string`                                             |
+| `run`      | 执行命令，`arg` 是 `commands.run(name, arg)` 传入的参数，工具栏、菜单和快捷键调用时没有参数；返回 `false` 表示没做任何事 | `(ctx, arg?) => boolean \| void \| Promise<unknown>` |
+| `enabled`  | 现在能不能执行，不能时按钮和菜单项变灰，默认总是可以                                                                     | `(ctx) => boolean`                                   |
+| `pressed`  | 开关类命令现在是否打开，比如当前单元格是否加粗；有它时工具栏按钮是可以按下的开关                                         | `(ctx) => boolean`                                   |
+| `override` | 替换同名的内置命令；没有它时和内置命令重名会抛出错误，以免无意中替换                                                     | `boolean`                                            |
 
 命令名建议以扩展名开头，比如 `today.insert`。两个扩展登记了同名命令时会抛出错误。`keymap` 里写了不存在的命令名时，表格挂载时就会抛出错误。
 
+参数要写成可选的，比如 `run: (ctx, rate?: number) => …`，没有传时用默认值。异步命令（返回 `Promise`）的错误要在命令里自己处理，表格不会等它结束，也不会替你捕获。
+
 只读时表格不会替扩展的命令禁用：修改表格的命令要自己在 `enabled` 里判断 `readonly`，像上面那样；打印、导出这类不改表格的命令在只读表格里照常可用。
 
-表格自带的功能也是命令，工具栏按钮和快捷键都通过它们执行。用 `override` 替换后，快捷键和工具栏按钮都会运行新的实现。只有一个按钮的工具（`undo`、`redo`、`bold`、`italic`、`underline`、`strike`、`wrap`、`merge`、`filter`、`clear`）会按新命令的文字、图标和 `active` 显示；对齐、垂直对齐、小数位和排序这类组合工具保持原来的外观，只用新命令的 `run`、`enabled` 和 `active`：
+表格自带的一部分功能登记成了命令（见下表），这些功能的工具栏按钮和快捷键都通过命令执行；数字格式、颜色、冻结、条件格式和数据验证这些工具不是命令。用 `override` 替换后，快捷键和工具栏按钮都会运行新的实现。只有一个按钮的工具（`undo`、`redo`、`bold`、`italic`、`underline`、`strike`、`wrap`、`merge`、`filter`、`clear`）会按新命令的文字、图标和 `pressed` 显示；对齐、垂直对齐、小数位和排序这类组合工具保持原来的外观，只用新命令的 `run`、`enabled` 和 `pressed`：
 
-| 命令                                            | 作用                                            |
-| ----------------------------------------------- | ----------------------------------------------- |
-| `undo`、`redo`                                  | 撤销、重做                                      |
-| `cut`、`copy`、`paste`                          | 剪切、复制、粘贴                                |
-| `bold`、`italic`、`underline`、`strike`、`wrap` | 切换样式；传 `true` 或 `false` 时直接设为开或关 |
-| `align.left`、`align.center`、`align.right`     | 水平对齐                                        |
-| `valign.top`、`valign.middle`、`valign.bottom`  | 垂直对齐                                        |
-| `decimals.more`、`decimals.fewer`               | 增加、减少小数位数                              |
-| `merge`                                         | 合并选区，选区碰到合并单元格时取消合并          |
-| `sort.asc`、`sort.desc`                         | 按当前列升序、降序排序                          |
-| `filter`                                        | 加上或去掉筛选                                  |
-| `clear`                                         | 清除格式                                        |
-| `print`                                         | 打印当前工作表                                  |
+| 命令                                            | 作用                                                           |
+| ----------------------------------------------- | -------------------------------------------------------------- |
+| `undo`、`redo`                                  | 撤销、重做                                                     |
+| `cut`、`copy`、`paste`                          | 剪切、复制、粘贴                                               |
+| `bold`、`italic`、`underline`、`strike`、`wrap` | 切换样式；传 `true` 或 `false` 时直接设为开或关                |
+| `align.left`、`align.center`、`align.right`     | 水平对齐                                                       |
+| `valign.top`、`valign.middle`、`valign.bottom`  | 垂直对齐                                                       |
+| `decimals.more`、`decimals.fewer`               | 增加、减少小数位数                                             |
+| `merge`                                         | 合并选区，选区碰到合并单元格时取消合并                         |
+| `sort.asc`、`sort.desc`                         | 按当前列升序、降序排序                                         |
+| `filter`                                        | 加上或去掉筛选                                                 |
+| `clear`                                         | 清除格式（样式和数字格式），值不变；不是右键菜单里的“清除内容” |
+| `print`                                         | 打印当前工作表                                                 |
 
 在扩展或组件里用 `useSheet().commands` 执行和查询命令：
 
@@ -170,29 +172,31 @@ const { commands } = useSheet()
 
 commands.run('bold', true) // 加粗选区
 commands.can('merge') // 现在能否合并
-commands.active('filter') // 是否有筛选
+commands.pressed('filter') // 是否有筛选
 commands.get('today.insert') // { name, label, icon, shortcut, toggle }
 ```
 
-`run` 在命令不能执行或没做任何事时返回 `false`，异步命令开始执行就返回 `true`。命令名不存在时抛出错误。
+`run` 在命令不能执行或没做任何事时返回 `false`，异步命令开始执行就返回 `true`。命令名不存在时抛出错误。组件实例上也有同样的 `commands`，表格外的菜单栏可以通过 `ref` 调用。
 
 ## 工具栏按钮
 
 扩展的 `toolbar` 返回 `DouSheetToolbar` 上的按钮。没有指定 `tools` 时，它们作为最后一组排在内置按钮后面；指定了 `tools` 时，在里面写按钮的 `key` 决定位置。`tools` 里也可以直接写任何命令名，比如 `'print'`，会显示成一个按钮。按钮的 `key` 和内置工具同名，或者两个按钮的 `key` 相同时，会抛出错误。
 
-| 名称       | 说明                                                               | 类型              |
-| ---------- | ------------------------------------------------------------------ | ----------------- |
-| `key`      | 在工具栏里唯一，`tools` 用它指定位置                               | `string`          |
-| `command`  | 运行的命令；文字、图标、快捷键提示和状态都从命令来，下面写了的优先 | `string`          |
-| `label`    | 读屏和提示里的名字；没有图标时直接显示文字                         | `string`          |
-| `icon`     | 图标                                                               | `Component`       |
-| `run`      | 点击时执行，没有 `command` 时需要                                  | `() => void`      |
-| `disabled` | 是否不可用                                                         | `boolean`         |
-| `pressed`  | 开关按钮是否按下；命令有 `active` 时自动跟随                       | `boolean`         |
-| `shortcut` | 提示里显示的快捷键                                                 | `string`          |
-| `children` | 有它时按钮打开一个菜单，菜单项和右键菜单的一样，也可以写 `command` | `SheetMenuItem[]` |
+| 名称       | 说明                                                                 | 类型              |
+| ---------- | -------------------------------------------------------------------- | ----------------- |
+| `key`      | 在工具栏里唯一，`tools` 用它指定位置                                 | `string`          |
+| `command`  | 运行的命令；文字、图标、快捷键提示和状态都从命令来，下面写了的优先   | `string`          |
+| `label`    | 读屏和提示里的名字；没有图标时直接显示文字                           | `string`          |
+| `icon`     | 图标                                                                 | `Component`       |
+| `run`      | 点击时执行，没有 `command` 时需要                                    | `() => void`      |
+| `disabled` | 是否不可用；不写时看命令的 `enabled`。只读表格不会自动禁用扩展的按钮 | `boolean`         |
+| `pressed`  | 开关按钮是否按下；命令有 `pressed` 时自动跟随                        | `boolean`         |
+| `shortcut` | 提示里显示的快捷键                                                   | `string`          |
+| `children` | 有它时按钮打开一个菜单，菜单项和右键菜单的一样，也可以写 `command`   | `SheetMenuItem[]` |
 
-右键菜单项同样可以只写 `{ key, command }`，`label`、`icon`、`shortcut`、`disabled` 和 `run` 不写时从命令来。
+按钮既没有 `label` 也没有 `command` 时显示 `key`，没有 `run`、`command` 和 `children` 时点击不做任何事，开发时两种情况都会在控制台警告一次。
+
+右键菜单项同样可以只写 `{ key, command }`，`label`、`icon`、`shortcut`、`disabled` 和 `run` 不写时从命令来。`menu` 属性收到的菜单项已经补全，`label` 一定有值。
 
 ## 快捷键
 

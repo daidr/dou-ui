@@ -2,6 +2,7 @@ import type { Component } from 'vue'
 import type { SheetCellTarget, SheetRange } from './core/address'
 import type { SheetClip } from './core/clipboard'
 import type { SheetCSVWriteOptions } from './core/csv'
+import type { SheetCommands } from './core/commands'
 import type { SheetExtension } from './core/extension'
 import type { SheetValidation, SheetWorkbook } from './core/model'
 import type { SheetSelection } from './core/selection'
@@ -197,6 +198,8 @@ export interface SheetEmits {
 }
 
 export interface SheetExpose {
+  /** The commands, built in and added: run them, or read their state, e.g. from a menu bar outside the grid. */
+  commands: SheetCommands
   /**
    * Makes a change: `run` adds steps to the transaction, which is applied
    * and recorded for undo as one. Cells without a sheet (`'A5'`) are on

@@ -28,7 +28,7 @@ export interface SheetCommand<Arg = any> {
   /** Whether it can be run now; greyed out in menus and the toolbar when not. Defaults to `true`. */
   enabled?: (context: SheetContext) => boolean
   /** For a command that turns something on and off: whether it is on, e.g. bold for a bold cell. */
-  active?: (context: SheetContext) => boolean
+  pressed?: (context: SheetContext) => boolean
   /**
    * Lets it replace the built-in command of the same name. Without it, a
    * name the sheet already has is an error, so a command isn't replaced by accident.
@@ -47,7 +47,7 @@ export interface SheetCommandInfo {
   label: string
   icon?: Component
   shortcut?: string
-  /** Whether it turns something on and off (it has `active`). */
+  /** Whether it turns something on and off (it has `pressed`). */
   toggle: boolean
   /** Whether it is the sheet's own, not added or replaced by an extension. */
   builtin: boolean
@@ -64,7 +64,7 @@ export interface SheetCommands {
   /** Whether a command is there and can be run now. */
   can: (name: string) => boolean
   /** Whether a command that turns something on and off is on. */
-  active: (name: string) => boolean
+  pressed: (name: string) => boolean
   /** A command's label, icon and shortcut, or `undefined` when there is none by that name. */
   get: (name: string) => SheetCommandInfo | undefined
   /** Whether there is a command by that name. */
@@ -126,7 +126,7 @@ export function createCommands(
       return command.run(ctx, arg) !== false
     },
     can,
-    active: (name) => !!commands().get(name)?.active?.(context()),
+    pressed: (name) => !!commands().get(name)?.pressed?.(context()),
     get(name) {
       const command = commands().get(name)
       if (!command) return undefined
@@ -135,7 +135,7 @@ export function createCommands(
         label: labelOf(command.label, context().messages.value),
         icon: command.icon,
         shortcut: command.shortcut,
-        toggle: !!command.active,
+        toggle: !!command.pressed,
         builtin: builtin[name] === command,
       }
     },

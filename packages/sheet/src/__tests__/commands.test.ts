@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import {
   defineSheetCommand,
@@ -9,6 +9,7 @@ import {
   resolveSheetExtensions,
   useSheet,
   type SheetContext,
+  type SheetExpose,
   type SheetExtension,
   type SheetSelection,
   type SheetWorkbook,
@@ -68,16 +69,16 @@ describe('commands', () => {
     const { wrapper, doc, context } = setup()
     const { commands } = context()
     expect(commands.has('bold')).toBe(true)
-    expect(commands.active('bold')).toBe(false)
+    expect(commands.pressed('bold')).toBe(false)
     expect(commands.run('bold')).toBe(true)
     await nextTick()
-    expect(commands.active('bold')).toBe(true)
+    expect(commands.pressed('bold')).toBe(true)
     const style = (doc.value.sheets[0]!.cells[1]![0] as { style: string }).style
     expect(doc.value.styles![style]).toEqual({ bold: true })
     // `false` sets it off whatever it was
     commands.run('bold', false)
     await nextTick()
-    expect(commands.active('bold')).toBe(false)
+    expect(commands.pressed('bold')).toBe(false)
     expect(commands.get('merge')).toMatchObject({ label: '合并单元格', toggle: true })
     expect(commands.names()).toContain('sort.asc')
     expect(() => commands.run('nope')).toThrow(/no command "nope"/)
@@ -210,7 +211,7 @@ describe('commands', () => {
     const loud = defineSheetExtension({
       name: 'loud',
       commands: {
-        bold: { label: '强调', override: true, active: () => true, run: () => {} },
+        bold: { label: '强调', override: true, pressed: () => true, run: () => {} },
       },
     })
     const { wrapper, button } = setup({ extensions: [loud] })
@@ -223,5 +224,32 @@ describe('commands', () => {
     const typo = defineSheetExtension({ name: 'typo', keymap: () => ({ 'mod+k': 'nope.go' }) })
     expect(() => setup({ extensions: [typo] })).toThrow(/"mod\+k" runs no command: "nope.go"/)
     document.body.innerHTML = ''
+  })
+
+  it('finds clashing commands when the grid mounts', () => {
+    const twice = [
+      { name: 'a', commands: { 'x.go': { label: 'a', run: () => {} } } },
+      { name: 'b', commands: { 'x.go': { label: 'b', run: () => {} } } },
+    ]
+    expect(() => setup({ extensions: twice })).toThrow(/both "a" and "b"/)
+    document.body.innerHTML = ''
+  })
+
+  it('has the commands on the component instance too', () => {
+    const { wrapper } = setup()
+    const sheet = wrapper.findComponent(DouSheet).vm as unknown as SheetExpose
+    expect(sheet.commands.can('bold')).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('warns once about an item that shows its key or does nothing', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const blank = defineSheetExtension({ name: 'blank', toolbar: () => [{ key: 'blank' }] })
+    const { wrapper } = setup({ extensions: [blank] })
+    const said = warn.mock.calls.map((call) => String(call[0]))
+    expect(said.some((text) => /"blank" has no label or command/.test(text))).toBe(true)
+    expect(said.some((text) => /"blank" has no run, command or children/.test(text))).toBe(true)
+    warn.mockRestore()
+    wrapper.unmount()
   })
 })

@@ -6,7 +6,6 @@ import type { SheetData, SheetSortOrder, SheetStyle, SheetValue, SheetWorkbook }
 import type { SheetResult } from './formula/values'
 import type { SheetSelection } from './core/selection'
 import type { SheetStylePatch } from './core/transaction'
-import type { SheetCommands } from './core/commands'
 import type { SheetMessages } from './locale'
 import type { SheetExpose, SheetToolbarItem } from './types'
 
@@ -106,7 +105,7 @@ export interface SheetContext {
   /** Says `text` to screen readers. */
   announce: (text: string) => void
   /** What the sheet can do by name, built in and added by extensions: run them, or read their state. */
-  commands: SheetCommands
+  commands: SheetExpose['commands']
   /** The items extensions add to the toolbar, in priority order. */
   toolbarItems: ComputedRef<SheetToolbarItem[]>
   /** The cell being edited, for inputs outside the grid such as the formula bar. */

@@ -152,7 +152,7 @@ function extraTool(item: SheetToolbarItem): ExtraTool {
     label: item.label ?? info?.label ?? item.key,
     icon: item.icon ?? info?.icon,
     shortcut: item.shortcut ?? info?.shortcut,
-    pressed: item.pressed ?? (name && info!.toggle ? sheet.commands.active(name) : undefined),
+    pressed: item.pressed ?? (name && info!.toggle ? sheet.commands.pressed(name) : undefined),
     disabled: item.disabled ?? (name ? !sheet.commands.can(name) : false),
     run: item.run ?? (name ? () => void sheet.commands.run(name) : undefined),
     children: item.children,
@@ -166,10 +166,28 @@ const extensionItems = computed(() => {
       throw new Error(
         `[@dou-ui/sheet] the toolbar item "${item.key}" is added twice, or has the name of a built-in tool`,
       )
+    warnOnce(item)
     map.set(item.key, item)
   }
   return map
 })
+
+// by key: extensions often give new item objects on every update
+const warned = new Set<string>()
+/** Says once when an item can't show a name or does nothing when pressed. */
+function warnOnce(item: SheetToolbarItem) {
+  // the app's bundler replaces this, as for Vue's own warnings
+  if (process.env.NODE_ENV === 'production' || warned.has(item.key)) return
+  warned.add(item.key)
+  if (!item.command && !item.label)
+    console.warn(
+      `[@dou-ui/sheet] the toolbar item "${item.key}" has no label or command, so it shows its key`,
+    )
+  if (!item.command && !item.run && !item.children?.length)
+    console.warn(
+      `[@dou-ui/sheet] the toolbar item "${item.key}" has no run, command or children: pressing it does nothing`,
+    )
+}
 
 /**
  * Built-in tools of one button that an extension's command replaced: they
@@ -225,7 +243,7 @@ function run(name: string, arg?: unknown) {
   done()
 }
 const can = (name: string) => sheet.commands.can(name)
-const on = (name: string) => sheet.commands.active(name)
+const on = (name: string) => sheet.commands.pressed(name)
 
 function runExtra(item: ExtraTool) {
   item.run?.()
@@ -242,6 +260,10 @@ const childLabel = (child: SheetMenuItem) =>
   (child.command ? (sheet.commands.get(child.command)?.label ?? child.key) : child.key)
 const childIcon = (child: SheetMenuItem) =>
   child.icon ?? (child.command ? sheet.commands.get(child.command)?.icon : undefined)
+const childShortcut = (child: SheetMenuItem) =>
+  child.shortcut ?? (child.command ? sheet.commands.get(child.command)?.shortcut : undefined)
+// shortcuts mean nothing without a keyboard, as in the right-click menu
+const coarse = () => typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches
 const childDisabled = (child: SheetMenuItem) =>
   child.disabled ?? (child.command ? !sheet.commands.can(child.command) : false)
 
@@ -661,6 +683,7 @@ onBeforeUnmount(() => observer?.disconnect())
                           :disabled="childDisabled(grand)"
                           :divided="grand.divided"
                           :tone="grand.tone"
+                          :shortcut="coarse() ? undefined : childShortcut(grand)"
                           @click="runChild(grand)"
                         >
                           <template v-if="childIcon(grand)" #prefix>
@@ -674,6 +697,7 @@ onBeforeUnmount(() => observer?.disconnect())
                         :disabled="childDisabled(child)"
                         :divided="child.divided"
                         :tone="child.tone"
+                        :shortcut="coarse() ? undefined : childShortcut(child)"
                         @click="runChild(child)"
                       >
                         <template v-if="childIcon(child)" #prefix>

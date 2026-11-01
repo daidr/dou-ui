@@ -175,7 +175,7 @@ sheet.value.transact((tr) => {
 
 步骤里的工作表用 `id` 记录，没有 `id` 时用名字，所以在另一端应用时不受工作表顺序影响。
 
-组件实例上还有 `select('B2:C4')` 选中并滚动到区域（也可以是 `'B:B'`、`'3:3'`）、`scrollTo('H200')`、`edit('B2')` 打开编辑框、`editNote('B2')` 打开批注输入框、`focus()`、`showSheet(sheet)` 切换工作表和 `toCSV(options?)`。
+组件实例上的 `commands` 可以执行和查询[命令](./extensions#命令)，比如 `sheetRef.value.commands.run('bold')`。组件实例上还有 `select('B2:C4')` 选中并滚动到区域（也可以是 `'B:B'`、`'3:3'`）、`scrollTo('H200')`、`edit('B2')` 打开编辑框、`editNote('B2')` 打开批注输入框、`focus()`、`showSheet(sheet)` 切换工作表和 `toCSV(options?)`。
 
 ## 复制与粘贴
 

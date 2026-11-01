@@ -48,7 +48,9 @@ import {
   ColumnUngroupIcon,
   CopyIcon,
   EraserIcon,
+  MessageCircleIcon,
   MessagePlusIcon,
+  MessagesIcon,
   MessageTextIcon,
   MessageXIcon,
   EyeIcon,
@@ -111,6 +113,7 @@ import { fillContinues, type SheetFillMode } from './core/fill'
 import { SheetAxis } from './core/axis'
 import { mergesOf, type SheetMerges } from './core/merge'
 import { groupRange, groupsOf, SheetGroups, OUTLINE_LANE, type SheetGroupLines } from './core/group'
+import SheetComment from './components/sheet-comment.vue'
 import SheetNote from './components/sheet-note.vue'
 import SheetLink from './components/sheet-link.vue'
 import SheetOutline from './components/sheet-outline.vue'
@@ -125,6 +128,8 @@ import {
 } from './core/format'
 import { createCommands, labelOf, mergeCommands, type SheetCommand } from './core/commands'
 import { SheetHistory, type SheetHistoryView } from './core/history'
+import { keepCommentAnchors, sheetCommentAnchors } from './core/comments'
+import { diffWorkbooks, restoreWorkbook, type SheetCellChange } from './core/versions'
 import { SheetFormulaEngine } from './formula/engine'
 import {
   argNameAt,
@@ -204,6 +209,7 @@ import {
 } from './core/extension'
 import { format } from './locale'
 import { useSheetMessages } from './use-messages'
+import { useSheetComments } from './use-comments'
 import { sheetToCSV, type SheetCSVWriteOptions } from './core/csv'
 import { createSheetExport, type SheetExportTarget } from './export'
 import {
@@ -260,9 +266,16 @@ const props = withDefaults(defineProps<SheetProps>(), {
   menu: undefined,
   extensions: () => [],
   fileDrop: false,
+  comments: undefined,
+  author: undefined,
+  activeComment: undefined,
+  commentable: true,
+  compare: undefined,
 })
 const emit = defineEmits<SheetEmits>()
 defineSlots<SheetSlots>()
+/** Nothing can be changed: read-only, or showing what changed since an older version. */
+const viewOnly = computed(() => props.readonly || !!props.compare)
 
 const messages = useSheetMessages(() => props.messages)
 const { locale, t: common } = useLocale()
@@ -602,7 +615,7 @@ watch(filterKey, () => (filteredRows.value = rowsFilteredOut()), {
  */
 const viewFolds = shallowRef<ReadonlyMap<string, boolean>>(new Map())
 watch(
-  () => props.readonly,
+  () => viewOnly.value,
   () => (viewFolds.value = new Map()),
 )
 const foldKey = (data: SheetData, range: string) => `${sheetKey(data)}\u0000${range}`
@@ -1135,6 +1148,10 @@ interface CellView {
   invalid?: boolean
   /** The cell's note, which the other corner's mark shows. */
   note?: string
+  /** Whether the cell has a thread to show, which a mark under the note's shows. */
+  comment?: boolean
+  /** Comparing with an older version: what the cell held then, in words. */
+  was?: string
   /** Left out for screen readers: a cell under a merge, or a merge's piece in another pane. */
   hidden?: boolean
   rowspan?: number
@@ -1275,7 +1292,7 @@ function cellView(
       }
       if (definition.render) {
         render = definition.render
-        renderProps = { value, text, setup, readonly: props.readonly }
+        renderProps = { value, text, setup, readonly: viewOnly.value }
         label = cellText(input, { sheet: on.key, row, col })
       }
       // pictures only, where the grid draws the component; errors and empty cells show as text
@@ -1323,7 +1340,17 @@ function cellView(
   if (drawBox) view.draw = drawBox
   if (problem) view.problem = problem
   if (invalid) view.invalid = true
-  if (input && typeof input === 'object' && input.note) view.note = input.note
+  if (input && typeof input === 'object') {
+    if (input.note) view.note = input.note
+    if (input.comment && comments.isOpen(comments.byId.value.get(input.comment)))
+      view.comment = true
+  }
+  // comparing with an older version: what the cell held then
+  const changed = compared.value?.get(`${row}:${col}`)
+  if (changed) {
+    view.cls += ' is-changed'
+    view.was = wasText(changed)
+  }
   return view
 }
 
@@ -1394,7 +1421,10 @@ function addMergedCells(row: number, list: number[], views: CellView[]) {
       view.hidden = true
     }
     // the note's mark is in the top right corner of the whole merge
-    if (right !== m.right || paneTop !== m.top) view.note = undefined
+    if (right !== m.right || paneTop !== m.top) {
+      view.note = undefined
+      view.comment = undefined
+    }
     view.cls += ' is-merged'
     view.key = `m${m.left}`
     if (home && active.value.row === m.top && active.value.col === m.left) view.id = activeId.value
@@ -1446,7 +1476,10 @@ const memoBase = computed(() => [
   engineId.value,
   doc.value.types,
   cellTypes.value,
-  props.readonly,
+  viewOnly.value,
+  // which threads show a mark
+  comments.byId.value,
+  compared.value,
 ])
 
 /** The selection as it touches one row. */
@@ -1631,8 +1664,10 @@ function transact(
   /** Made by the app's code, not by someone using the grid: `readonly` doesn't stop it. */
   fromCode = false,
 ) {
-  // a change kept out of the history, such as another person's, still reaches a read-only grid
-  if (props.readonly && !fromCode && meta?.history !== false) return null
+  // a change kept out of the history, such as another person's, still reaches a read-only grid;
+  // comparing, nothing but restoring changes it, not even code
+  if (meta?.history !== false && ((props.readonly && !fromCode) || (props.compare && !restoring)))
+    return null
   const tr = new SheetTransaction(doc.value, sheetIndex.value)
   tr.setMeta({ action: 'api', ...meta })
   run(tr)
@@ -1683,9 +1718,9 @@ function transactFor(
     .cancel(messages.value.readonly)
 }
 
-/** `fromCode`: called by the app's code, which `readonly` doesn't stop. */
+/** `fromCode`: called by the app's code, which `readonly` doesn't stop; comparing does. */
 function travel(direction: 'undo' | 'redo', fromCode = false) {
-  if (props.readonly && !fromCode) return false
+  if ((props.readonly && !fromCode) || props.compare) return false
   const handler = customHistory()
   if (handler) {
     const travelled = handler[direction]()
@@ -1693,9 +1728,12 @@ function travel(direction: 'undo' | 'redo', fromCode = false) {
     if (travelled) announce(messages.value[direction === 'undo' ? 'undone' : 'redone'])
     return travelled
   }
+  const anchors = sheetCommentAnchors(doc.value)
   const result = direction === 'undo' ? history.undo(doc.value) : history.redo(doc.value)
   syncHistory()
   if (!result) return false
+  // threads stay on their cells: putting them on isn't a change to undo
+  keepCommentAnchors(anchors, result.tr)
   result.tr.setMeta({ action: direction })
   apply(result.tr)
   const at = doc.value.sheets.findIndex((s) => sheetKey(s) === result.view.sheet)
@@ -1829,7 +1867,7 @@ function lockedAt(point: SheetPoint) {
 }
 
 function beginEdit(mode: 'enter' | 'edit', text?: string) {
-  if (props.readonly) {
+  if (viewOnly.value) {
     announce(messages.value.readonly)
     return false
   }
@@ -2022,7 +2060,7 @@ function toggleCells(only?: SheetPoint) {
   const typed = typeAt(at.row, at.col)
   const toggle = typed?.definition.toggle
   if (!typed || !toggle) return false
-  if (props.readonly) {
+  if (viewOnly.value) {
     announce(messages.value.readonly)
     return true
   }
@@ -2084,7 +2122,7 @@ function openPanel() {
  * iPhones drop the tap's click when something shows up during the tap.
  */
 const panelButton = computed(() => {
-  if (props.readonly || editing.value || drag.value?.started) return null
+  if (viewOnly.value || editing.value || drag.value?.started) return null
   const { row, col } = active.value
   if (!typeAt(row, col)?.definition.panel) return null
   const rect = visibleRect(active.value)
@@ -2279,7 +2317,7 @@ const pageRows = () =>
   )
 
 function onKeydown(event: KeyboardEvent) {
-  if (isComposing(event)) return
+  if (isComposing(event) || inCommentCard(event.target)) return
   const e = editing.value
   if (e) return editKey(event, e.mode)
   for (const keymap of keymaps.value)
@@ -2302,7 +2340,7 @@ function onKeydown(event: KeyboardEvent) {
   // Alt + Shift + → groups the selected rows (or whole columns), ← takes them out
   if ((key === 'ArrowRight' || key === 'ArrowLeft') && event.altKey && event.shiftKey && !mod) {
     event.preventDefault()
-    if (props.readonly) return announce(messages.value.readonly)
+    if (viewOnly.value) return announce(messages.value.readonly)
     return groupSelected(groupAxis(), key === 'ArrowRight')
   }
   if (arrow && !event.altKey) {
@@ -2318,6 +2356,8 @@ function onKeydown(event: KeyboardEvent) {
     showSheet(at)
     return announce(format(messages.value.sheetShown, { name: doc.value.sheets[at]!.name }))
   }
+  // the thread about the cell, or the box to start one
+  if (matchesHotkey(event, 'mod+alt+m')) return done(event, comment())
   if (matchesHotkey(event, 'mod+z')) return done(event, commands.run('undo'))
   if (matchesHotkey(event, 'mod+shift+z') || matchesHotkey(event, 'mod+y'))
     return done(event, commands.run('redo'))
@@ -2338,7 +2378,7 @@ function onKeydown(event: KeyboardEvent) {
   }
   if (matchesHotkey(event, 'mod+d') || matchesHotkey(event, 'mod+r')) {
     event.preventDefault()
-    if (props.readonly) return announce(messages.value.readonly)
+    if (viewOnly.value) return announce(messages.value.readonly)
     return fillFromEdge(key.toLowerCase() === 'd' ? 'down' : 'right')
   }
   if (key === 'ContextMenu' || (key === 'F10' && event.shiftKey)) {
@@ -2351,7 +2391,7 @@ function onKeydown(event: KeyboardEvent) {
     const axis = whole(b, 'row') ? 'row' : whole(b, 'col') ? 'col' : null
     if (!axis || (key === '=' && !event.shiftKey)) return
     event.preventDefault()
-    if (props.readonly) return announce(messages.value.readonly)
+    if (viewOnly.value) return announce(messages.value.readonly)
     return key === '-' ? deleteLines(axis) : insertLines(axis, false)
   }
   switch (key) {
@@ -2419,7 +2459,7 @@ const ARROWS: Record<string, SheetDirection> = {
 function keyCommand(event: KeyboardEvent, name: string) {
   event.preventDefault()
   if (!commands.can(name)) {
-    if (props.readonly) announce(messages.value.readonly)
+    if (viewOnly.value) announce(messages.value.readonly)
     return
   }
   commands.run(name)
@@ -2698,7 +2738,7 @@ function selectLines(kind: 'row' | 'col') {
 }
 
 function clearSelection() {
-  if (props.readonly) return announce(messages.value.readonly)
+  if (viewOnly.value) return announce(messages.value.readonly)
   const ranges = selection.value.ranges
   const cleared = transact(
     (tr) => {
@@ -2822,7 +2862,10 @@ function clipOf(b: SheetBounds, cut: string | null): SheetClip {
   for (let r = b.top; r <= bottom; r++) {
     const line: SheetCellInput[] = []
     for (let c = b.left; c <= right; c++) {
-      const cell = data[r]?.[c] ?? undefined
+      let cell = data[r]?.[c] ?? undefined
+      // a copy leaves the cell's thread behind; a cut takes it along
+      if (!cut && cell && typeof cell === 'object' && cell.comment)
+        cell = compactCell({ ...cell, comment: undefined }) ?? undefined
       line.push(cell)
       const style = cellOf(cell)?.style
       if (style) used.add(style)
@@ -3101,7 +3144,7 @@ function eitherSignal(a: AbortSignal, b?: AbortSignal) {
  */
 async function importFile(file: Blob, options: SheetImportFileOptions = {}) {
   const name = 'name' in file ? String((file as File).name) : ''
-  if (props.readonly) {
+  if (viewOnly.value) {
     showNotice(messages.value.readonly)
     return null
   }
@@ -3140,7 +3183,7 @@ async function importFile(file: Blob, options: SheetImportFileOptions = {}) {
   const mode = options.mode ?? 'append'
   let applied = false
   const write = () => {
-    if (applied || unmounted.signal.aborted || props.readonly) return false
+    if (applied || unmounted.signal.aborted || viewOnly.value) return false
     if (!applyImport(event.book, mode)) return false
     applied = true
     announce(format(messages.value.file.imported, { name: label }))
@@ -3381,7 +3424,7 @@ const dropRect = computed(() => {
   return at ? rangeRect({ top: at.row, left: at.col, bottom: at.row, right: at.col }) : null
 })
 function onDragOver(event: DragEvent) {
-  if (!props.fileDrop || props.readonly || !event.dataTransfer?.types.includes('Files')) return
+  if (!props.fileDrop || viewOnly.value || !event.dataTransfer?.types.includes('Files')) return
   event.preventDefault()
   event.dataTransfer.dropEffect = 'copy'
   const at = hitAt(event.clientX, event.clientY)
@@ -3396,7 +3439,7 @@ let warnedDrop = false
 function onDrop(event: DragEvent) {
   const at = dropAt.value
   dropAt.value = null
-  const files = props.fileDrop && !props.readonly ? event.dataTransfer?.files : undefined
+  const files = props.fileDrop && !viewOnly.value ? event.dataTransfer?.files : undefined
   const file = files?.[0]
   if (!file) return
   event.preventDefault()
@@ -3412,7 +3455,7 @@ function onDrop(event: DragEvent) {
 }
 
 function onCopy(event: ClipboardEvent) {
-  if (editing.value || !event.clipboardData) return
+  if (editing.value || !event.clipboardData || inCommentCard(event.target)) return
   event.preventDefault()
   const { text, html } = takeClip(false)
   event.clipboardData.setData('text/plain', text)
@@ -3420,16 +3463,16 @@ function onCopy(event: ClipboardEvent) {
 }
 
 function onCut(event: ClipboardEvent) {
-  if (editing.value || !event.clipboardData) return
+  if (editing.value || !event.clipboardData || inCommentCard(event.target)) return
   event.preventDefault()
-  if (props.readonly) return announce(messages.value.readonly)
+  if (viewOnly.value) return announce(messages.value.readonly)
   const { text, html } = takeClip(true)
   event.clipboardData.setData('text/plain', text)
   event.clipboardData.setData('text/html', html)
 }
 
 function onPaste(event: ClipboardEvent) {
-  if (editing.value || !event.clipboardData) return
+  if (editing.value || !event.clipboardData || inCommentCard(event.target)) return
   event.preventDefault()
   const clip = parseClip({
     html: event.clipboardData.getData('text/html'),
@@ -3440,7 +3483,7 @@ function onPaste(event: ClipboardEvent) {
 
 /** Copies or cuts with the clipboard API, for the menu. */
 async function copyToClipboard(cut: boolean) {
-  if (cut && props.readonly) return announce(messages.value.readonly)
+  if (cut && viewOnly.value) return announce(messages.value.readonly)
   const { text, html } = takeClip(cut)
   try {
     if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
@@ -3458,7 +3501,7 @@ async function copyToClipboard(cut: boolean) {
 
 /** Pastes with the clipboard API, for the menu; says how to paste when the browser won't allow it. */
 async function pasteFromClipboard() {
-  if (props.readonly) return announce(messages.value.readonly)
+  if (viewOnly.value) return announce(messages.value.readonly)
   try {
     let html = ''
     let text = ''
@@ -3532,7 +3575,7 @@ function pasteTargets(clip: SheetClip) {
  * `paste` event comes first and may change the clip or stop the paste.
  */
 function paste(given: SheetClip) {
-  if (props.readonly) return announce(messages.value.readonly)
+  if (viewOnly.value) return announce(messages.value.readonly)
   if (!given.cells.length) return
   const transformed = transformPaste(given)
   if (!transformed?.cells.length) return
@@ -3604,6 +3647,8 @@ function paste(given: SheetClip) {
             let value = cell?.value
             if (typeof value === 'string' && value.startsWith('='))
               value = shiftFormula(value, r - dr - clip.from!.row, c - dc - clip.from!.col)
+            // a cell keeps its own thread, unless a cut one comes with its own
+            const thread = (cut && cell?.comment) || cellOf(tr.getCell(at))?.comment
             if (keepLook) {
               // a protected sheet keeps its look: only what the cells hold is pasted
               const old = cellOf(tr.getCell(at))
@@ -3614,6 +3659,7 @@ function paste(given: SheetClip) {
                   value: value ?? undefined,
                   style: old?.style,
                   format: old?.format,
+                  comment: thread,
                 }),
               )
               continue
@@ -3623,7 +3669,7 @@ function paste(given: SheetClip) {
             if (protection.value) style = lockedLike(tr, style, cellOf(tr.getCell(at)))
             tr.setCell(
               at,
-              cell ? compactCell({ ...cell, value: value ?? undefined, style }) : undefined,
+              compactCell({ ...cell, value: value ?? undefined, style, comment: thread }),
             )
           }
     },
@@ -3659,7 +3705,7 @@ function showNotice(text: string) {
 
 /** The fill handle shows at the corner of a single range that can change. */
 const fillRect = computed(() => {
-  if (props.readonly || editing.value || selection.value.ranges.length !== 1) return null
+  if (viewOnly.value || editing.value || selection.value.ranges.length !== 1) return null
   if (drag.value?.mode === 'move' || sizing.value) return null
   const b = lastBounds()
   const corner = rangeRect({ top: b.bottom, left: b.right, bottom: b.bottom, right: b.right })
@@ -4033,7 +4079,7 @@ function foldInView(list: { g: SheetGroupLines; collapsed: boolean }[]) {
 /** Folds a group away or shows it again. */
 function toggleGroup(axis: SheetAxisName, g: SheetGroupLines) {
   const collapsed = !g.collapsed
-  if (props.readonly) foldInView([{ g, collapsed }])
+  if (viewOnly.value) foldInView([{ g, collapsed }])
   else if (
     !transact(
       (tr) => {
@@ -4051,7 +4097,7 @@ function toggleGroup(axis: SheetAxisName, g: SheetGroupLines) {
 
 /** Shows the groups of an axis down to a level, as the level buttons do. */
 function showGroupLevel(axis: SheetAxisName, level: number) {
-  if (props.readonly)
+  if (viewOnly.value)
     foldInView(groups.value.axis(axis).list.map((g) => ({ g, collapsed: g.depth >= level })))
   else transact((tr) => tr.showGroupLevel(axis, level), { action: 'group' })
   keepActiveShown()
@@ -4163,6 +4209,18 @@ function noteAt(point: SheetPoint) {
   return cell && typeof cell === 'object' ? cell.note : undefined
 }
 
+/**
+ * What a finger tapping a cell is shown: its note, and while comparing,
+ * what it held in the older version, as a pointer resting on it sees.
+ */
+function tipAt(point: SheetPoint) {
+  const change = compared.value?.get(`${point.row}:${point.col}`)
+  const note = noteAt(point)
+  if (!change) return note
+  const text = wasText(change)
+  return note ? `${text}\n${note}` : text
+}
+
 /** The cell a note belongs to: the top left of a merge. */
 function noteHome(point: SheetPoint): SheetPoint {
   const span = merges.value.cell(point)
@@ -4226,7 +4284,7 @@ function onNoteHover(inside: boolean) {
 
 /** Opens the box to write the note of a cell, the active one by default. */
 function editNote(at: SheetPoint = active.value) {
-  if (props.readonly) return announce(messages.value.readonly)
+  if (viewOnly.value) return announce(messages.value.readonly)
   const point = noteHome(at)
   clearTimeout(noteTimer)
   scrollToPoint(point)
@@ -4263,7 +4321,7 @@ function notesSelected() {
 }
 
 function removeNotes() {
-  if (props.readonly) return announce(messages.value.readonly)
+  if (viewOnly.value) return announce(messages.value.readonly)
   const count = notesSelected()
   if (!count) return
   const ranges = selection.value.ranges
@@ -4375,6 +4433,8 @@ const linkCard = computed(() => {
   if (at) return { ...at, link: linkAt(at) ?? '', editing: true }
   if (!focusWithin.value || editing.value || drag.value?.started || panelType.value) return null
   if (noteShown.value?.by === 'edit') return null
+  // a thread open beside the cell takes the place of its link card
+  if (commentThread.value || comments.pending.value) return null
   const home = noteHome(active.value)
   if (linkDismissed.value === pointKey(home)) return null
   const link = linkAt(home)
@@ -4406,11 +4466,11 @@ function linkText(point: SheetPoint): string | null {
 }
 
 /** Whether the link of a cell can be changed. */
-const linkEditable = (point: SheetPoint) => !props.readonly && !lockedAt(point)
+const linkEditable = (point: SheetPoint) => !viewOnly.value && !lockedAt(point)
 
 /** Opens the box to write the link of the active cell. */
 function editLink(at: SheetPoint = active.value) {
-  if (props.readonly) return announce(messages.value.readonly)
+  if (viewOnly.value) return announce(messages.value.readonly)
   const point = noteHome(at)
   if (lockedAt(point)) return showNotice(messages.value.protect.refused.cell)
   if (editing.value) commitEdit(undefined, true)
@@ -4450,7 +4510,7 @@ function cancelLink(leaving: boolean) {
 
 /** Takes the links off the selected cells, keeping what they show. */
 function removeLinks() {
-  if (props.readonly) return announce(messages.value.readonly)
+  if (viewOnly.value) return announce(messages.value.readonly)
   const points: SheetPoint[] = []
   forEachSelected((point) => {
     if (cellOf(sheet.value.cells[point.row]?.[point.col])?.link) points.push(point)
@@ -4565,6 +4625,222 @@ function onNoteEscape(event: KeyboardEvent) {
   event.stopPropagation()
 }
 
+// Comments -------------------------------------------------------------------------------
+
+const commentsProvider = computed(() => resolved.value.comments?.(context) ?? null)
+const comments = useSheetComments({
+  props,
+  emit,
+  provider: commentsProvider,
+  doc,
+  home: noteHome,
+  shown: () => sheetKey(sheet.value),
+  transact: (run, meta) => transact(run, meta),
+})
+
+/** The thread a cell of the sheet shown has, when it shows: known and not resolved. */
+function openThreadAt(point: SheetPoint) {
+  const thread = comments.threadAt(point)
+  return comments.isOpen(thread) ? thread : undefined
+}
+
+/** The last request to put the cursor in the card that a card took. */
+const commentFocused = ref(0)
+
+/** The card's cell, on the sheet shown. */
+const commentCell = computed(() => {
+  const at = comments.cell.value
+  return at && at.sheet === sheetKey(sheet.value) ? at : null
+})
+const commentThread = computed(() => {
+  const id = comments.active.value
+  return (id && comments.byId.value.get(id)) || null
+})
+
+const commentAnchor: VirtualElement = {
+  getBoundingClientRect() {
+    const at = commentCell.value
+    const el = viewport.value
+    if (!at || !el) return new DOMRect()
+    const box = el.getBoundingClientRect()
+    const r = cellRect(at)
+    return new DOMRect(
+      box.left + el.clientLeft + r.x,
+      box.top + el.clientTop + r.y,
+      r.width,
+      r.height,
+    )
+  },
+}
+
+const commentCard = shallowRef<InstanceType<typeof SheetComment> | null>(null)
+const inCommentCard = (target: EventTarget | null) =>
+  target instanceof Node && !!commentCard.value?.panel?.contains(target)
+
+/**
+ * Opens the thread about a cell, the active one by default, or the box to
+ * start one there.
+ */
+function comment(at: SheetPoint = active.value) {
+  if (!comments.enabled.value) return false
+  if (editing.value) commitEdit(undefined, true)
+  hideNote()
+  const point = noteHome(at)
+  scrollToPoint(point)
+  return comments.start(point)
+}
+
+/** A thread opened from outside (`v-model:active-comment`) shows its sheet and cell. */
+watch(
+  () => comments.active.value,
+  (id) => {
+    const anchor = id ? comments.getAnchors()[id] : null
+    if (!anchor) return
+    if (anchor.sheet !== sheetKey(sheet.value)) showSheet(anchor.sheet)
+    void nextTick(() => scrollToPoint(anchor))
+  },
+)
+
+// another cell chosen: the card goes, as a click elsewhere in a document closes it
+watch(active, (point) => {
+  const at = comments.cell.value
+  if (!at) return
+  const home = noteHome(point)
+  if (at.sheet !== sheetKey(sheet.value) || at.row !== home.row || at.col !== home.col)
+    comments.close()
+})
+
+function closeComment(refocus: boolean) {
+  comments.close()
+  if (refocus) focusGrid()
+}
+
+// a thread resolved or removed from the card: back to the grid
+watch(commentCell, async (now, was) => {
+  if (now || !was) return
+  await nextTick()
+  const el = document.activeElement
+  if (!el || el === document.body) focusGrid()
+})
+
+// Versions -------------------------------------------------------------------------------
+
+/** What changed since `compare`, on every sheet. */
+const versionDiff = computed(() => (props.compare ? diffWorkbooks(props.compare, doc.value) : null))
+/** The changed cells of the sheet shown, by `row:col`. */
+const compared = computed(() => {
+  const diff = versionDiff.value
+  if (!diff) return null
+  const key = sheetKey(sheet.value)
+  const out = new Map<string, SheetCellChange>()
+  for (const change of diff.cells)
+    if (change.sheet === key) out.set(`${change.row}:${change.col}`, change)
+  return out
+})
+
+/** Works out the formulas of the version compared with, for what its cells showed. */
+const compareEngine = computed(() =>
+  props.compare
+    ? new SheetFormulaEngine(props.compare, {
+        functions: resolved.value.functions,
+        locale: lang.value,
+      })
+    : null,
+)
+
+/** What a changed cell showed in the older version, as its cell showed it: formatted, formulas worked out. */
+function wasText(change: SheetCellChange) {
+  const m = messages.value.compare
+  const book = props.compare
+  const old = compareEngine.value
+  const value = old
+    ? shownValue(
+        valueOf(change.before),
+        (row, col) => old.result(change.sheet, row, col),
+        change.row,
+        change.col,
+      )
+    : valueOf(change.before)
+  if (value == null || value === '') return m.wasEmpty
+  const cell = cellOf(change.before)
+  const typed = cell?.type && book ? resolveCellType(cell, book, cellTypes.value) : undefined
+  const text = typed?.definition.toggle
+    ? value === true
+      ? messages.value.checked
+      : messages.value.unchecked
+    : (typed?.definition.format?.(value, typed.setup) ??
+      formatValue(value, cell?.format, lang.value))
+  return format(m.was, { value: text })
+}
+
+/** Selects the changed cell after (or before) the active one, across the sheets. */
+function goToChange(step: 1 | -1) {
+  const diff = versionDiff.value
+  if (!diff?.cells.length) return false
+  const order = new Map(doc.value.sheets.map((data, index) => [sheetKey(data), index]))
+  const here = [sheetIndex.value, active.value.row, active.value.col]
+  const list = diff.cells.map((change) => ({
+    change,
+    at: [order.get(change.sheet) ?? 0, change.row, change.col],
+  }))
+  // oxlint-disable-next-line unicorn/no-array-sort -- sorts a fresh array
+  list.sort((a, b) => a.at[0]! - b.at[0]! || a.at[1]! - b.at[1]! || a.at[2]! - b.at[2]!)
+  const from = (at: number[]) => at[0]! - here[0]! || at[1]! - here[1]! || at[2]! - here[2]!
+  let target: (typeof list)[number] | undefined
+  if (step === 1) target = list.find((item) => from(item.at) > 0)
+  else for (const item of list) if (from(item.at) < 0) target = item
+  if (!target) return false
+  const { change } = target
+  if (change.sheet !== sheetKey(sheet.value)) showSheet(change.sheet)
+  select(selectCell({ row: change.row, col: change.col }))
+  return true
+}
+
+/**
+ * Brings the workbook to `book`, as one change. Like undo it isn't held by
+ * protection, which it restores too, nor by `readonly`, as other calls from
+ * code aren't; comparing, it is the one change allowed. Extensions can
+ * still cancel it.
+ */
+function restore(book: SheetWorkbook) {
+  if (editing.value) commitEdit(undefined, true)
+  restoring = true
+  try {
+    // called by the app's code: `readonly` doesn't stop it, as with `transact`
+    const tr = transact(
+      (t) => restoreWorkbook(t, book),
+      { action: 'restore', protection: false },
+      view(),
+      false,
+      true,
+    )
+    if (!tr) return false
+  } finally {
+    restoring = false
+  }
+  announce(messages.value.compare.restored)
+  return true
+}
+/** Set while a version is restored: comparing, the grid is read-only but can still restore. */
+let restoring = false
+
+/** Menu items for the active cell's thread. */
+function commentItems(): SheetMenuItem[] {
+  if (!comments.enabled.value) return []
+  const m = messages.value.comment
+  const has = !!openThreadAt(noteHome(active.value))
+  if (!has && !comments.writable.value) return []
+  return [
+    {
+      key: 'comment',
+      label: has ? m.open : m.add,
+      icon: has ? MessagesIcon : MessageCircleIcon,
+      shortcut: 'mod+alt+m',
+      run: () => void comment(),
+    },
+  ]
+}
+
 /** A note shown for the active cell goes when focus leaves the grid. */
 function onFocusout(event: FocusEvent) {
   const next = event.relatedTarget
@@ -4619,7 +4895,7 @@ function menuFor(area: SheetMenuContext['area']): SheetMenuItem[] {
     { key: 'copy', command: 'copy' },
     { key: 'paste', command: 'paste' },
   ]
-  if (props.readonly) return items.filter((item) => item.key === 'copy')
+  if (viewOnly.value) return items.filter((item) => item.key === 'copy')
   const rowLines = linesOf('row')
   const colLines = linesOf('col')
   const insertRows: SheetMenuItem[] = [
@@ -4742,6 +5018,7 @@ function menuFor(area: SheetMenuContext['area']): SheetMenuItem[] {
       children: [...groupItems('row'), ...dividedFirst(groupItems('col'))],
     },
     ...noteItems(),
+    ...commentItems(),
     ...linkItems(),
     ...dataItems(),
     {
@@ -4874,7 +5151,7 @@ function formatAt(point: SheetPoint) {
 
 /** Runs `run` on each selected range, kept inside the sheet, as one change. */
 function changeSelected(run: (tr: SheetTransaction, b: SheetBounds) => void) {
-  if (props.readonly) {
+  if (viewOnly.value) {
     announce(messages.value.readonly)
     return false
   }
@@ -4911,7 +5188,7 @@ function lockSelection(locked: boolean) {
 
 /** Protects the sheet shown, or stops protecting it. */
 function toggleSheetProtection() {
-  if (props.readonly) return announce(messages.value.readonly)
+  if (viewOnly.value) return announce(messages.value.readonly)
   const on = !sheet.value.protect
   const name = sheet.value.name
   if (!transact((tr) => tr.protectSheet(on), { action: 'protect' })) return
@@ -4921,7 +5198,7 @@ function toggleSheetProtection() {
 
 /** Protects the workbook's sheets from being added, removed, moved or renamed, or stops it. */
 function toggleBookProtection() {
-  if (props.readonly) return announce(messages.value.readonly)
+  if (viewOnly.value) return announce(messages.value.readonly)
   const on = !doc.value.protect
   if (!transact((tr) => tr.updateBook({ protect: on || undefined }), { action: 'protect' })) return
   const m = messages.value.protect
@@ -5175,7 +5452,7 @@ function onPointerDown(event: PointerEvent) {
     focusGrid()
     return
   }
-  const edge = props.readonly ? null : edgeAt(hit, touch)
+  const edge = viewOnly.value ? null : edgeAt(hit, touch)
   if (edge) {
     // dragging the edge between two headers resizes the row (or column) before it
     event.preventDefault()
@@ -5195,7 +5472,7 @@ function onPointerDown(event: PointerEvent) {
       if (linkTarget(linkAt(point))) return void followLink(point)
     }
     if (
-      !props.readonly &&
+      !viewOnly.value &&
       onSelectedLine(hit) &&
       !event.shiftKey &&
       !event.ctrlKey &&
@@ -5216,7 +5493,7 @@ function onPointerDown(event: PointerEvent) {
       hold?.grab()
       navigator.vibrate?.(8)
       const at = hitAt(d.x0, d.y0)
-      if (!props.readonly && onSelectedLine(at)) {
+      if (!viewOnly.value && onSelectedLine(at)) {
         // held on selected rows (or columns): dragging moves them
         d.mode = 'move'
         d.axis = at.area as SheetAxisName
@@ -5500,7 +5777,7 @@ function onPointerCancel() {
 function onHover(event: PointerEvent) {
   if (event.pointerType !== 'mouse' || drag.value) return
   hoverNote(event)
-  if (props.readonly) return
+  if (viewOnly.value) return
   const edge = edgeAt(hitAt(event.clientX, event.clientY), false)
   edgeHover.value = edge?.axis ?? null
 }
@@ -5524,8 +5801,14 @@ function onClick(event: MouseEvent) {
     focusGrid()
     return
   }
+  if (!touched) {
+    // a click on a cell with a thread opens it beside the cell
+    if (event.shiftKey || event.ctrlKey || event.metaKey) return
+    const at = hitAt(event.clientX, event.clientY)
+    if (at.area === 'cell') comments.show(at)
+    return
+  }
   const hit = touched
-  if (!hit) return
   const sel = selection.value
   const single = sel.ranges.length === 1 && boundsOf(sel.ranges[0]!)
   const again =
@@ -5535,7 +5818,7 @@ function onClick(event: MouseEvent) {
     single.left === single.right &&
     sel.active.row === hit.row &&
     sel.active.col === hit.col
-  if (again && !props.readonly) {
+  if (again && !viewOnly.value) {
     hideNote()
     // inside the tap, so phones show their keyboard
     editActive()
@@ -5544,9 +5827,12 @@ function onClick(event: MouseEvent) {
   press(hit, { shiftKey: false, ctrlKey: false, metaKey: false })
   focusGrid()
   announce(activeLabel.value)
-  // a finger can't rest on a cell: tapping one shows its note
   const home = hit.area === 'cell' ? noteHome(hit) : null
-  if (home && noteAt(home)) {
+  // tapping a cell with a thread opens it
+  if (home) comments.show(home)
+  if (home && openThreadAt(home)) return
+  // a finger can't rest on a cell: tapping one shows its note, or what it held
+  if (home && tipAt(home)) {
     clearTimeout(noteTimer)
     noteShown.value = { ...home, by: 'tap' }
   }
@@ -5565,7 +5851,7 @@ function cellOfElement(el: Element): SheetPoint | null {
 
 function onDblClick(event: MouseEvent) {
   const hit = hitAt(event.clientX, event.clientY)
-  const edge = props.readonly ? null : edgeAt(hit, lastPointer === 'touch')
+  const edge = viewOnly.value ? null : edgeAt(hit, lastPointer === 'touch')
   if (edge) return autofit(edge.axis, edge.index)
   if (lastPointer === 'touch' || hit.area !== 'cell') return
   // the click on a switch already switched it
@@ -5893,10 +6179,10 @@ function previousFound() {
 function openFind(replace = false, given?: Partial<SheetSearchQuery>) {
   if (editing.value) commitEdit(undefined, true)
   if (given) findQuery.value = { ...findQuery.value, ...given }
-  if ((replace || given?.replace !== undefined) && !props.readonly) findReplacing.value = true
+  if ((replace || given?.replace !== undefined) && !viewOnly.value) findReplacing.value = true
   findOpen.value = true
   runFind()
-  void nextTick(() => findPanel.value?.focus(replace && !props.readonly ? 'replace' : 'find'))
+  void nextTick(() => findPanel.value?.focus(replace && !viewOnly.value ? 'replace' : 'find'))
   return true
 }
 
@@ -6001,7 +6287,7 @@ function tellReplaced(result: { replaced: number; skipped: Record<ReplaceSkip, n
 
 /** Replaces the match on the active cell and goes on to the next; first goes to one when it is on none. */
 function replaceFound() {
-  if (props.readonly) return false
+  if (viewOnly.value) return false
   const i = currentFound.value
   if (i < 0) return nextFound()
   const f = found.value[i]!
@@ -6017,7 +6303,7 @@ function replaceFound() {
 
 /** Replaces every match, also past those counted, as one change. */
 function replaceAllFound() {
-  if (props.readonly) return false
+  if (viewOnly.value) return false
   const list = foundCapped.value ? findCells(findQuery.value).found : found.value
   if (!list.length) return false
   tellReplaced(writeReplacements(list))
@@ -6112,7 +6398,7 @@ const findOptions = computed(() => {
 
 // Commands ---------------------------------------------------------------------------------
 
-const writable = () => !props.readonly
+const writable = () => !viewOnly.value
 // known after mounting, so a server-rendered hint matches the first client render
 const apple = useApplePlatform()
 /** The key of `replace`: ⌘H hides the app on Apple platforms. */
@@ -6363,7 +6649,7 @@ const context: SheetContext = {
   sheet,
   selection,
   active,
-  readonly: computed(() => props.readonly),
+  readonly: computed(() => viewOnly.value),
   focused,
   messages,
   forEachSelected,
@@ -6524,6 +6810,13 @@ function editNoteTarget(target?: SheetCellTarget) {
   editNote()
 }
 
+function commentTarget(target?: SheetCellTarget) {
+  const point = target == null ? active.value : toPoint(target)
+  if (!point) return false
+  select(selectCell(clampPoint(point, rowCount.value, colCount.value)))
+  return comment()
+}
+
 function editLinkTarget(target?: SheetCellTarget) {
   const point = target == null ? active.value : toPoint(target)
   if (!point) return
@@ -6535,7 +6828,7 @@ defineExpose<SheetExpose>({
   commands,
   findCells: (query) => findCells(query).found,
   openSearch: (query) =>
-    commands.run(query?.replace !== undefined && !props.readonly ? 'replace' : 'find', query),
+    commands.run(query?.replace !== undefined && !viewOnly.value ? 'replace' : 'find', query),
   closeSearch: closeFind,
   exportFile: exportFile as SheetExpose['exportFile'],
   saveFile: saveFile as SheetExpose['saveFile'],
@@ -6564,6 +6857,11 @@ defineExpose<SheetExpose>({
   cut: () => copyToClipboard(true),
   paste: async (clip) => (clip ? paste(clip) : pasteFromClipboard()),
   findInvalid,
+  comment: commentTarget,
+  getCommentAnchors: () => comments.getAnchors(),
+  restore,
+  nextChange: () => goToChange(1),
+  previousChange: () => goToChange(-1),
 })
 </script>
 
@@ -6572,7 +6870,8 @@ defineExpose<SheetExpose>({
     class="dou-sheet"
     :class="{
       'is-focused': focused,
-      'is-readonly': readonly,
+      'is-readonly': viewOnly,
+      'is-comparing': !!compare,
       'is-dragging': drag?.started,
       'has-gridlines': gridlines,
       'is-editing': editing,
@@ -6643,7 +6942,7 @@ defineExpose<SheetExpose>({
           :current="currentFound"
           :capped="foundCapped"
           :searching="findWaiting"
-          :readonly="readonly"
+          :readonly="viewOnly"
           @update:search="findQuery = { ...findQuery, search: $event }"
           @update:replace="findQuery = { ...findQuery, replace: $event }"
           @next="nextFound"
@@ -6687,7 +6986,7 @@ defineExpose<SheetExpose>({
           :aria-label="ariaLabel ?? messages.sheet"
           :aria-rowcount="rowCount + (headers ? 1 : 0)"
           :aria-colcount="colCount + (headers ? 1 : 0)"
-          :aria-readonly="readonly || undefined"
+          :aria-readonly="viewOnly || undefined"
           :aria-multiselectable="true"
           :aria-activedescendant="activeId"
           :aria-describedby="describedBy"
@@ -6794,7 +7093,7 @@ defineExpose<SheetExpose>({
                 :aria-hidden="cell.hidden || undefined"
                 :aria-rowspan="cell.rowspan"
                 :aria-colspan="cell.colspan"
-                :title="cell.problem"
+                :title="cell.problem ?? cell.was"
                 :aria-invalid="cell.invalid || undefined"
                 :style="cell.css"
               >
@@ -6806,11 +7105,22 @@ defineExpose<SheetExpose>({
                 </template>
                 <span v-else class="dou-sheet__text">{{ cell.text }}</span>
                 <span v-if="cell.problem" class="dou-sheet__sr-only">（{{ cell.problem }}）</span>
+                <span v-if="cell.was" class="dou-sheet__sr-only">（{{ cell.was }}）</span>
                 <span v-if="cell.invalid" class="dou-sheet__invalid" aria-hidden="true" />
                 <template v-if="cell.note">
                   <span class="dou-sheet__noted" aria-hidden="true" />
                   <span v-if="!cell.hidden" class="dou-sheet__sr-only">{{
                     format(messages.note.cellNote, { note: cell.note })
+                  }}</span>
+                </template>
+                <template v-if="cell.comment">
+                  <span
+                    class="dou-sheet__commented"
+                    :class="{ 'is-below-note': cell.note }"
+                    aria-hidden="true"
+                  />
+                  <span v-if="!cell.hidden" class="dou-sheet__sr-only">{{
+                    messages.comment.cellComment
                   }}</span>
                 </template>
               </div>
@@ -6825,7 +7135,7 @@ defineExpose<SheetExpose>({
                 :aria-hidden="cell.hidden || undefined"
                 :aria-rowspan="cell.rowspan"
                 :aria-colspan="cell.colspan"
-                :title="cell.problem"
+                :title="cell.problem ?? cell.was"
                 :aria-invalid="cell.invalid || undefined"
                 :style="cell.css"
               >
@@ -6837,11 +7147,22 @@ defineExpose<SheetExpose>({
                 </template>
                 <span v-else class="dou-sheet__text">{{ cell.text }}</span>
                 <span v-if="cell.problem" class="dou-sheet__sr-only">（{{ cell.problem }}）</span>
+                <span v-if="cell.was" class="dou-sheet__sr-only">（{{ cell.was }}）</span>
                 <span v-if="cell.invalid" class="dou-sheet__invalid" aria-hidden="true" />
                 <template v-if="cell.note">
                   <span class="dou-sheet__noted" aria-hidden="true" />
                   <span v-if="!cell.hidden" class="dou-sheet__sr-only">{{
                     format(messages.note.cellNote, { note: cell.note })
+                  }}</span>
+                </template>
+                <template v-if="cell.comment">
+                  <span
+                    class="dou-sheet__commented"
+                    :class="{ 'is-below-note': cell.note }"
+                    aria-hidden="true"
+                  />
+                  <span v-if="!cell.hidden" class="dou-sheet__sr-only">{{
+                    messages.comment.cellComment
                   }}</span>
                 </template>
               </div>
@@ -6894,7 +7215,7 @@ defineExpose<SheetExpose>({
                 :aria-hidden="cell.hidden || undefined"
                 :aria-rowspan="cell.rowspan"
                 :aria-colspan="cell.colspan"
-                :title="cell.problem"
+                :title="cell.problem ?? cell.was"
                 :aria-invalid="cell.invalid || undefined"
                 :style="cell.css"
               >
@@ -6906,11 +7227,22 @@ defineExpose<SheetExpose>({
                 </template>
                 <span v-else class="dou-sheet__text">{{ cell.text }}</span>
                 <span v-if="cell.problem" class="dou-sheet__sr-only">（{{ cell.problem }}）</span>
+                <span v-if="cell.was" class="dou-sheet__sr-only">（{{ cell.was }}）</span>
                 <span v-if="cell.invalid" class="dou-sheet__invalid" aria-hidden="true" />
                 <template v-if="cell.note">
                   <span class="dou-sheet__noted" aria-hidden="true" />
                   <span v-if="!cell.hidden" class="dou-sheet__sr-only">{{
                     format(messages.note.cellNote, { note: cell.note })
+                  }}</span>
+                </template>
+                <template v-if="cell.comment">
+                  <span
+                    class="dou-sheet__commented"
+                    :class="{ 'is-below-note': cell.note }"
+                    aria-hidden="true"
+                  />
+                  <span v-if="!cell.hidden" class="dou-sheet__sr-only">{{
+                    messages.comment.cellComment
                   }}</span>
                 </template>
               </div>
@@ -6925,7 +7257,7 @@ defineExpose<SheetExpose>({
                 :aria-hidden="cell.hidden || undefined"
                 :aria-rowspan="cell.rowspan"
                 :aria-colspan="cell.colspan"
-                :title="cell.problem"
+                :title="cell.problem ?? cell.was"
                 :aria-invalid="cell.invalid || undefined"
                 :style="cell.css"
               >
@@ -6937,11 +7269,22 @@ defineExpose<SheetExpose>({
                 </template>
                 <span v-else class="dou-sheet__text">{{ cell.text }}</span>
                 <span v-if="cell.problem" class="dou-sheet__sr-only">（{{ cell.problem }}）</span>
+                <span v-if="cell.was" class="dou-sheet__sr-only">（{{ cell.was }}）</span>
                 <span v-if="cell.invalid" class="dou-sheet__invalid" aria-hidden="true" />
                 <template v-if="cell.note">
                   <span class="dou-sheet__noted" aria-hidden="true" />
                   <span v-if="!cell.hidden" class="dou-sheet__sr-only">{{
                     format(messages.note.cellNote, { note: cell.note })
+                  }}</span>
+                </template>
+                <template v-if="cell.comment">
+                  <span
+                    class="dou-sheet__commented"
+                    :class="{ 'is-below-note': cell.note }"
+                    aria-hidden="true"
+                  />
+                  <span v-if="!cell.hidden" class="dou-sheet__sr-only">{{
+                    messages.comment.cellComment
                   }}</span>
                 </template>
               </div>
@@ -6993,7 +7336,7 @@ defineExpose<SheetExpose>({
           :aria-autocomplete="formulaEdit ? 'list' : undefined"
           :aria-controls="assist ? assistId : undefined"
           :aria-describedby="describedBy"
-          :readonly="readonly"
+          :readonly="viewOnly"
           autocomplete="off"
           autocapitalize="off"
           spellcheck="false"
@@ -7175,7 +7518,7 @@ defineExpose<SheetExpose>({
                 sheet.filter?.sorted?.col === button.col ? sheet.filter.sorted.order : undefined
               "
               :messages="messages"
-              :readonly="readonly"
+              :readonly="viewOnly"
               @sort="(order: SheetSortOrder) => sortFilterColumn(button.col, order)"
               @apply="(rule: SheetFilterRule | undefined) => applyFilter(button.col, rule)"
             />
@@ -7212,12 +7555,28 @@ defineExpose<SheetExpose>({
           v-if="noteShown"
           :key="`${noteShown.row}:${noteShown.col}:${noteShown.by === 'edit'}`"
           :anchor="noteAnchor"
-          :note="noteAt(noteShown) ?? ''"
+          :note="(noteShown.by === 'tap' ? tipAt(noteShown) : noteAt(noteShown)) ?? ''"
           :editing="noteShown.by === 'edit'"
           :messages="messages.note"
           @save="saveNote"
           @cancel="cancelNote"
           @hover="onNoteHover"
+        />
+        <SheetComment
+          v-if="commentCell"
+          ref="commentCard"
+          :key="`${commentCell.row}:${commentCell.col}`"
+          :anchor="commentAnchor"
+          :thread="comments.pending.value ? null : commentThread"
+          :author="author"
+          :readonly="!comments.writable.value"
+          :label="messages.comment.label"
+          :focus-request="comments.focusRequest.value"
+          :focus-handled="commentFocused"
+          @focused="commentFocused = $event"
+          :grid="() => viewport ?? null"
+          @action="comments.apply"
+          @close="closeComment"
         />
         <div
           v-if="resolved.layers.above.length"

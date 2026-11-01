@@ -44,6 +44,14 @@
       --dou-editor-gutter: 0px;
     }
 
+    /*
+     * comparing: the bars beside changed blocks sit in the gutter, the one
+     * editing has; a read-only editor, which has none, gets a narrow one
+     */
+    &.is-readonly.is-comparing {
+      --dou-editor-gutter: 16px;
+    }
+
     /* touch screens: only the grip, in a narrower gutter */
     @media (pointer: coarse) {
       --dou-editor-gutter: 32px;
@@ -53,6 +61,16 @@
     &.is-dragging * {
       cursor: grabbing;
     }
+  }
+
+  /* what is read out after restoring a version or going to a change; not shown */
+  .dou-editor__live {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 
   .dou-editor__surface {
@@ -568,7 +586,8 @@
     }
   }
 
-  .dou-editor.is-readonly .dou-editor__link {
+  .dou-editor.is-readonly .dou-editor__link,
+  .dou-editor.is-comparing .dou-editor__link {
     cursor: pointer;
   }
 
@@ -626,6 +645,56 @@
 
   .dou-editor__content--quote.is-empty::after {
     inset-inline-start: 14px;
+  }
+
+  /*
+   * comparing with an older version: a bar beside blocks added (green) or
+   * changed (amber), text added underlined, text and blocks removed struck
+   * through where they were
+   */
+
+  .dou-editor__diff-added::before,
+  .dou-editor__diff-changed::before,
+  .dou-editor__diff-removed-block::before {
+    position: absolute;
+    inset-block: 2px;
+    inset-inline-start: -12px;
+    width: 3px;
+    border-radius: 2px;
+    content: '';
+  }
+
+  .dou-editor__diff-added::before {
+    background-color: var(--dou-color-success);
+  }
+
+  .dou-editor__diff-changed::before {
+    background-color: var(--dou-color-warning);
+  }
+
+  .dou-editor__diff-added-text {
+    background-color: color-mix(in oklab, var(--dou-color-success) 14%, transparent);
+    text-decoration: underline 1px var(--dou-color-success);
+    text-underline-offset: 3px;
+  }
+
+  .dou-editor__diff-removed {
+    background-color: color-mix(in oklab, var(--dou-color-danger) 12%, transparent);
+    color: var(--dou-color-danger-text);
+    text-decoration: line-through 1px;
+  }
+
+  .dou-editor__diff-removed-block {
+    position: relative;
+    padding: 3px 0;
+    color: var(--dou-color-danger-text);
+    text-decoration: line-through 1px;
+    white-space: pre-wrap;
+    user-select: none;
+
+    &::before {
+      background-color: var(--dou-color-danger);
+    }
   }
 
   /* selected blocks */

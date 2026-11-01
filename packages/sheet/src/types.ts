@@ -1,8 +1,10 @@
+import type { CommentAction, CommentAuthor, CommentThread } from 'dou-ui'
 import type { Component } from 'vue'
 import type { SheetCellTarget, SheetRange } from './core/address'
 import type { SheetClip } from './core/clipboard'
 import type { SheetCSVWriteOptions } from './core/csv'
 import type { SheetCommands } from './core/commands'
+import type { SheetCommentAnchor } from './core/comments'
 import type { SheetSearchQuery, SheetMatch } from './core/find'
 import type { SheetExtension } from './core/extension'
 import type { SheetLinkTarget } from './core/link'
@@ -66,6 +68,24 @@ export interface SheetProps {
    * first sheet at the cell it was dropped on.
    */
   fileDrop?: boolean
+  /**
+   * The comment threads, bound with `v-model:comments`; cells name theirs
+   * with `comment`. Without it (and without an extension that keeps them,
+   * such as `collaboration({ comments })`) cells can't be commented on.
+   */
+  comments?: CommentThread[]
+  /** Who is commenting. Without it, threads can be read but not written. */
+  author?: CommentAuthor
+  /** The thread shown beside its cell, bound with `v-model:active-comment`. */
+  activeComment?: string | null
+  /** Whether threads can be started and replied to, `readonly` or not. Defaults to `true`. */
+  commentable?: boolean
+  /**
+   * An older version of the workbook, e.g. one the app saved. The grid then
+   * shows the workbook read-only, with the cells that changed since marked;
+   * pointing at one shows what it held.
+   */
+  compare?: SheetWorkbook | null
 }
 
 /** Where `exportFile` takes the cells from, and what it passes the exporter. */
@@ -345,6 +365,10 @@ export interface SheetEmits {
   import: [event: SheetImportEvent]
   /** An import or export failed; the grid shows a short message too. */
   fileError: [event: SheetFileErrorEvent]
+  'update:comments': [threads: CommentThread[]]
+  'update:activeComment': [id: string | null]
+  /** A change to the comments made here: to send to a server, notify people, keep a log. */
+  commentAction: [action: CommentAction]
 }
 
 export interface SheetExpose {
@@ -463,6 +487,30 @@ export interface SheetExpose {
    * sheet, or on `sheet`. Use it to check a workbook before sending it.
    */
   findInvalid: (sheet?: SheetRef) => SheetInvalidCell[]
+  /**
+   * Opens the thread about a cell, the active one by default, or the box
+   * to start one; `false` when there is neither (no comments, or nobody to
+   * write it).
+   */
+  comment: (cell?: SheetCellTarget) => boolean
+  /**
+   * Where each thread is, by thread id; `null` for one whose cell is gone.
+   * Read it again after `change` or `update:comments`.
+   */
+  getCommentAnchors: () => Record<string, SheetCommentAnchor | null>
+  /**
+   * Replaces the workbook with `book`, e.g. an older version, as one change
+   * undo takes back. Only what differs is written, so with collaboration
+   * the others' work elsewhere stays. Threads stay on their cells. Like
+   * `transact` it works on a `readonly` grid, and it works while comparing;
+   * protection doesn't hold it. Returns `false` when nothing differs, or
+   * an extension cancelled it.
+   */
+  restore: (book: SheetWorkbook) => boolean
+  /** With `compare`: selects the next changed cell, on any sheet; `false` when there is none. */
+  nextChange: () => boolean
+  /** With `compare`: selects the changed cell before the active one. */
+  previousChange: () => boolean
 }
 
 /** Options of `exportSVG` and `exportPNG`. */

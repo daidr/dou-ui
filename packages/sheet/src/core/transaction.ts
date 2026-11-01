@@ -119,6 +119,7 @@ export type SheetAction =
   | 'merge'
   | 'group'
   | 'note'
+  | 'comment'
   | 'sort'
   | 'filter'
   | 'format'
@@ -129,6 +130,7 @@ export type SheetAction =
   | 'freeze'
   | 'sheet'
   | 'import'
+  | 'restore'
   | 'replace'
   | 'undo'
   | 'redo'
@@ -349,6 +351,15 @@ export class SheetTransaction {
     return this.updateCell(at, { note: note?.trim() ? note : undefined })
   }
 
+  /**
+   * Puts a comment thread on a cell, or takes it off with `undefined`. Use
+   * it with `{ history: false }`: a thread stays when the change before it
+   * is undone.
+   */
+  setComment(at: SheetCellAt, id: string | undefined) {
+    return this.updateCell(at, { comment: id || undefined })
+  }
+
   /** Takes the notes off the cells in a range, keeping what they hold. */
   clearNotes(at: SheetRangeAt) {
     const { index, bounds } = this.rangeAt(at)
@@ -472,13 +483,16 @@ export class SheetTransaction {
             ? shiftFormula(value, point.row - origin.row, point.col - origin.col)
             : values[i]
         const look = options.keepStyle ? cellOf(cells[point.row]?.[point.col]) : source
+        // a cell's thread stays on it, and isn't copied along
+        const target = { sheet: index, ...point }
         this.setCell(
-          { sheet: index, ...point },
+          target,
           compactCell({
             ...source,
             value: next ?? undefined,
             style: look?.style,
             format: look?.format,
+            comment: cellOf(this.getCell(target))?.comment,
           }),
         )
       }

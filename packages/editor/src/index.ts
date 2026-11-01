@@ -107,6 +107,8 @@ export type {
   TextContent,
 } from './core/model'
 export { blocksToDoc, createId, docToBlocks } from './core/model'
+export { diffBlocks, diffText, inlineText } from './core/diff'
+export type { BlockVersionChange, BlocksDiff, TextPart } from './core/diff'
 export { searchDoc } from './core/search'
 export type { EditorMatch, EditorSearchQuery } from './core/search'
 export type { BuiltinContentType, ContentType, MarkType } from './core/schema'

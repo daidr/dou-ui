@@ -72,6 +72,13 @@ export interface EditorProps {
   /** Whether threads can be started and answered; also while `readonly`. Defaults to `true`. */
   commentable?: boolean
   /**
+   * An older version of the document, e.g. one the app saved. The editor
+   * then shows the document read-only, with what changed since marked:
+   * blocks added and removed, and in each changed block the text added
+   * and removed.
+   */
+  compare?: Block[] | null
+  /**
    * The block with the cursor and the selected blocks, bound with
    * `v-model:selection`. Setting it puts the cursor at the end of `block`,
    * or selects `blocks` when there are several siblings, without focusing.
@@ -81,11 +88,12 @@ export interface EditorProps {
 
 /**
  * Who made a change: `'external'` for a new `v-model` value or
- * `setBlocks`, `'remote'` for a collaborator's, `'undo'` and `'redo'`, or
+ * `setBlocks`, `'remote'` for a collaborator's, `'restore'` for `restore`,
+ * `'undo'` and `'redo'`, or
  * the `origin` given to `transact`. Typing and the editor's own commands
  * leave it out.
  */
-export type EditorOrigin = 'external' | 'remote' | 'undo' | 'redo' | (string & {})
+export type EditorOrigin = 'external' | 'remote' | 'restore' | 'undo' | 'redo' | (string & {})
 
 /** What a change to the document did, as the `transaction` event hands it over. */
 export interface EditorTransactionResult {
@@ -202,6 +210,19 @@ export interface EditorExpose {
   comment: () => boolean
   /** Where each thread is anchored; `null` for a thread whose text was deleted. */
   getCommentAnchors: () => Record<string, CommentAnchor | null>
+  /**
+   * Replace the document with `blocks`, e.g. an older version, as one
+   * change undo takes back. With collaboration only the blocks that differ
+   * are written, and everyone sees it. The `transaction` event has origin
+   * `'restore'`. Like the other methods it works while `readonly`; it is
+   * the one change allowed while comparing. Returns `false` when nothing
+   * differs.
+   */
+  restore: (blocks: PartialBlock[]) => boolean
+  /** With `compare`: scroll to the next change after the one last shown; `false` when there is none. */
+  nextChange: () => boolean
+  /** With `compare`: scroll to the change before the one last shown. */
+  previousChange: () => boolean
 }
 
 /** The comments, as the parts around the editing area see them. */

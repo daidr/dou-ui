@@ -90,6 +90,7 @@ app.use(DouSheet)
 | `F2`                                          | 编辑                                           |
 | `Shift` + `F2`                                | 插入或编辑批注                                 |
 | `Ctrl` / `⌘` + `K`                            | 插入或编辑链接                                 |
+| `Ctrl` / `⌘` + `Alt` + `M`                    | 打开或发起评论，见[评论](./comments)           |
 | `Delete` / `Backspace`                        | 清空选中区域的值                               |
 | `Ctrl` / `⌘` + `C` / `X` / `V`                | 复制、剪切、粘贴                               |
 | `Ctrl` / `⌘` + `D` / `R`                      | 向下、向右填充                                 |
@@ -122,7 +123,7 @@ sheet.value.transact((tr) => {
 })
 ```
 
-`transact` 返回这次的事务：没有改动、表格只读或修改被[取消](./extensions#取消修改)时 `tr.changed` 为 `false`，被取消时 `tr.cancelled` 为 `true`。
+`transact` 返回这次的事务：没有改动、对比时（传了 `compare`）或修改被[取消](./extensions#取消修改)时 `tr.changed` 为 `false`，被取消时 `tr.cancelled` 为 `true`。
 
 行和列也可以按显示的写法指定，数字仍是从 0 开始的序号：
 
@@ -140,24 +141,26 @@ sheet.value.transact((tr) => {
 
 每次修改，不论来自输入、撤销还是 `transact`，都会更新 `v-model` 并触发 `transaction` 事件；被保护或扩展取消的修改不会生效，触发的是 `transaction-cancel` 事件。事件参数里的 `steps` 是这次修改的步骤，`inverse` 是撤销它的步骤，可以用来同步到服务端；另一端用 `applySheetSteps(doc, steps)` 应用，在服务端从不含组件的 `@dou-ui/sheet/core` 引入它（见[不含组件的入口](./extensions#不含组件的入口)）。`meta.action` 说明修改的来源：
 
-| `action`                 | 来源                                                 |
-| ------------------------ | ---------------------------------------------------- |
-| `input`                  | 在单元格里输入                                       |
-| `paste`、`cut`           | 粘贴；粘贴剪切的内容（移动单元格）                   |
-| `fill`、`clear`          | 填充柄、`Ctrl` + `D` / `R`；清空内容                 |
-| `resize`、`hide`、`move` | 调整行高列宽；隐藏、取消隐藏；移动行列               |
-| `merge`                  | 合并、取消合并单元格                                 |
-| `group`                  | 分组、取消分组、折叠和展开分组                       |
-| `note`                   | 插入、编辑和删除批注                                 |
-| `link`                   | 插入、编辑和删除链接                                 |
-| `protect`                | 锁定单元格，保护工作表和工作簿结构                   |
-| `style`、`freeze`        | 工具栏或快捷键修改样式、格式；工具栏冻结行列         |
-| `sheet`                  | 标签栏里新建、重命名、复制、移动、删除工作表         |
-| `import`                 | 导入文件（`importFile`、工具栏的导入按钮、拖入文件） |
-| `replace`                | 查找面板里的替换、全部替换                           |
-| `insert`、`delete`       | 插入、删除行列                                       |
-| `undo`、`redo`           | 撤销、重做                                           |
-| `api`                    | 组件实例的 `transact`，没有指定 `action`             |
+| `action`                 | 来源                                                               |
+| ------------------------ | ------------------------------------------------------------------ |
+| `input`                  | 在单元格里输入                                                     |
+| `paste`、`cut`           | 粘贴；粘贴剪切的内容（移动单元格）                                 |
+| `fill`、`clear`          | 填充柄、`Ctrl` + `D` / `R`；清空内容                               |
+| `resize`、`hide`、`move` | 调整行高列宽；隐藏、取消隐藏；移动行列                             |
+| `merge`                  | 合并、取消合并单元格                                               |
+| `group`                  | 分组、取消分组、折叠和展开分组                                     |
+| `note`                   | 插入、编辑和删除批注                                               |
+| `link`                   | 插入、编辑和删除链接                                               |
+| `comment`                | 发起、删除讨论时写入或去掉单元格的 `comment`，见[评论](./comments) |
+| `restore`                | 恢复到某个版本，见[历史版本](./versions)                           |
+| `protect`                | 锁定单元格，保护工作表和工作簿结构                                 |
+| `style`、`freeze`        | 工具栏或快捷键修改样式、格式；工具栏冻结行列                       |
+| `sheet`                  | 标签栏里新建、重命名、复制、移动、删除工作表                       |
+| `import`                 | 导入文件（`importFile`、工具栏的导入按钮、拖入文件）               |
+| `replace`                | 查找面板里的替换、全部替换                                         |
+| `insert`、`delete`       | 插入、删除行列                                                     |
+| `undo`、`redo`           | 撤销、重做                                                         |
+| `api`                    | 组件实例的 `transact`，没有指定 `action`                           |
 
 | 方法                                                                                  | 说明                                                                                                                                                           |
 | ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -179,6 +182,7 @@ sheet.value.transact((tr) => {
 | `renameSheet(sheet, name)`、`moveSheet(sheet, index)`、`duplicateSheet(sheet, name?)` | 重命名、移动、复制工作表                                                                                                                                       |
 | `styleCells(range, patch)`、`formatCells(range, format)`                              | 修改区域的样式、数字格式，见[改样式](#改样式)                                                                                                                  |
 | `setStyle(name, style)`                                                               | 添加、修改或（传 `undefined`）删除一个命名样式                                                                                                                 |
+| `setComment(cell, id)`                                                                | 把讨论放到单元格上，`undefined` 去掉，见[评论](./comments#用代码修改)；恢复版本的步骤见 `restoreWorkbook`（[历史版本](./versions#恢复)）                       |
 | `protectSheet(protect, sheet?)`、`updateBook(patch)`                                  | 保护或取消保护工作表；修改工作簿的字段，比如 `{ protect: true }`，见[保护](#保护)                                                                              |
 | `cancel(reason?)`                                                                     | 取消这次修改，在扩展的 `transaction` 里使用，见[取消修改](./extensions#取消修改)                                                                               |
 | `setMeta({ history, group, action, protection })`                                     | `history: false` 不进入撤销记录，也不检查保护；同一 `group` 的连续修改合并为一步；`action` 见上表；`protection: false` 不检查保护                              |
@@ -363,6 +367,8 @@ const cells = [[{ value: '场地', note: '上海展览中心 2 号厅，含两�
 在右键菜单里选“插入批注”（已有批注时是“编辑批注”），或者按 `Shift` + `F2`，单元格旁边会出现输入框。按 `Ctrl` / `⌘` + `Enter` 或点“保存”保存，按 `Esc` 或点“取消”放弃；点到别处时直接保存。批注清空后保存就会删除。选区里有批注时，菜单里还有“删除批注”，一次删掉选区里所有的批注。
 
 合并单元格的批注写在它左上角的单元格上。清除内容（`Delete`）不会删除批注；复制粘贴、填充、排序时批注跟着单元格走；CSV 和导出的图片里不包含批注。只读的表格可以查看批注，不能修改。
+
+几个人之间的讨论用[评论](./comments)，它有作者、回复，可以标记为已解决。
 
 用代码修改时调用 `tr.setNote('B3', '文字')`，传空文字或 `undefined` 删除；`tr.clearNotes('A1:D20')` 删除一片区域里的批注。组件实例的 `editNote(cell?)` 选中单元格并打开输入框，可以接在自己的按钮上。
 

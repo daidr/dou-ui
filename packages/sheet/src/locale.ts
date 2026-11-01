@@ -102,6 +102,8 @@ export interface SheetMessages {
   ops: Record<SheetCondition['op'], string>
   group: SheetGroupMessages
   note: SheetNoteMessages
+  comment: SheetCommentMessages
+  compare: SheetCompareMessages
   /** Cell links: the menu items, the card under a linked cell and the box that edits it. */
   link: SheetLinkMessages
   /** Protecting sheets and the workbook, and why a change to them isn't allowed. */
@@ -447,6 +449,17 @@ const zhCN: SheetMessages = {
     ungrouped: '已取消分组',
     crossing: '不能这样分组：会和分组“{group}”交叉',
     tooDeep: '不能这样分组：分组最多嵌套 8 层',
+  },
+  compare: {
+    was: '原来：{value}',
+    wasEmpty: '原来为空',
+    restored: '已恢复到这个版本',
+  },
+  comment: {
+    add: '添加评论',
+    open: '查看评论',
+    label: '评论',
+    cellComment: '有评论',
   },
   note: {
     add: '插入批注',
@@ -863,6 +876,17 @@ const zhTW: SheetMessages = {
     ungrouped: '已取消群組',
     crossing: '無法這樣設定群組：會和群組「{group}」交叉',
     tooDeep: '無法這樣設定群組：群組最多巢狀 8 層',
+  },
+  compare: {
+    was: '原本：{value}',
+    wasEmpty: '原本為空',
+    restored: '已還原到這個版本',
+  },
+  comment: {
+    add: '新增評論',
+    open: '查看評論',
+    label: '評論',
+    cellComment: '有評論',
   },
   note: {
     add: '插入附註',
@@ -1286,6 +1310,17 @@ const en: SheetMessages = {
     ungrouped: 'Ungrouped',
     crossing: "Can't group these: they would cross the group of {group}",
     tooDeep: "Can't group these: groups nest at most 8 deep",
+  },
+  compare: {
+    was: 'Was: {value}',
+    wasEmpty: 'Was empty',
+    restored: 'Restored this version',
+  },
+  comment: {
+    add: 'New comment',
+    open: 'Show comment',
+    label: 'Comment',
+    cellComment: 'has comments',
   },
   note: {
     add: 'Insert note',
@@ -1725,6 +1760,24 @@ export interface SheetNoteMessages {
   saved: string
   removed: string
   removedMany: string
+}
+
+export interface SheetCompareMessages {
+  /** What a changed cell held in the older version: `{value}`; or that it was empty. */
+  was: string
+  wasEmpty: string
+  /** Read out after `restore`. */
+  restored: string
+}
+
+export interface SheetCommentMessages {
+  /** Menu items: start a thread on the cell, or open the one it has. */
+  add: string
+  open: string
+  /** The name of the card beside the cell. */
+  label: string
+  /** Read out with a cell that has a thread. */
+  cellComment: string
 }
 
 export interface SheetFilterMessages {

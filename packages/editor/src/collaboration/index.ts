@@ -13,9 +13,9 @@ import {
   resolveEditorExtensions,
   type EditorExtension,
 } from '../core/extension'
-import { blocksToDoc, type PartialBlock } from '../core/model'
+import { blocksToDoc, docToBlocks, type Block, type PartialBlock } from '../core/model'
 import { editorKit } from '../extensions/editor-kit'
-import { createBinding, syncPlugin, writeDoc, type YBlock } from './binding'
+import { createBinding, readDoc, syncPlugin, writeDoc, type YBlock } from './binding'
 import { cursorsPlugin, positionOf, type AwarenessLike } from './cursors'
 
 /** How the people editing together see each other. */
@@ -135,6 +135,20 @@ export function fillMap(
 ) {
   const schema = resolveEditorExtensions(extensions).schema
   writeDoc(map as Y.Map<YBlock>, blocksToDoc(schema, blocks))
+}
+
+/**
+ * The blocks a shared map holds, read without an editor, e.g. to save a
+ * version on the server. Pass the extensions the editors use; an empty map
+ * reads as no blocks.
+ */
+export function readMap(
+  map: Y.Map<unknown>,
+  extensions: (EditorExtension | EditorExtension[])[] = [editorKit()],
+): Block[] {
+  const schema = resolveEditorExtensions(extensions).schema
+  const doc = readDoc(map as Y.Map<YBlock>, schema)
+  return doc ? docToBlocks(doc) : []
 }
 
 export type { AwarenessLike }

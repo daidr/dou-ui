@@ -315,6 +315,17 @@ describe('the find panel', () => {
     wrapper.unmount()
   })
 
+  it('only finds while comparing with a version', async () => {
+    const { wrapper, grid, panel, sheet } = setup({ compare: book() })
+    expect(sheet().openSearch({ search: '白板', replace: '黑板' })).toBe(true)
+    await nextTick()
+    expect(panel().exists()).toBe(true)
+    expect(wrapper.findAll('.dou-find-replace__input').length).toBe(1)
+    await grid().trigger('keydown', { key: 'h', ctrlKey: true })
+    expect(wrapper.findAll('.dou-find-replace__input').length).toBe(1)
+    wrapper.unmount()
+  })
+
   it('runs as commands an extension can replace, and lists matches for code', async () => {
     const asked: unknown[] = []
     const own = defineSheetExtension({

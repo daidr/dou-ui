@@ -35,7 +35,7 @@ editor.value!.focusBlock('summary')
 
 `updateBlock` 的第二个参数可以包含 `type`、`props`、`content`、`rows` 和 `children`，没有写的部分保持原样。`children` 会替换全部子块，传 `[]` 去掉子块。只改属性或在两种文字块之间转换时，块里的文字原样保留，协同编辑中别人正在输入的内容不受影响。
 
-找不到 id 时，方法返回 `false`（`insertBlocks` 返回空数组），并在控制台给出提示。传入的块如果使用了文档里已有的 id，会换成新的 id，以返回值为准。只读时这些方法同样可用。
+找不到 id 时，方法返回 `false`（`insertBlocks` 返回空数组），并在控制台给出提示。传入的块如果使用了文档里已有的 id，会换成新的 id，以返回值为准。只读时这些方法同样可用；对比旧版本时（传了 `compare`）文档不能修改，这些方法、`transact`、`undo` 和 `redo` 都不生效，只有 `restore` 可以。
 
 ## 合成一步
 
@@ -72,7 +72,7 @@ function onTransaction({ blocks, changes, meta }: EditorTransactionResult) {
 
 - `updated` 是类型、属性、文字或表格内容变了的块，子块的变化不算在父块上。
 - `moved` 是换了父块，或者在兄弟块中换了位置的块。只列出真正移动的那些：把一个块移到末尾时，只有它在 `moved` 里，其他块不算。
-- `meta.origin` 是传给 `transact` 的值；外部修改 `v-model` 或调用 `setBlocks` 时为 `'external'`，协同编辑中别人的修改为 `'remote'`，撤销、重做为 `'undo'`、`'redo'`，查找面板里的替换为 `'replace'`（全部替换只有一次事件），用户输入和编辑器自己的操作没有 `origin`。
+- `meta.origin` 是传给 `transact` 的值；外部修改 `v-model` 或调用 `setBlocks` 时为 `'external'`，协同编辑中别人的修改为 `'remote'`，恢复版本（`restore`）为 `'restore'`，撤销、重做为 `'undo'`、`'redo'`，查找面板里的替换为 `'replace'`（全部替换只有一次事件），用户输入和编辑器自己的操作没有 `origin`。
 - `meta.history` 表示这次修改能不能撤销：别人的修改、撤销和重做本身，以及设置了 `history: false` 的修改为 `false`。
 
 传入 `v-model` 的块没有写 `id` 时，编辑器挂载后会生成 id，并通过 `update:modelValue` 交回一次（不触发 `transaction`，也不进入撤销记录），这样事件里的 id 都能在自己的数据里找到。

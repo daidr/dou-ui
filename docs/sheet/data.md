@@ -142,6 +142,7 @@ interface SheetCell {
   style?: string // 样式的名字
   format?: string // 数字或日期格式
   note?: string // 批注
+  comment?: string // 评论讨论的 id，见“评论”一页
   type?: string // 单元格类型：date、select、checkbox、扩展加的类型，或 types 里的名字
   link?: string // 链接：https、http、mailto、tel 地址，或 # 加单元格引用，如 '#汇总!B2'
 }

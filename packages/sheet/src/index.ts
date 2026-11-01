@@ -25,10 +25,15 @@ export type {
   ResolvedSheetExtensions,
   SheetExtension,
   SheetExtensionContext,
+  SheetCommentsProvider,
   SheetHistoryHandler,
   SheetKeyHandler,
   SheetUpdate,
 } from './core/extension'
+export { keepCommentAnchors, sheetCommentAnchors } from './core/comments'
+export { diffWorkbooks, restoreWorkbook } from './core/versions'
+export type { SheetCellChange, WorkbookDiff } from './core/versions'
+export type { SheetCommentAnchor } from './core/comments'
 export { defineSheetCommand } from './core/commands'
 export {
   createFileSource,
@@ -192,7 +197,12 @@ export type { SheetErrorCode } from './formula/error'
 export type { SheetArg, SheetRangeArg, SheetResult } from './formula/values'
 export { sheetMessagesFor, sheetLocales } from './locale'
 export { useSheetMessages } from './use-messages'
-export type { SheetFileMessages, SheetMessages } from './locale'
+export type {
+  SheetCommentMessages,
+  SheetCompareMessages,
+  SheetFileMessages,
+  SheetMessages,
+} from './locale'
 
 declare module 'vue' {
   export interface GlobalComponents {

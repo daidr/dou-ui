@@ -19,6 +19,11 @@ export interface SheetCell {
   /** A note on the cell. */
   note?: string
   /**
+   * The id of the comment thread about the cell, one of `v-model:comments`.
+   * Copying a cell leaves it behind; cutting moves it.
+   */
+  comment?: string
+  /**
    * Where the cell links to: a web address (`https:`, `http:`, `mailto:`
    * or `tel:`), or a place in the workbook written `#` and a reference,
    * such as `#A20` or `#'汇总'!B2`. Other addresses are not followed.

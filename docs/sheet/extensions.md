@@ -36,25 +36,26 @@ const extensions = [progress]
 
 ## 扩展的字段
 
-| 名称             | 说明                                                                                                                                                           | 类型                                                              |
-| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| `name`           | 扩展的名字                                                                                                                                                     | `string`                                                          |
-| `priority`       | 优先级，越大越先处理按键和钩子，默认 `100`                                                                                                                     | `number`                                                          |
-| `cellTypes`      | 单元格类型，见下文；和内置类型同名时替换内置的，多个扩展同名时用优先级高的                                                                                     | `SheetCellType[]`                                                 |
-| `functions`      | 公式里可以调用的函数，见[自定义函数](./formulas#自定义函数)；和内置函数同名时替换内置的                                                                        | `SheetFunction[]`                                                 |
-| `commands`       | 命令，按名字登记，工具栏按钮、菜单项和快捷键都可以引用，见下文                                                                                                 | `Record<string, SheetCommand>`                                    |
-| `keymap`         | 表格有焦点、没有在编辑单元格时的快捷键，写法和 `useHotkey` 一样；值是处理函数或命令名。处理函数（或命令）返回 `false` 表示没处理，交给下一个                   | `(ctx) => Record<string, ((event) => boolean \| void) \| string>` |
-| `contextMenu`    | 右键菜单的项，排在内置项前面；`menu` 属性收到的菜单项里也包括它们                                                                                              | `(ctx, menu: SheetMenuContext) => SheetMenuItem[]`                |
-| `toolbar`        | `DouSheetToolbar` 上的按钮，默认排在内置按钮后面，见下文                                                                                                       | `(ctx) => SheetToolbarItem[]`                                     |
-| `exporters`      | 导出方式，出现在工具栏的导出菜单里，`exportFile` 可以按名字使用；和内置的 `csv`、`png`、`svg` 同名时替换内置的，在菜单里留在原来的位置，见下文                 | `SheetExporter[]`                                                 |
-| `importers`      | 导入方式，用于工具栏的导入按钮、`importFile` 和拖入的文件；比内置的 CSV 先询问                                                                                 | `SheetImporter[]`                                                 |
-| `overlays`       | 浮在表格上方的组件，不随表格滚动，可以用 `cellRect` 对准单元格                                                                                                 | `Component[]`                                                     |
-| `layers`         | 画在单元格上的组件，限制在表头以内：`below` 在表格自己的标记（复制的区域、公式引用的区域）下面，`above` 在它们上面，编辑框总在最上面；见下文                   | `{ below?: Component[]; above?: Component[] }`                    |
-| `history`        | 替换表格自带的撤销记录，多个扩展都有时用优先级最高的，见下文                                                                                                   | `(ctx) => SheetHistoryHandler`                                    |
-| `setup`          | 表格挂载后调用，可以返回一个函数，在卸载时调用                                                                                                                 | `(ctx) => void \| (() => void)`                                   |
-| `transaction`    | 表格里的每次修改和 `transact` 生效前按优先级调用，可以继续往里加步骤，或用 `tr.cancel()` 取消这次修改；撤销时加上的步骤一起撤销                                | `(tr, ctx) => void`                                               |
-| `update`         | 每次修改生效后调用，表格已经是新的内容，见下文                                                                                                                 | `(update: SheetUpdate, ctx) => void`                              |
-| `transformPaste` | 粘贴之前，以及“从当前单元格放入”的导入之前，按优先级改写单元格，返回 `null` 取消。粘贴时组件的 `paste` 事件在它之后，收到改写后的内容；导入不触发 `paste` 事件 | `(clip: SheetClip, ctx) => SheetClip \| null`                     |
+| 名称             | 说明                                                                                                                                                                      | 类型                                                              |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `name`           | 扩展的名字                                                                                                                                                                | `string`                                                          |
+| `priority`       | 优先级，越大越先处理按键和钩子，默认 `100`                                                                                                                                | `number`                                                          |
+| `cellTypes`      | 单元格类型，见下文；和内置类型同名时替换内置的，多个扩展同名时用优先级高的                                                                                                | `SheetCellType[]`                                                 |
+| `functions`      | 公式里可以调用的函数，见[自定义函数](./formulas#自定义函数)；和内置函数同名时替换内置的                                                                                   | `SheetFunction[]`                                                 |
+| `commands`       | 命令，按名字登记，工具栏按钮、菜单项和快捷键都可以引用，见下文                                                                                                            | `Record<string, SheetCommand>`                                    |
+| `keymap`         | 表格有焦点、没有在编辑单元格时的快捷键，写法和 `useHotkey` 一样；值是处理函数或命令名。处理函数（或命令）返回 `false` 表示没处理，交给下一个                              | `(ctx) => Record<string, ((event) => boolean \| void) \| string>` |
+| `contextMenu`    | 右键菜单的项，排在内置项前面；`menu` 属性收到的菜单项里也包括它们                                                                                                         | `(ctx, menu: SheetMenuContext) => SheetMenuItem[]`                |
+| `toolbar`        | `DouSheetToolbar` 上的按钮，默认排在内置按钮后面，见下文                                                                                                                  | `(ctx) => SheetToolbarItem[]`                                     |
+| `exporters`      | 导出方式，出现在工具栏的导出菜单里，`exportFile` 可以按名字使用；和内置的 `csv`、`png`、`svg` 同名时替换内置的，在菜单里留在原来的位置，见下文                            | `SheetExporter[]`                                                 |
+| `importers`      | 导入方式，用于工具栏的导入按钮、`importFile` 和拖入的文件；比内置的 CSV 先询问                                                                                            | `SheetImporter[]`                                                 |
+| `overlays`       | 浮在表格上方的组件，不随表格滚动，可以用 `cellRect` 对准单元格                                                                                                            | `Component[]`                                                     |
+| `layers`         | 画在单元格上的组件，限制在表头以内：`below` 在表格自己的标记（复制的区域、公式引用的区域）下面，`above` 在它们上面，编辑框总在最上面；见下文                              | `{ below?: Component[]; above?: Component[] }`                    |
+| `comments`       | 把讨论保存在 `v-model:comments` 以外的地方（比如共享文档），这时 `v-model:comments` 只反映它；只能有一个扩展提供，[协同编辑](./collaboration)会用到，见[评论](./comments) | `(ctx) => SheetCommentsProvider`                                  |
+| `history`        | 替换表格自带的撤销记录，多个扩展都有时用优先级最高的，见下文                                                                                                              | `(ctx) => SheetHistoryHandler`                                    |
+| `setup`          | 表格挂载后调用，可以返回一个函数，在卸载时调用                                                                                                                            | `(ctx) => void \| (() => void)`                                   |
+| `transaction`    | 表格里的每次修改和 `transact` 生效前按优先级调用，可以继续往里加步骤，或用 `tr.cancel()` 取消这次修改；撤销时加上的步骤一起撤销                                           | `(tr, ctx) => void`                                               |
+| `update`         | 每次修改生效后调用，表格已经是新的内容，见下文                                                                                                                            | `(update: SheetUpdate, ctx) => void`                              |
+| `transformPaste` | 粘贴之前，以及“从当前单元格放入”的导入之前，按优先级改写单元格，返回 `null` 取消。粘贴时组件的 `paste` 事件在它之后，收到改写后的内容；导入不触发 `paste` 事件            | `(clip: SheetClip, ctx) => SheetClip \| null`                     |
 
 `ctx` 和组件里 `useSheet()` 拿到的是同一个对象。
 
@@ -118,6 +119,30 @@ interface SheetHistoryHandler {
   redo: () => boolean
   canUndo: () => boolean
   canRedo: () => boolean
+}
+```
+
+讨论的位置（单元格的 `comment`）不进撤销记录：撤销一次修改时，单元格上的讨论应该留在原处。自己实现撤销时，用 `keepCommentAnchors(before, tr)` 把讨论放回去：`before` 是撤销前用 `sheetCommentAnchors` 读出的讨论位置，`tr` 是做撤销的事务。被撤销的插入、删除、移动行列会让讨论跟着单元格走，所在的行列被撤销删掉的讨论不再放回：
+
+```ts
+import { keepCommentAnchors, sheetCommentAnchors } from '@dou-ui/sheet'
+
+const before = sheetCommentAnchors(ctx.doc.value)
+ctx.transact(
+  (tr) => {
+    applyMyUndo(tr)
+    keepCommentAnchors(before, tr)
+  },
+  { action: 'undo', history: false },
+)
+```
+
+```ts
+interface SheetCommentsProvider {
+  /** 所有讨论，保持最新 */
+  threads: Readonly<Ref<readonly CommentThread[]>>
+  /** 应用当前用户做的一次修改 */
+  apply: (action: CommentAction) => void
 }
 ```
 

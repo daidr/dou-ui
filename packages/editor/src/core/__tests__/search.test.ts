@@ -110,6 +110,17 @@ describe('the find panel', () => {
     wrapper.unmount()
   })
 
+  it('only finds while comparing with a version', async () => {
+    const { wrapper, editor, inputs } = setup()
+    await nextTick()
+    await wrapper.setProps({ compare: editor().getBlocks() })
+    editor().openSearch({ search: '白板', replace: '黑板' })
+    await nextTick()
+    expect(inputs().length).toBe(1)
+    expect(wrapper.find('.dou-find-replace').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
   it('leaves the keys to the browser when searchable is off', async () => {
     const { wrapper, editor, key } = setup({ searchable: false })
     await nextTick()

@@ -10,6 +10,7 @@ export {
   csvImporter,
   defineSheetExporter,
   defineSheetImporter,
+  SheetFileError,
   exportWorkbook,
   readWorkbook,
 } from './file'

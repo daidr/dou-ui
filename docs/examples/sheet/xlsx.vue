@@ -6,10 +6,10 @@ import { ref } from 'vue'
 
 const extensions = [xlsx()]
 
-// 文件里有、表格放不下的内容，读完时告诉用户
+// 表格放不下、或和原文件不一样的内容，读完时告诉用户；多个工作表会有同一种，去掉重复的
 function onImport(event) {
   if (event.warnings.length)
-    toast.warning(`没有导入：${[...new Set(event.warnings.map((w) => w.message))].join('、')}`)
+    toast.warning(`与原文件不同：${[...new Set(event.warnings.map((w) => w.message))].join('、')}`)
 }
 
 const book = ref({

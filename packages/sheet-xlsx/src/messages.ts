@@ -1,6 +1,6 @@
 /** The texts of reading .xlsx files: what couldn't be brought over, and why a file couldn't be read. */
 export interface SheetXlsxMessages {
-  /** What a file had that the sheet can't hold, by warning code. */
+  /** What a file had that the sheet can't hold, by warning code: a short noun phrase each, to be listed. */
   warnings: Record<SheetXlsxWarningCode, string>
   /** Why a file couldn't be read, shown in the sheet's hint. */
   notXlsx: string
@@ -16,6 +16,7 @@ export type SheetXlsxWarningCode =
   | 'image'
   | 'chart'
   | 'pivot'
+  | 'table'
   | 'macro'
   | 'hyperlink'
   | 'hiddenSheet'
@@ -33,11 +34,12 @@ const zhCN: SheetXlsxMessages = {
     image: '图片和形状',
     chart: '图表',
     pivot: '数据透视表',
+    table: '表格对象和引用它的公式',
     macro: '宏',
     hyperlink: '超链接',
-    hiddenSheet: '隐藏的工作表，已显示出来',
-    external: '引用其他文件的公式，已换成计算结果',
-    name: '定义的名称，用到它们的公式会出错',
+    hiddenSheet: '隐藏的工作表',
+    external: '引用其他文件的公式',
+    name: '定义的名称',
     conditional: '无法对应的条件格式',
     validation: '无法对应的数据验证',
     filter: '无法对应的筛选条件',
@@ -55,11 +57,12 @@ const zhTW: SheetXlsxMessages = {
     image: '圖片和圖形',
     chart: '圖表',
     pivot: '樞紐分析表',
+    table: '表格物件和參照它的公式',
     macro: '巨集',
     hyperlink: '超連結',
-    hiddenSheet: '隱藏的工作表，已顯示出來',
-    external: '參照其他檔案的公式，已換成計算結果',
-    name: '定義的名稱，用到它們的公式會出錯',
+    hiddenSheet: '隱藏的工作表',
+    external: '參照其他檔案的公式',
+    name: '定義的名稱',
     conditional: '無法對應的設定格式化條件',
     validation: '無法對應的資料驗證',
     filter: '無法對應的篩選條件',
@@ -77,11 +80,12 @@ const en: SheetXlsxMessages = {
     image: 'Pictures and shapes',
     chart: 'Charts',
     pivot: 'Pivot tables',
+    table: 'Tables and formulas that refer to them',
     macro: 'Macros',
     hyperlink: 'Hyperlinks',
-    hiddenSheet: 'Hidden sheets, now shown',
-    external: 'Formulas that refer to other files, kept as their results',
-    name: 'Defined names; formulas that use them show an error',
+    hiddenSheet: 'Hidden sheets',
+    external: 'Formulas that refer to other files',
+    name: 'Defined names',
     conditional: "Conditional formats the sheet doesn't have",
     validation: "Data validations the sheet doesn't have",
     filter: "Filter conditions the sheet doesn't have",
@@ -104,4 +108,18 @@ export function sheetXlsxMessagesFor(locale = 'zh-CN'): SheetXlsxMessages {
     sheetXlsxLocales[locale.split('-')[0]!] ??
     (locale.startsWith('zh') ? zhCN : en)
   )
+}
+
+/** Texts to use instead, in part: any of them, and any of the warnings. */
+export type SheetXlsxMessagesInput = Partial<Omit<SheetXlsxMessages, 'warnings'>> & {
+  warnings?: Partial<SheetXlsxMessages['warnings']>
+}
+
+/** A language's texts with some of them given instead. */
+export function mergeXlsxMessages(
+  base: SheetXlsxMessages,
+  own: SheetXlsxMessagesInput | undefined,
+): SheetXlsxMessages {
+  if (!own) return base
+  return { ...base, ...own, warnings: { ...base.warnings, ...own.warnings } }
 }

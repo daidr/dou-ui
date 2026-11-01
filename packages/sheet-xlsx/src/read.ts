@@ -1,6 +1,7 @@
 import {
   columnName,
   parseCell,
+  SheetFileError,
   shiftFormula,
   type SheetCell,
   type SheetCondition,
@@ -16,7 +17,13 @@ import {
   type SheetWorkbook,
 } from '@dou-ui/sheet/core'
 import { dateText } from '@dou-ui/sheet/formula'
-import { sheetXlsxMessagesFor, type SheetXlsxMessages, type SheetXlsxWarningCode } from './messages'
+import {
+  mergeXlsxMessages,
+  sheetXlsxMessagesFor,
+  type SheetXlsxMessages,
+  type SheetXlsxMessagesInput,
+  type SheetXlsxWarningCode,
+} from './messages'
 import { colorOf, readStyles, themeColors, type CellLookIn } from './read-styles'
 import {
   attrsOf,
@@ -38,21 +45,40 @@ export interface SheetXlsxImportOptions {
    * by default.
    */
   formulas?: boolean
+  /** Texts of the warnings and of why a file couldn't be read, in part: such as `{ warnings: { border: '框线' } }`. */
+  messages?: SheetXlsxMessagesInput
 }
 
 /** What `readXlsx` takes besides the file. */
 export interface SheetXlsxReadOptions extends SheetXlsxImportOptions {
   /** The language of the warnings and of why a file couldn't be read. */
   locale?: string
-  /** Texts to use instead, in part. */
-  messages?: Partial<SheetXlsxMessages>
   signal?: AbortSignal
+}
+
+/** Something a file had that the sheet can't hold, as `readXlsx` lists it. */
+export interface SheetXlsxWarning extends SheetImportWarning {
+  code: SheetXlsxWarningCode
+}
+
+/** Why `readXlsx` couldn't read a file, as the `code` of its `SheetFileError`. */
+export type SheetXlsxErrorCode = 'notXlsx' | 'damaged' | 'locked'
+
+/** What `readXlsx` gives back. */
+export interface SheetXlsxImportResult extends SheetImportResult {
+  warnings: SheetXlsxWarning[]
+}
+
+const ERRORS: Record<SheetXlsxErrorCode, string> = {
+  notXlsx: "[@dou-ui/sheet-xlsx] The file isn't an .xlsx file.",
+  damaged: '[@dou-ui/sheet-xlsx] The file is damaged and could not be read.',
+  locked: '[@dou-ui/sheet-xlsx] The file is encrypted with a password.',
 }
 
 const decoder = new TextDecoder()
 
-/** Column widths: the characters the file counts in to px. */
-const pxOfWidth = (width: number) => Math.round(width * 7 + 5)
+/** Column widths: the characters the file counts in to px, as the file format works it out (padding included). */
+const pxOfWidth = (width: number) => Math.trunc(((256 * width + Math.trunc(128 / 7)) / 256) * 7)
 /** Row heights: points to px. */
 const pxOfHeight = (points: number) => Math.round(points / 0.75)
 
@@ -135,12 +161,44 @@ const COMPARE: Partial<Record<SheetCondition['op'], string>> = {
 }
 
 /** Where the first relationship of a kind points. */
+/** Days from 1900's day 0 to 1904's, as the two ways of counting dates differ. */
+const DAYS_1904 = 1462
+
+/** Whether an older-style container holds an encrypted workbook, by its `EncryptionInfo` stream's name. */
+function hasEncryptionInfo(bytes: Uint8Array) {
+  const name = [...'EncryptionInfo'].flatMap((ch) => [ch.charCodeAt(0), 0])
+  for (let i = bytes.indexOf(name[0]!); i !== -1; i = bytes.indexOf(name[0]!, i + 1)) {
+    let j = 1
+    while (j < name.length && bytes[i + j] === name[j]) j++
+    if (j === name.length) return true
+  }
+  return false
+}
+
+/** What sets a run of text apart from another, leaving out its typeface. */
+function runLook(run: XmlNode) {
+  const props = childOf(run, 'rPr')
+  if (!props) return ''
+  return ['b', 'i', 'u', 'strike', 'color', 'sz']
+    .map((part) => {
+      const node = childOf(props, part)
+      return node ? `${part}${JSON.stringify(node.attrs)}` : ''
+    })
+    .join('')
+}
+
+/** Whether a string's runs differ in more than their typeface, as text mixing scripts is split by font. */
+function hasRichRuns(si: XmlNode) {
+  const runs = childrenOf(si, 'r')
+  return runs.length > 1 && new Set(runs.map(runLook)).size > 1
+}
+
 const ofType = (rels: Map<string, { path: string; type: string }>, type: string) =>
   [...rels.values()].find((rel) => rel.type.endsWith(`/${type}`))?.path
 
 /** Reads the file's warnings up, by what was lost and on which sheet. */
 class Warnings {
-  private list = new Map<string, SheetImportWarning>()
+  private list = new Map<string, SheetXlsxWarning>()
   constructor(private readonly messages: SheetXlsxMessages) {}
   add(code: SheetXlsxWarningCode, sheet?: string, count = 1) {
     if (count <= 0) return
@@ -169,23 +227,26 @@ class Warnings {
 export async function readXlsx(
   file: Blob | ArrayBuffer | Uint8Array,
   options: SheetXlsxReadOptions = {},
-): Promise<SheetImportResult & { warnings: SheetImportWarning[] }> {
-  const messages = { ...sheetXlsxMessagesFor(options.locale), ...options.messages }
+): Promise<SheetXlsxImportResult> {
+  const messages = mergeXlsxMessages(sheetXlsxMessagesFor(options.locale), options.messages)
+  /** Why the file can't be read: for developers in `message`, for people in `reason`. */
+  const failed = (code: SheetXlsxErrorCode, cause?: unknown) =>
+    new SheetFileError(ERRORS[code], code, messages[code], cause ? { cause } : undefined)
   const { signal } = options
   const bytes =
     file instanceof Uint8Array
       ? file
       : new Uint8Array(file instanceof ArrayBuffer ? file : await file.arrayBuffer())
   signal?.throwIfAborted()
-  // a file with a password is kept in another kind of container
+  // a file with a password is kept in another kind of container, as are older .xls files
   if (bytes[0] === 0xd0 && bytes[1] === 0xcf && bytes[2] === 0x11 && bytes[3] === 0xe0)
-    throw new Error(messages.locked)
-  if (bytes[0] !== 0x50 || bytes[1] !== 0x4b) throw new Error(messages.notXlsx)
+    throw failed(hasEncryptionInfo(bytes) ? 'locked' : 'notXlsx')
+  if (bytes[0] !== 0x50 || bytes[1] !== 0x4b) throw failed('notXlsx')
   let files: Map<string, ZipFile>
   try {
     files = zipFiles(bytes)
   } catch (error) {
-    throw new Error(messages.damaged, { cause: error })
+    throw failed('damaged', error)
   }
   const pacing: ZipPacing = { signal, lastPause: { at: performance.now() } }
   const readText = async (path: string) => {
@@ -195,7 +256,7 @@ export async function readXlsx(
       return decoder.decode(await entry.read(pacing))
     } catch (error) {
       if (signal?.aborted || String(error).includes('CompressionStream')) throw error
-      throw new Error(messages.damaged, { cause: error })
+      throw failed('damaged', error)
     }
   }
   const readNode = async (path: string | undefined) => {
@@ -222,7 +283,7 @@ export async function readXlsx(
     [...root.values()].find((rel) => rel.type.endsWith('/officeDocument'))?.path ??
     'xl/workbook.xml'
   const workbook = await readNode(workbookPath)
-  if (!workbook || workbook.name !== 'workbook') throw new Error(messages.notXlsx)
+  if (!workbook || workbook.name !== 'workbook') throw failed('notXlsx')
   const workbookRels = await relsOf(workbookPath)
   const warnings = new Warnings(messages)
 
@@ -235,7 +296,7 @@ export async function readXlsx(
   const richText = new Set<number>()
   for (const [i, si] of childrenOf(stringsXML, 'si').entries()) {
     strings.push(unescapeX(textOf(si)))
-    if (si.children.some((child) => child.name === 'r' && childOf(child, 'rPr'))) richText.add(i)
+    if (hasRichRuns(si)) richText.add(i)
   }
 
   // whole-workbook things the sheet doesn't have
@@ -245,6 +306,24 @@ export async function readXlsx(
   }
   for (const name of childrenOf(childOf(workbook, 'definedNames'), 'definedName'))
     if (!name.attrs.name?.startsWith('_xlnm.')) warnings.add('name')
+  // dates counted from 1904 rather than 1900, as files from some computers are
+  const date1904 = isOn(childOf(workbook, 'workbookPr')?.attrs.date1904)
+  // tables' names, so formulas that refer to them by name can be told apart
+  const tableNames: string[] = []
+  for (const path of files.keys()) {
+    if (!/^xl\/tables\/[^/]+\.xml$/i.test(path)) continue
+    const table = await readNode(path)
+    for (const key of ['name', 'displayName'] as const) {
+      const tableName = table?.attrs[key]
+      if (tableName && !tableNames.includes(tableName)) tableNames.push(tableName)
+    }
+  }
+  const tableRef = tableNames.length
+    ? new RegExp(
+        `(?:^|[^\\w.])(?:${tableNames.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\[`,
+        'i',
+      )
+    : null
 
   // named styles, one for each different look the cells use
   const styleNames = new Map<string, string>()
@@ -274,7 +353,7 @@ export async function readXlsx(
     if (sheetNode.attrs.state === 'hidden' || sheetNode.attrs.state === 'veryHidden')
       warnings.add('hiddenSheet', name)
     const xml = await readText(rel.path)
-    if (xml == null) throw new Error(messages.damaged)
+    if (xml == null) throw failed('damaged')
     const sheetRels = await relsOf(rel.path)
     const data = await readSheet(xml, name, {
       strings,
@@ -285,6 +364,8 @@ export async function readXlsx(
       keepFormulas,
       warnings,
       pacing,
+      date1904,
+      tableRef,
     })
     // notes, kept in another part
     const comments = await readNode(ofType(sheetRels, 'comments'))
@@ -297,6 +378,7 @@ export async function readXlsx(
           else if (kind.endsWith('/image')) warnings.add('image', name)
       }
       if (type.endsWith('/pivotTable')) warnings.add('pivot', name)
+      if (type.endsWith('/table')) warnings.add('table', name)
     }
     sheets.push(data)
   }
@@ -316,12 +398,18 @@ interface SheetContext {
   keepFormulas: boolean
   warnings: Warnings
   pacing: ZipPacing
+  /** Dates counted from 1904. */
+  date1904: boolean
+  /** Matches formulas that refer to a table by name; `null` when the file has none. */
+  tableRef: RegExp | null
 }
 
 /** One sheet's part, read a piece at a time. */
 async function readSheet(xml: string, name: string, context: SheetContext): Promise<SheetData> {
   const { strings, richText, looks, differentials, styleName, keepFormulas, warnings, pacing } =
     context
+  const { date1904, tableRef } = context
+  const dateOf = (serial: number) => dateText(date1904 ? serial + DAYS_1904 : serial)
   const data: SheetData = { name, cells: [] }
   const cells = data.cells
   const rowSizes: Record<number, number> = {}
@@ -336,6 +424,7 @@ async function readSheet(xml: string, name: string, context: SheetContext): Prom
   let fonts = 0
   let rich = 0
   let external = 0
+  let tableFormulas = 0
   let links = 0
   const dates = new Map<number, string>()
   const times = new Map<number, string>()
@@ -410,7 +499,7 @@ async function readSheet(xml: string, name: string, context: SheetContext): Prom
       // dates repeat a lot in a column: each one's text worked out once
       let shown = (time ? times : dates).get(serial)
       if (shown == null) {
-        shown = time ? timeText(serial) : dateText(serial)
+        shown = time ? timeText(serial) : dateOf(serial)
         if (dates.size + times.size < 100_000) (time ? times : dates).set(serial, shown)
       }
       content = shown
@@ -421,6 +510,8 @@ async function readSheet(xml: string, name: string, context: SheetContext): Prom
     if (kind === 'b' && formula != null && /^(TRUE|FALSE)\(\)$/i.test(formula)) formula = null
     if (formula != null && keepFormulas) {
       if (/\[\d+\]/.test(formula)) external++
+      // the sheet has no tables to look into: the result the file kept stays
+      else if (tableRef?.test(formula)) tableFormulas++
       else content = formulaOf(formula)
     }
     if (look?.border) borders++
@@ -687,7 +778,7 @@ async function readSheet(xml: string, name: string, context: SheetContext): Prom
     const rule = validation
     validation = null
     if (!rule) return
-    const made = validationOf(rule)
+    const made = validationOf(rule, dateOf)
     if (made) validations.push(made)
     else if (rule.attrs.type && rule.attrs.type !== 'none') warnings.add('validation', name)
   }
@@ -734,6 +825,7 @@ async function readSheet(xml: string, name: string, context: SheetContext): Prom
   warnings.add('font', name, fonts)
   warnings.add('richText', name, rich)
   warnings.add('external', name, external)
+  warnings.add('table', name, tableFormulas)
   warnings.add('hyperlink', name, links)
   return data
 }
@@ -934,11 +1026,14 @@ function conditionalOf(
 }
 
 /** A data validation as the sheet's, `null` for one it has none like. */
-function validationOf(rule: {
-  attrs: Record<string, string>
-  formula1?: string
-  formula2?: string
-}): SheetValidation | null {
+function validationOf(
+  rule: {
+    attrs: Record<string, string>
+    formula1?: string
+    formula2?: string
+  },
+  dateOf: (serial: number) => string,
+): SheetValidation | null {
   const { attrs, formula1, formula2 } = rule
   const range = rangesOf(attrs.sqref)
   if (!range || formula1 == null) return null
@@ -968,7 +1063,7 @@ function validationOf(rule: {
       const valueOf = (formula: string | undefined) => {
         const value = literalOf(formula)
         if (typeof value !== 'number') return undefined
-        return date ? (attrs.type === 'time' ? timeText(value) : dateText(value)) : value
+        return date ? (attrs.type === 'time' ? timeText(value) : dateOf(value)) : value
       }
       const value = valueOf(formula1)
       const to = valueOf(formula2)

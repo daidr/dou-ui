@@ -1,13 +1,20 @@
 import type { SheetExtension, SheetLabel } from '@dou-ui/sheet'
 // only the file side of the sheet, so that a Worker writing .xlsx files loads no components
 import { defineSheetExporter, defineSheetImporter } from '@dou-ui/sheet/core'
-import { readXlsx, type SheetXlsxImportOptions } from './read'
+import { readXlsx, type SheetXlsxImportOptions, type SheetXlsxImportResult } from './read'
 import { writeXlsx, type SheetXlsxExportOptions } from './write'
 
 export { writeXlsx, type SheetXlsxExportOptions } from './write'
-export { readXlsx, type SheetXlsxImportOptions, type SheetXlsxReadOptions } from './read'
+export {
+  readXlsx,
+  type SheetXlsxErrorCode,
+  type SheetXlsxImportOptions,
+  type SheetXlsxImportResult,
+  type SheetXlsxReadOptions,
+  type SheetXlsxWarning,
+} from './read'
 export { sheetXlsxLocales, sheetXlsxMessagesFor } from './messages'
-export type { SheetXlsxMessages, SheetXlsxWarningCode } from './messages'
+export type { SheetXlsxMessages, SheetXlsxMessagesInput, SheetXlsxWarningCode } from './messages'
 
 declare module '@dou-ui/sheet' {
   interface SheetExporterOptions {
@@ -44,7 +51,7 @@ const isZip = (head: Uint8Array) =>
   head[0] === 0x50 && head[1] === 0x4b && head[2] === 0x03 && head[3] === 0x04
 
 /** Reads an .xlsx file as a workbook; what it can't bring over comes back in `warnings`. */
-export const xlsxImporter = defineSheetImporter<SheetXlsxImportOptions>({
+export const xlsxImporter = defineSheetImporter<SheetXlsxImportOptions, SheetXlsxImportResult>({
   name: 'xlsx',
   label: defaultLabel,
   accept: ['.xlsx', '.xlsm', MIME, 'application/vnd.ms-excel.sheet.macroEnabled.12'],

@@ -15,6 +15,7 @@ import {
   exportWorkbook,
   isSheetError,
   readWorkbook,
+  SheetFileError,
   useSheet,
   type SheetContext,
   type SheetExpose,
@@ -545,6 +546,28 @@ describe('DouSheet files', () => {
       ['import', 'bad'],
       ['export', 'csv'],
     ])
+    wrapper.unmount()
+  })
+
+  it("shows an error's reason to people, and keeps its message for developers", async () => {
+    const errors: SheetFileErrorEvent[] = []
+    const locked = defineSheetImporter({
+      name: 'locked',
+      label: '加密文件',
+      accept: ['.lk'],
+      import: () => {
+        throw new SheetFileError('[demo] The file is encrypted.', 'locked', '文件设了密码')
+      },
+    })
+    const { wrapper, sheet } = setup({
+      extensions: [defineSheetExtension({ name: 'locked', importers: [locked] })],
+      onFileError: (event: SheetFileErrorEvent) => errors.push(event),
+    })
+    await expect(sheet().importFile(new File(['x'], 'a.lk'))).rejects.toThrow('[demo]')
+    await nextTick()
+    expect(errors[0]!.message).toContain('文件设了密码')
+    expect(errors[0]!.message).not.toContain('[demo]')
+    expect(wrapper.text()).toContain('文件设了密码')
     wrapper.unmount()
   })
 

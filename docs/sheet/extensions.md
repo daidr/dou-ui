@@ -284,15 +284,23 @@ const json = defineSheetImporter({
 })
 ```
 
-| 导入器字段 | 说明                                                                                                                  | 类型                                                                           |
-| ---------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `name`     | 名字，`importFile(file, { importer })` 用它                                                                           | `string`                                                                       |
-| `label`    | 这种文件叫什么，比如“CSV 文件”：文件没有名字时用在表格的提示里，也在 `useSheet().importers` 里交给你自己做的导入菜单  | `string \| ((messages) => string)`                                             |
-| `accept`   | 能读的文件，写法和文件选择框的 `accept` 一样：扩展名如 `.csv`，或类型如 `text/csv`                                    | `string[]`                                                                     |
-| `sniff`    | 按文件开头的字节判断能不能读，用于文件名看不出来的情况                                                                | `(head: Uint8Array) => boolean`                                                |
-| `import`   | 读文件；`context` 里有 `messages`、`locale` 和 `signal`（导入被取消或表格卸载时中止）；出错时抛出错误，表格会提示原因 | `(file, context, options?) => SheetImportResult \| Promise<SheetImportResult>` |
+| 导入器字段 | 说明                                                                                                                          | 类型                                                                           |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `name`     | 名字，`importFile(file, { importer })` 用它                                                                                   | `string`                                                                       |
+| `label`    | 这种文件叫什么，比如“CSV 文件”：文件没有名字时用在表格的提示里，也在 `useSheet().importers` 里交给你自己做的导入菜单          | `string \| ((messages) => string)`                                             |
+| `accept`   | 能读的文件，写法和文件选择框的 `accept` 一样：扩展名如 `.csv`，或类型如 `text/csv`                                            | `string[]`                                                                     |
+| `sniff`    | 按文件开头的字节判断能不能读，用于文件名看不出来的情况                                                                        | `(head: Uint8Array) => boolean`                                                |
+| `import`   | 读文件；`context` 里有 `messages`、`locale` 和 `signal`（导入被取消或表格卸载时中止）；出错时抛出错误，表格会提示原因，见下文 | `(file, context, options?) => SheetImportResult \| Promise<SheetImportResult>` |
 
-不经过组件时，`exportWorkbook(book, exporter, options?)` 写出 `Blob`，会计算公式，`needs: 'view'` 的导出器在这里会报错；`options` 里的 `extensions` 提供工作簿用到的单元格类型和函数，`scope`、`sheet`（序号、`id` 或名字，默认第一张）、`range`、`signal` 和组件的 `exportFile` 一样，`colWidth`、`rowHeight` 是工作簿配合的列宽行高（和表格的 `col-width`、`row-height` 一样，默认 96、28），`options` 交给导出器。`readWorkbook(file, importer, options?)` 只读出 `{ book, warnings }`，不写进任何表格。内置的 CSV 导出器和导入器是 `csvExporter`、`csvImporter`，也可以这样用：
+导入器读不了文件时，抛出 `SheetFileError(message, code, reason)`：`reason` 是给用户看的原因，跟随 `context.locale`，表格的提示里显示它；`message` 是给开发者看的英文，`code` 让使用者在 `file-error` 里区分情况。抛出普通的 `Error` 时，提示里显示它的 `message`。
+
+```ts
+import { defineSheetImporter, SheetFileError } from '@dou-ui/sheet/core'
+
+throw new SheetFileError('[my-importer] The file is empty.', 'empty', '文件是空的')
+```
+
+不经过组件时，`exportWorkbook(book, exporter, options?)` 写出 `Blob`，会计算公式，`needs: 'view'` 的导出器在这里会报错；`options` 里的 `extensions` 提供工作簿用到的单元格类型和函数，`scope`、`sheet`（序号、`id` 或名字，默认第一张）、`range`、`signal` 和组件的 `exportFile` 一样，`colWidth`、`rowHeight` 是工作簿配合的列宽行高（和表格的 `col-width`、`row-height` 一样，默认 96、28），`options` 交给导出器。`readWorkbook(file, importer, options?)` 只读出 `{ book, warnings }`，不写进任何表格，返回的类型跟随导入器（导入器用 `defineSheetImporter<Options, Result>` 声明它返回的类型，比如总有 `warnings`）。内置的 CSV 导出器和导入器是 `csvExporter`、`csvImporter`，也可以这样用：
 
 ```ts
 import { csvExporter, exportWorkbook } from '@dou-ui/sheet/core'

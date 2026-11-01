@@ -1,7 +1,12 @@
-import { describe, expect, it } from 'vitest'
-import { createFileSource, type SheetWorkbook } from '@dou-ui/sheet/core'
+import { describe, expect, expectTypeOf, it } from 'vitest'
+import {
+  createFileSource,
+  readWorkbook,
+  SheetFileError,
+  type SheetWorkbook,
+} from '@dou-ui/sheet/core'
 import { zip, type ZipEntry } from '../zip'
-import { readXlsx, writeXlsx, xlsxImporter } from '../index'
+import { readXlsx, writeXlsx, xlsxImporter, type SheetXlsxWarning } from '../index'
 import { parseXml, unescape } from '../xml-read'
 import { formatKind } from '../read-styles'
 
@@ -65,6 +70,26 @@ async function fileOf(
     ...(parts.extra ?? []),
   ]
   return zip(entries)
+}
+
+/** A run's look as programs write it, with only its typeface given. */
+const font = (name: string) => `<rPr><sz val="11"/><color theme="1"/><rFont val="${name}"/></rPr>`
+
+/** Why reading failed: its code, its reason and its message; `null` when it didn't. */
+const failure = (promise: Promise<unknown>) =>
+  promise.then(
+    () => null,
+    (error: SheetFileError) => [error.code, error.reason, error.message],
+  )
+
+/** An older-style container, as .xls files and files with a password come in: its header and its streams' names. */
+function containerOf(names: string[]) {
+  const bytes = new Uint8Array(512 + names.length * 128)
+  bytes.set([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1])
+  bytes.set([0x3e, 0, 3, 0, 0xfe, 0xff, 9, 0], 24)
+  for (const [i, name] of names.entries())
+    for (const [j, ch] of [...name].entries()) bytes[512 + i * 128 + j * 2] = ch.charCodeAt(0)
+  return bytes
 }
 
 describe('xml reading', () => {
@@ -271,6 +296,62 @@ describe('readXlsx', () => {
     expect(warnings[0]).toMatchObject({ message: '边框', sheet: '数据' })
   })
 
+  it('counts dates from 1904 when the file does', async () => {
+    const styles = `<styleSheet ${NS}><fonts><font><sz val="11"/></font></fonts><cellXfs><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/><xf numFmtId="14" fontId="0" fillId="0" borderId="0"/></cellXfs></styleSheet>`
+    const bytes = await fileOf(
+      '<sheetData><row r="1"><c r="A1" s="1"><v>44624</v></c></row></sheetData>' +
+        '<dataValidations count="1"><dataValidation type="date" operator="greaterThan" sqref="A1"><formula1>44624</formula1></dataValidation></dataValidations>',
+      {
+        styles,
+        workbook: `<workbook ${NS} ${R}><workbookPr date1904="1"/><sheets><sheet name="数据" sheetId="1" r:id="rId1"/></sheets></workbook>`,
+      },
+    )
+    const sheet = (await readXlsx(bytes)).book.sheets[0]!
+    expect(sheet.cells[0]).toEqual(['2026-03-05'])
+    expect(sheet.validations).toEqual([{ range: 'A1', when: { op: 'gt', value: '2026-03-05' } }])
+  })
+
+  it('reads column widths as other programs show them', async () => {
+    const bytes = await fileOf(
+      '<cols><col min="1" max="1" width="20" customWidth="1"/><col min="2" max="2" width="9.140625" customWidth="1"/></cols><sheetData/>',
+    )
+    expect((await readXlsx(bytes)).book.sheets[0]!.colSizes).toEqual({ 0: 140, 1: 64 })
+  })
+
+  it('keeps results of formulas on tables, and lists the tables', async () => {
+    const bytes = await fileOf(
+      '<sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>数量</t></is></c><c r="B1"><f>SUM(表一[数量])</f><v>3</v></c><c r="C1"><f>SUM(A2:A3)</f><v>3</v></c></row>' +
+        '<row r="2"><c r="A2"><v>1</v></c></row><row r="3"><c r="A3"><v>2</v></c></row></sheetData><tableParts count="1"><tablePart r:id="rId1"/></tableParts>',
+      {
+        sheetRels: `<Relationship Id="rId1" Type="${REL}/table" Target="../tables/table1.xml"/>`,
+        extra: [
+          {
+            path: 'xl/tables/table1.xml',
+            data: `<table ${NS} id="1" name="表一" displayName="表一" ref="A1:A3"><tableColumns count="1"><tableColumn id="1" name="数量"/></tableColumns></table>`,
+          },
+        ],
+      },
+    )
+    const { book, warnings } = await readXlsx(bytes)
+    expect(book.sheets[0]!.cells[0]).toEqual(['数量', 3, '=SUM(A2:A3)'])
+    expect(warnings.map((w) => [w.code, w.count])).toEqual([['table', 2]])
+    expect(warnings[0]!.message).toBe('表格对象和引用它的公式')
+  })
+
+  it('does not count text split only by typeface as formatted in parts', async () => {
+    const bytes = await fileOf(
+      '<sheetData><row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c></row></sheetData>',
+      {
+        strings: [
+          `<si><r>${font('Calibri')}<t>Q</t></r><r>${font('宋体')}<t>项</t></r></si>`,
+          `<si><r>${font('Calibri')}<t>Q</t></r><r><rPr><b/><sz val="11"/></rPr><t>项</t></r></si>`,
+        ],
+      },
+    )
+    const { warnings } = await readXlsx(bytes)
+    expect(warnings.map((w) => [w.code, w.count])).toEqual([['richText', 1]])
+  })
+
   it('reads outline levels as groups and keeps rows a filter hides visible', async () => {
     const bytes = await fileOf(
       '<sheetPr><outlinePr summaryBelow="0"/></sheetPr><sheetData>' +
@@ -312,16 +393,37 @@ describe('readXlsx', () => {
     expect(warnings.find((w) => w.code === 'macro')!.message).toBe('Macros')
   })
 
-  it('says why a file can not be read, in the sheet language', async () => {
-    await expect(readXlsx(new TextEncoder().encode('a,b\n1,2'))).rejects.toThrow(
+  it('says why a file can not be read: a code, a reason in the sheet language, and a message for developers', async () => {
+    expect(await failure(readXlsx(new TextEncoder().encode('a,b\n1,2')))).toEqual([
+      'notXlsx',
       '这不是 .xlsx 文件',
-    )
-    const locked = new Uint8Array([0xd0, 0xcf, 0x11, 0xe0, 0, 0])
-    await expect(readXlsx(locked, { locale: 'en' })).rejects.toThrow('The file has a password')
+      "[@dou-ui/sheet-xlsx] The file isn't an .xlsx file.",
+    ])
+    // an older .xls and a file with a password come in the same kind of container
+    expect((await failure(readXlsx(containerOf(['Root Entry', 'Workbook']))))![0]).toBe('notXlsx')
+    const locked = containerOf(['Root Entry', 'EncryptionInfo', 'EncryptedPackage'])
+    expect((await failure(readXlsx(locked, { locale: 'en' })))!.slice(0, 2)).toEqual([
+      'locked',
+      'The file has a password; remove it in the program it came from first',
+    ])
     const cut = (
       await writeXlsx(createFileSource({ sheets: [{ name: 'S', cells: [[1]] }] }))
     ).slice(0, 200)
-    await expect(readXlsx(cut)).rejects.toThrow('文件已损坏')
+    await expect(readXlsx(cut)).rejects.toBeInstanceOf(SheetFileError)
+    expect((await failure(readXlsx(cut)))!.slice(0, 2)).toEqual(['damaged', '文件已损坏'])
+  })
+
+  it('takes texts of its own, in part', async () => {
+    const bytes = await fileOf('<sheetData/>', {
+      workbook: `<workbook ${NS} ${R}><sheets><sheet name="数据" sheetId="1" r:id="rId1" state="hidden"/></sheets><definedNames><definedName name="税率">数据!$A$1</definedName></definedNames></workbook>`,
+    })
+    const { warnings } = await readXlsx(bytes, {
+      messages: { warnings: { name: '名称' }, notXlsx: '请选择 .xlsx 文件' },
+    })
+    expect(warnings.map((w) => w.message)).toEqual(['名称', '隐藏的工作表'])
+    await expect(
+      readXlsx(new Uint8Array([1, 2]), { messages: { notXlsx: '请选择 .xlsx 文件' } }),
+    ).rejects.toMatchObject({ reason: '请选择 .xlsx 文件' })
   })
 
   it('stops when called off', async () => {
@@ -337,5 +439,9 @@ describe('readXlsx', () => {
     const file = new File([bytes as BlobPart], '门店.xlsx')
     const result = await xlsxImporter.import(file, { messages: {} as never, locale: 'zh-CN' })
     expect(result.book.sheets[0]!.cells).toEqual([['上海']])
+    // what it gives back keeps its type through readWorkbook: warnings always come, with their codes
+    const read = await readWorkbook(file, xlsxImporter)
+    expectTypeOf(read.warnings).toEqualTypeOf<SheetXlsxWarning[]>()
+    expect(read.warnings).toEqual([])
   })
 })

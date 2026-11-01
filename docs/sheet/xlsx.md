@@ -62,6 +62,7 @@ const blob = await exportWorkbook(book, xlsxExporter, { colWidth: 120 })
 | 名称       | 说明                                                                                                                                                                                           | 默认值                             |
 | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
 | `formulas` | 导出时写入公式和计算结果，`false` 时只写结果，适合用了扩展函数、其他软件算不出来的公式，导出选区时总是只写结果；导入时读入公式，`false` 时只读文件里存的计算结果，适合用了表格没有的函数的文件 | `true`                             |
+| `messages` | 导入时的警告和错误文字，只给要换的几条，如 `{ warnings: { border: '框线' } }`；也可以借此加上表格没有的语言                                                                                    | 跟随表格的语言                     |
 | `label`    | 导出菜单里的名字，也是导入提示里这种文件的叫法（只在 `xlsx()` 里）                                                                                                                             | 由表格文案 `file.csv` 得出，见下文 |
 
 导出菜单里的名字默认由表格的文案 `file.csv` 得出，把其中的“CSV”换成“XLSX”、`.csv` 换成 `.xlsx`，如 `CSV 文件 (.csv)` 得出 `XLSX 文件 (.xlsx)`。改过 `file.csv`、里面不再有“CSV”时，名字是 `XLSX (.xlsx)`，这时用 `label` 指定。
@@ -95,11 +96,12 @@ import { toast } from 'dou-ui'
 
 function onImport(event: SheetImportEvent) {
   if (event.warnings.length)
-    toast.warning(`没有导入：${event.warnings.map((w) => w.message).join('、')}`)
+    // 多个工作表会有同一种内容，去掉重复的
+    toast.warning(`与原文件不同：${[...new Set(event.warnings.map((w) => w.message))].join('、')}`)
 }
 ```
 
-不经过组件时，把 `xlsxImporter` 交给 `readWorkbook`，得到 `{ book, warnings }`；也可以直接调用 `readXlsx(file, options?)`，`file` 可以是 `Blob`、`ArrayBuffer` 或 `Uint8Array`，`options` 里除了上面的 `formulas`，还有 `locale`（警告和错误用的语言）、`messages`（替换其中的文字）和 `signal`：
+不经过组件时，把 `xlsxImporter` 交给 `readWorkbook`，得到 `{ book, warnings }`；也可以直接调用 `readXlsx(file, options?)`，`file` 可以是 `Blob`、`ArrayBuffer` 或 `Uint8Array`，`options` 里除了上面的 `formulas`、`messages`，还有 `locale`（警告和错误用的语言）和 `signal`：
 
 ```ts
 import { readWorkbook } from '@dou-ui/sheet/core'
@@ -118,26 +120,45 @@ const result = await readXlsx(await file.arrayBuffer(), { locale: 'en' })
 - 被筛选掉的行不读成隐藏行，筛选会再次把它们隐藏；折叠的分组读成折叠，不另记为隐藏。
 - 条件格式按文件里的优先级排好，先写的先生效。
 
-表格放不下的内容不会读进来，按种类和工作表列在 `warnings` 里，每项是 `{ code, message, count, sheet }`，`message` 跟随语言：
+表格放不下、或者读进来和原文件不一样的内容，按种类和工作表列在 `warnings` 里，每项是 `{ code, message, count, sheet }`。`message` 是跟随语言的简短名称，比如“边框”，适合列在一起提示；它们各自怎么处理见下表：
 
-| `code`        | 内容                                             |
-| ------------- | ------------------------------------------------ |
-| `border`      | 边框                                             |
-| `font`        | 不同的字号（字体在不同电脑上本来就不同，不计入） |
-| `richText`    | 单元格里部分文字的格式，文字本身会读入           |
-| `image`       | 图片和形状                                       |
-| `chart`       | 图表，包括只有图表的工作表                       |
-| `pivot`       | 数据透视表，它算出的值会读入                     |
-| `macro`       | 宏                                               |
-| `hyperlink`   | 超链接，单元格的文字会读入                       |
-| `hiddenSheet` | 隐藏的工作表，读入后会显示出来                   |
-| `external`    | 引用其他文件的公式，读成文件里存的计算结果       |
-| `name`        | 定义的名称，用到它们的公式会显示错误             |
-| `conditional` | 表格没有的条件格式，如图标集                     |
-| `validation`  | 表格没有的数据验证，如文本长度                   |
-| `filter`      | 表格没有的筛选条件，如按颜色筛选                 |
+| `code`        | 内容                                                                                                           |
+| ------------- | -------------------------------------------------------------------------------------------------------------- |
+| `border`      | 边框                                                                                                           |
+| `font`        | 不同的字号（字体在不同电脑上本来就不同，不计入）                                                               |
+| `richText`    | 单元格里部分文字的格式，文字本身会读入                                                                         |
+| `image`       | 图片和形状                                                                                                     |
+| `chart`       | 图表，包括只有图表的工作表                                                                                     |
+| `pivot`       | 数据透视表，它算出的值会读入                                                                                   |
+| `table`       | 表格对象（如 `Table1`），里面的数据会读入；按名称引用它的公式（如 `=SUM(Table1[数量])`）读成文件里存的计算结果 |
+| `macro`       | 宏                                                                                                             |
+| `hyperlink`   | 超链接，单元格的文字会读入                                                                                     |
+| `hiddenSheet` | 隐藏的工作表，读入后会显示出来                                                                                 |
+| `external`    | 引用其他文件的公式，读成文件里存的计算结果                                                                     |
+| `name`        | 定义的名称，用到它们的公式会显示错误                                                                           |
+| `conditional` | 表格没有的条件格式，如图标集                                                                                   |
+| `validation`  | 表格没有的数据验证，如文本长度                                                                                 |
+| `filter`      | 表格没有的筛选条件，如按颜色筛选                                                                               |
 
-文件读不了时，导入会失败，表格显示的原因跟随语言：不是 `.xlsx` 文件（比如旧的 `.xls`）、文件已损坏，或者文件设了密码。
+文件读不了时，导入会失败，抛出 [`SheetFileError`](./extensions#导出器与导入器)。它的 `code` 区分原因，`reason` 是给用户看的说明，跟随语言，表格的提示里显示的就是它；`message` 是给开发者看的英文：
+
+| `code`    | 原因                                                                                               |
+| --------- | -------------------------------------------------------------------------------------------------- |
+| `notXlsx` | 不是 `.xlsx` 文件，比如旧的 `.xls`（即使改了扩展名），这时可以提示用户在原来的软件里另存为 `.xlsx` |
+| `damaged` | 文件已损坏                                                                                         |
+| `locked`  | 文件设了密码                                                                                       |
+
+```ts
+import { SheetFileError, type SheetFileErrorEvent } from '@dou-ui/sheet'
+import { toast } from 'dou-ui'
+
+function onFileError(event: SheetFileErrorEvent) {
+  if (event.error instanceof SheetFileError && event.error.code === 'notXlsx') {
+    event.preventDefault()
+    toast.error('请在原来的软件里另存为 .xlsx 文件后再导入')
+  }
+}
+```
 
 ## 大文件
 

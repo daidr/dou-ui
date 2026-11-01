@@ -81,8 +81,14 @@ Token 默认挂在 `:root` 上。给任意元素加上 `data-dou-theme` 即可�
 }
 ```
 
-打开之后，`aria-*` 和 `data-*` 仍然可以直接写在任何组件上，它们和其他没有声明的属性一样透传给组件；声明了 `ariaLabel` 的组件照常收到这个 prop。`aria-*` 的名字和取值依旧受检，写成 `aria-lable` 会报错。
+打开之后，组件上照样可以写这些属性：
+
+- `aria-*` 和 `data-*` 可以写在任何组件上。`aria-*` 的名字和取值依旧受检，写成 `aria-lable` 会报错。
+- 组件转交给元素的原生属性和事件，比如 DouInput 的 `placeholder`、`maxlength`、`@keydown`，DouButton 的 `type`、`autofocus`。与组件自己的 prop、事件同名时以组件的为准，例如 DouSelect 的 `change` 收到的是选中的值。
 
 ```vue
 <DouButton aria-label="关闭" data-testid="close" />
+<DouInput v-model="city" placeholder="城市" maxlength="20" @keydown.enter="search" />
 ```
+
+普通元素上的 `data-*` 不在 Vue 的元素属性类型里，需要时在 `vueCompilerOptions` 里加上 `"dataAttributes": ["data-*"]`。

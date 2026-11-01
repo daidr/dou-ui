@@ -1,4 +1,6 @@
 <script setup lang="ts" generic="Row = Record<string, unknown>">
+import type { HTMLAttributes } from 'vue'
+import type { ForwardedAttributes } from 'dou-ui'
 import { useElementSize, useLocale } from 'dou-ui'
 import { ArrowDownIcon, ArrowUpIcon, ChevronRightIcon } from '@dou-ui/icons'
 import {
@@ -71,15 +73,21 @@ import type {
 
 defineOptions({ name: 'DouPivot' })
 
-const props = withDefaults(defineProps<PivotProps<Row>>(), {
-  layout: 'compact',
-  resizable: true,
-  worker: 'auto',
-  maxHeight: 480,
-  size: 'md',
-  rowHeaderWidth: 200,
-  columnWidth: 120,
-})
+const props = withDefaults(
+  defineProps<
+    PivotProps<Row> &
+      /* @vue-ignore */ ForwardedAttributes<HTMLAttributes, PivotProps<Row>, 'cellClick'>
+  >(),
+  {
+    layout: 'compact',
+    resizable: true,
+    worker: 'auto',
+    maxHeight: 480,
+    size: 'md',
+    rowHeaderWidth: 200,
+    columnWidth: 120,
+  },
+)
 const config = defineModel<PivotConfig>('config', { default: () => ({}) })
 const collapsed = defineModel<PivotCollapsed>('collapsed', { default: () => ({}) })
 const emit = defineEmits<{ cellClick: [cell: PivotCellEvent<Row>] }>()

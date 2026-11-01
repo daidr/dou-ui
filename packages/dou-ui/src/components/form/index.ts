@@ -1,8 +1,9 @@
+import type { FormHTMLAttributes } from 'vue'
 import { withInstall } from '../../utils/install'
 import Form from './form.vue'
 import FormItem from './form-item.vue'
 
-export const DouForm = withInstall(Form)
+export const DouForm = withInstall<typeof Form, FormHTMLAttributes>(Form)
 export const DouFormItem = withInstall(FormItem)
 export default DouForm
 

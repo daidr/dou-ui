@@ -1,3 +1,4 @@
+import type { ButtonHTMLAttributes } from 'vue'
 import { withInstall } from '../../utils/install'
 import Layout from './layout.vue'
 import LayoutAside from './layout-aside.vue'
@@ -9,7 +10,9 @@ import LayoutMain from './layout-main.vue'
 export const DouLayout = withInstall(Layout)
 export const DouLayoutHeader = withInstall(LayoutHeader)
 export const DouLayoutAside = withInstall(LayoutAside)
-export const DouLayoutAsideTrigger = withInstall(LayoutAsideTrigger)
+export const DouLayoutAsideTrigger = withInstall<typeof LayoutAsideTrigger, ButtonHTMLAttributes>(
+  LayoutAsideTrigger,
+)
 export const DouLayoutMain = withInstall(LayoutMain)
 export const DouLayoutFooter = withInstall(LayoutFooter)
 export default DouLayout

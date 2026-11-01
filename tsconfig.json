@@ -45,6 +45,10 @@
       "@dou-ui/resolver": ["./packages/resolver/src/index.ts"]
     }
   },
+  "vueCompilerOptions": {
+    "checkUnknownProps": true,
+    "checkUnknownEvents": true
+  },
   "include": [
     "types",
     "packages/*/src",

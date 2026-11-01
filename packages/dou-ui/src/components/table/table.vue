@@ -1,4 +1,6 @@
 <script setup lang="ts" generic="T">
+import type { HTMLAttributes } from 'vue'
+import type { ForwardedAttributes } from '../../utils/install'
 import {
   computed,
   getCurrentInstance,
@@ -46,24 +48,40 @@ import type {
 
 defineOptions({ name: 'DouTable' })
 
-const props = withDefaults(defineProps<TableProps<T>>(), {
-  rowKey: 'id',
-  bordered: false,
-  striped: false,
-  hoverable: true,
-  loading: false,
-  selectable: false,
-  manualSort: false,
-  expandable: false,
-  childrenKey: 'children',
-  indent: 16,
-  resizable: false,
-  virtual: false,
-  manualFilter: false,
-  highlightCurrent: false,
-  hasChildrenKey: 'hasChildren',
-  draggable: false,
-})
+const props = withDefaults(
+  defineProps<
+    TableProps<T> &
+      /* @vue-ignore */ ForwardedAttributes<
+        HTMLAttributes,
+        TableProps<T>,
+        | 'rowDrop'
+        | 'rowClick'
+        | 'rowDblclick'
+        | 'rowContextmenu'
+        | 'cellClick'
+        | 'columnResize'
+        | 'loadError'
+      >
+  >(),
+  {
+    rowKey: 'id',
+    bordered: false,
+    striped: false,
+    hoverable: true,
+    loading: false,
+    selectable: false,
+    manualSort: false,
+    expandable: false,
+    childrenKey: 'children',
+    indent: 16,
+    resizable: false,
+    virtual: false,
+    manualFilter: false,
+    highlightCurrent: false,
+    hasChildrenKey: 'hasChildren',
+    draggable: false,
+  },
+)
 const selected = defineModel<TableRowKey[]>('selected', { default: () => [] })
 const sort = defineModel<TableSort | null>('sort', { default: null })
 const expanded = defineModel<TableRowKey[]>('expanded', { default: () => [] })

@@ -13,9 +13,14 @@ import type {
   CalendarViewProps,
   CalendarViewSlots,
 } from './calendar-view'
-import TimeGrid from './time-grid.vue'
+import TimeGridComponent from './time-grid.vue'
+import type { HTMLAttributes } from 'vue'
+import type { WithAttributes } from '../../utils/install'
 import { segmentOn, spanOf } from './time-layout'
 import type { EventSpan } from './time-layout'
+
+// 让模板里也能写这个组件转交的原生属性
+const TimeGrid = TimeGridComponent as WithAttributes<typeof TimeGridComponent, HTMLAttributes>
 
 defineOptions({ name: 'DouCalendarView' })
 

@@ -1,7 +1,8 @@
+import type { FormHTMLAttributes } from 'vue'
 import { withInstall } from 'dou-ui'
 import FormRenderer from './form-renderer.vue'
 
-export const DouFormRenderer = withInstall(FormRenderer)
+export const DouFormRenderer = withInstall<typeof FormRenderer, FormHTMLAttributes>(FormRenderer)
 export default DouFormRenderer
 
 export type {

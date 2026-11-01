@@ -1,4 +1,6 @@
 <script setup lang="ts" generic="T">
+import type { HTMLAttributes } from 'vue'
+import type { ForwardedAttributes } from '../../utils/install'
 import {
   computed,
   onBeforeUnmount,
@@ -22,17 +24,27 @@ import type {
 
 defineOptions({ name: 'DouVirtualList' })
 
-const props = withDefaults(defineProps<VirtualListProps<T>>(), {
-  itemSize: undefined,
-  estimateSize: 40,
-  overscan: 4,
-  endThreshold: 40,
-})
+const props = withDefaults(
+  defineProps<
+    VirtualListProps<T> &
+      /* @vue-ignore */ ForwardedAttributes<
+        HTMLAttributes,
+        VirtualListProps<T>,
+        'scroll' | 'endReached'
+      >
+  >(),
+  {
+    itemSize: undefined,
+    estimateSize: 40,
+    overscan: 4,
+    endThreshold: 40,
+  },
+)
 const emit = defineEmits<{ scroll: [event: Event]; endReached: [] }>()
 defineSlots<VirtualListSlots<T>>()
 
 // The list itself takes focus (tabindex 0) so the keyboard can scroll it.
-// A parent that manages focus on its own passes `:tabindex="null"`.
+// A parent that manages focus on its own passes `:tabindex="undefined"`.
 const ns = useNamespace('virtual-list')
 const elRef = useTemplateRef<HTMLElement>('el')
 

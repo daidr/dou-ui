@@ -1,5 +1,6 @@
 import { Comment, Fragment, Text, cloneVNode, defineComponent, h } from 'vue'
-import type { ComponentPublicInstance, VNode } from 'vue'
+import type { ComponentPublicInstance, HTMLAttributes, VNode } from 'vue'
+import type { WithAttributes } from './install'
 
 function firstElement(nodes: VNode[]): VNode | null {
   for (const node of nodes) {
@@ -23,7 +24,7 @@ function firstElement(nodes: VNode[]): VNode | null {
  * listeners given to this component merged onto it. Lets a floating
  * component wire up its trigger without wrapping it in an extra element.
  */
-export const OnlyChild = defineComponent({
+const OnlyChildComponent = defineComponent({
   name: 'DouOnlyChild',
   inheritAttrs: false,
   setup(_, { slots, attrs }) {
@@ -38,6 +39,12 @@ export const OnlyChild = defineComponent({
     }
   },
 })
+
+/** 属性和事件都转交给插槽里的元素，所以模板里可以写任何原生属性。 */
+export const OnlyChild = OnlyChildComponent as WithAttributes<
+  typeof OnlyChildComponent,
+  HTMLAttributes
+>
 
 /** The DOM element rendered by an `OnlyChild`, from its template ref. */
 export function onlyChildElement(instance: ComponentPublicInstance | null | undefined) {

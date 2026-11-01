@@ -1,4 +1,6 @@
 <script setup lang="ts" generic="T extends SwitchValue = boolean">
+import type { InputHTMLAttributes } from 'vue'
+import type { ForwardedAttributes } from '../../utils/install'
 import { computed, ref, useAttrs, useId, watch } from 'vue'
 import type { Ref, StyleValue } from 'vue'
 import { useNamespace } from '../../utils/namespace'
@@ -7,10 +9,21 @@ import type { SwitchEmits, SwitchProps, SwitchSlots, SwitchValue } from './switc
 
 defineOptions({ name: 'DouSwitch', inheritAttrs: false })
 
-const props = withDefaults(defineProps<SwitchProps<T>>(), {
-  disabled: false,
-  loading: false,
-})
+const props = withDefaults(
+  defineProps<
+    SwitchProps<T> &
+      /* @vue-ignore */ ForwardedAttributes<
+        // 类型固定，自动填充对开关没有意义；它们的取值联合太大，withDefaults 展不开
+        Omit<InputHTMLAttributes, 'type' | 'autocomplete'>,
+        SwitchProps,
+        keyof SwitchEmits & string
+      >
+  >(),
+  {
+    disabled: false,
+    loading: false,
+  },
+)
 // Declared by hand rather than with `defineModel`, so the update carries
 // `T` and not `T | undefined`.
 const emit = defineEmits<SwitchEmits<T>>()

@@ -1,4 +1,4 @@
-import type { ComputedRef, GlobalComponents, InjectionKey } from 'vue'
+import type { App, ComputedRef, GlobalComponents, InjectionKey } from 'vue'
 import type { Locale } from '../../locale/types'
 import type { Size } from '../../utils/types'
 import type { MotionMode } from '../../composables/use-motion'
@@ -43,10 +43,11 @@ export interface ResolvedGlobalConfig {
   motion: MotionMode
 }
 
+// 泛型组件是函数；`withInstall` 并上的插件签名的第一个参数是 App，要去掉
 type PropsOf<T> = T extends abstract new (...args: never) => { $props: infer P }
   ? P
   : T extends (props: infer P, ...rest: never) => unknown
-    ? P
+    ? Exclude<P, App>
     : Record<string, unknown>
 
 /** Default props for each DouUI component. */

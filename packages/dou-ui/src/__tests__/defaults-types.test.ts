@@ -5,7 +5,7 @@ describe('ComponentDefaults', () => {
   it('types props per component', () => {
     const defaults: ComponentDefaults = {
       DouButton: { variant: 'outline' },
-      DouTable: { stripe: true },
+      DouTable: { striped: true },
       // @ts-expect-error not a button variant
       DouSwitch: { size: 'huge' },
     }

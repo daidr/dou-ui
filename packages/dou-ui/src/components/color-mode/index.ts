@@ -1,9 +1,12 @@
+import type { ButtonHTMLAttributes } from 'vue'
 import { withInstall } from '../../utils/install'
 import ColorModeButton from './color-mode-button.vue'
 import ColorModeSelect from './color-mode-select.vue'
 import ColorModeSwitch from './color-mode-switch.vue'
 
-export const DouColorModeButton = withInstall(ColorModeButton)
+export const DouColorModeButton = withInstall<typeof ColorModeButton, ButtonHTMLAttributes>(
+  ColorModeButton,
+)
 export const DouColorModeSwitch = withInstall(ColorModeSwitch)
 export const DouColorModeSelect = withInstall(ColorModeSelect)
 export default DouColorModeButton

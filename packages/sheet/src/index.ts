@@ -27,6 +27,7 @@ export type {
   SheetExtensionContext,
   SheetHistoryHandler,
   SheetKeyHandler,
+  SheetUpdate,
 } from './core/extension'
 export { defineSheetCommand } from './core/commands'
 export {
@@ -63,6 +64,9 @@ export type {
   SheetCellPanelProps,
   SheetCellRenderProps,
   SheetCellType,
+  SheetDrawContext,
+  SheetDrawRect,
+  SheetDrawTextOptions,
   SheetResolvedType,
 } from './core/cell-type'
 export type {

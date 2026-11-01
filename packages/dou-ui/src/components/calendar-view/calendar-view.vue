@@ -50,6 +50,7 @@ import {
   toStamp,
 } from './editing'
 import TimeGrid from './time-grid.vue'
+import { visibleRange } from './range'
 import { segmentOn, spanOf } from './time-layout'
 import type { EventSpan } from './time-layout'
 
@@ -263,18 +264,7 @@ const weekDays = computed<CalendarDay[]>(() => {
 })
 
 /** The days on screen, first to last, whatever the view. */
-const visible = computed<CalendarRange>(() => {
-  if (view.value === 'month') {
-    const grid = weeks.value
-    return { start: grid[0]![0]!.date, end: grid.at(-1)!.at(-1)!.date }
-  }
-  if (view.value === 'agenda') {
-    const { year, month: m } = parts(`${shown.value}-01`)
-    return { start: `${shown.value}-01`, end: toDateString(year, m, daysInMonth(year, m)) }
-  }
-  const days = weekDays.value
-  return { start: days[0]!.date, end: days.at(-1)!.date }
-})
+const visible = computed(() => visibleRange(cursor.value, view.value, weekStart.value))
 watch(
   () => `${visible.value.start}/${visible.value.end}`,
   () => emit('rangeChange', { ...visible.value }),

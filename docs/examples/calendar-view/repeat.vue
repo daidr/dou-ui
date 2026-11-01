@@ -1,11 +1,11 @@
 <script setup>
-import { expandRepeats, occurrenceOf } from 'dou-ui'
+import { expandRepeats, occurrenceOf, visibleRange } from 'dou-ui'
 import { computed, ref } from 'vue'
 
 const month = ref('2026-11')
 const view = ref('agenda')
-// 日历当前显示的日子，由 range-change 告诉我们
-const range = ref(null)
+// 日历当前显示的日子：先算出初值，服务端渲染时也有日程；之后由 range-change 给出
+const range = ref(visibleRange(`${month.value}-01`, view.value, 1))
 const last = ref('—')
 
 // 存下来的是规则；显示的是展开后的具体日程
@@ -35,9 +35,7 @@ const series = ref([
   { id: 'trip', title: '上海出差', tone: 'warning', start: '2026-11-17', end: '2026-11-19' },
 ])
 
-const events = computed(() =>
-  range.value ? expandRepeats(series.value, range.value.start, range.value.end) : [],
-)
+const events = computed(() => expandRepeats(series.value, range.value.start, range.value.end))
 
 // 拖动或删除一次重复日程：只改这一天，把它从规则里排除，另存为一项普通日程
 function onChange(change) {
@@ -66,6 +64,7 @@ function onChange(change) {
     :views="['month', 'week', 'agenda']"
     :events="events"
     editable
+    :week-start="1"
     :hours="[8, 20]"
     @change="onChange"
     @range-change="range = $event"

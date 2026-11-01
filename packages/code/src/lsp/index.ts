@@ -120,8 +120,16 @@ const warn = (message: string, error?: unknown) => {
   console.warn(`[@dou-ui/code] ${message}`, ...(error === undefined ? [] : [error]))
 }
 
-/** A transport over a Web Worker that runs the server, posting message objects both ways. */
+/**
+ * A transport over a Web Worker that runs the server, posting message
+ * objects both ways. An error before the worker's first message (it failed
+ * to load) counts as the connection closing; an error after it, thrown
+ * while handling one request, leaves the worker running.
+ */
 export function workerTransport(worker: Worker): LspTransport {
+  let answered = false
+  let warned = false
+  worker.addEventListener('message', () => (answered = true), { once: true })
   return {
     // oxlint-disable-next-line unicorn/require-post-message-target-origin -- a worker's postMessage has no target origin
     send: (message) => worker.postMessage(message),
@@ -132,7 +140,11 @@ export function workerTransport(worker: Worker): LspTransport {
     },
     close: () => worker.terminate(),
     onClose: (listener) => {
-      const handle = () => listener()
+      const handle = (event: Event) => {
+        if (!answered) return listener()
+        if (!warned) warn('the language server threw an error; it keeps running', event)
+        warned = true
+      }
       worker.addEventListener('error', handle)
       return () => worker.removeEventListener('error', handle)
     },
@@ -294,8 +306,20 @@ export function createLanguageClient(options: LanguageClientOptions): LanguageCl
     else waiting.resolve(message.result ?? null)
   }
 
+  /** A transport given as it is, once closed: it can't be opened again. */
+  let ended = false
+  let endedWarned = false
+
   function connect() {
     if (ready) return ready
+    if (ended) {
+      if (!endedWarned)
+        warn(
+          "the connection to the language server has ended and can't be used again; pass `transport` as a function to connect again",
+        )
+      endedWarned = true
+      return Promise.reject(CLOSED)
+    }
     transport = typeof options.transport === 'function' ? options.transport() : options.transport
     const stopMessages = transport.onMessage(receive)
     const stopClose = transport.onClose?.(() => {
@@ -342,6 +366,7 @@ export function createLanguageClient(options: LanguageClientOptions): LanguageCl
     ready = null
     capabilities = null
     generation++
+    if (!owned) ended = true
     users = 0
     for (const waiting of pending.values()) waiting.reject(CLOSED)
     pending.clear()

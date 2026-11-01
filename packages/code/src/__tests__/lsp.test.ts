@@ -8,6 +8,7 @@ import {
   type LspMessage,
   type LspTransport,
   toLspPosition,
+  workerTransport,
 } from '../lsp'
 
 const flush = async () => {
@@ -542,6 +543,56 @@ describe('createLanguageClient', () => {
 
 const render = (content: string | (() => any)) =>
   mount(defineComponent(() => (typeof content === 'string' ? () => content : content)))
+
+describe('transports', () => {
+  it('keeps a worker running when it throws while handling a request', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const target = new EventTarget() as unknown as Worker
+    let terminated = false
+    Object.assign(target, { postMessage: () => {}, terminate: () => (terminated = true) })
+    const transport = workerTransport(target)
+    let closed = 0
+    transport.onClose!(() => closed++)
+    target.dispatchEvent(
+      new MessageEvent('message', { data: { jsonrpc: '2.0', id: 1, result: {} } }),
+    )
+    target.dispatchEvent(new Event('error'))
+    target.dispatchEvent(new Event('error'))
+    expect(closed).toBe(0)
+    expect(terminated).toBe(false)
+    expect(warn).toHaveBeenCalledTimes(1)
+    warn.mockRestore()
+  })
+
+  it('counts an error before the worker answered as failing to load', () => {
+    const target = new EventTarget() as unknown as Worker
+    Object.assign(target, { postMessage: () => {}, terminate: () => {} })
+    const transport = workerTransport(target)
+    let closed = 0
+    transport.onClose!(() => closed++)
+    target.dispatchEvent(new Event('error'))
+    expect(closed).toBe(1)
+  })
+
+  it('refuses requests on a given transport once it closed, instead of waiting forever', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const server = fakeServer({ textDocumentSync: 1 })
+    let broken: (() => void) | undefined
+    server.transport.onClose = (listener) => {
+      broken = listener
+      return () => (broken = undefined)
+    }
+    const client = createLanguageClient({ transport: server.transport })
+    await client.request('custom/ping')
+    broken!()
+    await expect(client.request('custom/ping')).rejects.toThrow()
+    await expect(client.request('custom/ping')).rejects.toThrow()
+    expect(
+      warn.mock.calls.filter((call) => String(call[0]).includes('as a function')),
+    ).toHaveLength(1)
+    warn.mockRestore()
+  })
+})
 
 describe('documentation', () => {
   it('draws Markdown, links only to web addresses, and nothing as HTML', async () => {

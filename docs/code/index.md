@@ -458,9 +458,9 @@ const client = createLanguageClient({
 })
 ```
 
-`transport` 写成函数时，第一个用到这个连接的编辑器挂载时才调用它（服务端渲染时不会创建 worker 或 WebSocket），最后一个卸载后关闭语言服务，之后再挂载会重新连接；直接传入的连接一直保持，直到调用 `client.close()`，关闭后不能再用。同一个连接可以给多个文件使用，每个编辑器用自己的 `client.document()`。
+`transport` 写成函数时，第一个用到这个连接的编辑器挂载时才调用它（服务端渲染时不会创建 worker 或 WebSocket），最后一个卸载后关闭语言服务，之后再挂载会重新连接；直接传入的连接一直保持，直到调用 `client.close()`；它关闭或断开后不能再用，之后的请求会直接失败，需要自动重连时把 `transport` 写成函数。同一个连接可以给多个文件使用，每个编辑器用自己的 `client.document()`。
 
-连接自己断开时（worker 出错、WebSocket 关闭或连不上），还在等待的请求都会结束，开发环境下会给出一次警告。连接关闭或断开时还挂载着的编辑器不再连接语言服务，重新挂载后才会再打开文件。其他连接方式实现 `{ send, onMessage, close?, onClose? }` 即可，收发的是消息对象。
+连接自己断开时（worker 加载失败、WebSocket 关闭或连不上），还在等待的请求都会结束，开发环境下会给出一次警告。连接关闭或断开时还挂载着的编辑器不再连接语言服务，重新挂载后才会再打开文件。其他连接方式实现 `{ send, onMessage, close?, onClose? }` 即可，收发的是消息对象。
 
 多数语言服务通过标准输入输出通信，每条消息前带 `Content-Length` 头。在浏览器里使用时，需要在服务器上做一个转接：把 WebSocket 收到的每条消息加上头写给语言服务，把语言服务的输出按头拆开发回去。下面是用 Node.js 和 `ws` 写的最小示例：
 
@@ -509,7 +509,7 @@ new WebSocketServer({ port: 3001 }).on('connection', (socket) => {
 | `client.onNotification(method, fn)`        | 收听语言服务的通知，比如 `window/logMessage`；返回取消收听的函数                                                               |
 | `client.capabilities`                      | 语言服务初始化时说明的能力，回复之前是 `null`                                                                                  |
 | `client.close()`                           | 关闭语言服务和连接                                                                                                             |
-| `workerTransport(worker)`                  | 通过 Web Worker 连接；worker 出错时视为断开                                                                                    |
+| `workerTransport(worker)`                  | 通过 Web Worker 连接；worker 加载失败时视为断开，处理请求时抛出的错误只给出警告，不关闭它                                      |
 | `socketTransport(socket)`                  | 通过 WebSocket 连接；打开之前发送的消息会等它打开                                                                              |
 | `toLspPosition(doc, pos)`                  | 把文本位置换成协议里的 `LspPosition`                                                                                           |
 | `fromLspPosition(doc, position)`           | 反过来换成文本位置                                                                                                             |

@@ -6,6 +6,7 @@ import * as Y from 'yjs'
 import { collaboration, fillMaps } from '..'
 import {
   DouFlowEditor,
+  defineNodeType,
   type FlowDocument,
   type FlowEditorExpose,
   type FlowSelection,
@@ -66,6 +67,13 @@ const ticks = async () => {
 }
 
 /** A client: its own Y.Doc and an editor bound to it, starting from `start`. */
+/** A node drawn turned by `data.rotation`, as a whiteboard node is. */
+const turnedNode = defineNodeType<{ rotation?: number }>({
+  type: 'turned',
+  component: defineComponent(() => () => h('div')),
+  rotation: (node) => node.data?.rotation ?? 0,
+})
+
 function client(start: FlowDocument, options: { doc?: Y.Doc; awareness?: boolean } = {}) {
   const doc = options.doc ?? new Y.Doc()
   const awareness = options.awareness ? new Awareness(doc) : undefined
@@ -94,6 +102,7 @@ function client(start: FlowDocument, options: { doc?: Y.Doc; awareness?: boolean
           'onUpdate:selection': (value: FlowSelection) => (state.selection.value = value),
           // written inline, so it is a new list on every render
           extensions: [extensions, []],
+          nodeTypes: [turnedNode],
         }),
     ),
     { attachTo: document.body },
@@ -318,12 +327,43 @@ describe('collaboration', () => {
     await ticks()
     const moving = one.wrapper.find('.dou-flow-peer.is-moving')
     expect(moving.exists()).toBe(true)
-    expect(moving.attributes('style')).toContain(`translate(${two.node('b')!.x}px`)
+    expect(moving.attributes('style')).toContain(`translate: ${two.node('b')!.x}px`)
     expect(one.node('b')!.x).toBe(288)
     root.dispatchEvent(pointer('pointerup', 380, 20))
     await ticks()
     relay()
     await ticks()
     expect(one.wrapper.find('.dou-flow-peer.is-moving').exists()).toBe(false)
+  })
+
+  it('turns the outline of a turned node the others select', async () => {
+    const doc = new Y.Doc()
+    const start: FlowDocument = {
+      nodes: [
+        { id: 't', type: 'turned', x: 200, y: 40, width: 160, height: 90, data: { rotation: 30 } },
+      ],
+      edges: [],
+    }
+    fillMaps({ nodes: doc.getMap('nodes'), edges: doc.getMap('edges') }, start)
+    const one = client({ nodes: [], edges: [] }, { doc, awareness: true })
+    const other = new Y.Doc()
+    Y.applyUpdate(other, Y.encodeStateAsUpdate(doc))
+    const two = client({ nodes: [], edges: [] }, { doc: other, awareness: true })
+    await ticks()
+    two.selection.value = { nodes: ['t'], edges: [] }
+    await ticks()
+    applyAwarenessUpdate(
+      one.awareness!,
+      encodeAwarenessUpdate(two.awareness!, [two.awareness!.clientID]),
+      'relay',
+    )
+    await ticks()
+    const selected = one.wrapper.find('.dou-flow-peer.is-selected')
+    // placed, then turned about its own centre, as the node is drawn
+    expect(selected.attributes('style')).toContain('translate: 200px 40px')
+    expect(selected.attributes('style')).toContain('rotate: 30deg')
+    expect(selected.attributes('style')).not.toContain('transform')
+    // the name stays upright
+    expect(selected.find('.dou-flow-peer__name').attributes('style')).toContain('rotate: -30deg')
   })
 })

@@ -25,7 +25,6 @@ import {
 import { imageFiles, insertImages, pickImages, type WhiteboardUpload } from './image'
 import { connectorEdge, connectorToolbar } from './connector'
 import { drawBoardNode } from './draw'
-import { turn } from './ink'
 import { drawInk, erase } from './pen'
 import { boardState } from './state'
 
@@ -45,23 +44,8 @@ const unlessTurned =
   (node: FlowNode<WhiteboardNodeData>): NodeResize =>
     node.data?.rotation ? false : min
 
-/** The box around a turned node, so the toolbar over it clears its corners. */
-function turnedBounds(node: FlowNode<WhiteboardNodeData>, rect: Rect): Rect {
-  const degrees = node.data?.rotation
-  if (!degrees) return rect
-  const centre = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }
-  const corners = [
-    { x: rect.x, y: rect.y },
-    { x: rect.x + rect.width, y: rect.y },
-    { x: rect.x, y: rect.y + rect.height },
-    { x: rect.x + rect.width, y: rect.y + rect.height },
-  ].map((corner) => turn(corner, centre, degrees))
-  const xs = corners.map((p) => p.x)
-  const ys = corners.map((p) => p.y)
-  const x = Math.min(...xs)
-  const y = Math.min(...ys)
-  return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y }
-}
+/** How far a board node is turned, from `data.rotation`. */
+const turnedBy = (node: FlowNode<WhiteboardNodeData>) => node.data?.rotation ?? 0
 
 /** A rectangle, ellipse or diamond with centred text; `data.shape` says which. */
 export const shapeNode = defineNodeType<WhiteboardShapeData>({
@@ -70,7 +54,7 @@ export const shapeNode = defineNodeType<WhiteboardShapeData>({
   ports: anchorPorts,
   frame: false,
   resizable: unlessTurned({ minWidth: 24, minHeight: 24 }),
-  bounds: turnedBounds,
+  rotation: turnedBy,
   draw: drawBoardNode,
   size: { width: 160, height: 100 },
   defaults: () => ({ shape: 'rect' }),
@@ -84,7 +68,7 @@ export const stickyNode = defineNodeType<WhiteboardStickyData>({
   ports: anchorPorts,
   frame: false,
   resizable: unlessTurned({ minWidth: 64, minHeight: 64 }),
-  bounds: turnedBounds,
+  rotation: turnedBy,
   draw: drawBoardNode,
   size: { width: 160, height: 160 },
   defaults: () => ({}),
@@ -98,7 +82,7 @@ export const textNode = defineNodeType<WhiteboardTextData>({
   ports: anchorPorts,
   frame: false,
   resizable: unlessTurned({ minWidth: 24, minHeight: 24 }),
-  bounds: turnedBounds,
+  rotation: turnedBy,
   draw: drawBoardNode,
   size: { width: 200, height: 40 },
   defaults: () => ({}),
@@ -111,7 +95,7 @@ export const inkNode = defineNodeType<WhiteboardInkData>({
   component: BoardNode,
   frame: false,
   resizable: unlessTurned({ minWidth: 8, minHeight: 8 }),
-  bounds: turnedBounds,
+  rotation: turnedBy,
   draw: drawBoardNode,
   defaults: () => ({ points: [], box: [0, 0] }),
   label: (_, t) => t.board.ink,
@@ -124,7 +108,7 @@ export const imageNode = defineNodeType<WhiteboardImageData>({
   ports: anchorPorts,
   frame: false,
   resizable: unlessTurned({ minWidth: 24, minHeight: 24 }),
-  bounds: turnedBounds,
+  rotation: turnedBy,
   draw: drawBoardNode,
   size: { width: 240, height: 180 },
   defaults: () => ({ src: '' }),

@@ -2,7 +2,7 @@ import { onBeforeUnmount, ref, type Ref } from 'vue'
 import type { FlowEditorContext, FlowNodePreview } from '../context'
 import type { FlowNode, Point } from '../core/model'
 import { format } from '../locale'
-import { turn } from './ink'
+import { turn } from '../core/geometry'
 
 /** Degrees in `[0, 360)`, rounded to a whole degree. */
 export const normalizeAngle = (degrees: number) => ((Math.round(degrees) % 360) + 360) % 360

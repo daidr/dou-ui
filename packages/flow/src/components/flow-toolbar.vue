@@ -64,8 +64,25 @@ watch(
 /** Room between the toolbar and the selection, and the editor's edges. */
 const GAP = 8
 
-/** Boxes of what floats over the canvas, e.g. a whiteboard's tools, from the editor's top left. */
+/*
+ * What it keeps clear of is read from the page, so it is read again once the
+ * page has caught up with the selection: a handle drawn for the selected node
+ * appears in the same update as the toolbar's new anchor.
+ */
+const measured = ref(0)
+watch(
+  () => props.anchor,
+  () => measured.value++,
+  { flush: 'post', immediate: true },
+)
+
+/**
+ * Boxes of what the toolbar must not cover, from the editor's top left: what
+ * floats over the canvas, e.g. a whiteboard's tools, and handles on the
+ * selection, e.g. a whiteboard's turn handle.
+ */
 function overlays() {
+  void measured.value
   const editor = root.value
   if (!editor) return []
   const origin = editor.getBoundingClientRect()

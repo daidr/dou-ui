@@ -2,7 +2,8 @@ import { mount } from '@vue/test-utils'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { connectorEdge, whiteboardKit, type WhiteboardTool } from '..'
-import { fitInk, inkHit, inkOutline, strokeNode, turn, unpack } from '../ink'
+import { turn } from '../../core/geometry'
+import { fitInk, inkHit, inkOutline, strokeNode, unpack } from '../ink'
 import { resizeBox, snapAngle } from '../transform'
 import {
   defineFlowExtension,

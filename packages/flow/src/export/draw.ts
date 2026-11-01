@@ -2,7 +2,7 @@ import type { CSSProperties } from 'vue'
 import type { PortAnchor } from '../context'
 import type { EdgeRoute } from '../core/edge-types'
 import type { FlowEdge, FlowNode, Rect } from '../core/model'
-import type { NodeTypeSpec } from '../core/node-types'
+import { nodeBounds, type NodeTypeSpec } from '../core/node-types'
 import { escapeXml, round, type DrawTools, type FlowDrawContext } from './context'
 
 export interface FlowExportOptions {
@@ -197,7 +197,7 @@ export function drawFlow(input: DrawInput, tools: DrawTools, root: HTMLElement) 
   const containerParts: string[] = []
   for (const item of input.nodes) {
     const { node, spec, rect } = item
-    bounds.add(spec.bounds?.(node, rect) ?? rect)
+    bounds.add(nodeBounds(spec, node, rect))
     const draw = tools.forNode({ width: rect.width, height: rect.height }, item.ports, item.port)
     let body: string
     try {

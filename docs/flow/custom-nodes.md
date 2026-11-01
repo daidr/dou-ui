@@ -49,16 +49,17 @@ const promptNode = defineNodeType({
 
 ## defineNodeType
 
-| 名称        | 说明                                                                                              | 类型                                         |
-| ----------- | ------------------------------------------------------------------------------------------------- | -------------------------------------------- |
-| `type`      | 类型名，对应节点的 `type`                                                                         | `string`                                     |
-| `component` | 渲染节点内容的组件                                                                                | `Component`                                  |
-| `ports`     | 端口，固定的列表，或根据节点算出                                                                  | `FlowPortSpec[] \| (node) => FlowPortSpec[]` |
-| `defaults`  | 新节点的默认数据                                                                                  | `() => object`                               |
-| `label`     | 节点的无障碍名称，默认取 `data.label`；`messages` 是编辑器当前语言的文案                          | `(node, messages) => string`                 |
-| `container` | 能装下其他节点，见[自定义分组](./groups#自定义分组)                                               | `boolean`                                    |
-| `resizable` | 选中时显示调整大小的手柄，可以给出最小尺寸；写成函数时按节点决定，返回 `false` 不显示             | `NodeResize \| (node) => NodeResize`         |
-| `size`      | 新建时的宽高                                                                                      | `{ width: number, height: number }`          |
-| `frame`     | 设为 `false` 时编辑器不画卡片（边框、底色、阴影），由组件自己画外形，例如圆形；选中时显示一圈细框 | `boolean`                                    |
-| `bounds`    | 节点画到自身方框外时（例如旋转后）在屏幕上占的范围，选中节点上方的工具栏按它定位                  | `(node, rect) => Rect`                       |
-| `draw`      | 导出图片时把节点画成 SVG，见[导出图片](./export#自定义节点)；不写时画成带名称和端口的卡片         | `(node, draw: FlowDrawContext) => string`    |
+| 名称        | 说明                                                                                                                       | 类型                                         |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| `type`      | 类型名，对应节点的 `type`                                                                                                  | `string`                                     |
+| `component` | 渲染节点内容的组件                                                                                                         | `Component`                                  |
+| `ports`     | 端口，固定的列表，或根据节点算出                                                                                           | `FlowPortSpec[] \| (node) => FlowPortSpec[]` |
+| `defaults`  | 新节点的默认数据                                                                                                           | `() => object`                               |
+| `label`     | 节点的无障碍名称，默认取 `data.label`；`messages` 是编辑器当前语言的文案                                                   | `(node, messages) => string`                 |
+| `container` | 能装下其他节点，见[自定义分组](./groups#自定义分组)                                                                        | `boolean`                                    |
+| `resizable` | 选中时显示调整大小的手柄，可以给出最小尺寸；写成函数时按节点决定，返回 `false` 不显示                                      | `NodeResize \| (node) => NodeResize`         |
+| `size`      | 新建时的宽高                                                                                                               | `{ width: number, height: number }`          |
+| `frame`     | 设为 `false` 时编辑器不画卡片（边框、底色、阴影），由组件自己画外形，例如圆形；选中时显示一圈细框                          | `boolean`                                    |
+| `rotation`  | 节点绕中心旋转的角度（顺时针，单位度），默认 `0`；旋转由组件自己画，编辑器据此算出占的范围，协作时别人看到的选中框也跟着转 | `(node) => number`                           |
+| `bounds`    | 节点画到自身方框外时在屏幕上占的范围，选中节点上方的工具栏按它定位；默认是方框按 `rotation` 旋转后的外接框                 | `(node, rect) => Rect`                       |
+| `draw`      | 导出图片时把节点画成 SVG，见[导出图片](./export#自定义节点)；不写时画成带名称和端口的卡片                                  | `(node, draw: FlowDrawContext) => string`    |

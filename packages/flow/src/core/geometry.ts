@@ -125,3 +125,28 @@ export function snapBox(
   }
   return { dx, dy, guides }
 }
+
+/** Turns `point` by `degrees` around `centre`. */
+export function turn(point: Point, centre: Point, degrees: number): Point {
+  if (!degrees) return point
+  const a = (degrees * Math.PI) / 180
+  const dx = point.x - centre.x
+  const dy = point.y - centre.y
+  return {
+    x: centre.x + dx * Math.cos(a) - dy * Math.sin(a),
+    y: centre.y + dx * Math.sin(a) + dy * Math.cos(a),
+  }
+}
+
+/** The box around `rect` turned by `degrees` about its centre. */
+export function turnedBox(rect: Rect, degrees: number): Rect {
+  if (!degrees) return rect
+  const centre = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }
+  const corners = [
+    { x: rect.x, y: rect.y },
+    { x: rect.x + rect.width, y: rect.y },
+    { x: rect.x, y: rect.y + rect.height },
+    { x: rect.x + rect.width, y: rect.y + rect.height },
+  ].map((corner) => turn(corner, centre, degrees))
+  return boundsOf(corners.map((p) => ({ ...p, width: 0, height: 0 })))!
+}

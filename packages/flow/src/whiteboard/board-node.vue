@@ -70,7 +70,9 @@ const cornerHandles = computed(() => resizeHandles.value.filter((h) => h.x && h.
 const frameStyle = computed(() => {
   const rect = ctx.getNodeRect(props.node.id) ?? { ...props.node, width: 0, height: 0 }
   return {
-    transform: `translate(${rect.x}px, ${rect.y}px)`,
+    // `translate`, not `transform`: it applies before `rotate`, so the box
+    // turns about its own centre and its offset is not turned with it
+    translate: `${rect.x}px ${rect.y}px`,
     width: `${rect.width}px`,
     height: `${rect.height}px`,
     rotate: rotation.value ? `${rotation.value}deg` : undefined,
@@ -307,7 +309,12 @@ function onKeydown(event: KeyboardEvent) {
       />
       <Teleport :to="state.handles.value" :disabled="!state.handles.value">
         <div class="dou-whiteboard-node__frame" :style="frameStyle" aria-hidden="true">
-          <span class="dou-whiteboard-node__turn" data-dou-nodrag @pointerdown="startTurn" />
+          <!-- data-flow-overlay on its target: the selection's toolbar keeps
+               clear of where a finger can take it, when it floats below the
+               node or the node is turned upside down -->
+          <span class="dou-whiteboard-node__turn" data-dou-nodrag @pointerdown="startTurn">
+            <span class="dou-whiteboard-node__target" data-flow-overlay />
+          </span>
           <span
             v-for="handle in cornerHandles"
             :key="`${handle.x},${handle.y}`"

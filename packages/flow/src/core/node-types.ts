@@ -1,6 +1,7 @@
 import type { FlowDrawContext } from '../export/context'
 import type { Component } from 'vue'
 import type { FlowMessages } from '../locale'
+import { turnedBox } from './geometry'
 import type { FlowData, FlowNode, FlowPortSpec, PortSide, Rect } from './model'
 
 /** What a node type's component receives. */
@@ -56,8 +57,17 @@ export interface NodeTypeSpec<Data extends FlowData = FlowData> {
    */
   frame?: boolean
   /**
-   * The box the node covers on screen when it draws outside its own `rect`,
-   * e.g. while turned. The toolbar over the selection floats above it.
+   * How far the node is drawn turned about its centre, in degrees clockwise;
+   * `0` by default. The component turns what it draws, and `draw` turns its
+   * export; the editor follows: the selection outline, picking with a box,
+   * what is drawn in view, the toolbar and other people's outlines. For
+   * nodes with `frame: false`. A turned node has no editor resize handle.
+   */
+  rotation?: (node: FlowNode<Data>) => number
+  /**
+   * The box the node covers on screen when it draws outside its own `rect`.
+   * The toolbar over the selection floats above it. By default the box
+   * around `rect` turned by `rotation`.
    */
   bounds?: (node: FlowNode<Data>, rect: Rect) => Rect
   /**
@@ -81,6 +91,10 @@ export interface NodePaletteSpec {
 export function defineNodeType<Data extends FlowData = FlowData>(
   spec: NodeTypeSpec<Data>,
 ): NodeTypeSpec<Data> {
+  if (process.env.NODE_ENV !== 'production' && spec.rotation && spec.frame !== false)
+    console.warn(
+      `[@dou-ui/flow] the node type "${spec.type}" has rotation but not frame: false: the card the editor draws around it does not turn`,
+    )
   return spec
 }
 
@@ -100,6 +114,8 @@ export function resizeOf(
   spec: NodeTypeSpec | undefined,
   node: FlowNode,
 ): { minWidth?: number; minHeight?: number } | null {
+  // the editor's handle grows a node along the page, not along a turned node's sides
+  if (spec?.rotation?.(node)) return null
   const value = typeof spec?.resizable === 'function' ? spec.resizable(node) : spec?.resizable
   if (!value) return null
   return value === true ? {} : value
@@ -113,4 +129,9 @@ export function labelOf(
   if (spec?.label) return spec.label(node, messages)
   const label = node.data?.label
   return typeof label === 'string' ? label : node.id
+}
+
+/** The box `node` covers on screen, drawn at `rect`. */
+export function nodeBounds(spec: NodeTypeSpec, node: FlowNode, rect: Rect): Rect {
+  return spec.bounds?.(node, rect) ?? turnedBox(rect, spec.rotation?.(node) ?? 0)
 }

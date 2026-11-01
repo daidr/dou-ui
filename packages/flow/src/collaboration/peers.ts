@@ -28,20 +28,32 @@ interface Peer {
   presence: FlowPresence
 }
 
-function box(key: string, rect: Rect, kind: string, name?: string) {
+function box(key: string, rect: Rect, rotation: number, kind: string, name?: string) {
   return h(
     'div',
     {
       key,
       class: ['dou-flow-peer', `is-${kind}`],
       style: {
-        transform: `translate(${rect.x}px, ${rect.y}px)`,
+        // `translate`, not `transform`: it applies before `rotate`, so the
+        // outline turns about the node's own centre, as the node is drawn
+        translate: `${rect.x}px ${rect.y}px`,
         width: `${rect.width}px`,
         height: `${rect.height}px`,
+        rotate: rotation ? `${rotation}deg` : undefined,
       },
     },
-    // the name, once per person
-    name ? h('span', { class: 'dou-flow-peer__name' }, name) : undefined,
+    // the name, once per person, upright on the outline's corner
+    name
+      ? h(
+          'span',
+          {
+            class: 'dou-flow-peer__name',
+            style: rotation ? { rotate: `${-rotation}deg` } : undefined,
+          },
+          name,
+        )
+      : undefined,
   )
 }
 
@@ -79,10 +91,10 @@ export function createPeers(awareness: AwarenessLike): Component {
           let named = false
           const label = () => (named ? undefined : ((named = true), peer.name))
           for (const item of presence.moving)
-            children.push(box(`m-${item.id}`, item, 'moving', label()))
+            children.push(box(`m-${item.id}`, item, ctx.nodeRotation(item.id), 'moving', label()))
           for (const id of presence.selection?.nodes ?? []) {
             const rect = !moving.has(id) && ctx.getNodeRect(id)
-            if (rect) children.push(box(`s-${id}`, rect, 'selected', label()))
+            if (rect) children.push(box(`s-${id}`, rect, ctx.nodeRotation(id), 'selected', label()))
           }
           if (presence.path)
             children.push(

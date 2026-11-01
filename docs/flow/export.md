@@ -45,6 +45,8 @@ const noteNode = defineNodeType<{ text?: string }>({
 })
 ```
 
+节点类型写了 [`rotation`](./custom-nodes#definenodetype) 时，`draw` 也要自己画出旋转，例如把内容包在 `<g transform="rotate(角度 宽/2 高/2)">` 里；导出的画布范围会按旋转后的外接框留出。
+
 `draw` 的第二个参数提供这些工具：
 
 | 名称                         | 说明                                                                                                                                              |

@@ -2,7 +2,8 @@ import { mount } from '@vue/test-utils'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { connectorEdge, whiteboardKit, type WhiteboardTool } from '..'
-import { fitInk, inkHit, inkOutline, strokeNode, turn, unpack } from '../ink'
+import { turn } from '../../core/geometry'
+import { fitInk, inkHit, inkOutline, strokeNode, unpack } from '../ink'
 import { resizeBox, snapAngle } from '../transform'
 import {
   defineFlowExtension,
@@ -766,6 +767,87 @@ describe('resize handles', () => {
     // the sides stay on the node, under its anchors
     expect(root.find('[data-node-id="a"]').findAll('.dou-whiteboard-node__side')).toHaveLength(4)
     expect(layer.find('.dou-whiteboard-node__frame').attributes('style')).toContain('width: 100px')
+  })
+
+  it('turns the corner handles about the node, not about the board', async () => {
+    const { root, selection } = setup({
+      nodes: [
+        {
+          id: 'a',
+          type: 'image',
+          x: 200,
+          y: 40,
+          width: 160,
+          height: 90,
+          data: { src: 'x.png', rotation: 30 },
+        },
+      ],
+      edges: [],
+    })
+    await ticks()
+    selection.value = { nodes: ['a'], edges: [] }
+    await ticks()
+    const style = root.find('.dou-whiteboard-node__frame').attributes('style')!
+    // placed by `translate`, which comes before `rotate`: a `transform` would
+    // come after it and turn the offset too, carrying the corners off the node
+    expect(style).toContain('translate: 200px 40px')
+    expect(style).toContain('rotate: 30deg')
+    expect(style).not.toContain('transform')
+  })
+
+  it('turns the selection outline with a turned node, with no editor resize handle', async () => {
+    const { root, selection } = setup({
+      nodes: [
+        {
+          id: 'a',
+          type: 'shape',
+          x: 0,
+          y: 0,
+          width: 100,
+          height: 50,
+          data: { shape: 'rect', rotation: 30 },
+        },
+      ],
+      edges: [],
+    })
+    await ticks()
+    selection.value = { nodes: ['a'], edges: [] }
+    await ticks()
+    const frame = root.find('[data-node-id="a"]')
+    expect(frame.classes()).toContain('is-turned')
+    expect(frame.attributes('style')).toContain('--dou-flow-node-rotation: 30deg')
+    expect(frame.find('.dou-flow-editor__resize').exists()).toBe(false)
+  })
+
+  it('picks a turned node with a box by what it covers, not by its upright box', async () => {
+    const { root, selection } = setup({
+      nodes: [
+        // turned upright: it covers x 90–110, y -90–110
+        {
+          id: 'a',
+          type: 'shape',
+          x: 0,
+          y: 0,
+          width: 200,
+          height: 20,
+          data: { shape: 'rect', rotation: 90 },
+        },
+      ],
+      edges: [],
+    })
+    await ticks()
+    const box = async (from: [number, number], to: [number, number]) => {
+      root.element.dispatchEvent(pointer('pointerdown', ...from, { shiftKey: true }))
+      root.element.dispatchEvent(pointer('pointermove', ...to, { shiftKey: true }))
+      root.element.dispatchEvent(pointer('pointerup', ...to, { shiftKey: true }))
+      await ticks()
+    }
+    // the upright box, where nothing is drawn
+    await box([2, 2], [40, 18])
+    expect(selection.value.nodes).toEqual([])
+    // where the turned node is drawn, outside its upright box
+    await box([95, 60], [105, 80])
+    expect(selection.value.nodes).toEqual(['a'])
   })
 
   it('drops a preview once its node leaves the document', async () => {

@@ -11,6 +11,7 @@ import type { FormFieldType } from '../fields/define'
 import { formatMessage } from '../locale'
 import FormRenderer from '../renderer/form-renderer.vue'
 import { useBuilderState } from './context'
+import type { FormBuilderTransaction } from './core/transaction'
 import { scopeOf } from './core/commands'
 import { formNodePlaces } from './core/transaction'
 import {
@@ -185,19 +186,31 @@ const logicForm = memo(
         : [],
     ),
 )
+const validatorNames = computed(() => Object.keys(state.validators() ?? {}))
 const ruleForm = memo(
-  () => [holdsValue.value, logic.value, messages.value],
+  () => [holdsValue.value, logic.value, messages.value, validatorNames.value.join()],
   () =>
     settingsDocument(
-      holdsValue.value ? ruleSettings({ messages: messages.value, scope: logic.value }) : [],
+      holdsValue.value
+        ? ruleSettings({
+            messages: messages.value,
+            scope: logic.value,
+            validators: validatorNames.value,
+          })
+        : [],
     ),
 )
+
+/** Make a change of the settings, unless the builder is read-only. */
+function commit(tr: FormBuilderTransaction) {
+  if (!state.readonly) state.dispatch(tr)
+}
 
 function update(id: string, patch: Record<string, unknown>) {
   const tr = state.transaction().update(id, patch)
   tr.setMeta('group', `inspector:${id}:${Object.keys(patch).join(',')}`)
   tr.setMeta('origin', 'inspector')
-  state.dispatch(tr)
+  commit(tr)
   return formNodePlaces(state.document).get(id)?.node
 }
 
@@ -294,7 +307,7 @@ const formModel = useSettingsBinding({
     const tr = state.transaction().updateDocument(patch)
     tr.setMeta('group', `inspector:document:${Object.keys(patch).join(',')}`)
     tr.setMeta('origin', 'inspector')
-    state.dispatch(tr)
+    commit(tr)
     return documentSettingsOf.value
   },
 })
@@ -309,7 +322,7 @@ const spanModel = useSettingsBinding({
     const tr = state.transaction()
     for (const id of state.selection) tr.update(id, patch)
     tr.setMeta('group', `inspector:${state.selection.join()}:span`)
-    state.dispatch(tr)
+    commit(tr)
     return state.focused.value as Record<string, unknown> | undefined
   },
 })
@@ -381,8 +394,13 @@ const canWrap = computed(() => {
     </div>
     <div class="dou-form-builder__inspector-body">
       <template v-if="count > 1">
-        <FormRenderer :form="spanForm" :model="spanModel" :fields="extra" />
-        <div class="dou-form-builder__inspector-actions">
+        <FormRenderer
+          :form="spanForm"
+          :model="spanModel"
+          :fields="extra"
+          :disabled="state.readonly"
+        />
+        <div v-if="!state.readonly" class="dou-form-builder__inspector-actions">
           <DouButton size="sm" variant="outline" @click="state.duplicate()">
             <template #leading><CopyIcon /></template>
             {{ messages.actions.duplicate }}
@@ -404,9 +422,10 @@ const canWrap = computed(() => {
           :model="nodeModel"
           :fields="rendererFields"
           :rules="nameRules"
+          :disabled="state.readonly"
         />
         <DouButton
-          v-if="holdsPages"
+          v-if="holdsPages && !state.readonly"
           class="dou-form-builder__inspector-add"
           size="sm"
           variant="outline"
@@ -422,6 +441,7 @@ const canWrap = computed(() => {
             :form="typeForm"
             :model="typeModel"
             :fields="rendererFields"
+            :disabled="state.readonly"
           />
         </template>
         <template v-if="ruleForm.nodes.length">
@@ -431,6 +451,7 @@ const canWrap = computed(() => {
             :form="ruleForm"
             :model="ruleModel"
             :fields="rendererFields"
+            :disabled="state.readonly"
           />
         </template>
         <div class="dou-form-builder__inspector-section">{{ messages.inspector.logic }}</div>
@@ -439,9 +460,16 @@ const canWrap = computed(() => {
           :form="logicForm"
           :model="logicModel"
           :fields="rendererFields"
+          :disabled="state.readonly"
         />
       </template>
-      <FormRenderer v-else :form="formForm" :model="formModel" :fields="extra" />
+      <FormRenderer
+        v-else
+        :form="formForm"
+        :model="formModel"
+        :fields="extra"
+        :disabled="state.readonly"
+      />
       <template v-for="section in sections" :key="section.key">
         <div class="dou-form-builder__inspector-section">{{ section.title }}</div>
         <component :is="section.component" v-bind="section.props" />

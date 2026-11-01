@@ -1,5 +1,5 @@
 import type { Component, InjectionKey, VNode } from 'vue'
-import type { FormModel, FormRules, FormValidateResult } from 'dou-ui'
+import type { FormModel, FormRules, FormValidateResult, FormValidatorResult } from 'dou-ui'
 import type { FormRendererMessages, FormRendererMessagesOverride } from '../locale'
 import type { FormFieldType } from '../fields/define'
 import type { FormDocument, FormNode } from '../core/types'
@@ -21,6 +21,12 @@ export interface FormRendererProps {
   /** Disable every field. */
   disabled?: boolean
   /**
+   * Show the values as text instead of fields, e.g. on a detail page or an
+   * approval. Lists show their items without the buttons, steps show every
+   * page one after another, and the model is never written to.
+   */
+  readonly?: boolean
+  /**
    * Functions the document's expressions can call besides the built-in
    * ones, e.g. `{ tax: (price) => price * 0.06 }`. They get plain values
    * and should not change them; one of the same name replaces a built-in function.
@@ -35,6 +41,12 @@ export interface FormRendererProps {
    */
   sources?: Record<string, FormOptionsLoader>
   /**
+   * Checks that need code, by the name a rule's `validator` gives, e.g. one
+   * asking the server whether a user name is taken. A validator may return
+   * a promise; only the result of the latest check of a field is shown.
+   */
+  validators?: Record<string, FormValidator>
+  /**
    * Submit the values of hidden fields too. By default `submit` hands over
    * a copy of the values without them (see `visibleValues`), so a field
    * that was filled in and then hidden is not sent.
@@ -43,6 +55,27 @@ export interface FormRendererProps {
   /** Replaces texts of the locale, e.g. the step buttons. */
   messages?: FormRendererMessagesOverride
 }
+
+/** What a validator gets besides the value. */
+export interface FormValidatorContext {
+  /** The whole form's values. */
+  values: FormModel
+  /** Inside a list, the item the field belongs to; else `null`. */
+  item: unknown
+  /** The path of the field, e.g. `username` or `guests.2.phone`. */
+  path: string
+}
+
+/**
+ * A check of a field's value. Return `true` or nothing to pass, `false` to
+ * fail with the rule's `message`, or a string to fail with that string.
+ * May be async. Like the other checks of a rule, it is skipped while the
+ * value is empty; that is `required`'s job.
+ */
+export type FormValidator = (
+  value: unknown,
+  context: FormValidatorContext,
+) => FormValidatorResult | Promise<FormValidatorResult>
 
 /** Loads the options of a field, given the result of its `source.arg`. */
 export type FormOptionsLoader = (arg: any) => unknown[] | Promise<unknown[]>
@@ -81,6 +114,12 @@ export interface FormRendererExpose {
   resetFields: (names?: string | string[]) => void
   /** Clear the errors of the given fields, or every field. */
   clearValidate: (names?: string | string[]) => void
+  /**
+   * Show errors by field path, e.g. ones a server returned after submit.
+   * Each stays until the field's value changes or it is checked again; an
+   * empty message clears the field's error. Tabs mark the pages with errors.
+   */
+  setErrors: (errors: Record<string, string>) => void
   /** Scroll a field into view and focus it. */
   scrollToField: (name: string) => void
   /** Forget the options loaded from a source, or from every source, and load them again. */
@@ -99,6 +138,10 @@ export interface RendererContext {
   changed: (name: string, value: unknown) => void
   /** The functions expressions can call besides the built-in ones. */
   functions: () => Record<string, FormFunction> | undefined
+  /** The validators rules can name. */
+  validators: () => Record<string, FormValidator> | undefined
+  /** Whether values show as text. */
+  readonly: () => boolean
   /** The options from a source, shared by every field asking the same thing. */
   load: (name: string, arg: unknown) => Promise<unknown[]>
   /** Bumped by `reloadSource`, so fields reading it load again. */

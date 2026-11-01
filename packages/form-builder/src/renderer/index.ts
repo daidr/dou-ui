@@ -10,6 +10,8 @@ export type {
   FormRendererProps,
   FormRendererSlots,
   FormOptionsLoader,
+  FormValidator,
+  FormValidatorContext,
 } from './context'
 export { findFormulaCycles, findItemFormulaCycles } from '../core/formulas'
 export { checkDocument, checkDocumentShape, migrateDocument } from '../core/check'
@@ -22,6 +24,8 @@ export { builtinFields, resolveFields } from '../fields/builtin'
 export { defineFormField, fieldProps, useFormField } from '../fields/define'
 export type { FormFieldContext, FormFieldProps, FormFieldType } from '../fields/define'
 export { normalizeOptions } from '../fields/components'
+export { formatValue } from '../fields/format'
+export type { FormFormatContext } from '../fields/format'
 export { fitPathToOptions, fitToOptions } from '../fields/options'
 export type { FormOption } from '../fields/components'
 export {

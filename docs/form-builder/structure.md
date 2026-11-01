@@ -71,7 +71,7 @@ const form = migrateDocument(JSON.parse(saved))
 
 ## 文字
 
-“上一步”“下一步”“添加一项”等文字跟随 `ConfigProvider` 的语言，内置简体中文、繁体中文和英文。渲染器的 `messages` 可以替换其中几项：
+“上一步”“下一步”“添加一项”、只读时的“是”“否”和空值“—”等文字跟随 `ConfigProvider` 的语言，内置简体中文、繁体中文和英文。渲染器的 `messages` 可以替换其中几项：
 
 ```vue
 <DouFormRenderer :form="form" :messages="{ next: '继续' }" />

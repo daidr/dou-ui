@@ -5,7 +5,7 @@ import { isContainer, isPage } from '../core/document'
 import type { FormContainerNode, FormDocument, FormNode, FormPageNode } from '../core/types'
 import type { FormFunction } from '../core/expression'
 import type { FormFieldType } from '../fields/define'
-import type { FormOptionsLoader } from '../renderer/context'
+import type { FormOptionsLoader, FormValidator } from '../renderer/context'
 import type { FormBuilderHistoryHandler, ResolvedFormBuilderExtensions } from './extension'
 import { formatMessage } from '../locale'
 import type { FormBuilderMessages } from './locale'
@@ -55,6 +55,12 @@ export interface FormBuilderContext {
   readonly messages: FormBuilderMessages
   readonly canUndo: boolean
   readonly canRedo: boolean
+  /**
+   * Whether the builder only shows the form: nodes can be selected and
+   * their settings read, but the commands below change nothing. A
+   * transaction handed to `dispatch` still applies.
+   */
+  readonly readonly: boolean
   readonly mode: FormBuilderMode
   /** Show the canvas or the preview. */
   setMode: (mode: FormBuilderMode) => void
@@ -125,6 +131,8 @@ export interface BuilderState extends FormBuilderContext {
   /** The functions given to the builder, for the preview. */
   functions: () => Record<string, FormFunction> | undefined
   sources: () => Record<string, FormOptionsLoader> | undefined
+  /** The validators given to the builder, for the preview and the rules editor. */
+  validators: () => Record<string, FormValidator> | undefined
   extensions: () => ResolvedFormBuilderExtensions
   /** The selection, as a set, for views checking many nodes. */
   selected: ComputedRef<ReadonlySet<string>>
@@ -170,6 +178,8 @@ export interface CreateBuilderOptions {
   emitMode: (mode: FormBuilderMode) => void
   functions: () => Record<string, FormFunction> | undefined
   sources: () => Record<string, FormOptionsLoader> | undefined
+  validators: () => Record<string, FormValidator> | undefined
+  readonly: () => boolean
   extensions: () => ResolvedFormBuilderExtensions
 }
 
@@ -320,7 +330,10 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
   const context = () => ({ fields: options.fields(), messages: options.messages() })
   const target = (ids?: readonly string[]) => ids ?? selection.value
 
+  const locked = () => options.readonly()
+
   function add(type: string, place?: FormBuilderInsertPlace) {
+    if (locked()) return undefined
     const document = doc.value
     const where = place ?? insertPlace(document, selection.value, type, shownPage)
     const node = createNode(type, {
@@ -338,6 +351,7 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
   }
 
   function remove(ids?: readonly string[]) {
+    if (locked()) return
     const tr = transaction()
     const { removed, next } = removeNodes(tr, target(ids))
     if (!removed) return
@@ -348,6 +362,7 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
   }
 
   function duplicate(ids?: readonly string[]) {
+    if (locked()) return
     const tr = transaction()
     const copies = duplicateNodes(tr, target(ids))
     if (!copies.length) return
@@ -358,6 +373,7 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
   }
 
   function moveBy(delta: -1 | 1, ids?: readonly string[]) {
+    if (locked()) return
     const tr = transaction()
     if (!moveNodes(tr, target(ids), delta)) return
     const last = target(ids)[target(ids).length - 1]
@@ -370,6 +386,7 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
   }
 
   function moveTo(place: FormBuilderInsertPlace, ids?: readonly string[]) {
+    if (locked()) return
     const tr = transaction()
     const moving = target(ids)
     if (!moveNodesTo(tr, moving, place.parent, place.index)) return
@@ -397,6 +414,7 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
   }
 
   function replace(next: FormDocument) {
+    if (locked()) return
     const tr = transaction()
     replaceDocument(tr, toRaw(next))
     tr.setMeta('origin', 'replace')
@@ -404,6 +422,7 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
   }
 
   function wrap(ids?: readonly string[]) {
+    if (locked()) return
     const tr = transaction()
     const section = wrapNodes(tr, target(ids), context())
     if (!section) return
@@ -411,6 +430,7 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
   }
 
   function addPage(id?: string) {
+    if (locked()) return
     const map = formNodePlaces(doc.value)
     let place = map.get(id ?? selection.value[selection.value.length - 1] ?? '')
     while (place && place.node.type !== 'tabs' && place.node.type !== 'steps')
@@ -440,6 +460,7 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
   }
 
   function travel(direction: 'undo' | 'redo') {
+    if (locked()) return
     const handler = customHistory()
     if (handler) {
       if (!handler[direction]()) return
@@ -465,16 +486,21 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
   }
 
   /** The keys of the canvas and the outline, as hotkeys. */
-  const keys: [hotkey: string, run: (view: BuilderView, event: KeyboardEvent) => void][] = [
-    ['mod+z', () => travel('undo')],
-    ['mod+shift+z', () => travel('redo')],
-    ['mod+y', () => travel('redo')],
-    ['mod+d', () => duplicate()],
-    ['mod+g', () => wrap()],
-    ['delete', () => remove()],
-    ['backspace', () => remove()],
-    ['mod+arrowup', () => moveBy(-1)],
-    ['mod+arrowdown', () => moveBy(1)],
+  const keys: [
+    hotkey: string,
+    run: (view: BuilderView, event: KeyboardEvent) => void,
+    /** Changes the form, so a read-only builder lets the key through. */
+    edits?: boolean,
+  ][] = [
+    ['mod+z', () => travel('undo'), true],
+    ['mod+shift+z', () => travel('redo'), true],
+    ['mod+y', () => travel('redo'), true],
+    ['mod+d', () => duplicate(), true],
+    ['mod+g', () => wrap(), true],
+    ['delete', () => remove(), true],
+    ['backspace', () => remove(), true],
+    ['mod+arrowup', () => moveBy(-1), true],
+    ['mod+arrowdown', () => moveBy(1), true],
     ['arrowup', (view) => step(view, -1, false)],
     ['arrowdown', (view) => step(view, 1, false)],
     ['shift+arrowup', (view) => step(view, -1, true)],
@@ -534,7 +560,7 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
       if (dragger.value.keydown(event)) event.preventDefault()
       return
     }
-    if (event.key === ' ' && !event.repeat && dragger.value?.pickUp()) {
+    if (event.key === ' ' && !event.repeat && !locked() && dragger.value?.pickUp()) {
       event.preventDefault()
       return
     }
@@ -544,8 +570,8 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
         event.preventDefault()
         return
       }
-    for (const [hotkey, run] of keys) {
-      if (!matchesHotkey(event, hotkey)) continue
+    for (const [hotkey, run, edits] of keys) {
+      if (!matchesHotkey(event, hotkey) || (edits && locked())) continue
       event.preventDefault()
       run(view, event)
       return
@@ -569,11 +595,14 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
     },
     get canUndo() {
       void travelled.value
-      return customHistory()?.canUndo() ?? history.canUndo
+      return !locked() && (customHistory()?.canUndo() ?? history.canUndo)
     },
     get canRedo() {
       void travelled.value
-      return customHistory()?.canRedo() ?? history.canRedo
+      return !locked() && (customHistory()?.canRedo() ?? history.canRedo)
+    },
+    get readonly() {
+      return locked()
     },
     get mode() {
       return options.mode()
@@ -612,6 +641,7 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
     functionNames,
     functions: options.functions,
     sources: options.sources,
+    validators: options.validators,
     extensions: options.extensions,
   }
   return self

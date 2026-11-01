@@ -53,16 +53,36 @@ const chips = defineFormField<{ options: string[] }>({
 <DouFormRenderer :form="form" :fields="[chips]" />
 ```
 
-| 名称                       | 说明                                                                                                   |
-| -------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `type`                     | 节点里 `type` 用的名字。和内置类型同名时替换内置的                                                     |
-| `label`                    | 给搭建表单的人看的名称                                                                                 |
-| `kind`                     | `value`（默认）：存值，套上带标签、提示和校验的表单项；`display`：只展示                               |
-| `component`                | 渲染字段的组件，拿到 `modelValue` 和设置作为属性，触发 `update:modelValue`                             |
-| `defaultProps`             | 设置的默认值，节点的 `props` 覆盖在上面                                                                |
-| `empty(props)`             | 类型的空值，节点没有 `default` 时字段从它开始，默认 `null`                                             |
-| `toProps(props, node)`     | 设置和组件属性不一致时，在这里转换成组件属性                                                           |
-| `optionsProp`              | 接收选项的属性名，如 `options`。设置后节点可以用 `source` 加载选项，见[联动与表达式](./logic#选项来源) |
-| `fitValue(value, options)` | 选项变化后把旧值收窄到新选项提供的范围，见[联动与表达式](./logic#选项来源)                             |
+| 名称                            | 说明                                                                                                        |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `type`                          | 节点里 `type` 用的名字。和内置类型同名时替换内置的                                                          |
+| `label`                         | 给搭建表单的人看的名称                                                                                      |
+| `kind`                          | `value`（默认）：存值，套上带标签、提示和校验的表单项；`display`：只展示                                    |
+| `component`                     | 渲染字段的组件，拿到 `modelValue` 和设置作为属性，触发 `update:modelValue`                                  |
+| `defaultProps`                  | 设置的默认值，节点的 `props` 覆盖在上面                                                                     |
+| `empty(props)`                  | 类型的空值，节点没有 `default` 时字段从它开始，默认 `null`                                                  |
+| `toProps(props, node)`          | 设置和组件属性不一致时，在这里转换成组件属性                                                                |
+| `optionsProp`                   | 接收选项的属性名，如 `options`。设置后节点可以用 `source` 加载选项，见[联动与表达式](./logic#选项来源)      |
+| `fitValue(value, options)`      | 选项变化后把旧值收窄到新选项提供的范围，见[联动与表达式](./logic#选项来源)                                  |
+| `format(value, props, context)` | 只读时显示的文字，见下文                                                                                    |
+| `readonlyComponent`             | 只读时代替文字显示值的组件，拿到 `modelValue` 和与 `component` 相同的属性，组件声明了 `readonly` 时也会传入 |
 
 字段组件里调用 `useFormField()`，可以拿到正在渲染的 `node`、它的 `type` 和合并后的 `props`。字段组件不需要自己处理标签和错误信息，外层的表单项会处理；组件里的可聚焦元素会自动和标签关联（`dou-ui` 的输入控件都是这样做的，自己写的控件可以用 `useFormItem()` 拿到 `inputId`）。
+
+### 只读时的显示
+
+渲染器 `readonly` 时，字段的值显示成文字。空值（`null`、空文字、空数组）直接显示“—”，不会交给 `format`。其余的值：
+
+- 类型有 `format(value, props, context)` 时用它返回的文字。`props` 是合并后的设置，从来源加载的选项也已经放进去了；`context` 有 `node`、渲染器的文字 `messages`（如 `yes`、`no`、列表分隔符 `separator`）和 `dou-ui` 当前的 `locale`。
+- 没有 `format` 但有 `optionsProp` 时，显示选中选项的文字。
+- 都没有时显示值本身：列表用分隔符连起来，`true` / `false` 显示“是”“否”。`formatValue(value, context)` 就是这个默认的做法，自己的 `format` 处理不了的值可以交给它。
+
+```ts
+const money = defineFormField({
+  type: 'money',
+  component: MoneyInput,
+  format: (value) => `¥${Number(value).toFixed(2)}`,
+})
+```
+
+内置类型里，`rate` 只读时仍然显示星星，`color-picker` 显示色块和色值，`upload` 显示文件名，有 `url` 的文件名可以点开。

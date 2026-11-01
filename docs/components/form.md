@@ -64,7 +64,13 @@ schema 自己决定空值是否合法，必填标记则无法从 schema 推断�
 
 ### 来自服务端的错误
 
-`DouFormItem` 的 `error` 会直接显示，不经过规则：
+有些错误要提交之后才知道，比如域名已被占用。把服务端返回的错误按字段路径交给实例的 `setErrors`，它们会显示在对应的字段上，和规则产生的错误一样：改动这个字段的值、或再次校验它时消失。
+
+<DocDemo src="form/server-errors" column style="max-width: 420px" />
+
+`setErrors` 只设置传入的字段，其他字段的错误不变；某个字段传空字符串即清除它的错误；表单里没有的路径会被忽略。提交后需要定位到出错的字段时，接着调用 `scrollToField`。
+
+`DouFormItem` 的 `error` 也会直接显示，不经过规则，但它一直显示到你自己把它清空为止，适合由外部状态决定的错误：
 
 ```vue
 <DouFormItem label="域名" prop="domain" :error="serverErrors.domain">
@@ -181,6 +187,7 @@ const readonly = useFormReadonly(() => props.readonly)
 | `resetFields`   | 恢复指定字段或全部字段的初始值，并清除错误 | `(props?: string \| string[]) => void`                        |
 | `clearValidate` | 清除指定字段或全部字段的错误               | `(props?: string \| string[]) => void`                        |
 | `scrollToField` | 滚动到字段并聚焦                           | `(prop: string) => void`                                      |
+| `setErrors`     | 按字段路径显示错误，如服务端返回的错误     | `(errors: Record<string, string>) => void`                    |
 
 `FormValidateResult` 为 `{ valid: boolean; errors: Record<string, string> }`。
 
@@ -206,12 +213,13 @@ const readonly = useFormReadonly(() => props.readonly)
 
 ### FormItem 实例方法
 
-| 名称       | 说明                 | 类型                            |
-| ---------- | -------------------- | ------------------------------- |
-| `error`    | 当前显示的错误       | `string`                        |
-| `validate` | 校验该字段           | `() => Promise<string \| null>` |
-| `reset`    | 恢复初始值并清除错误 | `() => void`                    |
-| `clear`    | 清除错误             | `() => void`                    |
+| 名称       | 说明                                               | 类型                            |
+| ---------- | -------------------------------------------------- | ------------------------------- |
+| `error`    | 当前显示的错误                                     | `string`                        |
+| `validate` | 校验该字段                                         | `() => Promise<string \| null>` |
+| `reset`    | 恢复初始值并清除错误                               | `() => void`                    |
+| `clear`    | 清除错误                                           | `() => void`                    |
+| `setError` | 显示一条错误，值改动或再次校验时消失；空字符串清除 | `(message: string) => void`     |
 
 ### CSS 变量
 

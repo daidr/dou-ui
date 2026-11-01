@@ -152,6 +152,8 @@ export const FormBuilderCanvas = defineComponent({
         layout.value === 'horizontal' ? (document.value.labelWidth ?? 96) : undefined,
       changed: noop,
       functions: () => undefined,
+      validators: () => undefined,
+      readonly: () => false,
       load: () => Promise.resolve([]),
       sourceVersion: () => 0,
       messages: () => rendererMessages.value,
@@ -234,7 +236,7 @@ export const FormBuilderCanvas = defineComponent({
     // The menu of the selected nodes, opened by a right click or the menu key.
     const contextMenu = shallowRef<ContextMenuExpose | null>(null)
     const openMenu = (x: number, y: number) => {
-      if (state.selection.length) contextMenu.value?.open(x, y)
+      if (nodeMenu(state, state.selection).length) contextMenu.value?.open(x, y)
     }
     state.openMenu.value = openMenu
     onBeforeUnmount(() => {
@@ -341,7 +343,12 @@ export const FormBuilderCanvas = defineComponent({
 })
 
 function emptyHint(state: BuilderState) {
-  return h('div', { class: 'dou-form-builder__empty' }, state.messages.canvas.empty)
+  const messages = state.messages.canvas
+  return h(
+    'div',
+    { class: 'dou-form-builder__empty' },
+    state.readonly ? messages.readonlyEmpty : messages.empty,
+  )
 }
 
 function designNodes(nodes: readonly FormNode[], columns: number, inset: number, level: number) {
@@ -503,8 +510,8 @@ const DesignNode = defineComponent({
           body,
           logic && !primary.value ? logicMark(logic) : null,
           marks.length ? markTags(marks) : null,
-          primary.value ? actionBar(state, node, title, moreOpen) : null,
-          primary.value && !isPage(node) ? resizeHandle(state, node, el) : null,
+          primary.value && !state.readonly ? actionBar(state, node, title, moreOpen) : null,
+          primary.value && !state.readonly && !isPage(node) ? resizeHandle(state, node, el) : null,
         ],
       )
     }
@@ -676,21 +683,23 @@ function pagesBody(
           ],
         ),
       ),
-      h(
-        'button',
-        {
-          type: 'button',
-          class: 'dou-form-builder__page-add',
-          tabindex: -1,
-          'aria-label': state.messages.actions.addPage,
-          title: state.messages.actions.addPage,
-          onClick: (event: MouseEvent) => {
-            event.stopPropagation()
-            state.addPage(node.id)
-          },
-        },
-        h(PlusIcon),
-      ),
+      state.readonly
+        ? null
+        : h(
+            'button',
+            {
+              type: 'button',
+              class: 'dou-form-builder__page-add',
+              tabindex: -1,
+              'aria-label': state.messages.actions.addPage,
+              title: state.messages.actions.addPage,
+              onClick: (event: MouseEvent) => {
+                event.stopPropagation()
+                state.addPage(node.id)
+              },
+            },
+            h(PlusIcon),
+          ),
     ]),
     shown
       ? h(

@@ -319,6 +319,7 @@ const RULE_KEYS: Record<string, Expected> = {
   pattern: 'string',
   flags: 'string',
   check: 'string',
+  validator: 'string',
   message: 'string',
   trigger: 'string',
 }

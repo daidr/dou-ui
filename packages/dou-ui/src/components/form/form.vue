@@ -3,7 +3,14 @@ import { computed, provide } from 'vue'
 import { useReducedMotion } from '../../composables/use-motion'
 import { useNamespace } from '../../utils/namespace'
 import { formKey } from './form'
-import type { FormEmits, FormExpose, FormItemHandle, FormProps, FormSlots } from './form'
+import type {
+  FormEmits,
+  FormErrors,
+  FormExpose,
+  FormItemHandle,
+  FormProps,
+  FormSlots,
+} from './form'
 import { toArray } from './rules'
 
 defineOptions({ name: 'DouForm' })
@@ -71,6 +78,11 @@ function clearValidate(paths?: string | string[]) {
   for (const item of pick(paths)) item.clear()
 }
 
+function setErrors(errors: FormErrors) {
+  const byPath = new Map(pick().map((item) => [item.prop()!, item]))
+  for (const [path, message] of Object.entries(errors)) byPath.get(path)?.setError(message ?? '')
+}
+
 function scrollToField(prop: string) {
   const [item] = pick(prop)
   item?.el()?.scrollIntoView?.({
@@ -110,7 +122,7 @@ const classes = computed(() => [
   ns.is('readonly', props.readonly),
 ])
 
-defineExpose<FormExpose>({ validate, resetFields, clearValidate, scrollToField })
+defineExpose<FormExpose>({ validate, resetFields, clearValidate, scrollToField, setErrors })
 </script>
 
 <template>

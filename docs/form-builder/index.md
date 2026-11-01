@@ -55,11 +55,35 @@ app.use(DouFormBuilder)
 
 注意：除了 `required`，其他规则不检查空值（空文字、空数组、`null`），空着的字段总能通过它们。要求“至少选一项”时写 `required` 并配上合适的 `message`，`min` 只在选了之后限制数量。
 
-需要写代码的检查（比如向服务端确认账号是否可用）放在组件的 `rules` 属性里，按字段名合并到描述的规则上。也可以写 Standard Schema。
+### 校验函数
+
+表达式做不到的检查（比如向服务端确认账号是否可用）写成校验函数，通过渲染器的 `validators` 按名字注册，描述里的规则只写名字：`{ validator: 'accountFree', message: '这个账号已被占用' }`。这和 `sources`、`functions` 的做法一样，描述里不会出现函数，仍然可以存成 JSON、在设计器里编辑。
+
+校验函数拿到字段的值和 `{ values, item, path }`：`values` 是整个表单，`item` 是字段所在的列表项（不在列表里时为 `null`），`path` 是字段的完整路径，比如 `guests.2.phone`，同一个函数可以给几个字段用。返回 `true` 或不返回为通过，返回 `false` 时显示规则的 `message`，返回字符串时显示这个字符串。可以是 async，同一个字段连续检查时只采纳最后一次的结果。和其他规则一样，空值不会交给它。请求接口的检查适合写 `trigger: 'blur'`，避免每输入一个字都请求一次。
 
 <DocDemo src="form-builder/rules" column />
 
+描述里写了、`validators` 里没有的名字会被当作通过，并在控制台提示一次。只在代码里用、不需要放进描述的检查，也可以写在组件的 `rules` 属性里，按字段名合并到描述的规则上，写法和 `DouForm` 的规则一样，也可以写 Standard Schema。
+
 规则里还可以写 `check` 表达式，和其他字段的值比较，见[联动与表达式](./logic#用表达式校验)。
+
+### 来自服务端的错误
+
+有些错误要提交之后才知道。把服务端返回的错误按字段路径交给实例方法 `setErrors`，它们显示在对应的字段上，改动这个字段或再次检查它时消失。错误在其他标签页里时，标签上同样会出现提示点。
+
+<DocDemo src="form-builder/server-errors" column />
+
+`setErrors` 只设置传入的字段，传空字符串清除某个字段的错误，表单里没有的路径会被忽略。
+
+## 只读展示
+
+`readonly` 把字段的值显示成文字，适合详情页、审批单这类只看不填的场景：选择类字段显示选项的文字而不是值，开关显示“是”“否”，日期按当前语言的格式显示，密码显示成圆点，没有值的字段显示“—”。只读时不显示必填标记和字段说明，列表没有添加、删除和拖动，分步表单把每一步依次排开、各自带着标题。
+
+<DocDemo src="form-builder/readonly" column />
+
+只读时渲染器不会写 `model`：缺少的字段不会填上默认值，公式字段显示的是现算的结果。切回可编辑时才填上默认值，所以同一个 `model` 可以先展示、再编辑。
+
+自定义字段类型用 `format(value, props, context)` 决定显示的文字，需要文字以外的样子时提供 `readonlyComponent`，见[自定义字段](./fields#自定义字段)。`readonly` 和 `disabled` 不同：`disabled` 仍然显示输入控件，只是不能操作。
 
 ## 自定义字段
 
@@ -90,8 +114,10 @@ app.use(DouFormBuilder)
 | fields     | 内置之外的字段类型                                                 | `FormFieldType[]`                   | —                |
 | rules      | 按字段名追加的规则                                                 | `FormRules`                         | —                |
 | disabled   | 禁用全部字段                                                       | `boolean`                           | `false`          |
+| readonly   | 把值显示成文字，见[只读展示](#只读展示)                            | `boolean`                           | `false`          |
 | functions  | 表达式可以调用的函数，见[联动与表达式](./logic)                    | `Record<string, FormFunction>`      | —                |
 | sources    | 选项来源，见[联动与表达式](./logic)                                | `Record<string, FormOptionsLoader>` | —                |
+| validators | 规则可以按名字引用的校验函数，见[校验函数](#校验函数)              | `Record<string, FormValidator>`     | —                |
 | keepHidden | 提交时保留隐藏字段的值，见[隐藏字段的值](./structure#隐藏字段的值) | `boolean`                           | `false`          |
 | messages   | 替换部分文字，见[文字](./structure#文字)                           | `FormRendererMessagesOverride`      | —                |
 
@@ -118,6 +144,7 @@ app.use(DouFormBuilder)
 | validate      | 检查给定字段或全部字段，不会抛错                               | `(names?: string \| string[]) => Promise<FormValidateResult>` |
 | resetFields   | 恢复为初始值并清除错误；不传 `names` 时分步表单回到第一步      | `(names?: string \| string[]) => void`                        |
 | clearValidate | 清除错误                                                       | `(names?: string \| string[]) => void`                        |
+| setErrors     | 按字段路径显示错误，见[来自服务端的错误](#来自服务端的错误)    | `(errors: Record<string, string>) => void`                    |
 | scrollToField | 滚动到字段并聚焦                                               | `(name: string) => void`                                      |
 | reloadSource  | 重新加载一个或全部选项来源，见[联动与表达式](./logic#选项来源) | `(name?: string) => void`                                     |
 | getValues     | 和 `submit` 相同的值的拷贝                                     | `() => Record<string, any>`                                   |

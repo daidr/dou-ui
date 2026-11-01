@@ -196,6 +196,12 @@ export interface FormRuleSpec {
    * and `pattern` it skips an empty value; that is `required`'s job.
    */
   check?: string
+  /**
+   * The name of a check given to the renderer's `validators`, for what an
+   * expression cannot do, e.g. asking the server whether a name is taken.
+   * Skips an empty value too. Ignored when the rule has a `check`.
+   */
+  validator?: string
   /** Replaces the default message. */
   message?: string
   trigger?: 'change' | 'blur'

@@ -80,10 +80,13 @@ interface FormRuleSpec {
   pattern?: string // 正则表达式的源码，不带斜杠
   flags?: string // 如 'i'
   check?: string // 表达式，如 'value >= values.start'
+  validator?: string // 渲染器 validators 里校验函数的名字
   message?: string
   trigger?: 'change' | 'blur'
 }
 ```
+
+`validator` 引用渲染器 `validators` 里注册的校验函数，见[校验函数](./#校验函数)；同一条规则写了 `check` 时以 `check` 为准。
 
 `pattern` 是字符串，因为正则表达式本身不能 JSON 序列化。在 JSON 里写反斜杠要再转义一次，例如六位数字写成 `"^\\d{6}$"`。无法编译的 `pattern` 会被忽略，并在控制台提示一次。
 

@@ -22,6 +22,14 @@ export interface FormRendererMessages {
   empty: string
   /** Read out after the title of a tab whose fields have errors. */
   invalid: string
+  /** What a `readonly` renderer shows for a field without a value. */
+  noValue: string
+  /** A `readonly` renderer's text for `true`, e.g. a switch that is on. */
+  yes: string
+  /** A `readonly` renderer's text for `false`. */
+  no: string
+  /** Between the items of a list of values in a `readonly` renderer. */
+  separator: string
   /** What an editor shows for each problem of an expression; `{text}` is the source at fault. */
   expression: Record<ExpressionProblem['code'], string>
   /** What an editor shows for each problem of a document; `{text}` is the id, name or type at fault. */
@@ -38,6 +46,10 @@ const zhCN: FormRendererMessages = {
   item: '第 {index} 项',
   empty: '还没有内容',
   invalid: '有错误',
+  noValue: '—',
+  yes: '是',
+  no: '否',
+  separator: '、',
   expression: {
     'unexpected-character': '这里不能出现“{text}”',
     'unterminated-string': '文字缺少结尾的引号',
@@ -74,6 +86,10 @@ const zhTW: FormRendererMessages = {
   item: '第 {index} 項',
   empty: '還沒有內容',
   invalid: '有錯誤',
+  noValue: '—',
+  yes: '是',
+  no: '否',
+  separator: '、',
   expression: {
     'unexpected-character': '這裡不能出現「{text}」',
     'unterminated-string': '文字缺少結尾的引號',
@@ -110,6 +126,10 @@ const en: FormRendererMessages = {
   item: 'Item {index}',
   empty: 'Nothing here yet',
   invalid: 'has errors',
+  noValue: '—',
+  yes: 'Yes',
+  no: 'No',
+  separator: ', ',
   expression: {
     'unexpected-character': '“{text}” can’t go here',
     'unterminated-string': 'The text is missing its closing quote',

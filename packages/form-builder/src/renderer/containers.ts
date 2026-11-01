@@ -159,6 +159,33 @@ export function stepsView(
 ) {
   provide(disabledKey, () => disabled.value)
   const pages = shownPages(props, condition)
+  // Read-only, there is nothing to fill in step by step: every page shows, under its title.
+  if (renderer.readonly()) {
+    const uid = useId()
+    return () =>
+      h(
+        'div',
+        { class: 'dou-form-renderer__steps is-readonly' },
+        pages.value.map((node) => {
+          const titleId = `dou-form-step-${uid}-${node.id}`
+          return h(
+            'div',
+            {
+              key: node.id,
+              class: 'dou-form-renderer__section',
+              role: 'group',
+              'aria-labelledby': titleId,
+            },
+            [
+              h('div', { class: 'dou-form-renderer__section-header' }, [
+                h('div', { id: titleId, class: 'dou-form-renderer__section-title' }, node.title),
+              ]),
+              pageOf(kit, node, props),
+            ],
+          )
+        }),
+      )
+  }
   const chosen = shallowRef<string>()
   /** How far people got: the steps up to here can be opened again. */
   const reached = shallowRef(0)
@@ -318,8 +345,12 @@ function listGhost(el: HTMLElement): HTMLElement {
 }
 
 /** The rules of a list itself: its own, and its bounds on the number of items. */
-function listRules(node: FormListNode, renderer: RendererContext): FormRule[] {
-  const rules = rulesOf(node, { functions: renderer.functions() })
+function listRules(node: FormListNode, renderer: RendererContext, path: () => string): FormRule[] {
+  const rules = rulesOf(node, {
+    functions: renderer.functions(),
+    validators: renderer.validators(),
+    path,
+  })
   const bounds: FormRule = {}
   if (node.min !== undefined && node.min > 0) bounds.min = node.min
   if (node.max !== undefined) bounds.max = node.max
@@ -350,7 +381,7 @@ export function listView(
       )
     return new Set(cycles.flat())
   })
-  const rules = computed(() => listRules(list(), renderer))
+  const rules = computed(() => listRules(list(), renderer, path))
 
   function write(next: Record<string, unknown>[]) {
     const name = path()
@@ -392,17 +423,18 @@ export function listView(
     const node = list()
     const rows = items.value
     const messages = renderer.messages()
+    const readonly = renderer.readonly()
     const off = disabled.value
     const canAdd = !off && (node.max === undefined || rows.length < node.max)
     const canRemove = !off && rows.length > (node.min ?? 0)
-    const sortable = node.sortable !== false && !off && rows.length > 1
+    const sortable = node.sortable !== false && !off && !readonly && rows.length > 1
     const labelId = node.label ? `dou-form-list-${uid}` : undefined
     const required = node.required || rules.value.some((rule) => rule.required)
     return h(
       'div',
       {
         ref: root,
-        class: ['dou-form-renderer__list', off && 'is-disabled'],
+        class: ['dou-form-renderer__list', off && 'is-disabled', readonly && 'is-readonly'],
         role: 'group',
         'aria-labelledby': labelId,
         'aria-disabled': off || undefined,
@@ -455,34 +487,41 @@ export function listView(
                     blocked: blocked.value,
                     sortable,
                     canRemove,
+                    readonly,
                     onRemove: () => remove(at < 0 ? index : at),
                   })
                 },
               },
             )
-          : h('div', { class: 'dou-form-renderer__list-empty' }, messages.empty),
+          : h(
+              'div',
+              { class: 'dou-form-renderer__list-empty' },
+              readonly ? messages.noValue : messages.empty,
+            ),
         // After the items, so a reset puts their values back before the
         // list puts back its own items; its errors show under the button.
-        h(
-          DouFormItem,
-          {
-            ref: footer,
-            class: 'dou-form-renderer__list-footer',
-            prop: path(),
-            rules: rules.value,
-          },
-          () =>
-            h(
-              DouButton,
+        readonly
+          ? null
+          : h(
+              DouFormItem,
               {
-                class: 'dou-form-renderer__list-add',
-                variant: 'outline',
-                disabled: !canAdd,
-                onClick: add,
+                ref: footer,
+                class: 'dou-form-renderer__list-footer',
+                prop: path(),
+                rules: rules.value,
               },
-              { leading: () => h(PlusIcon), default: () => node.addText ?? messages.add },
+              () =>
+                h(
+                  DouButton,
+                  {
+                    class: 'dou-form-renderer__list-add',
+                    variant: 'outline',
+                    disabled: !canAdd,
+                    onClick: add,
+                  },
+                  { leading: () => h(PlusIcon), default: () => node.addText ?? messages.add },
+                ),
             ),
-        ),
       ],
     )
   }
@@ -505,6 +544,8 @@ const ListItemView = defineComponent({
     blocked: { type: Object as PropType<ReadonlySet<string>>, required: true },
     sortable: Boolean,
     canRemove: Boolean,
+    /** Without the remove button. */
+    readonly: Boolean,
   },
   emits: ['remove'],
   setup(props, { emit }) {
@@ -530,18 +571,20 @@ const ListItemView = defineComponent({
             { class: 'dou-form-renderer__list-item-title' },
             formatMessage(messages.item, { index: number }),
           ),
-          h(
-            DouButton,
-            {
-              class: 'dou-form-renderer__list-remove',
-              variant: 'ghost',
-              size: 'sm',
-              disabled: !props.canRemove,
-              'aria-label': formatMessage(messages.remove, { index: number }),
-              onClick: () => emit('remove'),
-            },
-            { leading: () => h(TrashIcon) },
-          ),
+          props.readonly
+            ? null
+            : h(
+                DouButton,
+                {
+                  class: 'dou-form-renderer__list-remove',
+                  variant: 'ghost',
+                  size: 'sm',
+                  disabled: !props.canRemove,
+                  'aria-label': formatMessage(messages.remove, { index: number }),
+                  onClick: () => emit('remove'),
+                },
+                { leading: () => h(TrashIcon) },
+              ),
         ]),
         h(
           'div',

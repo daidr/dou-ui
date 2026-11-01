@@ -131,6 +131,13 @@ export interface FormExpose {
   clearValidate: (props?: string | string[]) => void
   /** Scroll a field into view and focus it. */
   scrollToField: (prop: string) => void
+  /**
+   * Show errors by field path, e.g. ones a server returned after submit.
+   * Each stays until the field's value changes or it is checked again; an
+   * empty message clears the field's error. Paths with no field in the
+   * form are left out.
+   */
+  setErrors: (errors: FormErrors) => void
 }
 
 export interface FormItemProps {
@@ -163,6 +170,8 @@ export interface FormItemExpose {
   validate: () => Promise<string | null>
   reset: () => void
   clear: () => void
+  /** Show an error until the value changes or it is checked again; `''` clears it. */
+  setError: (message: string) => void
 }
 
 /** What a form item registers with its form. */
@@ -172,6 +181,7 @@ export interface FormItemHandle {
   validate: () => Promise<string | null>
   reset: () => void
   clear: () => void
+  setError: (message: string) => void
   focus: () => void
 }
 

@@ -1,6 +1,7 @@
 import { inject, markRaw } from 'vue'
 import type { Component, InjectionKey } from 'vue'
 import type { FormFieldNode, FormNode } from '../core/types'
+import type { FormFormatContext } from './format'
 
 export type FormFieldProps = Record<string, unknown>
 
@@ -43,6 +44,20 @@ export interface FormFieldType<P extends FormFieldProps = FormFieldProps> {
    * value stays as it is when the type has none.
    */
   fitValue?: (value: unknown, options: readonly unknown[]) => unknown
+  /**
+   * The value as text, for a renderer that is `readonly`. Gets the
+   * settings (with options loaded from a source). Not called for an empty
+   * value, which shows as the renderer's `noValue` text. Defaults to the
+   * labels of the chosen options for a type with `optionsProp`, else to
+   * the value as plain text: lists joined, booleans as yes and no.
+   */
+  format?: (value: unknown, props: P, context: FormFormatContext) => string
+  /**
+   * Shows the value in a `readonly` renderer instead of `format`'s text,
+   * e.g. a swatch for a color. Gets `modelValue` and the same props as
+   * `component`, and `readonly` when it takes one.
+   */
+  readonlyComponent?: Component
   /** Turns the settings into the component's props, when they differ. */
   toProps?: (props: P, node: FormFieldNode) => Record<string, unknown>
   /** The builder's palette: the type's icon, e.g. one of `@dou-ui/icons`. */
@@ -68,6 +83,7 @@ export function defineFormField<P extends FormFieldProps = FormFieldProps>(
 ): FormFieldType<P> {
   const result = { ...spec, component: markRaw(spec.component) }
   if (spec.icon) result.icon = markRaw(spec.icon)
+  if (spec.readonlyComponent) result.readonlyComponent = markRaw(spec.readonlyComponent)
   return result
 }
 

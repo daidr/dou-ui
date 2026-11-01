@@ -98,6 +98,7 @@ import {
 import { formatClip, parseClip, type SheetClip } from './core/clipboard'
 import { fillContinues, type SheetFillMode } from './core/fill'
 import { SheetAxis } from './core/axis'
+import { readWorkbook } from './core/document'
 import { mergesOf, type SheetMerges } from './core/merge'
 import { groupRange, groupsOf, SheetGroups, OUTLINE_LANE, type SheetGroupLines } from './core/group'
 import SheetNote from './components/sheet-note.vue'
@@ -262,7 +263,7 @@ const editor = ref<HTMLTextAreaElement>()
  * The latest workbook. With `v-model` the prop only catches up when the
  * parent renders again, so changes made in the same tick build on this.
  */
-const doc = shallowRef(toRaw(props.modelValue))
+const doc = shallowRef(readWorkbook(toRaw(props.modelValue)))
 /** The last workbook sent out; anything else coming in is a new document. */
 let sent = doc.value
 const history = new SheetHistory(props.historyDepth)
@@ -271,7 +272,7 @@ const canRedo = ref(false)
 
 watch(
   // read past a deep `ref()`: going through its proxies costs more than the grid itself
-  () => toRaw(props.modelValue),
+  () => readWorkbook(toRaw(props.modelValue)),
   (value) => {
     if (value === doc.value) return
     const before = doc.value

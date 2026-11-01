@@ -33,7 +33,9 @@ const baseline = ref<GanttBaselineItem[] | undefined>([
 
 <template>
   <DouSpace>
-    <DouButton size="sm" @click="baseline = takeBaseline(tasks)">把当前日期保存为基线</DouButton>
+    <DouButton size="sm" @click="baseline = takeBaseline(plan.tasks)"
+      >把当前日期保存为基线</DouButton
+    >
     <DouButton size="sm" variant="ghost" :disabled="!baseline" @click="baseline = undefined">
       不显示基线
     </DouButton>

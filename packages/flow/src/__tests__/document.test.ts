@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { readDocument } from '../document'
 import { checkDocument, defineFlowExtension, defineNodeType, migrateDocument } from '..'
 import type { FlowDocument } from '..'
 
@@ -73,6 +74,28 @@ describe('checkDocument', () => {
       'nope',
     ])
   })
+
+  it('reports only the members of a circle of parents', () => {
+    const value: FlowDocument = {
+      version: 1,
+      nodes: [
+        { id: 'a', x: 0, y: 0, parent: 'b' },
+        { id: 'b', x: 0, y: 0, parent: 'c' },
+        { id: 'c', x: 0, y: 0, parent: 'b' },
+      ],
+      edges: [],
+    }
+    expect(checkDocument(value).map((p) => [p.code, p.nodeId])).toEqual([
+      ['parent-cycle', 'b'],
+      ['parent-cycle', 'c'],
+    ])
+  })
+
+  it('reports a document of the wrong shape and nothing else', () => {
+    expect(checkDocument(null as unknown as FlowDocument).map((p) => p.code)).toEqual(['shape'])
+    const value = { version: 2, nodes: {} } as unknown as FlowDocument
+    expect(checkDocument(value).map((p) => p.path)).toEqual(['nodes', 'edges'])
+  })
 })
 
 describe('migrateDocument', () => {
@@ -83,10 +106,34 @@ describe('migrateDocument', () => {
       edges: [],
       title: '流程',
     })
-    expect(migrateDocument(null)).toEqual({ version: 1, nodes: [], edges: [] })
   })
 
-  it('throws for a newer version', () => {
+  it('throws for data that is not an object', () => {
+    for (const input of [null, undefined, 'x', [{ id: 'a' }]])
+      expect(() => migrateDocument(input)).toThrow('[@dou-ui/flow]')
+  })
+
+  it('throws for a version it does not know', () => {
     expect(() => migrateDocument({ version: 2, nodes: [], edges: [] })).toThrow('version 2')
+    expect(() => migrateDocument({ version: '1' })).toThrow('version "1"')
+  })
+})
+
+describe('readDocument', () => {
+  it('reads a wrongly shaped v-model with a warning', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const good = doc()
+    expect(readDocument(good)).toBe(good)
+    expect(readDocument({ nodes: good.nodes, edges: [] })).toEqual({
+      version: 1,
+      nodes: good.nodes,
+      edges: [],
+    })
+    expect(readDocument(undefined)).toEqual({ version: 1, nodes: [], edges: [] })
+    expect(warn.mock.calls.map((call) => call[0])).toEqual([
+      expect.stringContaining('[@dou-ui/flow] the v-model has no version'),
+      expect.stringContaining('[@dou-ui/flow] the v-model is undefined'),
+    ])
+    warn.mockRestore()
   })
 })

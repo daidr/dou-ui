@@ -10,7 +10,7 @@ import { buildTree } from './tree'
  */
 
 /** An empty document, the chart's `v-model` when none is bound. */
-export const emptyGanttDocument = (): GanttDocument => ({ version: 1, tasks: [], links: [] })
+export const emptyDocument = (): GanttDocument => ({ version: 1, tasks: [], links: [] })
 
 type Patch<T> = { [K in keyof T]?: T[K] | undefined }
 

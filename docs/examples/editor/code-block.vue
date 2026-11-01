@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { DouEditor, editorKit } from '@dou-ui/editor'
+import { DouEditor, editorKit, type EditorDocument, type PartialBlock } from '@dou-ui/editor'
 import { codeToHtml } from 'shiki'
 import { ref } from 'vue'
 
@@ -12,7 +12,7 @@ const highlight = (code: string, lang: string) =>
 
 const extensions = [editorKit({ codeBlock: { highlight } })]
 
-const doc = ref({
+const doc = ref<EditorDocument<PartialBlock>>({
   version: 1,
   blocks: [
     { type: 'heading', props: { level: 2 }, content: '读取行程' },

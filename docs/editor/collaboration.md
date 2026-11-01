@@ -57,12 +57,12 @@ const extensions = [
 - `v-model` 仍然会在每次修改后更新，包括其他人的修改，可以用来保存快照或建立搜索索引。从外部修改 `v-model` 不会写回编辑器，以免覆盖其他人的修改。
 - `setBlocks` 相当于当前用户替换了整个文档，会同步给其他人。
 
-已有的文档开始协同编辑时，用 `fillMap` 把块写入一个空的共享文档：
+已有的文档开始协同编辑时，用 `fillMap` 把它写入一个空的共享文档：
 
 ```ts
 import { fillMap } from '@dou-ui/editor/collaboration'
 
-fillMap(doc.getMap('document'), blocks)
+fillMap(doc.getMap('document'), saved)
 ```
 
 这一步只在创建共享文档时做一次，通常放在服务器上。如果两端同时往同一个空文档里写入，内容会出现两份。使用了自定义块时，把同样的 `extensions` 作为第三个参数传入。
@@ -116,9 +116,9 @@ interface CollaborationUser {
 
 ### 函数
 
-| 名称      | 说明                     | 类型                                                 |
-| --------- | ------------------------ | ---------------------------------------------------- |
-| `fillMap` | 把块写入空的共享 `Y.Map` | `(map, blocks: PartialBlock[], extensions?) => void` |
+| 名称      | 说明                       | 类型                                                            |
+| --------- | -------------------------- | --------------------------------------------------------------- |
+| `fillMap` | 把文档写入空的共享 `Y.Map` | `(map, doc: EditorDocument<PartialBlock>, extensions?) => void` |
 
 ### CSS 变量
 

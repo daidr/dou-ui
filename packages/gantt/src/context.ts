@@ -2,13 +2,16 @@ import { inject, type ComputedRef, type InjectionKey, type Ref } from 'vue'
 import type { GanttLink, GanttTask } from './core/model'
 import type { GanttCriticalPath } from './core/schedule'
 import type { GanttScale } from './core/scale'
+import type { GanttDocument } from './core/transaction'
 import type { GanttRow } from './core/tree'
 import type { GanttExpose } from './types'
 import type { GanttMessages } from './locale'
 
 /** The surrounding Gantt chart, as `useGantt()` and extensions see it. */
 export interface GanttContext {
-  /** The tasks and links as they are now; change them with `transact`. */
+  /** The whole document as it is now; change it with `transact`. */
+  doc: ComputedRef<GanttDocument>
+  /** The document's tasks and links, as a shortcut. */
   tasks: ComputedRef<GanttTask[]>
   links: ComputedRef<GanttLink[]>
   selection: Ref<string[]>

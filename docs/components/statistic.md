@@ -6,7 +6,7 @@
 
 <DocDemo src="statistic/basic" style="gap: 48px" />
 
-数字按三位分组（`group-separator`，传 `''` 关闭），`precision` 固定小数位数并四舍五入。`value` 为 `null` 时显示“—”，传字符串则原样显示。
+数字按三位分组（`groupSeparator`，传 `''` 关闭），`precision` 固定小数位数并四舍五入。`value` 为 `null` 时显示“—”，传字符串则原样显示。
 
 ## 趋势
 

@@ -86,6 +86,7 @@ import {
   type Point,
   type Rect,
 } from './core/model'
+import { readDocument } from './document'
 import { containerAt, FlowTree } from './core/groups'
 import { labelOf, nodeBounds, portsOf, resizeOf, type NodeTypeSpec } from './core/node-types'
 import { FlowTransaction, type FlowTransactionMeta } from './core/transaction'
@@ -116,7 +117,12 @@ const props = withDefaults(defineProps<FlowEditorProps>(), {
   edgeType: undefined,
   simpleZoom: 0.4,
 })
-const doc = defineModel<FlowDocument>({ default: emptyDocument })
+const model = defineModel<FlowDocument>({ default: emptyDocument })
+/** The `v-model`, with a wrongly shaped one read as well as it can be. */
+const doc = computed({
+  get: () => readDocument(model.value),
+  set: (value: FlowDocument) => (model.value = value),
+})
 const selection = defineModel<FlowSelection>('selection', { default: emptySelection })
 const viewport = defineModel<FlowViewport>('viewport', {
   default: () => ({ x: 0, y: 0, zoom: 1 }),

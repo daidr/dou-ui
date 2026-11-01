@@ -6,7 +6,7 @@
 
 <DocDemo src="page-header/basic" column />
 
-组件只发出 `back`，回到哪里由你决定：`router.back()`、跳到列表页，或者先确认有没有未保存的修改。`back-text` 改按钮文字，`icon` 插槽换掉箭头，`:show-back="false"` 去掉返回按钮。
+组件只发出 `back`，回到哪里由你决定：`router.back()`、跳到列表页，或者先确认有没有未保存的修改。`backText` 改按钮文字，`icon` 插槽换掉箭头，`:show-back="false"` 去掉返回按钮。
 
 ## 面包屑、操作与内容
 

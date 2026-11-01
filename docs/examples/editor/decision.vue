@@ -1,5 +1,11 @@
 <script setup lang="ts">
-import { defineBlock, DouEditor, editorKit } from '@dou-ui/editor'
+import {
+  defineBlock,
+  DouEditor,
+  editorKit,
+  type EditorDocument,
+  type PartialBlock,
+} from '@dou-ui/editor'
 import { CheckCircleIcon } from '@dou-ui/icons'
 import { ref } from 'vue'
 import DecisionBlock from './decision-block.vue'
@@ -18,7 +24,7 @@ const decision = defineBlock({
 
 const extensions = [editorKit(), decision]
 
-const doc = ref({
+const doc = ref<EditorDocument<PartialBlock>>({
   version: 1,
   blocks: [
     { type: 'heading', props: { level: 2 }, content: '周末出游会议' },

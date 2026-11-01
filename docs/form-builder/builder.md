@@ -246,7 +246,7 @@ builder.moveTo({ parent: 'contact', index: 3 }, ['a'])
 
 ## API
 
-### FormBuilder 属性
+### FormBuilder Props
 
 | 名称                | 说明                                                                             | 类型                                                 | 默认值     |
 | ------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------- | ---------- |
@@ -259,20 +259,20 @@ builder.moveTo({ parent: 'contact', index: 3 }, ['a'])
 | `extensions`        | 扩展：字段类型、快捷键、按钮、菜单项和属性面板，见[扩展](#扩展)                  | `(FormBuilderExtension \| FormBuilderExtension[])[]` | —          |
 | `messages`          | 覆盖设计器的文案，按分组合并，见[文字](#文字)                                    | `FormBuilderMessagesOverride`                        | —          |
 
-### FormBuilder 事件
+### FormBuilder Events
 
 | 名称     | 说明                                                                       | 参数                           |
 | -------- | -------------------------------------------------------------------------- | ------------------------------ |
 | `change` | 每次修改后触发，包括撤销和重做，参数是这次的事务，`steps` 是它做了哪些修改 | `(tr: FormBuilderTransaction)` |
 
-### FormBuilder 插槽
+### FormBuilder Slots
 
 | 名称      | 说明                                                                                                                                                |
 | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `default` | 替换整个布局，自己摆放 `DouFormBuilderPalette`、`DouFormBuilderCanvas`、`DouFormBuilderInspector`、`DouFormBuilderOutline`、`DouFormBuilderPreview` |
 | `toolbar` | 默认布局里撤销、重做按钮后面的按钮                                                                                                                  |
 
-### FormBuilder 方法
+### FormBuilder Exposes
 
 组件实例和 `useFormBuilder()` 是同一个对象。
 

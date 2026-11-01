@@ -225,13 +225,13 @@ const broken = findBrokenLinks(plan, { calendar })
 
 <DocDemo src="gantt/baseline" column />
 
-`takeBaseline(tasks)` 把当前的日期保存成基线，汇总任务按子任务覆盖的范围保存。基线是普通的数组，和任务一起存到服务端即可，需要对比时再传回来；可以保存多份，切换 `baseline` 查看不同时期的计划。
+`takeBaseline(plan.value.tasks)` 把当前的日期保存成基线，汇总任务按子任务覆盖的范围保存。基线是普通的数组，和任务一起存到服务端即可，需要对比时再传回来；可以保存多份，切换 `baseline` 查看不同时期的计划。
 
 ```ts
 import { takeBaseline, type GanttBaselineItem } from '@dou-ui/gantt'
 
 const baseline = ref<GanttBaselineItem[]>()
-baseline.value = takeBaseline(tasks.value) // [{ id, start, end }, …]
+baseline.value = takeBaseline(plan.value.tasks) // [{ id, start, end }, …]
 ```
 
 ## 导出与打印
@@ -354,7 +354,7 @@ gantt.value.importCSV(sheetToCSV(book.sheets[0]))
 
 ## API
 
-### Gantt 属性
+### Gantt Props
 
 | 名称                | 说明                                                                                          | 类型                                                         | 默认值                                 |
 | ------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------ | -------------------------------------- |
@@ -384,7 +384,7 @@ gantt.value.importCSV(sheetToCSV(book.sheets[0]))
 | `ariaLabel`         | 甘特图的无障碍名称                                                                            | `string`                                                     | —                                      |
 | `messages`          | 覆盖文案，只需写要改的部分                                                                    | `GanttMessagesOverride`                                      | —                                      |
 
-### Gantt 事件
+### Gantt Events
 
 | 名称                         | 说明                                                                               | 参数                                   |
 | ---------------------------- | ---------------------------------------------------------------------------------- | -------------------------------------- |
@@ -395,7 +395,7 @@ gantt.value.importCSV(sheetToCSV(book.sheets[0]))
 | `linkClick`                  | 点击依赖线                                                                         | `(link: GanttLink, event: MouseEvent)` |
 | `linkContextmenu`            | 在依赖线上打开菜单前触发，`event.preventDefault()` 可以不打开                      | `(link: GanttLink, event: MouseEvent)` |
 
-### Gantt 插槽
+### Gantt Slots
 
 | 名称      | 说明                                                | 参数                          |
 | --------- | --------------------------------------------------- | ----------------------------- |
@@ -403,7 +403,7 @@ gantt.value.importCSV(sheetToCSV(book.sheets[0]))
 | `bar`     | 任务条里的内容，替换任务名                          | `{ task, row }`               |
 | `default` | 画在甘特图上面的内容，比如面板，可以用 `useGantt()` | —                             |
 
-### Gantt 方法
+### Gantt Exposes
 
 | 名称                                              | 说明                                                                          | 类型                                              |
 | ------------------------------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------- |

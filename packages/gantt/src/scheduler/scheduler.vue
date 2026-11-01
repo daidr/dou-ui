@@ -18,12 +18,13 @@ import TimeGrid from '../components/time-grid.vue'
 import TimeHeader from '../components/time-header.vue'
 import { resolveCalendar } from '../core/calendar'
 import { GanttHistory } from '../core/history'
+import { readDocument } from '../core/document'
 import type { GanttMenuItem } from '../core/menu'
 import { spanOf, writeSpan, type GanttTask, type TaskSpan } from '../core/model'
 import { snapStep, type GanttScale } from '../core/scale'
 import { MINUTES_PER_DAY, parseTime } from '../core/time'
 import {
-  emptyGanttDocument,
+  emptyDocument,
   GanttTransaction,
   type GanttDocument,
   type GanttTransactionMeta,
@@ -65,8 +66,10 @@ const props = withDefaults(defineProps<SchedulerProps>(), {
   load: true,
   menu: true,
 })
-const model = defineModel<GanttDocument>({ default: emptyGanttDocument })
-const tasks = computed(() => model.value.tasks)
+const model = defineModel<GanttDocument>({ default: emptyDocument })
+/** The `v-model`, with a wrongly shaped one read as well as it can be. */
+const source = computed(() => readDocument(model.value, false))
+const tasks = computed(() => source.value.tasks)
 const selection = defineModel<string[]>('selection', { default: () => [] })
 const scale = defineModel<GanttScale>('scale')
 const emit = defineEmits<SchedulerEmits>()
@@ -116,7 +119,7 @@ const canRedo = ref(false)
  * in the same tick build on the latest commit instead.
  */
 let latest: GanttDocument | null = null
-const docOf = (): GanttDocument => latest ?? toRaw(model.value)
+const docOf = (): GanttDocument => latest ?? toRaw(source.value)
 
 function commit(tr: GanttTransaction) {
   if (!latest) void nextTick(() => (latest = null))

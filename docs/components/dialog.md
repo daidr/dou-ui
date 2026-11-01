@@ -24,7 +24,7 @@
 
 ## 阻止关闭
 
-`before-close` 在关闭按钮、遮罩与 `Esc` 关闭前调用，返回 `false`（或解析为 `false` 的 Promise）则保持打开。`close-on-mask`、`close-on-escape` 可以分别关掉这两种关闭方式。
+`beforeClose` 在关闭按钮、遮罩与 `Esc` 关闭前调用，返回 `false`（或解析为 `false` 的 Promise）则保持打开。`closeOnMask`、`closeOnEscape` 可以分别关掉这两种关闭方式。
 
 <DocDemo src="dialog/prevent-close" />
 

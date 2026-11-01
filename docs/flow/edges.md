@@ -79,7 +79,7 @@ const edges = defineFlowExtension({ name: 'edges', edgeTypes: [elbow] })
 | `animated` | 显示成沿方向流动的虚线                              | `boolean`                 |
 | `data`     | 自己的数据；折线把中间一段的位置存在 `data.bend` 里 | `Record<string, unknown>` |
 
-### FlowEditor 属性
+### FlowEditor Props
 
 | 名称        | 说明                                                                           | 类型             | 默认值 |
 | ----------- | ------------------------------------------------------------------------------ | ---------------- | ------ |

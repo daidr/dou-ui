@@ -798,11 +798,11 @@ downloadBlob(await grid.value.exportPNG(), '门店.png')
 
 ## 外观
 
-`rowHeight`、`colWidth` 设置默认的行高和列宽，`headers`、`outline`、`gridlines` 分别控制列标和行号、分组的大纲栏、单元格之间的细线，见 [API](#sheet-属性)。表格默认高 480px，用 `style` 或 CSS 改。
+`rowHeight`、`colWidth` 设置默认的行高和列宽，`headers`、`outline`、`gridlines` 分别控制列标和行号、分组的大纲栏、单元格之间的细线，见 [API](#sheet-props)。表格默认高 480px，用 `style` 或 CSS 改。
 
 ## API
 
-### Sheet 属性
+### Sheet Props
 
 | 名称                  | 说明                                                                              | 类型                                     | 默认值  |
 | --------------------- | --------------------------------------------------------------------------------- | ---------------------------------------- | ------- |
@@ -822,7 +822,7 @@ downloadBlob(await grid.value.exportPNG(), '门店.png')
 | `ariaLabel`           | 表格的无障碍名称                                                                  | `string`                                 | —       |
 | `messages`            | 覆盖表格的文案，只需写要改的部分                                                  | `Partial<SheetMessages>`                 | —       |
 
-### Sheet 事件
+### Sheet Events
 
 | 名称          | 说明                                                                                             | 参数                           |
 | ------------- | ------------------------------------------------------------------------------------------------ | ------------------------------ |
@@ -831,14 +831,14 @@ downloadBlob(await grid.value.exportPNG(), '门店.png')
 | `import`      | 读完文件、写入之前触发，可以改 `book`，或者 `preventDefault()` 取消，见[导入与导出](#导入与导出) | `(event: SheetImportEvent)`    |
 | `fileError`   | 导入或导出失败，表格上也会显示一条简短的提示；`preventDefault()` 不显示提示                      | `(event: SheetFileErrorEvent)` |
 
-### Sheet 插槽
+### Sheet Slots
 
 | 名称     | 说明                                                                     |
 | -------- | ------------------------------------------------------------------------ |
 | `header` | 表格上方，放工具栏或编辑栏；里面的组件可以用 `useSheet()` 拿到表格的状态 |
 | `footer` | 表格下方，放工作表标签                                                   |
 
-### Sheet 方法
+### Sheet Exposes
 
 | 名称                      | 说明                                                                               | 类型                                                           |
 | ------------------------- | ---------------------------------------------------------------------------------- | -------------------------------------------------------------- |
@@ -852,7 +852,8 @@ downloadBlob(await grid.value.exportPNG(), '门店.png')
 | `edit`                    | 打开单元格的编辑框，默认当前单元格                                                 | `(cell?: SheetCellTarget) => void`                             |
 | `editNote`                | 选中单元格并打开批注框，默认当前单元格                                             | `(cell?: SheetCellTarget) => void`                             |
 | `focus`                   | 让表格获得焦点                                                                     | `() => void`                                                   |
-| `copy` / `cut` / `paste`  | 复制、剪切选区到系统剪贴板，或在选区粘贴；`paste` 可以传入要粘贴的内容             | `(clip?: SheetClip) => Promise<void>`                          |
+| `copy` / `cut`            | 复制、剪切选区到系统剪贴板                                                         | `() => Promise<void>`                                          |
+| `paste`                   | 在选区粘贴系统剪贴板的内容，也可以传入要粘贴的内容                                 | `(clip?: SheetClip) => Promise<void>`                          |
 | `findInvalid`             | 不符合数据验证的单元格，默认所有工作表，见[数据验证](#数据验证)                    | `(sheet?: SheetRef) => SheetInvalidCell[]`                     |
 | `toCSV`                   | 当前工作表（或 `sheet`）转成 CSV 文本                                              | `(options?) => string`                                         |
 | `exportSVG` / `exportPNG` | 当前工作表（或 `sheet`）导出成 SVG 文本或 PNG，见[导出图片与打印](#导出图片与打印) | —                                                              |
@@ -861,7 +862,7 @@ downloadBlob(await grid.value.exportPNG(), '门店.png')
 | `saveFile`                | 和 `exportFile` 一样导出，并保存到下载目录                                         | `(exporter, options?) => Promise<void>`                        |
 | `importFile`              | 读取文件写进工作簿，算作一步撤销；什么都没写入时返回 `null`                        | `(file: Blob, options?) => Promise<SheetImportResult \| null>` |
 
-### SheetToolbar 属性
+### SheetToolbar Props
 
 | 名称       | 说明                                                                               | 类型                                    | 默认值                       |
 | ---------- | ---------------------------------------------------------------------------------- | --------------------------------------- | ---------------------------- |
@@ -869,14 +870,14 @@ downloadBlob(await grid.value.exportPNG(), '门店.png')
 | `formats`  | 数字格式菜单里的选项，替换默认的那些                                               | `SheetFormatOption[]`                   | —                            |
 | `fileName` | 导出菜单保存的文件名：不含扩展名的名字，或返回完整文件名的函数                     | `string \| (exporter, scope) => string` | 导出的工作表名               |
 
-### SheetToolbar 插槽
+### SheetToolbar Slots
 
 | 名称    | 说明                 |
 | ------- | -------------------- |
 | `start` | 工具前面放的其他控件 |
 | `end`   | 工具后面放的其他控件 |
 
-### SheetTabs 属性
+### SheetTabs Props
 
 | 名称      | 说明                 | 类型      | 默认值 |
 | --------- | -------------------- | --------- | ------ |

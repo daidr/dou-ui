@@ -40,7 +40,7 @@ app.use(DouUI, {
 
 ## 行号与行高亮
 
-`line-numbers` 显示行号，`start-line` 设置第一行的行号。`highlight-lines` 标出指定的行，写成数组 `[1, 3]` 或字符串 `'1,3-5'`，按显示的行号计算。
+`lineNumbers` 显示行号，`startLine` 设置第一行的行号。`highlightLines` 标出指定的行，写成数组 `[1, 3]` 或字符串 `'1,3-5'`，按显示的行号计算。
 
 也可以使用 Shiki 的注释标记：`transformerNotationHighlight` 生成的 `// [!code highlight]` 行同样会被标出，`transformerNotationDiff` 生成的 `// [!code ++]`、`// [!code --]` 行分别显示为新增和删除。
 
@@ -48,7 +48,7 @@ app.use(DouUI, {
 
 ## 折叠与换行
 
-`max-lines` 设置最多显示几行，超出时折叠，底部按钮可以展开。`wrap` 让长行自动换行，而不是横向滚动。
+`maxLines` 设置最多显示几行，超出时折叠，底部按钮可以展开。`wrap` 让长行自动换行，而不是横向滚动。
 
 <DocDemo src="code-block/fold" column />
 

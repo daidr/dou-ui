@@ -69,7 +69,7 @@ export type {
 } from './cell-type'
 
 export { cellOf, valueOf } from './model'
-export { checkWorkbook, migrateWorkbook } from './document'
+export { checkWorkbook, emptyWorkbook, migrateWorkbook } from './document'
 export type { CheckWorkbookOptions, WorkbookProblem } from './document'
 
 export type {

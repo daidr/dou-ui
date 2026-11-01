@@ -10,13 +10,13 @@
 
 ## 12 小时制
 
-`display-format` 里用 `hh` 和 `A` 显示 12 小时制，`A` 可以放在前面或后面，上午 / 下午一段可以用 `↑` `↓` 切换，也可以输入 `a`、`p`。值仍然是 24 小时制。英文语言包默认使用 12 小时制。
+`displayFormat` 里用 `hh` 和 `A` 显示 12 小时制，`A` 可以放在前面或后面，上午 / 下午一段可以用 `↑` `↓` 切换，也可以输入 `a`、`p`。值仍然是 24 小时制。英文语言包默认使用 12 小时制。
 
 <DocDemo src="input-time/hour12" />
 
 ## 步长与弹出面板
 
-`hour-step`、`minute-step`、`second-step` 设置按方向键时的步长，值落在步长的整倍数上。设置 `picker` 后，点击时钟图标或按 `Alt` + `↓` 打开时间列，点击某一格会立即填入。
+`hourStep`、`minuteStep`、`secondStep` 设置按方向键时的步长，值落在步长的整倍数上。设置 `picker` 后，点击时钟图标或按 `Alt` + `↓` 打开时间列，点击某一格会立即填入。
 
 <DocDemo src="input-time/step" />
 

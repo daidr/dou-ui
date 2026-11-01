@@ -21,8 +21,8 @@ DouTour 不记录用户是否看过引导。需要“只显示一次”时，在
 ## 遮罩与关闭
 
 - `mask` 设为 `false` 不变暗页面，只保留目标外的细环；也可以在单个步骤上设置 `mask`。
-- 目标所在的亮区可以正常点击。`close-on-mask` 开启后，点击变暗区域会关闭引导。
-- `Esc` 关闭引导，`close-on-escape` 设为 `false` 可以关掉这个行为。
+- 目标所在的亮区可以正常点击。`closeOnMask` 开启后，点击变暗区域会关闭引导。
+- `Esc` 关闭引导，`closeOnEscape` 设为 `false` 可以关掉这个行为。
 - 焦点在卡片上时，左右方向键切换步骤。
 
 ## 可访问性
@@ -74,7 +74,7 @@ DouTour 不记录用户是否看过引导。需要“只显示一次”时，在
 | `title`   | 替换标题     | `{ step, current, total }`                    |
 | `actions` | 替换底部按钮 | `{ step, current, total, prev, next, close }` |
 
-### 实例方法
+### Exposes
 
 | 名称      | 说明                   |
 | --------- | ---------------------- |

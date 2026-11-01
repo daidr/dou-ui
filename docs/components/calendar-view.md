@@ -6,7 +6,7 @@
 
 ## 基础用法
 
-`events` 是一组 `{ id, start, title, tone? }`，`start` 写成 `YYYY-MM-DD`。`end` 写最后一天，让一件事跨几天，跨天的标签首尾相连。每天最多列 `max-events`（默认 3）项，其余折成“还有 N 项”。点日子触发 `select` 并更新 `v-model`，点日程触发 `event-click`。
+`events` 是一组 `{ id, start, title, tone? }`，`start` 写成 `YYYY-MM-DD`。`end` 写最后一天，让一件事跨几天，跨天的标签首尾相连。每天最多列 `maxEvents`（默认 3）项，其余折成“还有 N 项”。点日子触发 `select` 并更新 `v-model`，点日程触发 `eventClick`。
 
 <DocDemo src="calendar-view/basic" column />
 

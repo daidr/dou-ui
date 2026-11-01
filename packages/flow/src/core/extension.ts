@@ -60,7 +60,7 @@ export interface FlowExtension {
    * prop says otherwise. The last extension that sets it wins.
    */
   edgeType?: string
-  /** Looks and connection rules of port types; see the `port-types` prop. */
+  /** Looks and connection rules of port types; see the `portTypes` prop. */
   portTypes?: PortTypes
   /**
    * A connection rule, asked after the built-in ones. Return `false` to

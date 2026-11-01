@@ -1,8 +1,11 @@
 import type { DashboardWidgetType } from '../widget/define'
 import type { DashboardDocument, DashboardPlace, DashboardWidget } from './types'
 
+/** A dashboard with no widgets, the `v-model` when none is bound. */
+export const emptyDocument = (): DashboardDocument => ({ version: 1, widgets: [] })
+
 export interface DocumentProblem {
-  code: 'version' | 'duplicate-id' | 'missing-id' | 'unknown-type' | 'bad-place'
+  code: 'version' | 'shape' | 'duplicate-id' | 'missing-id' | 'unknown-type' | 'bad-place'
   /** The widget at fault; none for the document's own problems. */
   widgetId?: string
   /** Where the problem is, e.g. `widgets[2]` or `widgets[2].place.lg`; `version` for the version. */
@@ -29,6 +32,18 @@ export function isDashboardPlace(value: unknown): value is DashboardPlace {
 }
 
 /**
+ * What is wrong with the shape itself: the document is not an object, or a
+ * list in it is not an array. Nothing else can be checked until it is fixed.
+ */
+function shapeProblems(value: unknown, lists: string[]): DocumentProblem[] {
+  if (!value || typeof value !== 'object' || Array.isArray(value))
+    return [{ code: 'shape', path: '', text: '', message: 'The document is not an object' }]
+  return lists
+    .filter((key) => !Array.isArray((value as Record<string, unknown>)[key]))
+    .map((key) => ({ code: 'shape', path: key, text: '', message: `"${key}" is not a list` }))
+}
+
+/**
  * The problems of a dashboard document, before it is saved or shown: an
  * unknown version, widgets without an id or sharing one, types nobody
  * registered, and places that are not whole cells.
@@ -37,6 +52,8 @@ export function checkDocument(
   document: DashboardDocument,
   options: CheckDocumentOptions = {},
 ): DocumentProblem[] {
+  const shape = shapeProblems(document, ['widgets'])
+  if (shape.length) return shape
   const problems: DocumentProblem[] = []
   if (document.version !== 1)
     problems.push({
@@ -82,16 +99,30 @@ export function checkDocument(
   return problems
 }
 
+/** The saved data as an object of version 1, or an error saying why it can't be. */
+function sourceOf(input: unknown): Record<string, unknown> {
+  if (!input || typeof input !== 'object' || Array.isArray(input))
+    throw new Error(
+      `[@dou-ui/dashboard] a dashboard document must be an object, not ${Array.isArray(input) ? 'an array' : (JSON.stringify(input) ?? String(input))}`,
+    )
+  const source = input as Record<string, unknown>
+  const version = source.version ?? 1
+  if (version !== 1)
+    throw new Error(
+      `[@dou-ui/dashboard] unknown document version ${JSON.stringify(version) ?? String(version)} (expected 1); data saved by a newer @dou-ui/dashboard needs that version to open`,
+    )
+  return source
+}
+
 /**
  * Brings a saved document up to the current version, and fills what an
  * older or hand-written one may lack (`version`, `place`). Widgets that are
  * not objects and places that are not whole cells are dropped; anything
- * else is kept as it is. Throws for a version newer than this one knows.
+ * else is kept as it is. Throws for data that is not an object
+ * (an array, `null`, a string) and for a version it does not know.
  */
 export function migrateDocument(input: unknown): DashboardDocument {
-  const source = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>
-  const version = source.version ?? 1
-  if (version !== 1) throw new Error(`Dashboard version ${String(version)} is not known`)
+  const source = sourceOf(input)
   const list = Array.isArray(source.widgets) ? source.widgets : []
   const widgets: DashboardWidget[] = []
   for (const value of list) {

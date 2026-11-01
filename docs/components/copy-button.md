@@ -6,7 +6,7 @@
 
 <DocDemo src="copy-button/basic" />
 
-`variant` 可选 `ghost`（默认，放在代码块之类的容器里）和 `outline`。`show-label` 把“复制 / 已复制”写出来；否则文字只给读屏和悬停提示。
+`variant` 可选 `ghost`（默认，放在代码块之类的容器里）和 `outline`。`showLabel` 把“复制 / 已复制”写出来；否则文字只给读屏和悬停提示。
 
 ## 放在代码块里
 

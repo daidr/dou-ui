@@ -136,7 +136,24 @@ const columns = [
 import { checkDocument, migrateDocument } from '@dou-ui/gantt'
 
 const plan = migrateDocument(JSON.parse(saved))
-const problems = checkDocument(plan)
+const problems = checkDocument(plan, { canLink, extensions })
 ```
 
-`checkDocument` 找出版本不对、任务或依赖缺少 `id` 或 `id` 重复、`parent` 指向不存在的任务或绕成一圈、读不懂的日期和 `lag`，以及有问题的依赖：指向不存在的任务、连到自己、连在汇总任务和它里面的任务之间、两个任务之间重复连接、绕成一圈。每一项带 `code`、`path`（如 `tasks[2].start`）和出问题的 `taskId` 或 `linkId`。`migrateDocument` 补全旧数据或手写数据缺少的部分（`version`、`tasks`、`links`），丢掉不是对象的任务和依赖；遇到比当前更新的版本时报错。
+`checkDocument` 找出版本不对、任务或依赖缺少 `id` 或 `id` 重复、`parent` 指向不存在的任务或绕成一圈、读不懂的日期和 `lag`，以及有问题的依赖：指向不存在的任务、连到自己、连在汇总任务和它里面的任务之间、两个任务之间重复连接、绕成一圈。每一项带 `code`、`path`（如 `tasks[2].start`）和出问题的 `taskId` 或 `linkId`。传入和甘特图一样的 `canLink`、`extensions` 时，还会用它们的规则检查每条依赖，被拒绝的报 `refused-link`，`text` 是规则给出的理由；不传时只检查内置的规则。整份数据的形状不对（不是对象，或者列表不是数组）时只报 `shape`，先修好形状才能检查别的。`migrateDocument` 补全旧数据或手写数据缺少的部分（`version`、`tasks`、`links`），丢掉不是对象的任务和依赖；传入的不是对象（包括数组和 `null`），或者版本不认识时报错，以免把损坏的存档当成空排期再保存回去。还没有存档时用 `emptyDocument()` 新建。
+
+`version` 的类型是字面量 `1`，在 TypeScript 里手写排期时给 `ref` 标上 `GanttDocument` 类型，或写成 `version: 1 as const`。`v-model` 的形状不对（缺少 `tasks`、`links` 或 `version`）时，甘特图把缺少的部分当成空的，并在开发环境下给出警告；写回的排期总是带 `version: 1`。
+
+## 任务和依赖分开存储
+
+很多后端把任务和依赖存成两张表。读取时分别取回，拼成一份排期；保存时从 `transaction` 事件的 `steps` 里取出改动，按 `type` 分给两张表，或者直接从 `v-model` 里分别取 `tasks` 和 `links`：
+
+```ts
+const [tasks, links] = await Promise.all([api.tasks(), api.links()])
+const plan = ref<GanttDocument>({ version: 1, tasks, links })
+
+function onTransaction(tr: GanttTransaction) {
+  for (const step of tr.steps)
+    if (step.type.endsWith('Task')) api.saveTask(step)
+    else api.saveLink(step)
+}
+```

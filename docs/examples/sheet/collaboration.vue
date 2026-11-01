@@ -40,6 +40,7 @@ const head = (value: string) => ({ value, style: 'head' })
 const money = (value: number) => ({ value, format: '¥#,##0' })
 
 const start: SheetWorkbook = {
+  version: 1,
   styles: { head: { bold: true, fill: 'neutral' } },
   sheets: [
     {

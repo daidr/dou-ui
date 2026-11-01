@@ -194,7 +194,7 @@ const narrow = deriveLayout(next, 12, { columns: 6 })
 | `item`        | 格子的内容                 | `{ item, dragging, resizing }` |
 | `placeholder` | 拖动时标出落点的框里的内容 | `{ item }`                     |
 
-### GridLayout Methods
+### GridLayout Exposes
 
 | 名称           | 说明                                             | 类型                                                                |
 | -------------- | ------------------------------------------------ | ------------------------------------------------------------------- |

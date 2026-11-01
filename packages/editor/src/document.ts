@@ -1,10 +1,13 @@
 import type { Schema } from 'prosemirror-model'
 import { kitOf, type EditorExtensionList } from './core/convert'
-import type { EditorDocument, PartialBlock, PartialTableRow } from './core/model'
+import type { Block, EditorDocument, PartialBlock, PartialTableRow } from './core/model'
 import { editorKit } from './extensions/editor-kit'
 
+/** A document with no blocks, to start from when nothing is saved yet. */
+export const emptyDocument = (): EditorDocument<Block> => ({ version: 1, blocks: [] })
+
 export interface DocumentProblem {
-  code: 'version' | 'duplicate-id' | 'unknown-type' | 'unknown-mark' | 'unknown-inline'
+  code: 'version' | 'shape' | 'duplicate-id' | 'unknown-type' | 'unknown-mark' | 'unknown-inline'
   /** The block at fault, when it has an id. */
   blockId?: string
   /**
@@ -26,6 +29,18 @@ export interface CheckDocumentOptions {
 let defaultKit: EditorExtensionList | undefined
 
 /**
+ * What is wrong with the shape itself: the document is not an object, or a
+ * list in it is not an array. Nothing else can be checked until it is fixed.
+ */
+function shapeProblems(value: unknown, lists: string[]): DocumentProblem[] {
+  if (!value || typeof value !== 'object' || Array.isArray(value))
+    return [{ code: 'shape', path: '', text: '', message: 'The document is not an object' }]
+  return lists
+    .filter((key) => !Array.isArray((value as Record<string, unknown>)[key]))
+    .map((key) => ({ code: 'shape', path: key, text: '', message: `"${key}" is not a list` }))
+}
+
+/**
  * The problems of an editor document, before it is saved or shown: an
  * unknown version, blocks or table rows sharing an id, and block types,
  * marks and inline nodes the extensions don't define, which the editor
@@ -35,6 +50,8 @@ export function checkDocument(
   document: EditorDocument<PartialBlock>,
   options: CheckDocumentOptions = {},
 ): DocumentProblem[] {
+  const shape = shapeProblems(document, ['blocks'])
+  if (shape.length) return shape
   const problems: DocumentProblem[] = []
   if (document.version !== 1)
     problems.push({
@@ -134,16 +151,65 @@ const objects = <T>(value: unknown) =>
     (item): item is T => !!item && typeof item === 'object',
   )
 
+/** The saved data as an object of version 1, or an error saying why it can't be. */
+function sourceOf(input: unknown): Record<string, unknown> {
+  if (!input || typeof input !== 'object' || Array.isArray(input))
+    throw new Error(
+      `[@dou-ui/editor] an editor document must be an object, not ${Array.isArray(input) ? 'an array' : (JSON.stringify(input) ?? String(input))}`,
+    )
+  const source = input as Record<string, unknown>
+  const version = source.version ?? 1
+  if (version !== 1)
+    throw new Error(
+      `[@dou-ui/editor] unknown document version ${JSON.stringify(version) ?? String(version)} (expected 1); data saved by a newer @dou-ui/editor needs that version to open`,
+    )
+  return source
+}
+
 /**
  * Brings a saved document up to the current version, and fills what an
  * older or hand-written one may lack (`version`, `blocks`). Blocks that are
  * not objects are dropped; anything else is kept as it is, for the editor
- * to read as it reads partial blocks. Throws for a version newer than this
- * one knows.
+ * to read as it reads partial blocks. Throws for data that is not an object (an array,
+ * `null`, a string) and for a version it does not know.
  */
 export function migrateDocument(input: unknown): EditorDocument<PartialBlock> {
-  const source = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>
-  const version = source.version ?? 1
-  if (version !== 1) throw new Error(`Editor version ${String(version)} is not known`)
+  const source = sourceOf(input)
   return { ...source, version: 1, blocks: objects<PartialBlock>(source.blocks) }
+}
+
+const warned = new Set<string>()
+
+/**
+ * The blocks of the `v-model`, as the editor reads them. A document of the
+ * wrong shape (not an object, a bare list of blocks, without `blocks` or a
+ * known `version`) gets a warning in development and is read as well as it
+ * can be: a list as the blocks, anything else missing as no blocks. What
+ * the editor writes back always carries `version: 1`. `undefined`, no
+ * `v-model` bound, is fine.
+ */
+export function readBlocks(value: unknown): PartialBlock[] | undefined {
+  if (value === undefined) return undefined
+  const plain = !!value && typeof value === 'object' && !Array.isArray(value)
+  const source = (plain ? value : {}) as Partial<EditorDocument<PartialBlock>>
+  const blocks = Array.isArray(source.blocks)
+  const problem = Array.isArray(value)
+    ? 'is a list of blocks'
+    : !plain
+      ? `is ${JSON.stringify(value) ?? String(value)}`
+      : !blocks
+        ? 'has no blocks array'
+        : source.version === undefined
+          ? 'has no version'
+          : source.version !== 1
+            ? `has version ${JSON.stringify(source.version)}`
+            : ''
+  if (problem && process.env.NODE_ENV !== 'production' && !warned.has(problem)) {
+    warned.add(problem)
+    console.warn(
+      `[@dou-ui/editor] the v-model ${problem}; expected { version: 1, blocks: [...] }. It is read as well as it can be and the version as 1; read saved data with migrateDocument().`,
+    )
+  }
+  if (Array.isArray(value)) return value as PartialBlock[]
+  return blocks ? source.blocks : []
 }

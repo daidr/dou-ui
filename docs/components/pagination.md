@@ -10,13 +10,13 @@
 
 ## 总数与每页条数
 
-`show-total` 显示条目总数；传入 `page-sizes` 时显示每页条数的选择器。切换每页条数时会停在包含当前第一条的那一页。
+`showTotal` 显示条目总数；传入 `pageSizes` 时显示每页条数的选择器。切换每页条数时会停在包含当前第一条的那一页。
 
 <DocDemo src="pagination/total-sizes" column />
 
 ## 跳页
 
-页数很多时，点击省略号会列出它省略的页码，可以直接选一页跳过去。列表只渲染可见的几行，省略了上万页也不卡；打开后焦点在列表上，方向键、<DouKbd>PageUp</DouKbd> / <DouKbd>PageDown</DouKbd>、<DouKbd>Home</DouKbd> / <DouKbd>End</DouKbd> 移动，<DouKbd>Enter</DouKbd> 跳转。`show-jumper` 再加一个输入页码的框，按 <DouKbd>Enter</DouKbd> 或离开输入框时跳转，超出范围的页码会被收进范围。
+页数很多时，点击省略号会列出它省略的页码，可以直接选一页跳过去。列表只渲染可见的几行，省略了上万页也不卡；打开后焦点在列表上，方向键、<DouKbd>PageUp</DouKbd> / <DouKbd>PageDown</DouKbd>、<DouKbd>Home</DouKbd> / <DouKbd>End</DouKbd> 移动，<DouKbd>Enter</DouKbd> 跳转。`showJumper` 再加一个输入页码的框，按 <DouKbd>Enter</DouKbd> 或离开输入框时跳转，超出范围的页码会被收进范围。
 
 <DocDemo src="pagination/jump" column />
 
@@ -35,7 +35,7 @@
 | 名称               | 说明                                | 类型                   | 默认值  |
 | ------------------ | ----------------------------------- | ---------------------- | ------- |
 | `page`             | 当前页（从 1 开始），`v-model:page` | `number`               | `1`     |
-| `pageSize`         | 每页条数，`v-model:page-size`       | `number`               | `10`    |
+| `pageSize`         | 每页条数，`v-model:pageSize`        | `number`               | `10`    |
 | `total`            | 条目总数                            | `number`               | —       |
 | `pageSizes`        | 可选的每页条数；不传不显示选择器    | `number[]`             | —       |
 | `siblings`         | 当前页两侧各显示几页                | `number`               | `1`     |

@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { DouEditor, editorKit } from '@dou-ui/editor'
+import { DouEditor, editorKit, type EditorDocument, type PartialBlock } from '@dou-ui/editor'
 import { codeEditorBlock } from '@dou-ui/editor/code'
 import { ref } from 'vue'
 
 const extensions = [editorKit({ codeBlock: codeEditorBlock() })]
 
-const doc = ref({
+const doc = ref<EditorDocument<PartialBlock>>({
   version: 1,
   blocks: [
     { type: 'heading', props: { level: 2 }, content: '部署脚本' },

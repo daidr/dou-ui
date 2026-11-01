@@ -182,7 +182,7 @@ moveLayer(ctx, 'front') // 'front' | 'forward' | 'backward' | 'back'
 
 ## API
 
-### FlowEditor 插槽
+### FlowEditor Slots
 
 | 名称       | 说明                                     | 参数                       |
 | ---------- | ---------------------------------------- | -------------------------- |

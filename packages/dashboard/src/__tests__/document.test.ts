@@ -112,6 +112,7 @@ describe('checkDocument and migrateDocument', () => {
         { id: 'b', type: 'note', place: {} },
       ],
     })
-    expect(() => migrateDocument({ version: 2 })).toThrow('not known')
+    expect(() => migrateDocument({ version: 2 })).toThrow('unknown document version 2')
+    expect(() => migrateDocument([])).toThrow('[@dou-ui/dashboard]')
   })
 })

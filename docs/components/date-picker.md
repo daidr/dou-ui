@@ -30,19 +30,19 @@
 
 <DocDemo src="date-picker/datetime" />
 
-也可以直接输入 `2026-10-28 14:30`，日期和时间之间用空格或 `T`；只输入日期时，时间取 `default-time`。
+也可以直接输入 `2026-10-28 14:30`，日期和时间之间用空格或 `T`；只输入日期时，时间取 `defaultTime`。
 
 ### 日期时间范围
 
-和 `range` 一起用时，开始和结束各有一组时间列。只点了日子没有调时间的话，开始取当天 00:00，结束取当天 23:59，按天筛选时正好覆盖首尾两天；用 `default-time` 传一对时间可以改掉。
+和 `range` 一起用时，开始和结束各有一组时间列。只点了日子没有调时间的话，开始取当天 00:00，结束取当天 23:59，按天筛选时正好覆盖首尾两天；用 `defaultTime` 传一对时间可以改掉。
 
 <DocDemo src="date-picker/datetime-range" />
 
 ### 禁用时间
 
-`disabled-time` 接收日期（`YYYY-MM-DD`），返回这一天的时间规则，写法与 [TimePicker 的 `disabled-time`](./time-picker#禁用时间) 相同；返回空表示这一天的时间都可选。常见的用法是今天只能选现在以后的时间。换到另一天时，如果已选的时间在这一天不可选，会移到这一天第一个可选的时间。
+`disabledTime` 接收日期（`YYYY-MM-DD`），返回这一天的时间规则，写法与 [TimePicker 的 `disabledTime`](./time-picker#禁用时间) 相同；返回空表示这一天的时间都可选。常见的用法是今天只能选现在以后的时间。换到另一天时，如果已选的时间在这一天不可选，会移到这一天第一个可选的时间。
 
-`disabled-time` 只限制时间，日期本身仍然可以点。如果某一天的时间全部不可选（比如临近午夜时的今天），请同时在 `disabled-date` 里排除这一天，示例里就是这样处理的。
+`disabledTime` 只限制时间，日期本身仍然可以点。如果某一天的时间全部不可选（比如临近午夜时的今天），请同时在 `disabledDate` 里排除这一天，示例里就是这样处理的。
 
 <DocDemo src="date-picker/disabled-time" />
 
@@ -62,7 +62,7 @@
 
 ## 可选范围
 
-`min` / `max` 限定最早和最晚（包含两端），`disabled-date` 排除单独的日子。不可选的日子会淡下去，比相邻月份的日子更浅，也点不动。
+`min` / `max` 限定最早和最晚（包含两端），`disabledDate` 排除单独的日子。不可选的日子会淡下去，比相邻月份的日子更浅，也点不动。
 
 <DocDemo src="date-picker/range" />
 
@@ -78,7 +78,7 @@
 
 ## 单独使用日历
 
-`DouCalendar` 是弹出层里的日历本身，可以直接放在页面上，接受同样的 `type`、`range`、`min`、`max`、`disabled-date`。它不画外框，放在什么容器里就是什么样子。
+`DouCalendar` 是弹出层里的日历本身，可以直接放在页面上，接受同样的 `type`、`range`、`min`、`max`、`disabledDate`。它不画外框，放在什么容器里就是什么样子。
 
 <DocDemo src="date-picker/calendar" />
 
@@ -88,7 +88,7 @@
 
 ## 显示格式
 
-输入框里的写法默认来自语言包的 `region`：中文是 `YYYY-MM-DD`，英文是 `MM/DD/YYYY`。`display-format` 可以单独指定，`YYYY`、`MM`、`DD` 是年月日，`[]` 里的文字原样保留。格式只影响显示和输入，`v-model` 的值始终是 `YYYY-MM-DD` 这样的形式；输入 `2026-10-29` 这样的写法也总能识别。周始终使用 ISO 写法，季度使用语言包的 `datePicker.quarter`。
+输入框里的写法默认来自语言包的 `region`：中文是 `YYYY-MM-DD`，英文是 `MM/DD/YYYY`。`displayFormat` 可以单独指定，`YYYY`、`MM`、`DD` 是年月日，`[]` 里的文字原样保留。格式只影响显示和输入，`v-model` 的值始终是 `YYYY-MM-DD` 这样的形式；输入 `2026-10-29` 这样的写法也总能识别。周始终使用 ISO 写法，季度使用语言包的 `datePicker.quarter`。
 
 <DocDemo src="date-picker/display-format" />
 
@@ -96,7 +96,7 @@
 
 ## 一周的第一天
 
-默认取语言包的 `region.weekStart`：`zhCN` 从周一开始，`en` 从周日开始。`week-start` 可以指定 `0`（周日）或 `1`（周一）。星期与月份的名称来自浏览器的 `Intl`，跟随语言包的 `name`，不需要另外翻译。
+默认取语言包的 `region.weekStart`：`zhCN` 从周一开始，`en` 从周日开始。`weekStart` 可以指定 `0`（周日）或 `1`（周一）。星期与月份的名称来自浏览器的 `Intl`，跟随语言包的 `name`，不需要另外翻译。
 
 ## 键盘与读屏
 

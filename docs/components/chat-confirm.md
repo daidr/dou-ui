@@ -4,7 +4,7 @@
 
 ## 基础用法
 
-`title` 说明要做什么，默认插槽放具体内容，比如要运行的命令或文件改动。点击按钮触发 `decide`，参数是 `approve`（允许）、`always`（总是允许，需要 `allow-always`）或 `deny`（拒绝）。
+`title` 说明要做什么，默认插槽放具体内容，比如要运行的命令或文件改动。点击按钮触发 `decide`，参数是 `approve`（允许）、`always`（总是允许，需要 `allowAlways`）或 `deny`（拒绝）。
 
 组件不会自己改变状态，回答之后把 `status` 设为 `approved` 或 `denied`，卡片会收起为一行结果。
 
@@ -12,7 +12,7 @@
 
 ## 危险操作
 
-`tone` 决定图标的颜色，`tone="danger"` 时允许按钮也使用危险色，`approve-text` 和 `deny-text` 可以换成更具体的文字，比如“删除”。
+`tone` 决定图标的颜色，`tone="danger"` 时允许按钮也使用危险色，`approveText` 和 `denyText` 可以换成更具体的文字，比如“删除”。
 
 <DocDemo src="chat-confirm/danger" column />
 

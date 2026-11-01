@@ -8,6 +8,7 @@ import { flowKit } from './kit'
 export interface DocumentProblem {
   code:
     | 'version'
+    | 'shape'
     | 'missing-id'
     | 'duplicate-id'
     | 'bad-position'
@@ -48,6 +49,18 @@ export interface CheckDocumentOptions {
 const isNumber = (value: unknown) => typeof value === 'number' && Number.isFinite(value)
 
 /**
+ * What is wrong with the shape itself: the document is not an object, or a
+ * list in it is not an array. Nothing else can be checked until it is fixed.
+ */
+function shapeProblems(value: unknown, lists: string[]): DocumentProblem[] {
+  if (!value || typeof value !== 'object' || Array.isArray(value))
+    return [{ code: 'shape', path: '', text: '', message: 'The document is not an object' }]
+  return lists
+    .filter((key) => !Array.isArray((value as Record<string, unknown>)[key]))
+    .map((key) => ({ code: 'shape', path: key, text: '', message: `"${key}" is not a list` }))
+}
+
+/**
  * The problems of a flow document, before it is saved or shown: an unknown
  * version, nodes and edges without an id or sharing one, positions that are
  * not numbers, edges whose ends are missing, `parent` pointing nowhere or
@@ -58,6 +71,8 @@ export function checkDocument(
   document: FlowDocument,
   options: CheckDocumentOptions = {},
 ): DocumentProblem[] {
+  const shape = shapeProblems(document, ['nodes', 'edges'])
+  if (shape.length) return shape
   const problems: DocumentProblem[] = []
   if (document.version !== 1)
     problems.push({
@@ -122,9 +137,11 @@ export function checkDocument(
       })
       return
     }
-    const seen = new Set([node.id])
+    // only the members of a circle are reported; one hanging below it is fine itself
+    const seen = new Set<string>()
     for (let at = nodes.get(node.parent); at; at = at.parent ? nodes.get(at.parent) : undefined) {
-      if (!seen.has(at.id)) {
+      if (at.id !== node.id) {
+        if (seen.has(at.id)) break
         seen.add(at.id)
         continue
       }
@@ -211,20 +228,74 @@ const objects = <T>(value: unknown) =>
     (item): item is T => !!item && typeof item === 'object',
   )
 
+/** The saved data as an object of version 1, or an error saying why it can't be. */
+function sourceOf(input: unknown): Record<string, unknown> {
+  if (!input || typeof input !== 'object' || Array.isArray(input))
+    throw new Error(
+      `[@dou-ui/flow] a flow document must be an object, not ${Array.isArray(input) ? 'an array' : (JSON.stringify(input) ?? String(input))}`,
+    )
+  const source = input as Record<string, unknown>
+  const version = source.version ?? 1
+  if (version !== 1)
+    throw new Error(
+      `[@dou-ui/flow] unknown document version ${JSON.stringify(version) ?? String(version)} (expected 1); data saved by a newer @dou-ui/flow needs that version to open`,
+    )
+  return source
+}
+
 /**
  * Brings a saved document up to the current version, and fills what an
  * older or hand-written one may lack (`version`, `nodes`, `edges`). Nodes
  * and edges that are not objects are dropped; anything else is kept as it
- * is. Throws for a version newer than this one knows.
+ * is. Throws for data that is not an object
+ * (an array, `null`, a string) and for a version it does not know.
  */
 export function migrateDocument(input: unknown): FlowDocument {
-  const source = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>
-  const version = source.version ?? 1
-  if (version !== 1) throw new Error(`Flow version ${String(version)} is not known`)
+  const source = sourceOf(input)
   return {
     ...source,
     version: 1,
     nodes: objects<FlowNode>(source.nodes),
     edges: objects<FlowEdge>(source.edges),
+  }
+}
+
+const warned = new Set<string>()
+
+/**
+ * The `v-model` as the editor reads it. A document of the wrong shape (not
+ * an object, without `nodes` or `edges`, without a known `version`) gets a
+ * warning in development and is read with what is missing left empty and
+ * the version as 1, so the editor still opens and what it writes back
+ * carries `version: 1`.
+ */
+export function readDocument(value: unknown): FlowDocument {
+  const plain = !!value && typeof value === 'object' && !Array.isArray(value)
+  const source = (plain ? value : {}) as Partial<FlowDocument>
+  const nodes = Array.isArray(source.nodes)
+  const edges = Array.isArray(source.edges)
+  const problem = !plain
+    ? `is ${Array.isArray(value) ? 'an array' : (JSON.stringify(value) ?? String(value))}`
+    : !nodes
+      ? 'has no nodes array'
+      : !edges
+        ? 'has no edges array'
+        : source.version === undefined
+          ? 'has no version'
+          : source.version !== 1
+            ? `has version ${JSON.stringify(source.version)}`
+            : ''
+  if (!problem) return value as FlowDocument
+  if (process.env.NODE_ENV !== 'production' && !warned.has(problem)) {
+    warned.add(problem)
+    console.warn(
+      `[@dou-ui/flow] the v-model ${problem}; expected { version: 1, nodes: [...], edges: [...] }. What is missing is read as empty and the version as 1; read saved data with migrateDocument().`,
+    )
+  }
+  return {
+    ...source,
+    version: 1,
+    nodes: nodes ? source.nodes! : [],
+    edges: edges ? source.edges! : [],
   }
 }

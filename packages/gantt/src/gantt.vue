@@ -59,12 +59,13 @@ import {
 } from './export/draw'
 import { readTheme, type ExportTheme } from './export/theme'
 import { GanttHistory } from './core/history'
+import { readDocument } from './core/document'
 import { linkRefusal, linkTypeOf, type GanttLinkRefusal } from './core/links'
 import { applyGanttCSV, readGanttCSV, type GanttCSVImportOptions } from './core/csv'
 import { createId, spanOf, writeSpan, type GanttLink, type GanttTask } from './core/model'
 import { computeCriticalPath, computeSchedule, findBrokenLinks } from './core/schedule'
 import {
-  emptyGanttDocument,
+  emptyDocument,
   GanttTransaction,
   type GanttDocument,
   type GanttStep,
@@ -110,9 +111,11 @@ const props = withDefaults(defineProps<GanttProps>(), {
   menu: true,
   addRow: true,
 })
-const model = defineModel<GanttDocument>({ default: emptyGanttDocument })
-const tasks = computed(() => model.value.tasks)
-const links = computed(() => model.value.links)
+const model = defineModel<GanttDocument>({ default: emptyDocument })
+/** The `v-model`, with a wrongly shaped one read as well as it can be. */
+const source = computed(() => readDocument(model.value))
+const tasks = computed(() => source.value.tasks)
+const links = computed(() => source.value.links)
 const selection = defineModel<string[]>('selection', { default: () => [] })
 const scale = defineModel<GanttScale>('scale')
 const emit = defineEmits<GanttEmits>()
@@ -159,7 +162,7 @@ const editable = computed(() => !props.readonly)
  * in the same tick (a drag, then undo) build on the latest commit instead.
  */
 let latest: GanttDocument | null = null
-const docOf = (): GanttDocument => latest ?? toRaw(model.value)
+const docOf = (): GanttDocument => latest ?? toRaw(source.value)
 
 /** The last transaction committed, for reading out what an extension's undo changed. */
 let lastCommit: GanttTransaction | null = null
@@ -2575,6 +2578,7 @@ defineExpose<GanttExpose>({
 })
 
 const context: GanttContext = {
+  doc: source,
   tasks,
   links,
   selection,

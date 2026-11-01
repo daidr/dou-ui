@@ -232,7 +232,9 @@ const book = migrateWorkbook(JSON.parse(saved))
 const problems = checkWorkbook(book, { extensions })
 ```
 
-`checkWorkbook` 找出版本不对、工作表没有名字或重名、`id` 重复、单元格用了没有定义的样式或类型，以及写错或互相重叠的合并区域，每一项带 `code`、`path`（如 `sheets[0].cells[3][2]`）和出问题的工作表名 `sheet`。扩展加入的单元格类型要传入同样的 `extensions` 才认得。`migrateWorkbook` 补全旧数据或手写数据缺少的部分（`version`、`sheets`、每张表的 `cells`），丢掉不是对象的工作表；遇到比当前更新的版本时报错。两个函数也可以从不含组件的 `@dou-ui/sheet/core` 引入。
+`checkWorkbook` 找出版本不对、工作表没有名字或重名、`id` 重复、单元格用了没有定义的样式或类型，以及写错或互相重叠的合并区域，每一项带 `code`、`path`（如 `sheets[0].cells[3][2]`）和出问题的工作表名 `sheet`。扩展加入的单元格类型要传入同样的 `extensions` 才认得。整份数据的形状不对（不是对象，或者列表不是数组）时只报 `shape`，先修好形状才能检查别的。`migrateWorkbook` 补全旧数据或手写数据缺少的部分（`version`、`sheets`、每张表的 `cells`），丢掉不是对象的工作表；传入的不是对象（包括数组和 `null`），或者版本不认识时报错，以免把损坏的存档当成空工作簿再保存回去。还没有存档时用 `emptyWorkbook()` 新建。这几个函数也可以从不含组件的 `@dou-ui/sheet/core` 引入。
+
+`version` 的类型是字面量 `1`，在 TypeScript 里手写工作簿时给 `ref` 标上 `SheetWorkbook` 类型，或写成 `version: 1 as const`。`v-model` 的形状不对（缺少 `sheets` 或 `version`）时，表格把缺少的部分当成空的，并在开发环境下给出警告；写回的工作簿总是带 `version: 1`。
 
 ## 选区
 

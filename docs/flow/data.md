@@ -111,4 +111,6 @@ const doc = migrateDocument(JSON.parse(saved))
 const problems = checkDocument(doc, { extensions, nodeTypes })
 ```
 
-`checkDocument` 找出版本不对、节点或连线缺少 `id` 或 `id` 重复、坐标不是数字、连线的两端指向不存在的节点、`parent` 指向不存在的分组或绕成一圈，每一项带 `code`、`path`（如 `edges[0].target`）和出问题的 `nodeId` 或 `edgeId`。传入和编辑器一样的 `extensions`、`nodeTypes`、`edgeTypes` 时，还会检查没有注册的节点类型、连线类型，以及连线用到了节点没有的端口；只传 `nodeTypes` 或 `edgeTypes` 时，和编辑器一样按默认的 `flowKit()` 算。`migrateDocument` 补全旧文档或手写文档缺少的部分（`version`、`nodes`、`edges`），丢掉不是对象的节点和连线；遇到比当前更新的版本时报错。
+`checkDocument` 找出版本不对、节点或连线缺少 `id` 或 `id` 重复、坐标不是数字、连线的两端指向不存在的节点、`parent` 指向不存在的分组或绕成一圈，每一项带 `code`、`path`（如 `edges[0].target`）和出问题的 `nodeId` 或 `edgeId`。传入和编辑器一样的 `extensions`、`nodeTypes`、`edgeTypes` 时，还会检查没有注册的节点类型、连线类型，以及连线用到了节点没有的端口；只传 `nodeTypes` 或 `edgeTypes` 时，和编辑器一样按默认的 `flowKit()` 算。整份数据的形状不对（不是对象，或者列表不是数组）时只报 `shape`，先修好形状才能检查别的。`migrateDocument` 补全旧文档或手写文档缺少的部分（`version`、`nodes`、`edges`），丢掉不是对象的节点和连线；传入的不是对象（包括数组和 `null`），或者版本不认识时报错，以免把损坏的存档当成空文档再保存回去。还没有存档时用 `emptyDocument()` 新建。
+
+`version` 的类型是字面量 `1`，在 TypeScript 里手写文档时给 `ref` 标上 `FlowDocument` 类型，或写成 `version: 1 as const`。`v-model` 的形状不对（缺少 `nodes`、`edges` 或 `version`）时，编辑器把缺少的部分当成空的，并在开发环境下给出警告；写回的文档总是带 `version: 1`。

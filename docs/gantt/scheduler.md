@@ -12,6 +12,8 @@ import { DouScheduler } from '@dou-ui/gantt/scheduler'
 
 用 `resources` 列出所有资源，任务的 `resource` 写资源的 `id`。资源有 `group` 时，同一组的资源排在一起，组名可以展开和收起。没有 `resource` 的任务放在最后的“未分配”一行。
 
+`v-model` 和甘特图是同一种数据 `{ version: 1, tasks, links }`，这样同一份排期可以同时交给甘特图和资源视图。资源视图不用 `links`，只用它时写 `links: []` 即可；缺少 `links` 也能正常显示，写回时会补上空数组。
+
 <DocDemo src="gantt/scheduler" />
 
 拖动任务可以改时间，拖到别的行就换了资源；拖动两端可以改起止时间。按住 Shift 或 Ctrl（macOS 上是 Command）可以多选，多选后一起拖动。手机上长按任务后再拖动，直接滑动是滚动。
@@ -87,7 +89,7 @@ function contextMenu(target: SchedulerMenuTarget): GanttMenuItem[] {
 
 ## API
 
-### Props
+### Scheduler Props
 
 | 名称                | 说明                                                     | 类型                                                             | 默认值                                 |
 | ------------------- | -------------------------------------------------------- | ---------------------------------------------------------------- | -------------------------------------- |
@@ -123,7 +125,7 @@ interface SchedulerResource {
 }
 ```
 
-### 事件
+### Scheduler Events
 
 | 名称               | 说明                                                        | 参数                                   |
 | ------------------ | ----------------------------------------------------------- | -------------------------------------- |
@@ -154,14 +156,14 @@ type SchedulerMenuTarget =
   | { kind: 'row'; resource: SchedulerResource | null; time: number }
 ```
 
-### 插槽
+### Scheduler Slots
 
 | 名称       | 说明             | 参数           |
 | ---------- | ---------------- | -------------- |
 | `bar`      | 任务条里的内容   | `{ task }`     |
 | `resource` | 资源列表里的一项 | `{ resource }` |
 
-### 方法
+### Scheduler Exposes
 
 | 名称                                                          | 说明                                   |
 | ------------------------------------------------------------- | -------------------------------------- |

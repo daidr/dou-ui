@@ -117,7 +117,7 @@ const fields: DashboardFilterField[] = [
 | `sources`         | 数据源，按名字给出；换成另一个函数的数据源会重新请求 | `DashboardSources` | —      |
 | `v-model:filters` | 筛选的值                                             | `DashboardFilters` | `{}`   |
 
-### Dashboard Methods
+### Dashboard Exposes
 
 | 名称                              | 说明                                             |
 | --------------------------------- | ------------------------------------------------ |

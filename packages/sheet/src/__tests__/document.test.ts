@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { readWorkbook } from '../core/document'
 import { checkWorkbook, defineSheetCellType, defineSheetExtension, migrateWorkbook } from '..'
 import type { SheetWorkbook } from '..'
 
@@ -56,6 +57,12 @@ describe('checkWorkbook', () => {
     const extension = defineSheetExtension({ name: 'stars', cellTypes: [stars] })
     expect(checkWorkbook(value, { extensions: [extension] })).toEqual([])
   })
+
+  it('reports a workbook of the wrong shape and nothing else', () => {
+    expect(checkWorkbook('x' as unknown as SheetWorkbook).map((p) => p.code)).toEqual(['shape'])
+    const value = { version: 1, sheets: null } as unknown as SheetWorkbook
+    expect(checkWorkbook(value).map((p) => p.path)).toEqual(['sheets'])
+  })
 })
 
 describe('migrateWorkbook', () => {
@@ -63,10 +70,29 @@ describe('migrateWorkbook', () => {
     expect(
       migrateWorkbook({ sheets: [{ name: '表' }, 'x'], styles: { a: { bold: true } } }),
     ).toEqual({ version: 1, sheets: [{ name: '表', cells: [] }], styles: { a: { bold: true } } })
-    expect(migrateWorkbook(undefined)).toEqual({ version: 1, sheets: [] })
   })
 
-  it('throws for a newer version', () => {
+  it('throws for data that is not an object', () => {
+    for (const input of [null, undefined, 'x', [{ id: 'a' }]])
+      expect(() => migrateWorkbook(input)).toThrow('[@dou-ui/sheet]')
+  })
+
+  it('throws for a version it does not know', () => {
     expect(() => migrateWorkbook({ version: 2, sheets: [] })).toThrow('version 2')
+    expect(() => migrateWorkbook({ version: '1' })).toThrow('version "1"')
+  })
+})
+
+describe('readWorkbook', () => {
+  it('reads a wrongly shaped v-model with a warning', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const good = book()
+    expect(readWorkbook(good)).toBe(good)
+    expect(readWorkbook({ version: 3, sheets: good.sheets })).toEqual({
+      version: 1,
+      sheets: good.sheets,
+    })
+    expect(warn.mock.calls[0]![0]).toContain('[@dou-ui/sheet] the v-model has version 3')
+    warn.mockRestore()
   })
 })

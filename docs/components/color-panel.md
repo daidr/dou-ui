@@ -10,7 +10,7 @@
 
 ## 面板与格式
 
-`format`、`panel`、`gamut`、`show-alpha`、`presets` 与 ColorPicker 相同，详见 [ColorPicker](./color-picker#色值格式)。`show-input` 设为 `false` 时不显示底部的格式菜单和输入框。
+`format`、`panel`、`gamut`、`showAlpha`、`presets` 与 ColorPicker 相同，详见 [ColorPicker](./color-picker#色值格式)。`showInput` 设为 `false` 时不显示底部的格式菜单和输入框。
 
 <DocDemo src="color-panel/options" />
 

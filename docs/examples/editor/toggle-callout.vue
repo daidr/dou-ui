@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { DouEditor } from '@dou-ui/editor'
+import { DouEditor, type EditorDocument, type PartialBlock } from '@dou-ui/editor'
 import { ref } from 'vue'
 
-const doc = ref({
+const doc = ref<EditorDocument<PartialBlock>>({
   version: 1,
   blocks: [
     { type: 'heading', props: { level: 2 }, content: '上海周末出行须知' },

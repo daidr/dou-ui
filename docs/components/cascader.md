@@ -6,11 +6,11 @@
 
 <DocDemo src="cascader/basic" />
 
-值是从第一级到最后一级的 `value` 数组。默认只有没有下级的选项可以选中，选中后关闭；字段里显示完整路径，用 `separator` 换分隔符，`show-last-only` 只显示最后一级。
+值是从第一级到最后一级的 `value` 数组。默认只有没有下级的选项可以选中，选中后关闭；字段里显示完整路径，用 `separator` 换分隔符，`showLastOnly` 只显示最后一级。
 
 ## 选择任意一级
 
-`change-on-select` 让每一级都可以作为结果：点击即选中，同时展开下一级。`expand-trigger="hover"` 让指针停在选项上就展开下一级。
+`changeOnSelect` 让每一级都可以作为结果：点击即选中，同时展开下一级。`expand-trigger="hover"` 让指针停在选项上就展开下一级。
 
 <DocDemo src="cascader/check-strictly" />
 
@@ -26,7 +26,7 @@
 
 <DocDemo src="cascader/multiple" />
 
-`check-strictly` 让每一级各自勾选，互不牵连，值里存的就是勾选的那些路径，适合“按省或按市都能选”的场景。`max-tag-count` 和 Select 一样，把多出的标签折叠成“+N”。
+`checkStrictly` 让每一级各自勾选，互不牵连，值里存的就是勾选的那些路径，适合“按省或按市都能选”的场景。`maxTagCount` 和 Select 一样，把多出的标签折叠成“+N”。
 
 <DocDemo src="cascader/multiple-2" />
 

@@ -1,11 +1,17 @@
 <script setup lang="ts">
-import { blocksToHTML, DouEditor, editorKit } from '@dou-ui/editor'
+import {
+  blocksToHTML,
+  DouEditor,
+  editorKit,
+  type EditorDocument,
+  type PartialBlock,
+} from '@dou-ui/editor'
 import { blocksToMarkdown } from '@dou-ui/editor/markdown'
 import { computed, ref } from 'vue'
 
 const extensions = [editorKit()]
 
-const doc = ref({
+const doc = ref<EditorDocument<PartialBlock>>({
   version: 1,
   blocks: [
     { type: 'heading', props: { level: 2 }, content: '上海站活动安排' },

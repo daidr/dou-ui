@@ -35,7 +35,9 @@ function createDemo() {
   ]
 
   // 文档第一次创建时写入初始内容，通常在服务器上完成
-  fillMap(first.doc.getMap('document'), [
+  fillMap(first.doc.getMap('document'), {
+    version: 1,
+    blocks: [
     { type: 'heading', props: { level: 2 }, content: '上海周末出行计划' },
     {
       type: 'paragraph',
@@ -52,7 +54,8 @@ function createDemo() {
         { cells: ['周六下午', '外滩散步', '阿青'] },
       ],
     },
-  ])
+    ],
+  })
   Y.applyUpdate(second.doc, Y.encodeStateAsUpdate(first.doc))
 
   for (const from of clients) {

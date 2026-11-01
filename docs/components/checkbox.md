@@ -10,7 +10,7 @@
 
 ## 自定义值
 
-单独使用时，`v-model` 默认是 `true` / `false`。接口要的是别的值时，用 `checked-value` 和 `unchecked-value` 指定选中与未选中时的值。
+单独使用时，`v-model` 默认是 `true` / `false`。接口要的是别的值时，用 `checkedValue` 和 `uncheckedValue` 指定选中与未选中时的值。
 
 <DocDemo src="checkbox/values" />
 

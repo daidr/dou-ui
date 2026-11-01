@@ -124,7 +124,7 @@ downloadBlob(await dashboard.value.exportPNG({ pixelRatio: 2 }), '仪表盘.png'
 
 ## API
 
-### Dashboard Methods
+### Dashboard Exposes
 
 | 名称                  | 说明                                       |
 | --------------------- | ------------------------------------------ |

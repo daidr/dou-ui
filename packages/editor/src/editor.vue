@@ -44,6 +44,7 @@ import { writeHTML } from './core/output'
 import { parseHTML } from './core/prepare'
 import { componentMounter, vueNodeView } from './define-block'
 import { editorKit } from './extensions/editor-kit'
+import { readBlocks } from './document'
 import {
   editorKey,
   type EditorEmits,
@@ -207,7 +208,7 @@ onMounted(() => {
     kit,
     nodeViews: componentViews,
     // with collaboration the document comes from the shared document
-    blocks: kit.externalDocument ? [] : props.modelValue?.blocks,
+    blocks: kit.externalDocument ? [] : readBlocks(props.modelValue),
     editable: editable.value,
     placeholder: {
       text: () => props.placeholder ?? messages.value.placeholder,
@@ -259,7 +260,8 @@ onMounted(() => {
   instance.dom.addEventListener('blur', onBlur)
   if (props.autofocus) instance.focus()
   // blocks given without ids got them now: hand those back, so events' ids can be looked up
-  if (!kit.externalDocument && props.modelValue && lacksId(props.modelValue.blocks)) {
+  const given = kit.externalDocument ? undefined : readBlocks(props.modelValue)
+  if (given && lacksId(given)) {
     const doc: EditorDocument = { version: 1, blocks: getBlocks(instance) }
     emitted = doc
     emit('update:modelValue', doc)
@@ -293,8 +295,8 @@ watch(
   () => props.modelValue,
   (value) => {
     const current = view.value
-    if (!current || !value || kit.externalDocument || toRaw(value) === emitted) return
-    replaceBlocks(current, value.blocks)
+    if (!current || value === undefined || kit.externalDocument || toRaw(value) === emitted) return
+    replaceBlocks(current, readBlocks(value) ?? [])
   },
 )
 

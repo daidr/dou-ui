@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { readBlocks } from '../../document'
 import { checkDocument, editorKit, mention, migrateDocument } from '../../index'
 import type { EditorDocument, PartialBlock } from '../../index'
 
@@ -54,6 +55,13 @@ describe('checkDocument', () => {
       'unknown-inline',
     )
   })
+
+  it('reports a document of the wrong shape and nothing else', () => {
+    const value = [{ content: '旧' }] as unknown as EditorDocument<PartialBlock>
+    expect(checkDocument(value).map((p) => p.code)).toEqual(['shape'])
+    const bare = { version: 1 } as unknown as EditorDocument<PartialBlock>
+    expect(checkDocument(bare).map((p) => p.path)).toEqual(['blocks'])
+  })
 })
 
 describe('migrateDocument', () => {
@@ -63,10 +71,31 @@ describe('migrateDocument', () => {
       blocks: [{ content: '你好' }],
       title: '笔记',
     })
-    expect(migrateDocument('x')).toEqual({ version: 1, blocks: [] })
   })
 
-  it('throws for a newer version', () => {
+  it('throws for data that is not an object', () => {
+    for (const input of [null, undefined, 'x', [{ id: 'a' }]])
+      expect(() => migrateDocument(input)).toThrow('[@dou-ui/editor]')
+  })
+
+  it('throws for a version it does not know', () => {
     expect(() => migrateDocument({ version: 2, blocks: [] })).toThrow('version 2')
+    expect(() => migrateDocument({ version: '1' })).toThrow('version "1"')
+  })
+})
+
+describe('readBlocks', () => {
+  it('reads a wrongly shaped v-model with a warning', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const blocks = [{ content: '你好' }]
+    expect(readBlocks(undefined)).toBeUndefined()
+    expect(readBlocks({ version: 1, blocks })).toBe(blocks)
+    expect(readBlocks(blocks)).toBe(blocks)
+    expect(readBlocks({ version: 1 })).toEqual([])
+    expect(warn.mock.calls.map((call) => call[0])).toEqual([
+      expect.stringContaining('[@dou-ui/editor] the v-model is a list of blocks'),
+      expect.stringContaining('[@dou-ui/editor] the v-model has no blocks array'),
+    ])
+    warn.mockRestore()
   })
 })

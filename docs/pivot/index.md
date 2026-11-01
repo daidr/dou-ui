@@ -501,7 +501,7 @@ result.get(east, result.columns.find(['Q1']), 1) // 华东 Q1 的第 2 个值
 | `sort`     | 按某一列的数值给行组排序 | `{ valueIndex: number, column?: unknown[], order } \| null`                     | —           |
 | `totals`   | 总计行和总计列           | `{ rows?: boolean, columns?: boolean }`                                         | 都显示      |
 
-### Pivot Methods
+### Pivot Exposes
 
 | 名称                                      | 说明                                                      | 类型                                |
 | ----------------------------------------- | --------------------------------------------------------- | ----------------------------------- |

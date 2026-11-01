@@ -13,7 +13,7 @@ import {
   resolveEditorExtensions,
   type EditorExtension,
 } from '../core/extension'
-import { blocksToDoc, type PartialBlock } from '../core/model'
+import { blocksToDoc, type EditorDocument, type PartialBlock } from '../core/model'
 import { editorKit } from '../extensions/editor-kit'
 import { createBinding, syncPlugin, writeDoc, type YBlock } from './binding'
 import { cursorsPlugin, positionOf, type AwarenessLike } from './cursors'
@@ -123,18 +123,18 @@ export function collaboration(options: CollaborationOptions): EditorExtension {
 }
 
 /**
- * Write blocks into an empty map, e.g. when a document that so far was
- * saved as blocks starts being edited together. Do it once, where the
+ * Write a document into an empty map, e.g. when a document that so far was
+ * saved as JSON starts being edited together. Do it once, where the
  * document is created (often on the server): two clients filling the same
  * empty map at the same time would both add their copy.
  */
 export function fillMap(
   map: Y.Map<unknown>,
-  blocks: PartialBlock[],
+  doc: EditorDocument<PartialBlock>,
   extensions: (EditorExtension | EditorExtension[])[] = [editorKit()],
 ) {
   const schema = resolveEditorExtensions(extensions).schema
-  writeDoc(map as Y.Map<YBlock>, blocksToDoc(schema, blocks))
+  writeDoc(map as Y.Map<YBlock>, blocksToDoc(schema, doc.blocks))
 }
 
 export type { AwarenessLike }

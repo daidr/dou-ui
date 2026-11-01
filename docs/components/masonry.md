@@ -4,7 +4,7 @@
 
 ## 基础用法
 
-`items` 传入数据，默认插槽渲染每一项，参数为 `{ item, index }`。`item-key` 指定每项的唯一键，默认使用下标。`columns` 设定列数，可以按[断点](../guide/breakpoints)取值；`gap` 与 [Grid](./grid) 相同，取 `sm` / `md` / `lg` 或任意 CSS 长度，传一对值分别设置行距和列距。
+`items` 传入数据，默认插槽渲染每一项，参数为 `{ item, index }`。`itemKey` 指定每项的唯一键，默认使用下标。`columns` 设定列数，可以按[断点](../guide/breakpoints)取值；`gap` 与 [Grid](./grid) 相同，取 `sm` / `md` / `lg` 或任意 CSS 长度，传一对值分别设置行距和列距。
 
 <DocDemo src="masonry/basic" column />
 
@@ -40,7 +40,7 @@
 | --------- | ------------------------------ |
 | `default` | 一项，参数为 `{ item, index }` |
 
-### Masonry 实例方法
+### Masonry Exposes
 
 | 名称       | 说明                 | 类型         |
 | ---------- | -------------------- | ------------ |

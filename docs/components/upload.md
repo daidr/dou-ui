@@ -16,7 +16,7 @@
 
 ## 照片墙
 
-`list-type="picture-card"` 把文件排成一排方块，选择按钮是最后一块。悬停在图片上会出现预览和删除按钮，预览用 [Image](./image) 的大图查看，可以在所有图片之间切换；发送中的文件盖一层进度，失败的文件描边带上危险色。到了 `max-count` 时选择块自动隐藏。
+`list-type="picture-card"` 把文件排成一排方块，选择按钮是最后一块。悬停在图片上会出现预览和删除按钮，预览用 [Image](./image) 的大图查看，可以在所有图片之间切换；发送中的文件盖一层进度，失败的文件描边带上危险色。到了 `maxCount` 时选择块自动隐藏。
 
 <DocDemo src="upload/picture-card" column />
 
@@ -32,7 +32,7 @@
 
 ## 粘贴上传
 
-`paste-target` 让粘贴的图片或文件直接加入列表。设为 `true` 时在上传组件获得焦点后粘贴；也可以传 CSS 选择器或元素指定其他区域，传 `'document'` 则在整个页面生效。剪贴板里只有文字时不做处理。
+`pasteTarget` 让粘贴的图片或文件直接加入列表。设为 `true` 时在上传组件获得焦点后粘贴；也可以传 CSS 选择器或元素指定其他区域，传 `'document'` 则在整个页面生效。剪贴板里只有文字时不做处理。
 
 <DocDemo src="upload/paste" column />
 
@@ -44,24 +44,24 @@
 
 ## 手动发送
 
-`auto-upload` 为 `false` 时文件先停在列表里，调用 `submit()` 才发送所有未发送和失败的文件。没有传 `request` 时文件也一直停在列表里，适合放进表单和其他字段一起提交。
+`autoUpload` 为 `false` 时文件先停在列表里，调用 `submit()` 才发送所有未发送和失败的文件。没有传 `request` 时文件也一直停在列表里，适合放进表单和其他字段一起提交。
 
 <DocDemo src="upload/manual" column />
 
 ## 限制
 
 - `accept`：原生的 `accept`，拖入的文件也会按它检查。
-- `max-size`：单个文件的最大字节数。
-- `max-count`：列表最多容纳的文件数，超出的部分触发 `exceed`，列表满了按钮会禁用。
-- `before-upload`：加入列表前调用，返回 `false` 跳过这个文件，返回一个 `File` 则用它代替，比如压缩后的图片。
+- `maxSize`：单个文件的最大字节数。
+- `maxCount`：列表最多容纳的文件数，超出的部分触发 `exceed`，列表满了按钮会禁用。
+- `beforeUpload`：加入列表前调用，返回 `false` 跳过这个文件，返回一个 `File` 则用它代替，比如压缩后的图片。
 
-被 `accept` 或 `max-size` 拒绝的文件不会进入列表，而是触发 `reject(file, reason)`，`reason` 为 `'type'` 或 `'size'`，提示文案由你决定，比如配合 [Toast](./toast)。
+被 `accept` 或 `maxSize` 拒绝的文件不会进入列表，而是触发 `reject(file, reason)`，`reason` 为 `'type'` 或 `'size'`，提示文案由你决定，比如配合 [Toast](./toast)。
 
 不加 `multiple` 时一次只能有一个文件，新选的文件替换旧的。
 
 ## 自定义
 
-默认插槽替换按钮，点击里面的任何地方都会打开文件选择；`file` 插槽替换列表的一行，参数为 `{ file, remove, retry }`；`show-list` 为 `false` 时不显示列表，可以自己用 `v-model` 的数据渲染。
+默认插槽替换按钮，点击里面的任何地方都会打开文件选择；`file` 插槽替换列表的一行，参数为 `{ file, remove, retry }`；`showList` 为 `false` 时不显示列表，可以自己用 `v-model` 的数据渲染。
 
 ```vue
 <DouUpload v-model="avatar" :request="request" accept="image/*" :show-list="false">

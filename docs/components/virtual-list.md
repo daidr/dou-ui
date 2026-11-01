@@ -6,7 +6,7 @@
 
 ## 基础用法
 
-`items` 是数据，`item-size` 是每一项的高度（px），`height` 是视口高度。默认插槽拿到 `{ item, index }`。
+`items` 是数据，`itemSize` 是每一项的高度（px），`height` 是视口高度。默认插槽拿到 `{ item, index }`。
 
 <DocDemo src="virtual-list/basic" column />
 
@@ -14,7 +14,7 @@
 
 ## 高度不固定
 
-内容高度事先算不出来时（比如长短不一的文字），不传 `item-size`。还没渲染过的项按 `estimate-size` 估算，渲染后按实际高度计算，高度变化时也会更新。视口上方的项高度变化，或在列表前面插入数据时，看到的内容保持不动。
+内容高度事先算不出来时（比如长短不一的文字），不传 `itemSize`。还没渲染过的项按 `estimateSize` 估算，渲染后按实际高度计算，高度变化时也会更新。视口上方的项高度变化，或在列表前面插入数据时，看到的内容保持不动。
 
 <DocDemo src="virtual-list/measured" column />
 
@@ -30,7 +30,7 @@
 
 ## 滚动加载
 
-滚到距底部 `end-threshold`（默认 40px）以内时触发 `endReached`，追加数据后列表变长，下一次到底会再次触发。
+滚到距底部 `endThreshold`（默认 40px）以内时触发 `endReached`，追加数据后列表变长，下一次到底会再次触发。
 
 <DocDemo src="virtual-list/infinite" column />
 

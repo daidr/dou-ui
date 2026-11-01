@@ -51,7 +51,7 @@ export interface PivotProps<Row = Record<string, unknown>> {
   /** Where to sum up instead: your own worker (`createPivotWorker`) or a server. */
   engine?: PivotEngine
   /**
-   * Marks a row group and a column group, by their paths (as `cell-click`
+   * Marks a row group and a column group, by their paths (as `cellClick`
    * gives them), such as the groups a click picked; the cells where both
    * meet stand out the most.
    */
@@ -101,7 +101,7 @@ export interface PivotCellEvent<Row = Record<string, unknown>> {
 export interface PivotEmits<Row = Record<string, unknown>> {
   'update:config': [config: PivotConfig]
   'update:collapsed': [collapsed: PivotCollapsed]
-  'cell-click': [cell: PivotCellEvent<Row>]
+  cellClick: [cell: PivotCellEvent<Row>]
 }
 
 export interface PivotExpose {

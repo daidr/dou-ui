@@ -9,7 +9,8 @@ import { OnlyChild } from '../../utils/only-child'
 import { useLocale } from '../config-provider/use-config'
 import { useFormDisabled, useFormItem, useFormReadonly, useFormSize } from '../form/use-form-item'
 import { DouTag } from '../tag'
-import DouTree from '../tree/tree.vue'
+import DouTreeComponent from '../tree/tree.vue'
+import type { WithAttributes } from '../../utils/install'
 import type { TreeExpose, TreeKey, TreeNodeData } from '../tree/tree'
 import type {
   TreeSelectExpose,
@@ -18,6 +19,9 @@ import type {
   TreeSelectValue,
 } from './tree-select'
 import { useTeleport } from '../../utils/teleport'
+
+// 让模板里也能写这个组件转交的原生属性
+const DouTree = DouTreeComponent as WithAttributes<typeof DouTreeComponent, HTMLAttributes>
 
 defineOptions({ name: 'DouTreeSelect', inheritAttrs: false })
 

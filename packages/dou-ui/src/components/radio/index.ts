@@ -1,8 +1,9 @@
+import type { InputHTMLAttributes } from 'vue'
 import { withInstall } from '../../utils/install'
 import Radio from './radio.vue'
 import RadioGroup from './radio-group.vue'
 
-export const DouRadio = withInstall(Radio)
+export const DouRadio = withInstall<typeof Radio, InputHTMLAttributes>(Radio)
 export const DouRadioGroup = withInstall(RadioGroup)
 export default DouRadio
 

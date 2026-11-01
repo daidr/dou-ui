@@ -1,7 +1,8 @@
+import type { TextareaHTMLAttributes } from 'vue'
 import { withInstall } from '../../utils/install'
 import Textarea from './textarea.vue'
 
-export const DouTextarea = withInstall(Textarea)
+export const DouTextarea = withInstall<typeof Textarea, TextareaHTMLAttributes>(Textarea)
 export default DouTextarea
 
 export type * from './textarea'

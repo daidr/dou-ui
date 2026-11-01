@@ -29,7 +29,7 @@ const channels = ['网页', '小程序', '邮件'].map((value) => ({ value, labe
 
     <DouFormItem v-if="node.type === 'start'" label="渠道">
       <DouSelect
-        :model-value="node.data?.channel"
+        :model-value="node.data?.channel as string"
         :options="channels"
         @update:model-value="emit('update', { channel: $event })"
       />
@@ -38,7 +38,7 @@ const channels = ['网页', '小程序', '邮件'].map((value) => ({ value, labe
     <template v-if="node.type === 'retrieve'">
       <DouFormItem label="知识库">
         <DouSelect
-          :model-value="node.data?.library"
+          :model-value="node.data?.library as string"
           :options="libraries"
           @update:model-value="emit('update', { library: $event })"
         />
@@ -56,7 +56,7 @@ const channels = ['网页', '小程序', '邮件'].map((value) => ({ value, labe
     <template v-if="node.type === 'llm'">
       <DouFormItem label="模型">
         <DouSelect
-          :model-value="node.data?.model"
+          :model-value="node.data?.model as string"
           :options="models"
           @update:model-value="emit('update', { model: $event })"
         />
@@ -81,7 +81,7 @@ const channels = ['网页', '小程序', '邮件'].map((value) => ({ value, labe
 
     <DouFormItem v-if="node.type === 'human'" label="转给">
       <DouSelect
-        :model-value="node.data?.queue"
+        :model-value="node.data?.queue as string"
         :options="queues"
         @update:model-value="emit('update', { queue: $event })"
       />

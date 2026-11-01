@@ -95,7 +95,7 @@ export function createPivotWorker(worker: PivotWorkerLike | (() => PivotWorkerLi
       job.resolve(m)
     })
     w.addEventListener('error', (event) => {
-      broken = (event as ErrorEvent).message || '[DouPivot] worker 无法启动'
+      broken = (event as ErrorEvent).message || '[@dou-ui/pivot] worker 无法启动'
       for (const job of waiting.values()) job.resolve({ type: 'error', id: -1, message: broken })
       waiting.clear()
     })
@@ -137,7 +137,7 @@ export function createPivotWorker(worker: PivotWorkerLike | (() => PivotWorkerLi
       try {
         connect()
       } catch (error) {
-        broken = (error as Error).message || '[DouPivot] worker 无法启动'
+        broken = (error as Error).message || '[@dou-ui/pivot] worker 无法启动'
       }
       if (broken) throw new Error(broken)
       if (source !== current) {
@@ -174,7 +174,7 @@ export function createPivotWorker(worker: PivotWorkerLike | (() => PivotWorkerLi
         if (answer.type === 'skipped') throw abortError()
         await ship(source, answer, signal)
       }
-      throw new Error('[DouPivot] worker 一直缺少字段')
+      throw new Error('[@dou-ui/pivot] worker 一直缺少字段')
     },
     dispose() {
       w?.terminate?.()

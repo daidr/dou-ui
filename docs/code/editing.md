@@ -68,7 +68,7 @@ replacementFor(doc, matches[0], query) // 'const a'
 点击行号旁的箭头折叠一段代码。设置了 `language` 时，以左括号结尾的行折叠到对应的右括号之前；其他行折叠下方缩进更深的行。光标移入折叠的部分时会自动展开。
 
 - `fold(line?)`、`unfold(line?)`、`foldAll()`、`unfoldAll()` 用代码折叠和展开，`line` 是从 1 开始的行号。
-- `folds` 是当前折叠的各段的起始行号。折叠变化时触发 `fold-change` 事件，参数相同；保存下来，之后逐个传给 `fold(line)` 即可恢复。
+- `folds` 是当前折叠的各段的起始行号。折叠变化时触发 `foldChange` 事件，参数相同；保存下来，之后逐个传给 `fold(line)` 即可恢复。
 - `foldable` 设为 `false` 时不能折叠。
 
 ## 撤销与重做

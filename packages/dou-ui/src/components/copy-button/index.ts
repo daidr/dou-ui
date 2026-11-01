@@ -1,7 +1,8 @@
 import { withInstall } from '../../utils/install'
+import type { ButtonAttributes } from '../../utils/install'
 import CopyButton from './copy-button.vue'
 
-export const DouCopyButton = withInstall(CopyButton)
+export const DouCopyButton = withInstall<typeof CopyButton, ButtonAttributes>(CopyButton)
 export default DouCopyButton
 
 export type * from './copy-button'

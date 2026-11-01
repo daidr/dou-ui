@@ -61,7 +61,7 @@ export interface DashboardEmits {
   'update:filters': [filters: DashboardFilters]
   /** After every change, with the steps that made it and those that undo it. */
   change: [transaction: DashboardTransaction]
-  'breakpoint-change': [breakpoint: string]
+  breakpointChange: [breakpoint: string]
 }
 
 export interface DashboardAddOptions {

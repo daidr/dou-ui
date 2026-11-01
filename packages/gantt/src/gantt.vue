@@ -1513,7 +1513,7 @@ function warnCanLink() {
   if (process.env.NODE_ENV === 'production' || canLinkWarned) return
   canLinkWarned = true
   console.warn(
-    '[DouGantt] canLink returned undefined, so the link is refused. Return true to allow it.',
+    '[@dou-ui/gantt] canLink returned undefined, so the link is refused. Return true to allow it.',
   )
 }
 

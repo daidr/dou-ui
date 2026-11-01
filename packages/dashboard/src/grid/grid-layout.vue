@@ -121,7 +121,7 @@ const settled = computed<readonly GridItem[]>(() => {
 })
 watch(
   () => tier.value.name,
-  (name, old) => old !== undefined && emit('breakpoint-change', name),
+  (name, old) => old !== undefined && emit('breakpointChange', name),
 )
 /** The layout while a move or resize is under way; shown instead of `settled`. */
 const preview = shallowRef<readonly GridItem[] | null>(null)
@@ -339,7 +339,7 @@ function finish(keep: boolean) {
   settle()
   const reason = s.source === 'keyboard' ? 'keyboard' : s.kind
   const changed = keep && commit(next, s, reason)
-  emit('drag-end', { id: s.id, kind: s.kind, cancelled: !keep || (s.kind === 'drop' && !changed) })
+  emit('dragEnd', { id: s.id, kind: s.kind, cancelled: !keep || (s.kind === 'drop' && !changed) })
   // the keyboard hears every outcome; the pointer only a change, or a drag
   // undone (a new item that wasn't dropped has nowhere to go back to)
   if (s.source !== 'keyboard' && (keep || s.kind === 'drop') && !changed) return
@@ -548,7 +548,7 @@ function begin() {
   }
   window.addEventListener('keydown', onWindowKeydown, true)
   window.addEventListener('scroll', onScroll, { capture: true, passive: true })
-  emit('drag-start', { id: p.id, kind: p.kind })
+  emit('dragStart', { id: p.id, kind: p.kind })
   frame = requestAnimationFrame(autoscroll)
   track()
 }
@@ -692,7 +692,7 @@ function onKeyDown(event: KeyboardEvent) {
     if (item.locked) return say(format(messages.value.locked, { item: labelOf(item) }))
     session.value = { id, kind: 'move', source: 'keyboard', base: settled.value, item }
     preview.value = settled.value
-    emit('drag-start', { id, kind: 'move' })
+    emit('dragStart', { id, kind: 'move' })
     say(
       format(messages.value.grabbed, {
         item: labelOf(item),

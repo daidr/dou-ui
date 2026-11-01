@@ -469,6 +469,17 @@ describe('writeXlsx', () => {
     expect(workbook).toContain("'R1C1'!$A$1:$A$3")
   })
 
+  it('quotes references to sheets whose names read as cells', async () => {
+    const { sheet } = await parts({
+      sheets: [
+        { name: 'R1', cells: [[2]] },
+        { name: 'S', cells: [['=R1!A1*2', '=SUM(R1!$A$1:A2)']] },
+      ],
+    })
+    expect(sheet(2)).toContain("<f>'R1'!A1*2</f><v>4</v>")
+    expect(sheet(2)).toContain("<f>SUM('R1'!$A$1:A2)</f>")
+  })
+
   it('refuses a workbook without sheets', async () => {
     await expect(writeXlsx(createFileSource({ sheets: [] }))).rejects.toThrow(
       '[@dou-ui/sheet-xlsx] a workbook needs at least one sheet',

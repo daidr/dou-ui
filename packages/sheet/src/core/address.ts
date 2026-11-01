@@ -318,13 +318,14 @@ export function renameReferences(formula: string, from: string, to: string) {
 /**
  * A formula with references to several sheets renamed at once, by old
  * name: `{ 预算: '预算 (2)' }`. Names that swap or chain are each renamed
- * once.
+ * once. A name mapped to itself has its references written again, quoted
+ * as `quoteSheet` quotes it.
  */
 export function renameReferencesAll(formula: string, names: ReadonlyMap<string, string>) {
   if (!names.size) return formula
   return eachRef(formula, (named, a, b, text) => {
     const to = named == null ? undefined : names.get(named)
-    return to != null && to !== named ? writeRef(to, a, b, a === b) : text
+    return to != null ? writeRef(to, a, b, a === b) : text
   })
 }
 

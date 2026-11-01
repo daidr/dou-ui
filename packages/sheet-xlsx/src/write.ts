@@ -263,10 +263,11 @@ export async function writeXlsx(
   const keepFormulas = !selection && options.formulas !== false
   const { colWidth, rowHeight } = source
   const names = sheetNames(source.sheets.map((s) => s.data.name))
-  // sheets whose names changed: formulas referring to them follow
+  // sheets whose names changed, or read as a cell and need quoting: formulas referring to them follow
   const renamed = new Map<string, string>()
   for (const [i, { data }] of source.sheets.entries())
-    if (names[i] !== data.name) renamed.set(data.name, names[i]!)
+    if (names[i] !== data.name || quoteSheet(data.name).startsWith("'"))
+      renamed.set(data.name, names[i]!)
   const rename = (formula: string) => renameReferencesAll(formula, renamed)
   const entries: ZipEntry[] = []
   const sheetFiles: { name: string; hidden: boolean; filter?: string }[] = []

@@ -44,6 +44,8 @@ import {
   type ChartLegendPlacement,
   type ChartTickValue,
   type FunnelLayout,
+  type LegendBox,
+  type LegendItem,
   type LegendName,
   type RadarLayout,
   type TickLabel,
@@ -74,6 +76,19 @@ import { nearestSpoke, spokeAngle } from './core/radar'
 import { FUNNEL_BAR } from './core/funnel'
 import { isTotal } from './core/waterfall'
 import { boxes } from './core/box'
+import {
+  buildTree,
+  drawSunburst,
+  drawTreemap,
+  hasHeader,
+  layoutSunburst,
+  layoutTreemap,
+  sunburstAt,
+  treemapAt,
+  treePath,
+  TREE_HEADER,
+  type TreeNode,
+} from './core/tree'
 import { baseline, categoryScale, linearScale, logScale, type Scale } from './core/scale'
 import { escapeXml, isSvg, num, paintAttribute, SvgPainter } from './core/svg'
 import type { ChartColors, ChartHit, ChartSeries, ChartValueAxis, ChartView } from './core/series'
@@ -99,6 +114,7 @@ import {
   type SeriesPart,
   type RangePart,
   type TooltipPart,
+  type TreePart,
   type ZoomPart,
 } from './context'
 import { format, useChartMessages } from './locale'
@@ -173,6 +189,7 @@ const zoomParts = shallowRef<ZoomPart[]>([])
 const brushParts = shallowRef<BrushPart[]>([])
 const rangeParts = shallowRef<RangePart[]>([])
 const markerParts = shallowRef<MarkerPart[]>([])
+const treeParts = shallowRef<TreePart[]>([])
 
 function inPageOrder<T extends ChartPart<unknown>>(parts: T[]): T[] {
   // oxlint-disable-next-line unicorn/no-array-sort -- sorts a copy
@@ -199,6 +216,7 @@ provide(chartKey, {
   addBrush: adder(brushParts),
   addRange: adder(rangeParts),
   addMarker: adder(markerParts),
+  addTree: adder(treeParts),
   data: () => props.data,
   locale: () => locale.value.name,
 })
@@ -464,6 +482,214 @@ if (process.env.NODE_ENV !== 'production')
       )
   })
 
+/* a treemap or a sunburst: a tree, drawn alone */
+
+const tree = computed(() => (!pie.value && treeParts.value[0]) || null)
+
+/** The tree read from the part's rows, its nodes parents first. */
+const treeData = computed(() => {
+  const part = tree.value
+  if (!part) return null
+  const p = part.props
+  const data = toRaw(p.data ?? props.data)
+  return buildTree(Array.isArray(data) ? (data as ChartRow[]) : [], {
+    label: p.label ?? 'name',
+    value: p.value ?? 'value',
+    children: p.children ?? 'children',
+  })
+})
+
+/** Room at the edges of a tree, in px. */
+const TREE_EDGE = 4
+
+const treeLayout = computed(() => {
+  const width = size.width.value
+  const height = size.height.value
+  const part = tree.value
+  const data = treeData.value
+  if (!width || !height || !part || !data) return null
+  void themeVersion.value
+  const plot = {
+    x: TREE_EDGE,
+    y: TREE_EDGE,
+    width: Math.max(0, width - TREE_EDGE * 2),
+    height: Math.max(0, height - TREE_EDGE * 2),
+  }
+  const cx = width / 2
+  const cy = height / 2
+  const radius = Math.max(0, Math.min(plot.width, plot.height) / 2)
+  const inner = radius * Math.min(0.9, Math.max(0, part.props.innerRadius ?? 0.3))
+  if (part.shape === 'treemap') layoutTreemap(data.root, plot)
+  else layoutSunburst(data.root, inner, radius)
+  return {
+    width,
+    height,
+    plot,
+    cx,
+    cy,
+    radius,
+    inner,
+    // laid out again: a new object, so what is drawn from it follows
+    nodes: [...data.nodes],
+    legend: [] as LegendItem[],
+    legendBox: undefined as LegendBox | undefined,
+  }
+})
+
+/**
+ * Each node's color: its own, else its parent's, the top level taking the
+ * palette's. A sunburst's rings pale outwards, towards the surface.
+ */
+const treeColors = computed(() => {
+  void themeVersion.value
+  const part = tree.value
+  const data = treeData.value
+  if (!part || !data) return []
+  const palette = ownPalette.value
+  const own = part.props.color
+  const css: string[] = []
+  for (const node of data.nodes) {
+    if (node.depth === 0) {
+      css.push('')
+      continue
+    }
+    const given = own && node.row ? own(node.row, node.depth) : undefined
+    const base = given
+      ? toneOrColor(given)
+      : node.depth > 1
+        ? css[node.parent!.index]!
+        : palette
+          ? toneOrColor(palette[node.group % palette.length]!)
+          : `var(--dou-color-chart-${(node.group % SLICE_COLORS) + 2})`
+    css.push(base)
+  }
+  return data.nodes.map((node, k) => {
+    if (node.depth === 0) return ''
+    const shade = part.shape === 'sunburst' && node.depth > 1
+    const pale = Math.max(40, 100 - (node.depth - 1) * 24)
+    return resolveColor(
+      shade ? `color-mix(in oklab, ${css[k]} ${pale}%, var(--dou-chart-surface))` : css[k]!,
+    )
+  })
+})
+
+/** The value as text, and its share of the whole. */
+function treeValue(node: TreeNode) {
+  const root = treeData.value?.root
+  return format(messages.value.share, {
+    value: numberFormatFull(locale.value.name)(node.value),
+    share: percent.value.format(root && root.value > 0 ? node.value / root.value : 0),
+  })
+}
+
+/** The tree's names in it, where they fit: a leaf's in its middle, a group's in its header. */
+const treeLabels = computed(() => {
+  const l = treeLayout.value
+  const part = tree.value
+  const out: Array<PlacedDataLabel & { ink?: string; width?: number }> = []
+  if (!l || !part || !part.props.labels || empty.value) return out
+  const colorsOf = treeColors.value
+  for (const node of l.nodes) {
+    if (node.depth === 0 || !node.name) continue
+    const width = measure(node.name)
+    if (part.shape === 'treemap') {
+      const w = node.x1 - node.x0
+      const h = node.y1 - node.y0
+      if (node.children.length) {
+        if (!hasHeader(node) || width > w - 12) continue
+        out.push({
+          key: `node:${node.index}`,
+          series: -1,
+          text: node.name,
+          left: node.x0 + 6,
+          top: node.y0 + (TREE_HEADER - DATA_LABEL) / 2,
+          align: 'start',
+          ink: 'var(--dou-color-text-secondary)',
+        })
+      } else if (width <= w - 12 && h >= DATA_LABEL + 8) {
+        out.push({
+          key: `node:${node.index}`,
+          series: -1,
+          text: node.name,
+          left: node.x0 + 6,
+          top: node.y0 + 6,
+          align: 'start',
+          on: colorsOf[node.index],
+          ink: inkOn(colorsOf[node.index]!),
+        })
+      }
+      continue
+    }
+    // a sunburst: across the middle of its arc, where the arc is long enough
+    const r = (node.y0 + node.y1) / 2
+    const arc = (node.x1 - node.x0) * r
+    if (arc < width + 8 || node.y1 - node.y0 < DATA_LABEL + 4) continue
+    const middle = (node.x0 + node.x1) / 2
+    out.push({
+      key: `node:${node.index}`,
+      series: -1,
+      text: node.name,
+      left: l.cx + Math.sin(middle) * r,
+      top: l.cy - Math.cos(middle) * r - DATA_LABEL / 2,
+      align: 'middle',
+      on: colorsOf[node.index],
+      ink: inkOn(colorsOf[node.index]!),
+    })
+  }
+  return out
+})
+
+/** The node the tooltip shows, its path as the title. */
+function treeTip(index: number, pointer: [number, number] | null): Tip | null {
+  const l = treeLayout.value
+  const node = treeData.value?.nodes[index]
+  if (!l || !node || node.depth === 0) return null
+  const anchor: [number, number] =
+    tree.value?.shape === 'sunburst'
+      ? [
+          l.cx + Math.sin((node.x0 + node.x1) / 2) * ((node.y0 + node.y1) / 2),
+          l.cy - Math.cos((node.x0 + node.x1) / 2) * ((node.y0 + node.y1) / 2),
+        ]
+      : [(node.x0 + node.x1) / 2, (node.y0 + node.y1) / 2]
+  return {
+    x: node.name,
+    title: treePath(node).join(' / '),
+    items: [
+      {
+        name: tree.value?.props.name ?? messages.value.tableValue,
+        text: treeValue(node),
+        value: node.value,
+        color: treeColors.value[node.index],
+        row: node.row ?? undefined,
+      },
+    ],
+    anchor: pointer ?? anchor,
+    marks: [],
+  }
+}
+
+/** Draws the tree, as it comes in: a treemap fades in, a sunburst sweeps round. */
+function paintTree(painter: Painter, t: number, still = false) {
+  const l = treeLayout.value!
+  const a = still ? null : active.value
+  const focus = a?.type === 'slice' ? a.slice : -1
+  if (tree.value?.shape === 'treemap')
+    drawTreemap(painter, l.nodes, treeColors.value, {
+      surface: colors.value.surface,
+      ring: resolveColor('var(--dou-color-text)'),
+      focus,
+      t,
+    })
+  else
+    drawSunburst(painter, l.nodes, treeColors.value, {
+      cx: l.cx,
+      cy: l.cy,
+      surface: colors.value.surface,
+      focus,
+      sweep: t,
+    })
+}
+
 /* a radar: series round a center, without axes */
 
 /** The chart is a funnel: its first funnel's stages, one under another. */
@@ -487,7 +713,11 @@ if (process.env.NODE_ENV !== 'production')
 
 /** No series has a value to show. */
 const empty = computed(() =>
-  pie.value ? !shownSlices.value.length : !model.value.y.y && !model.value.y.y2,
+  pie.value
+    ? !shownSlices.value.length
+    : tree.value
+      ? !(treeData.value && treeData.value.root.value > 0)
+      : !model.value.y.y && !model.value.y.y2,
 )
 
 // a number axis of what look like times in ms: most likely meant as a time axis
@@ -613,6 +843,7 @@ if (process.env.NODE_ENV !== 'production')
 const legendEntries = computed(() => {
   if (empty.value) return []
   void themeVersion.value
+  if (tree.value) return []
   if (pie.value) {
     if (pie.value.gauge || !(props.legend ?? slices.value.length > 1)) return []
     const last = shownSlices.value.length === 1
@@ -887,7 +1118,7 @@ const legendPlacement = computed<ChartLegendPlacement>(() => {
 const layout = computed(() => {
   const width = size.width.value
   const height = size.height.value
-  if (!width || !height || pie.value || radar.value || funnel.value) return null
+  if (!width || !height || pie.value || tree.value || radar.value || funnel.value) return null
   void themeVersion.value
   return layoutChart({
     model: model.value,
@@ -1327,6 +1558,7 @@ const labelsShown = ref(false)
 /** The data labels, placed: the ends of lines first, then the bars', then the points'. */
 const dataLabels = computed<Array<PlacedDataLabel & { ink?: string; width?: number }>>(() => {
   if (pie.value) return pieLabels.value.labels
+  if (tree.value) return treeLabels.value
   const l = layout.value
   if (!l || empty.value) return []
   void themeVersion.value
@@ -1448,7 +1680,9 @@ const interactive = computed(
 const trigger = computed(
   () =>
     tooltipPart.value?.props.trigger ??
-    (pie.value || series.value.some((s) => s.kind.tooltip === 'item') ? 'item' : 'axis'),
+    (pie.value || tree.value || series.value.some((s) => s.kind.tooltip === 'item')
+      ? 'item'
+      : 'axis'),
 )
 
 /** An x (with every series at it), one point of a series, or a slice. */
@@ -1470,6 +1704,18 @@ const active = shallowRef<Active | null>(null)
 
 /** What is under `(px, py)`, in px from the chart's top left. */
 function hitAt(px: number, py: number): Target | null {
+  const tl = treeLayout.value
+  if (tl && treeData.value) {
+    const root = treeData.value.root
+    let node: TreeNode | null
+    if (tree.value?.shape === 'treemap') node = treemapAt(root, px, py)
+    else {
+      const r = Math.hypot(px - tl.cx, py - tl.cy)
+      node =
+        r < tl.inner || r > tl.radius ? null : sunburstAt(root, angleAt(tl.cx, tl.cy, px, py), r)
+    }
+    return node ? { type: 'slice', slice: node.index } : null
+  }
   const p = pieLayout.value
   if (p) {
     const r = Math.hypot(px - p.cx, py - p.cy)
@@ -1619,6 +1865,7 @@ const tip = computed<Tip | null>(() => {
 
 function tipOf(a: Active | null): Tip | null {
   if (!a) return null
+  if (a.type === 'slice' && tree.value) return treeTip(a.slice, a.pointer)
   if (a.type === 'slice') {
     const p = pieLayout.value
     const slice = slices.value[a.slice]
@@ -2669,6 +2916,13 @@ function stepTo(at: number, step: number, n: number): number {
 /** The next x, point or slice `step` along (±Infinity for the ends). */
 function moveAlong(step: number): Target | null {
   const a = active.value
+  // a tree: its nodes in order, each group before what is in it
+  if (tree.value) {
+    const count = (treeData.value?.nodes.length ?? 1) - 1
+    if (count < 1) return null
+    const at = a?.type === 'slice' ? a.slice - 1 : -1
+    return { type: 'slice', slice: stepTo(at, step, count) + 1 }
+  }
   if (pie.value) {
     const shown = slices.value.flatMap((slice, k) => (slice.hidden ? [] : [k]))
     if (!shown.length) return null
@@ -2788,7 +3042,8 @@ const live = computed(() => {
 const pointer: PointerState = {
   tip,
   size: computed(() => {
-    const l = layout.value ?? pieLayout.value ?? radarLayout.value ?? funnelLayout.value
+    const l =
+      layout.value ?? pieLayout.value ?? treeLayout.value ?? radarLayout.value ?? funnelLayout.value
     return l && { width: l.width, height: l.height }
   }),
   content: computed(() => tooltipPart.value?.content()),
@@ -2824,6 +3079,10 @@ watch(
     pie.value && active.value,
     radarLayout.value,
     funnelLayout.value,
+    treeLayout.value,
+    treeColors.value,
+    tree.value && { ...tree.value.props },
+    tree.value && active.value,
     radar.value && active.value,
     dimmed.value,
   ],
@@ -3029,7 +3288,8 @@ function shownSlicesAt(t: number): PieSlice[] {
 
 function draw() {
   const canvas = canvasRef.value
-  const l = layout.value ?? pieLayout.value ?? radarLayout.value ?? funnelLayout.value
+  const l =
+    layout.value ?? pieLayout.value ?? treeLayout.value ?? radarLayout.value ?? funnelLayout.value
   if (!canvas || !l) return
   if (!onScreen) {
     missed = true
@@ -3059,6 +3319,7 @@ function draw() {
   const t = easeOut(done)
   const entering = motion?.enter ? t : 1
   if (pieLayout.value) paintPie(ctx, t, entering)
+  else if (treeLayout.value) paintTree(ctx, entering)
   else if (radarLayout.value) paintRadar(ctx, dpr, t)
   else if (funnelLayout.value) paintFunnel(ctx, dpr, t)
   else paint(ctx, dpr, t, entering)
@@ -3554,6 +3815,26 @@ const label = computed(() => {
   const name = locale.value.name
   const m0 = model.value
   if (empty.value) return format(m.summary, { chart: m.chart, series: m.empty })
+  const td = tree.value && treeData.value
+  if (td) {
+    const value = numberFormatFull(name)
+    const list = td.root.children
+      .map((node) =>
+        format(m.slice, {
+          label: node.name,
+          value: value(node.value),
+          share: percent.value.format(node.value / td.root.value),
+        }),
+      )
+      .join(m.listSeparator)
+    const title = tree.value!.props.name
+    return withKeys(
+      format(m.summary, {
+        chart: m.chart,
+        series: title ? format(m.pie, { name: title, slices: list }) : list,
+      }),
+    )
+  }
   const gauge = pie.value?.gauge?.()
   if (gauge) {
     const text = numberFormatFull(name)
@@ -3674,6 +3955,20 @@ const TABLE_ROWS = 1000
 const tableCells = computed<{ head: string[]; rows: string[][] }>(() => {
   if (!props.table || empty.value) return { head: [], rows: [] }
   const m = messages.value
+  const td = tree.value && treeData.value
+  if (td) {
+    const value = numberFormatFull(locale.value.name)
+    return {
+      head: ['', tree.value!.props.name ?? m.tableValue, m.tableShare],
+      rows: td.nodes
+        .filter((node) => node.depth > 0)
+        .map((node) => [
+          treePath(node).join(' / '),
+          value(node.value),
+          percent.value.format(node.value / td.root.value),
+        ]),
+    }
+  }
   const gauge = pie.value?.gauge?.()
   if (gauge) return { head: [pie.value!.props.name ?? m.tableValue], rows: [[gauge.text]] }
   if (pie.value) {
@@ -3818,7 +4113,8 @@ const labels = computed(() => {
 })
 
 const legend = computed(() => {
-  const l = layout.value ?? pieLayout.value ?? radarLayout.value ?? funnelLayout.value
+  const l =
+    layout.value ?? pieLayout.value ?? treeLayout.value ?? radarLayout.value ?? funnelLayout.value
   if (!l) return []
   return l.legend.map((item) => ({ ...item, ...legendEntries.value[item.index]! }))
 })
@@ -3833,7 +4129,8 @@ const titles = computed(() => {
 
 /** The size of what is drawn: a chart with axes, or a pie. */
 const frame = computed(
-  () => layout.value ?? pieLayout.value ?? radarLayout.value ?? funnelLayout.value,
+  () =>
+    layout.value ?? pieLayout.value ?? treeLayout.value ?? radarLayout.value ?? funnelLayout.value,
 )
 
 const overlay: OverlayState = {
@@ -3843,9 +4140,19 @@ const overlay: OverlayState = {
   titles,
   legend,
   legendBox: computed(
-    () => (layout.value ?? pieLayout.value ?? radarLayout.value ?? funnelLayout.value)?.legendBox,
+    () =>
+      (
+        layout.value ??
+        pieLayout.value ??
+        treeLayout.value ??
+        radarLayout.value ??
+        funnelLayout.value
+      )?.legendBox,
   ),
   hole: computed(() => {
+    const tl = treeLayout.value
+    if (tl && tree.value?.shape === 'sunburst' && tl.inner > 0 && !empty.value && !fromServer.value)
+      return { left: tl.cx, top: tl.cy, width: tl.inner * 2 * 0.8 }
     const l = pieLayout.value
     if (!l || empty.value || fromServer.value || !(holeRatio.value > 0)) return null
     // a half donut opening downward: what goes in it sits on its flat edge
@@ -3858,7 +4165,7 @@ const overlay: OverlayState = {
     }
   }),
   // the pie's default slot
-  center: () => pie.value?.center(),
+  center: () => pie.value?.center() ?? tree.value?.center?.(),
   toggle,
   isolate,
   hint: computed(() => messages.value.legendHint),
@@ -4253,6 +4560,10 @@ function drawSvg(
         anchor: 'middle',
       }),
     )
+  } else if (treeLayout.value) {
+    paintTree(svg, 1, true)
+    const center = root?.querySelector(`.${ns.e('center')}`)
+    if (center && root) texts.push(textsIn(center, root.getBoundingClientRect(), color))
   } else if (pieLayout.value) {
     paintPie(svg, 1, 1, true)
     const center = root?.querySelector(`.${ns.e('center')}`)

@@ -391,6 +391,40 @@ export interface ChartPieProps {
   rose?: boolean
 }
 
+/** What a treemap and a sunburst take: a tree of nested rows. */
+export interface ChartTreeProps {
+  /** The top level of the tree: rows, each with its children; defaults to the chart's `data`. */
+  data?: ChartRow[]
+  /** Each node's name. */
+  label?: ChartAccessor
+  /** Each leaf's value; a node with children is the sum of theirs. */
+  value?: ChartAccessor
+  /** Each node's children, an array of rows. */
+  children?: ChartAccessor
+  /** What the whole is, read out first. */
+  name?: string
+  /**
+   * Each node's color, as a function of its row and level (1 for the top):
+   * a CSS color or a tone; `undefined` takes its parent's, and the top
+   * level the palette's.
+   */
+  color?: (row: ChartRow, depth: number) => string | undefined
+  /** Writes each node's name in it, where it fits. */
+  labels?: boolean
+}
+
+export type ChartTreemapProps = ChartTreeProps
+
+export interface ChartSunburstProps extends ChartTreeProps {
+  /** The hole in the middle as a share of the radius. */
+  innerRadius?: number
+}
+
+export interface ChartSunburstSlots {
+  /** What goes in the hole in the middle. */
+  default?: () => any
+}
+
 export interface ChartGaugeProps {
   /** The value shown. */
   value: number

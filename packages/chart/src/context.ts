@@ -16,6 +16,7 @@ import type {
   ChartInterval,
   ChartMarkerProps,
   ChartPieProps,
+  ChartSunburstProps,
   ChartTooltipProps,
   ChartTooltipSlots,
   ChartZoomProps,
@@ -44,6 +45,13 @@ export interface PiePart extends ChartPart<ChartPieProps> {
    * the value, its range and its text. It has no legend nor tooltip.
    */
   gauge?: () => { value: number; min: number; max: number; text: string }
+}
+
+export interface TreePart extends ChartPart<ChartSunburstProps> {
+  /** A treemap fills a rectangle; a sunburst draws rings round a center. */
+  shape: 'treemap' | 'sunburst'
+  /** What goes in a sunburst's hole. */
+  center?: () => VNodeChild
 }
 
 export interface TooltipPart extends ChartPart<ChartTooltipProps> {
@@ -81,6 +89,7 @@ export interface ChartRegistry {
   addBrush(part: BrushPart): () => void
   addRange(part: RangePart): () => void
   addMarker(part: MarkerPart): () => void
+  addTree(part: TreePart): () => void
   /** The chart's `data`, for a part that works its rows out from it (a histogram's bins). */
   data(): ChartData | undefined
   /** The chart's locale, for numbers a part writes itself (a gauge's value). */

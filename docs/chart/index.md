@@ -17,11 +17,16 @@ bun add dou-ui @dou-ui/chart
 引入样式，再注册组件：
 
 ```ts
-import 'dou-ui/style.css'
-import '@dou-ui/chart/style.css'
-import { DouChart, DouChartAxis, DouChartBar, DouChartLine } from '@dou-ui/chart'
+import "dou-ui/style.css";
+import "@dou-ui/chart/style.css";
+import {
+  DouChart,
+  DouChartAxis,
+  DouChartBar,
+  DouChartLine,
+} from "@dou-ui/chart";
 
-app.use(DouChart).use(DouChartAxis).use(DouChartLine).use(DouChartBar)
+app.use(DouChart).use(DouChartAxis).use(DouChartLine).use(DouChartBar);
 ```
 
 用到哪种系列就注册哪个组件：`DouChartLine`、`DouChartArea`、`DouChartBar`、`DouChartScatter`、`DouChartPie`。
@@ -212,6 +217,24 @@ app.use(DouChart).use(DouChartAxis).use(DouChartLine).use(DouChartBar)
 
 一个图表里只画一个饼图，饼图和其他系列不能放在同一个图表里。读屏会读出每一块的名称、值和占比，`name` 会读在最前面。
 
+## 矩形树图
+
+`DouChartTreemap` 把一个整体按层级分成大小不同的矩形，矩形的面积和值成正比，适合看一个总数由哪些部分组成、哪些部分最大。数据是嵌套的行：每一行有名称和值，或者有自己的子行，有子行的节点的值是子行之和，小于等于 0 的值不画。`label`、`value`、`children` 分别指定名称、值和子行的字段，默认是 `name`、`value` 和 `children`。
+
+<DocDemo src="chart/treemap" />
+
+每个矩形尽量接近正方形，大的排在前面。第一层的节点依次使用色板里的彩色，下面的节点和它同色；有子行的节点画成浅色的底，顶部写着它的名称，子节点排在下面。放得下的矩形里写着名称，`labels` 设为 `false` 可以去掉。提示框显示从第一层到这个节点的路径、值和占整体的比例。
+
+## 旭日图
+
+`DouChartSunburst` 用一圈圈的圆环画出同样的层级数据：第一层在最里面的一圈，每往下一层就往外一圈，每个节点在它父节点的那段弧里占的比例和值成正比。越往外的圈颜色越浅。数据的写法和矩形树图相同。
+
+<DocDemo src="chart/sunburst" />
+
+`inner-radius` 是中间空洞占半径的比例，默认 `0.3`，默认插槽的内容显示在空洞中间。悬停在一个节点上时，不在它所在分支上的节点会变淡。
+
+矩形树图和旭日图没有图例，各自单独画在一个图表里。用方向键可以按顺序查看每个节点，读屏会读出第一层每个节点的名称、值和占比，数据表列出每个节点的路径、值和占比。
+
 ## 仪表盘
 
 `DouChartGauge` 在一段弧形的轨道上显示一个值，中间写出这个值和 `name`。`min` 和 `max` 是轨道两端的值，默认是 `0` 和 `100`，超出范围的值画到轨道的端点为止，中间仍然写出原值。`format` 决定值的写法，比如加上百分号。
@@ -311,17 +334,17 @@ app.use(DouChart).use(DouChartAxis).use(DouChartLine).use(DouChartBar)
 
 ```ts
 defineChartSeries({
-  type: 'lollipop', // 组件名为 DouChartLollipop，图例里的类名为 is-lollipop
+  type: "lollipop", // 组件名为 DouChartLollipop，图例里的类名为 is-lollipop
   zero: true, // 数值轴包含 0
   stackable: false, // 是否支持 stack
   band: false, // 是否像柱子一样在每个位置并排分配空间
   inset: (series) => 0, // 每个点周围需要留出的像素，比如气泡的半径
-  tooltip: 'axis', // 提示框按位置（'axis'）还是按单个点（'item'）显示
+  tooltip: "axis", // 提示框按位置（'axis'）还是按单个点（'item'）显示
   hit: undefined, // 按单个点显示时，找出指针下的点，默认找 12px 内最近的点
   prepare: undefined, // 数据不再变化、浏览器空闲时提前做的准备，返回值放在 series.prepared
   props: { radius: { type: Number, default: 5 } }, // 自己的属性
   draw(painter, series, view) {},
-})
+});
 ```
 
 `draw` 收到三个参数：
@@ -336,36 +359,36 @@ defineChartSeries({
 
 ```ts
 defineChartSeries({
-  type: 'dots',
-  tooltip: 'item',
+  type: "dots",
+  tooltip: "item",
   // 按 x 取整分桶：每个整数位置有哪些点
   prepare(series) {
-    const buckets = new Map<number, number[]>()
+    const buckets = new Map<number, number[]>();
     series.x.values.forEach((x, i) => {
-      const key = Math.round(x)
-      buckets.set(key, [...(buckets.get(key) ?? []), i])
-    })
-    return buckets
+      const key = Math.round(x);
+      buckets.set(key, [...(buckets.get(key) ?? []), i]);
+    });
+    return buckets;
   },
   hit(series, view, px, py) {
-    const buckets = series.prepared as Map<number, number[]> | undefined
-    const x = Math.round(view.x.invert(px))
+    const buckets = series.prepared as Map<number, number[]> | undefined;
+    const x = Math.round(view.x.invert(px));
     // 还没有索引时逐个查找
     const candidates = buckets
       ? [x - 1, x, x + 1].flatMap((key) => buckets.get(key) ?? [])
-      : series.x.values.map((_, i) => i)
-    let best = null
+      : series.x.values.map((_, i) => i);
+    let best = null;
     for (const i of candidates) {
-      const [left, top] = view.point(series.x.values[i], series.top[i])
-      const d = Math.hypot(left - px, top - py)
-      if (d <= 12 && (!best || d < best.d)) best = { index: i, radius: 4, d }
+      const [left, top] = view.point(series.x.values[i], series.top[i]);
+      const d = Math.hypot(left - px, top - py);
+      if (d <= 12 && (!best || d < best.d)) best = { index: i, radius: 4, d };
     }
-    return best
+    return best;
   },
   draw(painter, series, view) {
     /* … */
   },
-})
+});
 ```
 
 ## 提示框
@@ -460,9 +483,13 @@ defineChartSeries({
 
 ```js
 const data = shallowRef({
-  time: new Float64Array([/* … */]),
-  value: new Float64Array([/* … */]),
-})
+  time: new Float64Array([
+    /* … */
+  ]),
+  value: new Float64Array([
+    /* … */
+  ]),
+});
 ```
 
 `x`、`y` 是字段名时直接读取那一列；是函数时，函数拿到的行是由各列拼成的对象。提示框、点击和框选给出的行也是这样拼成的对象，同一行每次都是同一个对象。
@@ -721,6 +748,25 @@ SVG 和画布用同一套绘制代码，两者画出的图形一致。导出的�
 | 名称      | 说明                       |
 | --------- | -------------------------- |
 | `default` | 显示在环形图空洞中间的内容 |
+
+### Treemap / Sunburst Props
+
+| 名称           | 说明                                                                | 类型                                          | 默认值        |
+| -------------- | ------------------------------------------------------------------- | --------------------------------------------- | ------------- |
+| `data`         | 第一层的行，每一行可以有子行                                        | `object[]`                                    | 图表的 `data` |
+| `label`        | 每个节点的名称                                                      | `string \| (row, index: number) => unknown`   | `'name'`      |
+| `value`        | 每个叶子节点的值                                                    | `string \| (row, index: number) => unknown`   | `'value'`     |
+| `children`     | 每个节点的子行                                                      | `string \| (row, index: number) => unknown`   | `'children'`  |
+| `name`         | 整体的名称，读屏时读在最前面                                        | `string`                                      | —             |
+| `color`        | 每个节点的颜色：CSS 颜色或语气色，返回 `undefined` 时用父节点的颜色 | `(row, depth: number) => string \| undefined` | 色板的彩色    |
+| `labels`       | 是否在放得下的节点里写出名称                                        | `boolean`                                     | `true`        |
+| `inner-radius` | 仅旭日图：中间空洞占半径的比例                                      | `number`                                      | `0.3`         |
+
+### Sunburst Slots
+
+| 名称      | 说明                   |
+| --------- | ---------------------- |
+| `default` | 显示在中间空洞里的内容 |
 
 ### Gauge Props
 

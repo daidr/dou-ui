@@ -5,7 +5,7 @@ const reply = '可以按"背景、目标、方案、排期"四段来写，每段
 </script>
 
 <template>
-  <DouChatBubble variant="plain" :content="reply">
+  <DouChatBubble variant="ghost" :content="reply">
     <template #avatar>
       <DouAvatar><SparklesIcon /></DouAvatar>
     </template>

@@ -28,6 +28,9 @@ export interface Locale {
     decimalSeparator: string
   }
   tabs: {
+    /** Buttons that scroll a row of tabs too long to fit. */
+    scrollPrev: string
+    scrollNext: string
     /** Hint on the close button of a tab. */
     close: string
     /** The button that adds a tab. */
@@ -49,6 +52,8 @@ export interface Locale {
     increase: string
     /** Label of the button that steps the value down. */
     decrease: string
+    /** Label of the button that empties the field. */
+    clear: string
   }
   slider: {
     /** Label of the lower thumb of a range. */
@@ -130,6 +135,14 @@ export interface Locale {
     pageSize: string
     /** Label of the page size select. */
     pageSizeLabel: string
+    /** Names an ellipsis and the list of pages it hides, with `{from}` and `{to}`. */
+    gap: string
+    /** Text before the jump box. */
+    jumpPrefix: string
+    /** Text after the jump box; empty for none. */
+    jumpSuffix: string
+    /** Names the jump box. */
+    jumpLabel: string
   }
   table: {
     /** Label of the checkbox that selects every row. */

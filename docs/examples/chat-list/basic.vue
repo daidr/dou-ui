@@ -44,7 +44,7 @@ onBeforeUnmount(() => clearInterval(timer))
       v-for="message in messages"
       :key="message.id"
       :placement="message.mine ? 'end' : 'start'"
-      :variant="message.mine ? 'filled' : 'plain'"
+      :variant="message.mine ? 'soft' : 'ghost'"
     >
       <template v-if="!message.mine" #avatar>
         <DouAvatar><SparklesIcon /></DouAvatar>

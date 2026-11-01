@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { DouTabPanel, DouTabs } from '../../../index'
 
@@ -132,5 +132,108 @@ describe('DouTabs', () => {
     await wrapper.findAll('[role="tab"]')[1]!.trigger('click')
     expect(wrapper.emitted('update:modelValue')).toEqual([[2]])
     expect(wrapper.emitted('change')).toEqual([[2]])
+  })
+})
+
+/** Give the tab list a layout: 300px wide, 900px of tabs, each tab 100px. */
+function layout(list: HTMLElement) {
+  let left = 0
+  Object.defineProperties(list, {
+    clientWidth: { configurable: true, get: () => 300 },
+    scrollWidth: { configurable: true, get: () => 900 },
+    scrollLeft: {
+      configurable: true,
+      get: () => left,
+      set: (v: number) => {
+        left = v
+      },
+    },
+  })
+  const calls: { to: number[]; by: number[] } = { to: [], by: [] }
+  list.scrollTo = ((options: ScrollToOptions) => {
+    calls.to.push(options.left!)
+    left = options.left!
+  }) as typeof list.scrollTo
+  list.scrollBy = ((options: ScrollToOptions) => {
+    calls.by.push(options.left!)
+  }) as typeof list.scrollBy
+  // tabs are matched by their label, since a re-render may replace them
+  const proto = HTMLButtonElement.prototype
+  Object.defineProperties(proto, {
+    offsetLeft: {
+      configurable: true,
+      get(this: HTMLElement) {
+        const index = /标签 (\d)/.exec(this.textContent ?? '')?.[1]
+        return index === undefined ? 0 : Number(index) * 100
+      },
+    },
+    offsetWidth: { configurable: true, get: () => 100 },
+  })
+  return {
+    calls,
+    scrollTo(value: number) {
+      left = value
+      list.dispatchEvent(new Event('scroll'))
+    },
+  }
+}
+
+const manyTabs = (value: string) =>
+  mount(DouTabs, {
+    props: { modelValue: value },
+    slots: {
+      default: () =>
+        Array.from({ length: 9 }, (_, index) =>
+          h(DouTabPanel, { value: `t${index}`, label: `标签 ${index}` }, () => `内容 ${index}`),
+        ),
+    },
+    attachTo: document.body,
+  })
+
+describe('DouTabs overflow', () => {
+  afterEach(() => {
+    const proto = HTMLButtonElement.prototype as unknown as Record<string, unknown>
+    delete proto.offsetLeft
+    delete proto.offsetWidth
+  })
+
+  it('fades the edges and shows arrows on the side with more tabs', async () => {
+    const wrapper = manyTabs('t0')
+    const list = wrapper.get('[role="tablist"]').element as HTMLElement
+    const { calls, scrollTo } = layout(list)
+    scrollTo(0)
+    await nextTick()
+    expect(list.classList).toContain('is-fade-end')
+    expect(list.classList).not.toContain('is-fade-start')
+    const [prev, next] = wrapper.findAll('.dou-tabs__scroll')
+    expect(prev!.attributes('disabled')).toBeDefined()
+    expect(prev!.attributes('tabindex')).toBe('-1')
+    await next!.trigger('click')
+    expect(calls.by).toEqual([240])
+
+    scrollTo(600)
+    await nextTick()
+    expect(list.classList).toContain('is-fade-start')
+    expect(list.classList).not.toContain('is-fade-end')
+    expect(wrapper.findAll('.dou-tabs__scroll')[1]!.attributes('disabled')).toBeDefined()
+    wrapper.unmount()
+  })
+
+  it('scrolls the selected tab into view, clear of the faded edge', async () => {
+    const wrapper = manyTabs('t0')
+    const list = wrapper.get('[role="tablist"]').element as HTMLElement
+    const { calls } = layout(list)
+    await wrapper.setProps({ modelValue: 't6' })
+    await nextTick()
+    await nextTick()
+    // tab 6 ends at 700: 700 + 32 - 300
+    expect(calls.to.at(-1)).toBe(432)
+    wrapper.unmount()
+  })
+
+  it('has no arrows when the tabs fit', async () => {
+    const wrapper = make()
+    await nextTick()
+    expect(wrapper.find('.dou-tabs__scroll').exists()).toBe(false)
   })
 })

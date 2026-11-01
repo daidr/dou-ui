@@ -1,6 +1,6 @@
 import type { Placement } from '../../composables/use-floating'
 import type { Size } from '../../utils/types'
-import type { TimeFormat } from '../time-picker/time'
+import type { DisabledTime, TimeFormat } from '../time-picker/time'
 import type { DateUnit } from './date'
 
 export type DatePickerSize = Size
@@ -84,6 +84,12 @@ export interface DatePickerProps extends Omit<CalendarProps, 'type'> {
    * the day, and the end of the day for the end of a range.
    */
   defaultTime?: string | [string, string]
+  /**
+   * Hours, minutes and seconds of a `datetime` that cannot be picked on a
+   * given day, one rule per column, e.g. no time before now on today.
+   * Receives `YYYY-MM-DD`; return nothing to allow every time.
+   */
+  disabledTime?: (date: string) => DisabledTime | undefined
   /** Presets listed beside the calendar, such as "last 7 days". */
   shortcuts?: DatePickerShortcut[]
   /** Shown while empty. Defaults to the locale's. */

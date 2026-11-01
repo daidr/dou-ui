@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { ChevronLeftIcon, ChevronRightIcon } from '@dou-ui/icons'
-import { computed, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import { useFormDisabled, useFormSize } from '../form/use-form-item'
+import DouInputNumber from '../input-number/input-number.vue'
+import DouPopover from '../popover/popover.vue'
 import DouSelect from '../select/select.vue'
+import PaginationGap from './pagination-gap.vue'
 import type { SelectValue } from '../select/select'
 import type { PaginationProps } from './pagination'
 import { paginationRange } from './range'
@@ -16,6 +19,7 @@ const props = withDefaults(defineProps<PaginationProps>(), {
   boundaries: 1,
   simple: false,
   showTotal: false,
+  showJumper: false,
   hideOnSinglePage: false,
   disabled: false,
 })
@@ -45,6 +49,21 @@ const items = computed(() =>
   ),
 )
 
+// The pages behind each ellipsis, offered in a list when it is pressed.
+const gaps = computed(() => {
+  const result: Record<string, { from: number; to: number; before: boolean }> = {}
+  items.value.forEach((item, index) => {
+    if (item.type !== 'ellipsis') return
+    const prev = items.value[index - 1]
+    const next = items.value[index + 1]
+    const from = prev?.type === 'page' ? prev.page + 1 : 1
+    const to = next?.type === 'page' ? next.page - 1 : count.value
+    result[item.key] = { from, to, before: to < current.value }
+  })
+  return result
+})
+const gapOpen = reactive<Record<string, boolean>>({})
+
 function go(target: number) {
   const next = Math.min(Math.max(1, target), count.value)
   if (disabled.value || next === current.value) return
@@ -67,6 +86,14 @@ function changePageSize(value: SelectValue | SelectValue[] | null | undefined) {
   const next = Math.floor(first / value) + 1
   page.value = next
   emit('change', next, value)
+}
+
+// The jump box shows the current page; Enter or leaving it goes to what was typed.
+const jump = ref<number | null>(current.value)
+watch(current, (value) => (jump.value = value))
+function commitJump() {
+  if (jump.value === null) jump.value = current.value
+  else go(jump.value)
 }
 
 const hidden = computed(() => props.hideOnSinglePage && count.value <= 1)
@@ -106,7 +133,38 @@ const hidden = computed(() => props.hideOnSinglePage && count.value <= 1)
         >
           <span :class="ns.e('number')">{{ item.page }}</span>
         </button>
-        <span v-else :class="[ns.e('item'), ns.e('ellipsis')]" aria-hidden="true">…</span>
+        <DouPopover
+          v-else
+          v-model:open="gapOpen[item.key]"
+          trigger="click"
+          placement="bottom"
+          :disabled="disabled"
+          :class="ns.e('gap')"
+          :aria-label="t('pagination.gap', { from: gaps[item.key]!.from, to: gaps[item.key]!.to })"
+        >
+          <button
+            type="button"
+            :class="[ns.e('item'), ns.e('ellipsis'), ns.is('open', !!gapOpen[item.key])]"
+            :disabled="disabled"
+            :aria-label="
+              t('pagination.gap', { from: gaps[item.key]!.from, to: gaps[item.key]!.to })
+            "
+          >
+            …
+          </button>
+          <template #content="{ close }">
+            <PaginationGap
+              v-if="gapOpen[item.key]"
+              v-bind="gaps[item.key]!"
+              @pick="
+                (target) => {
+                  close()
+                  go(target)
+                }
+              "
+            />
+          </template>
+        </DouPopover>
       </li>
     </ul>
     <button
@@ -118,6 +176,24 @@ const hidden = computed(() => props.hideOnSinglePage && count.value <= 1)
     >
       <ChevronRightIcon />
     </button>
+    <span v-if="showJumper" :class="ns.e('jumper')">
+      <span>{{ t('pagination.jumpPrefix') }}</span>
+      <DouInputNumber
+        v-model="jump"
+        :class="ns.e('jump')"
+        :min="1"
+        :max="count"
+        :step="1"
+        :precision="0"
+        :controls="false"
+        :size="size"
+        :disabled="disabled"
+        :aria-label="t('pagination.jumpLabel')"
+        @change="commitJump"
+        @keydown.enter="commitJump"
+      />
+      <span v-if="t('pagination.jumpSuffix')">{{ t('pagination.jumpSuffix') }}</span>
+    </span>
     <span v-if="sizeOptions.length" :class="ns.e('sizes')">
       <DouSelect
         :model-value="pageSize"

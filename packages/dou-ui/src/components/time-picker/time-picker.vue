@@ -9,7 +9,7 @@ import { OnlyChild } from '../../utils/only-child'
 import { DouButton } from '../button'
 import { useLocale } from '../config-provider/use-config'
 import { useFormDisabled, useFormItem, useFormReadonly, useFormSize } from '../form/use-form-item'
-import { formatTime, now, parseTime, snap } from './time'
+import { fitTime, formatTime, isTimeDisabled, now, parseTime, snap } from './time'
 import type { TimeParts } from './time'
 import type { TimePickerExpose, TimePickerProps, TimeRange, TimeValue } from './time-picker'
 import TimeColumns from './time-columns.vue'
@@ -76,6 +76,12 @@ const syncTexts = () => {
 }
 watch([values, fields], syncTexts, { immediate: true })
 
+/** The rule set for the start (0) or the end (1). */
+const ruleAt = (index: number) => {
+  const rule = props.disabledTime
+  return Array.isArray(rule) ? rule[index] : rule
+}
+
 const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
 
 function commit(value: TimeValue | TimeRange | null) {
@@ -106,7 +112,13 @@ function commitTexts() {
     if (values.value.length) commit(null)
     return
   }
-  if (parsed.some((value) => value === null || value === undefined)) return syncTexts()
+  if (
+    parsed.some(
+      (value, index) =>
+        !value || isTimeDisabled(snap(value, steps.value), ruleAt(index), seconds.value),
+    )
+  )
+    return syncTexts()
   commitParts(parsed as TimeParts[])
   if (props.range && Array.isArray(model.value)) commit(ordered(model.value))
 }
@@ -151,8 +163,10 @@ function onPick(index: number, value: TimeParts) {
 }
 
 function pickNow() {
-  const value = now()
-  commitParts(props.range ? [value, value] : [value])
+  const list = Array.from({ length: fields.value }, (_, index) =>
+    fitTime(snap(now(), steps.value), ruleAt(index), steps.value, seconds.value),
+  )
+  if (list.every(Boolean)) commitParts(list)
 }
 
 function confirm() {
@@ -319,6 +333,7 @@ defineExpose<TimePickerExpose>({
             :value="parts[index - 1] ?? null"
             :seconds="seconds"
             :steps="steps"
+            :disabled-time="ruleAt(index - 1)"
             :label="range ? placeholders[index - 1] : undefined"
             @pick="onPick(index - 1, $event)"
           />

@@ -20,11 +20,24 @@
 
 `controls` 设为 `false` 时隐藏步进键，键盘步进仍然可用。
 
+## 显示格式
+
+`format` 决定不在编辑时数字怎么显示，比如加千位分隔符、显示为货币或百分比。它可以是 `Intl.NumberFormat` 的选项（按当前语言包的语言格式化），也可以是一个函数。聚焦后输入框显示原始数字，方便修改；`v-model` 始终是数字。
+
+设置了 `precision` 时，小数位默认与它一致。百分比格式会把 `0.25` 显示为 `25%`，所以绑定值是小数。
+
+<DocDemo src="input-number/format" />
+
+## 清空
+
+`clearable` 在有值时显示清空按钮，点击后值变为 `null` 并触发 `clear`。
+
 ## 输入与提交
 
 - 输入过程中，只要文字已经是一个范围内的数字，就会立刻更新 `v-model`；像 `-`、`1.` 这样尚未完成的输入会被保留，不会被打断。
 - 失焦或按下 `Enter` 时提交：超出范围的值收回到 `min` / `max`，按 `precision` 取整，无法识别的文字恢复为之前的值。提交时若值有变化，触发 `change`。
 - 输入法产生的全角数字和符号（如 `１２．５`）也能识别。
+- 手机上弹出的键盘：`precision` 为 `0` 时是纯数字键盘，其他情况是带小数点的数字键盘。iOS 的数字键盘没有负号，所以设置了小于 0 的 `min` 时改用完整键盘。没有设置 `min` 时仍用数字键盘，因为大多数数字不会是负数；需要在 iOS 上输入负数时，设置小于 0 的 `min`，或者传 `inputmode="text"`。
 
 ## 键盘与指针
 
@@ -58,18 +71,21 @@
 
 ### Props
 
-| 名称         | 说明                                  | 类型                   | 默认值      |
-| ------------ | ------------------------------------- | ---------------------- | ----------- |
-| `modelValue` | 绑定值，配合 `v-model`，为空时 `null` | `number \| null`       | `null`      |
-| `min`        | 最小值                                | `number`               | `-Infinity` |
-| `max`        | 最大值                                | `number`               | `Infinity`  |
-| `step`       | 步长                                  | `number`               | `1`         |
-| `precision`  | 保留的小数位                          | `number`               | —           |
-| `size`       | 尺寸，默认取表单或全局配置            | `'sm' \| 'md' \| 'lg'` | `'md'`      |
-| `controls`   | 显示步进键                            | `boolean`              | `true`      |
-| `disabled`   | 禁用                                  | `boolean`              | `false`     |
-| `readonly`   | 只读，不能输入也不能步进              | `boolean`              | `false`     |
-| `invalid`    | 标记为无效                            | `boolean`              | `false`     |
+| 名称          | 说明                                                   | 类型                                                      | 默认值      |
+| ------------- | ------------------------------------------------------ | --------------------------------------------------------- | ----------- |
+| `modelValue`  | 绑定值，配合 `v-model`，为空时 `null`                  | `number \| null`                                          | `null`      |
+| `min`         | 最小值                                                 | `number`                                                  | `-Infinity` |
+| `max`         | 最大值                                                 | `number`                                                  | `Infinity`  |
+| `step`        | 步长                                                   | `number`                                                  | `1`         |
+| `precision`   | 保留的小数位                                           | `number`                                                  | —           |
+| `size`        | 尺寸，默认取表单或全局配置                             | `'sm' \| 'md' \| 'lg'`                                    | `'md'`      |
+| `controls`    | 显示步进键                                             | `boolean`                                                 | `true`      |
+| `format`      | 不在编辑时的显示格式：`Intl.NumberFormat` 的选项或函数 | `Intl.NumberFormatOptions \| ((value: number) => string)` | —           |
+| `clearable`   | 有值时显示清空按钮                                     | `boolean`                                                 | `false`     |
+| `placeholder` | 占位文字                                               | `string`                                                  | —           |
+| `disabled`    | 禁用                                                   | `boolean`                                                 | `false`     |
+| `readonly`    | 只读，不能输入也不能步进                               | `boolean`                                                 | `false`     |
+| `invalid`     | 标记为无效                                             | `boolean`                                                 | `false`     |
 
 其他属性（`placeholder`、`name` 等）透传给原生 `<input>`。
 
@@ -79,6 +95,7 @@
 | ------------------- | -------------------------------------- | --------------------------------------------------- |
 | `update:modelValue` | 值变化，输入过程中也会触发             | `(value: number \| null)`                           |
 | `change`            | 提交了新的值：失焦、`Enter` 或一次步进 | `(value: number \| null, oldValue: number \| null)` |
+| `clear`             | 点击清空按钮后                         | `()`                                                |
 
 ### Slots
 

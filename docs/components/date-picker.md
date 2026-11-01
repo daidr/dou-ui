@@ -38,6 +38,14 @@
 
 <DocDemo src="date-picker/datetime-range" />
 
+### 禁用时间
+
+`disabled-time` 接收日期（`YYYY-MM-DD`），返回这一天的时间规则，写法与 [TimePicker 的 `disabled-time`](./time-picker#禁用时间) 相同；返回空表示这一天的时间都可选。常见的用法是今天只能选现在以后的时间。换到另一天时，如果已选的时间在这一天不可选，会移到这一天第一个可选的时间。
+
+`disabled-time` 只限制时间，日期本身仍然可以点。如果某一天的时间全部不可选（比如临近午夜时的今天），请同时在 `disabled-date` 里排除这一天，示例里就是这样处理的。
+
+<DocDemo src="date-picker/disabled-time" />
+
 ## 周
 
 `type="week"` 选一整周，值为 ISO 周：周一开始，包含当年第一个周四的那一周是第 1 周，跨年的周归属于它的周四所在的年份。日历固定从周一开始，指向某一行时整行显示底色，点哪一天都选中它所在的周。可以输入 `2026-W44` 或 `2026 44`。
@@ -121,6 +129,7 @@
 | `min`              | 最早可选，包含                                                          | `string`                                                           | —                            |
 | `max`              | 最晚可选，包含                                                          | `string`                                                           | —                            |
 | `disabledDate`     | 排除某些日子                                                            | `(date: string) => boolean`                                        | —                            |
+| `disabledTime`     | `datetime` 某一天不可选的时、分、秒                                     | `(date: string) => DisabledTime \| undefined`                      | —                            |
 | `weekStart`        | 一周的第一天                                                            | `0 \| 1`                                                           | 语言包                       |
 | `panels`           | 并排显示几个月                                                          | `1 \| 2`                                                           | 范围为 2（窄屏为 1），否则 1 |
 | `placeholder`      | 占位文字                                                                | `string`                                                           | 语言包                       |

@@ -15,7 +15,7 @@ describe('DouChatBubble', () => {
       slots: { footer: () => '复制' },
     })
     expect(wrapper.classes()).toEqual(
-      expect.arrayContaining(['dou-chat-bubble--end', 'dou-chat-bubble--filled', 'is-with-avatar']),
+      expect.arrayContaining(['dou-chat-bubble--end', 'dou-chat-bubble--soft', 'is-with-avatar']),
     )
     expect(wrapper.get('.dou-chat-bubble__name').text()).toBe('戴兜')
     expect(wrapper.get('.dou-chat-bubble__time').text()).toBe('09:30')

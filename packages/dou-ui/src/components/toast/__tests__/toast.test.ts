@@ -14,6 +14,73 @@ afterEach(() => {
 })
 
 describe('toast', () => {
+  it('keeps a loading toast until it is updated, then counts down again', async () => {
+    const handle = toast.loading('保存中…')
+    await nextTick()
+    expect(items()[0]!.querySelector('.dou-spinner')).not.toBeNull()
+    expect(items()[0]!.getAttribute('aria-busy')).toBe('true')
+    vi.advanceTimersByTime(60_000)
+    expect(toastState.items).toHaveLength(1)
+
+    handle.update({ message: '已保存', tone: 'success' })
+    await nextTick()
+    expect(items()[0]!.textContent).toContain('已保存')
+    expect(items()[0]!.classList).toContain('dou-toast--success')
+    expect(items()[0]!.querySelector('.dou-spinner')).toBeNull()
+    vi.advanceTimersByTime(2999)
+    expect(toastState.items).toHaveLength(1)
+    vi.advanceTimersByTime(1)
+    expect(toastState.items).toHaveLength(0)
+  })
+
+  it('restarts the countdown when a toast is updated by id', async () => {
+    const { id } = toast('第一步', { duration: 1000 })
+    await nextTick()
+    vi.advanceTimersByTime(800)
+    toast.update(id, '第二步')
+    await nextTick()
+    vi.advanceTimersByTime(800)
+    expect(toastState.items[0]!.message).toBe('第二步')
+    vi.advanceTimersByTime(200)
+    expect(toastState.items).toHaveLength(0)
+  })
+
+  it('follows a promise from loading to success', async () => {
+    let resolve!: (value: number) => void
+    const task = new Promise<number>((r) => (resolve = r))
+    const returned = toast.promise(task, {
+      loading: '保存中…',
+      success: (count) => `已保存 ${count} 处`,
+      error: '保存失败',
+    })
+    expect(returned).toBe(task)
+    await nextTick()
+    expect(toastState.items[0]).toMatchObject({ message: '保存中…', loading: true })
+    resolve(3)
+    await flushPromises()
+    expect(toastState.items[0]).toMatchObject({
+      message: '已保存 3 处',
+      tone: 'success',
+      loading: false,
+      duration: 3000,
+    })
+  })
+
+  it('turns a failed promise into a danger toast', async () => {
+    const returned = toast.promise(() => Promise.reject(new Error('超时')), {
+      loading: '发布中…',
+      success: '已发布',
+      error: (error) => ({ title: '发布失败', message: (error as Error).message }),
+    })
+    await expect(returned).rejects.toThrow('超时')
+    await flushPromises()
+    expect(toastState.items[0]).toMatchObject({
+      title: '发布失败',
+      message: '超时',
+      tone: 'danger',
+      loading: false,
+    })
+  })
   it('shows a message and removes it after the duration', async () => {
     const onClose = vi.fn<() => void>()
     toast('已复制', { onClose })

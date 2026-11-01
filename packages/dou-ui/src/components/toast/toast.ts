@@ -22,6 +22,11 @@ export interface ToastOptions {
   placement?: ToastPlacement
   /** One button, e.g. "Undo". */
   action?: ToastAction
+  /**
+   * Show a spinner in place of the tone icon, for work still under way.
+   * A loading toast stays until it is updated or closed.
+   */
+  loading?: boolean
   /** Called once the toast is gone, however it closed. */
   onClose?: () => void
 }
@@ -29,15 +34,32 @@ export interface ToastOptions {
 export interface ToastHandle {
   id: number
   close: () => void
+  /**
+   * Change the toast in place, e.g. from "保存中…" to "已保存". The
+   * countdown starts over with the new `duration`; a toast that stops
+   * loading gets the default one.
+   */
+  update: (input: string | Partial<ToastOptions>) => void
+}
+
+/** What `toast.promise` shows when the promise settles: text, options, or a function of the result. */
+export type ToastPromiseState<T> = string | ToastOptions | ((value: T) => string | ToastOptions)
+
+export interface ToastPromiseMessages<T> {
+  loading: string | ToastOptions
+  success: ToastPromiseState<T>
+  error: ToastPromiseState<unknown>
 }
 
 export interface ToastRecord extends Required<
-  Pick<ToastOptions, 'message' | 'tone' | 'duration' | 'closable' | 'placement'>
+  Pick<ToastOptions, 'message' | 'tone' | 'duration' | 'closable' | 'placement' | 'loading'>
 > {
   id: number
   title?: string
   action?: ToastAction
   onClose?: () => void
+  /** Bumped by every update, so the item restarts its countdown. */
+  version: number
 }
 
 export interface ToastViewportProps {

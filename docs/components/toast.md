@@ -23,12 +23,32 @@
 
 ## 关闭
 
-每次调用返回 `{ id, close }`。`toast.close(id)` 关闭指定的一条，`toast.closeAll()` 关闭全部。`onClose` 在提示消失后调用，无论它是怎么关闭的。
+每次调用返回 `{ id, close, update }`。`toast.close(id)` 关闭指定的一条，`toast.closeAll()` 关闭全部。`onClose` 在提示消失后调用，无论它是怎么关闭的。
 
 ```ts
 const { close } = toast('正在上传…', { duration: 0 })
 await upload()
 close()
+```
+
+## 进行中的任务
+
+`toast.loading()` 显示一条带加载图标的提示，它会一直显示，直到被更新或关闭。用返回的 `update()` 原地改写这条提示，比如从“保存中…”改为“已保存”；改写后加载状态结束，重新按 `duration` 倒计时。
+
+`toast.promise()` 把这一步合在一起：Promise 进行中显示 `loading`，完成后显示 `success` 的内容（`tone` 为 `success`），失败后显示 `error` 的内容（`tone` 为 `danger`）。`success` 与 `error` 也可以是函数，参数是结果或错误。第一个参数可以是 Promise，也可以是返回 Promise 的函数；它返回这个 Promise，调用方仍可以 `await`。
+
+<DocDemo src="toast/promise" />
+
+```ts
+const { update } = toast.loading('正在上传…')
+await upload()
+update({ message: '上传完成', tone: 'success' })
+
+await toast.promise(save(), {
+  loading: '保存中…',
+  success: '已保存',
+  error: (error) => `保存失败：${(error as Error).message}`,
+})
 ```
 
 ## 语言与层级
@@ -52,26 +72,30 @@ close()
 
 ### toast(message, options?) / toast(options)
 
-| 选项        | 说明                           | 类型                                     | 默认值                  |
-| ----------- | ------------------------------ | ---------------------------------------- | ----------------------- |
-| `message`   | 正文                           | `string`                                 | —                       |
-| `title`     | 正文上方的粗体标题             | `string`                                 | —                       |
-| `tone`      | 语气                           | `Tone`                                   | `'neutral'`             |
-| `duration`  | 显示多久，毫秒；`0` 为一直显示 | `number`                                 | `3000`（带操作 `6000`） |
-| `closable`  | 显示关闭按钮                   | `boolean`                                | `false`                 |
-| `placement` | 位置                           | `ToastPlacement`                         | `'top'`                 |
-| `action`    | 一个按钮                       | `{ label: string; onClick: () => void }` | —                       |
-| `onClose`   | 消失后调用                     | `() => void`                             | —                       |
+| 选项        | 说明                                 | 类型                                     | 默认值                  |
+| ----------- | ------------------------------------ | ---------------------------------------- | ----------------------- |
+| `message`   | 正文                                 | `string`                                 | —                       |
+| `title`     | 正文上方的粗体标题                   | `string`                                 | —                       |
+| `tone`      | 语气                                 | `Tone`                                   | `'neutral'`             |
+| `duration`  | 显示多久，毫秒；`0` 为一直显示       | `number`                                 | `3000`（带操作 `6000`） |
+| `closable`  | 显示关闭按钮                         | `boolean`                                | `false`                 |
+| `placement` | 位置                                 | `ToastPlacement`                         | `'top'`                 |
+| `action`    | 一个按钮                             | `{ label: string; onClick: () => void }` | —                       |
+| `loading`   | 显示加载图标，一直显示到被更新或关闭 | `boolean`                                | `false`                 |
+| `onClose`   | 消失后调用                           | `() => void`                             | —                       |
 
 ### 其他方法
 
-| 名称                 | 说明              |
-| -------------------- | ----------------- |
-| `toast.success(...)` | `tone: 'success'` |
-| `toast.warning(...)` | `tone: 'warning'` |
-| `toast.danger(...)`  | `tone: 'danger'`  |
-| `toast.close(id)`    | 关闭一条          |
-| `toast.closeAll()`   | 关闭全部          |
+| 名称                                         | 说明                                                                |
+| -------------------------------------------- | ------------------------------------------------------------------- |
+| `toast.success(...)`                         | `tone: 'success'`                                                   |
+| `toast.warning(...)`                         | `tone: 'warning'`                                                   |
+| `toast.danger(...)`                          | `tone: 'danger'`                                                    |
+| `toast.loading(...)`                         | `loading: true`                                                     |
+| `toast.promise(promise, messages, options?)` | 随 Promise 的状态显示 `loading`、`success`、`error`，返回该 Promise |
+| `toast.update(id, input)`                    | 原地改写一条；`input` 为文字或部分选项                              |
+| `toast.close(id)`                            | 关闭一条                                                            |
+| `toast.closeAll()`                           | 关闭全部                                                            |
 
 ### ToastViewport Props
 

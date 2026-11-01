@@ -19,6 +19,8 @@ export interface PaginationProps {
   simple?: boolean
   /** Show the number of items. */
   showTotal?: boolean
+  /** Show a box for typing a page number to go to. */
+  showJumper?: boolean
   /** Render nothing when everything fits on one page. */
   hideOnSinglePage?: boolean
   disabled?: boolean

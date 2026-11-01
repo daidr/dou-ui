@@ -147,6 +147,44 @@
     white-space: nowrap;
   }
 
+  /* the same clear button as the text input's */
+  .dou-input-number__clear {
+    position: relative;
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 1.15em;
+    height: 1.15em;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    border-radius: var(--dou-radius-full);
+    background-color: color-mix(in oklab, var(--dou-color-text) 10%, transparent);
+    color: var(--dou-color-text-secondary);
+    cursor: pointer;
+    transition-property: background-color, color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    & > svg {
+      width: 1em;
+      height: 1em;
+      font-size: 0.8em;
+    }
+
+    &:hover {
+      background-color: color-mix(in oklab, var(--dou-color-text) 18%, transparent);
+      color: var(--dou-color-text);
+    }
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset: -4px;
+    }
+  }
+
   /* holds the keys' place in the row; the keys themselves sit on top */
   .dou-input-number__controls {
     position: relative;

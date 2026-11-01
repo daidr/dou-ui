@@ -15,6 +15,8 @@ export const zhCN: Locale = {
   tabs: {
     close: '关闭',
     add: '新建标签页',
+    scrollPrev: '向前滚动标签',
+    scrollNext: '向后滚动标签',
   },
   input: {
     clear: '清空',
@@ -27,6 +29,7 @@ export const zhCN: Locale = {
   inputNumber: {
     increase: '增加',
     decrease: '减少',
+    clear: '清空',
   },
   slider: {
     start: '起始值',
@@ -79,6 +82,10 @@ export const zhCN: Locale = {
     total: '共 {total} 条',
     pageSize: '{size} 条/页',
     pageSizeLabel: '每页条数',
+    gap: '第 {from}–{to} 页',
+    jumpPrefix: '前往',
+    jumpSuffix: '页',
+    jumpLabel: '跳转到页码',
   },
   table: {
     selectAll: '选择全部',

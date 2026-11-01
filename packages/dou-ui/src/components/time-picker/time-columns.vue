@@ -3,7 +3,8 @@ import { computed, nextTick, onMounted, useId, watch } from 'vue'
 import { useReducedMotion } from '../../composables/use-motion'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
-import type { TimeParts } from './time'
+import { fitTime, isUnitDisabled } from './time'
+import type { DisabledTime, TimeParts } from './time'
 
 defineOptions({ name: 'DouTimeColumns' })
 
@@ -13,6 +14,7 @@ const props = defineProps<{
   steps: [number, number, number]
   /** Names the group, for a range. */
   label?: string
+  disabledTime?: DisabledTime
 }>()
 const emit = defineEmits<{ pick: [parts: TimeParts] }>()
 
@@ -37,9 +39,15 @@ const valuesOf = (count: number, step: number) =>
 const current = (unit: Unit) => props.value?.[unit] ?? 0
 const cellId = (unit: Unit, value: number) => `${id}-${unit}-${value}`
 
+const base = () => props.value ?? { hour: 0, minute: 0, second: 0 }
+const isDisabled = (unit: Unit, value: number) =>
+  isUnitDisabled(props.disabledTime, unit, value, base())
+
 function pick(unit: Unit, value: number) {
-  const base = props.value ?? { hour: 0, minute: 0, second: 0 }
-  emit('pick', { ...base, [unit]: value })
+  if (isDisabled(unit, value)) return
+  // a later column the change ruled out moves to its first allowed value
+  const next = fitTime({ ...base(), [unit]: value }, props.disabledTime, props.steps, props.seconds)
+  if (next) emit('pick', next)
 }
 
 const columns = new Map<Unit, HTMLElement>()
@@ -67,21 +75,29 @@ watch(
 
 function onKeydown(event: KeyboardEvent, index: number) {
   const { unit, count, step } = units.value[index]!
-  const values = valuesOf(count, step)
-  const at = Math.max(0, values.indexOf(current(unit)))
+  // disabled rows are skipped
+  const values = valuesOf(count, step).filter((value) => !isDisabled(unit, value))
+  if (!values.length) return
+  const at = values.indexOf(current(unit))
+  // the nearest allowed row after (or before) the current value, wrapping around
+  const after = () => values.find((value) => value > current(unit)) ?? values[0]
+  const before = () => {
+    for (let i = values.length - 1; i >= 0; i--) if (values[i]! < current(unit)) return values[i]
+    return values[values.length - 1]
+  }
   let next: number | undefined
   switch (event.key) {
     case 'ArrowDown':
-      next = values[(at + 1) % values.length]
+      next = at >= 0 ? values[(at + 1) % values.length] : after()
       break
     case 'ArrowUp':
-      next = values[(at - 1 + values.length) % values.length]
+      next = at >= 0 ? values[(at - 1 + values.length) % values.length] : before()
       break
     case 'Home':
       next = values[0]
       break
     case 'End':
-      next = values.at(-1)
+      next = values[values.length - 1]
       break
     case 'ArrowRight':
     case 'ArrowLeft': {
@@ -123,7 +139,12 @@ defineExpose({ focus: () => columns.get('hour')?.focus() })
           :key="cell"
           role="option"
           :aria-selected="!!value && current(column.unit) === cell"
-          :class="[ns.e('cell'), ns.is('selected', !!value && current(column.unit) === cell)]"
+          :aria-disabled="isDisabled(column.unit, cell) || undefined"
+          :class="[
+            ns.e('cell'),
+            ns.is('selected', !!value && current(column.unit) === cell),
+            ns.is('disabled', isDisabled(column.unit, cell)),
+          ]"
           @click="pick(column.unit, cell)"
         >
           {{ String(cell).padStart(2, '0') }}

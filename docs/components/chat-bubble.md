@@ -12,7 +12,7 @@
 
 ## 样式
 
-`variant` 有三种：`filled` 浅色底，`outlined` 带边框，`plain` 不画气泡。较长的回答适合用 `plain`，读起来和正文一样。
+`variant` 有三种：`soft` 浅色底，`outline` 带边框，`ghost` 不画气泡。较长的回答适合用 `ghost`，读起来和正文一样。
 
 <DocDemo src="chat-bubble/variant" column />
 
@@ -38,15 +38,15 @@
 
 ### Props
 
-| 名称        | 说明                                      | 类型                                | 默认值     |
-| ----------- | ----------------------------------------- | ----------------------------------- | ---------- |
-| `placement` | 消息的位置                                | `'start' \| 'end' \| 'center'`      | `'start'`  |
-| `variant`   | 样式                                      | `'filled' \| 'outlined' \| 'plain'` | `'filled'` |
-| `content`   | 纯文字内容，默认插槽会替换它              | `string`                            | —          |
-| `name`      | 发送者，显示在气泡上方，也用于头像首字    | `string`                            | —          |
-| `time`      | 发送时间，显示在名字后面                  | `string`                            | —          |
-| `avatar`    | 头像图片地址，`true` 时显示 `name` 的首字 | `string \| boolean`                 | —          |
-| `loading`   | 显示加载中的圆点                          | `boolean`                           | `false`    |
+| 名称        | 说明                                      | 类型                             | 默认值    |
+| ----------- | ----------------------------------------- | -------------------------------- | --------- |
+| `placement` | 消息的位置                                | `'start' \| 'end' \| 'center'`   | `'start'` |
+| `variant`   | 样式                                      | `'soft' \| 'outline' \| 'ghost'` | `'soft'`  |
+| `content`   | 纯文字内容，默认插槽会替换它              | `string`                         | —         |
+| `name`      | 发送者，显示在气泡上方，也用于头像首字    | `string`                         | —         |
+| `time`      | 发送时间，显示在名字后面                  | `string`                         | —         |
+| `avatar`    | 头像图片地址，`true` 时显示 `name` 的首字 | `string \| boolean`              | —         |
+| `loading`   | 显示加载中的圆点                          | `boolean`                        | `false`   |
 
 ### Slots
 

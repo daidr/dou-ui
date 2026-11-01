@@ -2,7 +2,8 @@ import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it } from 'vitest'
 import { nextTick } from 'vue'
 import { DouTimePicker } from '../../../index'
-import { formatTime, parseTime, snap } from '../time'
+import { fitTime, formatTime, isTimeDisabled, parseTime, snap } from '../time'
+import type { DisabledTime } from '../time'
 
 afterEach(() => {
   document.body.innerHTML = ''
@@ -115,6 +116,92 @@ describe('DouTimePicker', () => {
     await end!.trigger('keydown', { key: 'Enter' })
     await end!.trigger('keydown', { key: 'Enter' })
     expect(wrapper.props('modelValue')).toEqual(['09:00', '18:00'])
+    wrapper.unmount()
+  })
+})
+
+const lunch: DisabledTime = {
+  hour: (hour) => hour < 9 || hour === 12,
+  minute: (minute, hour) => hour === 18 && minute > 0,
+}
+
+describe('disabled time', () => {
+  it('checks a whole time and moves later parts off ruled-out values', () => {
+    expect(isTimeDisabled({ hour: 12, minute: 0, second: 0 }, lunch, false)).toBe(true)
+    expect(isTimeDisabled({ hour: 18, minute: 30, second: 0 }, lunch, false)).toBe(true)
+    expect(isTimeDisabled({ hour: 18, minute: 0, second: 0 }, lunch, false)).toBe(false)
+    expect(fitTime({ hour: 18, minute: 30, second: 0 }, lunch, [1, 15, 1], false)).toEqual({
+      hour: 18,
+      minute: 0,
+      second: 0,
+    })
+    expect(fitTime({ hour: 7, minute: 30, second: 0 }, lunch, [1, 1, 1], false)).toEqual({
+      hour: 9,
+      minute: 30,
+      second: 0,
+    })
+    expect(
+      fitTime({ hour: 7, minute: 0, second: 0 }, { hour: () => true }, [1, 1, 1], false),
+    ).toBeNull()
+  })
+
+  it('greys out rows, skips them with the keys and refuses typed times', async () => {
+    const wrapper = mount(DouTimePicker, {
+      props: {
+        modelValue: '11:30',
+        disabledTime: lunch,
+        'onUpdate:modelValue': (v: unknown) => wrapper.setProps({ modelValue: v as string }),
+      },
+      attachTo: document.body,
+    })
+    const input = wrapper.get('input')
+    await input.trigger('keydown', { key: 'Enter' })
+    await nextTick()
+    const columns = document.querySelectorAll<HTMLElement>('[role="listbox"]')
+    const hours = columns[0]!.querySelectorAll<HTMLElement>('[role="option"]')
+    expect(hours[8]!.getAttribute('aria-disabled')).toBe('true')
+    expect(hours[12]!.classList).toContain('is-disabled')
+    hours[12]!.click()
+    await nextTick()
+    expect(wrapper.props('modelValue')).toBe('11:30')
+    // ↓ from 11 jumps over 12
+    columns[0]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
+    await nextTick()
+    expect(wrapper.props('modelValue')).toBe('13:30')
+    // 18 only allows :00, so the minutes move
+    hours[18]!.click()
+    await nextTick()
+    expect(wrapper.props('modelValue')).toBe('18:00')
+
+    await input.setValue('12:15')
+    await input.trigger('keydown', { key: 'Enter' })
+    await input.trigger('blur')
+    await wrapper.setProps({})
+    expect(wrapper.props('modelValue')).toBe('18:00')
+    wrapper.unmount()
+  })
+
+  it('rules the ends of a range apart when given a pair', async () => {
+    const wrapper = mount(DouTimePicker, {
+      props: {
+        range: true,
+        modelValue: ['09:00', '18:00'],
+        disabledTime: [
+          { hour: (hour: number) => hour > 12 },
+          { hour: (hour: number) => hour < 12 },
+        ],
+      },
+      attachTo: document.body,
+    })
+    await wrapper.get('input').trigger('keydown', { key: 'Enter' })
+    await nextTick()
+    const groups = document.querySelectorAll<HTMLElement>('.dou-time-picker__columns')
+    const hours = (group: number) =>
+      groups[group]!.querySelector('[role="listbox"]')!.querySelectorAll('[role="option"]')
+    expect(hours(0)[13]!.getAttribute('aria-disabled')).toBe('true')
+    expect(hours(0)[8]!.getAttribute('aria-disabled')).toBeNull()
+    expect(hours(1)[8]!.getAttribute('aria-disabled')).toBe('true')
+    expect(hours(1)[13]!.getAttribute('aria-disabled')).toBeNull()
     wrapper.unmount()
   })
 })

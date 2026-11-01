@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { MinusIcon, PlusIcon } from '@dou-ui/icons'
+import { CloseIcon, MinusIcon, PlusIcon } from '@dou-ui/icons'
 import { computed, onBeforeUnmount, ref, useAttrs, useTemplateRef, watch } from 'vue'
-import type { StyleValue } from 'vue'
+import type { HTMLAttributes, StyleValue } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import { useFormDisabled, useFormItem, useFormReadonly, useFormSize } from '../form/use-form-item'
@@ -17,13 +17,14 @@ const props = withDefaults(defineProps<InputNumberProps>(), {
   readonly: false,
   invalid: false,
   controls: true,
+  clearable: false,
 })
 const model = defineModel<number | null>({ default: null })
-const emit = defineEmits<{ change: [value: number | null, oldValue: number | null] }>()
+const emit = defineEmits<{ change: [value: number | null, oldValue: number | null]; clear: [] }>()
 const slots = defineSlots<InputNumberSlots>()
 
 const ns = useNamespace('input-number')
-const { t } = useLocale()
+const { t, locale } = useLocale()
 const { formItem } = useFormItem()
 const size = useFormSize(() => props.size)
 const disabled = useFormDisabled(() => props.disabled)
@@ -41,6 +42,15 @@ const inputAttrs = computed(() => {
     'aria-required': formItem.required.value || undefined,
     ...rest,
   }
+})
+
+// The on-screen keyboard: digits only for whole numbers. The iOS number
+// pads have no minus key, so a range that reaches below zero gets the full
+// keyboard. An `inputmode` attribute overrides this.
+const inputMode = computed((): HTMLAttributes['inputmode'] => {
+  if (typeof attrs.inputmode === 'string') return attrs.inputmode as HTMLAttributes['inputmode']
+  if (Number.isFinite(props.min) && props.min < 0) return 'text'
+  return props.precision === 0 ? 'numeric' : 'decimal'
 })
 
 const inputRef = useTemplateRef<HTMLInputElement>('input')
@@ -67,6 +77,20 @@ function format(value: number | null) {
   if (value === null || Number.isNaN(value)) return ''
   return props.precision === undefined ? String(value) : value.toFixed(props.precision)
 }
+
+// How the value reads while the field is not being edited.
+const formatter = computed(() => {
+  const option = props.format
+  if (!option) return undefined
+  if (typeof option === 'function') return option
+  const digits =
+    props.precision === undefined
+      ? {}
+      : { minimumFractionDigits: props.precision, maximumFractionDigits: props.precision }
+  const intl = new Intl.NumberFormat(locale.value.name, { ...digits, ...option })
+  return (value: number) => intl.format(value)
+})
+const focused = ref(false)
 
 /** `null` for an empty field, `NaN` for text that is not a number. */
 function parse(text: string) {
@@ -120,9 +144,25 @@ function onChange() {
   commit(Number.isNaN(value) ? model.value : value === null ? null : normalize(value))
 }
 
+// The plain text while editing, the formatted value otherwise.
+const shown = computed(() =>
+  focused.value || !formatter.value || model.value === null || Number.isNaN(model.value)
+    ? text.value
+    : formatter.value(model.value),
+)
+
 function onBlur() {
+  focused.value = false
   onChange()
   formItem?.trigger('blur')
+}
+
+const showClear = computed(() => props.clearable && editable.value && model.value !== null)
+
+function clear() {
+  commit(null)
+  emit('clear')
+  inputRef.value?.focus()
 }
 
 function stepBy(count: number) {
@@ -309,20 +349,34 @@ defineExpose<InputNumberExpose>({
       v-bind="inputAttrs"
       :class="ns.e('native')"
       type="text"
-      inputmode="decimal"
+      :inputmode="inputMode"
       autocomplete="off"
       role="spinbutton"
-      :value="text"
+      :value="shown"
+      :placeholder="placeholder"
       :disabled="disabled"
       :readonly="readonly"
       :aria-valuenow="model ?? undefined"
+      :aria-valuetext="formatter && model !== null ? formatter(model) : undefined"
       :aria-valuemin="Number.isFinite(min) ? min : undefined"
       :aria-valuemax="Number.isFinite(max) ? max : undefined"
       :aria-invalid="invalid || undefined"
       @input="onInput"
+      @focus="focused = true"
       @blur="onBlur"
       @keydown="onKeydown"
     />
+    <button
+      v-if="showClear"
+      type="button"
+      tabindex="-1"
+      :class="ns.e('clear')"
+      :aria-label="t('inputNumber.clear')"
+      @mousedown.prevent
+      @click="clear"
+    >
+      <CloseIcon />
+    </button>
     <span v-if="slots.suffix" :class="[ns.e('affix'), ns.e('suffix')]">
       <slot name="suffix" />
     </span>

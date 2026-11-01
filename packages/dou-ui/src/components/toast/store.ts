@@ -23,20 +23,42 @@ export function getToastContext() {
   return context
 }
 
+const defaultDuration = (options: Partial<ToastOptions>) =>
+  options.loading ? 0 : options.action ? 6000 : 3000
+
 export function addToast(options: ToastOptions): ToastRecord {
   const record: ToastRecord = {
     id: ++seed,
     message: options.message,
     title: options.title,
     tone: options.tone ?? 'neutral',
-    duration: options.duration ?? (options.action ? 6000 : 3000),
+    duration: options.duration ?? defaultDuration(options),
     closable: options.closable ?? false,
     placement: options.placement ?? 'top',
+    loading: options.loading ?? false,
     action: options.action,
     onClose: options.onClose,
+    version: 0,
   }
   toastState.items.push(record)
   return record
+}
+
+/**
+ * Change a toast in place. The fields not given keep their values, except
+ * `loading`, which ends; a toast that stops loading takes the default
+ * duration unless one is given.
+ */
+export function updateToast(id: number, patch: Partial<ToastOptions>) {
+  const record = toastState.items.find((item) => item.id === id)
+  if (!record) return
+  const loading = patch.loading ?? false
+  const duration =
+    patch.duration ??
+    (record.loading !== loading
+      ? defaultDuration({ ...record, ...patch, loading })
+      : record.duration)
+  Object.assign(record, { ...patch, loading, duration, version: record.version + 1 })
 }
 
 export function removeToast(id: number) {

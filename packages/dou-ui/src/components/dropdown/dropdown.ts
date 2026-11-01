@@ -1,6 +1,7 @@
 import type { InjectionKey } from 'vue'
 import type { Placement } from '../../composables/use-floating'
 import type { Size, Tone } from '../../utils/types'
+import type { ContextMenuItem } from '../context-menu/context-menu'
 
 export type DropdownPlacement = Placement
 export type DropdownTrigger = 'click' | 'hover' | 'manual'
@@ -26,6 +27,11 @@ export interface DropdownProps {
   offset?: number
   /** Where to render the menu; `false` keeps it in place. */
   teleport?: string | HTMLElement | false
+  /**
+   * The items as data, in place of the `menu` slot; a chosen item's `run`
+   * is called. Ignored when the `menu` slot is given.
+   */
+  items?: ContextMenuItem[]
 }
 
 export interface DropdownEmits {

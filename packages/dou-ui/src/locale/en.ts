@@ -365,6 +365,8 @@ export const en: Locale = {
     month: 'Month',
     week: 'Week',
     day: 'Day',
+    agenda: 'List',
+    empty: 'Nothing this month',
     allDay: 'All day',
     prevWeek: 'Previous week',
     nextWeek: 'Next week',

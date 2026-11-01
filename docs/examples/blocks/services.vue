@@ -24,7 +24,7 @@ const stat = (id, title, props, x) => ({
   type: 'stat',
   title,
   props: { source: 'summary', ...props },
-  place: { lg: { x, y: 0, w: 2, h: 3 } },
+  place: { lg: { x, y: 0, w: 3, h: 3 } },
 })
 
 const doc = ref({
@@ -34,22 +34,22 @@ const doc = ref({
       'rps',
       '请求量',
       { field: 'rps', suffix: '次/秒', trend: 'rpsTrend', delta: 'rpsDelta' },
-      4,
+      0,
     ),
-    stat('p95', 'P95 延迟', { field: 'p95', suffix: 'ms', precision: 0, trend: 'p95Trend' }, 6),
+    stat('p95', 'P95 延迟', { field: 'p95', suffix: 'ms', precision: 0, trend: 'p95Trend' }, 3),
     stat(
       'errors',
       '错误率',
       { field: 'errorRate', suffix: '%', precision: 2, trend: 'errorTrend' },
-      8,
+      6,
     ),
-    stat('availability', '可用率', { field: 'availability', suffix: '%', precision: 1 }, 10),
+    stat('availability', '可用率', { field: 'availability', suffix: '%', precision: 1 }, 9),
     {
       id: 'services',
       type: 'services',
       title: '服务',
       props: { source: 'services' },
-      place: { lg: { x: 0, y: 0, w: 4, h: 7 } },
+      place: { lg: { x: 0, y: 3, w: 5, h: 6 } },
     },
     {
       id: 'latency',
@@ -62,7 +62,7 @@ const doc = ref({
         y: ['p50', 'p95'],
         labels: { p50: 'P50', p95: 'P95' },
       },
-      place: { lg: { x: 4, y: 3, w: 8, h: 4 } },
+      place: { lg: { x: 5, y: 3, w: 7, h: 6 } },
     },
     {
       id: 'endpoints',
@@ -76,7 +76,7 @@ const doc = ref({
         labels: { count: '错误数' },
         horizontal: true,
       },
-      place: { lg: { x: 0, y: 7, w: 5, h: 5 } },
+      place: { lg: { x: 0, y: 9, w: 5, h: 5 } },
     },
     {
       id: 'incidents',
@@ -91,7 +91,7 @@ const doc = ref({
           { key: 'state', title: '状态' },
         ],
       },
-      place: { lg: { x: 5, y: 7, w: 7, h: 5 } },
+      place: { lg: { x: 5, y: 9, w: 7, h: 5 } },
     },
   ],
 })

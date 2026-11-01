@@ -9,7 +9,7 @@ import { chartWidget } from '@dou-ui/dashboard/chart'
 import { pivotWidget } from '@dou-ui/dashboard/pivot'
 import { statWidget, tableWidget, textWidget } from '@dou-ui/dashboard/widgets'
 import { DownloadIcon, PrinterIcon, RedoIcon, RotateCcwIcon, UndoIcon } from '@dou-ui/icons'
-import { DouButton, DouSwitch, DouTooltip } from 'dou-ui'
+import { DouButton, DouTooltip } from 'dou-ui'
 import { onMounted, ref, watch } from 'vue'
 import { categories, channels, regions, sources } from './ops-board/data'
 
@@ -125,7 +125,7 @@ const defaults = () => ({
         columns: [
           { key: 'rank', title: '排名' },
           { key: 'name', title: '商品' },
-          { key: 'amount', title: '销售额（元）' },
+          { key: 'amount', title: '销售额' },
           { key: 'orders', title: '订单数' },
         ],
       },
@@ -196,7 +196,6 @@ async function download() {
         { type: 'select', key: 'region', label: '地区', options: regions },
       ]"
     >
-      <DouSwitch v-model="editing" size="sm">编辑布局</DouSwitch>
       <template v-if="editing">
         <DouTooltip content="撤销" shortcut="mod+z">
           <DouButton
@@ -220,11 +219,10 @@ async function download() {
             <RedoIcon />
           </DouButton>
         </DouTooltip>
-        <DouTooltip content="恢复默认布局">
-          <DouButton size="sm" variant="ghost" aria-label="恢复默认布局" @click="reset">
-            <RotateCcwIcon />
-          </DouButton>
-        </DouTooltip>
+        <DouButton size="sm" variant="ghost" @click="reset">
+          <template #leading><RotateCcwIcon /></template>
+          恢复默认
+        </DouButton>
       </template>
       <template v-else>
         <DouTooltip content="导出图片">
@@ -238,6 +236,9 @@ async function download() {
           </DouButton>
         </DouTooltip>
       </template>
+      <DouButton size="sm" :variant="editing ? 'solid' : 'outline'" @click="editing = !editing">
+        {{ editing ? '完成' : '编辑布局' }}
+      </DouButton>
     </DouDashboardFilterBar>
     <DouDashboard
       ref="dashboard"

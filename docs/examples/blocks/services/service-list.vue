@@ -16,40 +16,45 @@ function toggle(service) {
 </script>
 
 <template>
-  <div class="services__head" aria-hidden="true">
-    <span />
-    <span>服务</span>
-    <span>请求量</span>
-    <span>P95</span>
-    <span>错误率</span>
+  <div class="services-widget">
+    <div class="services__head" aria-hidden="true">
+      <span />
+      <span>服务</span>
+      <span class="is-rps">请求量</span>
+      <span>P95</span>
+      <span>错误率</span>
+    </div>
+    <ul class="services">
+      <li v-for="service in data ?? []" :key="service.id">
+        <button
+          type="button"
+          class="service"
+          :class="{ 'is-picked': picked === service.id }"
+          :aria-pressed="picked === service.id"
+          :disabled="editing"
+          @click="toggle(service)"
+        >
+          <DouBadge dot :tone="service.status" :label="statusText[service.status]" />
+          <span class="service__name">{{ service.name }}</span>
+          <span class="service__metric is-rps">{{ service.rps.toLocaleString() }}/s</span>
+          <span class="service__metric">{{ service.p95 }} ms</span>
+          <span class="service__metric" :class="{ 'is-high': service.errorRate >= 2 }">
+            {{ service.errorRate.toFixed(2) }}%
+          </span>
+        </button>
+      </li>
+    </ul>
   </div>
-  <ul class="services">
-    <li v-for="service in data ?? []" :key="service.id">
-      <button
-        type="button"
-        class="service"
-        :class="{ 'is-picked': picked === service.id }"
-        :aria-pressed="picked === service.id"
-        :disabled="editing"
-        @click="toggle(service)"
-      >
-        <DouBadge dot :tone="service.status" :label="statusText[service.status]" />
-        <span class="service__name">{{ service.name }}</span>
-        <span class="service__metric">{{ service.rps.toLocaleString() }}/s</span>
-        <span class="service__metric">{{ service.p95 }} ms</span>
-        <span class="service__metric" :class="{ 'is-high': service.errorRate >= 2 }">
-          {{ service.errorRate.toFixed(2) }}%
-        </span>
-      </button>
-    </li>
-  </ul>
 </template>
 
 <style scoped>
+.services-widget {
+  container-type: inline-size;
+}
 .services__head,
 .service {
   display: grid;
-  grid-template-columns: 8px minmax(0, 1fr) 4.5em 4.5em 4.5em;
+  grid-template-columns: 8px minmax(3em, 1fr) 4.5em 4.5em 4.5em;
   align-items: center;
   gap: 10px;
   padding: 0 8px;
@@ -107,6 +112,16 @@ function toggle(service) {
 }
 .service__metric.is-high {
   color: var(--dou-color-danger-text);
+}
+/* a narrow list drops the request column, so the names stay whole */
+@container (max-width: 320px) {
+  .services__head,
+  .service {
+    grid-template-columns: 8px minmax(3em, 1fr) 4.5em 4.5em;
+  }
+  .is-rps {
+    display: none;
+  }
 }
 @media (pointer: coarse) {
   .service {

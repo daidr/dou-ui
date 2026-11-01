@@ -208,8 +208,9 @@ function reset() {
         </DouButton>
       </template>
     </DouPageHeader>
+    <!-- 编辑时格子列表放在上方，首页保持原来的宽度 -->
     <div class="home__body">
-      <DouDashboardPalette v-if="editing" :for="dashboard" class="home__palette" />
+      <DouDashboardPalette v-if="editing" :for="dashboard" direction="horizontal" />
       <DouDashboard
         ref="dashboard"
         v-model="doc"
@@ -219,7 +220,6 @@ function reset() {
         :row-height="44"
         :gap="12"
         label="首页"
-        class="home__board"
       />
     </div>
   </div>
@@ -235,23 +235,8 @@ function reset() {
   min-width: 0;
 }
 .home__body {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 16px;
-}
-.home__palette {
-  flex: 0 0 auto;
-}
-.home__board {
-  flex: 1 1 320px;
-  min-width: 0;
-}
-@media (max-width: 640px) {
-  .home__palette {
-    flex: 1 1 100%;
-    flex-direction: row;
-    flex-wrap: wrap;
-  }
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
 }
 </style>

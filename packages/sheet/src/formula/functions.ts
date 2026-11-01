@@ -4,8 +4,11 @@ import {
   compareValues,
   dateParts,
   dateText,
+  isDateText,
   isRange,
+  isTimeText,
   serialOf,
+  timeOrDays,
   timeText,
   toBoolean,
   toNumber,
@@ -70,9 +73,13 @@ export function scalarOf(arg: SheetArg): SheetResult {
   return arg.rows === 1 && arg.cols === 1 ? arg.at(0, 0) : VALUE
 }
 
+/** A date or time written in a cell, as its day number; `null` for anything else. */
+const serialIn = (value: SheetResult) =>
+  typeof value === 'string' && (isDateText(value) || isTimeText(value)) ? serialOf(value) : null
+
 /**
  * The numbers in some arguments, the way sums count them: in ranges only
- * numbers count (text, `TRUE` / `FALSE` and empty cells are skipped);
+ * numbers, dates and times count (other text, `TRUE` / `FALSE` and empty cells are skipped);
  * given directly, text that reads as a number and `TRUE` / `FALSE` count
  * too. The first error found is returned instead.
  */
@@ -83,6 +90,10 @@ export function numbersOf(args: SheetArg[]): number[] | SheetError {
       for (const [, , value] of arg.entries()) {
         if (isSheetError(value)) return value
         if (typeof value === 'number') out.push(value)
+        else {
+          const serial = serialIn(value)
+          if (serial != null) out.push(serial)
+        }
       }
     } else if (arg != null) {
       const n = toNumber(arg)
@@ -99,6 +110,23 @@ function* valuesOf(args: SheetArg[]): Generator<SheetResult> {
     if (isRange(arg)) for (const [, , value] of arg.entries()) yield value
     else yield arg
   }
+}
+
+/**
+ * Whether all the numbers `numbersOf` takes from some arguments are dates,
+ * or all times, so `SUM` of times is a time and `MAX` of dates a date.
+ */
+function kindOf(args: SheetArg[]): 'date' | 'time' | null {
+  let kind: 'date' | 'time' | null = null
+  for (const value of valuesOf(args)) {
+    if (value == null || isSheetError(value)) continue
+    const k = isDateText(value) ? 'date' : isTimeText(value) ? 'time' : null
+    // other text is skipped in ranges; a number makes it numbers
+    if (!k && typeof value === 'string') continue
+    if (!k || (kind && kind !== k)) return null
+    kind = k
+  }
+  return kind
 }
 
 const num = (arg: SheetArg) => toNumber(scalarOf(arg))
@@ -527,6 +555,12 @@ function payment(rate: number, nper: number, pv: number, fv: number, type: numbe
 
 // The functions ---------------------------------------------------------------------------
 
+/** One of the numbers taken from some arguments, written as they are: a date or a time when they all are. */
+function asInputs(args: SheetArg[], n: number): SheetResult {
+  const kind = kindOf(args)
+  return kind === 'date' ? dateText(n) : kind === 'time' ? timeText(n) : n
+}
+
 const sum = (ns: number[]) => ns.reduce((a, b) => a + b, 0)
 
 export const builtinFunctions: SheetFunction[] = [
@@ -535,7 +569,10 @@ export const builtinFunctions: SheetFunction[] = [
     name: 'SUM',
     run: (args) => {
       const ns = numbersOf(args)
-      return isSheetError(ns) ? ns : finite(sum(ns))
+      if (isSheetError(ns)) return ns
+      const total = finite(sum(ns))
+      // times add up to a time, as `+` adds them
+      return typeof total === 'number' && kindOf(args) === 'time' ? timeOrDays(total) : total
     },
   }),
   defineSheetFunction({
@@ -558,14 +595,14 @@ export const builtinFunctions: SheetFunction[] = [
     name: 'MIN',
     run: (args) => {
       const ns = numbersOf(args)
-      return isSheetError(ns) ? ns : ns.length ? Math.min(...ns) : 0
+      return isSheetError(ns) ? ns : ns.length ? asInputs(args, Math.min(...ns)) : 0
     },
   }),
   defineSheetFunction({
     name: 'MAX',
     run: (args) => {
       const ns = numbersOf(args)
-      return isSheetError(ns) ? ns : ns.length ? Math.max(...ns) : 0
+      return isSheetError(ns) ? ns : ns.length ? asInputs(args, Math.max(...ns)) : 0
     },
   }),
   defineSheetFunction({
@@ -574,7 +611,7 @@ export const builtinFunctions: SheetFunction[] = [
       let n = 0
       for (const arg of args) {
         if (isRange(arg)) {
-          for (const [, , v] of arg.entries()) if (typeof v === 'number') n++
+          for (const [, , v] of arg.entries()) if (typeof v === 'number' || serialIn(v) != null) n++
         } else if (arg != null && !isSheetError(toNumber(arg))) n++
       }
       return n

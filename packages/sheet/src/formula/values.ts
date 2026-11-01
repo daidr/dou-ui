@@ -81,6 +81,10 @@ export function timeText(fraction: number) {
   return sec ? `${pad(h)}:${pad(m)}:${pad(sec)}` : `${pad(h)}:${pad(m)}`
 }
 
+/** A part of a day as a time; a whole day or more, or below nothing, stays a number of days. */
+export const timeOrDays = (days: number): number | string =>
+  days >= 0 && days < 1 ? timeText(days) : days
+
 /** The parts of a date, from a date or a day number; `null` when it is neither. */
 export function dateParts(value: SheetResult) {
   const serial =

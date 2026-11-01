@@ -15,7 +15,7 @@ import {
   isDateText,
   isRange,
   isTimeText,
-  timeText,
+  timeOrDays,
   toNumber,
   toText,
   type SheetArg,
@@ -614,9 +614,7 @@ export class SheetFormulaEngine {
   }
 }
 
-/** A part of a day as a time; a whole day or more, or below nothing, stays a number of days. */
-const clock = (days: number): SheetResult =>
-  days >= 0 && days < 1 ? timeText(days) : Number.isFinite(days) ? days : NUM
+const clock = (days: number): SheetResult => (Number.isFinite(days) ? timeOrDays(days) : NUM)
 
 /** Whether an argument is a range of more than one cell. */
 const isArray = (arg: SheetArg): arg is SheetRangeArg =>

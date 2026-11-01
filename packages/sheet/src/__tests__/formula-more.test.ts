@@ -284,6 +284,23 @@ describe('the second batch, after review', () => {
     expect(calc('=TEXT(46086, "yyyy-mm-dd")')).toBe('2026-03-05')
   })
 
+  it('adds up times as times, and counts dates in ranges', () => {
+    const cells = [
+      ['09:30', '2026-03-05', 3],
+      ['01:15', '2026-01-20', '上海'],
+      ['', '2026-02-01', null],
+    ]
+    expect(calc('=SUM(A1:A2)', cells)).toBe('10:45')
+    expect(calc('=SUM(A1, TIME(1, 0, 0))', cells)).toBe('10:30')
+    expect(calc('=SUM(A1:A2, "20:00")', cells)).toBeCloseTo(30.75 / 24)
+    expect(calc('=SUM(A1:A2, C1)', cells)).toBeCloseTo(3 + 10.75 / 24)
+    expect(calc('=MAX(B1:B3)', cells)).toBe('2026-03-05')
+    expect(calc('=MIN(B1:B3)', cells)).toBe('2026-01-20')
+    expect(calc('=MAX(A1:A2)', cells)).toBe('09:30')
+    expect(calc('=COUNT(A1:C3)', cells)).toBe(6)
+    expect(calc('=B1-MIN(B1:B3)', cells)).toBe(44)
+  })
+
   it('rounds to a multiple with MROUND', () => {
     expect(calc('=MROUND(10, 3)')).toBe(9)
     expect(calc('=MROUND(-10, -3)')).toBe(-9)

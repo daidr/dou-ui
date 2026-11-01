@@ -678,8 +678,8 @@ describe('export', () => {
     const vm = wrapper.findComponent(DouGantt).vm as unknown as GanttExpose
     const csv = vm.exportCSV({ ids: true })
     expect(csv.slice(1).split('\r\n')[0]).toBe('ID,上级任务 ID,任务,开始,结束,进度')
-    const { tasks: read, problems, unknownColumns } = vm.parseCSV(csv)
-    expect(problems).toEqual([])
+    const { tasks: read, warnings, unknownColumns } = vm.readCSV(csv)
+    expect(warnings).toEqual([])
     expect(unknownColumns).toEqual([])
     // the summary's dates come from its subtasks again
     expect(read).toEqual([
@@ -701,7 +701,7 @@ describe('export', () => {
     const { wrapper, tasks } = setup()
     await nextTick()
     const vm = wrapper.findComponent(DouGantt).vm as unknown as GanttExpose
-    const plain = vm.parseCSV(vm.exportCSV())
+    const plain = vm.readCSV(vm.exportCSV())
     // without ids, the summary is a task of its own
     expect(plain.tasks.map(({ id: _id, ...task }) => task)).toEqual([
       { title: '发布', start: '2026-03-02', end: '2026-03-16' },
@@ -711,11 +711,11 @@ describe('export', () => {
     ])
     tasks.value = [{ id: 't', title: '评审会', start: '2026-03-03 10:00', end: '2026-03-03 12:00' }]
     await nextTick()
-    expect(vm.parseCSV(vm.exportCSV()).tasks[0]).toMatchObject({
+    expect(vm.readCSV(vm.exportCSV()).tasks[0]).toMatchObject({
       start: '2026-03-03 10:00',
       end: '2026-03-03 12:00',
     })
-    expect(() => vm.parseCSV('名称,日期\n一,2026-03-02')).toThrow(/title column/)
+    expect(() => vm.readCSV('名称,日期\n一,2026-03-02')).toThrow(/title column/)
   })
 
   it('imports CSV as one undo step, keeping links of the tasks it has', async () => {
@@ -732,7 +732,7 @@ describe('export', () => {
       'a,p,设计,2026-03-02,5',
       ',p,验收,2026-03-23,2',
     ].join('\n')
-    const result = vm.importCSV(csv)
+    const result = vm.importCSV(csv)!
     expect(result.columns).toEqual(['id', 'parent', 'title', 'start', 'duration'])
     await nextTick()
     const b = tasks.value.find((task) => task.id === 'b')!
@@ -755,15 +755,35 @@ describe('export', () => {
     expect(tasks.value).toEqual(before)
     expect(links.value).toHaveLength(2)
 
-    // appended, with new ids where theirs are taken
-    vm.importCSV('ID,上级任务 ID,任务,开始,工期\np,,二期,2026-04-01,\nx,p,联调,2026-04-01,3', {
-      mode: 'append',
-    })
+    // appended, with new ids where theirs are taken, or under a task of the chart
+    vm.importCSV(
+      'ID,上级任务 ID,任务,开始,工期\np,,二期,2026-04-01,\nx,p,联调,2026-04-01,3\ny,a,补图,2026-03-09,1',
+      { mode: 'append' },
+    )
     await nextTick()
-    expect(tasks.value).toHaveLength(6)
-    const [copy, child] = tasks.value.slice(4)
+    expect(tasks.value).toHaveLength(7)
+    const [copy, child, under] = tasks.value.slice(4)
     expect(copy!.id).not.toBe('p')
     expect(child).toMatchObject({ id: 'x', parent: copy!.id, title: '联调' })
+    expect(under).toMatchObject({ id: 'y', parent: 'a' })
+  })
+
+  it('imports nothing while readonly', async () => {
+    const { wrapper, tasks } = setup({ readonly: true })
+    await nextTick()
+    const vm = wrapper.findComponent(DouGantt).vm as unknown as GanttExpose
+    expect(vm.importCSV('任务\n新任务')).toBeNull()
+    expect(tasks.value).toEqual(sample())
+    // reading changes nothing, so it still works
+    expect(vm.readCSV('任务\n新任务').tasks).toHaveLength(1)
+  })
+
+  it('writes the end of a summary that ends on a milestone as its day', async () => {
+    const { wrapper } = setup({ columns: [{ key: 'title' }, { key: 'end' }] })
+    await nextTick()
+    const vm = wrapper.findComponent(DouGantt).vm as unknown as GanttExpose
+    // 发布 ends with 上线 on 03-16, as the table shows it
+    expect(vm.exportCSV({ bom: false }).split('\r\n')[1]).toBe('发布,2026-03-16')
   })
 
   it('draws the chart as SVG, with the plan under the bars', async () => {

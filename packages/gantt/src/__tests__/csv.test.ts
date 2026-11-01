@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { resolveCalendar } from '../core/calendar'
-import { applyGanttCSV, parseGanttCSV, splitCSV } from '../core/csv'
+import { applyGanttCSV, GanttCSVError, readGanttCSV, splitCSV } from '../core/csv'
 import { GanttTransaction, type GanttDocument } from '../core/transaction'
 import { ganttLocales } from '../locale'
 import type { GanttColumn } from '../types'
@@ -12,7 +12,7 @@ const context = (
   messages: ganttLocales['zh-CN']!,
   calendar: resolveCalendar(),
 })
-const parse = (text: string, columns?: GanttColumn[]) => parseGanttCSV(text, context(columns))
+const parse = (text: string, columns?: GanttColumn[]) => readGanttCSV(text, context(columns))
 const withoutIds = (text: string, columns?: GanttColumn[]) =>
   parse(text, columns).tasks.map(({ id: _id, ...task }) => task)
 
@@ -24,7 +24,11 @@ describe('splitCSV', () => {
     ])
   })
 
-  it('finds a semicolon or tab between fields', () => {
+  it('finds a semicolon, tab or bar between fields', () => {
+    expect(splitCSV('a|b\n1|2')).toEqual([
+      ['a', 'b'],
+      ['1', '2'],
+    ])
     expect(splitCSV('a;b;c\n1,5;2;3')).toEqual([
       ['a', 'b', 'c'],
       ['1,5', '2', '3'],
@@ -36,7 +40,7 @@ describe('splitCSV', () => {
   })
 })
 
-describe('parseGanttCSV', () => {
+describe('readGanttCSV', () => {
   it('counts durations in working days, skipping weekends', () => {
     // 2026-03-06 is a Friday: three working days end on Tuesday
     expect(withoutIds('任务,开始,工期（天）\n上线准备,2026-03-06,3\n')).toEqual([
@@ -96,7 +100,7 @@ describe('parseGanttCSV', () => {
       '任务,开始,结束,进度,备注\n设计,3月2日,,\n开发,2026-03-09,2026-03-01,很多\n\n测试,2026-03-10,,',
       columns,
     )
-    expect(result.problems).toEqual([
+    expect(result.warnings).toEqual([
       { row: 2, column: 'start', text: '3月2日' },
       { row: 3, column: 'end', text: '2026-03-01' },
       { row: 3, column: 'progress', text: '很多' },
@@ -121,7 +125,7 @@ describe('parseGanttCSV', () => {
     expect(result.tasks.find((task) => task.title === '孤立')!.parent).toBeUndefined()
     expect(result.tasks.find((task) => task.title === '甲')!.parent).toBe('c2')
     expect(result.tasks.find((task) => task.title === '乙')!.parent).toBeUndefined()
-    expect(result.problems).toEqual([
+    expect(result.warnings).toEqual([
       { row: 4, column: 'id', text: 'a' },
       { row: 5, column: 'parent', text: 'y' },
       { row: 7, column: 'parent', text: 'c1' },
@@ -145,12 +149,95 @@ describe('parseGanttCSV', () => {
       { title: '设计', data: { owner: '戴兜', points: 3 } },
       { title: '开发' },
     ])
-    expect(result.problems).toEqual([{ row: 3, column: 'points', text: '很多' }])
-    expect(result.unknownColumns).toEqual(['编号'])
+    expect(result.warnings).toEqual([{ row: 3, column: 'points', text: '很多' }])
+    // known, but not read
+    expect(result.unknownColumns).toEqual([])
+    expect(result.columns).toEqual(['title', 'owner', 'points'])
+  })
+
+  it('reads dates as spreadsheets save them', () => {
+    expect(
+      withoutIds(
+        '任务,开始,结束\n一,2026/3/2,2026/3/6\n二,2026-3-9,2026.3.13\n三,2026/3/3 9:30,2026/3/3 11:00:00',
+      ),
+    ).toEqual([
+      { title: '一', start: '2026-03-02', end: '2026-03-06' },
+      { title: '二', start: '2026-03-09', end: '2026-03-13' },
+      { title: '三', start: '2026-03-03 09:30', end: '2026-03-03 11:00' },
+    ])
+    expect(parse('任务,开始\n一,2026/2/30\n二,2026/3-2').warnings).toEqual([
+      { row: 2, column: 'start', text: '2026/2/30' },
+      { row: 3, column: 'start', text: '2026/3-2' },
+    ])
+  })
+
+  it('reads the built-in fields whatever columns the chart shows', () => {
+    // the chart shows the title only
+    const only: GanttColumn[] = [{ key: 'title' }]
+    const result = parse('title,start,end,进度\n设计,2026-03-02,2026-03-06,40', only)
+    expect(result.unknownColumns).toEqual([])
+    expect(result.tasks.map(({ id: _id, ...task }) => task)).toEqual([
+      { title: '设计', start: '2026-03-02', end: '2026-03-06', progress: 0.4 },
+    ])
+    expect(withoutIds('任务,开始,工期（天）\n设计,2026-03-02,5', only)).toEqual([
+      { title: '设计', start: '2026-03-02', end: '2026-03-06' },
+    ])
+    // a column's own title names the field too
+    expect(
+      withoutIds('名称,开工\n设计,2026-03-02', [
+        { key: 'title', title: '名称' },
+        { key: 'start', title: '开工' },
+      ]),
+    ).toEqual([{ title: '设计', start: '2026-03-02', end: '2026-03-02' }])
+  })
+
+  it('reports working days that are not whole, and durations that come to nothing', () => {
+    const result = parse(
+      '任务,开始,工期\n一,2026-03-02,0.4\n二,2026-03-02,2.5\n三,2026-03-03 09:00,0.001 小时\n四,2026-03-03 09:00,0.5 小时',
+    )
+    expect(result.warnings).toEqual([
+      { row: 2, column: 'duration', text: '0.4' },
+      { row: 3, column: 'duration', text: '2.5' },
+      { row: 4, column: 'duration', text: '0.001 小时' },
+    ])
+    // what can't be read leaves the task its default length
+    expect(result.tasks.map(({ id: _id, ...task }) => task)).toEqual([
+      { title: '一', start: '2026-03-02', end: '2026-03-02' },
+      { title: '二', start: '2026-03-02', end: '2026-03-02' },
+      { title: '三', start: '2026-03-03 09:00', end: '2026-03-03 10:00' },
+      { title: '四', start: '2026-03-03 09:00', end: '2026-03-03 09:30' },
+    ])
+  })
+
+  it('reports an end or a duration without a start', () => {
+    const columns: GanttColumn[] = [{ key: 'title' }, { key: 'end' }]
+    expect(parse('任务,结束\n一,2026-03-06', columns).warnings).toEqual([
+      { row: 2, column: 'end', text: '2026-03-06' },
+    ])
+    expect(parse('任务,开始,工期\n一,,3').warnings).toEqual([
+      { row: 2, column: 'duration', text: '3' },
+    ])
+  })
+
+  it('reads a decimal comma in a file split by semicolons', () => {
+    const columns: GanttColumn[] = [{ key: 'title' }]
+    const result = parse('任务;开始;工期;进度\n评审;2026-03-03 09:00;1,5 小时;12,5', columns)
+    expect(result.warnings).toEqual([])
+    expect(result.tasks[0]).toMatchObject({ end: '2026-03-03 10:30', progress: 0.125 })
+    // with commas between fields, a decimal comma would be a field of its own
+    expect(parse('任务,进度\n评审,12.5', columns).tasks[0]!.progress).toBe(0.125)
   })
 
   it('throws when no header is the title column', () => {
     expect(() => parse('名称,日期\n一,2026-03-02')).toThrow(/title column/)
+    expect(() => parse('名称\n一')).toThrow(
+      expect.objectContaining({
+        name: 'GanttCSVError',
+        code: 'noTitleColumn',
+        reason: '文件里没有“任务”列，无法读出任务',
+      }),
+    )
+    expect(() => parse('名称\n一')).toThrow(GanttCSVError)
     expect(() => parse('')).toThrow(/title column/)
   })
 })
@@ -178,6 +265,31 @@ const apply = (text: string, columns?: GanttColumn[]) => {
 }
 
 describe('applyGanttCSV', () => {
+  it('adds and removes many tasks in linear time', () => {
+    const count = 10_000
+    const lines = ['ID,任务,开始,工期']
+    for (let i = 0; i < count; i++) lines.push(`n${i},任务 ${i},2026-03-02,3`)
+    const result = parse(lines.join('\n'))
+    const old: GanttDocument = {
+      tasks: Array.from({ length: count }, (_, i) => ({ id: `o${i}`, title: `旧 ${i}` })),
+      links: Array.from({ length: count - 1 }, (_, i) => ({
+        id: `l${i}`,
+        from: `o${i}`,
+        to: `o${i + 1}`,
+      })),
+    }
+    const started = performance.now()
+    const replaced = new GanttTransaction(old)
+    applyGanttCSV(replaced, result, 'replace', resolveCalendar())
+    const appended = new GanttTransaction(old)
+    applyGanttCSV(appended, result, 'append', resolveCalendar())
+    // quadratic work took seconds here
+    expect(performance.now() - started).toBeLessThan(1500)
+    expect(replaced.doc.tasks).toHaveLength(count)
+    expect(replaced.doc.links).toHaveLength(0)
+    expect(appended.doc.tasks).toHaveLength(count * 2)
+  })
+
   it('moves a task keeping its work when the file has no end or duration', () => {
     // three working days from Friday end on Tuesday
     const { tasks } = apply('id,任务,开始\na,设计,2026-03-06', [{ key: 'title' }, { key: 'start' }])
@@ -199,6 +311,24 @@ describe('applyGanttCSV', () => {
       ['m', undefined],
     ])
     expect(links).toHaveLength(1)
+  })
+
+  it('keeps what the chart has for values that cannot be read', () => {
+    const { tasks } = apply(
+      'id,任务,开始,工期,进度\np,发布,,,\na,设计,3月6日,3,很多\nm,上线（推迟）,2026/13/1,,',
+      [{ key: 'title' }],
+    )
+    expect(tasks.find((task) => task.id === 'a')).toMatchObject({
+      start: '2026-03-02',
+      end: '2026-03-04',
+    })
+    expect(tasks.find((task) => task.id === 'm')).toEqual({
+      id: 'm',
+      parent: 'p',
+      title: '上线（推迟）',
+      type: 'milestone',
+      start: '2026-03-16',
+    })
   })
 
   it('writes the columns of your own the file has, and leaves the others', () => {

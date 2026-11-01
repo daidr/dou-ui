@@ -1,5 +1,11 @@
 <script setup lang="ts">
-import { DouGantt, type GanttCSVResult, type GanttLink, type GanttTask } from '@dou-ui/gantt'
+import {
+  DouGantt,
+  GanttCSVError,
+  type GanttCSVResult,
+  type GanttLink,
+  type GanttTask,
+} from '@dou-ui/gantt'
 import { DouButton, DouSpace, downloadBlob, toast } from 'dou-ui'
 import { ref, useTemplateRef } from 'vue'
 import { day } from './dates'
@@ -38,12 +44,28 @@ async function readText(file: File) {
   return sheetToCSV(book.sheets[0]!, { formatted: false })
 }
 
-function report(result: GanttCSVResult) {
-  const { tasks: read, problems } = result
-  if (!problems.length)
-    return toast.success(`已导入 ${read.length} 个任务，按 ⌘Z / Ctrl+Z 可以撤销`)
-  const where = problems.map((problem) => `第 ${problem.row} 行的 ${problem.text}`).join('、')
-  toast.warning(`已导入 ${read.length} 个任务，${where}无法识别，已跳过`)
+const HEADERS: Record<string, string> = {
+  id: 'ID',
+  parent: '上级任务 ID',
+  title: '任务',
+  start: '开始',
+  end: '结束',
+  duration: '工期',
+  progress: '进度',
+}
+
+/** 导入后的提示：带一个撤销按钮，焦点不在甘特图上时也能撤销。 */
+function report({ tasks: read, warnings }: GanttCSVResult) {
+  const undo = { label: '撤销', onClick: () => gantt.value?.undo() }
+  if (!warnings.length) return toast.success(`已导入 ${read.length} 个任务`, { action: undo })
+  const where = warnings
+    .slice(0, 3)
+    .map(({ row, column, text }) => `第 ${row} 行“${HEADERS[column] ?? column}”列的 ${text}`)
+    .join('、')
+  const more = warnings.length > 3 ? ` 等 ${warnings.length} 处` : ''
+  toast.warning(`已导入 ${read.length} 个任务，${where}${more}无法识别，这些值没有写入`, {
+    action: undo,
+  })
 }
 
 async function onPick(event: Event) {
@@ -52,11 +74,12 @@ async function onPick(event: Event) {
   input.value = ''
   if (!file || !gantt.value) return
   try {
-    report(gantt.value.importCSV(await readText(file)))
+    const result = gantt.value.importCSV(await readText(file))
+    if (result) report(result)
   } catch (error) {
-    // 读不了的 .xlsx 文件会给出原因，其他情况是文件里没有“任务”列
-    const reason = (error as { reason?: string }).reason
-    toast.danger(reason ?? '没有找到“任务”列，请选择从甘特图导出的文件')
+    if (error instanceof GanttCSVError) toast.danger(error.reason)
+    // 读不了的 .xlsx 文件，错误里也有给人看的原因
+    else toast.danger((error as { reason?: string }).reason ?? '无法读取这个文件')
   }
 }
 </script>

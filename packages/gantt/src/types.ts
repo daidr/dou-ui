@@ -206,18 +206,19 @@ export interface GanttPrintOptions {
   table?: boolean
 }
 
-export interface GanttCSVOptions {
+export interface GanttCSVExportOptions {
   /**
-   * Write the texts the table shows (`3月2日`, `5 天`) instead of values a
-   * spreadsheet can sort and add up (`2026-03-02`, `5`). Defaults to `false`.
+   * Writes what the table shows (`3月2日`, `5 天`) instead of values a
+   * spreadsheet can sort and add up (`2026-03-02`, `5`). Off by default.
+   * Such a file can't be read back with `importCSV`.
    */
   text?: boolean
-  /** Start with a byte order mark, so spreadsheets read the file as UTF-8. Defaults to `true`. */
+  /** Starts with a byte order mark, so spreadsheets read the file as UTF-8. On by default. */
   bom?: boolean
   /**
    * Start with two more columns, the task's `id` and its parent's, so that
-   * `parseCSV` reads the tasks back in their tree, with the ids they have.
-   * Defaults to `false`.
+   * `importCSV` reads the tasks back in their tree, with the ids they have.
+   * Off by default.
    */
   ids?: boolean
 }
@@ -269,20 +270,21 @@ export interface GanttExpose {
    * for timed tasks, the unit in its header; with both, each value keeps
    * its unit) and progress is 0–100.
    */
-  exportCSV: (options?: GanttCSVOptions) => string
+  exportCSV: (options?: GanttCSVExportOptions) => string
   /**
-   * Reads tasks from CSV written by `exportCSV`, or by hand with the same
-   * headers (or the column keys: `title`, `start`, `end`…). Builds nothing
-   * into the chart: put the tasks in `tasks`, or add them with `transact`.
-   * Throws when no header is the title column.
+   * Reads tasks from CSV written by `exportCSV` (not with `text`), or by
+   * hand with the same headers or the field keys (`title`, `start`,
+   * `end`…). Changes nothing in the chart. Throws a `GanttCSVError` when
+   * no header is the title column.
    */
-  parseCSV: (text: string) => GanttCSVResult
+  readCSV: (text: string) => GanttCSVResult
   /**
-   * Reads tasks from CSV like `parseCSV` and puts them in the chart, as
+   * Reads tasks from CSV like `readCSV` and puts them in the chart, as
    * one undo step. By default they replace the tasks; a task with an id
-   * the chart has keeps its links and the fields the file doesn't have.
+   * the chart has keeps its links and what the file doesn't have, or
+   * can't read. `null` while `readonly`, and nothing is written.
    */
-  importCSV: (text: string, options?: GanttCSVImportOptions) => GanttCSVResult
+  importCSV: (text: string, options?: GanttCSVImportOptions) => GanttCSVResult | null
   /**
    * Prints every row, scaled to the page width, with the header repeated on
    * each page.
@@ -291,4 +293,9 @@ export interface GanttExpose {
 }
 
 export type { GanttScale }
-export type { GanttCSVImportOptions, GanttCSVProblem, GanttCSVResult } from './core/csv'
+export type {
+  GanttCSVErrorCode,
+  GanttCSVImportOptions,
+  GanttCSVResult,
+  GanttCSVWarning,
+} from './core/csv'

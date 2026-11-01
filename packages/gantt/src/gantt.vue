@@ -60,7 +60,7 @@ import {
 import { readTheme, type ExportTheme } from './export/theme'
 import { GanttHistory } from './core/history'
 import { linkRefusal, linkTypeOf, type GanttLinkRefusal } from './core/links'
-import { applyGanttCSV, parseGanttCSV, type GanttCSVImportOptions } from './core/csv'
+import { applyGanttCSV, readGanttCSV, type GanttCSVImportOptions } from './core/csv'
 import { createId, spanOf, writeSpan, type GanttLink, type GanttTask } from './core/model'
 import { computeCriticalPath, computeSchedule, findBrokenLinks } from './core/schedule'
 import {
@@ -92,7 +92,7 @@ import type {
   GanttImageOptions,
   GanttMove,
   GanttPrintOptions,
-  GanttCSVOptions,
+  GanttCSVExportOptions,
   GanttProps,
   GanttSlots,
 } from './types'
@@ -796,7 +796,8 @@ function editorValue(row: GanttRow, column: GanttColumn) {
       return task.start ?? ''
     case 'end':
       return span
-        ? formatTime(span.dateOnly ? span.end - MINUTES_PER_DAY : span.end, span.dateOnly)
+        ? // a date-only span ends on its last day; a summary ending on a milestone, on that day
+          formatTime(span.dateOnly ? span.end - 1 : span.end, span.dateOnly)
         : ''
     case 'duration': {
       if (!span) return ''
@@ -2359,7 +2360,7 @@ function csvValue(row: GanttRow, column: GanttColumn, mixed: boolean) {
   return editorValue(row, column)
 }
 
-function exportCSV(options: GanttCSVOptions = {}) {
+function exportCSV(options: GanttCSVExportOptions = {}) {
   const list = columns.value
   const m = messages.value
   // durations are working days or working hours; the header says which, or each value does when both are in
@@ -2385,17 +2386,21 @@ function exportCSV(options: GanttCSVOptions = {}) {
   return (options.bom === false ? '' : '\uFEFF') + lines.join('\r\n')
 }
 
-function parseCSV(text: string) {
-  return parseGanttCSV(text, {
+function readCSV(text: string, outer?: (id: string) => boolean) {
+  return readGanttCSV(text, {
     columns: columns.value,
     messages: messages.value,
     calendar: calendar.value,
+    outer,
   })
 }
 
 function importCSV(text: string, options: GanttCSVImportOptions = {}) {
-  const result = parseCSV(text)
-  transact((tr) => applyGanttCSV(tr, result, options.mode ?? 'replace', calendar.value))
+  if (!editable.value) return null
+  const mode = options.mode ?? 'replace'
+  // appended tasks may go under the chart's own
+  const result = readCSV(text, mode === 'append' ? (id) => tree.value.byId.has(id) : undefined)
+  transact((tr) => applyGanttCSV(tr, result, mode, calendar.value))
   return result
 }
 
@@ -2497,7 +2502,7 @@ defineExpose<GanttExpose>({
   exportSVG,
   exportPNG,
   exportCSV,
-  parseCSV,
+  readCSV: (text: string) => readCSV(text),
   importCSV,
   print,
 })

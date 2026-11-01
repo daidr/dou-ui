@@ -1,3 +1,4 @@
+import { BarChartIcon } from '@dou-ui/icons'
 import { defineDashboardWidget } from '../widget/define'
 import type { WidgetOverrides } from '../widgets'
 import Chart from './chart.vue'
@@ -15,6 +16,7 @@ export function chartWidget(overrides: WidgetOverrides<ChartWidgetProps> = {}) {
   return defineDashboardWidget<ChartWidgetProps>({
     type: 'chart',
     label: '图表',
+    icon: BarChartIcon,
     size: { w: 6, h: 4, minW: 3, minH: 3 },
     defaultProps: { kind: 'line', y: [] },
     component: Chart,

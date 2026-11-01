@@ -3404,7 +3404,8 @@ function groupItems(axis: SheetAxisName): SheetMenuItem[] {
 
 /** The note showing: read on hover or after a tap, or being written. */
 interface NoteShown extends SheetPoint {
-  by: 'hover' | 'tap' | 'edit'
+  /** What showed it: the mouse, a finger, the active cell, or writing it. */
+  by: 'hover' | 'tap' | 'active' | 'edit'
 }
 const noteShown = shallowRef<NoteShown | null>(null)
 let noteTimer: ReturnType<typeof setTimeout> | undefined
@@ -3555,9 +3556,60 @@ function noteItems(): SheetMenuItem[] {
   return items
 }
 
-// a tapped note goes once another cell is chosen
+/*
+ * The active cell's note shows too, after the same pause as a mouse's, so
+ * moving onto a cell with the keys shows its note; it goes once another
+ * cell is chosen, or the cell is being edited.
+ */
 watch(active, (point) => {
-  if (noteShown.value?.by === 'tap' && !sameCell(noteShown.value, noteHome(point))) hideNote()
+  const home = noteHome(point)
+  const now = noteShown.value
+  if (now?.by === 'edit' || sameCell(now, home)) return
+  if (now?.by === 'active' || now?.by === 'tap') hideNote()
+  if (!noteAt(home) || now?.by === 'hover') return
+  clearTimeout(noteTimer)
+  noteTimer = setTimeout(() => {
+    if (!noteShown.value && !editing.value && sameCell(noteHome(active.value), home))
+      noteShown.value = { ...home, by: 'active' }
+  }, NOTE_SHOW)
+})
+watch(editing, (on) => {
+  if (on) hideNote()
+})
+
+/** Escape closes a note being read, as it closes any overlay. */
+function onNoteEscape(event: KeyboardEvent) {
+  if (event.key !== 'Escape' || event.isComposing || noteShown.value?.by === 'edit') return
+  event.preventDefault()
+  event.stopPropagation()
+  hideNote()
+}
+watch(
+  () => !!noteShown.value && noteShown.value.by !== 'edit',
+  (reading) => {
+    if (typeof window === 'undefined') return
+    if (reading) window.addEventListener('keydown', onNoteEscape, true)
+    else window.removeEventListener('keydown', onNoteEscape, true)
+  },
+)
+onBeforeUnmount(() => {
+  clearTimeout(noteTimer)
+  if (typeof window !== 'undefined') window.removeEventListener('keydown', onNoteEscape, true)
+})
+
+/**
+ * The note mark of the cell under the fill handle, drawn over the handle
+ * so it isn't hidden; `null` when that cell has no note.
+ */
+const noteUnderFill = computed(() => {
+  const at = fillRect.value
+  if (!at) return null
+  const b = lastBounds()
+  const below = { row: b.bottom + 1, col: b.right }
+  if (below.row >= rowCount.value || rows.value.size(below.row) <= 0) return null
+  const span = merges.value.cell(below)
+  if (span.top !== below.row || span.right !== b.right || !noteAt(noteHome(below))) return null
+  return at
 })
 
 // Menu -----------------------------------------------------------------------------------
@@ -5262,6 +5314,12 @@ defineExpose<SheetExpose>({
           aria-hidden="true"
           @pointerdown="onFillDown"
           @dblclick.stop="fillDownToData"
+        />
+        <span
+          v-if="noteUnderFill"
+          class="dou-sheet__noted is-over-fill"
+          :style="`left:${noteUnderFill.x - 8}px;top:${noteUnderFill.y}px`"
+          aria-hidden="true"
         />
         <div
           v-if="fillHint"

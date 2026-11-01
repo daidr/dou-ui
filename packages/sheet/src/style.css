@@ -615,6 +615,12 @@
     right: 0;
     border-top-color: var(--dou-color-warning);
     border-right-color: var(--dou-color-warning);
+
+    /* the mark of the cell under the fill handle, again over the handle */
+    &.is-over-fill {
+      right: auto;
+      z-index: 5;
+    }
   }
 
   /* a cell's note, beside it */

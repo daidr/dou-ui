@@ -1,4 +1,5 @@
 import type { SheetCondition } from './core/model'
+import type { SheetProtectionRefusal } from './core/protect'
 import type { SheetErrorCode } from './formula/error'
 import { helpEn, helpZhCN, helpZhTW, type SheetFunctionHelp } from './formula/help'
 
@@ -24,6 +25,8 @@ export interface SheetMessages {
   /** Read out after an edit: `{cell}`, `{value}`. */
   changed: string
   undone: string
+  /** Said when an extension cancels a change without saying why. */
+  changeCancelled: string
   redone: string
   /** Menu items. `{count}` is how many rows or columns. */
   cut: string
@@ -99,6 +102,10 @@ export interface SheetMessages {
   ops: Record<SheetCondition['op'], string>
   group: SheetGroupMessages
   note: SheetNoteMessages
+  /** Cell links: the menu items, the card under a linked cell and the box that edits it. */
+  link: SheetLinkMessages
+  /** Protecting sheets and the workbook, and why a change to them isn't allowed. */
+  protect: SheetProtectMessages
   filter: SheetFilterMessages
   /** Conditional formats: the toolbar's menu, the dialog that adds one and the list of them. */
   formats: SheetFormatsMessages
@@ -195,6 +202,7 @@ const zhCN: SheetMessages = {
   cleared: '已清空 {range}',
   changed: '{cell} 改为 {value}',
   undone: '已撤销',
+  changeCancelled: '这次修改没有生效',
   redone: '已重做',
   cut: '剪切',
   copy: '复制',
@@ -430,6 +438,54 @@ const zhCN: SheetMessages = {
     removed: '已删除批注',
     removedMany: '已删除 {count} 条批注',
   },
+  link: {
+    add: '插入链接',
+    edit: '编辑链接',
+    remove: '删除链接',
+    open: '打开链接',
+    label: '链接',
+    cellLink: '链接：{link}',
+    text: '文本',
+    address: '链接地址',
+    addressPlaceholder: '网址，或 #A1 跳到表格里的单元格',
+    badAddress: '只支持 http、https、mailto、tel 开头的地址，或 # 开头的单元格引用',
+    save: '保存',
+    cancel: '取消',
+    saved: '已保存链接',
+    removed: '已删除链接',
+    jumped: '已跳到 {cell}',
+    missing: '找不到链接指向的位置：{link}',
+  },
+  protect: {
+    menu: '保护',
+    protectSheet: '保护工作表',
+    unprotectSheet: '取消保护工作表',
+    protectBook: '保护工作簿结构',
+    unprotectBook: '取消保护工作簿结构',
+    lock: '锁定单元格',
+    unlock: '取消锁定单元格',
+    sheetProtected: '已保护工作表 {name}',
+    sheetUnprotected: '已取消保护工作表 {name}',
+    bookProtected: '已保护工作簿结构',
+    bookUnprotected: '已取消保护工作簿结构',
+    locked: '已锁定所选单元格',
+    unlocked: '已取消锁定所选单元格',
+    protectedSheet: '（受保护）',
+    refused: {
+      cell: '单元格受保护，不能修改',
+      format: '受保护的工作表不能修改锁定单元格的格式',
+      lock: '工作表受保护时不能锁定或解锁单元格',
+      formatRows: '受保护的工作表不能调整行高或隐藏行',
+      formatColumns: '受保护的工作表不能调整列宽或隐藏列',
+      insertRows: '受保护的工作表不能插入行',
+      insertColumns: '受保护的工作表不能插入列',
+      deleteRows: '受保护的工作表不能删除行',
+      deleteColumns: '受保护的工作表不能删除列',
+      filter: '受保护的工作表不能筛选',
+      sheet: '工作表受保护，不能修改',
+      structure: '工作簿结构受保护，不能添加、删除、移动或重命名工作表',
+    },
+  },
   filter: {
     sortAsc: '升序排序',
     sortDesc: '降序排序',
@@ -549,6 +605,7 @@ const zhTW: SheetMessages = {
   cleared: '已清除 {range}',
   changed: '{cell} 改為 {value}',
   undone: '已復原',
+  changeCancelled: '這次修改沒有生效',
   redone: '已重做',
   cut: '剪下',
   copy: '複製',
@@ -784,6 +841,54 @@ const zhTW: SheetMessages = {
     removed: '已刪除附註',
     removedMany: '已刪除 {count} 則附註',
   },
+  link: {
+    add: '插入連結',
+    edit: '編輯連結',
+    remove: '刪除連結',
+    open: '開啟連結',
+    label: '連結',
+    cellLink: '連結：{link}',
+    text: '文字',
+    address: '連結位址',
+    addressPlaceholder: '網址，或 #A1 跳到表格裡的儲存格',
+    badAddress: '只支援 http、https、mailto、tel 開頭的位址，或 # 開頭的儲存格參照',
+    save: '儲存',
+    cancel: '取消',
+    saved: '已儲存連結',
+    removed: '已刪除連結',
+    jumped: '已跳到 {cell}',
+    missing: '找不到連結指向的位置：{link}',
+  },
+  protect: {
+    menu: '保護',
+    protectSheet: '保護工作表',
+    unprotectSheet: '取消保護工作表',
+    protectBook: '保護活頁簿結構',
+    unprotectBook: '取消保護活頁簿結構',
+    lock: '鎖定儲存格',
+    unlock: '取消鎖定儲存格',
+    sheetProtected: '已保護工作表 {name}',
+    sheetUnprotected: '已取消保護工作表 {name}',
+    bookProtected: '已保護活頁簿結構',
+    bookUnprotected: '已取消保護活頁簿結構',
+    locked: '已鎖定所選儲存格',
+    unlocked: '已取消鎖定所選儲存格',
+    protectedSheet: '（受保護）',
+    refused: {
+      cell: '儲存格受保護，無法修改',
+      format: '受保護的工作表無法修改鎖定儲存格的格式',
+      lock: '工作表受保護時無法鎖定或解除鎖定儲存格',
+      formatRows: '受保護的工作表無法調整列高或隱藏列',
+      formatColumns: '受保護的工作表無法調整欄寬或隱藏欄',
+      insertRows: '受保護的工作表無法插入列',
+      insertColumns: '受保護的工作表無法插入欄',
+      deleteRows: '受保護的工作表無法刪除列',
+      deleteColumns: '受保護的工作表無法刪除欄',
+      filter: '受保護的工作表無法篩選',
+      sheet: '工作表受保護，無法修改',
+      structure: '活頁簿結構受保護，無法新增、刪除、移動或重新命名工作表',
+    },
+  },
   filter: {
     sortAsc: '遞增排序',
     sortDesc: '遞減排序',
@@ -903,6 +1008,7 @@ const en: SheetMessages = {
   cleared: '{range} cleared',
   changed: '{cell} is now {value}',
   undone: 'Undone',
+  changeCancelled: "That change wasn't made",
   redone: 'Redone',
   cut: 'Cut',
   copy: 'Copy',
@@ -1144,6 +1250,56 @@ const en: SheetMessages = {
     saved: 'Note saved',
     removed: 'Note deleted',
     removedMany: '{count} notes deleted',
+  },
+  link: {
+    add: 'Insert link',
+    edit: 'Edit link',
+    remove: 'Remove link',
+    open: 'Open link',
+    label: 'Link',
+    cellLink: 'Link: {link}',
+    text: 'Text',
+    address: 'Link',
+    addressPlaceholder: 'A web address, or #A1 for a cell in the workbook',
+    badAddress:
+      'Use an address starting with http, https, mailto or tel, or # and a cell reference',
+    save: 'Save',
+    cancel: 'Cancel',
+    saved: 'Link saved',
+    removed: 'Link removed',
+    jumped: 'Went to {cell}',
+    missing: "Can't find where the link goes: {link}",
+  },
+  protect: {
+    menu: 'Protect',
+    protectSheet: 'Protect sheet',
+    unprotectSheet: 'Unprotect sheet',
+    protectBook: 'Protect workbook structure',
+    unprotectBook: 'Unprotect workbook structure',
+    lock: 'Lock cells',
+    unlock: 'Unlock cells',
+    sheetProtected: '{name} protected',
+    sheetUnprotected: '{name} no longer protected',
+    bookProtected: 'Workbook structure protected',
+    bookUnprotected: 'Workbook structure no longer protected',
+    locked: 'Selected cells locked',
+    unlocked: 'Selected cells unlocked',
+    protectedSheet: '(protected)',
+    refused: {
+      cell: "The cell is protected and can't be changed",
+      format: "Locked cells on a protected sheet can't be formatted",
+      lock: "Cells can't be locked or unlocked while the sheet is protected",
+      formatRows: "Rows on a protected sheet can't be resized or hidden",
+      formatColumns: "Columns on a protected sheet can't be resized or hidden",
+      insertRows: "Rows can't be inserted on a protected sheet",
+      insertColumns: "Columns can't be inserted on a protected sheet",
+      deleteRows: "Rows can't be deleted on a protected sheet",
+      deleteColumns: "Columns can't be deleted on a protected sheet",
+      filter: "A protected sheet can't be filtered",
+      sheet: "The sheet is protected and can't be changed",
+      structure:
+        "The workbook's structure is protected: sheets can't be added, deleted, moved or renamed",
+    },
   },
   filter: {
     sortAsc: 'Sort ascending',
@@ -1439,6 +1595,53 @@ export interface SheetGroupMessages {
   /** Grouping lines that would cross the group `{group}`, or nest too deep. */
   crossing: string
   tooDeep: string
+}
+
+export interface SheetLinkMessages {
+  /** Menu items and the card's buttons. */
+  add: string
+  edit: string
+  remove: string
+  open: string
+  /** The edit box's name, and a cell's link as read out: `{link}`. */
+  label: string
+  cellLink: string
+  /** The edit box's fields. */
+  text: string
+  address: string
+  addressPlaceholder: string
+  /** Shown for an address that won't be followed. */
+  badAddress: string
+  save: string
+  cancel: string
+  /** Read out after a change, and after following a link in the workbook: `{cell}`. */
+  saved: string
+  removed: string
+  jumped: string
+  /** Shown when a link into the workbook goes nowhere, such as to a sheet that is gone: `{link}`. */
+  missing: string
+}
+
+export interface SheetProtectMessages {
+  /** The toolbar's menu of these, and its items. */
+  menu: string
+  protectSheet: string
+  unprotectSheet: string
+  protectBook: string
+  unprotectBook: string
+  lock: string
+  unlock: string
+  /** Read out after a change: `{name}` is the sheet's. */
+  sheetProtected: string
+  sheetUnprotected: string
+  bookProtected: string
+  bookUnprotected: string
+  locked: string
+  unlocked: string
+  /** Read out after a protected sheet's name on its tab. */
+  protectedSheet: string
+  /** Shown when a change runs into protection, by what it ran into. */
+  refused: Record<SheetProtectionRefusal, string>
 }
 
 export interface SheetNoteMessages {

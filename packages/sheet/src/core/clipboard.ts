@@ -1,5 +1,6 @@
 import { parseCSV } from './csv'
 import { formatValue, parseInput } from './format'
+import { linkTarget } from './link'
 import { cellOf, valueOf, type SheetCellInput, type SheetStyle, type SheetValue } from './model'
 import { shownValue, type SheetResult } from '../formula/values'
 
@@ -82,7 +83,11 @@ export function formatClip(clip: SheetClip, options: SheetClipFormat = {}) {
       fields.push(tsvField(shown))
       const style = cell?.style ? styles[cell.style] : undefined
       const css = cssOf(style, typeof value === 'number' ? 'right' : undefined)
-      cols += `<td${css ? ` style="${css}"` : ''}>${escapeHTML(shown).replaceAll('\n', '<br>')}</td>`
+      let body = escapeHTML(shown).replaceAll('\n', '<br>')
+      // a link to a web page stays one in other programs
+      const target = linkTarget(cell?.link)
+      if (target?.kind === 'web') body = `<a href="${escapeHTML(target.href)}">${body}</a>`
+      cols += `<td${css ? ` style="${css}"` : ''}>${body}</td>`
     }
     text.push(fields.join('\t'))
     rows += `<tr>${cols}</tr>`
@@ -136,6 +141,11 @@ function readTable(table: Element): SheetCellInput[][] {
       if (td.nodeName !== 'TD' && td.nodeName !== 'TH') continue
       while (taken[r]?.[c]) c++
       line[c] = inputOf(cellText(td))
+      // a cell that is one link to a web page keeps it
+      const anchors = td.querySelectorAll('a[href]')
+      const href = anchors.length === 1 ? anchors[0]!.getAttribute('href') : null
+      const target = href ? linkTarget(href) : null
+      if (target?.kind === 'web') line[c] = { ...cellOf(line[c]), link: target.href }
       const rowSpan = Math.max(1, Number(td.getAttribute('rowspan')) || 1)
       const colSpan = Math.max(1, Number(td.getAttribute('colspan')) || 1)
       for (let dr = 0; dr < rowSpan; dr++)

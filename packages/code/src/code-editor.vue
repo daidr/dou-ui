@@ -342,11 +342,11 @@ const LINT_DELAY = 300
 let lintTimer = 0
 const linting = computed(() => extensions.value.some((extension) => extension.lint))
 
-function runLint() {
-  clearTimeout(lintTimer)
+function runLint(name?: string) {
+  if (name === undefined) clearTimeout(lintTimer)
   const text = doc.value
   for (const extension of extensions.value) {
-    if (!extension.lint) continue
+    if (!extension.lint || (name !== undefined && extension.name !== name)) continue
     let found: ReturnType<NonNullable<CodeExtension['lint']>>
     try {
       found = extension.lint(context)
@@ -377,6 +377,13 @@ function scheduleLint() {
 }
 
 watch(extensions, (next, before) => {
+  // The same extensions in a new array, as an inline `:extensions="[a]"` gives on every render: nothing to do.
+  if (
+    before &&
+    before.length === next.length &&
+    next.every((extension, i) => extension === before[i])
+  )
+    return
   // A linter that went away takes its problems with it.
   for (const gone of before ?? []) if (!next.includes(gone)) setDiagnostics(gone.name, [])
   if (mounted.value) runLint()
@@ -2166,6 +2173,8 @@ function closeProblems() {
   hoverAbort = null
   problemBox.value = null
 }
+// The touch toolbar and the hover box would cover each other: the toolbar, asked for last, wins.
+watch(menuOpen, (open) => open && closeProblems())
 
 function runFix(index: number) {
   const fix = fixes.value[index]
@@ -3701,6 +3710,19 @@ const menuItems = computed(() => {
         menuOpen.value = true
       },
     })
+  for (const extension of extensions.value) {
+    if (!extension.menu) continue
+    extension.menu(context).forEach((item, i) =>
+      items.push({
+        key: `${extension.name}/${i}`,
+        label: item.label,
+        run: () => {
+          menuOpen.value = false
+          item.run(context)
+        },
+      }),
+    )
+  }
   return items
 })
 
@@ -4322,7 +4344,13 @@ const api: CodeExtensionContext = {
   get focused() {
     return focused.value
   },
+  get messages() {
+    return messages.value
+  },
   announce,
+  relint: (name) => {
+    if (mounted.value) runLint(name)
+  },
 }
 context = api
 provide(CODE_EDITOR_KEY, api)
@@ -4758,7 +4786,16 @@ defineExpose<CodeEditorExpose>(api)
                     v-if="completion!.items[completion!.index]?.option.info"
                     :class="ns.e('completion-info')"
                   >
-                    {{ completion!.items[completion!.index]!.option.info }}
+                    <template
+                      v-if="typeof completion!.items[completion!.index]!.option.info === 'string'"
+                      >{{ completion!.items[completion!.index]!.option.info }}</template
+                    >
+                    <RenderPart
+                      v-else
+                      :render="
+                        completion!.items[completion!.index]!.option.info as () => VNodeChild
+                      "
+                    />
                   </div>
                 </div>
                 <div
@@ -4777,7 +4814,10 @@ defineExpose<CodeEditorExpose>(api)
                     >
                   </div>
                   <div v-if="signature!.result.info" :class="ns.e('signature-info')">
-                    {{ signature!.result.info }}
+                    <template v-if="typeof signature!.result.info === 'string'">{{
+                      signature!.result.info
+                    }}</template>
+                    <RenderPart v-else :render="signature!.result.info" />
                   </div>
                 </div>
               </div>

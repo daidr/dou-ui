@@ -6,7 +6,11 @@ export default DouGantt
 
 export type {
   GanttBarLabel,
-  GanttCSVOptions,
+  GanttCSVErrorCode,
+  GanttCSVExportOptions,
+  GanttCSVImportOptions,
+  GanttCSVResult,
+  GanttCSVWarning,
   GanttColumn,
   GanttEmits,
   GanttExportOptions,
@@ -19,6 +23,7 @@ export type {
   GanttProps,
   GanttSlots,
 } from './types'
+export { GanttCSVError } from './core/csv'
 export { useGantt } from './context'
 export type { GanttContext } from './context'
 export { defineGanttExtension } from './core/extension'

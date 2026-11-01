@@ -368,6 +368,74 @@ describe('readXlsx', () => {
     expect(sheet.filter).toEqual({ range: 'A1:A2', columns: { 0: { values: ['上海'] } } })
   })
 
+  it('keeps links, protection and unlocked cells', async () => {
+    const source: SheetWorkbook = {
+      protect: true,
+      styles: { blank: { locked: false } },
+      sheets: [
+        {
+          name: '报价单',
+          protect: { formatColumns: true, filter: true },
+          cells: [
+            [
+              { value: '官网', link: 'https://ui.daidr.me/' },
+              { value: '看汇总', link: "#'汇 总'!B2" },
+              { value: '戴兜', style: 'blank' },
+            ],
+            [{ value: 3, link: 'mailto:daidr@daidr.me' }],
+          ],
+        },
+        { name: '汇 总', cells: [['合计']] },
+      ],
+    }
+    const { book, warnings } = await roundTrip(source)
+    expect(warnings).toEqual([])
+    expect(book.protect).toBe(true)
+    const [sheet, other] = book.sheets
+    expect(sheet!.protect).toEqual({ formatColumns: true, filter: true })
+    expect(other!.protect).toBeUndefined()
+    expect(sheet!.cells[0]![0]).toEqual({ value: '官网', link: 'https://ui.daidr.me/' })
+    expect(sheet!.cells[0]![1]).toEqual({ value: '看汇总', link: "#'汇 总'!B2" })
+    expect(sheet!.cells[1]![0]).toEqual({ value: 3, link: 'mailto:daidr@daidr.me' })
+    const blank = sheet!.cells[0]![2] as { style: string }
+    expect(book.styles![blank.style]).toEqual({ locked: false })
+    // a sheet protected with nothing allowed comes back as `true`
+    source.sheets[0]!.protect = true
+    expect((await roundTrip(source)).book.sheets[0]!.protect).toBe(true)
+  })
+
+  it('reads links and protection other programs write, and says when a password is dropped', async () => {
+    const bytes = await fileOf(
+      '<sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>官网</t></is></c><c r="B1"><v>1</v></c></row></sheetData>' +
+        '<sheetProtection password="CC1A" sheet="1" objects="1" scenarios="1" formatRows="0" sort="0"/>' +
+        '<hyperlinks><hyperlink ref="A1" r:id="rId1"/><hyperlink ref="B1" location="数据!A1"/><hyperlink ref="C1" r:id="rId2"/></hyperlinks>',
+      {
+        sheetRels:
+          `<Relationship Id="rId1" Type="${REL}/hyperlink" Target="https://ui.daidr.me/" TargetMode="External"/>` +
+          `<Relationship Id="rId2" Type="${REL}/hyperlink" Target="javascript:alert(1)" TargetMode="External"/>`,
+        workbook: `<workbook ${NS} ${R}><workbookProtection lockStructure="1" workbookPassword="CC1A"/><sheets><sheet name="数据" sheetId="1" r:id="rId1"/></sheets></workbook>`,
+      },
+    )
+    const { book, warnings } = await readXlsx(bytes)
+    const sheet = book.sheets[0]!
+    expect(book.protect).toBe(true)
+    expect(sheet.protect).toEqual({ formatRows: true })
+    expect(sheet.cells[0]).toEqual([
+      { value: '官网', link: 'https://ui.daidr.me/' },
+      { value: 1, link: '#数据!A1' },
+    ])
+    expect(warnings.map((w) => [w.code, w.count])).toEqual([
+      ['hyperlink', 1],
+      ['password', 1],
+      ['password', 1],
+    ])
+    // one for the sheet, one for the workbook
+    expect(warnings.filter((w) => w.code === 'password').map((w) => w.sheet)).toEqual([
+      '数据',
+      undefined,
+    ])
+  })
+
   it('lists what it leaves out, and keeps results of formulas on other files', async () => {
     const bytes = await fileOf(
       '<sheetData><row r="1"><c r="A1"><f>[1]Sheet1!A1</f><v>5</v></c></row></sheetData>' +

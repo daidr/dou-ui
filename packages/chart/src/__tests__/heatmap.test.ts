@@ -79,6 +79,33 @@ describe('heatmap', () => {
     expect(y.labels.map((label) => label.text)).toEqual(['上海徐汇店', '上海静安店'])
   })
 
+  it('names every row on a short chart too', () => {
+    const rows: Array<{ q: string; store: string; rate: number }> = []
+    for (let r = 0; r < 12; r++)
+      for (const q of ['一季度', '二季度']) rows.push({ q, store: `门店${r}`, rate: r })
+    const model = buildModel(
+      [{ index: 0, kind: heatmapKind, props: { y: 'store', value: 'rate' } as never }],
+      { data: rows, x: 'q' },
+    )
+    for (const height of [400, 200, 120]) {
+      const layout = layoutChart({
+        model,
+        axes: {
+          x: { position: 'bottom', grid: false, hidden: false },
+          y: { position: 'left', grid: false, hidden: false },
+          y2: null,
+        },
+        width: 600,
+        height,
+        locale: 'zh-CN',
+        measure: (text) => text.length * 7,
+      })
+      expect(layout.y.y!.labels.map((label) => label.text)).toEqual(
+        Array.from({ length: 12 }, (_, r) => `门店${r}`),
+      )
+    }
+  })
+
   it('reads out its size and largest cell, and shows its scale in the legend', async () => {
     const { wrapper } = await sized(() =>
       h(DouChart, { data: rates, x: 'q', height: 300 }, () => [

@@ -28,6 +28,7 @@ export type {
   CodePositionRequest,
   CodeCompletionResult,
   CodeHoverResult,
+  CodeMenuItem,
   CodePanel,
   CodeSignatureResult,
   CodeWidget,

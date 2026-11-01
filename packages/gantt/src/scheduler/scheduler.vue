@@ -825,7 +825,8 @@ function onDragEnd(event: PointerEvent) {
   if (d.touch && d.started && d.mode === 'move' && Math.abs(d.x - d.x0) < THRESHOLD.touch) {
     const found = itemById.value.get(d.id)
     stopDrag()
-    if (found) showMenu(taskTarget(found.item.task, found.row), event.clientX, event.clientY)
+    if (found && menuAllowed(found.item.task, event.clientX, event.clientY))
+      showMenu(taskTarget(found.item.task, found.row), event.clientX, event.clientY)
     return
   }
   if (d.started) {
@@ -859,7 +860,7 @@ function finishDraw() {
     start: span.start!,
     end: span.end ?? span.start!,
   }
-  emit('rangeSelect', out)
+  emit('create', out)
 }
 
 function onDragKey(event: KeyboardEvent) {
@@ -981,10 +982,22 @@ const onRootPointerdown = (event: PointerEvent) => {
   if (event.pointerType === 'touch') touchedAt = Date.now()
 }
 
+/**
+ * A menu opened by a resting finger or by the menu key has no browser event:
+ * it gets a stand-in, so `taskContextmenu` comes first in every case and
+ * `preventDefault()` keeps the menu closed.
+ */
+function menuAllowed(item: GanttTask, x: number, y: number) {
+  const event = new MouseEvent('contextmenu', { cancelable: true, clientX: x, clientY: y })
+  emit('taskContextmenu', item, event)
+  return !event.defaultPrevented
+}
+
 function onTaskContextmenu(bar: Bar, event: MouseEvent) {
+  // a finger's long press opens the menu, and sends the event, when it lets go
+  if (Date.now() - touchedAt < 1000) return event.preventDefault()
   emit('taskContextmenu', bar.item.task, event)
   if (event.defaultPrevented) return
-  if (Date.now() - touchedAt < 1000) return event.preventDefault()
   if (showMenu(taskTarget(bar.item.task, bar.row), event.clientX, event.clientY))
     event.preventDefault()
 }
@@ -1008,6 +1021,7 @@ function openKeyMenu() {
   )
   const rect = el?.getBoundingClientRect()
   if (!rect) return false
+  if (!menuAllowed(found.item.task, rect.left + 8, rect.bottom + 4)) return true
   return showMenu(taskTarget(found.item.task, found.row), rect.left + 8, rect.bottom + 4)
 }
 

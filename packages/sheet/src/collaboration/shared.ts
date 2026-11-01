@@ -39,6 +39,11 @@ export type SharedList = Y.Array<string>
 const OWN_FIELDS = new Set(['id', 'cells', 'rowSizes', 'colSizes', 'rowCount', 'colCount'])
 export const isMetaKey = (key: string) => !OWN_FIELDS.has(key)
 
+/** The parts of the shared workbook; its other keys are the workbook's own settings, such as `protect`. */
+const BOOK_PARTS = new Set(['styles', 'types', 'order', 'sheets'])
+/** Whether a key of the workbook is one of its own settings, kept as it is in the shared map. */
+export const isBookKey = (key: string) => !BOOK_PARTS.has(key)
+
 /** The fields of a sheet whose ranges or formulas are anchored to its lines. */
 export const ANCHORED_META = [
   'merges',
@@ -333,6 +338,8 @@ export function fillBook(book: SharedMap, workbook: SheetWorkbook) {
     book.set('sheets', sheets)
     for (const [name, style] of Object.entries(workbook.styles ?? {})) styles.set(name, style)
     for (const [name, setup] of Object.entries(workbook.types ?? {})) types.set(name, setup)
+    for (const [key, value] of Object.entries(workbook))
+      if (isBookKey(key) && value !== undefined) book.set(key, value)
     const layout = new SheetLayout()
     const placed = workbook.sheets.map((data) => {
       let id = data.id
@@ -390,6 +397,9 @@ export function readBook(book: SharedMap): SheetWorkbook {
   const workbook: SheetWorkbook = { sheets: [] }
   if (parts.styles.size) workbook.styles = parts.styles.toJSON() as SheetWorkbook['styles']
   if (parts.types.size) workbook.types = parts.types.toJSON() as SheetWorkbook['types']
+  book.forEach((value, key) => {
+    if (isBookKey(key)) (workbook as unknown as Json)[key] = value
+  })
   for (const here of layout.sheets.values())
     workbook.sheets.push(readSheet(sheetParts(parts.sheets.get(here.id))!, here, layout))
   return workbook

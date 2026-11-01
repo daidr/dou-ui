@@ -313,9 +313,11 @@ function valueAxes(
   zoom?: Window | null,
   /** The values run across (a horizontal chart). */
   across = false,
+  /** The most ticks whose labels fit, even when `ticks` asks for more. */
+  most = Infinity,
 ): { y: ValueAxis | null; y2: ValueAxis | null } {
-  let y = axes.y ? valueAxis('y', axes.y, model, count, locale, length, across) : null
-  let y2 = axes.y2 ? valueAxis('y2', axes.y2, model, count, locale, length, across) : null
+  let y = axes.y ? valueAxis('y', axes.y, model, count, locale, length, across, most) : null
+  let y2 = axes.y2 ? valueAxis('y2', axes.y2, model, count, locale, length, across, most) : null
   if (y && y2 && !axes.y2!.ticks && !y2.fixed && y.ticks.length > 1) {
     const both = alignZero(y, y2, axes.y!, axes.y2!, model, locale, length)
     if (both) ({ y, y2 } = both)
@@ -331,7 +333,7 @@ function valueAxes(
     (units.to(zoom[1]) - d0) / (d1 - d0 || 1),
   ]
   const zoomed = (axis: ValueAxis | null, config: AxisConfig | null) =>
-    axis && config ? zoomAxis(axis, part, count, config, locale) : null
+    axis && config ? zoomAxis(axis, part, count, config, locale, most) : null
   return { y: zoomed(y, axes.y), y2: zoomed(y2, axes.y2) }
 }
 
@@ -342,6 +344,7 @@ function zoomAxis(
   count: number,
   config: AxisConfig,
   locale: string,
+  most = Infinity,
 ): ValueAxis {
   const units = unitsOf({ kind: axis.kind })
   const [d0, d1] = axis.domain.map(units.to) as Window
@@ -349,7 +352,7 @@ function zoomAxis(
     units.from(d0 + (d1 - d0) * part[0]),
     units.from(d0 + (d1 - d0) * part[1]),
   ]
-  count = tickCount(config, count)
+  count = tickCount(config, count, most)
   const given = explicitTicks(config, axis.kind)
   const ticks = given
     ? given.filter((v) => v >= domain[0] && v <= domain[1])
@@ -453,7 +456,31 @@ function layoutUp(
 
   // value axes first: their labels decide how wide the plot is
   const yCount = Math.max(2, Math.floor(plotHeight / Y_TICK_SPACE))
-  const { y, y2 } = valueAxes(axes, model, yCount, locale, plotHeight, zoom?.y)
+  // fewer and fewer ticks until their labels have a row each, whatever `ticks` asks
+  const roomy = (axis: ValueAxis | null) => {
+    // a heatmap's rows are named one each, as before: fewer ticks can't thin them
+    if (!axis || axis.ticks.length < 2 || model.yCategories?.[axis.role]) return true
+    const scale = valueScale(axis, [plotHeight, 0])
+    // ticks run in order, so neighbors on the axis are neighbors in the list
+    const at = axis.ticks.map((t) => scale.map(t))
+    return at.every((v, i) => i === 0 || Math.abs(v - at[i - 1]!) >= LABEL_HEIGHT + ROW_GAP - 0.5)
+  }
+  const asked = [axes.y?.ticks, axes.y2?.ticks].filter((t): t is number => typeof t === 'number')
+  // never more than there are rows for, however many are asked
+  const rows = Math.max(2, Math.floor(plotHeight / (LABEL_HEIGHT + ROW_GAP)) + 1)
+  let values = valueAxes(axes, model, yCount, locale, plotHeight, zoom?.y, false, rows)
+  for (let most = Math.min(Math.max(yCount, ...asked), rows); most >= 1; most--) {
+    values = valueAxes(axes, model, yCount, locale, plotHeight, zoom?.y, false, most)
+    if (roomy(values.y) && roomy(values.y2)) break
+  }
+  // too short for even two: only the top one
+  const topOnly = (axis: ValueAxis | null) => {
+    if (!axis || roomy(axis)) return axis
+    const last = axis.ticks.length - 1
+    return { ...axis, ticks: [axis.ticks[last]!], texts: [axis.texts[last]!] }
+  }
+  const y = topOnly(values.y)
+  const y2 = topOnly(values.y2)
   const side = (axis: ValueAxis | null, config: AxisConfig | null) =>
     axis && shown(config)
       ? INSET + (config.labelWidth ?? labelWidth(axis.texts, measure)) + LABEL_GAP
@@ -597,27 +624,39 @@ function layoutAcross(
       y2: place(axes2.y2, plotTop - LABEL_GAP - LABEL_HEIGHT, y2Shown),
     }
   }
-  let values = valueAxes(axes, model, 2, locale, across, zoom?.y, true)
+  let values = valueAxes(axes, model, 2, locale, across, zoom?.y, true, 2)
   let placed = placeAll(values)
-  for (let count = Math.max(2, Math.floor(across / X_TICK_SPACE)); count >= 2; count--) {
-    values = valueAxes(axes, model, count, locale, across, zoom?.y, true)
-    placed = placeAll(values)
+  // fewer and fewer ticks until their labels fit side by side, `ticks` given or not
+  const asked = [axes.y?.ticks, axes.y2?.ticks].filter((t): t is number => typeof t === 'number')
+  // never more than a label a line high could fit, however many are asked
+  const start = Math.min(
+    Math.max(2, Math.floor(across / X_TICK_SPACE), ...asked),
+    Math.max(2, Math.floor(across / LABEL_HEIGHT)),
+  )
+  // the last labels are centered on the plot's right edge: leave them room
+  const placeWithRoom = () => {
+    rightWidth = EDGE
+    let out = placeAll(values)
+    let excess = 0
+    for (const p of [out.y, out.y2]) {
+      const last = p?.labels[p.labels.length - 1]
+      if (p && last)
+        excess = Math.max(
+          excess,
+          p.scale.map(p.axis.ticks[p.axis.ticks.length - 1]!) + last.width / 2 + INSET - width,
+        )
+    }
+    if (excess > 0) {
+      rightWidth += Math.ceil(excess)
+      out = placeAll(values)
+    }
+    return out
+  }
+  for (let count = start; count >= 2; count--) {
+    values = valueAxes(axes, model, count, locale, across, zoom?.y, true, count)
+    placed = placeWithRoom()
     if ((!placed.y || fitAcross(placed.y.labels)) && (!placed.y2 || fitAcross(placed.y2.labels)))
       break
-  }
-  // the last labels are centered on the plot's right edge: leave them room
-  let excess = 0
-  for (const p of [placed.y, placed.y2]) {
-    const last = p?.labels[p.labels.length - 1]
-    if (p && last)
-      excess = Math.max(
-        excess,
-        p.scale.map(p.axis.ticks[p.axis.ticks.length - 1]!) + last.width / 2 + INSET - width,
-      )
-  }
-  if (excess > 0) {
-    rightWidth += Math.ceil(excess)
-    placed = placeAll(values)
   }
 
   for (const label of x.labels) alignEnd(label, plot.x)
@@ -791,6 +830,7 @@ function valueAxis(
   locale: string,
   length: number,
   across = false,
+  most = Infinity,
 ): ValueAxis {
   const listed = model.yCategories?.[role]
   if (listed) {
@@ -806,7 +846,7 @@ function valueAxis(
       fixed: true,
     }
   }
-  count = tickCount(config, count)
+  count = tickCount(config, count, most)
   const kind = config.type === 'log' ? 'log' : 'linear'
   const data = model.y[role]
   const zero = config.zero ?? model.zero[role]
@@ -890,9 +930,15 @@ function alignTo(
   return axis
 }
 
-/** How many ticks to aim for: the number given as `ticks`, else `count` (what fits). */
-function tickCount(config: AxisConfig, count: number): number {
-  return typeof config.ticks === 'number' && config.ticks >= 1 ? Math.round(config.ticks) : count
+/**
+ * How many ticks to aim for: the number given as `ticks`, else `count`
+ * (what fits); never more than `most`, so asking for many on a narrow
+ * chart doesn't pile the labels on one another.
+ */
+function tickCount(config: AxisConfig, count: number, most = Infinity): number {
+  const asked =
+    typeof config.ticks === 'number' && config.ticks >= 1 ? Math.round(config.ticks) : count
+  return Math.max(1, Math.min(asked, most))
 }
 
 function explicitTicks(config: AxisConfig, kind: XKind | 'log'): number[] | null {

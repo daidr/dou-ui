@@ -185,14 +185,16 @@ const layout = computed(() => {
   const rankGap = vertical.value ? props.rowGap : props.columnGap
   const laneGap = (vertical.value ? props.columnGap : props.rowGap) ?? metric.value.rowGap
   if (vertical.value)
-    // The grid is half the pitch of the narrowest node: a wider node takes
-    // a whole number of pitches, siblings an even number of steps apart, so
-    // fans stay symmetric, and no edge wobbles by just a few px.
+    // The same row grid as left to right, so the smallest bend an edge can
+    // take is the same either way; nodes in a row sit equally far apart,
+    // as far as the widest pair needs, so fans stay symmetric and a long
+    // title only spreads out its own row.
     return layoutGraph(nodes, dag.value.edges, {
       direction: 'vertical',
       rankGap: rankGap ?? metric.value.columnGap,
       laneGap,
-      grid: nodes.length ? (Math.min(...nodes.map((n) => n.width)) + laneGap) / 2 : 1,
+      grid: (metric.value.height + laneGap) / 2,
+      evenSpacing: true,
       // Along the flow nodes keep their height; the edge leaves a capsule
       // in a row of cards from its own bottom.
       equalWidth: false,

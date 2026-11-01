@@ -78,6 +78,22 @@ describe('layoutGraph', () => {
     expect(path.endsWith(`${b!.x + 60} ${b!.y}`)).toBe(true)
   })
 
+  it('fans out symmetrically when one sibling is a bit wider, with evenSpacing', () => {
+    const layout = layoutGraph(
+      [size('p'), size('a', 98), size('b', 98), size('c', 98), size('d', 112)],
+      ['a', 'b', 'c', 'd'].map((to) => ({ from: 'p', to })),
+      { ...options, direction: 'vertical', equalWidth: false, grid: 26, evenSpacing: true },
+    )
+    const centre = (id: string) => {
+      const n = layout.nodes.get(id)!
+      return n.x + n.width / 2
+    }
+    const xs = ['a', 'b', 'c', 'd'].map(centre)
+    const gaps = xs.slice(1).map((x, i) => x - xs[i]!)
+    expect(new Set(gaps).size).toBe(1)
+    expect(centre('p')).toBe((xs[0]! + xs[3]!) / 2)
+  })
+
   it('runs a long edge down through the ranks it crosses when vertical', () => {
     const layout = layoutGraph(
       [size('a'), size('b'), size('c')],

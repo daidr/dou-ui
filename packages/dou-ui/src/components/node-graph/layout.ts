@@ -48,6 +48,12 @@ export interface LayoutOptions {
   /** Stretch every node along the flow to the longest one in its column. */
   equalWidth?: boolean
   /**
+   * Space neighbouring nodes in a column equally, as far apart as the
+   * furthest two: fans stay symmetric when nodes differ in size across the
+   * flow, at the cost of room.
+   */
+  evenSpacing?: boolean
+  /**
    * The row grid every anchor snaps to, in px. Half the pitch of a
    * one-line node keeps fans symmetric and curves free of small wobbles.
    * Defaults to half the pitch of a 32px node, `(laneGap + 32) / 2`.
@@ -234,19 +240,36 @@ function untangle(layers: Item[][]) {
  * steps, `y - s` must not decrease: isotonic regression, solved by
  * pooling adjacent violators, then rounded to whole steps.
  */
-function place(layer: Item[], targets: number[], gap: (a: Item, b: Item) => number, grid: number) {
-  const offsets: number[] = [0]
+function place(
+  layer: Item[],
+  targets: number[],
+  gap: (a: Item, b: Item) => number,
+  grid: number,
+  even: boolean,
+) {
+  const steps: number[] = []
+  let widest = 0
   for (let i = 1; i < layer.length; i++) {
     const a = layer[i - 1]!
     const b = layer[i]!
     const span = a.height - a.anchor + gap(a, b) + b.anchor
-    let steps = Math.max(1, Math.ceil(span / grid - 1e-6))
+    let n = Math.max(1, Math.ceil(span / grid - 1e-6))
     // Nodes sit a whole pitch (two steps) apart, as two capsules do, so the
     // middle of any two siblings is on the grid too and a source centred
     // on them fans out symmetrically even when one of them is tall.
-    if (a.edge < 0 && b.edge < 0) steps += steps % 2
-    offsets.push(offsets[i - 1]! + steps)
+    if (a.edge < 0 && b.edge < 0) {
+      n += n % 2
+      widest = Math.max(widest, n)
+    }
+    steps.push(n)
   }
+  const offsets: number[] = [0]
+  steps.forEach((n, i) => {
+    const real = layer[i]!.edge < 0 && layer[i + 1]!.edge < 0
+    // With `even`, neighbouring nodes all sit as far apart as the furthest
+    // two, so a fan of three or more is symmetric when one node is wider.
+    offsets.push(offsets[i]! + (even && real ? widest : n))
+  })
   const blocks: { sum: number; count: number }[] = []
   targets.forEach((t, i) => {
     blocks.push({ sum: t / grid - offsets[i]!, count: 1 })
@@ -275,7 +298,7 @@ export function layoutGraph(
   edges: LayoutEdge[],
   options: LayoutOptions,
 ): GraphLayout {
-  const { rankGap, laneGap, edgeGap = 8, equalWidth = true } = options
+  const { rankGap, laneGap, edgeGap = 8, equalWidth = true, evenSpacing = false } = options
   const vertical = options.direction === 'vertical'
   const grid = options.grid ?? (laneGap + 32) / 2
   // Below, `width` runs along the flow and `height` across it.
@@ -329,6 +352,7 @@ export function layoutGraph(
       layer.map(() => 0),
       gap,
       grid,
+      evenSpacing,
     )
   const relax = (layer: Item[], neighbours: (item: Item) => Item[]) =>
     place(
@@ -341,6 +365,7 @@ export function layoutGraph(
       ),
       gap,
       grid,
+      evenSpacing,
     )
   for (let pass = 0; pass < 4; pass++) {
     for (const layer of ordered.slice(1)) relax(layer, (item) => item.preds)

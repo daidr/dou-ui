@@ -324,6 +324,7 @@ export const CODE_EDITOR_KEY: InjectionKey<CodeExtensionContext> = Symbol('DouCo
 /** The editor a panel or gutter component is drawn in. */
 export function useCodeEditor(): CodeExtensionContext {
   const context = inject(CODE_EDITOR_KEY, null)
-  if (!context) throw new Error('useCodeEditor() must be called inside a DouCodeEditor')
+  if (!context)
+    throw new Error('[@dou-ui/code] useCodeEditor() must be called inside a DouCodeEditor')
   return context
 }

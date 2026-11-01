@@ -336,7 +336,8 @@ export const flowEditorKey: InjectionKey<FlowEditorContext> = Symbol('dou-flow-e
 /** The surrounding flow editor; for controls and panels placed in its default slot. */
 export function useFlowEditor() {
   const context = inject(flowEditorKey, null)
-  if (!context) throw new Error('[dou-ui] useFlowEditor() must be used inside <DouFlowEditor>')
+  if (!context)
+    throw new Error('[@dou-ui/flow] useFlowEditor() must be used inside <DouFlowEditor>')
   return context
 }
 

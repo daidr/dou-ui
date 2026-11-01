@@ -78,7 +78,7 @@ function patched(node: FormNode, patch: FormNodePatch): FormNode {
   for (const [key, value] of Object.entries(patch)) {
     if (PROTECTED.has(key))
       throw new Error(
-        `[dou-ui] "${key}" of a node cannot be updated: insert, remove or move nodes instead`,
+        `[@dou-ui/form-builder] "${key}" of a node cannot be updated: insert, remove or move nodes instead`,
       )
     if (value === undefined) delete next[key]
     else next[key] = value
@@ -105,9 +105,9 @@ function withChildren(
 ): FormDocument {
   if (parent === null) return { ...document, nodes: change(document.nodes.slice()) }
   let place = formNodePlaces(document).get(parent)
-  if (!place) throw new Error(`[dou-ui] there is no node "${parent}" in the form`)
+  if (!place) throw new Error(`[@dou-ui/form-builder] there is no node "${parent}" in the form`)
   if (!isContainer(place.node))
-    throw new Error(`[dou-ui] the node "${parent}" holds no other nodes`)
+    throw new Error(`[@dou-ui/form-builder] the node "${parent}" holds no other nodes`)
   let replaced: FormNode = {
     ...place.node,
     children: change(place.node.children.slice()),
@@ -156,8 +156,8 @@ function checkPlace(map: Map<string, FormNodePlace>, parent: string | null, node
   const where = holder ? `"${holder.id}" (${holder.type})` : 'the top of the form'
   throw new Error(
     isPage(node)
-      ? `[dou-ui] the page "${node.id}" can only go in tabs or steps, not in ${where}`
-      : `[dou-ui] ${where} holds only pages, not "${node.id}" (${node.type})`,
+      ? `[@dou-ui/form-builder] the page "${node.id}" can only go in tabs or steps, not in ${where}`
+      : `[@dou-ui/form-builder] ${where} holds only pages, not "${node.id}" (${node.type})`,
   )
 }
 
@@ -170,10 +170,10 @@ function applyStep(
   switch (step.type) {
     case 'insert': {
       if (map.has(step.node.id))
-        throw new Error(`[dou-ui] the form already has a node "${step.node.id}"`)
+        throw new Error(`[@dou-ui/form-builder] the form already has a node "${step.node.id}"`)
       for (const node of walkNodes([step.node]))
         if (node !== step.node && map.has(node.id))
-          throw new Error(`[dou-ui] the form already has a node "${node.id}"`)
+          throw new Error(`[@dou-ui/form-builder] the form already has a node "${node.id}"`)
       checkPlace(map, step.parent, step.node)
       const next = withChildren(document, step.parent, (children) => {
         children.splice(clampIndex(step.index, children.length), 0, step.node)
@@ -183,7 +183,8 @@ function applyStep(
     }
     case 'remove': {
       const place = map.get(step.id)
-      if (!place) throw new Error(`[dou-ui] there is no node "${step.id}" in the form`)
+      if (!place)
+        throw new Error(`[@dou-ui/form-builder] there is no node "${step.id}" in the form`)
       const parent = place.parent?.id ?? null
       const next = withChildren(document, parent, (children) => {
         children.splice(place.index, 1)
@@ -193,7 +194,8 @@ function applyStep(
     }
     case 'update': {
       const place = map.get(step.id)
-      if (!place) throw new Error(`[dou-ui] there is no node "${step.id}" in the form`)
+      if (!place)
+        throw new Error(`[@dou-ui/form-builder] there is no node "${step.id}" in the form`)
       const back = previous(place.node, step.patch)
       return [
         replaceNode(document, step.id, patched(place.node, step.patch)),
@@ -202,13 +204,16 @@ function applyStep(
     }
     case 'move': {
       const place = map.get(step.id)
-      if (!place) throw new Error(`[dou-ui] there is no node "${step.id}" in the form`)
+      if (!place)
+        throw new Error(`[@dou-ui/form-builder] there is no node "${step.id}" in the form`)
       if (step.parent !== null) {
         // A node cannot go inside itself.
         let up: FormNodePlace | undefined = map.get(step.parent)
         while (up) {
           if (up.node.id === step.id)
-            throw new Error(`[dou-ui] the node "${step.id}" cannot move inside itself`)
+            throw new Error(
+              `[@dou-ui/form-builder] the node "${step.id}" cannot move inside itself`,
+            )
           up = up.parent ? map.get(up.parent.id) : undefined
         }
       }

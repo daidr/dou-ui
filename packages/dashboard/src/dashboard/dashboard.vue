@@ -125,7 +125,9 @@ function transaction() {
 /** Makes the changes of a transaction, as one undo step (or part of one, by `meta.group`). */
 function dispatch(tr: DashboardTransaction) {
   if (toRaw(tr.before) !== toRaw(model.value))
-    throw new Error('[dou-ui] the transaction was made on another version of the dashboard')
+    throw new Error(
+      '[@dou-ui/dashboard] the transaction was made on another version of the dashboard',
+    )
   if (!tr.changed) return
   const shared = props.collaboration
   if (!shared) {

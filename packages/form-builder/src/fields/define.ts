@@ -95,7 +95,8 @@ export const formFieldKey: InjectionKey<() => FormFieldContext> = Symbol('DouFor
  */
 export function useFormField(): Readonly<FormFieldContext> {
   const get = inject(formFieldKey, undefined)
-  if (!get) throw new Error('[dou-ui] useFormField() must be called inside a form field')
+  if (!get)
+    throw new Error('[@dou-ui/form-builder] useFormField() must be called inside a form field')
   return {
     get node() {
       return get().node

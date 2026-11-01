@@ -259,13 +259,15 @@ const migrations: Record<number, (document: any) => any> = {}
  */
 export function migrateDocument(document: unknown): FormDocument {
   if (document === null || typeof document !== 'object' || Array.isArray(document))
-    throw new Error('[dou-ui] a form document must be an object')
+    throw new Error('[@dou-ui/form-builder] a form document must be an object')
   let current = document as { version?: unknown } & Record<string, unknown>
   if (current.version === undefined) current = { ...current, version: 1 }
   while (current.version !== 1) {
     const step = typeof current.version === 'number' ? migrations[current.version] : undefined
     if (!step)
-      throw new Error(`[dou-ui] form document version ${String(current.version)} is not known`)
+      throw new Error(
+        `[@dou-ui/form-builder] form document version ${String(current.version)} is not known`,
+      )
     current = step(current)
   }
   return current as unknown as FormDocument

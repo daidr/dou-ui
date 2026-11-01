@@ -63,6 +63,7 @@ describe('exportWorkbook', () => {
     // with `formulas`, the formula as written, the type not asked
     const written = await exportWorkbook(
       {
+        version: 1,
         sheets: [{ name: '表', cells: [[1, 2, '=A1+B1', { value: '=A1/4', type: 'stars' }]] }],
       },
       csvExporter,
@@ -70,7 +71,7 @@ describe('exportWorkbook', () => {
     )
     expect(await written.text()).toBe('1,2,=A1+B1,=A1/4')
     const lines = await exportWorkbook(
-      { sheets: [{ name: '表', cells: [['+1'], ['b']] }] },
+      { version: 1, sheets: [{ name: '表', cells: [['+1'], ['b']] }] },
       csvExporter,
       { options: { newline: '\n', escapeFormulas: false, bom: false } },
     )

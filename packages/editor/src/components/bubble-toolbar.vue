@@ -45,6 +45,17 @@ const pressing = shallowRef(false)
 const menuOpen = shallowRef(false)
 // the extensions' menus keep the toolbar too
 const toolbarMenus = provideToolbarMenus()
+// so does the focus in the toolbar, e.g. back on a menu's button after Escape
+const panelFocused = shallowRef(false)
+watch(focused, (value) => value && (panelFocused.value = false))
+function onPanelFocusOut(event: FocusEvent) {
+  if (!panel.value?.contains(event.relatedTarget as Node | null)) panelFocused.value = false
+}
+function onPanelKeyDown(event: KeyboardEvent) {
+  if (event.key !== 'Escape' || linking.value || event.defaultPrevented) return
+  event.preventDefault()
+  view.value?.focus()
+}
 const linking = shallowRef<{ from: number; to: number } | null>(null)
 const href = shallowRef('')
 const linkInput = useTemplateRef<InstanceType<typeof DouInput>>('linkInput')
@@ -68,6 +79,7 @@ const open = computed(
     !!linking.value ||
     menuOpen.value ||
     [...toolbarMenus].some((menu) => menu.value) ||
+    panelFocused.value ||
     (focused.value && formattable.value && !pressing.value && !dragging.value),
 )
 
@@ -104,13 +116,42 @@ function onPointerDown(event: PointerEvent) {
 function onPointerUp() {
   if (pressing.value) pressing.value = false
 }
+/*
+ * A menu opened with the mouse leaves the focus in the text: until it
+ * closes, Escape closes it and the arrow keys and Enter go into it,
+ * instead of acting on the text.
+ */
+function onKeyDown(event: KeyboardEvent) {
+  if (!view.value?.dom.contains(event.target as Node)) return
+  const trigger = panel.value?.querySelector<HTMLElement>('[aria-expanded="true"][aria-controls]')
+  if (!trigger) return
+  const menu = document.getElementById(trigger.getAttribute('aria-controls')!)
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    event.stopPropagation()
+    menuOpen.value = false
+    for (const item of toolbarMenus) item.value = false
+    return
+  }
+  if (!menu || !['ArrowDown', 'ArrowUp', 'Home', 'End', 'Enter'].includes(event.key)) return
+  event.preventDefault()
+  event.stopPropagation()
+  const items = Array.from(
+    menu.querySelectorAll<HTMLElement>('[role^="menuitem"]:not([aria-disabled="true"])'),
+  )
+  const last = event.key === 'ArrowUp' || event.key === 'End'
+  ;(last ? items.at(-1) : items[0])?.focus()
+}
+
 onMounted(() => {
   document.addEventListener('pointerdown', onPointerDown, true)
   document.addEventListener('pointerup', onPointerUp, true)
+  document.addEventListener('keydown', onKeyDown, true)
 })
 onBeforeUnmount(() => {
   document.removeEventListener('pointerdown', onPointerDown, true)
   document.removeEventListener('pointerup', onPointerUp, true)
+  document.removeEventListener('keydown', onKeyDown, true)
 })
 
 /* marks */
@@ -256,6 +297,9 @@ defineExpose({ editLink })
       :style="[style, { zIndex }]"
       :data-placement="placement"
       @mousedown="!linking && $event.preventDefault()"
+      @focusin="panelFocused = true"
+      @focusout="onPanelFocusOut"
+      @keydown="onPanelKeyDown"
     >
       <div v-if="linking" class="dou-editor-bubble__link">
         <DouInput

@@ -1,3 +1,4 @@
+import { warnOnce } from './model'
 import type { DOMOutputSpec, Node as PMNode, NodeSpec, TagParseRule } from 'prosemirror-model'
 
 /** How a block's text lines up; `null` (left out of `props`) follows the reading direction. */
@@ -7,13 +8,16 @@ export const ALIGNS: readonly BlockAlign[] = ['left', 'center', 'right']
 
 export const isAlign = (value: unknown): value is BlockAlign => ALIGNS.includes(value as BlockAlign)
 
-/** The alignment written on an element: `data-align`, `style="text-align"` or `align`. */
+/**
+ * The alignment written on an element: `data-align`, `style="text-align"`
+ * or `align`. Left is the reading direction: `null`, as it is stored.
+ */
 export function alignOf(dom: HTMLElement): BlockAlign | null {
   const value = (dom.dataset?.align || dom.style?.textAlign || dom.getAttribute('align') || '')
     .toLowerCase()
     .replace('start', 'left')
     .replace('end', 'right')
-  return isAlign(value) ? value : null
+  return isAlign(value) && value !== 'left' ? value : null
 }
 
 function withAttrs(spec: DOMOutputSpec, attrs: Record<string, string>): DOMOutputSpec {
@@ -34,8 +38,19 @@ function withAttrs(spec: DOMOutputSpec, attrs: Record<string, string>): DOMOutpu
  */
 export function alignable(spec: NodeSpec): NodeSpec {
   const toDOM = spec.toDOM
+  const normalize = spec.normalizeProps as
+    ((attrs: Record<string, unknown>) => Record<string, unknown>) | undefined
   return {
     ...spec,
+    // one way to say "left": nothing set; anything else is dropped
+    normalizeProps: (attrs: Record<string, unknown>) => {
+      const next = normalize ? normalize(attrs) : attrs
+      if (next.align === undefined || next.align === null || isAlign(next.align)) {
+        return next.align === 'left' ? { ...next, align: null } : next
+      }
+      warnOnce(`align "${String(next.align)}" is not one of left, center, right; dropped`)
+      return { ...next, align: null }
+    },
     attrs: { ...spec.attrs, align: { default: null } },
     optionalProps: [...((spec.optionalProps as string[] | undefined) ?? []), 'align'],
     parseDOM: spec.parseDOM?.map((rule) => {

@@ -7,7 +7,7 @@ import { setHighlight, setTextColor, textColors, type TextColor } from './palett
 
 const { view, state, messages } = useEditor()
 
-/** The color the whole selection has, or `null`. */
+/** The color the whole selection has, `null` for none, `'mixed'` for several. */
 function current(name: string): string | null {
   const now = state.value
   const type = now?.schema.marks[name]
@@ -15,12 +15,15 @@ function current(name: string): string | null {
   const { from, to } = now.selection
   let value: string | null | undefined
   now.doc.nodesBetween(from, to, (node) => {
-    if (!node.isText) return
+    if (!node.isText || value === 'mixed') return
     const found = (type.isInSet(node.marks)?.attrs.value as string | undefined) ?? null
-    value = value === undefined || value === found ? found : null
+    value = value === undefined || value === found ? found : 'mixed'
   })
   return value ?? null
 }
+
+/** The swatch shows one color; several show as the default. */
+const shown = (value: string | null) => (value && value !== 'mixed' ? value : undefined)
 
 const color = computed(() => current('textColor'))
 const highlight = computed(() => current('highlight'))
@@ -45,13 +48,15 @@ const open = useToolbarMenu()
           class="dou-editor-colors__button"
           :aria-label="messages.colors.label"
         >
-          <span
-            class="dou-editor-colors__swatch"
-            :data-color="color ?? undefined"
-            :data-highlight="highlight ?? undefined"
-            aria-hidden="true"
-            >A</span
-          >
+          <template #leading>
+            <span
+              class="dou-editor-colors__swatch"
+              :data-color="shown(color)"
+              :data-highlight="shown(highlight)"
+              aria-hidden="true"
+              ><span class="dou-editor-colors__letter">A</span></span
+            >
+          </template>
         </DouButton>
         <template #menu>
           <DouDropdownSub
@@ -61,7 +66,9 @@ const open = useToolbarMenu()
           >
             <DouDropdownItem @click="apply(kind, null)">
               <template #prefix>
-                <span class="dou-editor-colors__swatch" aria-hidden="true">A</span>
+                <span class="dou-editor-colors__swatch" aria-hidden="true"
+                  ><span class="dou-editor-colors__letter">A</span></span
+                >
               </template>
               {{ messages.colors.none }}
               <template v-if="!(kind === 'text' ? color : highlight)" #suffix
@@ -75,7 +82,7 @@ const open = useToolbarMenu()
                   :data-color="kind === 'text' ? name : undefined"
                   :data-highlight="kind === 'background' ? name : undefined"
                   aria-hidden="true"
-                  >A</span
+                  ><span class="dou-editor-colors__letter">A</span></span
                 >
               </template>
               {{ messages.colors.names[name] }}

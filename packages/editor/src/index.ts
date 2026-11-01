@@ -64,7 +64,7 @@ export { currentAlign, setAlign } from './extensions/align'
 export { alignable } from './core/align'
 export type { BlockAlign } from './core/align'
 export { attachment, formatFileSize, isSafeFileSrc } from './extensions/attachment'
-export type { AttachmentOptions, FileUploader } from './extensions/attachment'
+export type { AttachmentOptions } from './extensions/attachment'
 export { embed, resolveEmbed } from './extensions/embed'
 export type { EmbedOptions, EmbedResolver, EmbedTarget } from './extensions/embed'
 export {
@@ -89,7 +89,7 @@ export type { CodeBlockOptions, CodeHighlighter, CodeLanguage } from './extensio
 export { image, isSafeImageSrc, readAsDataUrl } from './extensions/image'
 export { mention } from './extensions/mention'
 export type { MentionItem, MentionOptions } from './extensions/mention'
-export type { ImageOptions, ImageUploader } from './extensions/image'
+export type { FileUploader, ImageOptions } from './extensions/image'
 export type { BlockViewProps, DefineBlockOptions } from './define-block'
 export { atomInputRule, blockInputRule, markInputRule } from './core/input-rules'
 export type {

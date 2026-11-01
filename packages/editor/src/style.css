@@ -1405,7 +1405,7 @@
   }
 
   .dou-editor-attachment__name {
-    overflow: hidden;
+    overflow-x: clip;
     color: var(--dou-color-text);
     font-size: var(--dou-font-size-md);
     font-weight: 500;
@@ -1460,7 +1460,7 @@
   }
 
   .dou-editor-embed__frame {
-    overflow: hidden;
+    overflow: clip;
     width: 100%;
     border-radius: var(--dou-radius-control);
     background-color: color-mix(in oklab, var(--dou-color-text) 4%, var(--dou-color-bg-surface));
@@ -1498,8 +1498,38 @@
     pointer-events: none;
   }
 
+  /* the caption stays centred, with the button for the link on its right */
+  .dou-editor-embed__caption {
+    display: grid;
+    grid-template-columns: var(--dou-control-height-sm) 1fr var(--dou-control-height-sm);
+    align-items: center;
+    gap: 4px;
+
+    & > .dou-editor-image__caption-input {
+      grid-column: 2;
+    }
+  }
+
+  .dou-editor-embed__edit {
+    grid-column: 3;
+    opacity: 0;
+    transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
+  }
+
+  .dou-editor-embed:hover .dou-editor-embed__edit,
+  .dou-editor-embed.is-selected .dou-editor-embed__edit,
+  .dou-editor-embed__edit:focus-visible {
+    opacity: 1;
+  }
+
+  @media (pointer: coarse) {
+    .dou-editor-embed__edit {
+      opacity: 1;
+    }
+  }
+
   .dou-editor-embed__link {
-    overflow: hidden;
+    overflow-x: clip;
     max-width: 100%;
     color: var(--dou-color-text-tertiary);
     font-size: var(--dou-font-size-sm);
@@ -1547,7 +1577,8 @@
 
   /* text and background colors: a palette that follows the scheme, deep and low in saturation */
   .dou-editor,
-  .dou-editor-menu {
+  .dou-editor-menu,
+  .dou-editor-palette {
     --dou-editor-color-gray: light-dark(#6b6f76, #a3a7ad);
     --dou-editor-highlight-gray: light-dark(#ececeb, #3a3b3d);
     --dou-editor-color-red: light-dark(#b4453f, #e58a84);
@@ -1566,11 +1597,14 @@
     --dou-editor-highlight-pink: light-dark(#f6e2ec, #46283a);
   }
 
-  .dou-editor__color {
+  /* also exported HTML shown in a container with `dou-editor-palette` */
+  .dou-editor__color,
+  .dou-editor-palette span[data-color] {
     color: var(--dou-editor-text-color, inherit);
   }
 
-  .dou-editor__highlight {
+  .dou-editor__highlight,
+  .dou-editor-palette mark[data-color] {
     border-radius: 2px;
     background-color: var(--dou-editor-mark-color, var(--dou-editor-highlight-yellow));
     color: inherit;
@@ -1578,66 +1612,82 @@
   }
 
   .dou-editor__color[data-color='gray'],
+  .dou-editor-palette span[data-color='gray'],
   .dou-editor-colors__swatch[data-color='gray'] {
     --dou-editor-text-color: var(--dou-editor-color-gray);
   }
   .dou-editor__highlight[data-color='gray'],
+  .dou-editor-palette mark[data-color='gray'],
   .dou-editor-colors__swatch[data-highlight='gray'] {
     --dou-editor-mark-color: var(--dou-editor-highlight-gray);
   }
   .dou-editor__color[data-color='red'],
+  .dou-editor-palette span[data-color='red'],
   .dou-editor-colors__swatch[data-color='red'] {
     --dou-editor-text-color: var(--dou-editor-color-red);
   }
   .dou-editor__highlight[data-color='red'],
+  .dou-editor-palette mark[data-color='red'],
   .dou-editor-colors__swatch[data-highlight='red'] {
     --dou-editor-mark-color: var(--dou-editor-highlight-red);
   }
   .dou-editor__color[data-color='orange'],
+  .dou-editor-palette span[data-color='orange'],
   .dou-editor-colors__swatch[data-color='orange'] {
     --dou-editor-text-color: var(--dou-editor-color-orange);
   }
   .dou-editor__highlight[data-color='orange'],
+  .dou-editor-palette mark[data-color='orange'],
   .dou-editor-colors__swatch[data-highlight='orange'] {
     --dou-editor-mark-color: var(--dou-editor-highlight-orange);
   }
   .dou-editor__color[data-color='yellow'],
+  .dou-editor-palette span[data-color='yellow'],
   .dou-editor-colors__swatch[data-color='yellow'] {
     --dou-editor-text-color: var(--dou-editor-color-yellow);
   }
   .dou-editor__highlight[data-color='yellow'],
+  .dou-editor-palette mark[data-color='yellow'],
   .dou-editor-colors__swatch[data-highlight='yellow'] {
     --dou-editor-mark-color: var(--dou-editor-highlight-yellow);
   }
   .dou-editor__color[data-color='green'],
+  .dou-editor-palette span[data-color='green'],
   .dou-editor-colors__swatch[data-color='green'] {
     --dou-editor-text-color: var(--dou-editor-color-green);
   }
   .dou-editor__highlight[data-color='green'],
+  .dou-editor-palette mark[data-color='green'],
   .dou-editor-colors__swatch[data-highlight='green'] {
     --dou-editor-mark-color: var(--dou-editor-highlight-green);
   }
   .dou-editor__color[data-color='blue'],
+  .dou-editor-palette span[data-color='blue'],
   .dou-editor-colors__swatch[data-color='blue'] {
     --dou-editor-text-color: var(--dou-editor-color-blue);
   }
   .dou-editor__highlight[data-color='blue'],
+  .dou-editor-palette mark[data-color='blue'],
   .dou-editor-colors__swatch[data-highlight='blue'] {
     --dou-editor-mark-color: var(--dou-editor-highlight-blue);
   }
   .dou-editor__color[data-color='purple'],
+  .dou-editor-palette span[data-color='purple'],
   .dou-editor-colors__swatch[data-color='purple'] {
     --dou-editor-text-color: var(--dou-editor-color-purple);
   }
   .dou-editor__highlight[data-color='purple'],
+  .dou-editor-palette mark[data-color='purple'],
   .dou-editor-colors__swatch[data-highlight='purple'] {
     --dou-editor-mark-color: var(--dou-editor-highlight-purple);
   }
   .dou-editor__color[data-color='pink'],
+  .dou-editor-palette span[data-color='pink'],
   .dou-editor-colors__swatch[data-color='pink'] {
     --dou-editor-text-color: var(--dou-editor-color-pink);
   }
   .dou-editor__highlight[data-color='pink'],
+  .dou-editor-palette mark[data-color='pink'],
   .dou-editor-colors__swatch[data-highlight='pink'] {
     --dou-editor-mark-color: var(--dou-editor-highlight-pink);
   }
@@ -1650,11 +1700,18 @@
     width: 20px;
     height: 20px;
     border: 1px solid var(--dou-color-border);
-    border-radius: 4px;
+    /* concentric with the button around it */
+    border-radius: calc(var(--dou-radius-control) - 2px);
     background-color: var(--dou-editor-mark-color, transparent);
     color: var(--dou-editor-text-color, var(--dou-color-text));
-    font-size: 13px;
-    font-weight: 600;
+    font-size: var(--dou-font-size-sm);
+    font-weight: var(--dou-font-weight-bold);
     line-height: 1;
+  }
+
+  /* centred by its cap height, not its line box */
+  .dou-editor-colors__letter {
+    display: block;
+    text-box: trim-both cap alphabetic;
   }
 }

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import * as Y from 'yjs'
 import { setHighlight, setTextColor } from '..'
 import { collaboration } from '../../../collaboration'
@@ -105,6 +105,67 @@ describe('colors and alignment', () => {
     expect(docToBlocks(state.doc)[0]!.props).toEqual({})
     const code = at(stateOf([{ id: 'c', type: 'codeBlock', content: 'x' }]), 'c')
     expect(run(code, setAlign('center')).ok).toBe(false)
+  })
+
+  it('report mixed alignment, and keep left as no alignment', () => {
+    let state = at(
+      stateOf([
+        { id: 'a', props: { align: 'center' }, content: 'x' },
+        { id: 'b', content: 'y' },
+      ]),
+      'a',
+      0,
+      'b',
+      1,
+    )
+    expect(currentAlign(state)).toBe('mixed')
+    state = run(state, setAlign('left')).state
+    expect(docToBlocks(state.doc).map((block) => block.props)).toEqual([{}, {}])
+    expect(currentAlign(state)).toBe(null)
+    // pasted left is the default too
+    expect(htmlToBlocks('<p style="text-align: left">A</p>', extensions)[0]!.props).toEqual({})
+    expect(
+      docToBlocks(stateOf([{ id: 'c', props: { align: 'left' }, content: 'z' }]).doc)[0]!.props,
+    ).toEqual({})
+  })
+
+  it('drop invalid alignment and colors with a warning', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const [block] = docToBlocks(
+      stateOf([
+        {
+          id: 'a',
+          props: { align: 'middle' as never },
+          content: [
+            { type: 'text', text: 'x', color: 'teal' as never, highlight: '#ff0' as never },
+          ],
+        },
+      ]).doc,
+    )
+    expect(block!.props).toEqual({})
+    expect(block!.content).toEqual([{ type: 'text', text: 'x' }])
+    const messages = warn.mock.calls.map((call) => String(call[0]))
+    expect(messages.some((m) => m.includes('middle'))).toBe(true)
+    expect(messages.some((m) => m.includes('teal'))).toBe(true)
+    expect(messages.some((m) => m.includes('#ff0'))).toBe(true)
+    warn.mockRestore()
+  })
+
+  it('write no alignment for blocks that cannot take it', () => {
+    const html = blocksToHTML(
+      [{ type: 'codeBlock', props: { align: 'center' } as never, content: 'x' }],
+      extensions,
+    )
+    expect(html).not.toContain('text-align')
+  })
+
+  it('take the alignment keys even where nothing can be aligned', () => {
+    const { keymaps } = resolveEditorExtensions([editorKit()])
+    const bindings = Object.assign({}, ...keymaps) as Record<string, (...args: never[]) => boolean>
+    const state = at(stateOf([{ id: 'a', type: 'bulletItem', content: 'x' }]), 'a')
+    const command = bindings['Mod-Shift-r'] as unknown as Parameters<typeof run>[1]
+    expect(run(state, command).ok).toBe(true)
+    expect(docToBlocks(run(state, command).state.doc)[0]!.props).toEqual({})
   })
 
   it('keep alignment when the block changes type', () => {

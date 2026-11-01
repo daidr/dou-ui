@@ -127,7 +127,11 @@ export interface EditorMessages {
     urlPlaceholder: string
     apply: string
     invalid: string
+    /** The link is not https. */
+    insecure: string
     caption: string
+    edit: string
+    cancel: string
   }
   noResults: string
   addBlock: string
@@ -267,6 +271,9 @@ const zhCN: EditorMessages = {
     urlPlaceholder: '粘贴链接',
     apply: '嵌入',
     invalid: '无法嵌入这个链接',
+    insecure: '只能嵌入 https 开头的链接',
+    edit: '修改链接',
+    cancel: '取消',
     caption: '添加说明',
   },
   noResults: '没有匹配的块',
@@ -404,6 +411,9 @@ const zhTW: EditorMessages = {
     urlPlaceholder: '貼上連結',
     apply: '嵌入',
     invalid: '無法嵌入這個連結',
+    insecure: '只能嵌入 https 開頭的連結',
+    edit: '修改連結',
+    cancel: '取消',
     caption: '新增說明',
   },
   noResults: '沒有符合的區塊',
@@ -541,6 +551,9 @@ const en: EditorMessages = {
     urlPlaceholder: 'Paste a link',
     apply: 'Embed',
     invalid: "This link can't be embedded",
+    insecure: 'Only https links can be embedded',
+    edit: 'Change link',
+    cancel: 'Cancel',
     caption: 'Add a caption',
   },
   noResults: 'No matching blocks',

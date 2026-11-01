@@ -1,15 +1,12 @@
 import { PaperclipIcon } from '@dou-ui/icons'
-import { Plugin } from 'prosemirror-state'
+import { fileDropPlugin } from '../../core/file-drop'
 import { defineComponent, h } from 'vue'
 import type { EditorExtension } from '../../core/extension'
 import { escapeHTML, escapeMarkdown } from '../../core/output'
 import { defineBlock } from '../../define-block'
-import { createUploads, readAsDataUrl, type ImageUploader } from '../image/uploads'
+import { createUploads, readAsDataUrl, type FileUploader } from '../image/uploads'
 import AttachmentBlock from './attachment-block.vue'
 import { formatFileSize, isSafeFileSrc } from './files'
-
-/** Stores a picked, pasted or dropped file and resolves with its address. */
-export type FileUploader = ImageUploader
 
 export interface AttachmentOptions {
   /**
@@ -36,11 +33,6 @@ function attrsOf(dom: HTMLElement) {
   }
 }
 
-/** Files, other than images when the image block is there: drop them in, paste them, or pick one. */
-function filesOf(data: DataTransfer | null, images: boolean) {
-  return Array.from(data?.files ?? []).filter((file) => !(images && file.type.startsWith('image/')))
-}
-
 /**
  * Attachment blocks: a file with its name and size and a download button.
  * Files dropped or pasted into the editor become attachments (images stay
@@ -51,6 +43,7 @@ export function attachment(options: AttachmentOptions = {}): EditorExtension {
     type: 'attachment',
     isSafe: isSafeFileSrc,
     propsOf,
+    allowed: 'http, https, blob, relative addresses or data: URLs',
   })
   const View = defineComponent({
     name: 'DouEditorAttachmentView',
@@ -128,27 +121,10 @@ export function attachment(options: AttachmentOptions = {}): EditorExtension {
         paragraph.replaceWith(link)
       }
     },
-    plugins: ({ schema }) => [
-      new Plugin({
-        props: {
-          handlePaste(view, event) {
-            const files = filesOf(event.clipboardData, !!schema.nodes.image)
-            if (!files.length) return false
-            uploads.insert(view, files, view.state.selection.from)
-            return true
-          },
-          handleDrop(view, event) {
-            const files = filesOf(event.dataTransfer, !!schema.nodes.image)
-            if (!files.length) return false
-            event.preventDefault()
-            const at = view.posAtCoords({ left: event.clientX, top: event.clientY })
-            uploads.insert(view, files, at?.pos ?? view.state.selection.from)
-            return true
-          },
-        },
-      }),
+    plugins: () => [
+      fileDropPlugin({ accepts: () => true, fallback: true, insert: uploads.insert }),
     ],
   }
 }
 
-export { formatFileSize, isSafeFileSrc }
+export { formatFileSize, isSafeFileSrc, type FileUploader }

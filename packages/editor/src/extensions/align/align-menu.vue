@@ -36,10 +36,13 @@ const open = useToolbarMenu()
     <span class="dou-editor-bubble__trigger">
       <DouDropdown v-model:open="open" placement="bottom-start" class="dou-editor-menu">
         <DouButton size="sm" variant="ghost" :aria-label="messages.align.label">
-          <component :is="icons[align ?? 'left']" />
+          <component :is="icons[align === 'mixed' || !align ? 'left' : align]" />
         </DouButton>
         <template #menu>
-          <DouDropdownRadioGroup :model-value="align ?? 'left'" @update:model-value="choose">
+          <DouDropdownRadioGroup
+            :model-value="align === 'mixed' ? undefined : (align ?? 'left')"
+            @update:model-value="choose"
+          >
             <DouDropdownItem
               v-for="name in aligns"
               :key="name"

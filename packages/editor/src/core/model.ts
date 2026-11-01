@@ -1,4 +1,5 @@
 import { Mark, type NodeType, type Node as PMNode, type Schema } from 'prosemirror-model'
+import { isColor, type TextColor } from './colors'
 import type { ContentType, MarkType } from './schema'
 
 /** A run of text with its formatting. */
@@ -10,17 +11,17 @@ export interface TextContent {
   /** The link target, when the text is a link. */
   link?: string
   /** The text color, by palette name (e.g. `red`), with the `colors` extension. */
-  color?: string
+  color?: TextColor
   /** The background color, by palette name (e.g. `yellow`), with the `colors` extension. */
-  highlight?: string
+  highlight?: TextColor
   /** The ids of the comment threads about this text. */
   comments?: string[]
 }
 
 /**
- * A mark spec field: marks that carry one value (a color) are stored on
- * the text run under this name, e.g. `{ text, color: 'red' }`, and keep
- * the value in their `value` attribute.
+ * For the `colors` extension's marks (internal): a mark that carries one
+ * color is stored on the text run under this name, e.g.
+ * `{ text, color: 'red' }`, and keeps it in its `value` attribute.
  */
 export type MarkField = 'color' | 'highlight'
 
@@ -186,7 +187,7 @@ export function inlineOf(node: PMNode): InlineContent[] {
     if (link) item.link = link
     for (const mark of child.marks) {
       const field = mark.type.spec.field as MarkField | undefined
-      if (field) item[field] = mark.attrs.value as string
+      if (field) item[field] = mark.attrs.value as TextColor
     }
     const comments = child.marks
       .filter((mark) => mark.type.name === 'comment')
@@ -291,7 +292,10 @@ function marksFor(schema: Schema, item: TextContent): Mark[] {
   for (const type of Object.values(schema.marks)) {
     const field = type.spec.field as MarkField | undefined
     const value = field && item[field]
-    if (value) marks.push(type.create({ value }))
+    if (!value) continue
+    // a color outside the palette is dropped
+    if (!isColor(value)) warnOnce(`"${value}" is not a palette color; dropped`)
+    else marks.push(type.create({ value }))
   }
   for (const id of item.comments ?? []) marks.push(schema.marks.comment!.create({ id }))
   return Mark.setFrom(marks) as Mark[]
@@ -372,4 +376,13 @@ export function blocksToDoc(schema: Schema, blocks: PartialBlock[]): PMNode {
     null,
     list.map((block) => nodeFromBlock(schema, block)),
   )
+}
+
+const warned = new Set<string>()
+
+/** A development warning, once per message. */
+export function warnOnce(message: string) {
+  if (process.env.NODE_ENV === 'production' || warned.has(message)) return
+  warned.add(message)
+  console.warn(`[@dou-ui/editor] ${message}`)
 }

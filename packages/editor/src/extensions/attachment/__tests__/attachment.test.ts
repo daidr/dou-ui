@@ -112,4 +112,36 @@ describe('attachment', () => {
     expect(blocks.map((block) => block.type)).toContain('image')
     wrapper.unmount()
   })
+
+  it('keeps every file when images and other files come together', async () => {
+    const wrapper = mount(DouEditor, {
+      attachTo: document.body,
+      props: {
+        extensions: [
+          editorKit(),
+          attachment({ upload: async (picked) => `https://example.com/${picked.name}` }),
+          image({ upload: async (picked) => `https://example.com/${picked.name}` }),
+        ],
+        modelValue: [{ id: 'a', content: '' }],
+      },
+    })
+    await nextTick()
+    const surface = (wrapper.element as HTMLElement).querySelector<HTMLElement>(
+      '.dou-editor__surface',
+    )!
+    paste(surface, [
+      new File(['x'], 'a.png', { type: 'image/png' }),
+      new File(['%PDF'], 'b.pdf', { type: 'application/pdf' }),
+      new File(['y'], 'c.png', { type: 'image/png' }),
+    ])
+    await flush()
+    await nextTick()
+    const blocks = wrapper.emitted('update:modelValue')!.at(-1)![0] as Block[]
+    expect(blocks.map((block) => [block.type, block.props.src])).toEqual([
+      ['image', 'https://example.com/a.png'],
+      ['attachment', 'https://example.com/b.pdf'],
+      ['image', 'https://example.com/c.png'],
+    ])
+    wrapper.unmount()
+  })
 })

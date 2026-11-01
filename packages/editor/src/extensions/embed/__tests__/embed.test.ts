@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 import { embed, resolveEmbed } from '..'
 import { blocksToHTML, htmlToBlocks } from '../../../core/convert'
@@ -20,7 +20,6 @@ describe('embed', () => {
     expect(resolveEmbed('https://example.com/a.mp3?x=1')).toMatchObject({ kind: 'audio' })
     expect(resolveEmbed('http://example.com/map')).toBeNull()
     expect(resolveEmbed('javascript:alert(1)')).toBeNull()
-    expect(resolveEmbed(`${location.origin}/page`)).toBeNull()
   })
 
   it('writes a sandboxed frame and reads the link back', () => {
@@ -83,6 +82,25 @@ describe('embed', () => {
     ).toBe('')
   })
 
+  it("refuses a frame of the page's own site, but plays its media", () => {
+    vi.stubGlobal('location', new URL('https://docs.example.com/editor'))
+    try {
+      const html = (src: string) => blocksToHTML([{ type: 'embed', props: { src } }], extensions)
+      expect(html('https://docs.example.com/admin')).toBe('')
+      expect(html('https://docs.example.com/a.mp4')).toContain('<video')
+      expect(html('https://example.com/map')).toContain('<iframe')
+      const own = [
+        editorKit(),
+        embed({ resolve: () => ({ kind: 'frame', src: 'https://docs.example.com/admin' }) }),
+      ]
+      expect(
+        blocksToHTML([{ type: 'embed', props: { src: 'https://own.example.com/' } }], own),
+      ).toBe('')
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('takes a link in the empty block and refuses one it cannot embed', async () => {
     const wrapper = mount(DouEditor, {
       attachTo: document.body,
@@ -92,7 +110,7 @@ describe('embed', () => {
     const input = wrapper.find('.dou-editor-embed input')
     await input.setValue('http://example.com/map')
     await wrapper.find('.dou-editor-embed form').trigger('submit')
-    expect(wrapper.find('.dou-editor-embed__error').text()).toBe('无法嵌入这个链接')
+    expect(wrapper.find('.dou-editor-embed__error').text()).toBe('只能嵌入 https 开头的链接')
     expect(wrapper.emitted('update:modelValue')).toBeUndefined()
     await input.setValue('https://example.com/map')
     expect(wrapper.find('.dou-editor-embed__error').exists()).toBe(false)

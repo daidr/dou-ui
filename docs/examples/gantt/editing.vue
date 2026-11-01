@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { DouGantt, type GanttLink, type GanttTask } from '@dou-ui/gantt'
+import { DouGantt, type GanttExpose, type GanttLink, type GanttTask } from '@dou-ui/gantt'
 import { RedoIcon, UndoIcon } from '@dou-ui/icons'
 import { DouButton, DouSpace, DouSwitch, DouText } from 'dou-ui'
 import { computed, ref, useTemplateRef } from 'vue'
@@ -24,7 +24,7 @@ const links = ref<GanttLink[]>([
 ])
 
 const readonly = ref(false)
-const gantt = useTemplateRef('gantt')
+const gantt = useTemplateRef<GanttExpose>('gantt')
 const canUndo = computed(() => gantt.value?.canUndo ?? false)
 const canRedo = computed(() => gantt.value?.canRedo ?? false)
 

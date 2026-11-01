@@ -16,7 +16,7 @@
     "build": "bun run --filter @dou-ui/theme build && bun run --filter @dou-ui/icons build && bun run --filter dou-ui build && bun run --filter @dou-ui/code build && bun run --filter @dou-ui/editor build && bun run --filter @dou-ui/flow build && bun run --filter @dou-ui/gantt build && bun run --filter @dou-ui/sheet build && bun run --filter @dou-ui/sheet-xlsx build && bun run --filter @dou-ui/chart build && bun run --filter @dou-ui/form-builder build && bun run --filter @dou-ui/pivot build && bun run --filter @dou-ui/dashboard build && bun run --filter @dou-ui/resolver build && bun run --filter @dou-ui/nuxt build",
     "test": "bun run gen && vitest run",
     "test:watch": "vitest",
-    "typecheck": "bun run gen && vue-tsc --noEmit",
+    "typecheck": "bun run gen && NODE_OPTIONS=--max-old-space-size=4096 vue-tsc --noEmit",
     "lint": "oxlint --deny-warnings",
     "check": "bun fmt --check && bun run lint && bun run typecheck && bun run test",
     "release": "bun scripts/release.ts",

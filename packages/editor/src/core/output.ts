@@ -1,6 +1,7 @@
 import type { ResolvedEditorExtensions } from './extension'
 import type { Block, InlineContent, MarkField, PartialBlock } from './model'
 import { isAlign } from './align'
+import { isColor } from './colors'
 import { isSafeHref } from './schema'
 
 /** What a block's writer gets besides the block. */
@@ -66,6 +67,8 @@ interface Outputs {
   marks: Record<string, MarkOutput>
   /** Marks stored as a field of the text run, by field: `color` → `textColor`. */
   fields: [field: MarkField, mark: string][]
+  /** The block types that can be aligned. */
+  aligned: Set<string>
 }
 
 const tagsOf = (tags: MarkOutput['html'] | undefined, value: string): MarkTags | undefined =>
@@ -75,7 +78,12 @@ function outputsOf(kit: ResolvedEditorExtensions): Outputs {
   const fields = Object.values(kit.schema.marks)
     .filter((type) => type.spec.field)
     .map((type) => [type.spec.field as MarkField, type.name] as [MarkField, string])
-  const outputs: Outputs = { blocks: {}, inlines: {}, marks: {}, fields }
+  const aligned = new Set(
+    Object.values(kit.schema.nodes)
+      .filter((type) => type.spec.attrs?.align)
+      .map((type) => type.name),
+  )
+  const outputs: Outputs = { blocks: {}, inlines: {}, marks: {}, fields, aligned }
   // extensions that come first win, as with their keys
   for (let index = kit.extensions.length - 1; index >= 0; index--) {
     const extension = kit.extensions[index]!
@@ -136,7 +144,7 @@ function inlineHTML(content: InlineContent[], outputs: Outputs): string {
       for (let index = outputs.fields.length - 1; index >= 0; index--) {
         const [field, mark] = outputs.fields[index]!
         const value = item[field]
-        const tags = value && tagsOf(outputs.marks[mark]?.html, value)
+        const tags = isColor(value) && tagsOf(outputs.marks[mark]?.html, value)
         if (tags) text = tags[0] + text + tags[1]
       }
       if (item.link && isSafeHref(item.link))
@@ -151,7 +159,7 @@ const closingTag = (group: string) => `</${group.split(/\s/)[0]}>`
 
 /** An aligned block's first element gets `style="text-align: …"`. */
 function withAlign(html: string, align: unknown): string {
-  if (!isAlign(align)) return html
+  if (!isAlign(align) || align === 'left') return html
   return html.replace(/^<([a-z][a-z0-9]*)/i, `<$1 style="text-align: ${align}"`)
 }
 
@@ -180,7 +188,8 @@ function blocksHTML(blocks: Block[], outputs: Outputs, top = false): string {
     const html = output?.html
       ? output.html(block, context)
       : `<p>${context.content}</p>${context.children}`
-    result += withAlign(html, block.props.align)
+    // only blocks that can be aligned, as the editor would keep them
+    result += outputs.aligned.has(block.type) ? withAlign(html, block.props.align) : html
   })
   if (group) result += newline + closingTag(group)
   return result
@@ -243,7 +252,7 @@ function keysOf(item: InlineContent, outputs: Outputs): string[] {
   if (item.link && isSafeHref(item.link)) keys.push(`link:${item.link}`)
   for (const [field, mark] of outputs.fields) {
     const value = item[field]
-    if (value && hasOutput(mark, outputs)) keys.push(`${mark}=${value}`)
+    if (isColor(value) && hasOutput(mark, outputs)) keys.push(`${mark}=${value}`)
   }
   for (const mark of item.marks ?? [])
     if (mark !== 'code' && hasOutput(mark, outputs)) keys.push(mark)

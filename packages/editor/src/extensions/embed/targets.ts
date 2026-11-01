@@ -28,13 +28,12 @@ export function httpsUrl(value: string): URL | null {
 
 /**
  * The default: https links only. Media files play in the browser's player,
- * any other page shows in a frame. Pages on the editor's own site are
- * refused, as a frame of the same site is not kept apart from the page.
+ * any other page shows in a frame. Frames of the editor's own site are
+ * refused whatever the resolver (see `checkTarget`).
  */
 export const resolveEmbed: EmbedResolver = (value) => {
   const url = httpsUrl(value)
   if (!url) return null
-  if (typeof location !== 'undefined' && url.origin === location.origin) return null
   const ext = /\.([a-z0-9]+)$/i.exec(url.pathname)?.[1]?.toLowerCase() ?? ''
   if (videoTypes.includes(ext)) return { kind: 'video', src: url.href }
   if (audioTypes.includes(ext)) return { kind: 'audio', src: url.href }
@@ -46,11 +45,19 @@ export const frameSandbox =
   'allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-presentation allow-forms'
 export const frameAllow = 'fullscreen; picture-in-picture; encrypted-media; clipboard-write'
 
-/** A resolver's answer, checked: only https addresses get through. */
+/**
+ * A resolver's answer, checked: only https addresses get through, and no
+ * frame of the page's own site, which the sandbox would not keep apart
+ * (it allows scripts and the site's own storage). Without a page (on a
+ * server) the site is unknown: see the docs.
+ */
 export function checkTarget(target: EmbedTarget | null | undefined): EmbedTarget | null {
   if (!target || !['frame', 'video', 'audio'].includes(target.kind)) return null
   const url = httpsUrl(target.src)
-  return url ? { ...target, src: url.href } : null
+  if (!url) return null
+  if (target.kind === 'frame' && typeof location !== 'undefined' && url.origin === location.origin)
+    return null
+  return { ...target, src: url.href }
 }
 
 export function ratioOf(target: EmbedTarget): number {

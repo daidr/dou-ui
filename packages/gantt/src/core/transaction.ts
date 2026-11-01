@@ -115,16 +115,20 @@ export class GanttTransaction {
     return this.links[this.indexOf('links', id)]
   }
 
-  /** A task's or link's position in its list, `-1` when there is none. */
+  /**
+   * A task's or link's position in its list, `-1` when there is none. The
+   * positions are kept as tasks and links come and go, and checked when
+   * read: one that moved since is found again with the rest.
+   */
   private indexOf(kind: 'tasks' | 'links', id: string) {
+    const list: readonly { id: string }[] = kind === 'tasks' ? this.tasks : this.links
     let at = this.at[kind]
-    if (!at) {
-      at = new Map()
-      const list = kind === 'tasks' ? this.tasks : this.links
-      // the first one wins, as with `find`
-      for (let i = list.length - 1; i >= 0; i--) at.set(list[i]!.id, i)
-      this.at[kind] = at
-    }
+    const known = at?.get(id)
+    if (at && (known === undefined || list[known]?.id === id)) return known ?? -1
+    at = new Map()
+    // the first one wins, as with `find`
+    for (let i = list.length - 1; i >= 0; i--) at.set(list[i]!.id, i)
+    this.at[kind] = at
     return at.get(id) ?? -1
   }
 
@@ -258,15 +262,16 @@ export class GanttTransaction {
       case 'addTask': {
         if (this.getTask(step.task.id)) return null
         const list = this.writable('tasks')
-        list.splice(clampIndex(step.index, list.length), 0, step.task)
-        this.at.tasks = null
+        const at = clampIndex(step.index, list.length)
+        list.splice(at, 0, step.task)
+        // the rest may have moved by one: `indexOf` checks the positions it reads
+        this.at.tasks?.set(step.task.id, at)
         return { type: 'removeTask', id: step.task.id }
       }
       case 'removeTask': {
         const index = this.indexOf('tasks', step.id)
         if (index < 0) return null
         const [task] = this.writable('tasks').splice(index, 1)
-        this.at.tasks = null
         return { type: 'addTask', task: task!, index }
       }
       case 'updateTask': {
@@ -281,15 +286,16 @@ export class GanttTransaction {
       case 'addLink': {
         if (this.getLink(step.link.id)) return null
         const list = this.writable('links')
-        list.splice(clampIndex(step.index, list.length), 0, step.link)
-        this.at.links = null
+        const at = clampIndex(step.index, list.length)
+        list.splice(at, 0, step.link)
+        // the rest may have moved by one: `indexOf` checks the positions it reads
+        this.at.links?.set(step.link.id, at)
         return { type: 'removeLink', id: step.link.id }
       }
       case 'removeLink': {
         const index = this.indexOf('links', step.id)
         if (index < 0) return null
         const [link] = this.writable('links').splice(index, 1)
-        this.at.links = null
         return { type: 'addLink', link: link!, index }
       }
       case 'updateLink': {

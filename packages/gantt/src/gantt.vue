@@ -60,6 +60,7 @@ import {
 import { readTheme, type ExportTheme } from './export/theme'
 import { GanttHistory } from './core/history'
 import { linkRefusal, linkTypeOf, type GanttLinkRefusal } from './core/links'
+import { applyGanttCSV, readGanttCSV, type GanttCSVImportOptions } from './core/csv'
 import { createId, spanOf, writeSpan, type GanttLink, type GanttTask } from './core/model'
 import { computeCriticalPath, computeSchedule, findBrokenLinks } from './core/schedule'
 import {
@@ -91,7 +92,7 @@ import type {
   GanttImageOptions,
   GanttMove,
   GanttPrintOptions,
-  GanttCSVOptions,
+  GanttCSVExportOptions,
   GanttProps,
   GanttSlots,
 } from './types'
@@ -795,7 +796,8 @@ function editorValue(row: GanttRow, column: GanttColumn) {
       return task.start ?? ''
     case 'end':
       return span
-        ? formatTime(span.dateOnly ? span.end - MINUTES_PER_DAY : span.end, span.dateOnly)
+        ? // a date-only span ends on its last day; a summary ending on a milestone, on that day
+          formatTime(span.dateOnly ? span.end - 1 : span.end, span.dateOnly)
         : ''
     case 'duration': {
       if (!span) return ''
@@ -2346,11 +2348,23 @@ async function exportPNG(options: GanttImageOptions = {}) {
     height: EXPORT_HEADER + drawing.bodyHeight,
     pixelRatio: options.pixelRatio,
     scope: '@dou-ui/gantt',
-    hint: "export range 'view', a coarser scale, or use exportSVG() / exportCSV()",
+    hint: "export range 'view', a coarser scale, or use exportSVG() / toCSV()",
   })
 }
 
-const csvCell = (text: string) => (/[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text)
+/** What a spreadsheet program would start a formula with; kept in step with `@dou-ui/sheet`. */
+const FORMULA_START = /^[=+\-@\t\r]/
+
+/**
+ * A field of CSV: quoted when it has to be, and unless `escape` is off,
+ * text that a spreadsheet program would run as a formula (`=…`, `-复盘`)
+ * behind a `'`. Numbers stay as they are.
+ */
+function csvCell(text: string, escape = true) {
+  const safe =
+    escape && FORMULA_START.test(text) && !Number.isFinite(Number(text.trim())) ? `'${text}` : text
+  return /[",\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe
+}
 
 /** A cell as a spreadsheet reads it: dates as `YYYY-MM-DD`, numbers without units. */
 function csvValue(row: GanttRow, column: GanttColumn, mixed: boolean) {
@@ -2373,7 +2387,7 @@ function csvValue(row: GanttRow, column: GanttColumn, mixed: boolean) {
   return editorValue(row, column)
 }
 
-function exportCSV(options: GanttCSVOptions = {}) {
+function toCSV(options: GanttCSVExportOptions = {}) {
   const list = columns.value
   const m = messages.value
   // durations are working days or working hours; the header says which, or each value does when both are in
@@ -2388,12 +2402,35 @@ function exportCSV(options: GanttCSVOptions = {}) {
   }
   const cell = (row: GanttRow, column: GanttColumn) =>
     options.text ? cellText(row, column) : csvValue(row, column, mixed)
-  const lines = [list.map((column) => csvCell(header(column))).join(',')]
+  const ids = options.ids ? [m.idColumn, m.parentColumn] : []
+  const escape = options.escapeFormulas !== false
+  const field = (text: string) => csvCell(text, escape)
+  const lines = [[...ids, ...list.map(header)].map(field).join(',')]
   // every task in order, those under a collapsed parent too
-  for (const row of tree.value.byId.values())
-    lines.push(list.map((column) => csvCell(cell(row, column))).join(','))
+  for (const row of tree.value.byId.values()) {
+    const own = options.ids ? [row.task.id, row.task.parent ?? ''] : []
+    lines.push([...own, ...list.map((column) => cell(row, column))].map(field).join(','))
+  }
   // the byte order mark tells spreadsheets the file is UTF-8
   return (options.bom === false ? '' : '\uFEFF') + lines.join('\r\n')
+}
+
+function readCSV(text: string, outer?: (id: string) => boolean) {
+  return readGanttCSV(text, {
+    columns: columns.value,
+    messages: messages.value,
+    calendar: calendar.value,
+    outer,
+  })
+}
+
+function importCSV(text: string, options: GanttCSVImportOptions = {}) {
+  if (!editable.value) return null
+  const mode = options.mode ?? 'replace'
+  // appended tasks may go under the chart's own
+  const result = readCSV(text, mode === 'append' ? (id) => tree.value.byId.has(id) : undefined)
+  transact((tr) => applyGanttCSV(tr, result, mode, calendar.value))
+  return result
 }
 
 const escapeHTML = (text: string) =>
@@ -2493,7 +2530,9 @@ defineExpose<GanttExpose>({
   zoomOut,
   exportSVG,
   exportPNG,
-  exportCSV,
+  toCSV,
+  readCSV: (text: string) => readCSV(text),
+  importCSV,
   print,
 })
 

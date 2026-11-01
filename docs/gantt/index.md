@@ -317,14 +317,14 @@ downloadBlob(await gantt.value.exportPNG(), '排期.png')
 
 只想读取、不想放进甘特图时用 `readCSV(text)`，返回值相同，可以检查后再决定怎么处理，例如交给 `transact`。
 
-Excel 文件可以先用 [`@dou-ui/sheet-xlsx`](../sheet/xlsx) 读成工作簿，再用 `@dou-ui/sheet/core` 的 `sheetToCSV` 转成 CSV。`formatted: false` 写出保存的值，日期是 `2026-03-02` 的写法，不受单元格格式影响：
+Excel 文件可以先用 [`@dou-ui/sheet-xlsx`](../sheet/xlsx) 读成工作簿，再用 `@dou-ui/sheet/core` 的 `sheetToCSV` 转成 CSV。它默认写值，日期是 `2026-03-02` 的写法，不受单元格格式影响：
 
 ```ts
 import { readXlsx } from '@dou-ui/sheet-xlsx'
 import { sheetToCSV } from '@dou-ui/sheet/core'
 
 const { book } = await readXlsx(file)
-gantt.value.importCSV(sheetToCSV(book.sheets[0], { formatted: false }))
+gantt.value.importCSV(sheetToCSV(book.sheets[0]))
 ```
 
 ## 时间刻度

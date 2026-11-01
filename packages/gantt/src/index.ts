@@ -6,7 +6,10 @@ export default DouGantt
 
 export type {
   GanttBarLabel,
+  GanttCSVImportOptions,
   GanttCSVOptions,
+  GanttCSVProblem,
+  GanttCSVResult,
   GanttColumn,
   GanttEmits,
   GanttExportOptions,

@@ -670,6 +670,102 @@ describe('export', () => {
     ])
   })
 
+  it('reads its own CSV back, with the tree when ids are written', async () => {
+    const { wrapper } = setup({
+      columns: [{ key: 'title' }, { key: 'start' }, { key: 'end' }, { key: 'progress' }],
+    })
+    await nextTick()
+    const vm = wrapper.findComponent(DouGantt).vm as unknown as GanttExpose
+    const csv = vm.exportCSV({ ids: true })
+    expect(csv.slice(1).split('\r\n')[0]).toBe('ID,上级任务 ID,任务,开始,结束,进度')
+    const { tasks: read, problems, unknownColumns } = vm.parseCSV(csv)
+    expect(problems).toEqual([])
+    expect(unknownColumns).toEqual([])
+    // the summary's dates come from its subtasks again
+    expect(read).toEqual([
+      { id: 'p', title: '发布' },
+      {
+        id: 'a',
+        parent: 'p',
+        title: '设计',
+        start: '2026-03-02',
+        end: '2026-03-06',
+        progress: 0.5,
+      },
+      { id: 'b', parent: 'p', title: '开发', start: '2026-03-09', end: '2026-03-13', progress: 0 },
+      { id: 'm', parent: 'p', title: '上线', type: 'milestone', start: '2026-03-16' },
+    ])
+  })
+
+  it('reads durations as working days or hours, as exportCSV writes them', async () => {
+    const { wrapper, tasks } = setup()
+    await nextTick()
+    const vm = wrapper.findComponent(DouGantt).vm as unknown as GanttExpose
+    const plain = vm.parseCSV(vm.exportCSV())
+    // without ids, the summary is a task of its own
+    expect(plain.tasks.map(({ id: _id, ...task }) => task)).toEqual([
+      { title: '发布', start: '2026-03-02', end: '2026-03-16' },
+      { title: '设计', start: '2026-03-02', end: '2026-03-06' },
+      { title: '开发', start: '2026-03-09', end: '2026-03-13' },
+      { title: '上线', start: '2026-03-16', type: 'milestone' },
+    ])
+    tasks.value = [{ id: 't', title: '评审会', start: '2026-03-03 10:00', end: '2026-03-03 12:00' }]
+    await nextTick()
+    expect(vm.parseCSV(vm.exportCSV()).tasks[0]).toMatchObject({
+      start: '2026-03-03 10:00',
+      end: '2026-03-03 12:00',
+    })
+    expect(() => vm.parseCSV('名称,日期\n一,2026-03-02')).toThrow(/title column/)
+  })
+
+  it('imports CSV as one undo step, keeping links of the tasks it has', async () => {
+    const { wrapper, tasks, links } = setup()
+    tasks.value = tasks.value.map((task) => (task.id === 'b' ? { ...task, tone: 'danger' } : task))
+    const before = tasks.value
+    await nextTick()
+    const vm = wrapper.findComponent(DouGantt).vm as unknown as GanttExpose
+    // moved in a spreadsheet: 开发 a week later and before 设计, 上线 gone, a new task added
+    const csv = [
+      'ID,上级任务 ID,任务,开始,工期（天）',
+      'p,,发布,2026-03-02,11',
+      'b,p,开发（二期）,2026-03-16,5',
+      'a,p,设计,2026-03-02,5',
+      ',p,验收,2026-03-23,2',
+    ].join('\n')
+    const result = vm.importCSV(csv)
+    expect(result.columns).toEqual(['id', 'parent', 'title', 'start', 'duration'])
+    await nextTick()
+    const b = tasks.value.find((task) => task.id === 'b')!
+    expect(b).toMatchObject({
+      title: '开发（二期）',
+      start: '2026-03-16',
+      end: '2026-03-20',
+      tone: 'danger',
+    })
+    expect(tasks.value.find((task) => task.id === 'a')!.progress).toBe(0.5)
+    expect(tasks.value.some((task) => task.id === 'm')).toBe(false)
+    // the rows in the order of the file
+    const rows = wrapper
+      .findAll('.dou-gantt__tr')
+      .map((row) => row.findAll('.dou-gantt__td')[0]!.text())
+    expect(rows).toEqual(['发布', '开发（二期）', '设计', '验收'])
+    expect(links.value).toEqual([{ id: 'l1', from: 'a', to: 'b' }])
+    expect(vm.undo()).toBe(true)
+    await nextTick()
+    expect(tasks.value).toEqual(before)
+    expect(links.value).toHaveLength(2)
+
+    // appended, with new ids where theirs are taken
+    vm.importCSV('ID,上级任务 ID,任务,开始,工期\np,,二期,2026-04-01,\nx,p,联调,2026-04-01,3', {
+      mode: 'append',
+    })
+    await nextTick()
+    expect(tasks.value).toHaveLength(6)
+    const [copy, child] = tasks.value.slice(4)
+    expect(copy!.id).not.toBe('p')
+    expect(child).toMatchObject({ id: 'x', parent: copy!.id, title: '联调' })
+  })
+
   it('draws the chart as SVG, with the plan under the bars', async () => {
     const baseline = [{ id: 'b', start: '2026-03-05', end: '2026-03-11' }]
     const { wrapper } = setup({ baseline })

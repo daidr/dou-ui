@@ -1,5 +1,6 @@
 import type { GanttBaselineItem } from './core/baseline'
 import type { GanttCalendar } from './core/calendar'
+import type { GanttCSVImportOptions, GanttCSVResult } from './core/csv'
 import type { GanttExtension } from './core/extension'
 import type { GanttLink, GanttTask } from './core/model'
 import type { Tone } from 'dou-ui'
@@ -213,6 +214,12 @@ export interface GanttCSVOptions {
   text?: boolean
   /** Start with a byte order mark, so spreadsheets read the file as UTF-8. Defaults to `true`. */
   bom?: boolean
+  /**
+   * Start with two more columns, the task's `id` and its parent's, so that
+   * `parseCSV` reads the tasks back in their tree, with the ids they have.
+   * Defaults to `false`.
+   */
+  ids?: boolean
 }
 
 export interface GanttExpose {
@@ -264,6 +271,19 @@ export interface GanttExpose {
    */
   exportCSV: (options?: GanttCSVOptions) => string
   /**
+   * Reads tasks from CSV written by `exportCSV`, or by hand with the same
+   * headers (or the column keys: `title`, `start`, `end`…). Builds nothing
+   * into the chart: put the tasks in `tasks`, or add them with `transact`.
+   * Throws when no header is the title column.
+   */
+  parseCSV: (text: string) => GanttCSVResult
+  /**
+   * Reads tasks from CSV like `parseCSV` and puts them in the chart, as
+   * one undo step. By default they replace the tasks; a task with an id
+   * the chart has keeps its links and the fields the file doesn't have.
+   */
+  importCSV: (text: string, options?: GanttCSVImportOptions) => GanttCSVResult
+  /**
    * Prints every row, scaled to the page width, with the header repeated on
    * each page.
    */
@@ -271,3 +291,4 @@ export interface GanttExpose {
 }
 
 export type { GanttScale }
+export type { GanttCSVImportOptions, GanttCSVProblem, GanttCSVResult } from './core/csv'

@@ -54,6 +54,9 @@ export interface GanttMessages {
   /** A duration column's header in exported CSV, where values are bare numbers: `{title}`. */
   daysColumn: string
   hoursColumn: string
+  /** Headers of the columns `exportCSV({ ids: true })` adds: the task's id and its parent's. */
+  idColumn: string
+  parentColumn: string
   /** How to use the chart with keys; read out when it gets focus. */
   keys: string
   /** Read out: linking by keys (`{title}` is where it starts), what was done. */
@@ -173,6 +176,8 @@ const zhCN: GanttMessages = {
   resizeTable: '调整列表宽度',
   daysColumn: '{title}（天）',
   hoursColumn: '{title}（小时）',
+  idColumn: 'ID',
+  parentColumn: '上级任务 ID',
   keys: '上下键选择任务，左右键收起或展开，空格选中；Alt 加左右键移动任务，Alt 加 Shift 加左右键调整结束时间；L 添加依赖；F2 重命名，菜单键打开菜单',
   linkMode: '从“{title}”添加依赖：上下键选择后续任务，Enter 确认，Esc 取消',
   linked: '已添加依赖：{from} → {to}',
@@ -251,6 +256,8 @@ const zhTW: GanttMessages = {
   resizeTable: '調整列表寬度',
   daysColumn: '{title}（天）',
   hoursColumn: '{title}（小時）',
+  idColumn: 'ID',
+  parentColumn: '上層任務 ID',
   keys: '上下鍵選擇任務，左右鍵收合或展開，空白鍵選取；Alt 加左右鍵移動任務，Alt 加 Shift 加左右鍵調整結束時間；L 新增相依；F2 重新命名，選單鍵開啟選單',
   linkMode: '從「{title}」新增相依：上下鍵選擇後續任務，Enter 確認，Esc 取消',
   linked: '已新增相依：{from} → {to}',
@@ -345,6 +352,8 @@ const en: GanttMessages = {
   resizeTable: 'Resize the list',
   daysColumn: '{title} (days)',
   hoursColumn: '{title} (hours)',
+  idColumn: 'ID',
+  parentColumn: 'Parent ID',
   keys: 'Up and Down pick a task, Left and Right fold, Space selects; Alt with Left or Right moves the task, Alt with Shift and Left or Right changes its end; L adds a dependency; F2 renames, the menu key opens the menu',
   linkMode:
     'Adding a dependency from “{title}”: pick the next task with Up and Down, Enter to confirm, Escape to cancel',

@@ -60,6 +60,7 @@ import {
 import { readTheme, type ExportTheme } from './export/theme'
 import { GanttHistory } from './core/history'
 import { linkRefusal, linkTypeOf, type GanttLinkRefusal } from './core/links'
+import { applyGanttCSV, parseGanttCSV, type GanttCSVImportOptions } from './core/csv'
 import { createId, spanOf, writeSpan, type GanttLink, type GanttTask } from './core/model'
 import { computeCriticalPath, computeSchedule, findBrokenLinks } from './core/schedule'
 import {
@@ -2373,12 +2374,29 @@ function exportCSV(options: GanttCSVOptions = {}) {
   }
   const cell = (row: GanttRow, column: GanttColumn) =>
     options.text ? cellText(row, column) : csvValue(row, column, mixed)
-  const lines = [list.map((column) => csvCell(header(column))).join(',')]
+  const ids = options.ids ? [m.idColumn, m.parentColumn] : []
+  const lines = [[...ids, ...list.map(header)].map(csvCell).join(',')]
   // every task in order, those under a collapsed parent too
-  for (const row of tree.value.byId.values())
-    lines.push(list.map((column) => csvCell(cell(row, column))).join(','))
+  for (const row of tree.value.byId.values()) {
+    const own = options.ids ? [row.task.id, row.task.parent ?? ''] : []
+    lines.push([...own, ...list.map((column) => cell(row, column))].map(csvCell).join(','))
+  }
   // the byte order mark tells spreadsheets the file is UTF-8
   return (options.bom === false ? '' : '\uFEFF') + lines.join('\r\n')
+}
+
+function parseCSV(text: string) {
+  return parseGanttCSV(text, {
+    columns: columns.value,
+    messages: messages.value,
+    calendar: calendar.value,
+  })
+}
+
+function importCSV(text: string, options: GanttCSVImportOptions = {}) {
+  const result = parseCSV(text)
+  transact((tr) => applyGanttCSV(tr, result, options.mode ?? 'replace', calendar.value))
+  return result
 }
 
 const escapeHTML = (text: string) =>
@@ -2479,6 +2497,8 @@ defineExpose<GanttExpose>({
   exportSVG,
   exportPNG,
   exportCSV,
+  parseCSV,
+  importCSV,
   print,
 })
 

@@ -66,7 +66,7 @@ app.use(DouSheet)
 
 单元格原来的样式和格式会保留，没有格式时才加上输入带来的格式。`Delete` 或 `Backspace` 清空选中区域的值，样式和格式不动。
 
-`readonly` 只限制使用者在表格里的操作：只能选择、浏览和复制，不能修改。代码里调用组件实例的 `transact`、`undo`、`redo` 不受 `readonly` 限制，照常生效，例如[协同编辑](./collaboration)时其他人的修改；但受保护的单元格仍然拒绝修改，除非设置 `protection: false`（见[保护](#保护)）。
+`readonly` 只限制使用者在表格里的操作：只能选择、浏览和复制，不能修改。代码里调用组件实例的 `transact`、`undo`、`redo` 不受 `readonly` 限制，照常生效，例如[协同编辑](./collaboration)时其他人的修改；但受保护的单元格仍然拒绝修改，除非设置 `protection: false` 或 `history: false`（见[保护](#保护)）。
 
 触屏上编辑框的字号至少是 16px，避免手机在聚焦时自动放大页面。
 
@@ -177,7 +177,7 @@ sheet.value.transact((tr) => {
 | `setStyle(name, style)`                                                               | 添加、修改或（传 `undefined`）删除一个命名样式                                                                                                                 |
 | `protectSheet(protect, sheet?)`、`updateBook(patch)`                                  | 保护或取消保护工作表；修改工作簿的字段，比如 `{ protect: true }`，见[保护](#保护)                                                                              |
 | `cancel(reason?)`                                                                     | 取消这次修改，在扩展的 `transaction` 里使用，见[取消修改](./extensions#取消修改)                                                                               |
-| `setMeta({ history, group, action, protection })`                                     | `history: false` 不进入撤销记录；同一 `group` 的连续修改合并为一步；`action` 见上表；`protection: false` 不检查保护                                            |
+| `setMeta({ history, group, action, protection })`                                     | `history: false` 不进入撤销记录，也不检查保护；同一 `group` 的连续修改合并为一步；`action` 见上表；`protection: false` 不检查保护                              |
 
 插入、删除和移动行列，以及移动单元格时，所有工作表里指向这些单元格的公式引用都会随之改写：插入行后 `=A5` 变成 `=A6`，区域 `A1:A5` 在中间插入一行后变成 `A1:A6`；删除被引用的单元格后引用变成 `#REF!`，区域只删除一部分时缩小。和复制不同，这时 `$A$1` 这样的固定引用也会跟着改。
 
@@ -543,7 +543,7 @@ const fixedProtection = defineSheetExtension({
 })
 ```
 
-用代码修改时调用 `tr.protectSheet(true)` 或 `tr.protectSheet({ formatCells: true })`，传 `false` 取消；`tr.updateBook({ protect: true })` 保护工作簿结构；`tr.styleCells('B1:B3', { locked: false })` 解锁单元格。代码的修改同样要遵守保护，需要绕过时（比如程序填写受保护的表单）传 `{ protection: false }`：
+用代码修改时调用 `tr.protectSheet(true)` 或 `tr.protectSheet({ formatCells: true })`，传 `false` 取消；`tr.updateBook({ protect: true })` 保护工作簿结构；`tr.styleCells('B1:B3', { locked: false })` 解锁单元格。代码的修改同样要遵守保护，需要绕过时（比如程序填写受保护的表单）传 `{ protection: false }`。`history: false` 的修改（撤销重做、[协同编辑](./collaboration)里别人的修改）不能取消，同样不检查保护，所以别用它来绕过保护，要绕过就写 `protection: false`：
 
 ```ts
 sheet.value.transact((tr) => tr.setValue('A1', '买家'), { protection: false })

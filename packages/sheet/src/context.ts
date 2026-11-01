@@ -63,7 +63,7 @@ export interface SheetContext {
    * `transactionCancel`), unless `meta.history` is `false`. Otherwise as
    * the component's: returns the transaction, `tr.changed` says whether
    * it changed anything, and protected cells refuse it unless
-   * `meta.protection` is `false`.
+   * `meta.protection` or `meta.history` is `false`.
    */
   transact: SheetExpose['transact']
   /** Undoes as the person using the grid: does nothing on a `readonly` grid. */

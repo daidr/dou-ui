@@ -356,7 +356,7 @@ export interface SheetExpose {
    * changed or the change was cancelled, and `tr.cancelled` says it was
    * (`transactionCancel` tells why). Works on a `readonly` grid too: that
    * only stops people using the grid. Protected cells still refuse it
-   * unless `meta.protection` is `false`.
+   * unless `meta.protection` or `meta.history` is `false`.
    */
   transact: (run: (tr: SheetTransaction) => void, meta?: SheetTransactionMeta) => SheetTransaction
   undo: () => boolean

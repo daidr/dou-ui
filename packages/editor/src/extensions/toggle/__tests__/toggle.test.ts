@@ -14,7 +14,7 @@ import { editorKit } from '../../editor-kit'
 import { flipToggle, isToggleOpen } from '../state'
 import { undo } from 'prosemirror-history'
 import { siblingRangeBetween } from '../../../core/blocks'
-import { moveRangeTo } from '../../../core/commands'
+import { moveRangeTo, setBlockType } from '../../../core/commands'
 import { applyEditorTransaction, EditorTransaction } from '../../../core/transaction'
 
 let view: EditorView | undefined
@@ -152,6 +152,18 @@ describe('closed toggles that come back', () => {
     expect(collapsed(target)).toEqual([])
     undo(target.state, target.dispatch)
     expect(collapsed(target)).toEqual(['t'])
+  })
+
+  it('leave nothing hidden when turned into another type', () => {
+    const target = start()
+    const tr = new EditorTransaction(target.state)
+    tr.updateBlock('t', { type: 'paragraph' })
+    applyEditorTransaction(target, tr)
+    expect(collapsed(target)).toEqual([])
+    const again = start()
+    endOf(again, 't')
+    expect(setBlockType('heading', { level: 2 })(again.state, again.dispatch)).toBe(true)
+    expect(collapsed(again)).toEqual([])
   })
 
   it('stay closed when dragged by the handle', () => {

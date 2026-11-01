@@ -147,6 +147,10 @@ function onChange(current: EditorView, tr: Transaction, before: EditorState) {
 
 let selection: EditorSelection = { block: null, blocks: [] }
 
+const warn = (message: string) => {
+  if (process.env.NODE_ENV !== 'production') console.warn(`[@dou-ui/editor] ${message}`)
+}
+
 const lacksId = (blocks: PartialBlock[]): boolean =>
   blocks.some((block) => !block.id || lacksId(block.children ?? []))
 // until the editor is focused (or a block is, by the program) its selection is no cursor
@@ -271,15 +275,27 @@ watch(
   (value) => {
     const current = view.value
     if (!current || !value || sameSelection(value, selection)) return
+    const known = cursorKnown
     cursorKnown = true
+    let applied = false
     if (value.blocks.length > 1) {
-      selectBlocks(value.blocks[0]!, value.blocks.at(-1)!)(current.state, current.dispatch)
-      return
+      applied = selectBlocks(value.blocks[0]!, value.blocks.at(-1)!)(
+        current.state,
+        current.dispatch,
+      )
+      if (!applied) warn('`selection.blocks` must be sibling blocks that exist in the document')
+    } else {
+      const id = value.block ?? value.blocks[0]
+      const transaction = new EditorTransaction(current.state)
+      if (id && transaction.focusBlock(id)) {
+        current.dispatch(transaction.tr)
+        applied = true
+      } else if (!id) warn('a selection without blocks cannot be set; the cursor stays where it is')
     }
-    const id = value.block ?? value.blocks[0]
-    if (!id) return
-    const transaction = new EditorTransaction(current.state)
-    if (transaction.focusBlock(id)) current.dispatch(transaction.tr)
+    if (applied) return
+    cursorKnown = known
+    // hand back where the selection really is, so the binding doesn't keep a value that never applied
+    emit('update:selection', { ...selection, blocks: [...selection.blocks] })
   },
 )
 

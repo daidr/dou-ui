@@ -97,8 +97,15 @@ export function togglePlugin(): Plugin<ToggleState> {
         if (!changed && !tr.docChanged) return value
         // typing moves the closed toggles' decorations along; no need to look for them again,
         // unless a closed toggle came back (moved, pasted, or its removal undone)
-        if (!changed && !insertsClosed(tr, closed))
-          return { closed, decorations: value.decorations.map(tr.mapping, tr.doc) }
+        if (!changed && !insertsClosed(tr, closed)) {
+          const decorations = value.decorations.map(tr.mapping, tr.doc)
+          // a closed toggle turned into another type keeps its block: look again
+          const stale = decorations.find().some((decoration) => {
+            const node = tr.doc.nodeAt(decoration.from)
+            return !node || !isToggle(node)
+          })
+          if (!stale) return { closed, decorations }
+        }
         return { closed, decorations: decorate(state.doc, closed) }
       },
     },

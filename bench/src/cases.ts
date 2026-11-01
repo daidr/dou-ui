@@ -1308,7 +1308,7 @@ export const cases: Record<string, Case> = {
       return nextTick()
     },
     frames: 20,
-    budget: { 2000: 45 },
+    budget: { 2000: 30 },
   },
 }
 

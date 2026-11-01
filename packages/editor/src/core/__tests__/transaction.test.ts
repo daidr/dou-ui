@@ -321,6 +321,26 @@ describe('review follow-ups', () => {
     expect(api.view!.hasFocus()).toBe(true)
   })
 
+  it('changes nothing when a patch is refused', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const api = await editor([p('a', 'A', [p('c')])])
+    expect(api.updateBlock('a', { children: [], rows: [{ cells: ['x'] }] })).toBe(false)
+    expect(ids(api.getBlocks())).toEqual([['a', ['c']]])
+    expect(api.canUndo).toBe(false)
+    warn.mockRestore()
+  })
+
+  it('hands back the real selection when one cannot be set', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const api = await editor([p('a', 'A', [p('a1')]), p('c')])
+    api.focusBlock('c')
+    await wrapper!.setProps({ selection: { block: 'c', blocks: ['a1', 'c'] } })
+    const emitted = wrapper!.emitted('update:selection')!.at(-1)![0]
+    expect(emitted).toEqual({ block: 'c', blocks: ['c'] })
+    expect(warn).toHaveBeenCalled()
+    warn.mockRestore()
+  })
+
   it('refuses rows on a paragraph and text on a divider', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const api = await editor([p('a', 'A'), { id: 'd', type: 'divider' }])

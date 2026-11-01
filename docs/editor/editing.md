@@ -77,13 +77,13 @@ function onTransaction({ blocks, changes, meta }: EditorTransactionResult) {
 
 传入 `v-model` 的块没有写 `id` 时，编辑器挂载后会生成 id，并通过 `update:modelValue` 交回一次（不触发 `transaction`，也不进入撤销记录），这样事件里的 id 都能在自己的数据里找到。
 
-没有修改的块，在前后两次 `v-model` 里是同一个对象，可以直接用 `===` 判断某个块有没有变化。这些对象是共享的，不要直接修改它们，开发环境下修改会报错。要改内容，调用上面的方法，或者给 `v-model` 一个新的数组。
+没有修改的块，在前后两次 `v-model` 里是同一个对象，可以直接用 `===` 判断某个块有没有变化。这些对象是共享的，并且被冻结，直接修改会报错。要改内容，调用上面的方法，或者给 `v-model` 一个新的数组。
 
 ## 跟踪光标
 
 `v-model:selection` 绑定光标所在的位置：`block` 是光标所在的最内层的块，`blocks` 是选区覆盖的块。光标移到另一个块、或者选中的块变化时更新，在同一个块里移动光标不会更新。编辑器还没获得过焦点时为 `{ block: null, blocks: [] }`。
 
-从外部设置它会把光标放到 `block` 的末尾，`blocks` 有多个同级块时选中这些块，但不会让编辑器获得焦点；需要获得焦点时用 `focusBlock`。下面的目录用它高亮光标所在的小节，点击标题用 `focusBlock` 跳过去：
+从外部设置它会把光标放到 `block` 的末尾，`blocks` 有多个同级块时选中这些块，但不会让编辑器获得焦点；需要获得焦点时用 `focusBlock`。`blocks` 必须是同级的块；设置成不存在的块、不同级的块或 `{ block: null, blocks: [] }` 时选区不变，开发环境下会给出提示，绑定的值会改回实际的选区。下面的目录用它高亮光标所在的小节，点击标题用 `focusBlock` 跳过去：
 
 <DocDemo src="editor/outline" column />
 

@@ -134,19 +134,8 @@ export class EditorTransaction {
       return false
     }
     const schema = tr.doc.type.schema
-    if (patch.children) {
-      replaceChildren(tr, info, patch.children)
-    }
-    if (
-      patch.type === undefined &&
-      patch.props === undefined &&
-      patch.content === undefined &&
-      patch.rows === undefined
-    )
-      return true
-    const current = findBlockById(tr.doc, id)!
-    const content = current.content
-    const typeName = patch.type ?? content.type.name
+    // check everything before changing anything: a refused patch changes nothing
+    const typeName = patch.type ?? info.content.type.name
     const nodeType = schema.nodes[typeName]
     if (!nodeType?.isInGroup('blockContent')) {
       warn(`updateBlock: unknown block type "${typeName}"`)
@@ -161,6 +150,16 @@ export class EditorTransaction {
       warn(`updateBlock: a "${typeName}" block has no text content`)
       return false
     }
+    if (patch.children) replaceChildren(tr, info, patch.children)
+    if (
+      patch.type === undefined &&
+      patch.props === undefined &&
+      patch.content === undefined &&
+      patch.rows === undefined
+    )
+      return true
+    const current = findBlockById(tr.doc, id)!
+    const content = current.content
     const props = { ...content.attrs, ...patch.props }
     const keepsContent = patch.content === undefined && patch.rows === undefined
     // keep the text node for node when it can stay: collaborators typing in it keep their place

@@ -240,6 +240,57 @@ describe('bars', () => {
     expect(apart(4, 900)).toBeGreaterThanOrEqual(4)
   })
 
+  it('keeps value labels a row apart down short charts, whatever ticks are asked', () => {
+    // [height, ticks, the largest value]
+    const cases: Array<[number, number | undefined, number]> = [
+      [80, 20, 2000],
+      [80, undefined, 2000],
+      [90, 20, 2000],
+      [120, 5, 7],
+      [240, 10, 3],
+    ]
+    for (const [height, ticks, top] of cases) {
+      const rows = [
+        { k: 'a', v: 0 },
+        { k: 'b', v: top },
+      ]
+      const model = buildModel([input(0, { y: 'v' })], { data: rows, x: 'k' })
+      const labels = layoutChart({
+        model,
+        axes: { x: axis('bottom'), y: axis('left', { ticks }), y2: null },
+        width: 400,
+        height,
+        locale: 'zh-CN',
+        measure,
+      }).y.y!.labels
+      expect(labels.length).toBeGreaterThan(1)
+      // a label's height and the gap between rows
+      for (let i = 1; i < labels.length; i++)
+        expect(Math.abs(labels[i]!.top - labels[i - 1]!.top)).toBeGreaterThanOrEqual(19.5)
+    }
+  })
+
+  it('lays out quickly however many ticks are asked across a narrow chart', () => {
+    const model = buildModel([input(0, { y: 'v' })], {
+      data: [
+        { k: 'a', v: 0 },
+        { k: 'b', v: 186 },
+      ],
+      x: 'k',
+    })
+    const start = performance.now()
+    layoutChart({
+      model,
+      horizontal: true,
+      axes: { x: axis('left'), y: axis('bottom', { ticks: 1000 }), y2: null },
+      width: 390,
+      height: 240,
+      locale: 'zh-CN',
+      measure,
+    })
+    expect(performance.now() - start).toBeLessThan(100)
+  })
+
   it('keeps value labels apart down a short chart, even with more ticks asked', () => {
     const rows = [
       { k: 'a', v: 1 },
@@ -255,7 +306,7 @@ describe('bars', () => {
       measure,
     }).y.y!.labels
     for (let i = 1; i < labels.length; i++)
-      expect(Math.abs(labels[i]!.top - labels[i - 1]!.top)).toBeGreaterThanOrEqual(16)
+      expect(Math.abs(labels[i]!.top - labels[i - 1]!.top)).toBeGreaterThanOrEqual(19.5)
   })
 })
 

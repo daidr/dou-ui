@@ -3024,14 +3024,10 @@ function onKeydown(event: KeyboardEvent) {
   const step =
     along[event.key] ?? (event.key === 'Home' ? -Infinity : event.key === 'End' ? Infinity : 0)
   const turn = between[event.key] ?? 0
-  // a selection with Shift grows along x: only the arrows that point along it
-  const xArrow = horizontal
-    ? event.key === 'ArrowDown' || event.key === 'ArrowUp'
-    : event.key === 'ArrowRight' || event.key === 'ArrowLeft'
-  const brushing = event.shiftKey && brushPart.value && brushAxes.value.x && !pie.value
-  if (brushing && step && (xArrow || !event.key.startsWith('Arrow'))) {
+  // Shift and an arrow that moves along x grows a selection; one that changes series does nothing
+  if (event.shiftKey && brushPart.value && brushAxes.value.x && !pie.value && (step || turn)) {
     event.preventDefault()
-    brushWithKeys(step)
+    if (step) brushWithKeys(step)
     return
   }
   if (step || turn) brushAnchor = null

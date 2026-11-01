@@ -4,6 +4,7 @@ import { defineComponent, h, nextTick, ref, type VNodeChild } from 'vue'
 import {
   DouChart,
   DouChartBar,
+  DouChartBrush,
   DouChartLine,
   DouChartPie,
   DouChartScatter,
@@ -286,6 +287,30 @@ describe('tooltip', () => {
       expect(title()).toBe('一季度')
       wrapper.unmount()
     }
+  })
+
+  it('grows a selection with Shift and any arrow that moves on, in a chart of one series', async () => {
+    const months = [1, 2, 3, 4, 5].map((m) => ({ m: `${m}月`, v: m * 10 }))
+    const events: Array<{ x?: unknown[] }> = []
+    const { wrapper, root } = await sized(() =>
+      h(DouChart, { data: months, x: 'm', height: 300 }, () => [
+        h(DouChartLine, { y: 'v', name: '访客' }),
+        h(DouChartBrush, { onSelect: (e: { x?: unknown[] }) => events.push(e) }),
+      ]),
+    )
+    const shift = (name: string) =>
+      root.dispatchEvent(new KeyboardEvent('keydown', { key: name, shiftKey: true, bubbles: true }))
+    key(root, 'ArrowRight')
+    shift('ArrowRight')
+    await nextTick()
+    expect(events.at(-1)?.x).toEqual(['1月', '2月'])
+    shift('ArrowDown')
+    await nextTick()
+    expect(events.at(-1)?.x).toEqual(['1月', '3月'])
+    shift('ArrowUp')
+    await nextTick()
+    expect(events.at(-1)?.x).toEqual(['1月', '2月'])
+    wrapper.unmount()
   })
 
   it('goes from point to point, and between series, for a scatter', async () => {

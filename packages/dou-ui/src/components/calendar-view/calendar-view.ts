@@ -1,3 +1,4 @@
+import type { Component } from 'vue'
 import type { Tone } from '../../utils/types'
 
 export interface CalendarEvent<Data extends Record<string, unknown> = Record<string, unknown>> {
@@ -15,8 +16,61 @@ export interface CalendarEvent<Data extends Record<string, unknown> = Record<str
   end?: string
   title: string
   tone?: Tone
+  /** Can't be dragged, resized or removed, also when the calendar is `editable`. */
+  locked?: boolean
   /** Your own fields, e.g. a place or who attends. */
   data?: Data
+}
+
+/**
+ * A change about to be made, checked by `canMove`: an event dragged to a
+ * new time, its end dragged, or a new stretch of time drawn on the calendar
+ * (`event` is `null`). `start` is what would be written; `end` is always
+ * given, also for an event that leaves its own out.
+ */
+export interface CalendarMove {
+  kind: 'move' | 'resize' | 'create'
+  event: CalendarEvent | null
+  start: string
+  end: string
+}
+
+/** A change written to `v-model:events`. `event` is the new version, `previous` the one it replaced. */
+export type CalendarChange =
+  | { kind: 'move' | 'resize'; event: CalendarEvent; previous: CalendarEvent }
+  | { kind: 'remove'; event: CalendarEvent }
+
+/**
+ * A stretch of time drawn on the calendar, written like an event's `start`
+ * and `end`: whole days in the month view and the all-day row, times on the
+ * time axis.
+ */
+export interface CalendarRange {
+  start: string
+  end: string
+}
+
+/**
+ * What a context menu was opened on: an event, a day of the month or of the
+ * all-day row, or an empty spot on the time axis, rounded down to `snap`.
+ */
+export type CalendarMenuTarget =
+  | { kind: 'event'; event: CalendarEvent }
+  | { kind: 'day'; date: string }
+  | { kind: 'time'; start: string }
+
+export interface CalendarMenuItem {
+  /** Unique within the menu. */
+  key: string
+  label: string
+  icon?: Component
+  /** A key to show after the label, written as in `useHotkey`; only shown. */
+  shortcut?: string
+  disabled?: boolean
+  tone?: 'danger'
+  /** Draw a separator above the item. */
+  divided?: boolean
+  run: () => void
 }
 
 /** A month as a grid of days, or a week or a day along a time axis. */
@@ -37,8 +91,25 @@ export interface CalendarViewProps {
   hours?: [number, number]
   /** The time scrolled into view when the week or day view opens, `HH:mm`. */
   scrollTime?: string
-  /** Things to show in the days, e.g. a schedule. */
+  /** Things to show in the days, e.g. a schedule; bound with `v-model:events` when `editable`. */
   events?: CalendarEvent[]
+  /**
+   * Let events be dragged to another time, their end dragged, removed with
+   * the menu or `Delete`, and new stretches of time drawn with `create`.
+   */
+  editable?: boolean
+  /** The minutes a drag on the time axis snaps to. */
+  snap?: number
+  /**
+   * The last check before a change is written or a stretch of time drawn.
+   * Return `true` to allow it; anything else refuses it, and a string is
+   * shown as the reason.
+   */
+  canMove?: (move: CalendarMove) => boolean | string
+  /** Your own menu items, listed before the built-in ones. */
+  contextMenu?: (target: CalendarMenuTarget) => CalendarMenuItem[]
+  /** Show the built-in "Delete event" in an event's menu when `editable`. */
+  menu?: boolean
   /** The most events listed in a day before the rest fold into "+N". */
   maxEvents?: number
   /** Days that cannot be chosen. */
@@ -55,6 +126,13 @@ export interface CalendarViewEmits {
   eventClick: [event: CalendarEvent]
   /** An empty spot on the time axis was pressed: `YYYY-MM-DD HH:mm`, rounded down to the half hour. */
   timeClick: [start: string]
+  'update:events': [events: CalendarEvent[]]
+  /** An event was moved, resized or removed; `update:events` carries the whole new list. */
+  change: [change: CalendarChange]
+  /** A stretch of time was drawn: add an event for it, or ask for a title first. */
+  create: [range: CalendarRange]
+  /** Before an event's menu opens; `event.preventDefault()` keeps it closed. */
+  eventContextmenu: [event: CalendarEvent, nativeEvent: MouseEvent]
 }
 
 export interface CalendarDay {

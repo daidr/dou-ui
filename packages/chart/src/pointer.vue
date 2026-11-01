@@ -16,6 +16,8 @@ export interface Tip {
   line?: Rect
   /** A shaded band over the x's room, for bars. */
   band?: Rect
+  /** A ring around a heatmap's cell. */
+  cell?: Rect
   /** Rings and dots on the points. */
   marks: Array<{
     left: number
@@ -110,6 +112,7 @@ const px = (r: Rect) => ({
   <div :class="ns.e('live')" aria-live="polite">{{ live }}</div>
   <div v-if="tip" :class="ns.e('pointer')" aria-hidden="true">
     <div v-if="tip.band" :class="ns.e('band')" :style="px(tip.band)" />
+    <div v-if="tip.cell" :class="ns.e('cell')" :style="px(tip.cell)" />
     <div v-if="tip.line" :class="ns.e('crosshair')" :style="px(tip.line)" />
     <span
       v-for="(mark, i) in tip.marks"

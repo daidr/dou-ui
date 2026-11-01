@@ -109,7 +109,15 @@ export interface LegendItem {
   width: number
   /** The name is longer than the room down the side, and is cut short. */
   clipped?: boolean
+  /** The swatch's width, when wider than a series' (a heatmap's scale). */
+  swatch?: number
 }
+
+/** A legend entry's name, or its name and a wider swatch (a heatmap's scale). */
+export type LegendName = string | { text: string; swatch: number }
+
+const nameText = (name: LegendName) => (typeof name === 'string' ? name : name.text)
+const swatchOf = (name: LegendName) => (typeof name === 'string' ? SWATCH : name.swatch)
 
 /** Height of a line of tick text, and the room between it and the plot. */
 export const LABEL_HEIGHT = 16
@@ -121,6 +129,8 @@ export const INSET = 4
 /** A legend entry: the swatch, the room after it, and the room to the next entry. */
 const SWATCH = 12
 const SWATCH_GAP = 6
+/** A heatmap's scale in the legend: wide enough to read from light to dark. */
+export const HEAT_SWATCH = 40
 const LEGEND_GAP = 16
 const LEGEND_ROW_GAP = 4
 /** Rows 40px apart on a touch screen: each entry's hit area reaches 12px past its text, above and below. */
@@ -150,7 +160,7 @@ interface LayoutOptions {
   locale: string
   measure: (text: string) => number
   /** Names for a legend, or none. */
-  legend?: string[]
+  legend?: LegendName[]
   /** Rows of the legend far enough apart for a finger to press each (on a touch screen). */
   coarse?: boolean
   /** Where the legend goes: under the chart (the default), above it, or down its right side. */
@@ -222,7 +232,7 @@ export function layoutChart(options: LayoutOptions): ChartLayout {
  * rows (or the chart's height, down the side), its entries scroll.
  */
 export function placeLegendIn(
-  names: string[],
+  names: LegendName[],
   at: ChartLegendPlacement,
   width: number,
   height: number,
@@ -238,8 +248,9 @@ export function placeLegendIn(
       Math.floor(width * LEGEND_SIDE_SHARE) - LEGEND_GAP,
     )
     const step = LABEL_HEIGHT + Math.max(rowGap, LEGEND_ROW_GAP + 4)
-    const legend = names.map((text, index) => {
-      const full = SWATCH + SWATCH_GAP + measure(text)
+    const legend = names.map((name, index) => {
+      const text = nameText(name)
+      const full = swatchOf(name) + SWATCH_GAP + measure(text)
       const item: LegendItem = {
         index,
         text,
@@ -248,6 +259,7 @@ export function placeLegendIn(
         width: Math.min(full, widest),
       }
       if (full > widest) item.clipped = true
+      if (typeof name !== 'string') item.swatch = name.swatch
       return item
     })
     const boxWidth = Math.max(...legend.map((item) => item.width))
@@ -293,9 +305,11 @@ function valueAxes(
   locale: string,
   length: number,
   zoom?: Window | null,
+  /** The values run across (a horizontal chart). */
+  across = false,
 ): { y: ValueAxis | null; y2: ValueAxis | null } {
-  let y = axes.y ? valueAxis('y', axes.y, model, count, locale, length) : null
-  let y2 = axes.y2 ? valueAxis('y2', axes.y2, model, count, locale, length) : null
+  let y = axes.y ? valueAxis('y', axes.y, model, count, locale, length, across) : null
+  let y2 = axes.y2 ? valueAxis('y2', axes.y2, model, count, locale, length, across) : null
   if (y && y2 && !axes.y2!.ticks && !y2.fixed && y.ticks.length > 1) {
     const both = alignZero(y, y2, axes.y!, axes.y2!, model, locale, length)
     if (both) ({ y, y2 } = both)
@@ -577,10 +591,10 @@ function layoutAcross(
       y2: place(axes2.y2, plotTop - LABEL_GAP - LABEL_HEIGHT, y2Shown),
     }
   }
-  let values = valueAxes(axes, model, 2, locale, across, zoom?.y)
+  let values = valueAxes(axes, model, 2, locale, across, zoom?.y, true)
   let placed = placeAll(values)
   for (let count = Math.max(2, Math.floor(across / X_TICK_SPACE)); count >= 2; count--) {
-    values = valueAxes(axes, model, count, locale, across, zoom?.y)
+    values = valueAxes(axes, model, count, locale, across, zoom?.y, true)
     placed = placeAll(values)
     if ((!placed.y || fitAcross(placed.y.labels)) && (!placed.y2 || fitAcross(placed.y2.labels)))
       break
@@ -696,7 +710,7 @@ const fitDown = (labels: TickLabel[]) => {
 
 /** Entries in rows that fit `width`, each row centered; `top` counts from the first row. */
 export function placeLegend(
-  names: string[],
+  names: LegendName[],
   width: number,
   measure: (text: string) => number,
   coarse = false,
@@ -714,13 +728,15 @@ export function placeLegend(
     row = []
     rowWidth = 0
   }
-  names.forEach((text, index) => {
-    const w = SWATCH + SWATCH_GAP + measure(text)
+  names.forEach((name, index) => {
+    const text = nameText(name)
+    const w = swatchOf(name) + SWATCH_GAP + measure(text)
     if (row.length && rowWidth + LEGEND_GAP + w > width - INSET * 2) {
       finish()
       top += LABEL_HEIGHT + (coarse ? LEGEND_ROW_GAP_COARSE : LEGEND_ROW_GAP)
     }
-    const item = { index, text, left: 0, top, width: w }
+    const item: LegendItem = { index, text, left: 0, top, width: w }
+    if (typeof name !== 'string') item.swatch = name.swatch
     rowWidth += (row.length ? LEGEND_GAP : 0) + w
     row.push(item)
     items.push(item)
@@ -765,7 +781,22 @@ function valueAxis(
   count: number,
   locale: string,
   length: number,
+  across = false,
 ): ValueAxis {
+  const listed = model.yCategories?.[role]
+  if (listed) {
+    // categories along the axis (a heatmap's rows): one band each, the first
+    // at the top (at the left, across)
+    const ticks = listed.map((_, i) => i)
+    return {
+      role,
+      kind: 'linear',
+      domain: across ? [-0.5, listed.length - 0.5] : [listed.length - 0.5, -0.5],
+      ticks,
+      texts: listed.map((label) => (config.format ? config.format(label) : label)),
+      fixed: true,
+    }
+  }
   count = tickCount(config, count)
   const kind = config.type === 'log' ? 'log' : 'linear'
   const data = model.y[role]
@@ -1028,6 +1059,263 @@ export function layoutPie({
     cx: left + across / 2,
     cy: top + EDGE + room / 2,
     radius,
+    legend: placed.legend,
+    legendBox: placed.box,
+  }
+}
+
+/** A radar laid out: its center and radius, its rings and the names round it. */
+export interface RadarLayout {
+  width: number
+  height: number
+  cx: number
+  cy: number
+  radius: number
+  /** How many spokes: one per category. */
+  count: number
+  /** From a value to its distance from the center, in px. */
+  scale: Scale
+  /** The values of the rings. */
+  ticks: number[]
+  /** The spokes' names round the rim. */
+  labels: TickLabel[]
+  /** The rings' values, between the first two spokes. */
+  values: TickLabel[]
+  legend: LegendItem[]
+  legendBox?: LegendBox
+}
+
+/** Room between the rim and a spoke's name. */
+const SPOKE_GAP = 8
+/** The most of the chart's width a spoke's name may take, each side. */
+const SPOKE_SHARE = 0.22
+/** Wanted room between rings, in px. */
+const RING_SPACE = 24
+
+/**
+ * Lays out a radar: the legend first, then the largest circle that leaves
+ * room round it for the spokes' names (the categories), with rings at
+ * nice values from the center (0, or the smallest value below it) out.
+ */
+export function layoutRadar({
+  model,
+  axes,
+  width,
+  height,
+  locale,
+  measure,
+  legend: names = [],
+  coarse,
+  legendPlacement = 'bottom',
+  spokes,
+}: Omit<LayoutOptions, 'horizontal' | 'zoom' | 'strip' | 'trailing'> & {
+  /** The spokes' names, in order from 12 o'clock. */
+  spokes: string[]
+}): RadarLayout {
+  const placed = placeLegendIn(names, legendPlacement, width, height, measure, coarse)
+  const { top, bottom, right: legendRight } = placed.room
+  const across = width - legendRight
+  const down = height - top - bottom
+  const count = spokes.length
+  const most = Math.max(24, Math.floor(across * SPOKE_SHARE))
+  const widths = spokes.map((text) => measure(text))
+  const angleOf = (i: number) => (i / Math.max(1, count)) * Math.PI * 2
+  // the names beside the circle take room across; those at the top and bottom, down
+  let side = 0
+  widths.forEach((w, i) => {
+    if (Math.abs(Math.sin(angleOf(i))) >= 0.1) side = Math.max(side, w)
+  })
+  side = Math.min(side, most)
+  const radius = Math.max(
+    1,
+    Math.min(
+      (across - (side + SPOKE_GAP) * 2 - EDGE * 2) / 2,
+      (down - (LABEL_HEIGHT + SPOKE_GAP) * 2 - EDGE * 2) / 2,
+    ),
+  )
+  const cx = across / 2
+  const cy = top + down / 2
+  const config = axes.y ?? { position: 'left' as const, grid: true, hidden: false }
+  const axis = valueAxis(
+    'y',
+    config,
+    model,
+    Math.max(2, Math.floor(radius / RING_SPACE)),
+    locale,
+    radius,
+  )
+  const scale = linearScale(axis.domain, [0, radius])
+  const labels: TickLabel[] = []
+  if (!axes.x.hidden)
+    spokes.forEach((text, i) => {
+      const room = Math.min(widths[i]!, most)
+      const sin = Math.sin(angleOf(i))
+      const cos = Math.cos(angleOf(i))
+      const x = cx + sin * (radius + SPOKE_GAP)
+      const y = cy - cos * (radius + SPOKE_GAP)
+      const where = Math.abs(sin) < 0.1 ? 0 : sin > 0 ? 1 : -1
+      // the names at the top and bottom sit past the rim; those beside it, centered on their spoke
+      const lift = where === 0 ? (cos > 0 ? LABEL_HEIGHT / 2 : -LABEL_HEIGHT / 2) : 0
+      const label: TickLabel = {
+        text,
+        left: where === 0 ? x - room / 2 : where > 0 ? x : x - room,
+        top: y - LABEL_HEIGHT / 2 - lift,
+        width: room,
+      }
+      if (widths[i]! > most) label.clipped = true
+      labels.push(label)
+    })
+  const values: TickLabel[] = []
+  if (!config.hidden)
+    axis.ticks.forEach((tick, i) => {
+      const r = scale.map(tick)
+      // the center needs no number: it is where the rings start
+      if (r < 1) return
+      const text = axis.texts[i]!
+      // halfway between the first two spokes, just outside its ring: clear of the spokes and the dots on them
+      const half = Math.PI / Math.max(2, count)
+      const out = r * Math.cos(half)
+      const x = cx + Math.sin(half) * out
+      const y = cy - Math.cos(half) * out
+      const label = { text, left: x + 2, top: y - LABEL_HEIGHT, width: measure(text) }
+      // a spoke's name past the rim: the ring's value gives way to it
+      const hits = labels.some(
+        (other) =>
+          label.left < other.left + other.width &&
+          other.left < label.left + label.width &&
+          label.top < other.top + LABEL_HEIGHT &&
+          other.top < label.top + LABEL_HEIGHT,
+      )
+      if (!hits) values.push(label)
+    })
+  return {
+    width,
+    height,
+    cx,
+    cy,
+    radius,
+    count,
+    scale,
+    ticks: axis.ticks,
+    labels,
+    values,
+    legend: placed.legend,
+    legendBox: placed.box,
+  }
+}
+
+/** A funnel laid out: where its stages go, and their names and values beside them. */
+export interface FunnelLayout {
+  width: number
+  height: number
+  /** Where the bars go: the widest takes its whole width. */
+  plot: Rect
+  /** How many stages, and the height of each one's row. */
+  count: number
+  step: number
+  /** From a value to half its bar's width, in px. */
+  scale: Scale
+  /** The stages' names, on the left. */
+  names: TickLabel[]
+  /** Their values, on the right, and the share each kept of the one before it. */
+  values: TickLabel[]
+  rates: TickLabel[]
+  legend: LegendItem[]
+  legendBox?: LegendBox
+}
+
+/** Room between a funnel's bars and the text beside them, and between a value and its rate. */
+const FUNNEL_GAP = 12
+const RATE_GAP = 8
+/** The most of the chart's width the names may take. */
+const FUNNEL_NAME_SHARE = 0.3
+/** The tallest a stage's row grows, in px: a few stages don't fill a tall chart with bars. */
+const FUNNEL_STEP = 64
+
+/**
+ * Lays out a funnel: the legend, then the names in a column on the left
+ * and the values (with rates) on the right, and the bars between them.
+ */
+export function layoutFunnel({
+  width,
+  height,
+  measure,
+  legend: names = [],
+  coarse,
+  legendPlacement = 'bottom',
+  stages,
+  values: written,
+  rates: rateTexts,
+  max,
+}: Pick<LayoutOptions, 'width' | 'height' | 'measure' | 'legend' | 'coarse' | 'legendPlacement'> & {
+  stages: string[]
+  values: string[]
+  /** The share each stage kept of the one before, written; `null` for the first. */
+  rates: Array<string | null>
+  /** The largest value: its bar is the widest. */
+  max: number
+}): FunnelLayout {
+  const placed = placeLegendIn(names, legendPlacement, width, height, measure, coarse)
+  const { top, bottom, right: legendRight } = placed.room
+  const across = width - legendRight
+  const count = stages.length
+  const most = Math.floor(across * FUNNEL_NAME_SHARE)
+  const nameWidths = stages.map((text) => Math.min(measure(text), most))
+  const valueWidths = written.map((text) => measure(text))
+  const rateWidths = rateTexts.map((text) => (text ? measure(text) : 0))
+  const valueColumn = Math.max(0, ...valueWidths)
+  const rateColumn = Math.max(0, ...rateWidths)
+  const left = INSET + Math.max(0, ...nameWidths) + FUNNEL_GAP
+  const right = FUNNEL_GAP + valueColumn + (rateColumn ? RATE_GAP + rateColumn : 0) + INSET
+  const room = Math.max(1, height - top - bottom - EDGE * 2)
+  const step = count ? Math.min(FUNNEL_STEP, room / count) : room
+  const plotHeight = step * count
+  const plot: Rect = {
+    x: left,
+    y: top + EDGE + (room - plotHeight) / 2,
+    width: Math.max(1, across - left - right),
+    height: plotHeight,
+  }
+  const scale = linearScale([0, max > 0 ? max : 1], [0, plot.width / 2])
+  const middle = (i: number) => plot.y + step * i + step / 2 - LABEL_HEIGHT / 2
+  const labels = stages.map((text, i) => {
+    const label: TickLabel = {
+      text,
+      left: plot.x - FUNNEL_GAP - nameWidths[i]!,
+      top: middle(i),
+      width: nameWidths[i]!,
+    }
+    if (measure(text) > most) label.clipped = true
+    return label
+  })
+  const valueLeft = plot.x + plot.width + FUNNEL_GAP
+  const values = written.map((text, i) => ({
+    text,
+    // right-aligned in their column, so the digits line up
+    left: valueLeft + valueColumn - valueWidths[i]!,
+    top: middle(i),
+    width: valueWidths[i]!,
+  }))
+  const rates: TickLabel[] = []
+  rateTexts.forEach((text, i) => {
+    if (!text) return
+    rates.push({
+      text,
+      left: valueLeft + valueColumn + RATE_GAP + rateColumn - rateWidths[i]!,
+      top: middle(i),
+      width: rateWidths[i]!,
+    })
+  })
+  return {
+    width,
+    height,
+    plot,
+    count,
+    step,
+    scale,
+    names: labels,
+    values,
+    rates,
     legend: placed.legend,
     legendBox: placed.box,
   }

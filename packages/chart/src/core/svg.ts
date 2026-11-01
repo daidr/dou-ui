@@ -23,7 +23,7 @@ const ESCAPES: Record<string, string> = {
 export const escapeXml = (text: string) => text.replace(/[&<>"']/g, (c) => ESCAPES[c]!)
 
 /** `name="value"` for a color, or a style when SVG attributes can't take it (`var(…)`, `color-mix(…)`). */
-export function paintAttribute(name: 'fill' | 'stroke', color: string): string {
+export function paintAttribute(name: 'fill' | 'stroke' | 'stop-color', color: string): string {
   return /^(var|color-mix)\(/.test(color)
     ? ` style="${name}:${escapeXml(color)}"`
     : ` ${name}="${escapeXml(color)}"`
@@ -60,6 +60,7 @@ export class SvgPainter implements Painter {
   private body: string[] = []
   private defs: string[] = []
   private clips = 0
+  private ids = 0
 
   /**
    * `prefix` starts every id the markup gives, so two SVGs in one page
@@ -70,6 +71,11 @@ export class SvgPainter implements Painter {
     private prefix: string,
     private color: (css: string) => string = (css) => css,
   ) {}
+
+  /** An id of its own in this SVG, for something drawn as raw markup (a gradient). */
+  id(name: string): string {
+    return `${this.prefix}${name}${this.ids++}`
+  }
 
   save(): void {
     this.states.push({

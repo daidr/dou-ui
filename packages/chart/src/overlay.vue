@@ -36,6 +36,9 @@ export interface OverlayState {
       width: number
       /** Its name is cut short to the room down the side. */
       clipped?: boolean
+      /** A heatmap's scale: its colors, least to most, in a swatch `swatch` px wide. */
+      scale?: string[]
+      swatch?: number
     }>
   >
   /** Where the legend shows; its entries scroll in it when they don't all fit. */
@@ -234,10 +237,17 @@ const focusVisible = (e: FocusEvent) => (e.target as Element).matches(':focus-vi
         @focus="(e) => focusVisible(e) && !item.off && focus(item.index)"
         @blur="focus(null)"
       >
-        <span :class="ns.e('swatch')" :style="{ color: item.color }" /><span
-          :class="ns.e('text')"
-          >{{ item.text }}</span
-        >
+        <span
+          :class="ns.e('swatch')"
+          :style="
+            item.scale
+              ? {
+                  width: `${item.swatch}px`,
+                  background: `linear-gradient(to right, ${item.scale.join(', ')})`,
+                }
+              : { color: item.color }
+          "
+        /><span :class="ns.e('text')">{{ item.text }}</span>
       </button>
     </DouTooltip>
     <span :id="hintId" hidden>{{ hint }}</span>

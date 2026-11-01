@@ -8,6 +8,11 @@ export interface ChartMessages {
   series: string
   /** Read out for a series without points: `{name}`. */
   seriesEmpty: string
+  /**
+   * Read out for a heatmap: `{name}`, `{rows}` rows and `{columns}` columns, the
+   * smallest `{min}` and largest `{max}` value and where it is, `{at}`.
+   */
+  heatmap: string
   /** Read out for a slice of a pie: `{label}`, `{value}`, `{share}` (a percentage). */
   slice: string
   /** Read out for a pie with a `name`: `{name}`, `{slices}`. */
@@ -55,6 +60,10 @@ export interface ChartMessages {
   tableValue: string
   /** The table view's head over a pie's shares. */
   tableShare: string
+  /** A funnel stage's share of the stage before it, in its tooltip, table and summary. */
+  stageRate: string
+  /** A funnel stage's share of the first stage. */
+  totalRate: string
   /** Under a table cut short: `{shown}` rows of `{count}`. */
   tableMore: string
 }
@@ -63,6 +72,7 @@ const zhCN: ChartMessages = {
   chart: '图表',
   series: '{name}：{count} 个数据点，最小 {min}，最大 {max}',
   seriesEmpty: '{name}：没有数据',
+  heatmap: '{name}：{rows} 行 {columns} 列，最小 {min}，最大 {max}（{at}）',
   slice: '{label} {value}（{share}）',
   pie: '{name}：{slices}',
   listSeparator: '；',
@@ -87,6 +97,8 @@ const zhCN: ChartMessages = {
   tableSeries: '系列',
   tableValue: '值',
   tableShare: '占比',
+  stageRate: '转化率',
+  totalRate: '总转化率',
   tableMore: '只显示前 {shown} 行，共 {count} 行',
 }
 
@@ -94,6 +106,7 @@ const zhTW: ChartMessages = {
   chart: '圖表',
   series: '{name}：{count} 個資料點，最小 {min}，最大 {max}',
   seriesEmpty: '{name}：沒有資料',
+  heatmap: '{name}：{rows} 行 {columns} 列，最小 {min}，最大 {max}（{at}）',
   slice: '{label} {value}（{share}）',
   pie: '{name}：{slices}',
   listSeparator: '；',
@@ -118,6 +131,8 @@ const zhTW: ChartMessages = {
   tableSeries: '系列',
   tableValue: '值',
   tableShare: '佔比',
+  stageRate: '轉化率',
+  totalRate: '總轉化率',
   tableMore: '只顯示前 {shown} 列，共 {count} 列',
 }
 
@@ -125,6 +140,7 @@ const en: ChartMessages = {
   chart: 'Chart',
   series: '{name}: {count} points, from {min} to {max}',
   seriesEmpty: '{name}: no data',
+  heatmap: '{name}: {rows} rows, {columns} columns, from {min} to {max} ({at})',
   slice: '{label} {value} ({share})',
   pie: '{name}: {slices}',
   listSeparator: '; ',
@@ -149,6 +165,8 @@ const en: ChartMessages = {
   tableSeries: 'Series',
   tableValue: 'Value',
   tableShare: 'Share',
+  stageRate: 'Conversion',
+  totalRate: 'Overall',
   tableMore: 'Showing the first {shown} of {count} rows',
 }
 

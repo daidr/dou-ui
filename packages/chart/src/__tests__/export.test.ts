@@ -240,7 +240,10 @@ describe('exporting', () => {
       expect(svg).toContain(text)
     // a dashed line's swatch is two short strokes
     expect(svg.match(/height="2" rx="0"/g)).toHaveLength(2)
-    const bare = (wrapper.vm as unknown as ChartExpose).exportSVG({ background: false, padding: 0 })
+    const bare = (wrapper.vm as unknown as ChartExpose).exportSVG({
+      background: false,
+      padding: 0,
+    })
     expect(bare).toContain('width="600" height="300"')
     expect(bare).not.toContain('<rect width="600" height="300"')
     wrapper.unmount()

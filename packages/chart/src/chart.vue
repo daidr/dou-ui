@@ -28,8 +28,11 @@ import { allX, angleAt, nearestPoint, nearestX, neighborGap, rowAt, sortedOrder 
 import { joinGroup, tellGroup, type SharedX } from './core/sync'
 import { numberFormatFull, numberTickFormat, timeFormatFull, timePrecision } from './core/format'
 import {
+  HEAT_SWATCH,
   layoutChart,
+  layoutFunnel,
   layoutPie,
+  layoutRadar,
   PIE_LABEL_ROOM,
   type AxisConfig,
   type AxisLayout,
@@ -39,6 +42,9 @@ import {
   type ChartAxisRole,
   type ChartLegendPlacement,
   type ChartTickValue,
+  type FunnelLayout,
+  type LegendName,
+  type RadarLayout,
   type TickLabel,
 } from './core/layout'
 import {
@@ -46,6 +52,7 @@ import {
   seriesName,
   smallestGap,
   type ChartModel,
+  type ModelSeries,
   type SeriesInput,
 } from './core/model'
 import { drawMarkers, placeMarkers, type MarkerColors, type MarkerInput } from './core/marker'
@@ -60,7 +67,10 @@ import {
   type PlacedDataLabel,
 } from './core/labels'
 import { crisp, type Painter, type Rect } from './core/painter'
+import { heatColor, heatRange, heatShare } from './core/heatmap'
 import { drawPie, FADED, pieSlices, type PieSlice } from './core/pie'
+import { nearestSpoke, spokeAngle } from './core/radar'
+import { FUNNEL_BAR } from './core/funnel'
 import { baseline, categoryScale, linearScale, logScale, type Scale } from './core/scale'
 import { escapeXml, isSvg, num, paintAttribute, SvgPainter } from './core/svg'
 import type { ChartColors, ChartHit, ChartSeries, ChartValueAxis, ChartView } from './core/series'
@@ -278,6 +288,11 @@ const defaultAxis = computed<ChartValueAxis>(() =>
 
 const uses = (axis: ChartValueAxis) =>
   seriesParts.value.some((part) => (part.props.axis ?? defaultAxis.value) === axis)
+/** Whether a value axis lists categories (a heatmap's rows): no grid lines across it by default. */
+const listsCategories = (axis: ChartValueAxis) =>
+  seriesParts.value.some(
+    (part) => part.kind.categoryY && (part.props.axis ?? defaultAxis.value) === axis,
+  )
 
 /**
  * The axes by what they measure, and where each is drawn: x at the bottom,
@@ -312,9 +327,9 @@ const axes = computed<ChartAxes>(() => {
   const y = declared.y || uses('y') || !uses('y2')
   return {
     x: config('x', false),
-    y: y ? config('y', true) : null,
+    y: y ? config('y', !listsCategories('y')) : null,
     // grid lines go with y, or with y2 when it is alone
-    y2: declared.y2 || uses('y2') ? config('y2', !y) : null,
+    y2: declared.y2 || uses('y2') ? config('y2', !y && !listsCategories('y2')) : null,
   }
 })
 
@@ -353,6 +368,8 @@ function labelRoom(m: ChartModel): ChartModel {
   for (const s of m.series) {
     const p = s.input.props as { labels?: unknown; labelPosition?: string }
     if (!p.labels || !s.input.kind.labels || p.labelPosition === 'end') continue
+    // in cells: nothing past them
+    if (s.input.kind.categoryY) continue
     // in the bars (stacked ones by default): no room needed past them
     if (p.labelPosition === 'inside' || (s.stackEnds && s.input.kind.band && !p.labelPosition))
       continue
@@ -430,6 +447,27 @@ if (process.env.NODE_ENV !== 'production')
       console.warn(
         '[@dou-ui/chart] a <DouChartPie> is drawn alone: other series and pies are left out.',
       )
+  })
+
+/* a radar: series round a center, without axes */
+
+/** The chart is a funnel: its first funnel's stages, one under another. */
+const funnel = computed(() => !pie.value && seriesParts.value.some((part) => part.kind.funnel))
+
+/** The chart is a radar: its series are drawn round a center. */
+const radar = computed(
+  () => !pie.value && !funnel.value && seriesParts.value.some((part) => part.kind.polar),
+)
+
+if (process.env.NODE_ENV !== 'production')
+  watch(seriesParts, (list) => {
+    const polar = list.filter((part) => part.kind.polar).length
+    if (polar && polar < list.length)
+      console.warn(
+        '[@dou-ui/chart] a <DouChartRadar> is drawn round a center: series on axes are left out of it.',
+      )
+    if (list.some((part) => part.kind.funnel) && list.length > 1)
+      console.warn('[@dou-ui/chart] a <DouChartFunnel> is drawn alone: other series are left out.')
   })
 
 /** No series has a value to show. */
@@ -556,20 +594,45 @@ const legendEntries = computed(() => {
       dashed: false,
       off: slice.hidden,
       locked: last && !slice.hidden,
+      scale: undefined as string[] | undefined,
     }))
   }
-  if (!(props.legend ?? seriesParts.value.length > 1)) return []
+  // a heatmap's scale says what its colors mean, even alone
+  const scaled = seriesParts.value.some((part) => part.kind.categoryY)
+  if (!(props.legend ?? (seriesParts.value.length > 1 || scaled))) return []
   const last = seriesParts.value.filter((part) => !part.hidden.value).length === 1
-  return seriesParts.value.map((part, index) => ({
-    text: seriesName({ index, props: part.props }),
-    color: seriesColor(part.props, index),
-    kind: part.kind.type,
-    dashed: !!part.props.dashed,
-    off: part.hidden.value,
-    // the last one shown can't be turned off
-    locked: last && !part.hidden.value,
-  }))
+  return seriesParts.value.map((part, index) => {
+    const color = seriesColor(part.props, index)
+    const entry = {
+      text: seriesName({ index, props: part.props }),
+      color,
+      kind: part.kind.type,
+      dashed: !!part.props.dashed,
+      off: part.hidden.value,
+      // the last one shown can't be turned off
+      locked: last && !part.hidden.value,
+      /** A heatmap's scale: its colors, least to most. */
+      scale: undefined as string[] | undefined,
+    }
+    const s = part.kind.categoryY ? series.value.find((one) => one.index === index) : undefined
+    const range = s && heatRange(s)
+    if (s && range) {
+      // its scale, from least to most, and the values at its ends
+      const text = heatText(s)
+      const surface = colors.value.surface
+      entry.text = `${text(range[0])} – ${text(range[1])}`
+      entry.scale = [0, 0.5, 1].map((t) => heatColor(s.color, surface, t))
+    }
+    return entry
+  })
 })
+
+/** The legend's names for the layout: a heatmap's scale takes a wider swatch. */
+const legendNames = computed<LegendName[]>(() =>
+  legendEntries.value.map((entry) =>
+    entry.scale ? { text: entry.text, swatch: HEAT_SWATCH } : entry.text,
+  ),
+)
 
 /** Turns an entry's series (or slice) on or off; the last one shown stays on. */
 function toggle(index: number) {
@@ -795,7 +858,7 @@ const legendPlacement = computed<ChartLegendPlacement>(() => {
 const layout = computed(() => {
   const width = size.width.value
   const height = size.height.value
-  if (!width || !height || pie.value) return null
+  if (!width || !height || pie.value || radar.value || funnel.value) return null
   void themeVersion.value
   return layoutChart({
     model: model.value,
@@ -805,7 +868,7 @@ const layout = computed(() => {
     height,
     locale: locale.value.name,
     measure,
-    legend: legendEntries.value.map((entry) => entry.text),
+    legend: legendNames.value,
     coarse: coarse.value,
     legendPlacement: legendPlacement.value,
     zoom: { x: xWindow.value, y: zoomAxes.value.y ? yWindow.value : null },
@@ -823,10 +886,78 @@ const pieLayout = computed(() => {
     width,
     height,
     measure,
-    legend: legendEntries.value.map((entry) => entry.text),
+    legend: legendNames.value,
     coarse: coarse.value,
     legendPlacement: legendPlacement.value,
     sideLabels: pieLabelsOutside.value ? pieSideWidths.value : undefined,
+  })
+})
+
+const radarLayout = computed(() => {
+  const width = size.width.value
+  const height = size.height.value
+  if (!width || !height || !radar.value) return null
+  void themeVersion.value
+  const m = model.value
+  return layoutRadar({
+    model: m,
+    axes: axes.value,
+    width,
+    height,
+    locale: locale.value.name,
+    measure,
+    legend: legendNames.value,
+    coarse: coarse.value,
+    legendPlacement: legendPlacement.value,
+    spokes: m.categories.map((_, i) => xText(i)),
+  })
+})
+
+/** The funnel drawn: the first one, if the chart is a funnel. */
+const funnelSeries = computed(() =>
+  funnel.value ? (series.value.find((s) => s.kind.funnel) ?? null) : null,
+)
+
+/** Each stage's value (`NaN` without one), and its share of the stage before it and of the first. */
+const funnelStages = computed(() => {
+  const s = funnelSeries.value
+  const n = model.value.categories.length
+  const values = Array.from({ length: n }, () => Number.NaN)
+  if (s)
+    for (let i = 0; i < s.y.length; i++) {
+      const x = s.x.values[i]!
+      if (x === x && s.y[i] === s.y[i]) values[x] = s.y[i]!
+    }
+  const first = values.find((v) => v === v)
+  return values.map((value, k) => {
+    const before = k > 0 ? values[k - 1]! : Number.NaN
+    return {
+      value,
+      row: s ? rowAt(s.x.values, k) : -1,
+      step: k > 0 && before > 0 && value === value ? value / before : null,
+      total: first !== undefined && first > 0 && value === value ? value / first : null,
+    }
+  })
+})
+
+const funnelLayout = computed(() => {
+  const width = size.width.value
+  const height = size.height.value
+  const s = funnelSeries.value
+  if (!width || !height || !s) return null
+  void themeVersion.value
+  const stages = funnelStages.value
+  return layoutFunnel({
+    width,
+    height,
+    measure,
+    legend: legendNames.value,
+    coarse: coarse.value,
+    legendPlacement: legendPlacement.value,
+    stages: model.value.categories.map((_, i) => xText(i)),
+    values: stages.map((stage) => (stage.row < 0 ? '' : seriesText(s, stage.row))),
+    rates: stages.map((stage) => (stage.step === null ? null : rate.value.format(stage.step))),
+    max: Math.max(0, ...stages.map((stage) => (stage.value === stage.value ? stage.value : 0))),
   })
 })
 
@@ -922,6 +1053,7 @@ function labelText(s: ChartSeries, row: number): string | null {
     })
     return text == null || text === '' ? null : String(text)
   }
+  if (s.kind.categoryY) return heatText(s)(value)
   // a share, with a decimal as in the tooltip, unless the axis writes its own
   if (share !== undefined) {
     const own = declaredAxes.value[s.axis]?.format
@@ -1017,7 +1149,7 @@ const pieLabelsOutside = computed(() => {
     width,
     height,
     measure,
-    legend: legendEntries.value.map((entry) => entry.text),
+    legend: legendNames.value,
     coarse: coarse.value,
     legendPlacement: legendPlacement.value,
   }
@@ -1307,6 +1439,19 @@ function hitAt(px: number, py: number): Target | null {
     const k = slices.value.findIndex((s) => !s.hidden && angle >= s.start && angle < s.end)
     return k < 0 ? null : { type: 'slice', slice: k }
   }
+  const f = funnelLayout.value
+  if (f) {
+    // anywhere along a stage's row: its bar, its name or its value
+    const k = Math.floor((py - f.plot.y) / f.step)
+    if (k < 0 || k >= f.count || funnelStages.value[k]!.row < 0) return null
+    return { type: 'axis', x: k }
+  }
+  const r = radarLayout.value
+  if (r) {
+    // the spoke nearest the pointer, within the rim and the names round it
+    if (!r.count || Math.hypot(px - r.cx, py - r.cy) > r.radius + 16) return null
+    return { type: 'axis', x: nearestSpoke(angleAt(r.cx, r.cy, px, py), r.count) }
+  }
   const l = layout.value
   if (!l) return null
   const { plot } = l
@@ -1354,7 +1499,8 @@ const NEAR_LINE = 8
  */
 const pointed = computed<number | null>(() => {
   const a = active.value
-  if (!a?.pointer || pie.value || series.value.length < 2) return null
+  if (!a?.pointer || pie.value || radar.value || funnel.value || series.value.length < 2)
+    return null
   if (a.type === 'item') return a.series
   if (a.type !== 'axis') return null
   const along = alongX(a.pointer)
@@ -1409,6 +1555,16 @@ const percent = computed(
   () => new Intl.NumberFormat(locale.value.name, { style: 'percent', maximumFractionDigits: 1 }),
 )
 
+/** A funnel's rates: always one decimal, so a column of them lines up. */
+const rate = computed(
+  () =>
+    new Intl.NumberFormat(locale.value.name, {
+      style: 'percent',
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    }),
+)
+
 /** What is shown for the active x, point or slice. */
 const tip = computed<Tip | null>(() => {
   if (!interactive.value) return null
@@ -1444,6 +1600,8 @@ function tipOf(a: Active | null): Tip | null {
       marks: [],
     }
   }
+  if (a.type === 'axis' && radarLayout.value) return radarTip(radarLayout.value, a)
+  if (a.type === 'axis' && funnelLayout.value) return funnelTip(funnelLayout.value, a)
   const l = layout.value
   if (!l) return null
   const { plot } = l
@@ -1456,6 +1614,7 @@ function tipOf(a: Active | null): Tip | null {
     const y = s.y[a.row]!
     if (x !== x || y !== y) return null
     const [left, top] = view.point(x, s.top[a.row]!)
+    if (s.kind.categoryY) return heatTip(s, view, a.row, x, left, top)
     const items: ChartTooltipItem[] = [
       { name: axes.value.x.title ?? 'x', text: xText(x), value: m0x() ? x : undefined },
       {
@@ -1556,6 +1715,120 @@ function tipOf(a: Active | null): Tip | null {
     marks,
     band: crosshair && band ? across(at - room / 2, room) : undefined,
     line: crosshair && !band ? across(line, 1) : undefined,
+  }
+}
+
+/** A funnel stage's tooltip: its value, and what it kept of the stage before and of the first; its row shaded. */
+function funnelTip(f: FunnelLayout, a: Active & { type: 'axis' }): Tip | null {
+  const s = funnelSeries.value
+  const stage = funnelStages.value[a.x]
+  if (!s || !stage || stage.row < 0) return null
+  const m = messages.value
+  const row = rowOf(s.rows, stage.row)
+  const items: ChartTooltipItem[] = [
+    { name: s.name, text: seriesText(s, stage.row), value: stage.value, color: s.color, row },
+  ]
+  if (stage.step !== null)
+    items.push({
+      name: m.stageRate,
+      text: rate.value.format(stage.step),
+      value: stage.step,
+      row,
+    })
+  if (stage.total !== null && a.x > 0)
+    items.push({
+      name: m.totalRate,
+      text: rate.value.format(stage.total),
+      value: stage.total,
+      row,
+    })
+  const top = f.plot.y + f.step * a.x
+  // the row shaded from the names to the values
+  const texts = [...f.names, ...f.values, ...f.rates]
+  const from = Math.min(f.plot.x, ...texts.map((t) => t.left)) - 4
+  const to = Math.max(f.plot.x + f.plot.width, ...texts.map((t) => t.left + t.width)) + 4
+  const view = funnelView(f, dprNow(), false)
+  const [right, middle] = view.point(a.x, stage.value)
+  return {
+    x: rawX(a.x),
+    title: xText(a.x),
+    items,
+    anchor: a.pointer ?? [right, middle],
+    marks: [],
+    band: { x: from, y: top, width: to - from, height: f.step },
+  }
+}
+
+/** A radar's tooltip: every series along one spoke, a dot on each, beside the outermost. */
+function radarTip(r: RadarLayout, a: Active & { type: 'axis' }): Tip | null {
+  const x = a.x
+  const items: ChartTooltipItem[] = []
+  const marks: Tip['marks'] = []
+  const view = radarView(r, dprNow(), false)
+  let far: [number, number] | null = null
+  let farthest = -1
+  for (const s of series.value) {
+    const row = rowAt(s.x.values, x)
+    if (row < 0) continue
+    const y = s.y[row]!
+    if (y !== y) continue
+    items.push({
+      name: s.name,
+      text: seriesText(s, row),
+      value: y,
+      color: s.color,
+      row: rowOf(s.rows, row),
+    })
+    const [left, top] = view.point(x, s.top[row]!)
+    marks.push({ left, top, color: s.color, radius: 4, ring: false })
+    const out = Math.hypot(left - r.cx, top - r.cy)
+    if (out > farthest) {
+      farthest = out
+      far = [left, top]
+    }
+  }
+  if (!items.length) return null
+  return {
+    x: rawX(x),
+    title: xText(x),
+    items,
+    anchor: a.pointer ?? far ?? [r.cx, r.cy],
+    marks,
+  }
+}
+
+/** A heatmap cell's tooltip: where it is (its x and row) as the title, its value in its color, the cell ringed. */
+function heatTip(
+  s: ChartSeries,
+  view: ChartView,
+  row: number,
+  x: number,
+  left: number,
+  top: number,
+): Tip {
+  const value = s.y[row]!
+  const range = heatRange(s)
+  const color = range ? heatColor(s.color, colors.value.surface, heatShare(value, range)) : s.color
+  const item: ChartTooltipItem = { name: s.name, text: heatText(s)(value), value, color }
+  item.row = rowOf(s.rows, row)
+  const across = view.band
+  const down = Math.abs(view.y.map(0) - view.y.map(1))
+  const [width, height] = view.horizontal ? [down, across] : [across, down]
+  // the ring reaches a little past the cell, over the gap around it
+  const ring = 1
+  return {
+    x: rawX(x),
+    // the row, then the column, as the table reads
+    title: `${yCategoryText(s.axis, s.top[row]!)}${messages.value.itemSeparator}${xText(x)}`,
+    items: [item],
+    anchor: [left + width / 2, top],
+    marks: [],
+    cell: {
+      x: left - width / 2 - ring,
+      y: top - height / 2 - ring,
+      width: width + ring * 2 - 1,
+      height: height + ring * 2 - 1,
+    },
   }
 }
 
@@ -2212,12 +2485,18 @@ function onKeydown(event: KeyboardEvent) {
     return
   }
   const horizontal = !!props.horizontal
-  const along: Record<string, number> = horizontal
-    ? { ArrowDown: 1, ArrowUp: -1 }
-    : { ArrowRight: 1, ArrowLeft: -1 }
-  const between: Record<string, number> = horizontal
-    ? { ArrowRight: 1, ArrowLeft: -1 }
-    : { ArrowUp: 1, ArrowDown: -1 }
+  // a funnel's stages and a radar's spokes go one way: every arrow moves on (right, down) or back
+  const single = funnel.value || radar.value
+  const along: Record<string, number> = single
+    ? { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }
+    : horizontal
+      ? { ArrowDown: 1, ArrowUp: -1 }
+      : { ArrowRight: 1, ArrowLeft: -1 }
+  const between: Record<string, number> = single
+    ? {}
+    : horizontal
+      ? { ArrowRight: 1, ArrowLeft: -1 }
+      : { ArrowUp: 1, ArrowDown: -1 }
   const step =
     along[event.key] ?? (event.key === 'Home' ? -Infinity : event.key === 'End' ? Infinity : 0)
   const turn = between[event.key] ?? 0
@@ -2311,15 +2590,21 @@ function moveAlong(step: number): Target | null {
     const xs = xValues.value
     if (!xs.length) return null
     const at = a?.type === 'axis' ? xs.indexOf(a.x) : -1
-    const k = stepTo(at, step, xs.length)
+    // round a radar, past the last spoke to the first
+    const k =
+      radar.value && at >= 0 && Number.isFinite(step)
+        ? (at + step + xs.length) % xs.length
+        : stepTo(at, step, xs.length)
     return { type: 'axis', x: xs[k]! }
   }
   const s =
     (a?.type === 'item' && series.value.find((x) => x.index === a.series)) || series.value[0]
   if (!s) return null
-  const order = pointsOf(s)
+  const mine = a?.type === 'item' && a.series === s.index
+  // a heatmap's cells: along its row
+  const order = s.kind.categoryY && mine ? pointsOf(s, s.top[a.row]) : pointsOf(s)
   if (!order.length) return null
-  const at = a?.type === 'item' && a.series === s.index ? order.indexOf(a.row) : -1
+  const at = mine ? order.indexOf(a.row) : -1
   const k = stepTo(at, step, order.length)
   return itemOf(s, order[k]!)
 }
@@ -2328,13 +2613,14 @@ function moveAlong(step: number): Target | null {
 function moveBetween(turn: number): Target | null | undefined {
   const a = active.value
   if (pie.value || trigger.value === 'axis') return undefined
+  const from = a?.type === 'item' ? series.value.find((x) => x.index === a.series) : undefined
+  if (from?.kind.categoryY && a?.type === 'item') return heatRow(from, a.row, turn)
   const list = series.value.filter((s) => pointsOf(s).length)
   if (!list.length) return null
   const at = a?.type === 'item' ? list.findIndex((s) => s.index === a.series) : -1
   const s = list[at < 0 ? 0 : (at + turn + list.length) % list.length]!
   const order = pointsOf(s)
   if (a?.type !== 'item') return itemOf(s, order[0]!)
-  const from = series.value.find((x) => x.index === a.series)
   const x = from ? from.x.values[a.row]! : 0
   let best = order[0]!
   for (const row of order)
@@ -2342,12 +2628,36 @@ function moveBetween(turn: number): Target | null | undefined {
   return itemOf(s, best)
 }
 
-/** The rows of `s` with a value, from the smallest x. */
-function pointsOf(s: ChartSeries): number[] {
+/** The rows of `s` with a value, from the smallest x; for a heatmap, only those in its row `place`. */
+function pointsOf(s: ChartSeries, place?: number): number[] {
   const order = sortedOrder(s.x.values)
   const out: number[] = []
-  for (const row of order) if (s.top[row] === s.top[row]) out.push(row)
+  for (const row of order)
+    if (s.top[row] === s.top[row] && (place === undefined || s.top[row] === place)) out.push(row)
   return out
+}
+
+/**
+ * The heatmap cell a row up or down from `row` (across, when horizontal),
+ * at the same x: `turn` 1 is up (right), as the keys go. Rows without a
+ * cell there are passed over; at the edge it stays.
+ */
+function heatRow(s: ChartSeries, row: number, turn: number): Target {
+  const view = viewOf(s)
+  const x = s.x.values[row]!
+  // which way the next category lies on screen
+  let step = turn
+  if (view) {
+    const [l0, t0] = view.point(x, 0)
+    const [l1, t1] = view.point(x, 1)
+    if ((props.horizontal ? l1 - l0 : t0 - t1) < 0) step = -turn
+  }
+  const n = model.value.yCategories[s.axis]?.length ?? 0
+  for (let place = s.top[row]! + step; place >= 0 && place < n; place += step) {
+    for (let i = 0; i < s.y.length; i++)
+      if (s.top[i] === place && s.x.values[i] === x && s.y[i] === s.y[i]) return itemOf(s, i)
+  }
+  return itemOf(s, row)
 }
 
 function itemOf(s: ChartSeries, row: number): Target {
@@ -2388,7 +2698,7 @@ const live = computed(() => {
 const pointer: PointerState = {
   tip,
   size: computed(() => {
-    const l = layout.value ?? pieLayout.value
+    const l = layout.value ?? pieLayout.value ?? radarLayout.value ?? funnelLayout.value
     return l && { width: l.width, height: l.height }
   }),
   content: computed(() => tooltipPart.value?.content()),
@@ -2422,6 +2732,9 @@ watch(
     pieLabels.value,
     labelsShown.value,
     pie.value && active.value,
+    radarLayout.value,
+    funnelLayout.value,
+    radar.value && active.value,
     dimmed.value,
   ],
   request,
@@ -2626,7 +2939,7 @@ function shownSlicesAt(t: number): PieSlice[] {
 
 function draw() {
   const canvas = canvasRef.value
-  const l = layout.value ?? pieLayout.value
+  const l = layout.value ?? pieLayout.value ?? radarLayout.value ?? funnelLayout.value
   if (!canvas || !l) return
   if (!onScreen) {
     missed = true
@@ -2656,6 +2969,8 @@ function draw() {
   const t = easeOut(done)
   const entering = motion?.enter ? t : 1
   if (pieLayout.value) paintPie(ctx, t, entering)
+  else if (radarLayout.value) paintRadar(ctx, dpr, t)
+  else if (funnelLayout.value) paintFunnel(ctx, dpr, t)
   else paint(ctx, dpr, t, entering)
   // the canvas shows the chart now: the server's image goes
   fromServer.value = false
@@ -2698,6 +3013,121 @@ function paintPie(painter: Painter, t: number, sweep: number, still = false) {
   painter.restore()
 }
 
+/**
+ * Draws the radar: its rings and spokes, the spoke picked, then each
+ * series, those not brought forward faded. `still` leaves out what follows
+ * the pointer and the legend (an export).
+ */
+function paintRadar(painter: Painter, dpr: number, t: number, still = false) {
+  const r = radarLayout.value!
+  const { cx, cy, count } = r
+  const corner = (k: number, out: number): [number, number] => {
+    const angle = spokeAngle(k, count)
+    return [cx + Math.sin(angle) * out, cy - Math.cos(angle) * out]
+  }
+  painter.save()
+  painter.lineWidth = 1
+  painter.strokeStyle = colors.value.grid
+  painter.beginPath()
+  // the rings: polygons through the spokes, so equal values lie on a straight line
+  if (axes.value.y?.grid !== false)
+    for (const tick of r.ticks) {
+      const out = r.scale.map(tick)
+      if (out < 1 || count < 3) continue
+      for (let k = 0; k <= count; k++) {
+        const [x, y] = corner(k % count, out)
+        if (k) painter.lineTo(x, y)
+        else painter.moveTo(x, y)
+      }
+    }
+  // the spokes
+  for (let k = 0; k < count; k++) {
+    const [x, y] = corner(k, r.radius)
+    painter.moveTo(cx, cy)
+    painter.lineTo(x, y)
+  }
+  painter.stroke()
+  // the spoke picked, darker
+  const a = still ? null : active.value
+  if (a?.type === 'axis' && count) {
+    const [x, y] = corner(a.x, r.radius)
+    painter.strokeStyle = colors.value.baseline
+    painter.beginPath()
+    painter.moveTo(cx, cy)
+    painter.lineTo(x, y)
+    painter.stroke()
+  }
+  painter.restore()
+  ringValues(painter, r)
+  const shown = shownSeries(t)
+  if (!still) lastSeries = shown
+  const focus = still ? -1 : (focused.value ?? -1)
+  const fading = focus >= 0 && shown.some((s) => s.index === focus)
+  const vector = isSvg(painter)
+  // the one brought forward goes on top
+  const order = fading
+    ? [...shown.filter((s) => s.index !== focus), ...shown.filter((s) => s.index === focus)]
+    : shown
+  for (const s of order) {
+    const view = radarView(r, dpr, vector)
+    painter.save()
+    if (fading && s.index !== focus) painter.globalAlpha = FADED
+    s.kind.draw(painter, s, view)
+    painter.restore()
+  }
+}
+
+/** Draws the funnel, as it comes in: its bars grow from the middle. */
+function paintFunnel(painter: Painter, dpr: number, t: number, still = false) {
+  const f = funnelLayout.value!
+  const s = funnelSeries.value
+  if (!s) return
+  const shown = shownSeries(t)
+  if (!still) lastSeries = shown
+  const now = shown.find((one) => one.index === s.index) ?? s
+  s.kind.draw(painter, now, funnelView(f, dpr, isSvg(painter)))
+}
+
+/**
+ * A radar's ring values, drawn over the grid and under the series: ringed
+ * with the surface so grid lines don't cut them, while the series' lines
+ * pass over them unbroken.
+ */
+function ringValues(painter: Painter, r: RadarLayout) {
+  if (!r.values.length) return
+  const ink = resolveColor('var(--dou-chart-label)')
+  const surface = colors.value.surface
+  if (isSvg(painter)) {
+    painter.raw(
+      r.values
+        .map((tick) =>
+          svgText(tick.text, tick.left, tick.top, { color: ink, size: 12, halo: surface }),
+        )
+        .join(''),
+    )
+    return
+  }
+  // only the canvas writes text itself: everything else draws shapes
+  const ctx = painter as CanvasRenderingContext2D
+  if (typeof ctx.fillText !== 'function') return
+  const root = rootRef.value
+  const family = root ? getComputedStyle(root).fontFamily : 'sans-serif'
+  ctx.save()
+  ctx.font = `12px ${family}`
+  ctx.textBaseline = 'alphabetic'
+  ctx.lineJoin = 'round'
+  ctx.lineWidth = 3
+  ctx.strokeStyle = surface
+  ctx.fillStyle = ink
+  for (const tick of r.values) {
+    // the same baseline as the page's text and the SVG's
+    const y = tick.top + 8 + 12 * 0.35
+    ctx.strokeText(tick.text, tick.left, y)
+    ctx.fillText(tick.text, tick.left, y)
+  }
+  ctx.restore()
+}
+
 const holeRatio = computed(() => Math.min(0.95, Math.max(0, pie.value?.props.innerRadius ?? 0)))
 
 /** Whether an axis is drawn across the chart (along the bottom or top), so its grid lines stand up. */
@@ -2705,6 +3135,10 @@ const across = (axis: AxisLayout) => axis.position === 'bottom' || axis.position
 
 /** The scales and room a series draws with; `vector` for an SVG, which takes no images. */
 function viewOf(s: ChartSeries, dpr = dprNow(), vector = false): ChartView | null {
+  const r = radarLayout.value
+  if (r) return radarView(r, dpr, vector)
+  const f = funnelLayout.value
+  if (f) return funnelView(f, dpr, vector)
   const l = layout.value
   if (!l) return null
   const y = l.y[s.axis]
@@ -2726,6 +3160,45 @@ function viewOf(s: ChartSeries, dpr = dprNow(), vector = false): ChartView | nul
   return { x: xScale, y: ys, horizontal, band, point, plot, dpr, vector, colors: colors.value }
 }
 
+/** What a radar's series draw with: a spoke and a value give a point round the center. */
+function radarView(r: RadarLayout, dpr: number, vector: boolean): ChartView {
+  const { cx, cy, radius, count, scale } = r
+  const point: ChartView['point'] = (x, value) => {
+    const angle = spokeAngle(x, count)
+    const out = Math.max(0, scale.map(value))
+    return [cx + Math.sin(angle) * out, cy - Math.cos(angle) * out]
+  }
+  return {
+    x: linearScale([0, count], [0, Math.PI * 2]),
+    y: scale,
+    horizontal: false,
+    band: 0,
+    point,
+    plot: { x: cx - radius, y: cy - radius, width: radius * 2, height: radius * 2 },
+    dpr,
+    vector,
+    colors: colors.value,
+    polar: { cx, cy, radius, count },
+  }
+}
+
+/** What a funnel draws with: a stage and a value give the right end of its bar, at its middle. */
+function funnelView(f: FunnelLayout, dpr: number, vector: boolean): ChartView {
+  const { plot, step, scale } = f
+  const cx = plot.x + plot.width / 2
+  return {
+    x: linearScale([0, f.count], [plot.y, plot.y + plot.height]),
+    y: scale,
+    horizontal: false,
+    band: step * FUNNEL_BAR,
+    point: (x, value) => [cx + scale.map(value), plot.y + step * x + step / 2],
+    plot,
+    dpr,
+    vector,
+    colors: colors.value,
+  }
+}
+
 const dprNow = () => (typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1)
 
 /** A canvas to draw faded series on, then onto the chart at once: a series sets its own alpha. */
@@ -2743,7 +3216,8 @@ function paint(painter: Painter, dpr: number, t: number, entering: number, still
   const c = colors.value
   const right = plot.x + plot.width
   const bottom = plot.y + plot.height
-  const xLine = !axes.value.x.hidden
+  // a heatmap's cells end the plot themselves: no line under them
+  const xLine = !axes.value.x.hidden && !series.value.some((s) => s.kind.categoryY)
   const horizontal = !!props.horizontal
 
   // grid lines, under everything
@@ -2859,7 +3333,9 @@ function paint(painter: Painter, dpr: number, t: number, entering: number, still
     }
   }
   const primary = l.y.y ?? l.y.y2
-  if (primary && primary.scale.kind === 'linear') {
+  // categories along it (a heatmap's) have no 0
+  const listed = model.value.yCategories[l.y.y ? 'y' : 'y2']
+  if (primary && primary.scale.kind === 'linear' && !listed) {
     const [lo, hi] = primary.scale.domain
     if (lo < 0 && hi > 0) {
       const at = crisp(primary.scale.map(0), dpr)
@@ -2894,6 +3370,21 @@ function fadeOn(main: CanvasRenderingContext2D, width: number, height: number, d
 
 /* what is read out */
 
+/** A heatmap's values, as its `format` writes them. */
+function heatText(s: Pick<ChartSeries, 'props'>): (value: number) => string {
+  return (
+    (s.props.format as ((value: number) => string) | undefined) ??
+    numberFormatFull(locale.value.name)
+  )
+}
+
+/** The category down the value axis at `place` (a heatmap's row), as the axis writes it. */
+function yCategoryText(axis: ChartValueAxis, place: number): string {
+  const label = model.value.yCategories[axis]?.[place] ?? ''
+  const own = axes.value[axis]?.format
+  return own ? own(label) : label
+}
+
 /** Values as their axis shows them. */
 function valueText(axis: ChartValueAxis): (value: number) => string {
   return axes.value[axis]?.format ?? numberFormatFull(locale.value.name)
@@ -2905,6 +3396,7 @@ function valueText(axis: ChartValueAxis): (value: number) => string {
  */
 function seriesText(s: ChartSeries, row: number): string {
   const y = s.y[row]!
+  if (s.kind.categoryY) return heatText(s)(y)
   if (s.base && !s.stackEnds) {
     const text = valueText(s.axis)
     return format(messages.value.band, { from: text(s.base[row]!), to: text(y) })
@@ -2968,8 +3460,33 @@ const label = computed(() => {
       }),
     )
   }
+  const fs = funnelSeries.value
+  if (fs) {
+    const stages = funnelStages.value
+      .flatMap((stage, k) => {
+        if (stage.row < 0) return []
+        const value = seriesText(fs, stage.row)
+        return stage.step === null
+          ? [`${xText(k)} ${value}`]
+          : [
+              format(m.slice, {
+                label: xText(k),
+                value,
+                share: `${m.stageRate} ${rate.value.format(stage.step)}`,
+              }),
+            ]
+      })
+      .join(m.listSeparator)
+    return withKeys(
+      format(m.summary, {
+        chart: m.chart,
+        series: format(m.pie, { name: fs.name, slices: stages }),
+      }),
+    )
+  }
   const count = numberFormatFull(name)
   const parts = m0.series.map((s) => {
+    if (s.input.kind.categoryY) return heatSummary(s)
     let range = extent(s.y)
     // a band reaches down to its bottom
     const low = s.base && !s.stackEnds ? extent(s.base) : null
@@ -2990,7 +3507,7 @@ const label = computed(() => {
     })
   })
   let chart = m.chart
-  if (m0.x) {
+  if (m0.x && !radar.value) {
     chart = format(props.horizontal ? m.rangeDown : m.range, {
       chart: m.chart,
       from: xText(m0.x[0]),
@@ -2999,6 +3516,26 @@ const label = computed(() => {
   }
   return withKeys(format(m.summary, { chart, series: parts.join(m.listSeparator) }))
 })
+
+/** What is read out for a heatmap: its size, its range, and where its largest value is. */
+function heatSummary(s: ModelSeries): string {
+  const m = messages.value
+  const count = numberFormatFull(locale.value.name)
+  let top = -1
+  for (let i = 0; i < s.y.length; i++)
+    if (s.y[i] === s.y[i] && (top < 0 || s.y[i]! > s.y[top]!)) top = i
+  const range = extent(s.y)
+  if (!range || top < 0) return format(m.seriesEmpty, { name: s.name })
+  const text = heatText(s.input)
+  return format(m.heatmap, {
+    name: s.name,
+    columns: count(allX([s.x.values]).length),
+    rows: count(model.value.yCategories[s.axis]?.length ?? 0),
+    min: text(range[0]),
+    max: text(range[1]),
+    at: `${yCategoryText(s.axis, s.top[top]!)}${m.itemSeparator}${xText(s.x.values[top]!)}`,
+  })
+}
 
 /* the table view: the data as rows and columns, in the chart's place */
 
@@ -3026,6 +3563,41 @@ const tableCells = computed<{ head: string[]; rows: string[][] }>(() => {
   }
   const list = series.value
   const xHead = axes.value.x.title ?? (typeof props.x === 'string' ? props.x : '')
+  // a funnel: each stage, its value and what it kept
+  const fs = funnelSeries.value
+  if (fs)
+    return {
+      head: [xHead, fs.name, m.stageRate, m.totalRate],
+      rows: funnelStages.value.flatMap((stage, k) =>
+        stage.row < 0
+          ? []
+          : [
+              [
+                xText(k),
+                seriesText(fs, stage.row),
+                stage.step === null ? '' : rate.value.format(stage.step),
+                stage.total === null ? '' : rate.value.format(stage.total),
+              ],
+            ],
+      ),
+    }
+  // a heatmap as its grid: a row per category down, a column per x
+  const heat = list.find((s) => s.kind.categoryY)
+  if (heat) {
+    const xs = allX([heat.x.values])
+    const down = model.value.yCategories[heat.axis] ?? []
+    const cells = down.map(() => xs.map(() => ''))
+    const text = heatText(heat)
+    for (let i = 0; i < heat.y.length; i++) {
+      const at = xs.indexOf(heat.x.values[i]!)
+      const row = cells[heat.top[i]!]
+      if (at >= 0 && row && heat.y[i] === heat.y[i]) row[at] = text(heat.y[i]!)
+    }
+    return {
+      head: [axes.value[heat.axis]?.title ?? '', ...xs.map((x) => xText(x))],
+      rows: down.map((_, k) => [yCategoryText(heat.axis, k), ...cells[k]!]),
+    }
+  }
   // points on their own (a scatter's): one row each, with its series
   if (list.some((s) => s.kind.tooltip === 'item')) {
     const rows: string[][] = []
@@ -3093,6 +3665,16 @@ function withKeys(summary: string): string {
 }
 
 const labels = computed(() => {
+  const f = funnelLayout.value
+  if (f)
+    return [
+      ...f.names.map((tick, i) => ({ ...tick, key: `stage:${i}`, axis: 'stage' })),
+      ...f.values.map((tick, i) => ({ ...tick, key: `value:${i}`, axis: 'value' })),
+      ...f.rates.map((tick, i) => ({ ...tick, key: `rate:${i}`, axis: 'rate' })),
+    ]
+  const r = radarLayout.value
+  // the rings' values are drawn with the grid, under the series (see `ringValues`)
+  if (r) return r.labels.map((tick, i) => ({ ...tick, key: `spoke:${i}`, axis: 'spoke' }))
   const l = layout.value
   if (!l) return []
   const out: Array<TickLabel & { key: string; axis: string }> = []
@@ -3106,7 +3688,7 @@ const labels = computed(() => {
 })
 
 const legend = computed(() => {
-  const l = layout.value ?? pieLayout.value
+  const l = layout.value ?? pieLayout.value ?? radarLayout.value ?? funnelLayout.value
   if (!l) return []
   return l.legend.map((item) => ({ ...item, ...legendEntries.value[item.index]! }))
 })
@@ -3120,7 +3702,9 @@ const titles = computed(() => {
 })
 
 /** The size of what is drawn: a chart with axes, or a pie. */
-const frame = computed(() => layout.value ?? pieLayout.value)
+const frame = computed(
+  () => layout.value ?? pieLayout.value ?? radarLayout.value ?? funnelLayout.value,
+)
 
 const overlay: OverlayState = {
   // while the server's drawing shows, its own text does
@@ -3128,7 +3712,9 @@ const overlay: OverlayState = {
   labels,
   titles,
   legend,
-  legendBox: computed(() => (layout.value ?? pieLayout.value)?.legendBox),
+  legendBox: computed(
+    () => (layout.value ?? pieLayout.value ?? radarLayout.value ?? funnelLayout.value)?.legendBox,
+  ),
   hole: computed(() => {
     const l = pieLayout.value
     if (!l || empty.value || fromServer.value || !(holeRatio.value > 0)) return null
@@ -3347,6 +3933,8 @@ interface TextStyle {
   size: number
   weight?: string
   anchor?: 'start' | 'middle' | 'end'
+  /** A ring of this color round the letters, so lines under them don't cut them. */
+  halo?: string
 }
 
 /** A line of text whose 16px box starts at `top`, centered on its cap height as in the page. */
@@ -3356,6 +3944,8 @@ function svgText(text: string, x: number, top: number, style: TextStyle): string
   if (style.weight && style.weight !== '400' && style.weight !== 'normal')
     attributes += ` font-weight="${style.weight}"`
   if (style.anchor && style.anchor !== 'start') attributes += ` text-anchor="${style.anchor}"`
+  if (style.halo)
+    attributes += `${paintAttribute('stroke', style.halo)} stroke-width="3" stroke-linejoin="round" paint-order="stroke"`
   return `<text${attributes}>${escapeXml(text)}</text>`
 }
 
@@ -3373,11 +3963,29 @@ function swatch(kind: string, dashed: boolean, left: number, top: number, color:
   const fill = paintAttribute('fill', color)
   const box = (x: number, y: number, width: number, height: number, r: number) =>
     `<rect x="${num(x)}" y="${num(y)}" width="${width}" height="${height}" rx="${r}"${fill}/>`
-  if (kind === 'area') return box(left, top + 4, 12, 8, 2)
+  if (kind === 'area' || kind === 'radar') return box(left, top + 4, 12, 8, 2)
   if (kind === 'bar' || kind === 'pie') return box(left + 2, top + 4, 8, 8, 2)
   if (kind === 'scatter') return `<circle cx="${num(left + 6)}" cy="${num(top + 8)}" r="4"${fill}/>`
   if (dashed) return box(left, top + 7, 4, 2, 0) + box(left + 7, top + 7, 4, 2, 0)
   return box(left, top + 7, 12, 2, 1)
+}
+
+/** A heatmap's scale in the legend, as the page draws it. */
+function scaleSwatch(
+  svg: SvgPainter,
+  stops: string[],
+  left: number,
+  top: number,
+  width: number,
+): string {
+  const id = svg.id('scale')
+  const marks = stops
+    .map(
+      (stop, i) =>
+        `<stop offset="${num(i / Math.max(1, stops.length - 1))}"${paintAttribute('stop-color', stop)}/>`,
+    )
+    .join('')
+  return `<defs><linearGradient id="${id}">${marks}</linearGradient></defs><rect x="${num(left)}" y="${num(top + 4)}" width="${width}" height="8" rx="2" fill="url(#${id})"/>`
 }
 
 /** The texts in an element of the chart (a donut's center), where the page shows them. */
@@ -3512,6 +4120,26 @@ function drawSvg(
     paintPie(svg, 1, 1, true)
     const center = root?.querySelector(`.${ns.e('center')}`)
     if (center && root) texts.push(textsIn(center, root.getBoundingClientRect(), color))
+  } else if (funnelLayout.value) {
+    paintFunnel(svg, 1, 1, true)
+    const ink = color('var(--dou-chart-label)')
+    const strong = color('var(--dou-color-text-secondary)')
+    for (const tick of labels.value) {
+      const text = tick.clipped ? fitText(tick.text, tick.width) : tick.text
+      texts.push(
+        svgText(text, tick.left, tick.top, {
+          color: tick.axis === 'value' ? strong : ink,
+          size: 12,
+        }),
+      )
+    }
+  } else if (radarLayout.value) {
+    paintRadar(svg, 1, 1, true)
+    const ink = color('var(--dou-chart-label)')
+    for (const tick of labels.value) {
+      const text = tick.clipped ? fitText(tick.text, tick.width) : tick.text
+      texts.push(svgText(text, tick.left, tick.top, { color: ink, size: 12 }))
+    }
   } else if (layout.value) {
     paint(svg, 1, 1, 1, true)
     const radius = Number.parseFloat(style?.getPropertyValue('--dou-radius-control') ?? '') || 6
@@ -3572,10 +4200,13 @@ function drawSvg(
   const box = l?.legendBox
   for (const item of legend.value) {
     if (box && item.top + 16 > box.y + box.height + 0.5) continue
-    const mark = swatch(item.kind, item.dashed, item.left, item.top, color(item.color))
+    const room = (item.swatch ?? 12) + 6
+    const mark = item.scale
+      ? scaleSwatch(svg, item.scale, item.left, item.top, item.swatch ?? HEAT_SWATCH)
+      : swatch(item.kind, item.dashed, item.left, item.top, color(item.color))
     texts.push(item.off ? `<g opacity="0.32">${mark}</g>` : mark)
-    const text = item.clipped ? fitText(item.text, item.width - 18) : item.text
-    texts.push(svgText(text, item.left + 18, item.top, { color: item.off ? off : on, size: 12 }))
+    const text = item.clipped ? fitText(item.text, item.width - room) : item.text
+    texts.push(svgText(text, item.left + room, item.top, { color: item.off ? off : on, size: 12 }))
   }
   svg.raw(texts.join(''))
 }

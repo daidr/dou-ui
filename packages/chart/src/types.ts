@@ -248,6 +248,42 @@ export interface ChartScatterProps extends ChartSeriesProps {
   radius?: number
 }
 
+export interface ChartHeatmapProps extends Omit<ChartSeriesProps, 'color'> {
+  /** The category of each row down the side (a key or a function): one row of cells each, the first at the top. */
+  y: ChartAccessor
+  /** The value of each cell, a key or a function: the larger, the stronger its color. */
+  value: ChartAccessor
+  /**
+   * The color the scale runs to, from the chart's surface: any CSS color.
+   * Defaults to the palette's, as other series.
+   */
+  color?: string
+  /** The value the scale starts at, as an axis' `min`; by default the smallest. Values below take its lightest color. */
+  min?: number
+  /** The value the scale ends at; by default the largest. Values above take its strongest color. */
+  max?: number
+  /** How values are written, in the tooltip, the labels and the scale; by default as numbers. */
+  format?: (value: number) => string
+  /** Writes each cell's value in it, where it fits; a function writes its own text. */
+  labels?: boolean | ChartLabelFormat
+}
+
+export interface ChartRadarProps extends Omit<ChartSeriesProps, 'color' | 'axis'> {
+  /** Any CSS color. Defaults to the next color of the chart palette. */
+  color?: string
+  /** Dots on the corners; by default when there are 12 spokes or fewer. */
+  dots?: boolean
+  /** The width of the outline, in px. */
+  lineWidth?: number
+}
+
+export interface ChartFunnelProps extends Omit<ChartSeriesProps, 'color' | 'axis'> {
+  /** Any CSS color, for every stage. Defaults to the next color of the chart palette. */
+  color?: string
+  /** Corner radius of the bars, in px. */
+  radius?: number
+}
+
 export interface ChartPieProps {
   /** The value of each slice: a key of the row or a function of it. Values of 0 or less are left out. */
   value: ChartAccessor

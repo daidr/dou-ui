@@ -83,7 +83,12 @@ import {
   type FormSectionNode,
 } from '@dou-ui/form-builder'
 import '@dou-ui/form-builder/style.css'
-import { DouEditor, type EditorExpose, type PartialBlock } from '@dou-ui/editor'
+import {
+  DouEditor,
+  type EditorDocument,
+  type EditorExpose,
+  type PartialBlock,
+} from '@dou-ui/editor'
 import '@dou-ui/editor/style.css'
 
 export interface Case {
@@ -1885,14 +1890,14 @@ function editorBlocks(n: number): PartialBlock[] {
 function blockEditor(n: number) {
   const blocks = editorBlocks(n)
   ;(window as any).editorIds = blocks.map((block) => block.id)
-  const value = shallowRef<PartialBlock[]>(blocks)
+  const value = shallowRef<EditorDocument<PartialBlock>>({ version: 1, blocks })
   const editor = ref<EditorExpose>()
   ;(window as any).blockEditor = editor
   return () =>
     h(DouEditor, {
       ref: editor,
       modelValue: value.value,
-      'onUpdate:modelValue': (next: PartialBlock[]) => (value.value = next),
+      'onUpdate:modelValue': (next: EditorDocument<PartialBlock>) => (value.value = next),
     })
 }
 

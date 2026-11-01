@@ -9,7 +9,7 @@ import {
   flowKit,
   useFlowEditor,
 } from '../index'
-import type { FlowDocument, FlowExtension, FlowSelection } from '../index'
+import type { FlowDocument, FlowExtension, FlowSelection, FlowViewport } from '../index'
 import { resolveFlowExtensions } from '../core/extension'
 
 const sample = (): FlowDocument => ({
@@ -321,6 +321,30 @@ describe('DouFlowMinimap', () => {
     const viewport = editor.emitted('update:viewport')?.at(-1)?.[0]
     expect(viewport).toBeDefined()
     expect(viewport).not.toEqual(before)
+    wrapper.unmount()
+  })
+
+  it('holds the map still while dragging and stops the view at its edge', async () => {
+    const { wrapper } = setup()
+    await nextTick()
+    const svg = wrapper.find('.dou-flow-minimap svg')
+    const el = svg.element as SVGSVGElement
+    el.getBoundingClientRect = () =>
+      ({ left: 0, top: 0, right: 200, bottom: 136, width: 200, height: 136 }) as DOMRect
+    const viewBox = () => svg.attributes('viewBox')
+    const editor = wrapper.findComponent(DouFlowEditor)
+    const last = () => editor.emitted('update:viewport')!.at(-1)![0] as FlowViewport
+    await svg.trigger('pointerdown', { button: 0, clientX: 100, clientY: 68 })
+    const held = viewBox()
+    await svg.trigger('pointermove', { clientX: 200, clientY: 136 })
+    const edge = last()
+    expect(viewBox()).toBe(held)
+    // Far past the map, again and again: the view goes no further than its edge.
+    for (let i = 0; i < 5; i++) {
+      await svg.trigger('pointermove', { clientX: 100_000, clientY: 100_000 })
+      expect(last()).toEqual(edge)
+    }
+    await svg.trigger('pointerup')
     wrapper.unmount()
   })
 })

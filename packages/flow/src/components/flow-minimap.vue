@@ -29,9 +29,9 @@ const rects = computed(() =>
   }),
 )
 
-/** What the map shows: every node and the view, with some room around. */
-const world = computed<Rect>(() => {
-  const all = boundsOf([...rects.value.map((r) => r.rect), visible.value])!
+/** `boxes` and some room around them. */
+function framing(boxes: Rect[]): Rect {
+  const all = boundsOf(boxes)!
   const pad = Math.max(all.width, all.height) * 0.05
   return {
     x: all.x - pad,
@@ -39,7 +39,18 @@ const world = computed<Rect>(() => {
     width: all.width + pad * 2,
     height: all.height + pad * 2,
   }
-})
+}
+
+/** What the map shows: every node and the view. */
+const fitted = computed(() => framing([...rects.value.map((r) => r.rect), visible.value]))
+
+/**
+ * Held still while the view is dragged: a map that grew to take in the view
+ * as it went would slide away under the pointer, sending the view further
+ * each time.
+ */
+const held = ref<Rect | null>(null)
+const world = computed(() => held.value ?? fitted.value)
 
 /** Canvas units per map pixel; the map keeps the canvas's proportions. */
 const scale = computed(() =>
@@ -62,27 +73,43 @@ const shade = computed(() => {
 const svg = ref<SVGSVGElement>()
 const dragging = ref(false)
 
+/** How far along a side `at` is, from 0 to 1, staying on it when past its ends. */
+const along = (at: number, start: number, length: number) =>
+  length ? Math.min(1, Math.max(0, (at - start) / length)) : 0.5
+
+/** The point of the map under the pointer; past its edges, the nearest point on them. */
 function toWorld(event: PointerEvent): Point {
   const box = svg.value!.getBoundingClientRect()
   const [x, y, w, h] = viewBox.value.split(' ').map(Number) as [number, number, number, number]
   return {
-    x: x + ((event.clientX - box.left) / box.width) * w,
-    y: y + ((event.clientY - box.top) / box.height) * h,
+    x: x + along(event.clientX, box.left, box.width) * w,
+    y: y + along(event.clientY, box.top, box.height) * h,
   }
 }
 
-/** Centres the view on a point of the map. */
+/** Centres the view on a point of the map, as far as the nodes allow. */
 function moveTo(event: PointerEvent) {
   const p = toWorld(event)
   const { zoom } = flow.viewport.value
   const { width, height } = flow.size.value
-  flow.viewport.value = { x: width / 2 - p.x * zoom, y: height / 2 - p.y * zoom, zoom }
+  flow.setViewport({ x: width / 2 - p.x * zoom, y: height / 2 - p.y * zoom, zoom })
 }
 
 function onPointerDown(event: PointerEvent) {
   if (event.button !== 0) return
   event.stopPropagation()
   dragging.value = true
+  // Room for wherever the view can go: until the nodes just leave it on any side.
+  const { width, height } = visible.value
+  held.value = framing([
+    visible.value,
+    ...rects.value.map(({ rect }) => ({
+      x: rect.x - width,
+      y: rect.y - height,
+      width: rect.width + width * 2,
+      height: rect.height + height * 2,
+    })),
+  ])
   try {
     svg.value!.setPointerCapture(event.pointerId)
   } catch {
@@ -97,6 +124,7 @@ function onPointerMove(event: PointerEvent) {
 
 function onPointerUp() {
   dragging.value = false
+  held.value = null
 }
 </script>
 

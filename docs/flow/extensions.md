@@ -92,6 +92,8 @@ ctx.transact((tr) => tr.updateData(node.id, { rotation }))
 - 松手、按 Esc 取消或手柄卸载时都要传 `null` 恢复，否则节点会一直显示成预览的样子。节点从文档里删除时，它的预览会一起丢弃。
 - 预览只在本地显示，协作的其他人要等提交后才看到。预览期间文档没有变化，`ctx.gesturing` 保持 `false`。
 
+自己做的平移（例如白板的抓手工具）用 `ctx.setViewport(viewport, animate?)` 移动视图，它和用户拖动画布一样，最远只能移到节点刚好离开视野；直接写 `ctx.viewport.value` 不受限制。
+
 节点类型写了 `rotation` 时，`ctx.nodeRotation(id)` 返回节点当前旋转的角度（含预览），没有旋转或找不到节点时为 `0`，可以用来让自己画在节点上的东西跟着转。
 
 ## 图层组件

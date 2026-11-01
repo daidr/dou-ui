@@ -1,4 +1,4 @@
-import type { Point, Rect } from './model'
+import type { FlowViewport, Point, Rect } from './model'
 
 export function boundsOf(rects: readonly Rect[]): Rect | null {
   if (!rects.length) return null
@@ -172,4 +172,36 @@ export function intersectsTurned(box: Rect, rect: Rect, degrees: number): boolea
     Math.min(...ys) < rect.y + rect.height &&
     Math.max(...ys) > rect.y
   )
+}
+
+/**
+ * Keeps a pan within reach of the nodes: the view may go as far as having
+ * the nodes just leave it on the opposite side, a screen of room to draw in,
+ * and no further, so the canvas never runs off to coordinates the browser
+ * can't draw (it clamps lengths at about 3.3e7 px, and the layer and the
+ * nodes stop lining up long before). With no nodes, the origin is kept in
+ * view. A view already outside, e.g. set through `v-model:viewport` or left
+ * there when nodes were removed, isn't pulled back: it can only move closer.
+ */
+export function clampPan(
+  next: FlowViewport,
+  current: FlowViewport,
+  content: Rect | null,
+  size: { width: number; height: number },
+): FlowViewport {
+  if (!size.width || !size.height) return next
+  const area = content ?? { x: 0, y: 0, width: 0, height: 0 }
+  const axis = (value: number, now: number, start: number, length: number, screen: number) => {
+    // `value` is the screen offset of the canvas origin, so the view's near
+    // edge on the canvas is -value / zoom: kept between start - screen / zoom
+    // (the nodes touch the far edge) and start + length (they touch the near one).
+    const lo = 0 - (start + length) * next.zoom
+    const hi = screen - start * next.zoom
+    return Math.min(Math.max(value, Math.min(lo, now)), Math.max(hi, now))
+  }
+  return {
+    x: axis(next.x, current.x, area.x, area.width, size.width),
+    y: axis(next.y, current.y, area.y, area.height, size.height),
+    zoom: next.zoom,
+  }
 }

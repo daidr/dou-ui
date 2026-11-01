@@ -242,6 +242,12 @@ export interface FlowEditorContext {
   doc: Ref<FlowDocument>
   selection: Ref<FlowSelection>
   viewport: Ref<FlowViewport>
+  /**
+   * Moves the view like the user's pans do: no further than having the nodes
+   * just leave it, a screen of empty canvas to draw in. Writing `viewport`
+   * goes anywhere.
+   */
+  setViewport: (viewport: FlowViewport, animate?: boolean) => void
   readonly: ComputedRef<boolean>
   messages: ComputedRef<FlowMessages>
   minZoom: ComputedRef<number>

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { canJoin, displacedEdges, joinRefusal, reaches, typesMatch } from '../core/connect'
 import { flowOrder } from '../core/order'
 import { bezierPath } from '../core/edge-types'
-import { intersectsTurned, snapBox, turnedBox } from '../core/geometry'
+import { clampPan, intersectsTurned, snapBox, turnedBox } from '../core/geometry'
 import { defineNodeType, nodeBounds, resizeOf } from '../core/node-types'
 import { FlowHistory } from '../core/history'
 import type { FlowDocument } from '../core/model'
@@ -336,5 +336,36 @@ describe('turned nodes', () => {
       expect.stringContaining('"card" has rotation but not frame: false'),
     )
     warn.mockRestore()
+  })
+})
+
+const at = (x: number, y: number, zoom = 1) => ({ x, y, zoom })
+
+describe('clampPan', () => {
+  const size = { width: 400, height: 300 }
+  const content = { x: 0, y: 0, width: 200, height: 100 }
+
+  it('lets the nodes go just out of view on either side', () => {
+    expect(clampPan(at(10_000, 10_000), at(0, 0), content, size)).toEqual(at(400, 300))
+    expect(clampPan(at(-10_000, -10_000), at(0, 0), content, size)).toEqual(at(-200, -100))
+    expect(clampPan(at(50, -20), at(0, 0), content, size)).toEqual(at(50, -20))
+  })
+
+  it('scales the reach with the zoom', () => {
+    expect(clampPan(at(-10_000, 0, 2), at(0, 0, 2), content, size)).toEqual(at(-400, 0, 2))
+  })
+
+  it('keeps the origin in reach with no nodes', () => {
+    expect(clampPan(at(-1000, 1000), at(0, 0), null, size)).toEqual(at(0, 300))
+  })
+
+  it('never pulls an outlying view back, only lets it come closer', () => {
+    const far = at(5000, 0)
+    expect(clampPan(at(5100, 0), far, content, size)).toEqual(far)
+    expect(clampPan(at(4900, 0), far, content, size)).toEqual(at(4900, 0))
+  })
+
+  it('leaves the view alone before the editor has a size', () => {
+    expect(clampPan(at(1e9, 0), at(0, 0), content, { width: 0, height: 0 })).toEqual(at(1e9, 0))
   })
 })

@@ -244,11 +244,11 @@ export function whiteboardKit(options: WhiteboardKitOptions = {}): FlowExtension
           end: stop,
           cancel: stop,
           move(_, event) {
-            ctx.viewport.value = {
+            ctx.setViewport({
               ...origin,
               x: origin.x + event.clientX - start.x,
               y: origin.y + event.clientY - start.y,
-            }
+            })
           },
         }
       }

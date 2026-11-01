@@ -39,6 +39,11 @@ export interface PiePart extends ChartPart<ChartPieProps> {
   center: () => VNodeChild
   /** The labels of the slices turned off in the legend (`v-model:hidden`). */
   hidden: Ref<string[]>
+  /**
+   * For a gauge, drawn as a pie of its value and the rest of its track:
+   * the value, its range and its text. It has no legend nor tooltip.
+   */
+  gauge?: () => { value: number; min: number; max: number; text: string }
 }
 
 export interface TooltipPart extends ChartPart<ChartTooltipProps> {
@@ -78,6 +83,8 @@ export interface ChartRegistry {
   addMarker(part: MarkerPart): () => void
   /** The chart's `data`, for a part that works its rows out from it (a histogram's bins). */
   data(): ChartData | undefined
+  /** The chart's locale, for numbers a part writes itself (a gauge's value). */
+  locale(): string
 }
 
 export const chartKey: InjectionKey<ChartRegistry> = Symbol('DouChart')

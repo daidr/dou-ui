@@ -200,6 +200,7 @@ provide(chartKey, {
   addRange: adder(rangeParts),
   addMarker: adder(markerParts),
   data: () => props.data,
+  locale: () => locale.value.name,
 })
 
 /* theme: colors are read from CSS and read again when the theme changes */
@@ -613,7 +614,7 @@ const legendEntries = computed(() => {
   if (empty.value) return []
   void themeVersion.value
   if (pie.value) {
-    if (!(props.legend ?? slices.value.length > 1)) return []
+    if (pie.value.gauge || !(props.legend ?? slices.value.length > 1)) return []
     const last = shownSlices.value.length === 1
     return slices.value.map((slice, k) => ({
       text: slice.label,
@@ -1440,8 +1441,9 @@ const markerColors = computed(() => {
 
 const tooltipPart = computed(() => tooltipParts.value[0] ?? null)
 /** Whether the chart follows the pointer and can be focused. */
+// a gauge's value is in the middle of it: nothing to point at
 const interactive = computed(
-  () => !tooltipPart.value?.props.disabled && !empty.value && !props.table,
+  () => !tooltipPart.value?.props.disabled && !empty.value && !props.table && !pie.value?.gauge,
 )
 const trigger = computed(
   () =>
@@ -3552,6 +3554,19 @@ const label = computed(() => {
   const name = locale.value.name
   const m0 = model.value
   if (empty.value) return format(m.summary, { chart: m.chart, series: m.empty })
+  const gauge = pie.value?.gauge?.()
+  if (gauge) {
+    const text = numberFormatFull(name)
+    return format(m.summary, {
+      chart: m.chart,
+      series: format(m.gauge, {
+        name: pie.value!.props.name ?? '',
+        value: gauge.text,
+        min: text(gauge.min),
+        max: text(gauge.max),
+      }),
+    })
+  }
   if (pie.value) {
     const value = numberFormatFull(name)
     const list = shownSlices.value
@@ -3659,6 +3674,8 @@ const TABLE_ROWS = 1000
 const tableCells = computed<{ head: string[]; rows: string[][] }>(() => {
   if (!props.table || empty.value) return { head: [], rows: [] }
   const m = messages.value
+  const gauge = pie.value?.gauge?.()
+  if (gauge) return { head: [pie.value!.props.name ?? m.tableValue], rows: [[gauge.text]] }
   if (pie.value) {
     const value = numberFormatFull(locale.value.name)
     const title =

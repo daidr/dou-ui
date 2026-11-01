@@ -391,6 +391,35 @@ export interface ChartPieProps {
   rose?: boolean
 }
 
+export interface ChartGaugeProps {
+  /** The value shown. */
+  value: number
+  /** The start of the track. */
+  min?: number
+  /** The end of the track. */
+  max?: number
+  /** What the value is: under it in the middle, and read out. */
+  name?: string
+  /**
+   * The color of the value's arc: a CSS color or a tone, or a function of
+   * the value giving one (`success` when it is high enough, say).
+   */
+  color?: string | ((value: number) => string)
+  /** The value as text, in the middle and read out. */
+  format?: (value: number) => string
+  /** The hole in the middle as a share of the radius: how thin the arc is. */
+  innerRadius?: number
+  /** Where the track starts, in degrees clockwise from 12 o'clock. */
+  startAngle?: number
+  /** Where it ends, in degrees. */
+  endAngle?: number
+}
+
+export interface ChartGaugeSlots {
+  /** What goes in the middle, in place of the value and its name. */
+  default?: (props: { value: number; text: string }) => any
+}
+
 export interface ChartTooltipProps {
   /**
    * What it shows: every series at the x under the pointer (`axis`), or

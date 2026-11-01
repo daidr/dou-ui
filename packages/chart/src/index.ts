@@ -10,6 +10,7 @@ import Funnel from './components/funnel.vue'
 import Waterfall from './components/waterfall.vue'
 import Histogram from './components/histogram.vue'
 import Boxplot from './components/boxplot.vue'
+import Gauge from './components/gauge.vue'
 import Scatter from './components/scatter.vue'
 import Tooltip from './components/tooltip.vue'
 import Zoom from './components/zoom.vue'
@@ -31,6 +32,7 @@ export const DouChartFunnel = withInstall(Funnel)
 export const DouChartWaterfall = withInstall(Waterfall)
 export const DouChartHistogram = withInstall(Histogram)
 export const DouChartBoxplot = withInstall(Boxplot)
+export const DouChartGauge = withInstall(Gauge)
 export const DouChartTooltip = withInstall(Tooltip)
 export const DouChartZoom = withInstall(Zoom)
 export const DouChartBrush = withInstall(Brush)
@@ -53,6 +55,8 @@ export type {
   ChartExportOptions,
   ChartExpose,
   ChartFunnelProps,
+  ChartGaugeProps,
+  ChartGaugeSlots,
   ChartHeatmapProps,
   ChartHistogramProps,
   ChartImageOptions,
@@ -115,6 +119,7 @@ declare module 'vue' {
     DouChartWaterfall: typeof DouChartWaterfall
     DouChartHistogram: typeof DouChartHistogram
     DouChartBoxplot: typeof DouChartBoxplot
+    DouChartGauge: typeof DouChartGauge
     DouChartPie: typeof DouChartPie
     DouChartTooltip: typeof DouChartTooltip
     DouChartZoom: typeof DouChartZoom

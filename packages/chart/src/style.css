@@ -15,6 +15,7 @@
     --dou-chart-title: var(--dou-color-text-secondary);
     --dou-chart-range-ink: var(--dou-color-text-tertiary);
     --dou-chart-marker: color-mix(in oklab, var(--dou-color-text) 45%, transparent);
+    --dou-chart-track: color-mix(in oklab, var(--dou-color-text) 10%, transparent);
 
     position: relative;
     box-sizing: border-box;
@@ -396,6 +397,21 @@
     &.is-above {
       translate: -50% calc(-100% - 4px);
     }
+  }
+
+  /* a gauge's value in the middle, and what it is under it */
+  .dou-chart__gauge-value {
+    color: var(--dou-color-text);
+    font-size: 28px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 36px;
+  }
+
+  .dou-chart__gauge-name {
+    color: var(--dou-color-text-tertiary);
+    font-size: 12px;
+    line-height: 20px;
   }
 
   .dou-chart__empty {

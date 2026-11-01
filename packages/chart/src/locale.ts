@@ -35,6 +35,8 @@ export interface ChartMessages {
   boxLow: string
   /** The values past a box plot's whiskers: `{count}`. */
   boxOutliers: string
+  /** A gauge, read out: `{name}`, `{value}`, `{min}`, `{max}`. */
+  gauge: string
   /** A box plot's numbers in one line, read out and in the table: `{median}`, `{q1}`, `{q3}`, `{low}`, `{high}`. */
   box: string
   /** Read out with each legend entry: how to show it alone. */
@@ -98,6 +100,7 @@ const zhCN: ChartMessages = {
   boxQ1: '下四分位',
   boxLow: '下限',
   boxOutliers: '异常值 {count} 个',
+  gauge: '{name} {value}，范围 {min} ~ {max}',
   box: '中位数 {median}，四分位 {q1} ~ {q3}，范围 {low} ~ {high}',
   legendHint: '按 Alt+Enter 或按住 Alt 点击只显示这一项，再按一次恢复全部',
   hiddenSlices: '已隐藏 {count} 项，占比只按显示的部分计算',
@@ -140,6 +143,7 @@ const zhTW: ChartMessages = {
   boxQ1: '下四分位',
   boxLow: '下限',
   boxOutliers: '異常值 {count} 個',
+  gauge: '{name} {value}，範圍 {min} ~ {max}',
   box: '中位數 {median}，四分位 {q1} ~ {q3}，範圍 {low} ~ {high}',
   legendHint: '按 Alt+Enter 或按住 Alt 點擊只顯示這一項，再按一次恢復全部',
   hiddenSlices: '已隱藏 {count} 項，占比只按顯示的部分計算',
@@ -182,6 +186,7 @@ const en: ChartMessages = {
   boxQ1: 'Lower quartile',
   boxLow: 'Lower whisker',
   boxOutliers: '{count} outliers',
+  gauge: '{name} {value}, range {min} – {max}',
   box: 'median {median}, quartiles {q1} – {q3}, range {low} – {high}',
   legendHint: 'Alt+Enter or Alt+click shows only this one; again shows all',
   hiddenSlices: '{count} hidden; shares are of the slices shown',

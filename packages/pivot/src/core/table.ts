@@ -98,12 +98,29 @@ export const SHEET_STYLES = {
   'pivot-total': { bold: true },
 }
 
+/**
+ * A format whose decimals are optional (`#,##0.##`), for a number that
+ * needs none of them: without them, as Excel would show `226,895.` for
+ * `226895`.
+ */
+function fitFormat(format: string, value: number) {
+  const optional = /\.(0*)#+/
+  const match = optional.exec(format)
+  if (!match) return format
+  // a percentage shows the value a hundred times over
+  const shown = format.includes('%') ? value * 100 : value
+  const scaled = shown * 10 ** match[1]!.length
+  if (Math.abs(scaled - Math.round(scaled)) > 1e-9) return format
+  return format.replace(/\.(0*)#+/g, (_, zeros: string) => (zeros ? `.${zeros}` : ''))
+}
+
 function sheetCell(cell: PivotGridCell | null, formats: PivotGrid['formats']): PivotSheetCell {
   if (!cell) return null
   if (cell.kind === 'value') {
     const v = tidyNumber(cell.value!)
     if (v !== v) return null
-    const format = formats[cell.valueIndex!]
+    const given = formats[cell.valueIndex!]
+    const format = given && fitFormat(given, v)
     if (!format && !cell.total) return v
     return {
       value: v,

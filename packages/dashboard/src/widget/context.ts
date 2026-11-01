@@ -1,4 +1,5 @@
 import { computed, inject, onScopeDispose, provide, shallowRef, watch } from 'vue'
+import type { SheetWorkbook } from '@dou-ui/sheet/core'
 import type { ComputedRef, InjectionKey, Ref } from 'vue'
 import type { DashboardWidget } from '../core/types'
 import { dataContextKey } from '../data/context'
@@ -61,6 +62,15 @@ export interface DashboardWidgetContext<P extends object = Record<string, unknow
   refresh: () => void
   /** The names of the dashboard's sources, e.g. to pick one in a settings form. */
   sources: ComputedRef<string[]>
+  /**
+   * Gives the dashboard the widget's content as a workbook, read when it is
+   * exported with one of the dashboard's `exporters`; a sheet without a
+   * name takes the widget's title. Returning `undefined` fails the export
+   * with "no data to export"; `null` takes the export menu away, such as
+   * while the widget isn't set up. A widget that never calls it has no
+   * export menu. Undone when the widget goes.
+   */
+  setWorkbook: (get: (() => SheetWorkbook | undefined) | null) => void
 }
 
 export const widgetContextKey: InjectionKey<DashboardWidgetContext<any, any>> =
@@ -82,6 +92,7 @@ interface ContextSource {
   fullscreen: () => boolean
   size: { width: Ref<number>; height: Ref<number> }
   setProps: (id: string, patch: Record<string, unknown>, options?: { group?: string }) => void
+  setWorkbook?: (id: string, get: () => SheetWorkbook | undefined) => () => void
 }
 
 const NONE: DashboardFilters = Object.freeze({}) as DashboardFilters
@@ -163,7 +174,13 @@ export function provideWidgetContext(source: ContextSource): DashboardWidgetCont
     ownFilters,
     refresh,
     sources: computed(() => data?.sourceNames() ?? []),
+    setWorkbook: (get) => {
+      undoWorkbook?.()
+      undoWorkbook = get ? source.setWorkbook?.(id.value, get) : undefined
+    },
   }
+  let undoWorkbook: (() => void) | undefined
+  onScopeDispose(() => undoWorkbook?.())
   provide(widgetContextKey, context)
   return context
 }

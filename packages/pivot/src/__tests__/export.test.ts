@@ -8,10 +8,19 @@ import {
   gridMerges,
   gridToCSV,
   gridToHTML,
+  gridToSheetCells,
   gridToTSV,
   sheetFormat,
   tidyNumber,
 } from '../core/table'
+
+/** A value cell of a grid, for the sheet cells it makes. */
+const valueCell = (v: number, valueIndex: number) => ({
+  text: '',
+  kind: 'value' as const,
+  value: v,
+  valueIndex,
+})
 
 const sales = [
   { region: '华东', city: '上海', quarter: 'Q1', amount: 10 },
@@ -126,6 +135,34 @@ describe('the table as cells', () => {
     ])
     const text = pivot.value!.toCSV({ text: true, bom: false })
     expect(text.split('\r\n')[2]).toBe('华南,¥10.50')
+  })
+
+  it("drops optional decimals a number doesn't need, so Excel shows no bare point", () => {
+    const grid = {
+      cells: [
+        [
+          valueCell(15, 0),
+          valueCell(7.5, 0),
+          valueCell(0.15, 1),
+          valueCell(0.155, 1),
+          valueCell(2, 2),
+        ],
+      ],
+      headRows: 0,
+      headCols: 0,
+      formats: ['#,##0.##', '#,##0.#%', '0.0#'],
+      widths: [80, 80, 80, 80, 80],
+    }
+    expect(gridToSheetCells(grid)).toEqual([
+      [
+        { value: 15, format: '#,##0' },
+        { value: 7.5, format: '#,##0.##' },
+        // 15%: the percentage needs no decimals
+        { value: 0.15, format: '#,##0%' },
+        { value: 0.155, format: '#,##0.#%' },
+        { value: 2, format: '0.0' },
+      ],
+    ])
   })
 
   it('keeps labels a spreadsheet would read as formulas as text', () => {
@@ -246,14 +283,15 @@ describe('selecting and copying', () => {
     expect(wrapper.find('.dou-pivot__live').text()).toBe('已复制 4 个格子')
     // DouSheet reads the numbers back as numbers
     const clip = parseClip({ html: data.get('text/html') })!
+    // whole numbers drop the optional decimals, which Excel would show as a trailing point
     const f = '#,##0.##'
     expect(clip.cells).toEqual([
       [
-        { value: 15, format: f },
-        { value: 20, format: f },
+        { value: 15, format: '#,##0' },
+        { value: 20, format: '#,##0' },
       ],
       [
-        { value: 3, format: f },
+        { value: 3, format: '#,##0' },
         { value: 7.5, format: f },
       ],
     ])
@@ -279,9 +317,9 @@ describe('selecting and copying', () => {
     const clip = parseClip({ html: data.get('text/html') })!
     expect(clip.cells[2]).toEqual([
       '华东',
-      { value: 15, format: '#,##0.##' },
-      { value: 20, format: '#,##0.##' },
-      { value: 35, format: '#,##0.##', style: 'pivot-total' },
+      { value: 15, format: '#,##0' },
+      { value: 20, format: '#,##0' },
+      { value: 35, format: '#,##0', style: 'pivot-total' },
     ])
     expect(clip.styles?.['pivot-head']).toEqual({ bold: true })
   })

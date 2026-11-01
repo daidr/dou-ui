@@ -70,6 +70,7 @@ import {
   CellsSplitIcon,
   TrashIcon,
   UnfoldVerticalIcon,
+  fileIconOf,
   FunctionIcon,
   LayersIcon,
   LetterCaseIcon,
@@ -202,7 +203,6 @@ import {
   type SheetUpdate,
 } from './core/extension'
 import { format } from './locale'
-import { fileIconOf } from './components/file-icons'
 import { useSheetMessages } from './use-messages'
 import { sheetToCSV, type SheetCSVWriteOptions } from './core/csv'
 import { createSheetExport, type SheetExportTarget } from './export'
@@ -1676,10 +1676,11 @@ function transactFor(
     false,
     fromCode,
   )
-  // a read-only grid makes no change
-  return (
-    made ?? new SheetTransaction(doc.value, sheetIndex.value).setMeta({ action: 'api', ...meta })
-  )
+  if (made) return made
+  // refused by a read-only grid before it ran: cancelled, so the caller can tell
+  return new SheetTransaction(doc.value, sheetIndex.value)
+    .setMeta({ action: 'api', ...meta })
+    .cancel(messages.value.readonly)
 }
 
 /** `fromCode`: called by the app's code, which `readonly` doesn't stop. */

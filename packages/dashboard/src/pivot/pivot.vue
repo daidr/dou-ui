@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { DouPivot } from '@dou-ui/pivot'
-import type { PivotCellEvent, PivotConfig, PivotDimension, PivotField } from '@dou-ui/pivot'
+import type {
+  PivotCellEvent,
+  PivotConfig,
+  PivotDimension,
+  PivotExpose,
+  PivotField,
+} from '@dou-ui/pivot'
 import { computed, shallowRef, watch } from 'vue'
 import { useDashboardWidget } from '../widget/context'
 import { filterValueOf, rowsOf } from '../widgets/shared'
@@ -10,8 +16,11 @@ defineOptions({ name: 'DouDashboardPivotWidget' })
 
 defineProps<{ fields?: readonly PivotField[] }>()
 
-const { props, data, size, setFilter, ownFilters, editing, setProps } =
+const { props, data, size, setFilter, ownFilters, editing, setProps, setWorkbook } =
   useDashboardWidget<PivotWidgetProps>()
+const pivot = shallowRef<PivotExpose>()
+// the export menu writes the table as it shows: merged heads, totals, number formats
+setWorkbook(() => pivot.value?.toSheet({ name: '' }))
 const rows = computed(() => rowsOf(data.value, props.value.path))
 // sorting in the table works while viewing too; only while editing is it saved
 const config = shallowRef<PivotConfig | undefined>(props.value.config)
@@ -69,6 +78,7 @@ function onCell(cell: PivotCellEvent) {
 
 <template>
   <DouPivot
+    ref="pivot"
     class="dou-dashboard-pivot"
     :data="rows"
     :fields="fields"

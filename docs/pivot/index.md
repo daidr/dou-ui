@@ -296,6 +296,21 @@ filters: {
 
 <DocDemo src="pivot/sheet" />
 
+### 导出成 Excel 等文件
+
+电子表格的导出器也能导出透视表：把 `toSheet()` 交给 `@dou-ui/sheet/core` 的 `exportWorkbook`，用哪种导出器就得到哪种文件。比如用 `@dou-ui/sheet-xlsx` 导出 Excel 文件，表头合并、冻结、数字格式和列宽都会保留：
+
+```ts
+import { exportWorkbook } from '@dou-ui/sheet/core'
+import { xlsxExporter } from '@dou-ui/sheet-xlsx'
+import { downloadBlob } from 'dou-ui'
+
+const blob = await exportWorkbook(pivot.value.toSheet({ name: '销售额' }), xlsxExporter)
+downloadBlob(blob, '销售额.xlsx')
+```
+
+需要另外安装 `@dou-ui/sheet`（以及 `@dou-ui/sheet-xlsx`）。自己写的导出器也一样能用，写法见电子表格的[导出器与导入器](../sheet/extensions#导出器与导入器)。在仪表盘里，透视表格子可以直接从标题栏导出，见仪表盘的[导出格子的数据](../dashboard/widgets#导出格子的数据)。
+
 ### 透视图
 
 `toChartRows()` 返回 `{ x, rows, series }`：每个没有展开的行组是一行（展开的组换成它的子组），每个列组是一个系列，小计和总计不在里面。把 `rows` 交给图表的 `data`、`x` 交给 `x`，再为每个系列放一个柱子或折线：

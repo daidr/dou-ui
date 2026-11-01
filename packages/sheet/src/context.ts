@@ -56,8 +56,19 @@ export interface SheetContext {
    * now, past the frozen rows and columns too; `null` while none of it is.
    */
   rangeRect: (bounds: SheetBounds) => SheetRangeRect | null
+  /**
+   * Makes a change as the person using the grid, like the toolbar does.
+   * Unlike the component's `transact`, a `readonly` grid refuses it:
+   * the transaction comes back with `tr.cancelled` set (and no
+   * `transactionCancel`), unless `meta.history` is `false`. Otherwise as
+   * the component's: returns the transaction, `tr.changed` says whether
+   * it changed anything, and protected cells refuse it unless
+   * `meta.protection` or `meta.history` is `false`.
+   */
   transact: SheetExpose['transact']
+  /** Undoes as the person using the grid: does nothing on a `readonly` grid. */
   undo: SheetExpose['undo']
+  /** Redoes as the person using the grid: does nothing on a `readonly` grid. */
   redo: SheetExpose['redo']
   canUndo: Readonly<Ref<boolean>>
   canRedo: Readonly<Ref<boolean>>

@@ -8,14 +8,15 @@ import {
   DouChartTooltip,
 } from '@dou-ui/chart'
 import type { ChartPointEvent } from '@dou-ui/chart'
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { useDashboardWidget } from '../widget/context'
-import { filterValueOf, rowsOf } from '../widgets/shared'
+import { filterValueOf, rowsOf, rowsToWorkbook } from '../widgets/shared'
 import type { ChartWidgetProps } from './types'
 
 defineOptions({ name: 'DouDashboardChartWidget' })
 
-const { props, data, size, setFilter, ownFilters, widget } = useDashboardWidget<ChartWidgetProps>()
+const { props, data, size, setFilter, ownFilters, widget, setWorkbook } =
+  useDashboardWidget<ChartWidgetProps>()
 const rows = computed(() => rowsOf(data.value, props.value.path))
 const kind = computed(() => props.value.kind ?? 'line')
 const ys = computed(() => props.value.y ?? [])
@@ -32,6 +33,31 @@ const barColor = computed(() => {
   return (row: Record<string, unknown>) =>
     filterValueOf(row[x]) === value ? undefined : 'var(--dou-color-border-strong)'
 })
+
+// the export menu writes the chart's data: a column for x, one for each series;
+// a chart without its fields has no menu
+const seriesKeys = computed(() => (kind.value === 'pie' ? ys.value.slice(0, 1) : ys.value))
+const exportable = computed(() => !!props.value.x && seriesKeys.value.length > 0)
+watch(
+  exportable,
+  (ok) =>
+    setWorkbook(
+      ok
+        ? () => {
+            const x = props.value.x!
+            return rowsToWorkbook(
+              '',
+              [
+                { key: x, title: nameOf(x) },
+                ...seriesKeys.value.map((key) => ({ key, title: nameOf(key) })),
+              ],
+              rows.value,
+            )
+          }
+        : null,
+    ),
+  { immediate: true },
+)
 
 function onSelect(event: ChartPointEvent) {
   const key = props.value.filter

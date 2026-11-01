@@ -29,6 +29,14 @@ export interface DashboardMessages {
   /** Menu items. */
   settings: string
   fullscreen: string
+  /** The menu of file types a widget's content can be exported as. */
+  export: string
+  /** A failed export, over the widget's content: `{name}` (the file), `{reason}`. */
+  exportFailed: string
+  /** Read out once the file is saved: `{name}`. */
+  exported: string
+  /** Why a widget can't be exported: it has no data, such as a chart without its fields. */
+  nothingToExport: string
   duplicate: string
   remove: string
   /** The settings drawer's title: `{title}`. */
@@ -116,6 +124,10 @@ const zhCN: DashboardMessages = {
   widgetMenu: '格子操作',
   settings: '设置',
   fullscreen: '全屏查看',
+  export: '导出',
+  exportFailed: '无法导出 {name}：{reason}',
+  exported: '已导出 {name}',
+  nothingToExport: '没有可导出的数据',
   duplicate: '复制一份',
   remove: '删除',
   settingsTitle: '{title}的设置',
@@ -185,6 +197,10 @@ const zhTW: DashboardMessages = {
   widgetMenu: '格子操作',
   settings: '設定',
   fullscreen: '全螢幕檢視',
+  export: '匯出',
+  exportFailed: '無法匯出 {name}：{reason}',
+  exported: '已匯出 {name}',
+  nothingToExport: '沒有可匯出的資料',
   duplicate: '複製一份',
   remove: '刪除',
   settingsTitle: '{title}的設定',
@@ -255,6 +271,10 @@ const en: DashboardMessages = {
   widgetMenu: 'Widget actions',
   settings: 'Settings',
   fullscreen: 'View full screen',
+  export: 'Export',
+  exportFailed: "Couldn't export {name}: {reason}",
+  exported: 'Exported {name}',
+  nothingToExport: 'There is no data to export',
   duplicate: 'Duplicate',
   remove: 'Remove',
   settingsTitle: '{title} settings',

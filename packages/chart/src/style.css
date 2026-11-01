@@ -15,6 +15,7 @@
     --dou-chart-title: var(--dou-color-text-secondary);
     --dou-chart-range-ink: var(--dou-color-text-tertiary);
     --dou-chart-marker: color-mix(in oklab, var(--dou-color-text) 45%, transparent);
+    --dou-chart-track: color-mix(in oklab, var(--dou-color-text) 10%, transparent);
 
     position: relative;
     box-sizing: border-box;
@@ -352,6 +353,17 @@
       border-radius: 2px;
     }
 
+    /* a box plot: its box, outlined over a light fill */
+    .is-box > & {
+      box-sizing: border-box;
+      width: 8px;
+      height: 10px;
+      margin-inline: 2px;
+      border: 1px solid currentColor;
+      border-radius: 1px;
+      background-color: color-mix(in srgb, currentColor 16%, transparent);
+    }
+
     .is-scatter > & {
       width: 8px;
       height: 8px;
@@ -380,6 +392,26 @@
     justify-content: center;
     text-align: center;
     translate: -50% -50%;
+
+    /* in a half donut: on its flat edge, above the center */
+    &.is-above {
+      translate: -50% calc(-100% - 4px);
+    }
+  }
+
+  /* a gauge's value in the middle, and what it is under it */
+  .dou-chart__gauge-value {
+    color: var(--dou-color-text);
+    font-size: var(--dou-chart-gauge-value-size, 28px);
+    font-weight: var(--dou-font-weight-bold);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.3;
+  }
+
+  .dou-chart__gauge-name {
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    line-height: 20px;
   }
 
   .dou-chart__empty {

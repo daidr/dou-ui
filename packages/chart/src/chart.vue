@@ -20,6 +20,7 @@ import {
   useId,
   useTemplateRef,
   watch,
+  watchEffect,
   type VNodeChild,
 } from 'vue'
 import { createColorResolver, observeTheme } from './core/colors'
@@ -28,6 +29,7 @@ import { allX, angleAt, nearestPoint, nearestX, neighborGap, rowAt, sortedOrder 
 import { joinGroup, tellGroup, type SharedX } from './core/sync'
 import { numberFormatFull, numberTickFormat, timeFormatFull, timePrecision } from './core/format'
 import {
+  arcBox,
   HEAT_SWATCH,
   layoutChart,
   layoutFunnel,
@@ -43,6 +45,8 @@ import {
   type ChartLegendPlacement,
   type ChartTickValue,
   type FunnelLayout,
+  type LegendBox,
+  type LegendItem,
   type LegendName,
   type RadarLayout,
   type TickLabel,
@@ -68,9 +72,29 @@ import {
 } from './core/labels'
 import { crisp, type Painter, type Rect } from './core/painter'
 import { heatColor, heatRange, heatShare } from './core/heatmap'
-import { drawPie, FADED, pieSlices, type PieSlice } from './core/pie'
+import { drawPie, FADED, pieSlices, sliceOuter, type PieSlice } from './core/pie'
 import { nearestSpoke, spokeAngle } from './core/radar'
 import { FUNNEL_BAR } from './core/funnel'
+import { isTotal } from './core/waterfall'
+import { boxes } from './core/box'
+import { warnOnce } from './core/warn'
+import { CHART_PATTERNS, patternCss, type ChartPattern } from './core/pattern'
+import {
+  buildTree,
+  drawSunburst,
+  SUNBURST_FADE,
+  sunburstBranch,
+  drawTreemap,
+  hasHeader,
+  ringTreemap,
+  layoutSunburst,
+  layoutTreemap,
+  sunburstAt,
+  treemapAt,
+  treePath,
+  TREE_HEADER,
+  type TreeNode,
+} from './core/tree'
 import { baseline, categoryScale, linearScale, logScale, type Scale } from './core/scale'
 import { escapeXml, isSvg, num, paintAttribute, SvgPainter } from './core/svg'
 import type { ChartColors, ChartHit, ChartSeries, ChartValueAxis, ChartView } from './core/series'
@@ -96,6 +120,7 @@ import {
   type SeriesPart,
   type RangePart,
   type TooltipPart,
+  type TreePart,
   type ZoomPart,
 } from './context'
 import { format, useChartMessages } from './locale'
@@ -170,6 +195,7 @@ const zoomParts = shallowRef<ZoomPart[]>([])
 const brushParts = shallowRef<BrushPart[]>([])
 const rangeParts = shallowRef<RangePart[]>([])
 const markerParts = shallowRef<MarkerPart[]>([])
+const treeParts = shallowRef<TreePart[]>([])
 
 function inPageOrder<T extends ChartPart<unknown>>(parts: T[]): T[] {
   // oxlint-disable-next-line unicorn/no-array-sort -- sorts a copy
@@ -196,6 +222,10 @@ provide(chartKey, {
   addBrush: adder(brushParts),
   addRange: adder(rangeParts),
   addMarker: adder(markerParts),
+  addTree: adder(treeParts),
+  data: () => props.data,
+  locale: () => locale.value.name,
+  messages: () => messages.value,
 })
 
 /* theme: colors are read from CSS and read again when the theme changes */
@@ -347,9 +377,20 @@ const model = computed(() => {
     xKind: type === 'log' ? 'linear' : type,
     axis: defaultAxis.value,
     percent: { y: !!declaredAxes.value.y?.percent, y2: !!declaredAxes.value.y2?.percent },
+    sort: declaredAxes.value.x?.sort,
   })
   return labelRoom(reachMarkers(built))
 })
+
+if (process.env.NODE_ENV !== 'production')
+  watchEffect(() => {
+    for (const axis of ['y', 'y2'] as const)
+      if (declaredAxes.value[axis]?.sort !== undefined)
+        warnOnce(
+          `sort-${axis}`,
+          `<DouChartAxis for="${axis}">: \`sort\` orders a category x axis only, so it is left out here.`,
+        )
+  })
 
 /** Percentages on the ticks of a `percent` axis: whole ones. */
 const percentTicks = computed(
@@ -435,19 +476,314 @@ const slices = computed(() => {
     label,
     part.props.color,
     part.hidden.value,
+    { start: pieArc.value[0], end: pieArc.value[1], rose: !!part.props.rose },
   )
+})
+
+/** The part of the turn the pie takes, in radians clockwise from 12 o'clock. */
+const pieArc = computed<[number, number]>(() => {
+  const p = pie.value?.props
+  const start = ((p?.startAngle ?? 0) * Math.PI) / 180
+  const end = p?.endAngle === undefined ? start + Math.PI * 2 : (p.endAngle * Math.PI) / 180
+  if (!(end > start))
+    warnOnce(
+      'pie-angles',
+      `<${pie.value?.gauge ? 'DouChartGauge' : 'DouChartPie'}>: \`end-angle\` must be past \`start-angle\` (clockwise); nothing is drawn.`,
+    )
+  return [start, Math.min(end, start + Math.PI * 2)]
 })
 
 /** The slices that take room: not turned off. */
 const shownSlices = computed(() => slices.value.filter((slice) => !slice.hidden))
 
 if (process.env.NODE_ENV !== 'production')
-  watch([pieParts, seriesParts], ([pies, series]) => {
-    if (pies.length > 1 || (pies.length && series.length))
+  watch([pieParts, seriesParts, treeParts], ([pies, series, trees]) => {
+    const pieName = pies[0]?.gauge ? 'DouChartGauge' : 'DouChartPie'
+    if (pies.length > 1 || (pies.length && (series.length || trees.length)))
       console.warn(
-        '[@dou-ui/chart] a <DouChartPie> is drawn alone: other series and pies are left out.',
+        `[@dou-ui/chart] a <${pieName}> is drawn alone: other series, pies and trees are left out.`,
       )
+    else if (trees.length > 1 || (trees.length && series.length)) {
+      const name = trees[0]!.shape === 'treemap' ? 'DouChartTreemap' : 'DouChartSunburst'
+      console.warn(
+        `[@dou-ui/chart] a <${name}> is drawn alone: other series and trees are left out.`,
+      )
+    }
   })
+
+/* a treemap or a sunburst: a tree, drawn alone */
+
+const tree = computed(() => (!pie.value && treeParts.value[0]) || null)
+
+/** The tree read from the part's rows, its nodes parents first. */
+const treeData = computed(() => {
+  const part = tree.value
+  if (!part) return null
+  const p = part.props
+  const data = toRaw(p.data ?? props.data)
+  if (data && !Array.isArray(data))
+    warnOnce(
+      'tree-data',
+      'a treemap or sunburst reads nested rows (an array); data by column is left out.',
+    )
+  return buildTree(Array.isArray(data) ? (data as ChartRow[]) : [], {
+    label: p.label ?? 'name',
+    value: p.value ?? 'value',
+    children: p.children ?? 'children',
+  })
+})
+
+/** Room at the edges of a tree, in px. */
+const TREE_EDGE = 4
+
+const treeLayout = computed(() => {
+  const width = size.width.value
+  const height = size.height.value
+  const part = tree.value
+  const data = treeData.value
+  if (!width || !height || !part || !data) return null
+  void themeVersion.value
+  const plot = {
+    x: TREE_EDGE,
+    y: TREE_EDGE,
+    width: Math.max(0, width - TREE_EDGE * 2),
+    height: Math.max(0, height - TREE_EDGE * 2),
+  }
+  const cx = width / 2
+  const cy = height / 2
+  const radius = Math.max(0, Math.min(plot.width, plot.height) / 2)
+  const inner = radius * Math.min(0.9, Math.max(0, part.props.innerRadius ?? 0.3))
+  if (part.shape === 'treemap') layoutTreemap(data.root, plot)
+  else layoutSunburst(data.root, inner, radius)
+  return {
+    width,
+    height,
+    plot,
+    cx,
+    cy,
+    radius,
+    inner,
+    // laid out again: a new object, so what is drawn from it follows
+    nodes: [...data.nodes],
+    legend: [] as LegendItem[],
+    legendBox: undefined as LegendBox | undefined,
+  }
+})
+
+/**
+ * Each node's color: its own, else its parent's, the top level taking the
+ * palette's. A sunburst's rings pale outwards, towards the surface.
+ */
+const treeColors = computed(() => {
+  void themeVersion.value
+  const part = tree.value
+  const data = treeData.value
+  if (!part || !data) return []
+  const palette = ownPalette.value
+  const own = part.props.color
+  const css: string[] = []
+  for (const node of data.nodes) {
+    if (node.depth === 0) {
+      css.push('')
+      continue
+    }
+    const raw =
+      !own || !node.row
+        ? undefined
+        : typeof own === 'function'
+          ? own(node.row, node.depth)
+          : read(node.row, own, node.place)
+    const given = typeof raw === 'string' && raw ? raw : undefined
+    const base = given
+      ? toneOrColor(given)
+      : node.depth > 1
+        ? css[node.parent!.index]!
+        : palette
+          ? toneOrColor(palette[node.group % palette.length]!)
+          : `var(--dou-color-chart-${(node.group % SLICE_COLORS) + 2})`
+    css.push(base)
+  }
+  return data.nodes.map((node, k) => {
+    if (node.depth === 0) return ''
+    const shade = part.shape === 'sunburst' && node.depth > 1
+    const pale = Math.max(40, 100 - (node.depth - 1) * 24)
+    return resolveColor(
+      shade ? `color-mix(in oklab, ${css[k]} ${pale}%, var(--dou-chart-surface))` : css[k]!,
+    )
+  })
+})
+
+/** The value as text, and its share of the whole. */
+function treeValue(node: TreeNode) {
+  const root = treeData.value?.root
+  return format(messages.value.share, {
+    value: numberFormatFull(locale.value.name)(node.value),
+    share: percent.value.format(root && root.value > 0 ? node.value / root.value : 0),
+  })
+}
+
+/** The tree's names in it, where they fit: a leaf's in its middle, a group's in its header. */
+const treeLabels = computed(() => {
+  const l = treeLayout.value
+  const part = tree.value
+  const out: Array<PlacedDataLabel & { ink?: string; width?: number }> = []
+  if (!l || !part || !part.props.labels || empty.value) return out
+  const colorsOf = treeColors.value
+  const given = part.props.labels
+  const whole = treeData.value?.root.value ?? 0
+  for (const node of l.nodes) {
+    if (node.depth === 0) continue
+    const text =
+      typeof given === 'function'
+        ? given({
+            value: node.value,
+            share: whole > 0 ? node.value / whole : 0,
+            name: node.name,
+            row: node.row ?? {},
+            index: node.place,
+            depth: node.depth,
+          })
+        : node.name
+    if (text == null || text === '') continue
+    const name = String(text)
+    const width = measure(name)
+    if (part.shape === 'treemap') {
+      const w = node.x1 - node.x0
+      const h = node.y1 - node.y0
+      if (node.children.length) {
+        if (!hasHeader(node) || width > w - 12) continue
+        out.push({
+          key: `node:${node.index}`,
+          series: -1,
+          text: name,
+          left: node.x0 + 6,
+          top: node.y0 + (TREE_HEADER - DATA_LABEL) / 2,
+          align: 'start',
+          ink: 'var(--dou-color-text-secondary)',
+        })
+      } else if (width <= w - 12 && h >= DATA_LABEL + 8) {
+        out.push({
+          key: `node:${node.index}`,
+          series: -1,
+          text: name,
+          left: node.x0 + 6,
+          top: node.y0 + 6,
+          align: 'start',
+          on: colorsOf[node.index],
+          ink: inkOn(colorsOf[node.index]!),
+        })
+      }
+      continue
+    }
+    // a sunburst: across the middle of its arc, where the arc is long enough
+    const r = (node.y0 + node.y1) / 2
+    const arc = (node.x1 - node.x0) * r
+    if (arc < width + 8 || node.y1 - node.y0 < DATA_LABEL + 4) continue
+    const middle = (node.x0 + node.x1) / 2
+    out.push({
+      key: `node:${node.index}`,
+      series: -1,
+      text: name,
+      left: l.cx + Math.sin(middle) * r,
+      top: l.cy - Math.cos(middle) * r - DATA_LABEL / 2,
+      align: 'middle',
+      on: colorsOf[node.index],
+      ink: inkOn(colorsOf[node.index]!),
+    })
+  }
+  return out
+})
+
+/** The node the tooltip shows, its path as the title. */
+function treeTip(index: number, pointer: [number, number] | null): Tip | null {
+  const l = treeLayout.value
+  const node = treeData.value?.nodes[index]
+  if (!l || !node || node.depth === 0) return null
+  const anchor: [number, number] =
+    tree.value?.shape === 'sunburst'
+      ? [
+          l.cx + Math.sin((node.x0 + node.x1) / 2) * ((node.y0 + node.y1) / 2),
+          l.cy - Math.cos((node.x0 + node.x1) / 2) * ((node.y0 + node.y1) / 2),
+        ]
+      : [(node.x0 + node.x1) / 2, (node.y0 + node.y1) / 2]
+  return {
+    x: node.name,
+    title: treePath(node).join(' / '),
+    items: [
+      {
+        name: tree.value?.props.name ?? messages.value.tableValue,
+        text: treeValue(node),
+        value: node.value,
+        color: treeColors.value[node.index],
+        row: node.row ?? undefined,
+      },
+    ],
+    anchor: pointer ?? anchor,
+    marks: [],
+  }
+}
+
+/**
+ * The tree as drawn with nothing pointed at, kept while its layout and
+ * colors stay: pointing at a node then draws only that node's part over
+ * it (a treemap's ring, a sunburst's branch), however many nodes.
+ */
+let treeImage: { key: unknown[]; canvas: HTMLCanvasElement } | null = null
+
+/** The kept image of the tree, drawn again when `key` changes; null without a canvas. */
+function treeImageOf(key: unknown[], dpr: number, render: (ctx: CanvasRenderingContext2D) => void) {
+  const l = treeLayout.value!
+  if (treeImage && key.every((k, i) => k === treeImage!.key[i])) return treeImage.canvas
+  const canvas = treeImage?.canvas ?? document.createElement('canvas')
+  canvas.width = Math.round(l.width * dpr)
+  canvas.height = Math.round(l.height * dpr)
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+  ctx.clearRect(0, 0, l.width, l.height)
+  render(ctx)
+  treeImage = { key, canvas }
+  return canvas
+}
+
+/** Draws the tree, as it comes in: a treemap fades in, a sunburst sweeps round. */
+function paintTree(painter: Painter, t: number, still = false, dpr = 1) {
+  const l = treeLayout.value!
+  const a = still ? null : active.value
+  const focus = a?.type === 'slice' ? a.slice : -1
+  const shape = tree.value?.shape
+  const surface = colors.value.surface
+  const ring = resolveColor('var(--dou-color-text)')
+  const sunburst = { cx: l.cx, cy: l.cy, surface }
+  const direct = () =>
+    shape === 'treemap'
+      ? drawTreemap(painter, l.nodes, treeColors.value, { surface, ring, t, focus })
+      : drawSunburst(painter, l.nodes, treeColors.value, { ...sunburst, focus, sweep: t })
+  // an export, or coming in: drawn as it is
+  if (still || t < 1 || isSvg(painter) || typeof document === 'undefined') return direct()
+  const image = treeImageOf([shape, l, treeColors.value, surface, dpr], dpr, (ctx) =>
+    shape === 'treemap'
+      ? drawTreemap(ctx, l.nodes, treeColors.value, { surface, ring, t })
+      : drawSunburst(ctx, l.nodes, treeColors.value, sunburst),
+  )
+  if (!image) return direct()
+  const node = l.nodes[focus]
+  if (shape === 'treemap') {
+    painter.drawImage(image, 0, 0, l.width, l.height)
+    ringTreemap(painter, node, ring)
+    return
+  }
+  if (!node) {
+    painter.drawImage(image, 0, 0, l.width, l.height)
+    return
+  }
+  // a sunburst: all of it faded, then the node's branch over it as it is
+  painter.save()
+  painter.globalAlpha *= SUNBURST_FADE
+  painter.drawImage(image, 0, 0, l.width, l.height)
+  painter.restore()
+  drawSunburst(painter, sunburstBranch(node), treeColors.value, sunburst)
+}
 
 /* a radar: series round a center, without axes */
 
@@ -472,7 +808,11 @@ if (process.env.NODE_ENV !== 'production')
 
 /** No series has a value to show. */
 const empty = computed(() =>
-  pie.value ? !shownSlices.value.length : !model.value.y.y && !model.value.y.y2,
+  pie.value
+    ? !shownSlices.value.length
+    : tree.value
+      ? !(treeData.value && treeData.value.root.value > 0)
+      : !model.value.y.y && !model.value.y.y2,
 )
 
 // a number axis of what look like times in ms: most likely meant as a time axis
@@ -516,10 +856,24 @@ function seriesColor(p: SeriesPart['props'], index: number): string {
 /** A color given as a CSS color or a tone name, as the canvas takes it. */
 const itemColor = (color: string) => resolveColor(toneOrColor(color))
 
+/**
+ * A waterfall's colors, unless it has its own: rises in the success tone,
+ * falls in the danger tone, totals in the series' color.
+ */
+function waterfallColors(s: ChartSeries): Array<string | undefined> | null {
+  if (typeof s.props.color === 'string') return null
+  const rise = itemColor('success')
+  const fall = itemColor('danger')
+  const out: Array<string | undefined> = []
+  for (let i = 0; i < s.y.length; i++)
+    out.push(isTotal(s, i) ? undefined : s.y[i]! < 0 ? fall : rise)
+  return out
+}
+
 /** The colors of single bars or points, by row, when `color` is a function. */
 function itemColors(s: ChartSeries): Array<string | undefined> | null {
   const of = s.props.color
-  if (typeof of !== 'function') return null
+  if (typeof of !== 'function') return s.kind.waterfall ? waterfallColors(s) : null
   const out: Array<string | undefined> = []
   // a few colors for many rows: each worked out once
   const seen = new Map<string, string>()
@@ -546,11 +900,44 @@ const series = computed<ChartSeries[]>(() => {
       kind: s.input.kind,
       props: p,
       color: seriesColor(p, index),
+      pattern: seriesPattern(p, s.input.kind, index),
     }
     shown.colors = itemColors(shown)
     return shown
   })
 })
+
+/**
+ * The kinds whose fill can take a pattern: bars (a histogram's too) and
+ * areas. A waterfall's colors say which way each step goes, and a box
+ * plot's are light: they take none.
+ */
+const FILLED = new Set(['bar', 'area'])
+
+/** A series' pattern: its own, or with the chart's `patterns`, one by its place. */
+function seriesPattern(
+  p: SeriesPart['props'],
+  kind: { type: string; waterfall?: boolean },
+  index: number,
+): ChartPattern | null {
+  if (!FILLED.has(kind.type) || kind.waterfall) return null
+  const own = p.pattern as ChartPattern | 'none' | undefined
+  if (own) return own === 'none' ? null : own
+  return props.patterns ? CHART_PATTERNS[index % CHART_PATTERNS.length]! : null
+}
+
+/** A pattern as a legend swatch shows it, over the swatch's color. */
+const swatchPattern = (pattern: ChartPattern | null | undefined) =>
+  pattern
+    ? patternCss(pattern, 'color-mix(in oklab, var(--dou-chart-surface) 70%, transparent)')
+    : undefined
+
+/** Each slice's pattern, by its place, with the chart's `patterns`. */
+const slicePatterns = computed(() =>
+  props.patterns && !pie.value?.gauge
+    ? slices.value.map((slice) => CHART_PATTERNS[slice.index % CHART_PATTERNS.length]!)
+    : undefined,
+)
 
 /** The colored part of the palette: slices leave the neutral first color for "other". */
 const SLICE_COLORS = 7
@@ -584,8 +971,9 @@ if (process.env.NODE_ENV !== 'production')
 const legendEntries = computed(() => {
   if (empty.value) return []
   void themeVersion.value
+  if (tree.value) return []
   if (pie.value) {
-    if (!(props.legend ?? slices.value.length > 1)) return []
+    if (pie.value.gauge || !(props.legend ?? slices.value.length > 1)) return []
     const last = shownSlices.value.length === 1
     return slices.value.map((slice, k) => ({
       text: slice.label,
@@ -595,6 +983,7 @@ const legendEntries = computed(() => {
       off: slice.hidden,
       locked: last && !slice.hidden,
       scale: undefined as string[] | undefined,
+      pattern: swatchPattern(slicePatterns.value?.[slice.index]),
     }))
   }
   // a heatmap's scale says what its colors mean, even alone
@@ -613,6 +1002,7 @@ const legendEntries = computed(() => {
       locked: last && !part.hidden.value,
       /** A heatmap's scale: its colors, least to most. */
       scale: undefined as string[] | undefined,
+      pattern: swatchPattern(seriesPattern(part.props, part.kind, index)),
     }
     const s = part.kind.categoryY ? series.value.find((one) => one.index === index) : undefined
     const range = s && heatRange(s)
@@ -858,7 +1248,7 @@ const legendPlacement = computed<ChartLegendPlacement>(() => {
 const layout = computed(() => {
   const width = size.width.value
   const height = size.height.value
-  if (!width || !height || pie.value || radar.value || funnel.value) return null
+  if (!width || !height || pie.value || tree.value || radar.value || funnel.value) return null
   void themeVersion.value
   return layoutChart({
     model: model.value,
@@ -890,6 +1280,7 @@ const pieLayout = computed(() => {
     coarse: coarse.value,
     legendPlacement: legendPlacement.value,
     sideLabels: pieLabelsOutside.value ? pieSideWidths.value : undefined,
+    arc: pieArc.value,
   })
 })
 
@@ -1046,7 +1437,7 @@ function labelText(s: ChartSeries, row: number): string | null {
     const text = given({
       value,
       share,
-      low: s.base && !s.stackEnds ? s.base[row] : undefined,
+      low: s.base && !s.stackEnds && !s.kind.waterfall ? s.base[row] : undefined,
       name: s.name,
       row: rowOf(s.rows, row),
       index: row,
@@ -1054,6 +1445,8 @@ function labelText(s: ChartSeries, row: number): string | null {
     return text == null || text === '' ? null : String(text)
   }
   if (s.kind.categoryY) return heatText(s)(value)
+  // a waterfall's change says which way it went
+  if (s.kind.waterfall && !isTotal(s, row)) return signed(valueText(s.axis), value)
   // a share, with a decimal as in the tooltip, unless the axis writes its own
   if (share !== undefined) {
     const own = declaredAxes.value[s.axis]?.format
@@ -1152,6 +1545,7 @@ const pieLabelsOutside = computed(() => {
     legend: legendNames.value,
     coarse: coarse.value,
     legendPlacement: legendPlacement.value,
+    arc: pieArc.value,
   }
   const alone = layoutPie(base).radius
   const radius = layoutPie({ ...base, sideLabels: pieSideWidths.value }).radius
@@ -1187,11 +1581,13 @@ const pieLabels = computed(() => {
   if (!pieLabelsOutside.value) {
     // in each slice, in the middle of its ring: where it fits
     const inner = radius * holeRatio.value
-    const at = inner > 0 ? (radius + inner) / 2 : radius * 0.62
-    const thickness = radius - inner
     list.forEach((slice, k) => {
       const text = texts[k]
       if (!text || !(slice.end > slice.start)) return
+      // a rose's slice reaches only as far as its value
+      const outer = sliceOuter(slice, inner, radius)
+      const at = inner > 0 ? (outer + inner) / 2 : outer * 0.62
+      const thickness = outer - inner
       const width = measure(text)
       const arc = (slice.end - slice.start) * at
       if (arc < width + 8 || thickness < DATA_LABEL + 4) return
@@ -1212,7 +1608,7 @@ const pieLabels = computed(() => {
   // outside: a column of labels either side, each joined to its slice by a line
   const widths = pieSideWidths.value
   // the pie's own room, above the legend, less a little at the edges
-  const room = { top: EDGE_ROOM, bottom: cy * 2 - EDGE_ROOM }
+  const room = { top: EDGE_ROOM, bottom: l.bottom + EDGE_ROOM }
   const sides: Record<'left' | 'right', Array<{ k: number; y: number; middle: number }>> = {
     left: [],
     right: [],
@@ -1252,8 +1648,11 @@ const pieLabels = computed(() => {
       const clear = Math.sqrt(Math.max(0, (radius + 8) ** 2 - (y - cy) ** 2))
       const reach = Math.max(Math.abs(sin) * (radius + 10), clear)
       const turn = right ? Math.min(cx + reach, end) : Math.max(cx - reach, end)
+      // a rose's slice ends short of the rim: the line starts at its edge
+      const hole = radius * holeRatio.value
+      const edge = sliceOuter(list[item.k]!, hole, radius)
       out.leaders.push([
-        [cx + sin * (radius + 2), cy - cos * (radius + 2)],
+        [cx + sin * (edge + 2), cy - cos * (edge + 2)],
         [turn, y],
         [end, y],
       ])
@@ -1289,6 +1688,7 @@ const labelsShown = ref(false)
 /** The data labels, placed: the ends of lines first, then the bars', then the points'. */
 const dataLabels = computed<Array<PlacedDataLabel & { ink?: string; width?: number }>>(() => {
   if (pie.value) return pieLabels.value.labels
+  if (tree.value) return treeLabels.value
   const l = layout.value
   if (!l || empty.value) return []
   void themeVersion.value
@@ -1403,13 +1803,16 @@ const markerColors = computed(() => {
 
 const tooltipPart = computed(() => tooltipParts.value[0] ?? null)
 /** Whether the chart follows the pointer and can be focused. */
+// a gauge's value is in the middle of it: nothing to point at
 const interactive = computed(
-  () => !tooltipPart.value?.props.disabled && !empty.value && !props.table,
+  () => !tooltipPart.value?.props.disabled && !empty.value && !props.table && !pie.value?.gauge,
 )
 const trigger = computed(
   () =>
     tooltipPart.value?.props.trigger ??
-    (pie.value || series.value.some((s) => s.kind.tooltip === 'item') ? 'item' : 'axis'),
+    (pie.value || tree.value || series.value.some((s) => s.kind.tooltip === 'item')
+      ? 'item'
+      : 'axis'),
 )
 
 /** An x (with every series at it), one point of a series, or a slice. */
@@ -1431,12 +1834,30 @@ const active = shallowRef<Active | null>(null)
 
 /** What is under `(px, py)`, in px from the chart's top left. */
 function hitAt(px: number, py: number): Target | null {
+  const tl = treeLayout.value
+  if (tl && treeData.value) {
+    const root = treeData.value.root
+    let node: TreeNode | null
+    if (tree.value?.shape === 'treemap') node = treemapAt(root, px, py)
+    else {
+      const r = Math.hypot(px - tl.cx, py - tl.cy)
+      node =
+        r < tl.inner || r > tl.radius ? null : sunburstAt(root, angleAt(tl.cx, tl.cy, px, py), r)
+    }
+    return node ? { type: 'slice', slice: node.index } : null
+  }
   const p = pieLayout.value
   if (p) {
     const r = Math.hypot(px - p.cx, py - p.cy)
-    if (r > p.radius || r < p.radius * holeRatio.value) return null
-    const angle = angleAt(p.cx, p.cy, px, py)
-    const k = slices.value.findIndex((s) => !s.hidden && angle >= s.start && angle < s.end)
+    const inner = p.radius * holeRatio.value
+    if (r > p.radius || r < inner) return null
+    // the pointer's angle on the pie's turn, which may start before 12 o'clock
+    let angle = angleAt(p.cx, p.cy, px, py)
+    while (angle < pieArc.value[0]) angle += Math.PI * 2
+    while (angle >= pieArc.value[0] + Math.PI * 2) angle -= Math.PI * 2
+    const k = slices.value.findIndex(
+      (s) => !s.hidden && angle >= s.start && angle < s.end && r <= sliceOuter(s, inner, p.radius),
+    )
     return k < 0 ? null : { type: 'slice', slice: k }
   }
   const f = funnelLayout.value
@@ -1574,12 +1995,15 @@ const tip = computed<Tip | null>(() => {
 
 function tipOf(a: Active | null): Tip | null {
   if (!a) return null
+  if (a.type === 'slice' && tree.value) return treeTip(a.slice, a.pointer)
   if (a.type === 'slice') {
     const p = pieLayout.value
     const slice = slices.value[a.slice]
     if (!p || !slice || slice.hidden) return null
     const middle = (slice.start + slice.end) / 2
-    const at = p.radius * (holeRatio.value > 0 ? (1 + holeRatio.value) / 2 : 0.6)
+    const inner = p.radius * holeRatio.value
+    const outer = sliceOuter(slice, inner, p.radius)
+    const at = inner > 0 ? (inner + outer) / 2 : outer * 0.6
     const off = slices.value.length - shownSlices.value.length
     return {
       x: slice.label,
@@ -1654,12 +2078,22 @@ function tipOf(a: Active | null): Tip | null {
   const owners: number[] = []
   const marks: Tip['marks'] = []
   let band = false
+  /** A title of a series' own (a histogram's bin), in place of the x. */
+  let title: string | undefined
   for (const s of series.value) {
     const row = rowAt(s.x.values, x)
     const view = viewOf(s)
     if (row < 0 || !view) continue
     const y = s.y[row]!
     if (y !== y) continue
+    title ??= s.kind.xTitle?.(s, row, xText)
+    if (s.kind.box) {
+      const own = boxItems(s, row)
+      items.push(...own)
+      for (const _ of own) owners.push(s.index)
+      band = true
+      continue
+    }
     items.push({
       name: s.name,
       text: seriesText(s, row),
@@ -1707,7 +2141,7 @@ function tipOf(a: Active | null): Tip | null {
   const width = band ? room : 24
   return {
     x: rawX(x),
-    title: xText(x),
+    title: title ?? xText(x),
     items,
     focused: items.some((item) => item.active),
     anchor,
@@ -1795,6 +2229,39 @@ function radarTip(r: RadarLayout, a: Active & { type: 'axis' }): Tip | null {
     anchor: a.pointer ?? far ?? [r.cx, r.cy],
     marks,
   }
+}
+
+/**
+ * A box plot's numbers in the tooltip, top to bottom as drawn, and how many
+ * values are past the whiskers. Beside other series, each says whose it is.
+ */
+function boxItems(s: ChartSeries, row: number): ChartTooltipItem[] {
+  const box = boxes(s)[row]
+  if (!box) return []
+  const m = messages.value
+  const text = valueText(s.axis)
+  const own = series.value.length > 1 ? `${s.name} ` : ''
+  const data = rowOf(s.rows, row)
+  const items: ChartTooltipItem[] = (
+    [
+      [m.boxHigh, box.high],
+      [m.boxQ3, box.q3],
+      [m.boxMedian, box.median],
+      [m.boxQ1, box.q1],
+      [m.boxLow, box.low],
+    ] as const
+  ).map(([name, value]) => ({ name: own + name, text: text(value), value, row: data }))
+  items[2]!.color = s.color
+  if (box.outliers.length)
+    items.push({
+      name: own + format(m.boxOutliers, { count: box.outliers.length }),
+      // a few of them: a long list would bury the box's own numbers
+      text:
+        box.outliers.slice(0, 6).map(text).join(m.nameSeparator) +
+        (box.outliers.length > 6 ? '…' : ''),
+      row: data,
+    })
+  return items
 }
 
 /** A heatmap cell's tooltip: where it is (its x and row) as the title, its value in its color, the cell ringed. */
@@ -2579,6 +3046,13 @@ function stepTo(at: number, step: number, n: number): number {
 /** The next x, point or slice `step` along (±Infinity for the ends). */
 function moveAlong(step: number): Target | null {
   const a = active.value
+  // a tree: its nodes in order, each group before what is in it
+  if (tree.value) {
+    const count = (treeData.value?.nodes.length ?? 1) - 1
+    if (count < 1) return null
+    const at = a?.type === 'slice' ? a.slice - 1 : -1
+    return { type: 'slice', slice: stepTo(at, step, count) + 1 }
+  }
   if (pie.value) {
     const shown = slices.value.flatMap((slice, k) => (slice.hidden ? [] : [k]))
     if (!shown.length) return null
@@ -2698,7 +3172,8 @@ const live = computed(() => {
 const pointer: PointerState = {
   tip,
   size: computed(() => {
-    const l = layout.value ?? pieLayout.value ?? radarLayout.value ?? funnelLayout.value
+    const l =
+      layout.value ?? pieLayout.value ?? treeLayout.value ?? radarLayout.value ?? funnelLayout.value
     return l && { width: l.width, height: l.height }
   }),
   content: computed(() => tooltipPart.value?.content()),
@@ -2734,6 +3209,10 @@ watch(
     pie.value && active.value,
     radarLayout.value,
     funnelLayout.value,
+    treeLayout.value,
+    treeColors.value,
+    tree.value && { ...tree.value.props },
+    tree.value && active.value,
     radar.value && active.value,
     dimmed.value,
   ],
@@ -2939,7 +3418,8 @@ function shownSlicesAt(t: number): PieSlice[] {
 
 function draw() {
   const canvas = canvasRef.value
-  const l = layout.value ?? pieLayout.value ?? radarLayout.value ?? funnelLayout.value
+  const l =
+    layout.value ?? pieLayout.value ?? treeLayout.value ?? radarLayout.value ?? funnelLayout.value
   if (!canvas || !l) return
   if (!onScreen) {
     missed = true
@@ -2969,6 +3449,7 @@ function draw() {
   const t = easeOut(done)
   const entering = motion?.enter ? t : 1
   if (pieLayout.value) paintPie(ctx, t, entering)
+  else if (treeLayout.value) paintTree(ctx, entering, false, dpr)
   else if (radarLayout.value) paintRadar(ctx, dpr, t)
   else if (funnelLayout.value) paintFunnel(ctx, dpr, t)
   else paint(ctx, dpr, t, entering)
@@ -2998,6 +3479,8 @@ function paintPie(painter: Painter, t: number, sweep: number, still = false) {
     focus: focus?.index,
     fade: legendFocus ? FADED : 0.56,
     sweep,
+    from: pieArc.value[0],
+    patterns: slicePatterns.value,
   })
   // the lines out to the labels, once they show
   const leaders = pieLabels.value.leaders
@@ -3385,6 +3868,10 @@ function yCategoryText(axis: ChartValueAxis, place: number): string {
   return own ? own(label) : label
 }
 
+/** A change as text, with `+` before a rise (a fall has its minus already). */
+const signed = (text: (value: number) => string, value: number) =>
+  value > 0 ? `+${text(value)}` : text(value)
+
 /** Values as their axis shows them. */
 function valueText(axis: ChartValueAxis): (value: number) => string {
   return axes.value[axis]?.format ?? numberFormatFull(locale.value.name)
@@ -3397,6 +3884,30 @@ function valueText(axis: ChartValueAxis): (value: number) => string {
 function seriesText(s: ChartSeries, row: number): string {
   const y = s.y[row]!
   if (s.kind.categoryY) return heatText(s)(y)
+  if (s.kind.box) {
+    const box = boxes(s)[row]
+    if (!box) return ''
+    const text = valueText(s.axis)
+    const m = messages.value
+    const line = format(m.box, {
+      median: text(box.median),
+      q1: text(box.q1),
+      q3: text(box.q3),
+      low: text(box.low),
+      high: text(box.high),
+    })
+    // the values past the whiskers too, as the tooltip lists them
+    if (!box.outliers.length) return line
+    return `${line}${m.itemSeparator}${format(m.boxOutliers, { count: box.outliers.length })} ${box.outliers.map(text).join(m.nameSeparator)}`
+  }
+  if (s.kind.waterfall) {
+    const text = valueText(s.axis)
+    if (isTotal(s, row)) return text(y)
+    return format(messages.value.waterfallStep, {
+      change: signed(text, y),
+      total: text(s.top[row]!),
+    })
+  }
   if (s.base && !s.stackEnds) {
     const text = valueText(s.axis)
     return format(messages.value.band, { from: text(s.base[row]!), to: text(y) })
@@ -3439,6 +3950,39 @@ const label = computed(() => {
   const name = locale.value.name
   const m0 = model.value
   if (empty.value) return format(m.summary, { chart: m.chart, series: m.empty })
+  const td = tree.value && treeData.value
+  if (td) {
+    const value = numberFormatFull(name)
+    const list = td.root.children
+      .map((node) =>
+        format(m.slice, {
+          label: node.name,
+          value: value(node.value),
+          share: percent.value.format(node.value / td.root.value),
+        }),
+      )
+      .join(m.listSeparator)
+    const title = tree.value!.props.name
+    return withKeys(
+      format(m.summary, {
+        chart: m.chart,
+        series: title ? format(m.pie, { name: title, slices: list }) : list,
+      }),
+    )
+  }
+  const gauge = pie.value?.gauge?.()
+  if (gauge) {
+    const text = numberFormatFull(name)
+    return format(m.summary, {
+      chart: m.chart,
+      series: format(pie.value!.props.name ? m.gauge : m.gaugeValue, {
+        name: pie.value!.props.name ?? '',
+        value: gauge.text,
+        min: text(gauge.min),
+        max: text(gauge.max),
+      }),
+    })
+  }
   if (pie.value) {
     const value = numberFormatFull(name)
     const list = shownSlices.value
@@ -3487,7 +4031,8 @@ const label = computed(() => {
   const count = numberFormatFull(name)
   const parts = m0.series.map((s) => {
     if (s.input.kind.categoryY) return heatSummary(s)
-    let range = extent(s.y)
+    // a box plot reaches from its lowest value to its highest, outliers too
+    let range = s.input.kind.box ? extent(s.top) : extent(s.y)
     // a band reaches down to its bottom
     const low = s.base && !s.stackEnds ? extent(s.base) : null
     if (range && low) range = [Math.min(range[0], low[0]), Math.max(range[1], low[1])]
@@ -3499,7 +4044,8 @@ const label = computed(() => {
       s.stackEnds && declaredAxes.value[s.axis]?.percent
         ? numberFormatFull(name)
         : valueText(s.axis)
-    return format(m.series, {
+    const message = s.input.kind.box ? m.boxSeries : s.input.kind.xTitle ? m.binsSeries : m.series
+    return format(message, {
       name: s.name,
       count: count(points),
       min: text(range[0]),
@@ -3507,7 +4053,16 @@ const label = computed(() => {
     })
   })
   let chart = m.chart
-  if (m0.x && !radar.value) {
+  // a histogram's x runs from the start of its first bin to the end of its last
+  const bins = m0.series.find((s) => s.input.kind.xTitle)?.rows as
+    Array<{ x0: number; x1: number }> | undefined
+  if (bins?.length) {
+    chart = format(props.horizontal ? m.rangeDown : m.range, {
+      chart: m.chart,
+      from: xText(bins[0]!.x0),
+      to: xText(bins[bins.length - 1]!.x1),
+    })
+  } else if (m0.x && !radar.value) {
     chart = format(props.horizontal ? m.rangeDown : m.range, {
       chart: m.chart,
       from: xText(m0.x[0]),
@@ -3546,6 +4101,22 @@ const TABLE_ROWS = 1000
 const tableCells = computed<{ head: string[]; rows: string[][] }>(() => {
   if (!props.table || empty.value) return { head: [], rows: [] }
   const m = messages.value
+  const td = tree.value && treeData.value
+  if (td) {
+    const value = numberFormatFull(locale.value.name)
+    return {
+      head: [m.tableNode, tree.value!.props.name ?? m.tableValue, m.tableShare],
+      rows: td.nodes
+        .filter((node) => node.depth > 0)
+        .map((node) => [
+          treePath(node).join(' / '),
+          value(node.value),
+          percent.value.format(node.value / td.root.value),
+        ]),
+    }
+  }
+  const gauge = pie.value?.gauge?.()
+  if (gauge) return { head: [pie.value!.props.name ?? m.tableValue], rows: [[gauge.text]] }
   if (pie.value) {
     const value = numberFormatFull(locale.value.name)
     const title =
@@ -3611,11 +4182,21 @@ const tableCells = computed<{ head: string[]; rows: string[][] }>(() => {
   }
   // each x a row, each series a column
   const xs = allX(list.map((s) => s.x.values))
+  // a histogram's x is a bin: its row says the range, headed by what was counted
+  const binned = list.find((s) => s.kind.xTitle)
+  const xCell = (x: number) => {
+    const row = binned ? rowAt(binned.x.values, x) : -1
+    return binned && row >= 0 ? binned.kind.xTitle!(binned, row, xText) : xText(x)
+  }
+  const counted = binned?.props.value
   return {
     // a value's unit is in its axis' title (“销售额（万元）”): its column says it too
-    head: [xHead, ...list.map((s) => withUnit(s.name, axes.value[s.axis]?.title))],
+    head: [
+      xHead || (typeof counted === 'string' ? counted : ''),
+      ...list.map((s) => withUnit(s.name, axes.value[s.axis]?.title)),
+    ],
     rows: xs.map((x) => [
-      xText(x),
+      xCell(x),
       ...list.map((s) => {
         const row = rowAt(s.x.values, x)
         return row < 0 || s.y[row] !== s.y[row] ? '' : seriesText(s, row)
@@ -3688,7 +4269,8 @@ const labels = computed(() => {
 })
 
 const legend = computed(() => {
-  const l = layout.value ?? pieLayout.value ?? radarLayout.value ?? funnelLayout.value
+  const l =
+    layout.value ?? pieLayout.value ?? treeLayout.value ?? radarLayout.value ?? funnelLayout.value
   if (!l) return []
   return l.legend.map((item) => ({ ...item, ...legendEntries.value[item.index]! }))
 })
@@ -3703,7 +4285,8 @@ const titles = computed(() => {
 
 /** The size of what is drawn: a chart with axes, or a pie. */
 const frame = computed(
-  () => layout.value ?? pieLayout.value ?? radarLayout.value ?? funnelLayout.value,
+  () =>
+    layout.value ?? pieLayout.value ?? treeLayout.value ?? radarLayout.value ?? funnelLayout.value,
 )
 
 const overlay: OverlayState = {
@@ -3713,15 +4296,32 @@ const overlay: OverlayState = {
   titles,
   legend,
   legendBox: computed(
-    () => (layout.value ?? pieLayout.value ?? radarLayout.value ?? funnelLayout.value)?.legendBox,
+    () =>
+      (
+        layout.value ??
+        pieLayout.value ??
+        treeLayout.value ??
+        radarLayout.value ??
+        funnelLayout.value
+      )?.legendBox,
   ),
   hole: computed(() => {
+    const tl = treeLayout.value
+    if (tl && tree.value?.shape === 'sunburst' && tl.inner > 0 && !empty.value && !fromServer.value)
+      return { left: tl.cx, top: tl.cy, width: tl.inner * 2 * 0.8 }
     const l = pieLayout.value
     if (!l || empty.value || fromServer.value || !(holeRatio.value > 0)) return null
-    return { left: l.cx, top: l.cy, width: l.radius * holeRatio.value * 2 * 0.8 }
+    // a half donut opening downward: what goes in it sits on its flat edge
+    const box = arcBox(pieArc.value[0], pieArc.value[1])
+    return {
+      left: l.cx,
+      top: l.cy,
+      width: l.radius * holeRatio.value * 2 * 0.8,
+      above: box.bottom < 0.01,
+    }
   }),
   // the pie's default slot
-  center: () => pie.value?.center(),
+  center: () => pie.value?.center() ?? tree.value?.center?.(),
   toggle,
   isolate,
   hint: computed(() => messages.value.legendHint),
@@ -4116,6 +4716,10 @@ function drawSvg(
         anchor: 'middle',
       }),
     )
+  } else if (treeLayout.value) {
+    paintTree(svg, 1, true)
+    const center = root?.querySelector(`.${ns.e('center')}`)
+    if (center && root) texts.push(textsIn(center, root.getBoundingClientRect(), color))
   } else if (pieLayout.value) {
     paintPie(svg, 1, 1, true)
     const center = root?.querySelector(`.${ns.e('center')}`)

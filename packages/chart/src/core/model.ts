@@ -11,6 +11,9 @@ import {
   type XKind,
 } from './data'
 import type { ChartSeriesKind, ChartSeriesProps, ChartValueAxis } from './series'
+import { waterfallSteps } from './waterfall'
+import { warnOnce } from './warn'
+import { boxesOf } from './box'
 
 /** A series as registered by its component. */
 export interface SeriesInput {
@@ -124,6 +127,12 @@ export function buildModel(
     axis?: ChartValueAxis
     /** Value axes whose stacks show each part's share of the whole (0 to 1). */
     percent?: Partial<Record<ChartValueAxis, boolean>>
+    /**
+     * The order of the categories along x: by their totals (the sum of the
+     * shown series' values), or as a function of two category names orders
+     * them. As they come in the data when not given.
+     */
+    sort?: ChartCategorySort
   },
 ): ChartModel {
   const shown = inputs.filter((input) => !input.hidden)
@@ -172,7 +181,46 @@ export function buildModel(
         yColumn: places,
       }
     }
+    if (input.kind.box) {
+      const list = boxesOf(rows, input.props.y, input.props.whisker as number | undefined)
+      const n = list.length
+      const [y, top, base] = [new Float64Array(n), new Float64Array(n), new Float64Array(n)]
+      list.forEach((box, i) => {
+        if (!box) {
+          y[i] = top[i] = base[i] = Number.NaN
+          return
+        }
+        y[i] = box.median
+        base[i] = Math.min(box.low, ...box.outliers)
+        top[i] = Math.max(box.high, ...box.outliers)
+      })
+      return {
+        input,
+        name,
+        rows,
+        axis: input.props.axis ?? chart.axis ?? 'y',
+        x: column,
+        y,
+        top,
+        base,
+        stackEnds: null,
+        slot: null,
+      }
+    }
     const y = yColumn(rows, input.props.y)
+    if (input.kind.waterfall) {
+      const steps = waterfallSteps(rows, y, input.props.total as ChartAccessor | undefined)
+      return {
+        input,
+        name,
+        rows,
+        axis: input.props.axis ?? chart.axis ?? 'y',
+        x: column,
+        ...steps,
+        stackEnds: null,
+        slot: null,
+      }
+    }
     const y0 = input.props.y0
     return {
       input,
@@ -210,6 +258,21 @@ export function buildModel(
     }
   }
 
+  if (chart.sort) {
+    // a waterfall adds up in the order of its rows: sorted, its totals would land anywhere
+    if (kind !== 'category')
+      warnOnce(
+        'sort',
+        'an axis `sort` orders the categories of a category x axis; it does nothing here.',
+      )
+    else if (series.some((s) => s.input.kind.waterfall))
+      warnOnce(
+        'sort-waterfall',
+        'a waterfall adds up in the order of its rows, so the x axis `sort` is left out.',
+      )
+    else if (categories.length > 1) categories = sortCategories(series, categories, chart.sort)
+  }
+
   const yCategories = categoriesDown(series)
 
   stack(series, chart.percent ?? {})
@@ -222,7 +285,7 @@ export function buildModel(
     for (const s of series) {
       x = merge(x, s.x.sorted ? ends(s.x.values) : cachedExtent(s.x.values))
       if (s.input.kind.band) {
-        const gap = smallestGap(s.x.values)
+        const gap = s.input.kind.xStep?.(s as never) ?? smallestGap(s.x.values)
         if (!(gap >= xStep)) xStep = gap
       }
     }
@@ -250,6 +313,52 @@ export function buildModel(
     if (list) y[axis] = list.length ? [0, list.length - 1] : null
   }
   return { series, xKind: kind, categories, x, y, zero, yCategories, xIntegers, xStep, inset }
+}
+
+/** How categories along x are ordered: by their totals, or by a comparison of their names. */
+export type ChartCategorySort = 'asc' | 'desc' | ((a: string, b: string) => number)
+
+/** `categories` put in the order `sort` asks for, the series' x moved with them. */
+function sortCategories(
+  series: ModelSeries[],
+  categories: string[],
+  sort: ChartCategorySort,
+): string[] {
+  const order = categories.map((_, i) => i)
+  if (typeof sort === 'function') order.sort((a, b) => sort(categories[a]!, categories[b]!))
+  else {
+    const totals = new Float64Array(categories.length)
+    for (const s of series) {
+      // a heatmap's values are cells, not amounts along x
+      if (s.input.kind.categoryY) continue
+      for (let i = 0; i < s.y.length; i++) {
+        const x = s.x.values[i]!
+        const v = s.y[i]!
+        if (x === x && v === v) totals[x] = totals[x]! + v
+      }
+    }
+    const sign = sort === 'desc' ? -1 : 1
+    // ties keep the order they came in
+    order.sort((a, b) => sign * (totals[a]! - totals[b]!) || a - b)
+  }
+  const place = new Float64Array(categories.length)
+  order.forEach((from, to) => (place[from] = to))
+  const sorted = order.map((i) => categories[i]!)
+  const moved = new Map<XColumn, XColumn>()
+  for (const s of series) {
+    let column = moved.get(s.x)
+    if (!column) {
+      const values = new Float64Array(s.x.values.length)
+      for (let i = 0; i < values.length; i++) {
+        const v = s.x.values[i]!
+        values[i] = v === v ? place[v]! : v
+      }
+      column = { ...s.x, values, categories: sorted, sorted: false }
+      moved.set(s.x, column)
+    }
+    s.x = column
+  }
+  return sorted
 }
 
 /**

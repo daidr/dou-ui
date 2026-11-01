@@ -1,5 +1,6 @@
 import { visibleRange } from './decimate'
 import type { Painter } from './painter'
+import { fillPattern } from './pattern'
 import { baseline } from './scale'
 import type { ChartLabelAnchor, ChartSeries, ChartSeriesKind, ChartView } from './series'
 
@@ -46,14 +47,19 @@ export function barPlacement(
  * one bar from the lowest to the highest value there, which looks the
  * same and keeps a million bars as cheap as a few hundred.
  */
-export function drawBars(painter: Painter, series: ChartSeries<BarStyle>, view: ChartView) {
+export function drawBars(
+  painter: Painter,
+  series: ChartSeries<BarStyle>,
+  view: ChartView,
+  placement = barPlacement(view.band, series.slot),
+) {
   const { x: sx, y: sy, dpr, horizontal } = view
   const xs = series.x.values
   const top = series.top
   const base = series.base
   const ends = series.stackEnds
   const [from, to] = visibleRange(xs, series.x.sorted, sx.domain[0], sx.domain[1])
-  const { offset, width } = barPlacement(view.band, series.slot)
+  const { offset, width } = placement
   const zero = baseline(sy)
   const log = sy.kind === 'log'
   const snap = (v: number) => Math.round(v * dpr) / dpr
@@ -138,10 +144,12 @@ export function drawBars(painter: Painter, series: ChartSeries<BarStyle>, view: 
       painter.beginPath()
       for (const i of rows) bar(i)
       painter.fill()
+      if (series.pattern) fillPattern(painter, series.pattern, view.plot, view.colors.surface)
     }
   } else {
     for (let i = from; i < to; i++) bar(i)
     painter.fill()
+    if (series.pattern) fillPattern(painter, series.pattern, view.plot, view.colors.surface)
   }
   painter.restore()
 }
@@ -184,9 +192,13 @@ const LABEL_WIDTH = 8
  * Where bars' labels go: past each bar's end, or in its middle (stacked
  * bars, by default), with the bar to fit in.
  */
-export function barLabels(series: ChartSeries<BarStyle>, view: ChartView): ChartLabelAnchor[] {
+export function barLabels(
+  series: ChartSeries<BarStyle>,
+  view: ChartView,
+  placement = barPlacement(view.band, series.slot),
+): ChartLabelAnchor[] {
   const { x: sx, y: sy, horizontal } = view
-  const { offset, width } = barPlacement(view.band, series.slot)
+  const { offset, width } = placement
   if (width < LABEL_WIDTH) return []
   const xs = series.x.values
   const top = series.top
@@ -207,7 +219,8 @@ export function barLabels(series: ChartSeries<BarStyle>, view: ChartView): Chart
     const u = sx.map(x) + offset + width / 2
     const v1 = sy.map(value)
     const v0 = base ? sy.map(from0) : zero
-    const up = value > from0
+    // which way the bar runs on screen: a reversed axis turns it round
+    const up = horizontal ? v1 > v0 : v1 < v0
     if (inside) {
       const lo = Math.min(v0, v1)
       const length = Math.abs(v1 - v0)

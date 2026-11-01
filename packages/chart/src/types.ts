@@ -1,4 +1,5 @@
 import type { ChartAccessor, ChartData, ChartRow } from './core/data'
+import type { ChartPattern } from './core/pattern'
 import type {
   ChartAxisRole,
   ChartAxisType,
@@ -6,6 +7,7 @@ import type {
   ChartTickValue,
 } from './core/layout'
 import type { Tone } from 'dou-ui'
+import type { ChartCategorySort } from './core/model'
 import type { ChartSeriesProps, ChartValueAxis } from './core/series'
 import type { ChartMessagesOverride } from './locale'
 
@@ -36,6 +38,11 @@ export interface ChartProps {
    * theme's eight: CSS colors or tones. A pie takes them from the first.
    */
   palette?: string[]
+  /**
+   * Gives each series with a fill (bars, areas) and each slice a pattern
+   * over its color, so they can be told apart in print or in grays.
+   */
+  patterns?: boolean
   /**
    * Lay x down the left side and values along the bottom: bars that are
    * easier to read across, with room for long category names. Axes and
@@ -149,6 +156,17 @@ export interface ChartAxisProps {
    * Give charts stacked one above another the same value to line up their plots.
    */
   labelWidth?: number
+  /**
+   * Runs the axis the other way: values down from the top (a ranking, 1st
+   * at the top), x from the right (from the bottom, on a horizontal chart).
+   */
+  reverse?: boolean
+  /**
+   * For a category x axis: the order of the categories. `asc` and
+   * `desc` order them by their totals (the sum of the series shown);
+   * a function compares two category names. As in the data by default.
+   */
+  sort?: ChartCategorySort
 }
 
 export interface ChartLineProps extends Omit<ChartSeriesProps, 'color'> {
@@ -188,17 +206,21 @@ export interface ChartDataLabel {
   share?: number
   /** A band's bottom (`y0`). */
   low?: number
-  /** The series' name; for a pie, the slice's. */
+  /** The series' name; for a pie, the slice's; for a tree, the node's. */
   name: string
   row: ChartRow
-  /** The row's index. */
+  /** The row's index; for a treemap's or sunburst's node, its place among its siblings. */
   index: number
+  /** For a treemap's or sunburst's node: its level, 1 for the top. */
+  depth?: number
 }
 
 /** The text of a data label; `null` or `undefined` for none. */
 export type ChartLabelFormat = (label: ChartDataLabel) => string | null | undefined
 
 export interface ChartAreaProps extends ChartLineProps {
+  /** A pattern over the fill; `none` for none even when the chart's `patterns` is on. */
+  pattern?: ChartPattern | 'none'
   /** Stack on the series before it with the same `stack` name (`true` is one shared stack). */
   stack?: string | boolean
   /**
@@ -216,6 +238,8 @@ export interface ChartAreaProps extends ChartLineProps {
 export type ChartItemColor = (row: ChartRow, index: number) => string | undefined
 
 export interface ChartBarProps extends ChartSeriesProps {
+  /** A pattern over the bars; `none` for none even when the chart's `patterns` is on. */
+  pattern?: ChartPattern | 'none'
   /**
    * Any CSS color for all the bars, or a function that gives each bar its own
    * (a CSS color or a tone; `undefined` keeps the series' color, as in the legend).
@@ -232,6 +256,61 @@ export interface ChartBarProps extends ChartSeriesProps {
    * Stacked bars default to `inside`, the others to `outside`. A label
    * that doesn't fit inside its bar is left out.
    */
+  labelPosition?: 'outside' | 'inside'
+}
+
+export interface ChartBoxplotProps extends ChartSeriesProps {
+  /** Each row's group of values, an array: a key of the row or a function of it. */
+  y: ChartAccessor
+  /** Any CSS color for the boxes. */
+  color?: string
+  /**
+   * How far the whiskers reach past the box, in box lengths; values past
+   * them are drawn as dots of their own. `Infinity` reaches all the values.
+   */
+  whisker?: number
+}
+
+export interface ChartHistogramProps extends Omit<ChartSeriesProps, 'y' | 'x' | 'color'> {
+  /** The value of each row, counted into bins: a key of the row or a function of it. */
+  value: ChartAccessor
+  /** About how many bins: their width is a round number near the span over it. Defaults by the number of values. */
+  bins?: number
+  /** The width of each bin, exactly; takes the place of `bins`. */
+  step?: number
+  /** Any CSS color for the bars. */
+  color?: string
+  /** Corner radius of the bars' tops, in px. */
+  radius?: number
+  /** A pattern over the bars; `none` for none even when the chart's `patterns` is on. */
+  pattern?: ChartPattern | 'none'
+  /** Shows each bin's count as text. */
+  labels?: boolean | ChartLabelFormat
+  /** Where labels go: above each bar (`outside`) or in it (`inside`). */
+  labelPosition?: 'outside' | 'inside'
+}
+
+export interface ChartWaterfallProps extends ChartSeriesProps {
+  /** The change of each row; for a total row, it is not read. */
+  y: ChartAccessor
+  /**
+   * Whether a row is a total: a key of the row or a function of it. A total
+   * row is a bar from 0 up to the running total of the rows before it.
+   */
+  total?: ChartAccessor
+  /**
+   * Any CSS color for all the bars, or a function that gives each bar its
+   * own. By default, rises are in the success tone, falls in the danger
+   * tone and totals in the series' color.
+   */
+  color?: string | ChartItemColor
+  /** Corner radius of the bars, in px. */
+  radius?: number
+  /** Dashed lines from each bar to the next, at the total they share. */
+  connectors?: boolean
+  /** Shows each change (with its sign) and each total as text. */
+  labels?: boolean | ChartLabelFormat
+  /** Where labels go: past the bar's end (`outside`) or in it (`inside`). */
   labelPosition?: 'outside' | 'inside'
 }
 
@@ -312,6 +391,84 @@ export interface ChartPieProps {
    * or inside each slice (left out where a slice is too small).
    */
   labelPosition?: 'outside' | 'inside'
+  /**
+   * Where the slices start and end, in degrees clockwise from 12 o'clock:
+   * `-90` to `90` makes a half pie (a half donut, with `inner-radius`).
+   * The whole turn by default.
+   */
+  startAngle?: number
+  endAngle?: number
+  /**
+   * A rose: each slice takes the same angle and reaches out by its value,
+   * its area in proportion to it.
+   */
+  rose?: boolean
+}
+
+/** What a treemap and a sunburst take: a tree of nested rows. */
+export interface ChartTreeProps {
+  /** The top level of the tree: rows, each with its children; defaults to the chart's `data`. */
+  data?: ChartRow[]
+  /** Each node's name. */
+  label?: ChartAccessor
+  /** Each leaf's value; a node with children is the sum of theirs. */
+  value?: ChartAccessor
+  /** Each node's children, an array of rows. */
+  children?: ChartAccessor
+  /** What the whole is, read out first. */
+  name?: string
+  /**
+   * Each node's color: a key of its row, or a function of the row and its
+   * level (1 for the top), giving a CSS color or a tone; nothing takes the
+   * parent's color, and the top level the palette's.
+   */
+  color?: string | ((row: ChartRow, depth: number) => string | undefined)
+  /**
+   * Writes each node's name in it, where it fits (`true`), or what a
+   * function gives; its `share` is the node's part of the whole.
+   */
+  labels?: boolean | ChartLabelFormat
+}
+
+export type ChartTreemapProps = ChartTreeProps
+
+export interface ChartSunburstProps extends ChartTreeProps {
+  /** The hole in the middle as a share of the radius. */
+  innerRadius?: number
+}
+
+export interface ChartSunburstSlots {
+  /** What goes in the hole in the middle. */
+  default?: () => any
+}
+
+export interface ChartGaugeProps {
+  /** The value shown. */
+  value: number
+  /** The start of the track. */
+  min?: number
+  /** The end of the track. */
+  max?: number
+  /** What the value is: under it in the middle, and read out. */
+  name?: string
+  /**
+   * The color of the value's arc: a CSS color or a tone, or a function of
+   * the value giving one (`success` when it is high enough, say).
+   */
+  color?: string | ((value: number) => string)
+  /** The value as text, in the middle and read out. */
+  format?: (value: number) => string
+  /** The hole in the middle as a share of the radius: how thin the arc is. */
+  innerRadius?: number
+  /** Where the track starts, in degrees clockwise from 12 o'clock. */
+  startAngle?: number
+  /** Where it ends, in degrees. */
+  endAngle?: number
+}
+
+export interface ChartGaugeSlots {
+  /** What goes in the middle, in place of the value and its name. */
+  default?: (props: { value: number; text: string }) => any
 }
 
 export interface ChartTooltipProps {

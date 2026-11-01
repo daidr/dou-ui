@@ -1,5 +1,6 @@
 import type { Tone } from 'dou-ui'
 import type { ChartAccessor, ChartData, XColumn } from './data'
+import type { ChartPattern } from './pattern'
 import type { Painter, Rect } from './painter'
 import type { Scale } from './scale'
 
@@ -62,6 +63,8 @@ export interface ChartSeries<P = Record<string, unknown>> {
   stackEnds: { up: Float64Array; down: Float64Array } | null
   /** For series that share the room of each x (bars): which part is theirs. */
   slot: { index: number; count: number } | null
+  /** The pattern drawn over its fill, if any (the chart's `patterns`, or its own `pattern`). */
+  pattern?: ChartPattern | null
   /**
    * What the kind's `prepare` gave back for this data; `undefined` until
    * it has run, so `draw` and `hit` must work without it.
@@ -130,6 +133,18 @@ export interface ChartSeriesKind<P = Record<string, unknown>> {
    * another, without axes. It is drawn alone, as a pie is.
    */
   funnel?: boolean
+  /**
+   * Whether the series is a waterfall: each value a change, drawn from the
+   * running total before it (`base`) to the one after (`top`); rows its
+   * `total` marks are drawn from 0 to the running total.
+   */
+  waterfall?: boolean
+  /**
+   * Whether the series is a box plot: `y` gives each row a group of values,
+   * summed up in a box; `y` holds the medians, and `base` and `top` the
+   * smallest and largest values, so the axis reaches them.
+   */
+  box?: boolean
   /** Whether series of this kind can stack (`stack` prop). */
   stackable?: boolean
   /**
@@ -162,6 +177,17 @@ export interface ChartSeriesKind<P = Record<string, unknown>> {
    * replaced many times a second (live data).
    */
   prepare?(series: ChartSeries<P>): unknown
+  /**
+   * The tooltip's title for row `row`, in place of its x as the axis
+   * writes it (`text`): a histogram's bin, from its start to its end.
+   */
+  xTitle?(series: ChartSeries<P>, row: number, text: (x: number) => string): string
+  /**
+   * For a `band` series, how wide one band is in x's units, in place of
+   * the smallest gap between its x values: a histogram's bin width, which
+   * holds with only one bin.
+   */
+  xStep?(series: ChartSeries<P>): number
   /**
    * Where the series' data labels go (`labels` prop): a point and the side
    * of it the text takes, for each row on screen worth a label. The chart

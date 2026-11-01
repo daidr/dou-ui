@@ -39,6 +39,8 @@ export interface OverlayState {
       /** A heatmap's scale: its colors, least to most, in a swatch `swatch` px wide. */
       scale?: string[]
       swatch?: number
+      /** The pattern over its color, as a CSS background image and its size. */
+      pattern?: { image: string; size?: string }
     }>
   >
   /** Where the legend shows; its entries scroll in it when they don't all fit. */
@@ -52,7 +54,7 @@ export interface OverlayState {
   /** Brings the series at `index` forward while the pointer or focus is on its entry; `null` to stop. */
   focus: (index: number | null) => void
   /** Where the donut's hole is, if there is one to fill. */
-  hole: ComputedRef<{ left: number; top: number; width: number } | null>
+  hole: ComputedRef<{ left: number; top: number; width: number; above?: boolean } | null>
   center: () => VNodeChild
   /** The markers' labels. */
   markers: ComputedRef<Array<MarkerLabel & { key: string; tone: Tone; backdrop: boolean }>>
@@ -245,7 +247,13 @@ const focusVisible = (e: FocusEvent) => (e.target as Element).matches(':focus-vi
                   width: `${item.swatch}px`,
                   background: `linear-gradient(to right, ${item.scale.join(', ')})`,
                 }
-              : { color: item.color }
+              : item.pattern
+                ? {
+                    color: item.color,
+                    backgroundImage: item.pattern.image,
+                    backgroundSize: item.pattern.size,
+                  }
+                : { color: item.color }
           "
         /><span :class="ns.e('text')">{{ item.text }}</span>
       </button>
@@ -254,7 +262,7 @@ const focusVisible = (e: FocusEvent) => (e.target as Element).matches(':focus-vi
   </div>
   <div
     v-if="hole"
-    :class="ns.e('center')"
+    :class="[ns.e('center'), ns.is('above', !!hole.above)]"
     :style="{ left: `${hole.left}px`, top: `${hole.top}px`, width: `${hole.width}px` }"
   >
     <Center />

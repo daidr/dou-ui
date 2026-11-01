@@ -7,6 +7,12 @@ import Pie from './components/pie.vue'
 import Heatmap from './components/heatmap.vue'
 import Radar from './components/radar.vue'
 import Funnel from './components/funnel.vue'
+import Waterfall from './components/waterfall.vue'
+import Histogram from './components/histogram.vue'
+import Boxplot from './components/boxplot.vue'
+import Gauge from './components/gauge.vue'
+import Treemap from './components/treemap.vue'
+import Sunburst from './components/sunburst.vue'
 import Scatter from './components/scatter.vue'
 import Tooltip from './components/tooltip.vue'
 import Zoom from './components/zoom.vue'
@@ -25,6 +31,12 @@ export const DouChartPie = withInstall(Pie)
 export const DouChartHeatmap = withInstall(Heatmap)
 export const DouChartRadar = withInstall(Radar)
 export const DouChartFunnel = withInstall(Funnel)
+export const DouChartWaterfall = withInstall(Waterfall)
+export const DouChartHistogram = withInstall(Histogram)
+export const DouChartBoxplot = withInstall(Boxplot)
+export const DouChartGauge = withInstall(Gauge)
+export const DouChartTreemap = withInstall(Treemap)
+export const DouChartSunburst = withInstall(Sunburst)
 export const DouChartTooltip = withInstall(Tooltip)
 export const DouChartZoom = withInstall(Zoom)
 export const DouChartBrush = withInstall(Brush)
@@ -38,6 +50,7 @@ export type {
   ChartAreaProps,
   ChartAxisProps,
   ChartBarProps,
+  ChartBoxplotProps,
   ChartItemColor,
   ChartDataLabel,
   ChartLabelFormat,
@@ -46,7 +59,10 @@ export type {
   ChartExportOptions,
   ChartExpose,
   ChartFunnelProps,
+  ChartGaugeProps,
+  ChartGaugeSlots,
   ChartHeatmapProps,
+  ChartHistogramProps,
   ChartImageOptions,
   ChartInterval,
   ChartLineProps,
@@ -57,10 +73,15 @@ export type {
   ChartProps,
   ChartScatterProps,
   ChartSelectEvent,
+  ChartSunburstProps,
+  ChartSunburstSlots,
   ChartSlots,
   ChartTooltipItem,
   ChartTooltipProps,
   ChartTooltipSlots,
+  ChartTreeProps,
+  ChartTreemapProps,
+  ChartWaterfallProps,
   ChartZoomAxis,
   ChartZoomProps,
 } from './types'
@@ -77,6 +98,8 @@ export type {
   ChartLegendPlacement,
   ChartTickValue,
 } from './core/layout'
+export type { ChartCategorySort } from './core/model'
+export type { ChartPattern } from './core/pattern'
 export type { Painter as ChartPainter, Rect as ChartRect } from './core/painter'
 export type { Scale as ChartScale } from './core/scale'
 export type {
@@ -102,6 +125,12 @@ declare module 'vue' {
     DouChartHeatmap: typeof DouChartHeatmap
     DouChartRadar: typeof DouChartRadar
     DouChartFunnel: typeof DouChartFunnel
+    DouChartWaterfall: typeof DouChartWaterfall
+    DouChartHistogram: typeof DouChartHistogram
+    DouChartBoxplot: typeof DouChartBoxplot
+    DouChartGauge: typeof DouChartGauge
+    DouChartTreemap: typeof DouChartTreemap
+    DouChartSunburst: typeof DouChartSunburst
     DouChartPie: typeof DouChartPie
     DouChartTooltip: typeof DouChartTooltip
     DouChartZoom: typeof DouChartZoom

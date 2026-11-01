@@ -25,6 +25,26 @@ export interface ChartMessages {
   share: string
   /** A band's two ends in its tooltip: `{from}`, `{to}`. */
   band: string
+  /** A waterfall's change and the running total after it: `{change}`, `{total}`. */
+  waterfallStep: string
+  /** A box plot's numbers, in its tooltip: its top and bottom whisker, quartiles and median. */
+  boxHigh: string
+  boxQ3: string
+  boxMedian: string
+  boxQ1: string
+  boxLow: string
+  /** The values past a box plot's whiskers: `{count}`. */
+  boxOutliers: string
+  /** A box plot in the summary: `{name}`, `{count}` (its groups), `{min}`, `{max}`. */
+  boxSeries: string
+  /** A histogram in the summary: `{name}`, `{count}` (its bins), `{min}`, `{max}` (counts). */
+  binsSeries: string
+  /** A gauge, read out: `{name}`, `{value}`, `{min}`, `{max}`. */
+  gauge: string
+  /** The same, for a gauge without a name. */
+  gaugeValue: string
+  /** A box plot's numbers in one line, read out and in the table: `{median}`, `{q1}`, `{q3}`, `{low}`, `{high}`. */
+  box: string
   /** Read out with each legend entry: how to show it alone. */
   legendHint: string
   /** Under a pie with slices turned off: `{count}`. */
@@ -60,6 +80,10 @@ export interface ChartMessages {
   tableValue: string
   /** The table view's head over a pie's shares. */
   tableShare: string
+  /** The table view's head over a tree's nodes. */
+  tableNode: string
+  /** What a histogram counts, when it has no `name`. */
+  count: string
   /** A funnel stage's share of the stage before it, in its tooltip, table and summary. */
   stageRate: string
   /** A funnel stage's share of the first stage. */
@@ -79,6 +103,18 @@ const zhCN: ChartMessages = {
   itemSeparator: '，',
   share: '{value}（{share}）',
   band: '{from} ~ {to}',
+  waterfallStep: '{change}，累计 {total}',
+  boxHigh: '上限',
+  boxQ3: '上四分位',
+  boxMedian: '中位数',
+  boxQ1: '下四分位',
+  boxLow: '下限',
+  boxOutliers: '异常值 {count} 个',
+  boxSeries: '{name}：{count} 组，最小 {min}，最大 {max}',
+  binsSeries: '{name}：{count} 个区间，最少 {min}，最多 {max}',
+  gauge: '{name} {value}，范围 {min} ~ {max}',
+  gaugeValue: '{value}，范围 {min} ~ {max}',
+  box: '中位数 {median}，四分位 {q1} ~ {q3}，范围 {low} ~ {high}',
   legendHint: '按 Alt+Enter 或按住 Alt 点击只显示这一项，再按一次恢复全部',
   hiddenSlices: '已隐藏 {count} 项，占比只按显示的部分计算',
   keys: '{summary}。用方向键逐个查看数据',
@@ -97,6 +133,8 @@ const zhCN: ChartMessages = {
   tableSeries: '系列',
   tableValue: '值',
   tableShare: '占比',
+  tableNode: '节点',
+  count: '数量',
   stageRate: '转化率',
   totalRate: '总转化率',
   tableMore: '只显示前 {shown} 行，共 {count} 行',
@@ -113,6 +151,18 @@ const zhTW: ChartMessages = {
   itemSeparator: '，',
   share: '{value}（{share}）',
   band: '{from} ~ {to}',
+  waterfallStep: '{change}，累計 {total}',
+  boxHigh: '上限',
+  boxQ3: '上四分位',
+  boxMedian: '中位數',
+  boxQ1: '下四分位',
+  boxLow: '下限',
+  boxOutliers: '異常值 {count} 個',
+  boxSeries: '{name}：{count} 組，最小 {min}，最大 {max}',
+  binsSeries: '{name}：{count} 個區間，最少 {min}，最多 {max}',
+  gauge: '{name} {value}，範圍 {min} ~ {max}',
+  gaugeValue: '{value}，範圍 {min} ~ {max}',
+  box: '中位數 {median}，四分位 {q1} ~ {q3}，範圍 {low} ~ {high}',
   legendHint: '按 Alt+Enter 或按住 Alt 點擊只顯示這一項，再按一次恢復全部',
   hiddenSlices: '已隱藏 {count} 項，占比只按顯示的部分計算',
   keys: '{summary}。用方向鍵逐個查看資料',
@@ -131,6 +181,8 @@ const zhTW: ChartMessages = {
   tableSeries: '系列',
   tableValue: '值',
   tableShare: '佔比',
+  tableNode: '節點',
+  count: '數量',
   stageRate: '轉化率',
   totalRate: '總轉化率',
   tableMore: '只顯示前 {shown} 列，共 {count} 列',
@@ -147,6 +199,18 @@ const en: ChartMessages = {
   itemSeparator: ', ',
   share: '{value} ({share})',
   band: '{from} – {to}',
+  waterfallStep: '{change}, total {total}',
+  boxHigh: 'Upper whisker',
+  boxQ3: 'Upper quartile',
+  boxMedian: 'Median',
+  boxQ1: 'Lower quartile',
+  boxLow: 'Lower whisker',
+  boxOutliers: '{count} outliers',
+  boxSeries: '{name}: {count} groups, min {min}, max {max}',
+  binsSeries: '{name}: {count} bins, fewest {min}, most {max}',
+  gauge: '{name} {value}, range {min} – {max}',
+  gaugeValue: '{value}, range {min} – {max}',
+  box: 'median {median}, quartiles {q1} – {q3}, range {low} – {high}',
   legendHint: 'Alt+Enter or Alt+click shows only this one; again shows all',
   hiddenSlices: '{count} hidden; shares are of the slices shown',
   keys: '{summary}. Use the arrow keys to read each point',
@@ -165,6 +229,8 @@ const en: ChartMessages = {
   tableSeries: 'Series',
   tableValue: 'Value',
   tableShare: 'Share',
+  tableNode: 'Node',
+  count: 'Count',
   stageRate: 'Conversion',
   totalRate: 'Overall',
   tableMore: 'Showing the first {shown} of {count} rows',

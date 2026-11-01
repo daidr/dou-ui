@@ -1,5 +1,6 @@
 import { read, yColumn, type ChartAccessor, type ChartData, rowOf } from './data'
 import type { Painter } from './painter'
+import { fillPattern, type ChartPattern } from './pattern'
 
 /** A slice of a pie, with its angles in radians clockwise from 12 o'clock. */
 export interface PieSlice {
@@ -15,6 +16,29 @@ export interface PieSlice {
   hidden: boolean
   start: number
   end: number
+  /**
+   * How much of its ring it fills, 0 to 1: 1, but for a rose, whose
+   * slices share the turn evenly and fill out by their values.
+   */
+  reach: number
+}
+
+/**
+ * How far out a slice reaches, from a hole of `inner` px to `radius` px:
+ * a rose's slice by area, so twice the value covers twice the ink.
+ */
+export function sliceOuter(slice: Pick<PieSlice, 'reach'>, inner: number, radius: number) {
+  if (slice.reach >= 1) return radius
+  return Math.sqrt(inner * inner + (radius * radius - inner * inner) * slice.reach)
+}
+
+/** The part of the turn a pie takes, and whether it is a rose. */
+export interface PieShape {
+  /** Where the slices start and end, in radians clockwise from 12 o'clock. */
+  start?: number
+  end?: number
+  /** Each slice the same angle, its area (not its angle) by its value. */
+  rose?: boolean
 }
 
 /**
@@ -28,6 +52,7 @@ export function pieSlices(
   label: ChartAccessor | undefined,
   color?: ChartAccessor,
   hidden?: readonly string[],
+  shape: PieShape = {},
 ): PieSlice[] {
   const values = yColumn(rows, value)
   const off = new Set(hidden)
@@ -48,16 +73,23 @@ export function pieSlices(
       hidden: off.has(name),
       start: 0,
       end: 0,
+      reach: 1,
     }
     if (!slice.hidden) total += v
     slices.push(slice)
   }
-  let angle = 0
+  const from = shape.start ?? 0
+  const span = Math.max(0, Math.min(Math.PI * 2, (shape.end ?? from + Math.PI * 2) - from))
+  const shown = slices.filter((slice) => !slice.hidden)
+  // a rose: the largest reaches the rim, the others by area, so the eye compares amounts
+  const most = Math.max(0, ...shown.map((slice) => slice.value))
+  let angle = from
   for (const slice of slices) {
     slice.start = angle
     if (!slice.hidden && total > 0) {
       slice.share = slice.value / total
-      angle += slice.share * Math.PI * 2
+      angle += shape.rose ? span / shown.length : slice.share * span
+      if (shape.rose) slice.reach = slice.value / most
     }
     slice.end = angle
   }
@@ -92,6 +124,8 @@ export function drawPie(
     focus = -1,
     fade = FADED,
     sweep = 1,
+    from = 0,
+    patterns,
   }: {
     cx: number
     cy: number
@@ -103,9 +137,13 @@ export function drawPie(
     /** How much the other slices show. */
     fade?: number
     sweep?: number
+    /** Where the slices start: coming in, they sweep round from there. */
+    from?: number
+    /** The pattern over each slice, by its `index`. */
+    patterns?: Array<ChartPattern | null>
   },
 ) {
-  const turn = (angle: number) => angle * sweep
+  const turn = (angle: number) => from + (angle - from) * sweep
   const shown = slices.filter((slice) => slice.end > slice.start)
   slices.forEach((slice, k) => {
     if (!(slice.end > slice.start)) return
@@ -113,11 +151,18 @@ export function drawPie(
     painter.fillStyle = colors[k]!
     if (focus >= 0 && slice.index !== focus) painter.globalAlpha = fade
     painter.beginPath()
-    painter.arc(cx, cy, radius, at(turn(slice.start)), at(turn(slice.end)))
+    // a rose's slice reaches out by its value, from the hole's edge
+    const outer = sliceOuter(slice, inner, radius)
+    painter.arc(cx, cy, outer, at(turn(slice.start)), at(turn(slice.end)))
     if (inner > 0) painter.arc(cx, cy, inner, at(turn(slice.end)), at(turn(slice.start)), true)
     else painter.lineTo(cx, cy)
     painter.closePath()
     painter.fill()
+    const pattern = patterns?.[slice.index]
+    if (pattern) {
+      const box = { x: cx - radius, y: cy - radius, width: radius * 2, height: radius * 2 }
+      fillPattern(painter, pattern, box, surface)
+    }
     painter.restore()
   })
   if (shown.length < 2) return
@@ -127,13 +172,19 @@ export function drawPie(
   painter.lineWidth = GAP
   painter.lineCap = 'butt'
   painter.beginPath()
-  for (const slice of shown) {
+  // round the whole circle, the first slice meets the last
+  const last = shown[shown.length - 1]!
+  const whole = Math.abs(last.end - shown[0]!.start - Math.PI * 2) < 1e-6
+  shown.forEach((slice, k) => {
     const a = at(turn(slice.start))
     const cos = Math.cos(a)
     const sin = Math.sin(a)
+    // out to the longer of the two slices the edge is between (a rose's differ)
+    const before = k > 0 ? shown[k - 1] : whole ? last : undefined
+    const end = sliceOuter({ reach: Math.max(slice.reach, before?.reach ?? 0) }, inner, radius) + 1
     painter.moveTo(cx + cos * inner, cy + sin * inner)
-    painter.lineTo(cx + cos * (radius + 1), cy + sin * (radius + 1))
-  }
+    painter.lineTo(cx + cos * end, cy + sin * end)
+  })
   painter.stroke()
   painter.restore()
 }

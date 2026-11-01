@@ -1,5 +1,6 @@
 import { BREAK, decimate, summarize, visibleRange } from './decimate'
 import { tracePoints, type Painter } from './painter'
+import { fillPattern } from './pattern'
 import { baseline } from './scale'
 import type { ChartLabelAnchor, ChartSeries, ChartSeriesKind, ChartView } from './series'
 
@@ -152,6 +153,8 @@ export function drawLine(
     }
     painter.fill()
     painter.restore()
+    // on a light fill, the pattern is in the series' color (the path is still the area's)
+    if (series.pattern) fillPattern(painter, series.pattern, view.plot, series.color, 0.5)
   }
 
   if (lineWidth > 0) {
@@ -218,11 +221,14 @@ export function lineLabels(series: ChartSeries<LineStyle>, view: ChartView): Cha
   }
   const along = horizontal ? plot.height : plot.width
   if ((to - from) * LABEL_SPACE > along) return []
+  // a reversed value axis: what is above in value is below on screen
+  const [r0, r1] = view.y.range
+  const flipped = horizontal ? r0 > r1 : r0 < r1
   const out: ChartLabelAnchor[] = []
   for (let i = from; i < to; i++) {
     if (!valued(i)) continue
     // below a point that dips under 0, above the others
-    const down = series.y[i]! < 0 && !series.stackEnds
+    const down = (series.y[i]! < 0 && !series.stackEnds) !== flipped
     out.push({
       index: i,
       at: at(i),

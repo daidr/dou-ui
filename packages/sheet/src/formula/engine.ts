@@ -76,6 +76,8 @@ interface Slot {
   data: SheetData
   formulas: Map<number, Formula>
   results: Map<number, SheetResult>
+  /** Where formulas that called `HYPERLINK` link to, kept with their results. */
+  links: Map<number, string>
   /** Formulas referring to single cells, by the cell; most cells have one, kept without a set. */
   cellDeps: Map<number, Formula | Set<Formula>>
   /** Formulas referring to ranges, by column. */
@@ -123,6 +125,8 @@ export class SheetFormulaEngine {
   private epoch = 0
   private context: SheetFunctionContext
   private now: () => Date
+  /** Where the formula running links to, once it called `HYPERLINK`. */
+  private linked: string | undefined
   /** The formulas the one running needed but had no results for. */
   private missing: Formula[] = []
   private current: SheetWorkbook = { sheets: [] }
@@ -136,7 +140,11 @@ export class SheetFormulaEngine {
     for (const fn of builtinFunctions) this.functions.set(fn.name.toUpperCase(), fn)
     for (const fn of options.functions ?? []) this.functions.set(fn.name.toUpperCase(), fn)
     this.now = options.now ?? (() => new Date())
-    this.context = { now: this.now(), locale: options.locale }
+    this.context = {
+      now: this.now(),
+      locale: options.locale,
+      link: (target) => void (this.linked = target),
+    }
     if (doc) this.load(doc)
   }
 
@@ -169,6 +177,7 @@ export class SheetFormulaEngine {
         data,
         formulas: new Map(),
         results: new Map(),
+        links: new Map(),
         cellDeps: new Map(),
         colDeps: new Map(),
         wideDeps: new Set(),
@@ -243,6 +252,22 @@ export class SheetFormulaEngine {
    */
   rowVersion(sheet: string | number, row: number) {
     return this.slotOf(sheet)?.versions.get(row) ?? this.epoch
+  }
+
+  /**
+   * Where a formula's cell links to, when the formula called `HYPERLINK`;
+   * the cell as in `result`.
+   */
+  link(sheet: string | number, cell: SheetCellTarget): string | undefined
+  link(sheet: string | number, row: number, col: number): string | undefined
+  link(sheet: string | number, at: SheetCellTarget | number, col?: number) {
+    const slot = this.slotOf(sheet)
+    const point = pointOf(at, col)
+    if (!slot || !point) return undefined
+    const pos = point.row * WIDTH + point.col
+    if (!slot.formulas.has(pos)) return undefined
+    this.read(slot, point.row, point.col, true)
+    return slot.links.get(pos)
   }
 
   /** Whether a cell holds a formula; the cell as in `result`. */
@@ -436,7 +461,9 @@ export class SheetFormulaEngine {
       }
       const missing = this.missing
       this.missing = []
+      this.linked = undefined
       let value = this.run(f)
+      const link = this.linked
       const needed = this.missing
       this.missing = missing
       if (needed.length) {
@@ -452,6 +479,8 @@ export class SheetFormulaEngine {
         }
       }
       f.slot.results.set(f.pos, value)
+      if (link !== undefined) f.slot.links.set(f.pos, link)
+      else f.slot.links.delete(f.pos)
       stack.pop()
       waiting.delete(f)
     }

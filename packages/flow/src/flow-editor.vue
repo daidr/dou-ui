@@ -243,14 +243,28 @@ const currentDoc = customRef<FlowDocument>(() => ({
   set: (value) => (doc.value = value),
 }))
 
+/** Runs the extensions' `transaction` hooks; `false` when one cancelled the change. */
+function check(tr: FlowTransaction) {
+  for (const hook of resolved.value.transactions) {
+    hook(tr, context)
+    if (tr.cancelled) {
+      emit('cancel', tr)
+      refuse(tr.cancelReason ?? messages.value.changeCancelled)
+      return false
+    }
+  }
+  return true
+}
+
 function commit(tr: FlowTransaction) {
-  for (const hook of resolved.value.transactions) hook(tr, context)
+  if (!check(tr)) return false
   if (!latest) void nextTick(() => (latest = null))
   latest = tr.doc
   doc.value = tr.doc
   const removes = tr.steps.some((s) => s.type === 'removeNode' || s.type === 'removeEdge')
   if (removes) setSelection(pruneSelection(tr.doc))
   emit('transaction', tr)
+  return true
 }
 
 function transact(fn: (tr: FlowTransaction) => void, meta?: FlowTransactionMeta) {
@@ -259,7 +273,7 @@ function transact(fn: (tr: FlowTransaction) => void, meta?: FlowTransactionMeta)
   fn(tr)
   if (!tr.changed) return tr
   const before = selection.value
-  commit(tr)
+  if (!commit(tr)) return tr
   if (!customHistory) history.record(tr, before, selection.value)
   syncHistory()
   return tr
@@ -3047,9 +3061,29 @@ const end = useTemplateRef<HTMLElement>('end')
 
 // Announcements for screen readers.
 const live = ref('')
+/** Set while a cancelled change is being told of, so what follows doesn't say it was made. */
+let refusing = false
 function announce(text: string) {
+  if (refusing) return
   live.value = ''
   void nextTick(() => (live.value = text))
+}
+/** Why the last change didn't go ahead, shown for a moment over the editor. */
+const notice = ref('')
+let noticeTimer: ReturnType<typeof setTimeout> | undefined
+onBeforeUnmount(() => clearTimeout(noticeTimer))
+/** Says why a change didn't go ahead, once while the same one repeats, as in a drag. */
+let lastRefusal = { text: '', at: 0 }
+function refuse(text: string) {
+  const at = Date.now()
+  if (refusing || (text === lastRefusal.text && at - lastRefusal.at < 1000)) return
+  lastRefusal = { text, at }
+  announce(text)
+  notice.value = text
+  clearTimeout(noticeTimer)
+  noticeTimer = setTimeout(() => (notice.value = ''), 3200)
+  refusing = true
+  void nextTick(() => (refusing = false))
 }
 
 // Lifecycle --------------------------------------------------------------------------
@@ -3728,5 +3762,6 @@ defineExpose<FlowEditorExpose>({
     </Teleport>
     <span ref="end" class="dou-flow-editor__end" tabindex="-1" />
     <div class="dou-flow-editor__live" aria-live="polite">{{ live }}</div>
+    <div v-if="notice" class="dou-flow-editor__notice" aria-hidden="true">{{ notice }}</div>
   </div>
 </template>

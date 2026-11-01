@@ -52,7 +52,7 @@ const extensions = [progress]
 | `layers`         | 画在单元格上的组件，限制在表头以内：`below` 在表格自己的标记（复制的区域、公式引用的区域）下面，`above` 在它们上面，编辑框总在最上面；见下文                   | `{ below?: Component[]; above?: Component[] }`                    |
 | `history`        | 替换表格自带的撤销记录，多个扩展都有时用优先级最高的，见下文                                                                                                   | `(ctx) => SheetHistoryHandler`                                    |
 | `setup`          | 表格挂载后调用，可以返回一个函数，在卸载时调用                                                                                                                 | `(ctx) => void \| (() => void)`                                   |
-| `transaction`    | 表格里的每次修改和 `transact` 生效前按优先级调用，可以继续往里加步骤；撤销时加上的步骤一起撤销                                                                 | `(tr, ctx) => void`                                               |
+| `transaction`    | 表格里的每次修改和 `transact` 生效前按优先级调用，可以继续往里加步骤，或用 `tr.cancel()` 取消这次修改；撤销时加上的步骤一起撤销                                | `(tr, ctx) => void`                                               |
 | `update`         | 每次修改生效后调用，表格已经是新的内容，见下文                                                                                                                 | `(update: SheetUpdate, ctx) => void`                              |
 | `transformPaste` | 粘贴之前，以及“从当前单元格放入”的导入之前，按优先级改写单元格，返回 `null` 取消。粘贴时组件的 `paste` 事件在它之后，收到改写后的内容；导入不触发 `paste` 事件 | `(clip: SheetClip, ctx) => SheetClip \| null`                     |
 
@@ -62,7 +62,7 @@ const extensions = [progress]
 
 <DocDemo src="sheet/extension-hooks" column />
 
-`transaction` 和 `update` 的区别是时机：`transaction` 在修改生效前，可以往里加步骤；`update` 在生效后，用来同步外部状态，比如提示“有未保存的修改”。表格里的修改、`transact`、撤销重做、协同编辑里别人的修改，以及通过 `v-model` 换进来的新工作簿都会调用 `update`：
+`transaction` 和 `update` 的区别是时机：`transaction` 在修改生效前，可以往里加步骤；`update` 在生效后，用来同步外部状态，比如提示“有未保存的修改”。表格里的修改、`transact`、撤销重做、协同编辑里别人的修改，以及通过 `v-model` 换进来的新工作簿都会调用 `update`；被[取消](#取消修改)的修改不会调用：
 
 ```ts
 interface SheetUpdate {
@@ -120,6 +120,23 @@ interface SheetHistoryHandler {
   canRedo: () => boolean
 }
 ```
+
+### 取消修改
+
+在 `transaction` 里调用 `tr.cancel(reason?)` 取消这次修改：它的步骤都不会生效，也不进撤销记录，后面的扩展不再收到它，`update` 也不会调用。表格下方会显示 `reason`，读屏也会读出；不写时显示“这次修改没有生效”。组件触发 `cancel` 事件，`tr.cancelReason` 是取消的原因，`transact` 返回 `null`。比如 A 列由系统填写，不让人改：
+
+```ts
+const systemColumn = defineSheetExtension({
+  name: 'system-column',
+  transaction: (tr) => {
+    if (tr.meta.origin === 'system') return
+    if (tr.steps.some((step) => step.type === 'setCell' && step.col === 0))
+      tr.cancel('A 列由系统填写')
+  },
+})
+```
+
+撤销、重做和协同编辑里别人的修改（`meta.history` 为 `false`）已经发生过，不能取消，调用 `cancel()` 不起作用。[保护](./#保护)就是这样实现的：表格在扩展之后检查每次修改，违反保护时取消它。流程编辑器和甘特图的扩展用同样的 `tr.cancel()`。
 
 ## 单元格类型
 

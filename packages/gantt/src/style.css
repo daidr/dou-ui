@@ -1066,6 +1066,25 @@
     outline-offset: -2px;
   }
 
+  .dou-gantt__notice {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    z-index: 20;
+    box-sizing: border-box;
+    width: max-content;
+    max-width: calc(100% - 24px);
+    padding: 6px 12px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-md);
+    color: var(--dou-color-text);
+    font-size: var(--dou-font-size-sm);
+    pointer-events: none;
+    transform: translateX(-50%);
+  }
+
   .dou-gantt__sr-only {
     position: absolute;
     width: 1px;

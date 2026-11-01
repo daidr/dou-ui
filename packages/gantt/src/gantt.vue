@@ -162,8 +162,21 @@ const docOf = (): GanttDocument =>
 /** The last transaction committed, for reading out what an extension's undo changed. */
 let lastCommit: GanttTransaction | null = null
 
+/** Runs the extensions' `transaction` hooks; `false` when one cancelled the change. */
+function check(tr: GanttTransaction) {
+  for (const hook of resolved.value.transactions) {
+    hook(tr, context)
+    if (tr.cancelled) {
+      emit('cancel', tr)
+      refuse(tr.cancelReason ?? messages.value.changeCancelled)
+      return false
+    }
+  }
+  return true
+}
+
 function commit(tr: GanttTransaction) {
-  for (const hook of resolved.value.transactions) hook(tr, context)
+  if (!check(tr)) return false
   lastCommit = tr
   if (!latest) void nextTick(() => (latest = null))
   latest = tr.doc
@@ -177,6 +190,7 @@ function commit(tr: GanttTransaction) {
   if (selectedLink.value && !tr.doc.links.some((link) => link.id === selectedLink.value))
     selectedLink.value = null
   emit('transaction', tr)
+  return true
 }
 
 /** Tasks a transaction gave dates to. */
@@ -209,7 +223,7 @@ function transact(fn: (tr: GanttTransaction) => void, meta?: GanttTransactionMet
   if (!tr.changed) return tr
   pushFollowers(tr)
   const before = selection.value
-  commit(tr)
+  if (!commit(tr)) return tr
   if (!customHistory) history.record(tr, before, selection.value)
   syncHistory()
   return tr
@@ -2180,9 +2194,29 @@ function onNavigationKey(event: KeyboardEvent) {
 
 // Announcements for screen readers.
 const live = ref('')
+/** Set while a cancelled change is being told of, so what follows doesn't say it was made. */
+let refusing = false
 function announce(text: string) {
+  if (refusing) return
   live.value = ''
   void nextTick(() => (live.value = text))
+}
+/** Why the last change didn't go ahead, shown for a moment over the editor. */
+const notice = ref('')
+let noticeTimer: ReturnType<typeof setTimeout> | undefined
+onBeforeUnmount(() => clearTimeout(noticeTimer))
+/** Says why a change didn't go ahead, once while the same one repeats, as in a drag. */
+let lastRefusal = { text: '', at: 0 }
+function refuse(text: string) {
+  const at = Date.now()
+  if (refusing || (text === lastRefusal.text && at - lastRefusal.at < 1000)) return
+  lastRefusal = { text, at }
+  announce(text)
+  notice.value = text
+  clearTimeout(noticeTimer)
+  noticeTimer = setTimeout(() => (notice.value = ''), 3200)
+  refusing = true
+  void nextTick(() => (refusing = false))
 }
 const keysHint = `${useId()}-keys`
 
@@ -2597,6 +2631,7 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
   >
     <span :id="keysHint" class="dou-gantt__sr-only">{{ messages.keys }}</span>
     <div class="dou-gantt__sr-only" aria-live="polite">{{ live }}</div>
+    <div v-if="notice" class="dou-gantt__notice" aria-hidden="true">{{ notice }}</div>
     <div
       v-if="showTable"
       ref="tablePane"

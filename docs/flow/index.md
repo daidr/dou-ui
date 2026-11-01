@@ -129,6 +129,7 @@ app.use(DouFlowEditor)
 | 名称                                             | 说明                                                                                                                          | 参数                    |
 | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
 | `transaction`                                    | 每次修改文档时触发，包括撤销和重做，参数里有这次修改的每一步；要整份文档用 `v-model`                                          | `(tr: FlowTransaction)` |
+| `cancel`                                         | 扩展取消了一次修改，`tr.cancelReason` 是原因，见[取消修改](./extensions#取消修改)                                             | `(tr: FlowTransaction)` |
 | `nodeClick` / `nodeDblclick` / `nodeContextmenu` | 点击、双击、右键节点                                                                                                          | `(node, event)`         |
 | `edgeClick` / `edgeContextmenu`                  | 点击、右键连线                                                                                                                | `(edge, event)`         |
 | `canvasClick` / `canvasContextmenu`              | 点击、右键画布空白处，`point` 是画布坐标；右键事件里 `event.preventDefault()` 不打开内置菜单                                  | `(point, event)`        |

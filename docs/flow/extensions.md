@@ -48,7 +48,7 @@ const extensions = [flowKit(), marks]
 | `toolbarItems`     | 选中节点上方工具栏的按钮，见[工具栏](./editing#工具栏)                                                                                                      | `(ctx, nodes) => FlowToolbarItem[]`                         |
 | `edgeToolbarItems` | 只选中连线时工具栏的按钮，见[工具栏](./editing#工具栏)                                                                                                      | `(ctx, edges) => FlowToolbarItem[]`                         |
 | `setup`            | 编辑器挂载后调用，可以返回一个函数，在卸载时调用                                                                                                            | `(ctx) => void \| (() => void)`                             |
-| `transaction`      | 每次修改生效前按优先级调用，可以继续往里加步骤；撤销和重做也会经过这里                                                                                      | `(tr, ctx) => void`                                         |
+| `transaction`      | 每次修改生效前按优先级调用，可以继续往里加步骤，或用 `tr.cancel()` 取消；撤销和重做也会经过这里                                                             | `(tr, ctx) => void`                                         |
 | `history`          | 替换编辑器自带的撤销记录，只用第一个提供它的扩展，例如[协同编辑](./collaboration)只撤销自己的修改                                                           | `(ctx) => FlowHistoryHandler`                               |
 | `press`            | 在画布或节点上按下时最先询问，按优先级依次调用；返回处理函数就接管这次按下，编辑器不再选中、拖动或平移，例如[白板](./whiteboard)的绘图工具                  | `(ctx, press) => FlowPressHandler \| void`                  |
 
@@ -95,6 +95,22 @@ ctx.transact((tr) => tr.updateData(node.id, { rotation }))
 自己做的平移（例如白板的抓手工具）用 `ctx.setViewport(viewport, animate?)` 移动视图，它和用户拖动画布一样，最远只能移到节点刚好离开视野；直接写 `ctx.viewport.value` 不受限制。
 
 节点类型写了 `rotation` 时，`ctx.nodeRotation(id)` 返回节点当前旋转的角度（含预览），没有旋转或找不到节点时为 `0`，可以用来让自己画在节点上的东西跟着转。
+
+## 取消修改
+
+在 `transaction` 里调用 `tr.cancel(reason?)` 取消这次修改：它的步骤都不会生效，也不进撤销记录，后面的扩展不再收到它，也不触发 `transaction` 事件。编辑器下方会短暂显示 `reason`，读屏也会读出；不写时显示“这次修改没有生效”。编辑器触发 `cancel` 事件，`tr.cancelReason` 是取消的原因。比如不让删除开始节点：
+
+```ts
+const keepStart = defineFlowExtension({
+  name: 'keep-start',
+  transaction: (tr) => {
+    if (tr.steps.some((step) => step.type === 'removeNode' && step.id === 'start'))
+      tr.cancel('开始节点不能删除')
+  },
+})
+```
+
+撤销、重做和协作里别人的修改（`meta.history` 为 `false`）已经发生过，不能取消，调用 `cancel()` 不起作用。电子表格和甘特图的扩展用同样的 `tr.cancel()`。
 
 ## 图层组件
 

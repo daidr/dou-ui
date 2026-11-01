@@ -299,8 +299,10 @@ describe('DouSheet', () => {
       'delete',
       'group',
       'note',
+      'link',
       'sort',
       'filter',
+      'lock',
       'clear',
     ])
   })

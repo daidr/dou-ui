@@ -2,6 +2,7 @@ import {
   boundsOf,
   columnName,
   lightThemeColor,
+  linkTarget,
   meetsRule,
   parseRange,
   plainStyle,
@@ -15,6 +16,8 @@ import {
   type SheetConditionalStyle,
   type SheetData,
   type SheetFileSource,
+  type SheetLinkTarget,
+  type SheetProtection,
   type SheetStyle,
   type SheetValidation,
   type SheetValue,
@@ -341,6 +344,7 @@ export async function writeXlsx(
     // cells, row by row; list cells for the types that pick from a list
     const lists = new Map<string, { values: string; cells: string[] } | null>()
     const notes: { ref: string; row: number; col: number; text: string }[] = []
+    const links: { ref: string; target: SheetLinkTarget; link: string }[] = []
     const rows: string[] = []
     // the column a cell written next is in without saying so
     let nextCol = left
@@ -398,6 +402,10 @@ export async function writeXlsx(
         typeof input === 'object' && input !== null ? (input as Record<string, unknown>) : null
       if (cell && typeof cell.note === 'string' && cell.note)
         notes.push({ ref: at(row, col), row: row - top, col: col - left, text: cell.note })
+      if (cell && typeof cell.link === 'string') {
+        const target = linkTarget(cell.link)
+        if (target) links.push({ ref: at(row, col), target, link: cell.link })
+      }
       const value = source.value(index, row, col)
       const typed = source.cellType(index, row, col)
       let format = cell && typeof cell.format === 'string' ? cell.format : undefined
@@ -524,6 +532,16 @@ export async function writeXlsx(
       )
       legacy = '<legacyDrawing r:id="rId2"/>'
     }
+    // links: web addresses through the sheet's relationships, places in the workbook as they are
+    const hyperlinks = links.map(({ ref, target, link }) => {
+      if (target.kind === 'cell') return `<hyperlink${attrs({ ref, location: link.slice(1) })}/>`
+      const id = `rId${relsList.length + 1}`
+      relsList.push(
+        `<Relationship Id="${id}" Type="${NS_R}/hyperlink" Target="${esc(target.href)}" TargetMode="External"/>`,
+      )
+      return `<hyperlink${attrs({ ref, 'r:id': id })}/>`
+    })
+    const protect = !selection && data.protect ? protectionXML(data.protect) : ''
 
     const lastCell =
       last.row >= top && last.col >= left
@@ -548,6 +566,7 @@ export async function writeXlsx(
       '<sheetData>'
     const tail =
       '</sheetData>' +
+      protect +
       (extra?.filter ?? '') +
       (merges.length
         ? `<mergeCells count="${merges.length}">${merges.join('')}</mergeCells>`
@@ -556,6 +575,7 @@ export async function writeXlsx(
       (validations.length
         ? `<dataValidations count="${validations.length}">${validations.join('')}</dataValidations>`
         : '') +
+      (hyperlinks.length ? `<hyperlinks>${hyperlinks.join('')}</hyperlinks>` : '') +
       legacy +
       '</worksheet>'
     entries.push({
@@ -705,6 +725,7 @@ export async function writeXlsx(
     path: 'xl/workbook.xml',
     data:
       `${HEAD}<workbook xmlns="${NS}" xmlns:r="${NS_R}">` +
+      (book.protect ? '<workbookProtection lockStructure="1"/>' : '') +
       '<bookViews><workbookView activeTab="0"/></bookViews>' +
       `<sheets>${sheetsXML}</sheets>` +
       (defined ? `<definedNames>${defined}</definedNames>` : '') +
@@ -803,6 +824,30 @@ function filteredOut(source: SheetFileSource, index: number, data: SheetData, la
 }
 
 /** Cell names, with runs down a column written as ranges. */
+/** A part of a sheet's protection as the file writes it: `0` for what people may still do. */
+const kept = (allowed: boolean | undefined) => (allowed ? 0 : undefined)
+
+/**
+ * A sheet's protection. In the file each part says what is kept from
+ * people (`1`, the default for most), so what the sheet allows is `0`.
+ */
+function protectionXML(protect: true | SheetProtection) {
+  const allow = protect === true ? {} : protect
+  return `<sheetProtection${attrs({
+    sheet: 1,
+    objects: 1,
+    scenarios: 1,
+    formatCells: kept(allow.formatCells),
+    formatColumns: kept(allow.formatColumns),
+    formatRows: kept(allow.formatRows),
+    insertColumns: kept(allow.insertColumns),
+    insertRows: kept(allow.insertRows),
+    deleteColumns: kept(allow.deleteColumns),
+    deleteRows: kept(allow.deleteRows),
+    autoFilter: kept(allow.filter),
+  })}/>`
+}
+
 function compactRefs(refs: string[]) {
   const byCol = new Map<string, number[]>()
   for (const ref of refs) {

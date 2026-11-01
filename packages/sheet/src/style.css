@@ -381,6 +381,14 @@
       }
     }
 
+    /* a link: the accent color with a faint underline; a cell's own color wins */
+    &.is-link {
+      color: var(--dou-color-primary-text);
+      text-decoration-line: underline;
+      text-decoration-color: color-mix(in oklab, currentColor 40%, transparent);
+      text-decoration-thickness: 1px;
+      text-underline-offset: 0.2em;
+    }
     &.is-tone-neutral {
       color: var(--dou-color-neutral-text);
     }
@@ -668,6 +676,89 @@
     gap: 4px;
     padding: 4px 2px 2px;
     border-top: 1px solid var(--dou-color-border-subtle);
+  }
+
+  /* a cell's link, under it: where it goes, and buttons to change it */
+  .dou-sheet__link {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-sizing: border-box;
+    max-width: min(320px, calc(100vw - 16px));
+    padding: 4px 4px 4px 10px;
+    font-size: var(--dou-font-size-sm);
+    line-height: 20px;
+
+    &.is-editing {
+      display: block;
+      width: 288px;
+      padding: 8px;
+    }
+  }
+  .dou-sheet__link-icon {
+    display: inline-flex;
+    flex: none;
+    color: var(--dou-color-text-tertiary);
+
+    svg {
+      width: 14px;
+      height: 14px;
+    }
+  }
+  .dou-sheet__link-address {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--dou-color-text);
+    text-decoration-line: underline;
+    text-decoration-color: color-mix(in oklab, currentColor 28%, transparent);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.25em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    &:hover {
+      text-decoration-color: currentColor;
+    }
+    &:focus-visible {
+      border-radius: 2px;
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 2px;
+    }
+  }
+  .dou-sheet__link-buttons {
+    display: flex;
+    flex: none;
+    gap: 2px;
+    margin-left: 2px;
+    padding-left: 4px;
+    border-left: 1px solid var(--dou-color-border-subtle);
+  }
+  .dou-sheet__link-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0;
+  }
+  .dou-sheet__link-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .dou-sheet__link-label {
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-sm);
+    line-height: 18px;
+  }
+  .dou-sheet__link-problem {
+    margin: 0;
+    color: var(--dou-color-danger-text);
+    font-size: var(--dou-font-size-sm);
+    line-height: 18px;
+  }
+  .dou-sheet__link-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 4px;
   }
 
   /* a select cell's value in its option's tone, as a quiet tag */
@@ -1123,6 +1214,7 @@
     left: 50%;
     z-index: 6;
     box-sizing: border-box;
+    width: max-content;
     max-width: calc(100% - 24px);
     padding: 6px 12px;
     border: 1px solid var(--dou-color-border);
@@ -1271,6 +1363,14 @@
     }
   }
 
+  /* a protected sheet's tab: a small lock before the name */
+  .dou-sheet-tabs__lock {
+    flex: none;
+    width: 14px;
+    height: 14px;
+    margin-right: 4px;
+    color: var(--dou-color-text-tertiary);
+  }
   .dou-sheet-tabs__name {
     overflow: hidden;
     text-overflow: ellipsis;

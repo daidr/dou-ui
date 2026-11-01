@@ -3,6 +3,7 @@ import {
   ArrowLeftIcon,
   ArrowRightIcon,
   CopyPlusIcon,
+  LockIcon,
   PencilIcon,
   PlusIcon,
   TrashIcon,
@@ -41,6 +42,9 @@ const uid = useId()
 const hint = `${uid}-keys`
 
 const editable = computed(() => !sheet.readonly.value)
+/** Whether sheets can be added, removed, moved and renamed: not while the workbook is protected. */
+const structural = computed(() => editable.value && !doc.value.protect)
+const isProtected = (key: string) => !!doc.value.sheets.find((s) => sheetKey(s) === key)?.protect
 const keys = computed(() => doc.value.sheets.map(sheetKey))
 
 // Dragging tabs into another order --------------------------------------------------------
@@ -53,7 +57,7 @@ const { container, list, listAttrs, itemAttrs, dragging } = useSortable<string>(
   items: order,
   key: (key) => key,
   direction: () => 'horizontal',
-  disabled: () => !editable.value || renaming.value != null,
+  disabled: () => !structural.value || renaming.value != null,
   label: (key) => nameOf(key),
   messages: () => ({
     item: messages.value.sheets,
@@ -276,7 +280,7 @@ const problem = ref('')
 const input = useTemplateRef<HTMLInputElement[]>('input')
 
 function startRename(index: number) {
-  if (!editable.value) return
+  if (!structural.value) return
   show(index)
   renaming.value = index
   draft.value = doc.value.sheets[index]!.name
@@ -347,11 +351,18 @@ function openMenu(index: number, x: number, y: number) {
   const count = keys.value.length
   const name = doc.value.sheets[index]!.name
   menuItems.value = [
-    { key: 'rename', label: m.renameSheet, icon: PencilIcon, run: () => startRename(index) },
+    {
+      key: 'rename',
+      label: m.renameSheet,
+      icon: PencilIcon,
+      disabled: !structural.value,
+      run: () => startRename(index),
+    },
     {
       key: 'duplicate',
       label: m.duplicateSheet,
       icon: CopyPlusIcon,
+      disabled: !structural.value,
       run: () => {
         const done = sheet.transact((tr) => tr.duplicateSheet(index), { action: 'sheet' })
         if (done) show(index + 1)
@@ -362,14 +373,14 @@ function openMenu(index: number, x: number, y: number) {
       label: m.moveSheetLeft,
       icon: ArrowLeftIcon,
       divided: true,
-      disabled: index === 0,
+      disabled: !structural.value || index === 0,
       run: () => moveTo(index, index - 1),
     },
     {
       key: 'right',
       label: m.moveSheetRight,
       icon: ArrowRightIcon,
-      disabled: index === count - 1,
+      disabled: !structural.value || index === count - 1,
       run: () => moveTo(index, index + 1),
     },
     {
@@ -378,12 +389,23 @@ function openMenu(index: number, x: number, y: number) {
       icon: TrashIcon,
       tone: 'danger',
       divided: true,
-      disabled: count < 2,
+      disabled: !structural.value || count < 2,
       run: () => {
         const done = sheet.transact((tr) => tr.removeSheet(index), { action: 'sheet' })
         if (done) sheet.announce(format(m.sheetDeleted, { name }))
       },
     },
+    ...(['protect.sheet', 'protect.workbook'] as const).map((command, i): SheetMenuItem => {
+      const info = sheet.commands.get(command)!
+      return {
+        key: command,
+        label: info.label,
+        icon: info.icon,
+        divided: i === 0,
+        disabled: !sheet.commands.can(command),
+        run: () => void sheet.commands.run(command),
+      }
+    }),
   ]
   menu.value?.open(x, y)
 }
@@ -412,7 +434,7 @@ function onContextMenu(event: MouseEvent, index: number) {
 <template>
   <div class="dou-sheet-tabs">
     <DouButton
-      v-if="addable && editable"
+      v-if="addable && structural"
       class="dou-sheet-tabs__add"
       variant="ghost"
       size="sm"
@@ -471,7 +493,13 @@ function onContextMenu(event: MouseEvent, index: number) {
             @dblclick.stop
           />
         </template>
-        <span v-else class="dou-sheet-tabs__name">{{ nameOf(key) }}</span>
+        <template v-else>
+          <LockIcon v-if="isProtected(key)" class="dou-sheet-tabs__lock" aria-hidden="true" />
+          <span class="dou-sheet-tabs__name">{{ nameOf(key) }}</span>
+          <span v-if="isProtected(key)" class="dou-sheet__sr-only">
+            {{ messages.protect.protectedSheet }}
+          </span>
+        </template>
       </div>
     </div>
     <span :id="hint" class="dou-sheet__sr-only">{{ messages.sheetTabKeys }}</span>

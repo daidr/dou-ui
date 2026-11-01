@@ -243,6 +243,8 @@ export type SheetToolbarTool =
   | 'filter'
   | 'conditional'
   | 'validation'
+  | 'link'
+  | 'protect'
   | 'clear'
   | 'export'
   | 'import'
@@ -311,6 +313,11 @@ export interface SheetEmits {
    * `tr.meta.action` says what made it.
    */
   transaction: [tr: SheetTransaction]
+  /**
+   * An extension's `transaction` hook cancelled a change, or a protected
+   * cell refused it; `tr.cancelReason` says why, and the grid shows it.
+   */
+  cancel: [tr: SheetTransaction]
   /** Before pasting: change what is pasted, or stop it. */
   paste: [event: SheetPasteEvent]
   /** After a file is read, before it is written in: change it, or stop it. */
@@ -325,8 +332,8 @@ export interface SheetExpose {
   /**
    * Makes a change: `run` adds steps to the transaction, which is applied
    * and recorded for undo as one. Cells without a sheet (`'A5'`) are on
-   * the sheet shown. Returns it, or `null` when nothing changed
-   * or the grid is read-only.
+   * the sheet shown. Returns it, or `null` when nothing changed, the grid
+   * is read-only or the change was cancelled (`cancel` tells why).
    */
   transact: (
     run: (tr: SheetTransaction) => void,

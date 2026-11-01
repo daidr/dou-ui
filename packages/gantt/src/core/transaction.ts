@@ -102,6 +102,30 @@ export class GanttTransaction {
     return this.steps.length > 0
   }
 
+  private stopped: { reason?: string } | null = null
+
+  /**
+   * Stops the change: none of it is applied or kept for undo, and the
+   * editor fires `cancel` and says why. For an extension's `transaction`
+   * hook, e.g. to keep people from changing what they may not; hooks after
+   * it don't run. A change kept out of the history (`meta.history: false`),
+   * such as undo, redo or another person's, can't be cancelled and goes ahead.
+   */
+  cancel(reason?: string) {
+    if (this.meta.history !== false) this.stopped = { reason }
+    return this
+  }
+
+  /** Whether `cancel` stopped it. */
+  get cancelled() {
+    return this.stopped !== null
+  }
+
+  /** What `cancel` was given, to tell people why. */
+  get cancelReason() {
+    return this.stopped?.reason
+  }
+
   /** Whether the tasks, or the links, changed. */
   touches(kind: 'tasks' | 'links') {
     return this.copied[kind]

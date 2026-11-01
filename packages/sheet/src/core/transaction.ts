@@ -26,6 +26,7 @@ import {
   type SheetFilter,
   type SheetFilterRule,
   type SheetGroup,
+  type SheetProtection,
   type SheetRow,
   type SheetRuleRange,
   type SheetStyle,
@@ -68,6 +69,9 @@ type Patch<T> = { [K in keyof T]?: T[K] | undefined }
 
 /** The parts of a sheet set with `updateSheet`. */
 export type SheetPatch = Patch<Omit<SheetData, 'cells' | 'rowSizes' | 'colSizes'>>
+
+/** Changes to the workbook's own settings: those besides its sheets, styles and types. */
+export type SheetBookPatch = Patch<Omit<SheetWorkbook, 'sheets' | 'styles' | 'types'>>
 
 /** Changes to a style: fields to set, and fields set to `undefined` to take off. */
 export type SheetStylePatch = Patch<SheetStyle>
@@ -119,6 +123,8 @@ export type SheetAction =
   | 'filter'
   | 'format'
   | 'validation'
+  | 'protect'
+  | 'link'
   | 'style'
   | 'freeze'
   | 'sheet'
@@ -140,6 +146,8 @@ export type SheetStep =
   /** Sets a row's height or a column's width; `size` left out goes back to the default. */
   | { type: 'setSize'; sheet: string; axis: 'row' | 'col'; index: number; size?: number }
   | { type: 'updateSheet'; sheet: string; patch: SheetPatch }
+  /** Changes the workbook's own settings, such as `protect`. */
+  | { type: 'updateBook'; patch: SheetBookPatch }
   /** Adds, replaces or (with `style` left out) removes a named style. */
   | { type: 'setStyle'; name: string; style?: SheetStyle }
   /** Adds, replaces or (with `setup` left out) removes a named cell type. */
@@ -187,6 +195,11 @@ export interface SheetTransactionMeta {
   origin?: string
   /** What the change was; the grid sets it, a change made in code is `api`. */
   action?: SheetAction
+  /**
+   * With `false`, the grid doesn't hold the change to the protection of
+   * sheets and the workbook, e.g. for code that fills in a protected form.
+   */
+  protection?: boolean
 }
 
 /**
@@ -229,6 +242,30 @@ export class SheetTransaction {
 
   get changed() {
     return this.steps.length > 0
+  }
+
+  private stopped: { reason?: string } | null = null
+
+  /**
+   * Stops the change: none of it is applied or kept for undo, and the
+   * editor fires `cancel` and says why. For an extension's `transaction`
+   * hook, e.g. to keep people from changing what they may not; hooks after
+   * it don't run. A change kept out of the history (`meta.history: false`),
+   * such as undo, redo or another person's, can't be cancelled and goes ahead.
+   */
+  cancel(reason?: string) {
+    if (this.meta.history !== false) this.stopped = { reason }
+    return this
+  }
+
+  /** Whether `cancel` stopped it. */
+  get cancelled() {
+    return this.stopped !== null
+  }
+
+  /** What `cancel` was given, to tell people why. */
+  get cancelReason() {
+    return this.stopped?.reason
   }
 
   setMeta(meta: SheetTransactionMeta) {
@@ -336,6 +373,20 @@ export class SheetTransaction {
     return this.step({ type: 'updateSheet', sheet: this.keyOf(this.mustIndex(sheet)), patch })
   }
 
+  /** Changes the workbook's own settings, such as `protect`. */
+  updateBook(patch: SheetBookPatch) {
+    return this.step({ type: 'updateBook', patch })
+  }
+
+  /**
+   * Protects a sheet, or with `false` stops protecting it: its locked cells
+   * (all but those whose style has `locked: false`) can't be changed, nor
+   * can the sheet's rows, columns and rules, except what `options` allows.
+   */
+  protectSheet(protect: boolean | SheetProtection, sheet?: SheetRef) {
+    return this.updateSheet({ protect: protect === false ? undefined : protect }, sheet)
+  }
+
   setStyle(name: string, style: SheetStyle | undefined) {
     return this.step({ type: 'setStyle', name, style })
   }
@@ -364,9 +415,14 @@ export class SheetTransaction {
    * `continueValues`), with the styles and formats of the cells it repeats.
    * Formulas are copied with their references moved along. `mode` is
    * `auto` as dragging does, `series` to count a single number up too, or
-   * `copy` to only repeat, as Ctrl+D does.
+   * `copy` to only repeat, as Ctrl+D does. With `keepStyle`, the filled
+   * cells keep their own styles and formats, as on a protected sheet.
    */
-  fill(from: SheetRangeAt, to: SheetRangeAt, options: { mode?: SheetFillMode } = {}) {
+  fill(
+    from: SheetRangeAt,
+    to: SheetRangeAt,
+    options: { mode?: SheetFillMode; keepStyle?: boolean } = {},
+  ) {
     const { index, bounds: s } = this.rangeAt(from)
     const t = this.rangeAt(to).bounds
     const vertical = t.left === s.left && t.right === s.right
@@ -410,9 +466,15 @@ export class SheetTransaction {
           typeof value === 'string' && value.startsWith('=')
             ? shiftFormula(value, point.row - origin.row, point.col - origin.col)
             : values[i]
+        const look = options.keepStyle ? cellOf(cells[point.row]?.[point.col]) : source
         this.setCell(
           { sheet: index, ...point },
-          compactCell({ ...source, value: next ?? undefined }),
+          compactCell({
+            ...source,
+            value: next ?? undefined,
+            style: look?.style,
+            format: look?.format,
+          }),
         )
       }
     }
@@ -1008,8 +1070,8 @@ export class SheetTransaction {
 
   /**
    * Changes how the cells in a range look: each cell's style with `patch`
-   * laid over it, where a field set to `undefined` (or `false`) is taken
-   * off; `null` takes the whole style off. Cells that end up looking the
+   * laid over it, where a field set to `undefined` (or `false`, but for
+   * `locked`) is taken off; `null` takes the whole style off. Cells that end up looking the
    * same share one style: one in `styles` that matches, or a new one named
    * `s1`, `s2`…. Whole columns and rows stop at the sheet's edge.
    */
@@ -1056,7 +1118,8 @@ export class SheetTransaction {
     const style: SheetStyle = {}
     if (patch)
       for (const [key, value] of Object.entries({ ...(name ? styles[name] : undefined), ...patch }))
-        if (value !== undefined && value !== false && value !== '')
+        // `false` takes a field off, but `locked: false` is what unlocks a cell
+        if (value !== undefined && (value !== false || key === 'locked') && value !== '')
           (style as Record<string, unknown>)[key] = value
     const key = styleKey(style)
     if (key === '{}') return undefined
@@ -1294,6 +1357,22 @@ export class SheetTransaction {
       else delete types[step.name]
       book.types = types
       return { type: 'setType', name: step.name, setup: old }
+    }
+    if (step.type === 'updateBook') {
+      const book = this.book as unknown as Record<string, unknown>
+      const old: Record<string, unknown> = {}
+      let changed = false
+      for (const [key, value] of Object.entries(step.patch)) {
+        old[key] = book[key]
+        if (book[key] !== value) changed = true
+      }
+      if (!changed) return null
+      const own = this.ownBook() as unknown as Record<string, unknown>
+      for (const [key, value] of Object.entries(step.patch)) {
+        if (value === undefined) delete own[key]
+        else own[key] = value
+      }
+      return { type: 'updateBook', patch: old as SheetBookPatch }
     }
     if (step.type === 'insertSheet') {
       const sheets = this.ownList()

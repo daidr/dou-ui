@@ -64,6 +64,8 @@ export interface GanttMessages {
   /** `{change}` is the task (or link) as it is afterwards. */
   undone: string
   redone: string
+  /** Said when an extension cancels a change without saying why. */
+  changeCancelled: string
   /** For `{change}`: a link's lag or type changed, a task was removed. */
   linkChanged: string
   taskRemoved: string
@@ -182,6 +184,7 @@ const zhCN: GanttMessages = {
   taskRemoved: '{title}，已删除',
   undone: '已撤销：{change}',
   redone: '已重做：{change}',
+  changeCancelled: '这次修改没有生效',
   pushed: '{task}；另有 {count} 个任务随之推后',
   broken: '{task}；{count} 条依赖未满足',
   scheduled: '已重新排期，移动了 {count} 个任务',
@@ -260,6 +263,7 @@ const zhTW: GanttMessages = {
   taskRemoved: '{title}，已刪除',
   undone: '已復原：{change}',
   redone: '已重做：{change}',
+  changeCancelled: '這次修改沒有生效',
   pushed: '{task}；另有 {count} 個任務隨之延後',
   broken: '{task}；{count} 條相依未滿足',
   scheduled: '已重新排程，移動了 {count} 個任務',
@@ -355,6 +359,7 @@ const en: GanttMessages = {
   taskRemoved: '{title}, removed',
   undone: 'Undone: {change}',
   redone: 'Redone: {change}',
+  changeCancelled: "That change wasn't made",
   pushed: '{task}; {count} more pushed later',
   broken: '{task}; {count} dependencies not kept',
   scheduled: 'Rescheduled, {count} tasks moved',

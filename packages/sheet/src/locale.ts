@@ -100,6 +100,7 @@ export interface SheetMessages {
   /** The conditions of filters and conditional formats. */
   ops: Record<SheetCondition['op'], string>
   group: SheetGroupMessages
+  note: SheetNoteMessages
   filter: SheetFilterMessages
   /** Conditional formats: the toolbar's menu, the dialog that adds one and the list of them. */
   formats: SheetFormatsMessages
@@ -413,6 +414,20 @@ const zhCN: SheetMessages = {
     ungrouped: '已取消分组',
     crossing: '不能这样分组：会和分组“{group}”交叉',
     tooDeep: '不能这样分组：分组最多嵌套 8 层',
+  },
+  note: {
+    add: '插入批注',
+    edit: '编辑批注',
+    remove: '删除批注',
+    removeMany: '删除 {count} 条批注',
+    label: '批注',
+    cellNote: '批注：{note}',
+    placeholder: '写下批注',
+    save: '保存',
+    cancel: '取消',
+    saved: '已保存批注',
+    removed: '已删除批注',
+    removedMany: '已删除 {count} 条批注',
   },
   filter: {
     sortAsc: '升序排序',
@@ -737,6 +752,20 @@ const zhTW: SheetMessages = {
     ungrouped: '已取消群組',
     crossing: '無法這樣設定群組：會和群組「{group}」交叉',
     tooDeep: '無法這樣設定群組：群組最多巢狀 8 層',
+  },
+  note: {
+    add: '插入附註',
+    edit: '編輯附註',
+    remove: '刪除附註',
+    removeMany: '刪除 {count} 則附註',
+    label: '附註',
+    cellNote: '附註：{note}',
+    placeholder: '輸入附註',
+    save: '儲存',
+    cancel: '取消',
+    saved: '已儲存附註',
+    removed: '已刪除附註',
+    removedMany: '已刪除 {count} 則附註',
   },
   filter: {
     sortAsc: '遞增排序',
@@ -1069,6 +1098,20 @@ const en: SheetMessages = {
     crossing: "Can't group these: they would cross the group of {group}",
     tooDeep: "Can't group these: groups nest at most 8 deep",
   },
+  note: {
+    add: 'Insert note',
+    edit: 'Edit note',
+    remove: 'Delete note',
+    removeMany: 'Delete {count} notes',
+    label: 'Note',
+    cellNote: 'Note: {note}',
+    placeholder: 'Write a note',
+    save: 'Save',
+    cancel: 'Cancel',
+    saved: 'Note saved',
+    removed: 'Note deleted',
+    removedMany: '{count} notes deleted',
+  },
   filter: {
     sortAsc: 'Sort ascending',
     sortDesc: 'Sort descending',
@@ -1324,6 +1367,25 @@ export interface SheetGroupMessages {
   /** Grouping lines that would cross the group `{group}`, or nest too deep. */
   crossing: string
   tooDeep: string
+}
+
+export interface SheetNoteMessages {
+  /** Menu items. */
+  add: string
+  edit: string
+  remove: string
+  /** `{count}` notes in the selection. */
+  removeMany: string
+  /** The note box's name, and the note as read out with its cell: `{note}`. */
+  label: string
+  cellNote: string
+  placeholder: string
+  save: string
+  cancel: string
+  /** Read out after a change; `{count}` notes. */
+  saved: string
+  removed: string
+  removedMany: string
 }
 
 export interface SheetFilterMessages {

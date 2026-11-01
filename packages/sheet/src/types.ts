@@ -208,6 +208,8 @@ export interface SheetExpose {
   print: (options?: SheetPrintOptions) => void
   /** Opens the editor on a cell, the active one by default. */
   edit: (cell?: SheetCellTarget) => void
+  /** Selects a cell, the active one by default, and opens the box to write its note. */
+  editNote: (cell?: SheetCellTarget) => void
   focus: () => void
   /** Copies (or cuts) the selection to the system clipboard. */
   copy: () => Promise<void>

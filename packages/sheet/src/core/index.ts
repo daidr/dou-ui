@@ -89,6 +89,7 @@ export type {
   SheetFilter,
   SheetFilterRule,
   SheetFreeze,
+  SheetProtection,
   SheetRow,
   SheetRuleRange,
   SheetSelectOption,
@@ -110,12 +111,17 @@ export type { SheetInput } from './format'
 export { lightThemeColor, plainStyle } from './paint'
 export { sheetMessagesFor, sheetLocales } from '../locale'
 export type { SheetFileMessages, SheetMessages } from '../locale'
+export { checkProtection, isLocked, protectionOf } from './protect'
+export { linkTarget } from './link'
+export type { SheetLinkTarget } from './link'
+export type { SheetProtectionCheck, SheetProtectionRefusal } from './protect'
 export { applySheetSteps, compactSheetSteps, sheetKey, SheetTransaction } from './transaction'
 export type {
   SheetAction,
   SheetAxisName,
   SheetCellAt,
   SheetLinesAt,
+  SheetBookPatch,
   SheetPatch,
   SheetRangeAt,
   SheetRef,

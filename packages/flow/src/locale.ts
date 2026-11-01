@@ -43,6 +43,8 @@ export interface FlowMessages {
   deleted: string
   tidied: string
   undone: string
+  /** Said when an extension cancels a change without saying why. */
+  changeCancelled: string
   redone: string
   connected: string
   /** An edge selected from the keyboard; `{from}` and `{to}` are node names. */
@@ -187,6 +189,7 @@ const zhCN: FlowMessages = {
   deleted: '已删除 {count} 项',
   tidied: '已整理 {count} 个节点',
   undone: '已撤销',
+  changeCancelled: '这次修改没有生效',
   redone: '已重做',
   connected: '已连接',
   edge: '连线：{from} → {to}',
@@ -300,6 +303,7 @@ const zhTW: FlowMessages = {
   deleted: '已刪除 {count} 項',
   tidied: '已整理 {count} 個節點',
   undone: '已復原',
+  changeCancelled: '這次修改沒有生效',
   redone: '已重做',
   connected: '已連接',
   edge: '連線：{from} → {to}',
@@ -413,6 +417,7 @@ const en: FlowMessages = {
   deleted: '{count} deleted',
   tidied: '{count} nodes tidied up',
   undone: 'Undone',
+  changeCancelled: "That change wasn't made",
   redone: 'Redone',
   connected: 'Connected',
   edge: 'Edge: {from} → {to}',

@@ -38,7 +38,7 @@ const extensions = [owners, quietDays('2026-11-09', '2026-11-11', '团建')]
 | `contextMenu` | 右键菜单的项，排在内置项前面，`target.kind` 是 `task`、`link` 或 `canvas`，带 `point` 和 `time`，见[右键菜单](./#右键菜单) | `(ctx, target) => GanttMenuItem[]`                    |
 | `overlays`    | 浮在甘特图上方的组件，不随时间轴滚动，比如面板                                                                             | `Component[]`                                         |
 | `setup`       | 甘特图挂载后调用，可以返回一个函数，在卸载时调用                                                                           | `(ctx) => void \| (() => void)`                       |
-| `transaction` | 每次修改生效前按优先级调用，可以继续往里加步骤；撤销和重做也会经过这里                                                     | `(tr, ctx) => void`                                   |
+| `transaction` | 每次修改生效前按优先级调用，可以继续往里加步骤，或用 `tr.cancel()` 取消；撤销和重做也会经过这里                            | `(tr, ctx) => void`                                   |
 | `history`     | 替换甘特图自带的撤销记录，只用第一个提供它的扩展，例如[协同编辑](./collaboration)只撤销自己的修改                          | `(ctx) => GanttHistoryHandler`                        |
 
 `ctx` 和组件里 `useGantt()` 拿到的是同一个对象。
@@ -54,6 +54,22 @@ interface GanttHistoryHandler {
   canRedo: () => boolean
 }
 ```
+
+## 取消修改
+
+在 `transaction` 里调用 `tr.cancel(reason?)` 取消这次修改：它的步骤都不会生效，也不进撤销记录，后面的扩展不再收到它，也不触发 `transaction` 事件。甘特图下方会短暂显示 `reason`，读屏也会读出；不写时显示“这次修改没有生效”。甘特图触发 `transaction-cancel` 事件，`tr.cancelReason` 是取消的原因。`transact` 返回这次的事务：被取消时 `tr.cancelled` 为 `true`，`tr.changed` 为 `false`。比如上线任务的日期由发布系统决定：
+
+```ts
+const fixedLaunch = defineGanttExtension({
+  name: 'fixed-launch',
+  transaction: (tr) => {
+    if (tr.steps.some((step) => step.type === 'updateTask' && step.id === 'launch'))
+      tr.cancel('上线日期由发布系统决定')
+  },
+})
+```
+
+撤销、重做和协作里别人的修改（`meta.history` 为 `false`）已经发生过，不能取消，调用 `cancel()` 不起作用。流程编辑器和电子表格的扩展用同样的 `tr.cancel()`。
 
 ## 图层组件
 

@@ -7,6 +7,7 @@ interface SheetWorkbook {
   sheets: SheetData[]
   styles?: Record<string, SheetStyle> // 命名样式，单元格按名字引用
   types?: Record<string, SheetTypeSetup> // 命名单元格类型设置，单元格的 type 按名字引用
+  protect?: boolean // 保护工作簿结构：不能添加、删除、移动或重命名工作表
 }
 ```
 
@@ -26,8 +27,26 @@ interface SheetData {
   filter?: SheetFilter // 筛选
   conditionalFormats?: SheetConditionalFormat[] // 条件格式，排在前面的优先
   validations?: SheetValidation[] // 数据验证，排在前面的优先
+  protect?: boolean | SheetProtection // 保护工作表，见下文
 }
 ```
+
+`protect` 为 `true` 时，工作表里锁定的单元格、行列和规则都不能修改；写成对象时可以放开其中几项：
+
+```ts
+interface SheetProtection {
+  formatCells?: boolean // 修改锁定单元格的样式和数字格式，合并单元格
+  formatColumns?: boolean // 修改列宽、隐藏列
+  formatRows?: boolean // 修改行高、隐藏行
+  insertRows?: boolean
+  insertColumns?: boolean
+  deleteRows?: boolean
+  deleteColumns?: boolean
+  filter?: boolean // 用筛选决定显示哪些行；排序会移动单元格，只能排未锁定的
+}
+```
+
+单元格默认是锁定的，样式里写 `locked: false` 的单元格不锁定，见[保护](./#保护)。
 
 工作表可能在修改同步过来之前被改名（比如多人协作时），这时应该给工作表一个不会变的 `id`。
 
@@ -124,10 +143,11 @@ interface SheetCell {
   format?: string // 数字或日期格式
   note?: string // 批注
   type?: string // 单元格类型：date、select、checkbox、扩展加的类型，或 types 里的名字
+  link?: string // 链接：https、http、mailto、tel 地址，或 # 加单元格引用，如 '#汇总!B2'
 }
 ```
 
-只有值的单元格直接写值：`['苹果', 3, true]`。需要样式或格式时写成对象：`{ value: 1800, format: '¥#,##0' }`。表格写回数据时也是这样，没有其他字段的单元格会写成值本身。合并单元格和单元格类型见[介绍](./#合并单元格)。
+只有值的单元格直接写值：`['苹果', 3, true]`。需要样式或格式时写成对象：`{ value: 1800, format: '¥#,##0' }`。表格写回数据时也是这样，没有其他字段的单元格会写成值本身。合并单元格、单元格类型和链接见[介绍](./#合并单元格)。
 
 以 `=` 开头的字符串是公式。要存以 `=` 开头的文字，写成 `'=…`，单元格里显示时不带 `'`；在单元格里输入 `'=abc` 也是这样存的。日期用 `'YYYY-MM-DD'` 或 `'YYYY-MM-DD HH:mm'` 字符串，时间用 `'HH:mm'` 或 `'HH:mm:ss'` 字符串，和 DouUI 其他日期组件一致。
 
@@ -184,6 +204,7 @@ interface SheetStyle {
   align?: 'left' | 'center' | 'right'
   valign?: 'top' | 'middle' | 'bottom'
   wrap?: boolean // 自动换行
+  locked?: boolean // 写 false 时，工作表受保护后这些单元格仍然可以编辑
 }
 ```
 

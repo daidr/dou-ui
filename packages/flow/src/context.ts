@@ -97,6 +97,11 @@ export interface FlowEditorProps {
 export interface FlowEditorEmits {
   /** Every change to the document, with its steps; `update:modelValue` follows. */
   transaction: [tr: FlowTransaction]
+  /**
+   * An extension's `transaction` hook cancelled a change; `tr.cancelReason`
+   * says why, and the editor shows it and reads it out.
+   */
+  transactionCancel: [tr: FlowTransaction]
   nodeClick: [node: FlowNode, event: MouseEvent]
   nodeDblclick: [node: FlowNode, event: MouseEvent]
   nodeContextmenu: [node: FlowNode, event: MouseEvent]

@@ -1,6 +1,7 @@
 <script setup>
 import { DownloadIcon, PrinterIcon } from '@dou-ui/icons'
 import { DouSheet } from '@dou-ui/sheet'
+import { downloadBlob } from 'dou-ui'
 import { onBeforeUnmount, ref, useTemplateRef } from 'vue'
 
 const head = (value) => ({ value, style: 'head' })
@@ -51,25 +52,16 @@ const book = ref({
 const grid = useTemplateRef('grid')
 const preview = ref('')
 
-function download(blob, name) {
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = name
-  link.click()
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
-}
-
 async function savePNG() {
   const blob = await grid.value.exportPNG()
   URL.revokeObjectURL(preview.value)
   preview.value = URL.createObjectURL(blob)
-  download(blob, '门店.png')
+  downloadBlob(blob, '门店.png')
 }
 
 function saveSVG() {
   const svg = grid.value.exportSVG()
-  download(new Blob([svg], { type: 'image/svg+xml' }), '门店.svg')
+  downloadBlob(new Blob([svg], { type: 'image/svg+xml' }), '门店.svg')
 }
 
 onBeforeUnmount(() => URL.revokeObjectURL(preview.value))

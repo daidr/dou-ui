@@ -79,6 +79,7 @@ import {
   type SheetScaleColors,
 } from './format-presets'
 import { format } from '../locale'
+import type { SheetExportScope } from '../core/file'
 import type {
   SheetFormatOption,
   SheetMenuItem,
@@ -300,16 +301,36 @@ function onMenu(tool: string, open: boolean) {
 
 // Export and import --------------------------------------------------------------------
 
+/** Whether more than one cell is selected, so exporting the selection means something. */
+const manySelected = computed(() => {
+  const { ranges } = sheet.selection.value
+  if (ranges.length !== 1) return true
+  const { start, end } = ranges[0]!
+  return start.row !== end.row || start.col !== end.col
+})
 const exportItems = computed(() =>
-  sheet.exporters.value.map((exporter) => ({
-    name: exporter.name,
-    label: typeof exporter.label === 'function' ? exporter.label(m.value) : exporter.label,
-    icon: exporter.icon,
-  })),
+  sheet.exporters.value.map((exporter) => {
+    const scopes = exporter.scopes.filter((scope) => scope !== 'selection' || manySelected.value)
+    return {
+      name: exporter.name,
+      label: exporter.label,
+      icon: exporter.icon,
+      extension: exporter.extension,
+      // a choice of what to write only when there is one
+      scopes: scopes.length > 1 ? scopes : [],
+      scope: scopes[0],
+    }
+  }),
 )
-function exportWith(name: string) {
-  void sheet.saveFile(name)
+function exportWith(name: string, scope?: SheetExportScope) {
   done()
+  const exporter = sheet.exporters.value.find((e) => e.name === name)!
+  const fileName =
+    typeof props.fileName === 'function'
+      ? props.fileName(exporter, scope ?? exporter.scopes[0]!)
+      : props.fileName && `${props.fileName}.${exporter.extension}`
+  // a failure shows over the grid and comes as the sheet's `file-error`
+  sheet.saveFile(name, { scope, fileName }).catch(() => {})
 }
 
 const picker = useTemplateRef<HTMLInputElement>('picker')
@@ -321,8 +342,13 @@ function onPicked(event: Event) {
   const file = input.files?.[0]
   // the same file can be picked again
   input.value = ''
-  done()
-  if (file) void sheet.importFile(file)
+  // back to the grid, so the button's tooltip doesn't stay up after the picker closes
+  void nextTick(() => sheet.focus())
+  // a failure shows over the grid and comes as the sheet's `file-error`
+  if (file) sheet.importFile(file).catch(() => {})
+}
+function onPickCancel() {
+  void nextTick(() => sheet.focus())
 }
 
 // Bold, italic, underline, strikethrough ------------------------------------------------
@@ -1204,14 +1230,22 @@ onBeforeUnmount(() => observer?.disconnect())
                 <template #trailing><ChevronDownIcon /></template>
               </DouButton>
               <template #menu>
-                <DouDropdownItem
-                  v-for="item in exportItems"
-                  :key="item.name"
-                  @click="exportWith(item.name)"
-                >
-                  <template v-if="item.icon" #prefix><component :is="item.icon" /></template>
-                  {{ item.label }}
-                </DouDropdownItem>
+                <template v-for="item in exportItems" :key="item.name">
+                  <DouDropdownSub v-if="item.scopes.length" :title="item.label">
+                    <template v-if="item.icon" #prefix><component :is="item.icon" /></template>
+                    <DouDropdownItem
+                      v-for="scope in item.scopes"
+                      :key="scope"
+                      @click="exportWith(item.name, scope)"
+                    >
+                      {{ m.file[scope] }}
+                    </DouDropdownItem>
+                  </DouDropdownSub>
+                  <DouDropdownItem v-else @click="exportWith(item.name, item.scope)">
+                    <template v-if="item.icon" #prefix><component :is="item.icon" /></template>
+                    {{ item.label }}
+                  </DouDropdownItem>
+                </template>
               </template>
             </DouDropdown>
           </span>
@@ -1271,6 +1305,7 @@ onBeforeUnmount(() => observer?.disconnect())
       tabindex="-1"
       aria-hidden="true"
       @change="onPicked"
+      @cancel="onPickCancel"
     />
     <FormatDialog
       v-model:open="dialogOpen"

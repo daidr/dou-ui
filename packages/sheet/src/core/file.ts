@@ -1,9 +1,9 @@
-import { FileTextIcon } from '@dou-ui/icons'
+import { FileSpreadsheetIcon } from '@dou-ui/icons'
 import type { Component } from 'vue'
 import { SheetFormulaEngine } from '../formula/engine'
 import type { SheetFunction } from '../formula/functions'
 import { shownValue, type SheetResult } from '../formula/values'
-import { messagesFor, type SheetMessages } from '../locale'
+import { sheetMessagesFor, type SheetMessages } from '../locale'
 import { boundsOf, parseRange, type SheetBounds } from './address'
 import { resolveCellType, type SheetCellType, type SheetResolvedType } from './cell-type'
 import { builtinCellTypes } from '../cell-types'
@@ -20,8 +20,12 @@ import {
   type SheetValue,
   type SheetWorkbook,
 } from './model'
-import { sheetKey } from './transaction'
+import { sheetKey, type SheetRef } from './transaction'
 import { labelOf, type SheetLabel } from './commands'
+import { layStyle, SheetLooks } from './conditional'
+import { plainStyle } from './paint'
+import { colCountOf, rowCountOf } from './model'
+import type { SheetDrawing } from '../export/draw'
 
 /*
  * Files in and out. An exporter turns the workbook (or a sheet, or the
@@ -63,12 +67,33 @@ export interface SheetFileSource {
    * `plain`, or what the cell comes to (an error as its code, such as `#DIV/0!`).
    */
   plain: (sheet: number, row: number, col: number) => SheetValue
-  /** The cell's named style, or `{}`. */
+  /**
+   * How the cell looks: its named style with what its conditional formats
+   * give it over it, `tone` and `fill` as the colors they are in the light
+   * theme (in `color` and `background`). `{}` for a plain cell.
+   */
   style: (sheet: number, row: number, col: number) => SheetStyle
   /** The cell's number or date format. */
   format: (sheet: number, row: number, col: number) => string | undefined
   /** The cell's type and its settings, or `undefined` for a plain cell. */
   cellType: (sheet: number, row: number, col: number) => SheetResolvedType | undefined
+  /** Aborted when the export is called off. */
+  signal?: AbortSignal
+  /** Only for exporters with `needs: 'view'`, in the grid: the cells as the grid draws them. */
+  view?: SheetFileView
+}
+
+/** What an exporter with `needs: 'view'` gets of the grid. */
+export interface SheetFileView {
+  /**
+   * The cells exported laid out as the grid draws them: column widths, row
+   * heights, text and looks in plain colors of the page's theme.
+   */
+  drawing: (options?: {
+    headers?: boolean
+    gridlines?: boolean
+    background?: boolean
+  }) => SheetDrawing
 }
 
 /** A way to write the workbook as a file, such as CSV; see `defineSheetExporter`. */
@@ -84,6 +109,12 @@ export interface SheetExporter<Options = any> {
   mime: string
   /** What it can export, the first being what the toolbar exports. Defaults to every scope. */
   scopes?: SheetExportScope[]
+  /**
+   * `'view'` for an exporter that draws the cells as the grid shows them
+   * (sizes, the page's colors), which gets `source.view` and only works in
+   * the grid; `exportWorkbook` refuses it. Defaults to `'data'`.
+   */
+  needs?: 'data' | 'view'
   /** Writes the file. A string is wrapped in a `Blob` of `mime`. */
   export: (source: SheetFileSource, options?: Options) => Blob | string | Promise<Blob | string>
 }
@@ -94,6 +125,45 @@ export function defineSheetExporter<Options = any>(
 ): SheetExporter<Options> {
   return exporter
 }
+
+/** An exporter as menus show it, its label in the sheet's language. */
+export interface SheetExporterInfo {
+  name: string
+  label: string
+  icon?: Component
+  extension: string
+  mime: string
+  /** What it can export, the first being what it exports by default. */
+  scopes: SheetExportScope[]
+}
+
+/** An importer as menus show it, its label in the sheet's language. */
+export interface SheetImporterInfo {
+  name: string
+  label: string
+  accept: string[]
+}
+
+export const exporterInfo = (
+  exporter: SheetExporter,
+  messages: SheetMessages,
+): SheetExporterInfo => ({
+  name: exporter.name,
+  label: labelOf(exporter.label, messages),
+  icon: exporter.icon,
+  extension: exporter.extension,
+  mime: exporter.mime,
+  scopes: [...(exporter.scopes ?? ['workbook', 'sheet', 'selection'])],
+})
+
+export const importerInfo = (
+  importer: SheetImporter,
+  messages: SheetMessages,
+): SheetImporterInfo => ({
+  name: importer.name,
+  label: labelOf(importer.label, messages),
+  accept: [...importer.accept],
+})
 
 /** Something an importer couldn't bring over, such as images or borders. */
 export interface SheetImportWarning {
@@ -122,8 +192,13 @@ export interface SheetImportContext {
 
 /** A way to read a file into a workbook, such as CSV; see `defineSheetImporter`. */
 export interface SheetImporter<Options = any> {
-  /** Unique among the importers. */
+  /** Unique among the importers; `importFile`'s `importer` takes it. */
   name: string
+  /**
+   * What the files it reads are called, such as “CSV 文件”: in the hints the
+   * grid shows about a file without a name, and in `useSheet().importers`
+   * for a menu of your own.
+   */
   label: SheetLabel
   /**
    * The files it reads, as the file picker's `accept` takes them: extensions
@@ -180,6 +255,10 @@ export interface SheetFileSourceOptions {
   functions?: readonly SheetFunction[]
   locale?: string
   messages?: SheetMessages
+  /** Works out a formula as if it were in a cell of a sheet, by key, for conditional formats; with `result`. */
+  evaluate?: (formula: string, key: string) => unknown
+  signal?: AbortSignal
+  view?: SheetFileView
 }
 
 /** The cell types by name: the built-in ones, then these, the first named winning. */
@@ -204,11 +283,17 @@ export function createFileSource(
   const types = options.cellTypes ?? cellTypeMap()
   const locale = options.locale
   let result = options.result
-  if (!result) {
-    const engine = new SheetFormulaEngine(book, { functions: options.functions, locale })
-    result = (key, row, col) => engine.result(key, row, col)
+  let evaluate = options.evaluate
+  if (!result || !evaluate) {
+    const engine = new SheetFormulaEngine(book, {
+      functions: options.functions,
+      locale,
+    })
+    result ??= (key, row, col) => engine.result(key, row, col)
+    evaluate ??= (formula, key) => engine.evaluate(formula, key)
   }
   const read = result
+  const work = evaluate
   const at = (sheet: number, row: number) => book.sheets[sheet]?.cells[row]
   const input = (sheet: number, row: number, col: number): SheetCellInput => at(sheet, row)?.[col]
   const resultOf = (sheet: number, row: number, col: number): SheetResult => {
@@ -228,6 +313,42 @@ export function createFileSource(
   }
   const typeOf = (sheet: number, row: number, col: number) =>
     resolveCellType(cellOf(input(sheet, row, col)), book, types)
+  const textOf = (sheet: number, row: number, col: number) => {
+    const value = shown(sheet, row, col)
+    const typed = typeOf(sheet, row, col)
+    const own = typed?.definition.format?.(value, typed.setup)
+    if (own !== undefined) return own
+    return formatValue(value, cellOf(input(sheet, row, col))?.format, locale)
+  }
+  // conditional formats, worked out for a sheet the first time one of its cells is asked about
+  const looks = new Map<number, SheetLooks>()
+  const looksOf = (sheet: number) => {
+    let found = looks.get(sheet)
+    if (!found) {
+      const data = book.sheets[sheet]!
+      const key = sheetKey(data)
+      found = new SheetLooks(data.conditionalFormats, {
+        valueAt: (row, col) => resultOf(sheet, row, col),
+        textAt: (row, col) => textOf(sheet, row, col),
+        evaluate: (formula) => work(formula, key),
+        styles: book.styles,
+        size: { rows: rowCountOf(data), cols: colCountOf(data) },
+        lang: locale,
+      })
+      looks.set(sheet, found)
+    }
+    return found
+  }
+  const styleOf = (sheet: number, row: number, col: number) => {
+    if (!book.sheets[sheet]) return {}
+    const name = cellOf(input(sheet, row, col))?.style
+    const own = name ? book.styles?.[name] : undefined
+    const look = book.sheets[sheet]!.conditionalFormats?.length
+      ? looksOf(sheet).lookAt(row, col)?.style
+      : undefined
+    const style = look ? layStyle(own, look) : own
+    return style ? plainStyle(style) : {}
+  }
 
   const index = options.sheet ?? 0
   const pick = (i: number): SheetFileSheet => {
@@ -248,27 +369,20 @@ export function createFileSource(
     scope,
     sheets,
     locale,
-    messages: options.messages ?? messagesFor(locale),
+    messages: options.messages ?? sheetMessagesFor(locale),
     value: (sheet, row, col) => valueOf(input(sheet, row, col)),
     result: resultOf,
-    text(sheet, row, col) {
-      const value = shown(sheet, row, col)
-      const typed = typeOf(sheet, row, col)
-      const own = typed?.definition.format?.(value, typed.setup)
-      if (own !== undefined) return own
-      return formatValue(value, cellOf(input(sheet, row, col))?.format, locale)
-    },
+    text: textOf,
     plain(sheet, row, col) {
       const value = shown(sheet, row, col)
       const typed = typeOf(sheet, row, col)
       return typed?.definition.plain ? typed.definition.plain(value, typed.setup) : value
     },
-    style(sheet, row, col) {
-      const name = cellOf(input(sheet, row, col))?.style
-      return (name && book.styles?.[name]) || {}
-    },
+    style: styleOf,
     format: (sheet, row, col) => cellOf(input(sheet, row, col))?.format,
     cellType: typeOf,
+    signal: options.signal,
+    view: options.view,
   }
 }
 
@@ -278,12 +392,13 @@ export interface SheetExportWorkbookOptions<Options = any> {
   extensions?: (SheetExtension | SheetExtension[])[]
   /** `'workbook'` by default, or the exporter's first scope when it can't. */
   scope?: SheetExportScope
-  /** The sheet, by index, for `'sheet'` and `'selection'`. */
-  sheet?: number
+  /** The sheet, by index, `id` or name, for `'sheet'` and `'selection'`; the first by default. */
+  sheet?: SheetRef
   /** The cells, such as `'A1:D20'`, for `'selection'`. */
   range?: string
   locale?: string
   messages?: SheetMessages
+  signal?: AbortSignal
   /** Passed on to the exporter. */
   options?: Options
 }
@@ -311,6 +426,10 @@ export async function exportWorkbook<Options>(
   exporter: SheetExporter<Options>,
   options: SheetExportWorkbookOptions<Options> = {},
 ): Promise<Blob> {
+  if (exporter.needs === 'view')
+    throw new Error(
+      `[@dou-ui/sheet] the exporter "${exporter.name}" draws the grid, so it only works in DouSheet`,
+    )
   const resolved = resolveSheetExtensions(options.extensions)
   const scope = scopeFor(exporter, options.scope)
   let bounds: SheetBounds | undefined
@@ -319,14 +438,24 @@ export async function exportWorkbook<Options>(
     if (!range) throw new RangeError(`[@dou-ui/sheet] "${options.range}" isn't a range`)
     bounds = boundsOf(range)
   }
+  let sheet: number | undefined
+  if (options.sheet != null) {
+    const ref = options.sheet
+    sheet =
+      typeof ref === 'number'
+        ? ref
+        : book.sheets.findIndex((s) => s.id === ref || (s.id == null && s.name === ref))
+    if (!book.sheets[sheet]) throw new RangeError(`[@dou-ui/sheet] there is no sheet "${ref}"`)
+  }
   const source = createFileSource(book, {
     scope,
-    sheet: options.sheet,
+    sheet,
     bounds,
     cellTypes: cellTypeMap(resolved.cellTypes),
     functions: resolved.functions,
     locale: options.locale,
     messages: options.messages,
+    signal: options.signal,
   })
   return toBlob(await exporter.export(source, options.options), exporter.mime)
 }
@@ -346,7 +475,7 @@ export async function readWorkbook<Options>(
   importer: SheetImporter<Options>,
   options: SheetReadWorkbookOptions<Options> = {},
 ): Promise<SheetImportResult> {
-  const messages = options.messages ?? messagesFor(options.locale)
+  const messages = options.messages ?? sheetMessagesFor(options.locale)
   return importer.import(
     file,
     { messages, locale: options.locale, signal: options.signal },
@@ -374,7 +503,7 @@ export interface SheetCSVExportOptions {
 export const csvExporter = defineSheetExporter<SheetCSVExportOptions>({
   name: 'csv',
   label: (m) => m.file.csv,
-  icon: FileTextIcon,
+  icon: FileSpreadsheetIcon,
   extension: 'csv',
   mime: 'text/csv',
   scopes: ['sheet', 'selection'],

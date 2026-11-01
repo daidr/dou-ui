@@ -250,6 +250,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@dou-ui/icons": "workspace:*",
+        "@dou-ui/theme": "workspace:*",
       },
       "devDependencies": {
         "@dou-ui/code": "workspace:*",

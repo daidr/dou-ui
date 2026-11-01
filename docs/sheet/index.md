@@ -533,13 +533,19 @@ sheet.value.showSheet('十一月')
 
 ## 导入与导出
 
-工具栏的 `export` 是导出菜单，列出所有导出方式，选中后直接下载文件；`import` 按钮打开文件选择框，读入的文件作为新工作表加在最后。两者默认不在工具栏上，用 `tools` 加上：
+工具栏的 `export` 是导出菜单，列出所有导出方式，选中后直接下载文件。一种导出方式能导出不止一种范围时（比如选中了一片区域，CSV 可以导出整张表或只导出选区），菜单项会展开子菜单让你选。`import` 按钮打开文件选择框，读入的文件作为新工作表加在最后。两者默认不在工具栏上，用 `tools` 加上：
 
 ```vue-html
 <DouSheetToolbar :tools="['undo', 'redo', '|', 'bold', 'italic', '|', 'import', 'export']" />
 ```
 
 <DocDemo src="sheet/csv" column />
+
+下载的文件名默认取导出的工作表名。工具栏的 `file-name` 可以改它：传字符串时，后面会自动加上导出方式的扩展名；传函数 `(exporter, scope) => string` 时，返回完整的文件名。
+
+```vue-html
+<DouSheetToolbar :tools="['import', 'export']" file-name="预算-2026-11" />
+```
 
 表格自带三种导出方式：`csv`（当前工作表或选区）、`png` 和 `svg`（当前工作表或选区画成图片，见[导出图片与打印](#导出图片与打印)），以及一种导入方式：CSV 和制表符分隔的文本。其他格式通过扩展的 `exporters`、`importers` 加入，加入后同样出现在工具栏里，见[导出器与导入器](./extensions#导出器与导入器)。
 
@@ -554,26 +560,51 @@ await grid.value.saveFile('png', { fileName: '门店.png' })
 await grid.value.importFile(file, { mode: 'replace' })
 ```
 
+按名字调用时，`options` 按导出方式检查类型，比如 `exportFile('csv', { options: { delimter: ';' } })` 会报错。扩展加入的导出方式可以把自己的选项补进 `SheetExporterOptions`，见[导出器与导入器](./extensions#导出器与导入器)。
+
 | `exportFile` 选项 | 说明                                                                        | 默认值               |
 | ----------------- | --------------------------------------------------------------------------- | -------------------- |
 | `scope`           | 导出什么：`'workbook'` 整个工作簿、`'sheet'` 一张工作表、`'selection'` 选区 | 导出方式支持的第一种 |
 | `sheet`           | 工作表，序号、`id` 或名字                                                   | 当前显示的           |
 | `range`           | 只导出这片区域，如 `'A1:F20'`                                               | 选区或有数据的部分   |
 | `options`         | 交给导出方式的选项，比如 CSV 的 `{ delimiter, bom, formatted }`             | —                    |
+| `signal`          | 取消导出用的 `AbortSignal`，导出方式从 `source.signal` 读取                 | —                    |
 
 `importFile` 的 `mode` 决定读入的内容放在哪里，三种都能一步撤销：
 
-| `mode`             | 说明                                                                               |
-| ------------------ | ---------------------------------------------------------------------------------- |
-| `'append'`（默认） | 作为新工作表加在最后，和已有工作表重名时加上序号；样式和已有的同名但不同时自动改名 |
-| `'replace'`        | 换掉所有工作表                                                                     |
-| `'insert'`         | 把第一张工作表的内容从当前单元格开始粘贴，和粘贴一样会触发 `paste` 事件            |
+| `mode`             | 说明                                                                                                                               |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `'append'`（默认） | 作为新工作表加在最后。和已有工作表重名时加上序号，文件里指向它的公式跟着改名；样式和单元格类型与已有的同名但内容不同时，也自动改名 |
+| `'replace'`        | 换掉所有工作表，样式和单元格类型也换成文件里的                                                                                     |
+| `'insert'`         | 把第一张工作表的内容从当前单元格开始放一份（不按选区重复），带着格式、样式和单元格类型，公式像粘贴一样跟着移动                     |
 
-`importer` 指定用哪种导入方式，默认按文件名、类型和开头的内容找第一个能读的；找不到时读屏会提示，返回 `null`。只读时不能导入。
+| `importFile` 选项 | 说明                                                               | 默认值       |
+| ----------------- | ------------------------------------------------------------------ | ------------ |
+| `mode`            | 见上表                                                             | `'append'`   |
+| `importer`        | 用哪种导入方式，按名字                                             | 第一个能读的 |
+| `signal`          | 取消导入用的 `AbortSignal`，取消后不再写入；表格卸载时也会自动取消 | —            |
+| `options`         | 交给导入方式的选项                                                 | —            |
 
-读完、写入之前会触发 `import` 事件，事件里有 `file`、`importer`、`mode`、读到的 `book` 和 `warnings`（导入方式没能带过来的内容，比如边框）。可以修改 `book`，或者调用 `preventDefault()` 不写入，比如先让用户确认，或者用 `DouMessage` 提示警告。
+默认按文件名、类型和开头的内容找第一个能读的导入方式。只读时不能导入。三种操作产生的事务 `action` 都是 `'import'`。
 
-设置 `file-drop` 后，把文件拖到表格上会读入它，第一张工作表的内容从放下的单元格开始粘贴。
+读完、写入之前会触发 `import` 事件，事件里有 `file`、`importer`、`mode`、读到的 `book` 和 `warnings`（导入方式没能带过来的内容，比如边框）。可以修改 `book`，或者调用 `preventDefault()` 不写入。要先让用户确认，就先 `preventDefault()`，等用户同意后再调用 `event.apply()`，按原来的 `mode` 写入，只能写入一次：
+
+```ts
+async function onImport(event: SheetImportEvent) {
+  if (!event.warnings.length) return
+  event.preventDefault()
+  const ok = await confirmDialog(`有 ${event.warnings.length} 处内容没能导入，继续吗？`)
+  if (ok) event.apply()
+}
+```
+
+导入或导出失败时（没有能读这个文件的导入方式、导入方式出错、图片太大），表格上方会显示一条简短的提示，同时触发 `file-error` 事件，事件里有 `action`（`'import'` 或 `'export'`）、`file`、`importer` 或 `exporter`，以及 `error`。想换成自己的提示，比如用 `DouMessage`，就监听这个事件。用代码调用时，`importFile` 遇到导入方式出错，或 `saveFile` 导出失败，返回的 Promise 也会 reject。
+
+```vue-html
+<DouSheet v-model="book" @file-error="(e) => message.error(String(e.error))" />
+```
+
+设置 `file-drop` 后，把文件拖到表格上会读入它。拖动经过时，会高亮将要放入的单元格；松开后，第一张工作表的内容从这一格开始放入。一次拖入多个文件时只读第一个，开发环境下会给出提示。
 
 ## CSV
 

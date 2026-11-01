@@ -15,6 +15,8 @@ import {
   useSheet,
   type SheetContext,
   type SheetExpose,
+  type SheetFileErrorEvent,
+  type SheetTransaction,
   type SheetImportEvent,
   type SheetSelection,
   type SheetWorkbook,
@@ -98,6 +100,69 @@ describe('exportWorkbook', () => {
   })
 })
 
+describe('file source', () => {
+  it('gives styles in plain colors, with what conditional formats add', async () => {
+    let seen: unknown[] = []
+    const probe = defineSheetExporter({
+      name: 'probe',
+      label: 'probe',
+      extension: 'txt',
+      mime: 'text/plain',
+      export(source) {
+        seen = [source.style(0, 0, 0), source.style(0, 1, 0), source.style(0, 2, 0)]
+        return ''
+      },
+    })
+    await exportWorkbook(
+      {
+        styles: { h: { bold: true, tone: 'primary', fill: 'warning' } },
+        sheets: [
+          {
+            name: '上海',
+            cells: [[{ value: 1, style: 'h' }], [5], [1]],
+            conditionalFormats: [
+              {
+                range: 'A2:A3',
+                when: { op: 'gt', value: 3 },
+                style: { fill: 'danger' },
+              },
+            ],
+          },
+        ],
+      },
+      probe,
+    )
+    expect(seen[0]).toEqual({
+      bold: true,
+      color: '#3f56b5',
+      background: expect.stringMatching(/^#/),
+    })
+    expect((seen[1] as { background: string }).background).toMatch(/^#[0-9a-f]{6}$/)
+    expect(seen[2]).toEqual({})
+  })
+
+  it('takes a sheet by name, and refuses exporters that draw the grid', async () => {
+    const two: SheetWorkbook = {
+      sheets: [
+        { name: '预算', cells: [[1]] },
+        { name: '门店', cells: [['上海']] },
+      ],
+    }
+    const blob = await exportWorkbook(two, csvExporter, {
+      sheet: '门店',
+      options: { bom: false },
+    })
+    expect(await blob.text()).toBe('上海')
+    await expect(exportWorkbook(two, csvExporter, { sheet: '无' })).rejects.toThrow(/no sheet/)
+    const drawn = defineSheetExporter({
+      ...csvExporter,
+      name: 'drawn',
+      needs: 'view',
+    })
+    await expect(exportWorkbook(two, drawn)).rejects.toThrow(/only works in DouSheet/)
+  })
+})
+
 describe('readWorkbook', () => {
   it('reads CSV into a sheet named after the file', async () => {
     const file = new File(['名称,数量\n苹果,3'], '水果.csv', { type: 'text/csv' })
@@ -110,8 +175,12 @@ describe('readWorkbook', () => {
   })
 })
 
-function setup(props: Record<string, unknown> = {}, toolbar?: Record<string, unknown>) {
-  const doc = ref(book())
+function setup(
+  props: Record<string, unknown> = {},
+  toolbar?: Record<string, unknown>,
+  start: SheetWorkbook = book(),
+) {
+  const doc = ref(structuredClone(start))
   const selection = ref<SheetSelection>({
     active: { row: 1, col: 0 },
     ranges: [{ start: { row: 1, col: 0 }, end: { row: 2, col: 1 } }],
@@ -143,6 +212,19 @@ function setup(props: Record<string, unknown> = {}, toolbar?: Record<string, unk
 }
 
 const csv = (text: string, name = '水果.csv') => new File([text], name, { type: 'text/csv' })
+const jsonImporter = defineSheetImporter({
+  name: 'json',
+  label: 'JSON',
+  accept: ['.json'],
+  import: async (file) => ({
+    book: JSON.parse(await file.text()) as SheetWorkbook,
+  }),
+})
+const jsonExtension = defineSheetExtension({
+  name: 'json',
+  importers: [jsonImporter],
+})
+const json = (data: SheetWorkbook) => new File([JSON.stringify(data)], 'b.json')
 
 describe('DouSheet files', () => {
   it('exports the selection or a sheet by name', async () => {
@@ -234,7 +316,7 @@ describe('DouSheet files', () => {
   })
 
   it('takes exporters and importers from extensions', () => {
-    const json = defineSheetExporter({
+    const jsonOut = defineSheetExporter({
       name: 'json',
       label: 'JSON',
       extension: 'json',
@@ -242,21 +324,21 @@ describe('DouSheet files', () => {
       export: (source) => JSON.stringify(source.book),
     })
     const { wrapper, context } = setup({
-      extensions: [defineSheetExtension({ name: 'json', exporters: [json] })],
+      extensions: [defineSheetExtension({ name: 'json', exporters: [jsonOut] })],
     })
     expect(context().exporters.value.map((e) => e.name)).toEqual(['csv', 'png', 'svg', 'json'])
     expect(context().importAccept.value).toContain('.csv')
     wrapper.unmount()
     const twice = [
-      defineSheetExtension({ name: 'a', exporters: [json] }),
-      defineSheetExtension({ name: 'b', exporters: [json] }),
+      defineSheetExtension({ name: 'a', exporters: [jsonOut] }),
+      defineSheetExtension({ name: 'b', exporters: [jsonOut] }),
     ]
     const clash = setup({ extensions: twice })
     expect(() => clash.context().exporters.value).toThrow(/added by both "a" and "b"/)
     clash.wrapper.unmount()
   })
 
-  it('lists the exporters in the toolbar menu', async () => {
+  it('lists the exporters in the toolbar menu, with what to write when there is a choice', async () => {
     const { wrapper } = setup({}, { tools: ['export', 'import'] })
     await wrapper.find('.dou-sheet-toolbar [aria-label="导出"]').trigger('click')
     await nextTick()
@@ -264,7 +346,182 @@ describe('DouSheet files', () => {
       el.textContent?.trim(),
     )
     expect(labels).toEqual(['CSV 文件 (.csv)', '图片 (.png)', '矢量图 (.svg)'])
+    // a range is selected: each can write the sheet or the selection
+    expect(document.querySelectorAll('[aria-haspopup="menu"][role="menuitem"]').length).toBe(3)
     expect(wrapper.find('.dou-sheet-toolbar__picker').attributes('accept')).toContain('.csv')
+    wrapper.unmount()
+    document.body.innerHTML = ''
+  })
+
+  it('gives append imports new sheet names, and their formulas follow', async () => {
+    const { wrapper, doc, sheet } = setup({ extensions: [jsonExtension] })
+    await sheet().importFile(
+      json({
+        sheets: [
+          { name: '预算', cells: [[5]] },
+          { name: '汇总', cells: [['=预算!A1*2']] },
+        ],
+      }),
+    )
+    await nextTick()
+    expect(doc.value.sheets.map((s) => s.name)).toEqual(['预算', '预算 (2)', '汇总'])
+    expect(doc.value.sheets[2]!.cells[0]![0]).toBe("='预算 (2)'!A1*2")
+    wrapper.unmount()
+  })
+
+  it("brings cell types along: the file's for replace, renamed when they clash for append and insert", async () => {
+    const host: SheetWorkbook = {
+      types: { s: { type: 'select', options: ['host'] } },
+      sheets: [{ name: 'A', cells: [[{ value: 'host', type: 's' }]] }],
+    }
+    const incoming: SheetWorkbook = {
+      types: { s: { type: 'select', options: ['incoming'] } },
+      sheets: [{ name: 'B', cells: [[{ value: 'incoming', type: 's' }]] }],
+    }
+    const replaced = setup({ extensions: [jsonExtension] }, undefined, host)
+    await replaced.sheet().importFile(json(incoming), { mode: 'replace' })
+    expect(replaced.doc.value.types).toEqual(incoming.types)
+    replaced.wrapper.unmount()
+
+    for (const mode of ['append', 'insert'] as const) {
+      const { wrapper, doc, sheet } = setup({ extensions: [jsonExtension] }, undefined, host)
+      await sheet().importFile(json(incoming), { mode })
+      expect(doc.value.types).toEqual({
+        s: host.types!.s,
+        's 2': incoming.types!.s,
+      })
+      // insert goes in at the active cell, A2
+      const at =
+        mode === 'append' ? doc.value.sheets[1]!.cells[0]![0] : doc.value.sheets[0]!.cells[1]![0]
+      expect(at).toEqual({ value: 'incoming', type: 's 2' })
+      wrapper.unmount()
+    }
+  })
+
+  it('swaps the styles for replace', async () => {
+    const { wrapper, doc, sheet } = setup({ extensions: [jsonExtension] }, undefined, {
+      styles: { h: { bold: true } },
+      sheets: [{ name: 'A', cells: [[{ value: 1, style: 'h' }]] }],
+    })
+    await sheet().importFile(
+      json({
+        styles: { h: { italic: true } },
+        sheets: [{ name: 'B', cells: [[{ value: 2, style: 'h' }]] }],
+      }),
+      { mode: 'replace' },
+    )
+    expect(doc.value.styles).toEqual({ h: { italic: true } })
+    expect(doc.value.sheets[0]!.cells).toEqual([[{ value: 2, style: 'h' }]])
+    sheet().undo()
+    await nextTick()
+    expect(doc.value.styles).toEqual({ h: { bold: true } })
+    wrapper.unmount()
+  })
+
+  it('inserts once from the active cell, whatever is selected, as an import', async () => {
+    const trs: SheetTransaction[] = []
+    const { wrapper, doc, sheet } = setup({
+      onTransaction: (tr: SheetTransaction) => trs.push(tr),
+    })
+    // A2:B3 is selected
+    await sheet().importFile(csv('z'), { mode: 'insert' })
+    await nextTick()
+    expect(doc.value.sheets[0]!.cells[1]!.slice(0, 2)).toEqual([
+      'z',
+      { value: 1280, format: '¥#,##0.00' },
+    ])
+    expect(doc.value.sheets[0]!.cells[2]![0]).toBe('餐饮')
+    expect(trs.map((tr) => tr.meta.action)).toEqual(['import'])
+    wrapper.unmount()
+  })
+
+  it('tells of failures over the grid and with file-error', async () => {
+    const errors: SheetFileErrorEvent[] = []
+    const bad = defineSheetImporter({
+      name: 'bad',
+      label: 'bad',
+      accept: ['.bad'],
+      import: () => {
+        throw new Error('boom')
+      },
+    })
+    const { wrapper, sheet } = setup({
+      extensions: [defineSheetExtension({ name: 'bad', importers: [bad] })],
+      onFileError: (event: SheetFileErrorEvent) => errors.push(event),
+    })
+    expect(await sheet().importFile(new File(['x'], '表.xlsx'))).toBeNull()
+    await nextTick()
+    expect(wrapper.text()).toContain('没有能读取“表.xlsx”的导入方式')
+    await expect(sheet().importFile(new File(['x'], 'a.bad'))).rejects.toThrow('boom')
+    await expect(sheet().saveFile('csv', { scope: 'workbook' })).rejects.toThrow(/workbook/)
+    expect(errors.map((e) => [e.action, e.importer ?? e.exporter ?? null])).toEqual([
+      ['import', null],
+      ['import', 'bad'],
+      ['export', 'csv'],
+    ])
+    wrapper.unmount()
+  })
+
+  it('writes a stopped import later with apply()', async () => {
+    let later!: () => boolean
+    const { wrapper, doc, sheet } = setup({
+      onImport: (event: SheetImportEvent) => {
+        event.preventDefault()
+        later = event.apply
+      },
+    })
+    expect(await sheet().importFile(csv('a'))).toBeNull()
+    expect(doc.value.sheets.length).toBe(1)
+    expect(later()).toBe(true)
+    await nextTick()
+    expect(doc.value.sheets.length).toBe(2)
+    // only once
+    expect(later()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('writes nothing once aborted, and gives the importer the signal', async () => {
+    let signal: AbortSignal | undefined
+    let finish!: () => void
+    const slow = defineSheetImporter({
+      name: 'slow',
+      label: 'slow',
+      accept: ['.slow'],
+      import: (_file, context) => {
+        signal = context.signal
+        return new Promise((resolve) => {
+          finish = () => resolve({ book: { sheets: [{ name: 'x', cells: [[1]] }] } })
+        })
+      },
+    })
+    const { wrapper, doc, sheet } = setup({
+      extensions: [defineSheetExtension({ name: 'slow', importers: [slow] })],
+    })
+    const controller = new AbortController()
+    const pending = sheet().importFile(new File(['x'], 'a.slow'), {
+      signal: controller.signal,
+    })
+    await new Promise((resolve) => setTimeout(resolve))
+    expect(signal?.aborted).toBe(false)
+    controller.abort()
+    expect(signal?.aborted).toBe(true)
+    finish()
+    expect(await pending).toBeNull()
+    expect(doc.value.sheets.length).toBe(1)
+    wrapper.unmount()
+  })
+
+  it("gives labels in the sheet's language to menus of one's own", () => {
+    const { wrapper, context } = setup()
+    expect(context().exporters.value[0]).toMatchObject({
+      name: 'csv',
+      label: 'CSV 文件 (.csv)',
+      scopes: ['sheet', 'selection'],
+    })
+    expect(context().importers.value[0]).toMatchObject({
+      name: 'csv',
+      accept: expect.any(Array),
+    })
     wrapper.unmount()
   })
 })

@@ -911,6 +911,11 @@
     &.is-fill {
       border-color: var(--dou-color-text-secondary);
     }
+    /* where a file dragged over the grid would go in */
+    &.is-drop {
+      border: 2px solid var(--dou-sheet-ring);
+      background-color: color-mix(in oklab, var(--dou-sheet-ring) 10%, transparent);
+    }
   }
 
   /* cells a fill handle dragged back over, which will be cleared */

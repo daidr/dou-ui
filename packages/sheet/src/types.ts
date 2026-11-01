@@ -5,7 +5,9 @@ import type { SheetCSVWriteOptions } from './core/csv'
 import type { SheetCommands } from './core/commands'
 import type { SheetExtension } from './core/extension'
 import type {
+  SheetCSVExportOptions,
   SheetExporter,
+  SheetExporterInfo,
   SheetExportScope,
   SheetImportResult,
   SheetImportWarning,
@@ -62,7 +64,7 @@ export interface SheetProps {
 }
 
 /** Where `exportFile` takes the cells from, and what it passes the exporter. */
-export interface SheetFileOptions<Options = any> {
+export interface SheetExportFileOptions<Options = any> {
   /**
    * Every sheet, the sheet shown (or `sheet`), or the selected cells; by
    * default the first the exporter can do.
@@ -72,18 +74,62 @@ export interface SheetFileOptions<Options = any> {
   sheet?: SheetRef
   /** The cells to write, such as `'A1:F20'`; the selection for `'selection'`. */
   range?: string
+  /** Calls the export off; the exporter reads it as `source.signal`. */
+  signal?: AbortSignal
   /** Passed on to the exporter, such as CSV's `delimiter`. */
   options?: Options
+}
+
+/** `saveFile`'s options: `exportFile`'s, and the file's name. */
+export interface SheetSaveFileOptions<Options = any> extends SheetExportFileOptions<Options> {
+  /** The file's name, with its extension; the exported sheet's name by default. */
+  fileName?: string
+}
+
+/**
+ * The options of the exporters by name, for `exportFile('csv', { options })`.
+ * An extension adds its own by augmenting it:
+ *
+ * ```ts
+ * declare module '@dou-ui/sheet' {
+ *   interface SheetExporterOptions { xlsx: XlsxOptions }
+ * }
+ * ```
+ */
+export interface SheetExporterOptions {
+  csv: SheetCSVExportOptions
+  png: SheetImageOptions
+  svg: SheetExportOptions
+}
+
+/** The options of an exporter named so, or anything for a name no one declared. */
+export type SheetExporterOptionsOf<Name> = Name extends keyof SheetExporterOptions
+  ? SheetExporterOptions[Name]
+  : any
+
+/** An import or export that failed, for the `file-error` event. */
+export interface SheetFileErrorEvent {
+  action: 'import' | 'export'
+  /** The file being read, for an import. */
+  file?: Blob
+  /** The exporter's name, for an export. */
+  exporter?: string
+  /** The importer's name, when one took the file. */
+  importer?: string
+  /** What went wrong; for a file no importer takes, an error saying so. */
+  error: unknown
 }
 
 /** How `importFile` writes what it read: as new sheets, instead of every sheet, or at the active cell. */
 export type SheetImportMode = 'append' | 'replace' | 'insert'
 
-export interface SheetImportOptions<Options = any> {
+export interface SheetImportFileOptions<Options = any> {
   /** `'append'` by default. */
   mode?: SheetImportMode
   /** The importer, by name; by default the first that takes the file. */
   importer?: string
+  /** Calls the import off: the importer reads it, and nothing is written once it is aborted. */
+  signal?: AbortSignal
   /** Passed on to the importer. */
   options?: Options
 }
@@ -102,6 +148,11 @@ export interface SheetImportEvent {
   warnings: SheetImportWarning[]
   defaultPrevented: boolean
   preventDefault: () => void
+  /**
+   * Writes `book` in with `mode` after `preventDefault()`, e.g. once the
+   * user agrees. Returns whether anything was written.
+   */
+  apply: () => boolean
 }
 
 /** An item of the right-click menu. */
@@ -232,6 +283,12 @@ export interface SheetToolbarProps {
   tools?: (SheetToolbarTool | (string & {}))[]
   /** The number formats in the menu, instead of the usual ones. */
   formats?: SheetFormatOption[]
+  /**
+   * The name the export menu saves files as: a name the exporter's
+   * extension is added to, or a function giving the whole name. The
+   * exported sheet's name by default.
+   */
+  fileName?: string | ((exporter: SheetExporterInfo, scope: SheetExportScope) => string)
 }
 
 export interface SheetToolbarSlots {
@@ -253,6 +310,8 @@ export interface SheetEmits {
   paste: [event: SheetPasteEvent]
   /** After a file is read, before it is written in: change it, or stop it. */
   import: [event: SheetImportEvent]
+  /** An import or export failed; the grid shows a short message too. */
+  fileError: [event: SheetFileErrorEvent]
 }
 
 export interface SheetExpose {
@@ -303,21 +362,39 @@ export interface SheetExpose {
    * Writes a file with an exporter (by name, such as `'csv'`, or itself):
    * the workbook, a sheet or the selected cells.
    */
-  exportFile: <Options = any>(
-    exporter: string | SheetExporter<Options>,
-    options?: SheetFileOptions<Options>,
-  ) => Promise<Blob>
-  /** Exports as `exportFile` does and saves the file in the downloads, as the toolbar does. */
-  saveFile: <Options = any>(
-    exporter: string | SheetExporter<Options>,
-    options?: SheetFileOptions<Options> & { fileName?: string },
-  ) => Promise<void>
+  exportFile: {
+    <Name extends string>(
+      exporter: Name,
+      options?: SheetExportFileOptions<SheetExporterOptionsOf<Name>>,
+    ): Promise<Blob>
+    <Options>(
+      exporter: SheetExporter<Options>,
+      options?: SheetExportFileOptions<Options>,
+    ): Promise<Blob>
+  }
+  /**
+   * Exports as `exportFile` does and saves the file in the downloads, as the
+   * toolbar does. A failure shows a short message over the grid and comes
+   * as `file-error`, and the promise rejects.
+   */
+  saveFile: {
+    <Name extends string>(
+      exporter: Name,
+      options?: SheetSaveFileOptions<SheetExporterOptionsOf<Name>>,
+    ): Promise<void>
+    <Options>(
+      exporter: SheetExporter<Options>,
+      options?: SheetSaveFileOptions<Options>,
+    ): Promise<void>
+  }
   /**
    * Reads a file into the workbook, as one change undo takes back. Returns
    * what was read, or `null` when nothing was written (no importer takes
-   * the file, the grid is read-only, or the `import` event stopped it).
+   * the file, the grid is read-only, the `import` event stopped it, or it
+   * was aborted). A failure shows a short message over the grid and comes
+   * as `file-error`; an importer's error also rejects the promise.
    */
-  importFile: (file: Blob, options?: SheetImportOptions) => Promise<SheetImportResult | null>
+  importFile: (file: Blob, options?: SheetImportFileOptions) => Promise<SheetImportResult | null>
   /** Opens the editor on a cell, the active one by default. */
   edit: (cell?: SheetCellTarget) => void
   /** Selects a cell, the active one by default, and opens the box to write its note. */

@@ -347,24 +347,29 @@ export function createSheetExport(src: SheetExportSource) {
     }
   }
 
-  /** The sheet as an SVG document, and its size. */
-  function exportImage(options: SheetExportOptions) {
+  /** The cells of a sheet laid out as the grid draws them, in plain colors. */
+  function drawingOf(options: SheetExportOptions = {}) {
     const t = src.target(options.sheet)
     const b = exportBounds(options.range, t)
     const gridlines = options.gridlines ?? src.gridlines()
     const reader = exportReader(src.root() ?? document.body, false, gridlines)
     try {
-      const drawing = exportDrawing(
+      return exportDrawing(
         shownLines(t.rows, b.top, b.bottom),
         shownLines(t.cols, b.left, b.right),
         { headers: options.headers ?? false, gridlines, background: options.background ?? true },
         reader,
         t,
       )
-      return { svg: drawSheet(drawing, measureText), ...drawingSize(drawing) }
     } finally {
       reader.done()
     }
+  }
+
+  /** The sheet as an SVG document, and its size. */
+  function exportImage(options: SheetExportOptions) {
+    const laid = drawingOf(options)
+    return { svg: drawSheet(laid, measureText), ...drawingSize(laid) }
   }
 
   function exportSVG(options: SheetExportOptions = {}) {
@@ -451,5 +456,5 @@ export function createSheetExport(src: SheetExportSource) {
     win.print()
   }
 
-  return { exportSVG, exportPNG, print }
+  return { exportSVG, exportPNG, print, drawing: drawingOf }
 }

@@ -41,13 +41,16 @@ export {
 export type {
   SheetCSVExportOptions,
   SheetExporter,
+  SheetExporterInfo,
   SheetExportScope,
   SheetExportWorkbookOptions,
   SheetFileSheet,
   SheetFileSource,
   SheetFileSourceOptions,
+  SheetFileView,
   SheetImportContext,
   SheetImporter,
+  SheetImporterInfo,
   SheetImportResult,
   SheetImportWarning,
   SheetReadWorkbookOptions,
@@ -70,10 +73,14 @@ export type {
   SheetToolbarTool,
   SheetToolbarItem,
   SheetExpose,
-  SheetFileOptions,
+  SheetExportFileOptions,
+  SheetExporterOptions,
+  SheetExporterOptionsOf,
+  SheetFileErrorEvent,
+  SheetSaveFileOptions,
   SheetImportEvent,
   SheetImportMode,
-  SheetImportOptions,
+  SheetImportFileOptions,
   SheetInvalidCell,
   SheetExportOptions,
   SheetImageOptions,
@@ -169,7 +176,7 @@ export type { SheetFunction, SheetFunctionContext } from './formula/functions'
 export { isSheetError, SheetError } from './formula/error'
 export type { SheetErrorCode } from './formula/error'
 export type { SheetArg, SheetRangeArg, SheetResult } from './formula/values'
-export { messagesFor, sheetLocales, useSheetMessages } from './locale'
+export { sheetMessagesFor, sheetLocales, useSheetMessages } from './locale'
 export type { SheetFileMessages, SheetMessages } from './locale'
 
 declare module 'vue' {
@@ -180,3 +187,4 @@ declare module 'vue' {
     DouSheetFormulaBar: typeof DouSheetFormulaBar
   }
 }
+export type { DrawCell, DrawLook, DrawTheme, SheetDrawing } from './export/draw'

@@ -4,7 +4,7 @@ import type { SheetBounds, SheetPoint } from './core/address'
 import type { SheetResolvedType } from './core/cell-type'
 import type { SheetData, SheetSortOrder, SheetStyle, SheetValue, SheetWorkbook } from './core/model'
 import type { SheetResult } from './formula/values'
-import type { SheetExporter, SheetImporter } from './core/file'
+import type { SheetExporterInfo, SheetImporterInfo } from './core/file'
 import type { SheetSelection } from './core/selection'
 import type { SheetStylePatch } from './core/transaction'
 import type { SheetMessages } from './locale'
@@ -110,10 +110,10 @@ export interface SheetContext {
   exportFile: SheetExpose['exportFile']
   saveFile: SheetExpose['saveFile']
   importFile: SheetExpose['importFile']
-  /** The exporters: the built-in ones (CSV, PNG, SVG), then the extensions'. */
-  exporters: ComputedRef<SheetExporter[]>
+  /** The exporters, labels in the sheet's language: the built-in ones (CSV, PNG, SVG), then the extensions'. */
+  exporters: ComputedRef<SheetExporterInfo[]>
   /** The importers, in the order they are asked: the extensions', then the built-in CSV one. */
-  importers: ComputedRef<SheetImporter[]>
+  importers: ComputedRef<SheetImporterInfo[]>
   /** What a file picker for the importers accepts, such as `.csv,text/csv`. */
   importAccept: ComputedRef<string>
   /** The items extensions add to the toolbar, in priority order. */

@@ -532,6 +532,10 @@ const zhCN: SheetMessages = {
     imported: '已导入 {name}',
     importFailed: '无法读取“{name}”：{reason}',
     unknownFile: '没有能读取“{name}”的导入方式',
+    exportFailed: '无法导出 {name}：{reason}',
+    workbook: '整个工作簿',
+    sheet: '当前工作表',
+    selection: '选区',
   },
 }
 
@@ -882,6 +886,10 @@ const zhTW: SheetMessages = {
     imported: '已匯入 {name}',
     importFailed: '無法讀取「{name}」：{reason}',
     unknownFile: '沒有能讀取「{name}」的匯入方式',
+    exportFailed: '無法匯出 {name}：{reason}',
+    workbook: '整個活頁簿',
+    sheet: '目前工作表',
+    selection: '選取範圍',
   },
 }
 
@@ -1239,6 +1247,10 @@ const en: SheetMessages = {
     imported: 'Imported {name}',
     importFailed: "Couldn't read “{name}”: {reason}",
     unknownFile: 'No importer reads “{name}”',
+    exportFailed: "Couldn't export {name}: {reason}",
+    workbook: 'Whole workbook',
+    sheet: 'This sheet',
+    selection: 'Selection',
   },
 }
 
@@ -1263,6 +1275,12 @@ export interface SheetFileMessages {
   importFailed: string
   /** A file no importer takes: `{name}`. */
   unknownFile: string
+  /** A file that couldn't be written: `{name}`, `{reason}`. */
+  exportFailed: string
+  /** What the export menu offers to write, for exporters that can write more than one. */
+  workbook: string
+  sheet: string
+  selection: string
 }
 
 /** The texts of conditional formats. */
@@ -1480,12 +1498,8 @@ export interface SheetFilterMessages {
   nothingToSort: string
 }
 
-/**
- * The spreadsheet's texts, picked by the name of DouUI's current locale.
- * Pass `messages` to override any of them.
- */
 /** The texts for a language, such as `zh-CN`; Chinese or English by its first part, English otherwise. */
-export function messagesFor(locale = 'zh-CN'): SheetMessages {
+export function sheetMessagesFor(locale = 'zh-CN'): SheetMessages {
   return (
     sheetLocales[locale] ??
     sheetLocales[locale.split('-')[0]!] ??
@@ -1493,6 +1507,10 @@ export function messagesFor(locale = 'zh-CN'): SheetMessages {
   )
 }
 
+/**
+ * The spreadsheet's texts, picked by the name of DouUI's current locale.
+ * Pass `messages` to override any of them.
+ */
 export function useSheetMessages(override?: MaybeRefOrGetter<Partial<SheetMessages> | undefined>) {
   const { locale } = useLocale()
   return computed<SheetMessages>(() => {

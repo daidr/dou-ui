@@ -66,7 +66,14 @@ import { mergesOf } from './core/merge'
 import { alignOf, fitNumber, formatValue, inputText, parseInput } from './core/format'
 import { SheetHistory, type SheetHistoryView } from './core/history'
 import { SheetFormulaEngine } from './formula/engine'
-import { callAt, canPointAt, formulaReferences, nameAt } from './formula/edit'
+import {
+  callAt,
+  canPointAt,
+  formulaParts,
+  formulaReferences,
+  nameAt,
+  partClass,
+} from './formula/edit'
 import type { SheetFunction } from './formula/functions'
 import { isSheetError, type SheetErrorCode } from './formula/error'
 import { shownValue } from './formula/values'
@@ -2280,20 +2287,9 @@ const assistStyle = computed(() => {
 // The formula as it is typed, with its references in their colors, drawn under the editor's text
 
 const mirror = ref<HTMLElement>()
-const mirrorParts = computed(() => {
-  if (!formulaEdit.value) return []
-  const text = editText.value
-  const parts: { text: string; color?: number }[] = []
-  let at = 0
-  for (const mark of refMarks.value) {
-    if (mark.start > at) parts.push({ text: text.slice(at, mark.start) })
-    parts.push({ text: mark.text, color: mark.color })
-    at = mark.end
-  }
-  // a last line break still takes a line
-  parts.push({ text: `${text.slice(at)}\u200b` })
-  return parts
-})
+const mirrorParts = computed(() =>
+  formulaEdit.value ? formulaParts(editText.value, refMarks.value) : [],
+)
 function syncMirror() {
   const el = editor.value
   const m = mirror.value
@@ -4552,12 +4548,9 @@ defineExpose<SheetExpose>({
         :style="inputStyle"
         aria-hidden="true"
       >
-        <span
-          v-for="(part, i) in mirrorParts"
-          :key="i"
-          :class="part.color != null && `is-ref-${part.color}`"
-          >{{ part.text }}</span
-        >
+        <span v-for="(part, i) in mirrorParts" :key="i" :class="partClass(part)">{{
+          part.text
+        }}</span>
       </div>
       <textarea
         ref="editor"

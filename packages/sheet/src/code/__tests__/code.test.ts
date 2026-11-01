@@ -131,6 +131,37 @@ describe('DouSheetCodeFormulaBar', () => {
     ])
   })
 
+  it('colors the formula in the cell as in the box', async () => {
+    const { wrapper, cell, typeCell } = setup()
+    cell.focus()
+    await typeCell('=ROUND(B1,2)&"元"')
+    const classes = (root: string) =>
+      wrapper
+        .findAll(`${root} span[class]`)
+        .filter((s) => /dou-syntax-|is-ref-/.test(s.classes().join(' ')))
+        .map((s) => [s.text(), s.classes().find((c) => /^(?:dou-syntax-|is-ref-)/.test(c))])
+    const inCell = classes('.dou-sheet__input.is-mirror')
+    expect(inCell).toEqual([
+      ['=', 'dou-syntax-operator'],
+      ['ROUND', 'dou-syntax-function'],
+      ['(', 'dou-syntax-punctuation'],
+      ['B1', 'is-ref-0'],
+      [',', 'dou-syntax-punctuation'],
+      ['2', 'dou-syntax-number'],
+      [')', 'dou-syntax-punctuation'],
+      ['&', 'dou-syntax-operator'],
+      ['"元"', 'dou-syntax-string'],
+    ])
+    const box = wrapper.find('.dou-sheet-code-bar')
+    expect(box.find('.dou-syntax-function').text()).toBe('ROUND')
+    expect(
+      box
+        .findAll('.dou-syntax-string')
+        .map((s) => s.text())
+        .join(''),
+    ).toBe('"元"')
+  })
+
   it('is read-only with the sheet', async () => {
     const doc = ref(book())
     const wrapper = mount(

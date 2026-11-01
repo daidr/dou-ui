@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { ContextMenuItem } from '../context-menu/context-menu'
 import { ChevronLeftIcon, ChevronRightIcon, TrashIcon } from '@dou-ui/icons'
 import {
   computed,
@@ -16,15 +17,20 @@ import { holdPointer } from '../../utils/pointer'
 import type { PointerHold } from '../../utils/pointer'
 import { useLocale } from '../config-provider/use-config'
 import { DouContextMenu } from '../context-menu'
-import { addDays, addMonths, parts, today, toDateString, weekday } from '../date-picker/date'
-import { DouDropdownItem } from '../dropdown'
-import { DouIcon } from '../icon'
+import {
+  addDays,
+  addMonths,
+  daysInMonth,
+  parts,
+  today,
+  toDateString,
+  weekday,
+} from '../date-picker/date'
 import { DouSegmentedControl } from '../segmented-control'
 import type {
   CalendarChange,
   CalendarDay,
   CalendarEvent,
-  CalendarMenuItem,
   CalendarMenuTarget,
   CalendarMove,
   CalendarRange,
@@ -46,6 +52,7 @@ import {
 import TimeGridComponent from './time-grid.vue'
 import type { HTMLAttributes } from 'vue'
 import type { WithAttributes } from '../../utils/install'
+import { visibleRange } from './range'
 import { segmentOn, spanOf } from './time-layout'
 import type { EventSpan } from './time-layout'
 
@@ -72,6 +79,7 @@ const emit = defineEmits<{
   change: [change: CalendarChange]
   create: [range: CalendarRange]
   eventContextmenu: [event: CalendarEvent, nativeEvent: MouseEvent]
+  rangeChange: [range: CalendarRange]
 }>()
 const slots = defineSlots<CalendarViewSlots>()
 
@@ -260,6 +268,32 @@ const weekDays = computed<CalendarDay[]>(() => {
   return Array.from({ length: 7 }, (_, index) => dayOf(addDays(start, index)))
 })
 
+/** The days on screen, first to last, whatever the view. */
+const visible = computed(() => visibleRange(cursor.value, view.value, weekStart.value))
+watch(
+  () => `${visible.value.start}/${visible.value.end}`,
+  () => emit('rangeChange', { ...visible.value }),
+  { immediate: true },
+)
+
+/** The agenda: the days of the month shown that have events, each with its events. */
+const agenda = computed(() => {
+  if (view.value !== 'agenda') return []
+  const first = `${shown.value}-01`
+  const { year, month: m } = parts(first)
+  return Array.from({ length: daysInMonth(year, m) }, (_, index) =>
+    dayOf(addDays(first, index)),
+  ).filter((day) => day.events.length)
+})
+
+/** When an event takes place on one day of the agenda. */
+function agendaTime(event: CalendarEvent, date: string) {
+  const span = spans.value.get(event)!
+  if (span.start === null) return t('calendarView.allDay')
+  const { start, end } = segmentOn(span, date)
+  return `${timeText(start)}–${timeText(end)}`
+}
+
 const viewOptions = computed(() =>
   (props.views ?? []).map((value) => ({ value, label: t(`calendarView.${value}`) })),
 )
@@ -285,8 +319,12 @@ const resizable = (event: CalendarEvent, date: string) =>
   !event.locked &&
   spans.value.get(event)!.start === null &&
   spans.value.get(event)!.to === date
-const keyShortcuts =
-  'Alt+ArrowLeft Alt+ArrowRight Alt+ArrowUp Alt+ArrowDown Alt+Shift+ArrowLeft Alt+Shift+ArrowRight Alt+Shift+ArrowUp Alt+Shift+ArrowDown Delete Backspace Shift+F10'
+/** The agenda moves events by day only: up and down there walk the list. */
+const keyShortcuts = computed(() =>
+  view.value === 'agenda'
+    ? 'Alt+ArrowLeft Alt+ArrowRight Alt+Shift+ArrowLeft Alt+Shift+ArrowRight Delete Backspace Shift+F10'
+    : 'Alt+ArrowLeft Alt+ArrowRight Alt+ArrowUp Alt+ArrowDown Alt+Shift+ArrowLeft Alt+Shift+ArrowRight Alt+Shift+ArrowUp Alt+Shift+ArrowDown Delete Backspace Shift+F10',
+)
 
 /* choosing and moving */
 
@@ -307,6 +345,8 @@ function choose(day: CalendarDay) {
   model.value = day.date
   emit('select', day.date)
 }
+
+const weekdayOf = (date: string) => formatter({ weekday: 'short' }).format(asDate(date))
 
 function step(direction: 1 | -1) {
   if (view.value === 'week') cursor.value = addDays(cursor.value, direction * 7)
@@ -399,13 +439,13 @@ const tip = computed(() => {
   return d.range ? rangeText({ id: '', title: '', ...d.range }) : ''
 })
 
+/** Where the pointer is, kept apart from the drag so the tip follows it between snaps. */
+const pointer = ref({ x: 0, y: 0 })
 /**
  * Beside the pointer, where it stays in view: on its left once past the
  * middle of the window, and above it for a finger, which would cover it,
  * or near the bottom of the window.
  */
-/** Where the pointer is, kept apart from the drag so the tip follows it between snaps. */
-const pointer = ref({ x: 0, y: 0 })
 const tipStyle = computed(() => {
   const d = drag.value
   if (!d || typeof window === 'undefined') return {}
@@ -583,12 +623,25 @@ function onPointerDown(event: PointerEvent) {
   if (event.button !== 0 || drag.value) return
   const el = event.target as HTMLElement
   const touch = event.pointerType !== 'mouse'
-  if (touch) touchedAt = Date.now()
-  const cell = el.closest<HTMLElement>('[data-drop]')
-  if (!cell) return
-  const surface = cell.dataset.drop as Surface
   const chip = el.closest<HTMLElement>('[data-event-id]')
   const item = chip ? byId(chip.dataset.eventId) : undefined
+  const cell = el.closest<HTMLElement>('[data-drop]')
+  if (!cell) {
+    // the agenda has nothing to drag: a finger resting on an event opens its menu
+    const day = el.closest<HTMLElement>('[data-agenda-date]')?.dataset.agendaDate
+    if (touch && item && day) {
+      startDrag(event, {
+        kind: 'press',
+        surface: 'day',
+        event: item,
+        span: spans.value.get(item) ?? null,
+        origin: { date: day, minutes: 0 },
+        target: { kind: 'event', event: item },
+      })
+    }
+    return
+  }
+  const surface = cell.dataset.drop as Surface
   let kind: Drag['kind']
   if (item) {
     const span = spans.value.get(item)
@@ -605,12 +658,25 @@ function onPointerDown(event: PointerEvent) {
   if (kind === 'press' && !touch) return
   const origin = pointAt(surface, event.clientX, event.clientY)
   if (!origin) return
-  drag.value = {
+  startDrag(event, {
     kind,
     surface,
     event: item ?? null,
     span: item ? spans.value.get(item)! : null,
     origin,
+    target: targetOf(el, event.clientX, event.clientY),
+  })
+}
+
+/** Starts following a pointer that went down; a finger picks up after a short rest. */
+function startDrag(
+  event: PointerEvent,
+  start: Pick<Drag, 'kind' | 'surface' | 'event' | 'span' | 'origin' | 'target'>,
+) {
+  const touch = event.pointerType !== 'mouse'
+  if (touch) touchedAt = Date.now()
+  drag.value = {
+    ...start,
     pointerId: event.pointerId,
     touch,
     x0: event.clientX,
@@ -621,7 +687,6 @@ function onPointerDown(event: PointerEvent) {
     draft: null,
     range: null,
     refusal: null,
-    target: targetOf(el, event.clientX, event.clientY),
   }
   pointer.value = { x: event.clientX, y: event.clientY }
   hold = holdPointer(event, rootRef.value)
@@ -752,6 +817,10 @@ function remove(event: CalendarEvent) {
   announce(t('calendarView.removed', { title: event.title }))
 }
 
+/** The element of an event on screen. */
+const chipOf = (id: string | undefined) =>
+  id ? rootRef.value?.querySelector<HTMLElement>(`[data-event-id="${CSS.escape(id)}"]`) : null
+
 /**
  * Removes an event from the keyboard, then puts the keyboard on the next
  * event of the same day, or the one before, or else on the day itself.
@@ -763,11 +832,16 @@ async function removeByKey(item: CalendarEvent, chip: HTMLElement) {
   const near = [...siblings.slice(index + 1), ...siblings.slice(0, index).reverse()]
     .map((el) => el.dataset.eventId!)
     .find((id) => id !== item.id)
-  const day = chip.closest<HTMLElement>('[data-date]')?.dataset.date
+  const holder = chip.closest<HTMLElement>('[data-date], [data-agenda-date]')
+  const day = holder?.dataset.date ?? holder?.dataset.agendaDate
+  // in the agenda a day without events goes away: fall back to the next day's first event, or the one before's
+  const listed = chip.closest<HTMLElement>('[data-agenda-date]')
+  const neighbour = (listed?.nextElementSibling ?? listed?.previousElementSibling) as
+    HTMLElement | null | undefined
+  const fallback = neighbour?.querySelector<HTMLElement>('[data-event-id]')?.dataset.eventId
   remove(item)
   await nextTick()
-  const next =
-    near && rootRef.value?.querySelector<HTMLElement>(`[data-event-id="${CSS.escape(near)}"]`)
+  const next = chipOf(near) ?? chipOf(fallback)
   if (next) return next.focus()
   if (day) cursor.value = day
   void focusCursor()
@@ -777,9 +851,7 @@ async function removeByKey(item: CalendarEvent, chip: HTMLElement) {
 
 const menuRef = useTemplateRef<InstanceType<typeof DouContextMenu>>('menu')
 const menuOpen = ref(false)
-const menuItems = shallowRef<CalendarMenuItem[]>([])
-// shortcuts mean nothing without a keyboard
-const coarse = () => typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches
+const menuItems = shallowRef<ContextMenuItem[]>([])
 
 /**
  * Sends `eventContextmenu` before an event's menu opens; `false` when the
@@ -814,10 +886,6 @@ function showMenu(target: CalendarMenuTarget, x: number, y: number) {
   return true
 }
 
-function onMenuSelect(key: unknown) {
-  menuItems.value.find((item) => item.key === key)?.run()
-}
-
 function onContextmenu(event: MouseEvent) {
   // a finger's long press opens the menu itself, when it lets go
   if (Date.now() - touchedAt < 1000) return event.preventDefault()
@@ -829,9 +897,15 @@ function onContextmenu(event: MouseEvent) {
 
 /* keys on an event */
 
+/**
+ * Puts the keyboard back on an event after a change; when the app stored it
+ * under a new id, e.g. one occurrence of a series, on the day it went to.
+ */
 async function focusEvent(id: string) {
   await nextTick()
-  rootRef.value?.querySelector<HTMLElement>(`[data-event-id="${CSS.escape(id)}"]`)?.focus()
+  const chip = chipOf(id)
+  if (chip) chip.focus()
+  else void focusCursor()
 }
 
 /**
@@ -864,7 +938,7 @@ function onEventKeydown(event: KeyboardEvent) {
   const span = spans.value.get(item)
   if (!event.altKey || !span) return
   const timed = span.start !== null
-  const onAxis = timed && view.value !== 'month'
+  const onAxis = timed && view.value !== 'month' && view.value !== 'agenda'
   const snap = Math.max(1, Math.round(props.snap))
   const keys: Record<string, { days?: number; minutes?: number }> = {
     ArrowLeft: { days: -1 },
@@ -970,8 +1044,58 @@ defineExpose<CalendarViewExpose>({
         </button>
       </div>
     </div>
+    <div
+      v-if="view === 'agenda'"
+      ref="grid"
+      role="list"
+      :class="ns.e('agenda')"
+      :aria-label="title"
+    >
+      <p v-if="!agenda.length" :class="ns.e('agenda-empty')">{{ t('calendarView.empty') }}</p>
+      <div
+        v-for="day in agenda"
+        :key="day.date"
+        role="listitem"
+        :data-agenda-date="day.date"
+        :class="[ns.e('agenda-day'), ns.is('today', day.today), ns.is('selected', day.selected)]"
+      >
+        <button
+          type="button"
+          :class="ns.e('agenda-date')"
+          :data-date="day.date"
+          :disabled="day.disabled"
+          :aria-label="dayLabel(day)"
+          :aria-current="day.today ? 'date' : undefined"
+          :aria-pressed="day.selected"
+          @click="choose(day)"
+        >
+          <span :class="ns.e('number')">{{ day.day }}</span>
+          <span :class="ns.e('agenda-weekday')">{{ weekdayOf(day.date) }}</span>
+        </button>
+        <div :class="ns.e('agenda-events')">
+          <button
+            v-for="event in day.events"
+            :key="event.id"
+            type="button"
+            :data-event-id="event.id"
+            :class="[
+              ns.e('agenda-event'),
+              `${ns.e('event')}--${event.tone ?? 'primary'}`,
+              ns.is('locked', !!editable && !!event.locked),
+            ]"
+            :aria-keyshortcuts="editable && !event.locked ? keyShortcuts : undefined"
+            @click="emit('eventClick', event)"
+          >
+            <span :class="ns.e('agenda-time')">{{ agendaTime(event, day.date) }}</span>
+            <span :class="ns.e('agenda-title')">
+              <slot name="event" :event="event" :day="day">{{ event.title }}</slot>
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
     <TimeGrid
-      v-if="view !== 'month'"
+      v-else-if="view !== 'month'"
       :days="weekDays"
       :spans="spans"
       :hours="hours"
@@ -1087,24 +1211,8 @@ defineExpose<CalendarViewExpose>({
       {{ tip }}
     </div>
     <!-- The calendar opens the menu itself; the empty anchor only gives it a place in the page. -->
-    <DouContextMenu ref="menu" v-model:open="menuOpen" @select="onMenuSelect">
+    <DouContextMenu ref="menu" v-model:open="menuOpen" :items="menuItems">
       <span :class="ns.e('menu-anchor')" aria-hidden="true" />
-      <template #menu>
-        <DouDropdownItem
-          v-for="item in menuItems"
-          :key="item.key"
-          :value="item.key"
-          :disabled="item.disabled"
-          :tone="item.tone"
-          :divided="item.divided"
-          :shortcut="coarse() ? undefined : item.shortcut"
-        >
-          <template v-if="item.icon" #prefix>
-            <DouIcon><component :is="item.icon" /></DouIcon>
-          </template>
-          {{ item.label }}
-        </DouDropdownItem>
-      </template>
     </DouContextMenu>
   </div>
 </template>

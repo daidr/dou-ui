@@ -83,6 +83,16 @@ const pointer = (type: string, x: number, y: number) =>
     pointerType: 'mouse',
   })
 
+const touch = (type: string) =>
+  new PointerEvent(type, {
+    clientX: 20,
+    clientY: 20,
+    button: 0,
+    pointerId: 2,
+    bubbles: true,
+    pointerType: 'touch',
+  })
+
 describe('DouCalendarView editing', () => {
   it('moves an event to another day and time by dragging', async () => {
     const w = make()
@@ -261,5 +271,92 @@ describe('DouCalendarView editing', () => {
     wrapper = mount(DouCalendarView, { props: { editable: true, events: EVENTS } })
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('v-model:events'))
     warn.mockRestore()
+  })
+
+  it('lists the month by day in the agenda, and edits from there too', async () => {
+    const onEventClick = vi.fn<(event: CalendarEvent) => void>()
+    const w = make({ view: 'agenda', onEventClick })
+    const days = w.findAll('.dou-calendar-view__agenda-day')
+    expect(days.map((day) => day.attributes('data-agenda-date'))).toEqual([
+      '2026-10-26',
+      '2026-10-27',
+      '2026-10-28',
+    ])
+    expect(days[1]!.findAll('.dou-calendar-view__agenda-event').map((el) => el.text())).toEqual([
+      '全天出差',
+      '14:00–15:00大会',
+    ])
+    await chip(w, 'a').trigger('click')
+    expect(onEventClick).toHaveBeenCalledWith(EVENTS[0])
+    await chip(w, 'a').trigger('keydown', { key: 'ArrowRight', altKey: true })
+    expect(events(w)[0]).toMatchObject({ start: '2026-10-29 09:00' })
+    await w.setProps({ events: [] })
+    expect(w.get('.dou-calendar-view__agenda-empty').text()).toBe('这个月没有日程')
+  })
+
+  it('opens the menu on an agenda event after a finger rests on it', async () => {
+    vi.useFakeTimers()
+    try {
+      const w = make({ view: 'agenda' })
+      chip(w, 'a').element.dispatchEvent(touch('pointerdown'))
+      // the browser's own long-press menu is kept back
+      const native = new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
+      chip(w, 'a').element.dispatchEvent(native)
+      expect(native.defaultPrevented).toBe(true)
+      vi.advanceTimersByTime(400)
+      window.dispatchEvent(touch('pointerup'))
+      await nextTick()
+      expect(
+        [...document.querySelectorAll('[role="menuitem"]')].map((el) => el.textContent),
+      ).toEqual([expect.stringContaining('删除日程')])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('moves focus to the next day when the last event of an agenda day goes', async () => {
+    const w = make({ view: 'agenda' })
+    ;(chip(w, 'a').element as HTMLElement).focus()
+    await chip(w, 'a').trigger('keydown', { key: 'Delete' })
+    await nextTick()
+    await nextTick()
+    // the 28th is gone; the 27th is the day before, its first event takes the keyboard
+    expect(document.activeElement?.getAttribute('data-event-id')).toBe('b')
+  })
+
+  it('leaves up and down alone in the agenda', async () => {
+    const w = make({ view: 'agenda' })
+    expect(chip(w, 'a').attributes('aria-keyshortcuts')).not.toContain('ArrowUp')
+    await chip(w, 'a').trigger('keydown', { key: 'ArrowDown', altKey: true })
+    await chip(w, 'a').trigger('keydown', { key: 'ArrowDown', altKey: true, shiftKey: true })
+    expect(events(w)).toEqual(EVENTS)
+  })
+
+  it('puts the keyboard on the new day when the app stores a change under a new id', async () => {
+    const w = make({
+      view: 'month',
+      'onUpdate:events': (list: CalendarEvent[]) =>
+        w.setProps({
+          events: list.map((event) => (event.id === 'a' ? { ...event, id: 'a-2' } : event)),
+        }),
+    })
+    ;(chip(w, 'a').element as HTMLElement).focus()
+    await chip(w, 'a').trigger('keydown', { key: 'ArrowRight', altKey: true })
+    await nextTick()
+    await nextTick()
+    expect(document.activeElement?.getAttribute('data-date')).toBe('2026-10-29')
+  })
+
+  it('tells which days are on screen', async () => {
+    const onRangeChange = vi.fn<(range: { start: string; end: string }) => void>()
+    const w = make({ view: 'month', onRangeChange, weekStart: 1 })
+    expect(onRangeChange).toHaveBeenLastCalledWith({ start: '2026-09-28', end: '2026-11-08' })
+    await w.setProps({ view: 'week' })
+    expect(onRangeChange).toHaveBeenLastCalledWith({ start: '2026-10-26', end: '2026-11-01' })
+    await w.setProps({ view: 'agenda' })
+    expect(onRangeChange).toHaveBeenLastCalledWith({ start: '2026-10-01', end: '2026-10-31' })
+    await w.setProps({ view: 'day' })
+    expect(onRangeChange).toHaveBeenLastCalledWith({ start: '2026-10-28', end: '2026-10-28' })
+    expect(onRangeChange).toHaveBeenCalledTimes(4)
   })
 })

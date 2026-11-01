@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { ContextMenuItem } from 'dou-ui'
 import {
   ChevronDownIcon,
   ChevronRightIcon,
@@ -46,7 +47,7 @@ import {
   workdaysBetween,
   workingMinutes,
 } from './core/calendar'
-import type { GanttMenuItem, GanttMenuTarget } from './core/menu'
+import type { GanttMenuTarget } from './core/menu'
 import { arrowPath, roundedPath, routeLink, type BarBox } from './core/geometry'
 import { baselineSpans } from './core/baseline'
 import {
@@ -1787,11 +1788,11 @@ const dragTip = computed(() => {
 // Menus -----------------------------------------------------------------------------------
 
 const menu = useTemplateRef<InstanceType<typeof GanttMenu>>('menu')
-const menuItems = shallowRef<GanttMenuItem[]>([])
+const menuItems = shallowRef<ContextMenuItem[]>([])
 const menuOpen = ref(false)
 
 /** The built-in items for a target. */
-function builtInItems(target: GanttMenuTarget): GanttMenuItem[] {
+function builtInItems(target: GanttMenuTarget): ContextMenuItem[] {
   const m = messages.value.menu
   if (target.kind === 'link')
     return [
@@ -1861,7 +1862,7 @@ function builtInItems(target: GanttMenuTarget): GanttMenuItem[] {
 
 /** Your items, the extensions', then the built-in ones, a separator between each group. */
 function itemsFor(target: GanttMenuTarget) {
-  const items: GanttMenuItem[] = []
+  const items: ContextMenuItem[] = []
   const groups = [
     props.contextMenu?.(target) ?? [],
     ...resolved.value.menus.map((fn) => fn(context, target)),
@@ -1907,10 +1908,6 @@ function showMenu(on: MenuOn, x: number, y: number) {
   menuItems.value = items
   menu.value?.open(x, y)
   return true
-}
-
-function runMenuItem(key: unknown) {
-  menuItems.value.find((item) => item.key === key)?.run()
 }
 
 /** When a finger last went down: its long press opens the menu itself, not the browser's. */
@@ -3058,7 +3055,7 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
       @keydown="onDividerKey"
     />
     <component :is="overlay" v-for="(overlay, i) in resolved.overlays" :key="`overlay-${i}`" />
-    <GanttMenu ref="menu" v-model:open="menuOpen" :items="menuItems" @select="runMenuItem" />
+    <GanttMenu ref="menu" v-model:open="menuOpen" :items="menuItems" />
     <slot />
   </div>
 </template>

@@ -46,6 +46,29 @@
 
 <DocDemo src="dropdown/split-button" />
 
+## 用数据写菜单项
+
+菜单项在代码里生成时，可以不写 `menu` 插槽，直接传 `items`，写法和 [ContextMenu 的菜单项](./context-menu#用数据写菜单项) 相同：选中时调用这一项的 `run`，`select` 同样会触发。每一项都写了 `checked` 时，菜单是单选。同时写了 `menu` 插槽时显示插槽，`items` 不起作用。
+
+```vue
+<script setup lang="ts">
+import type { ContextMenuItem } from 'dou-ui'
+
+const items: ContextMenuItem[] = [
+  { key: 'rename', label: '重命名', run: rename },
+  { key: 'delete', label: '删除', tone: 'danger', divided: true, run: remove },
+]
+</script>
+
+<template>
+  <DouDropdown :items="items">
+    <DouButton>更多</DouButton>
+  </DouDropdown>
+</template>
+```
+
+子菜单仍然要写在 `menu` 插槽里。
+
 ## 键盘与读屏
 
 菜单带有 `role="menu"`，每一项是 `role="menuitem"`。触发元素带 `aria-haspopup="menu"`、`aria-expanded` 与 `aria-controls`。
@@ -65,18 +88,19 @@
 
 ### Dropdown Props
 
-| 名称           | 说明                           | 类型                             | 默认值           |
-| -------------- | ------------------------------ | -------------------------------- | ---------------- |
-| `open`         | 是否打开，配合 `v-model:open`  | `boolean`                        | `false`          |
-| `placement`    | 首选的一侧                     | `Placement`                      | `'bottom-start'` |
-| `trigger`      | 打开方式                       | `'click' \| 'hover' \| 'manual'` | `'click'`        |
-| `disabled`     | 不再打开                       | `boolean`                        | `false`          |
-| `hideOnSelect` | 选中后关闭                     | `boolean`                        | `true`           |
-| `sameWidth`    | 至少与触发元素一样宽           | `boolean`                        | `false`          |
-| `showDelay`    | `hover` 时多久打开，毫秒       | `number`                         | `100`            |
-| `hideDelay`    | `hover` 时离开后多久关闭，毫秒 | `number`                         | `150`            |
-| `offset`       | 与触发元素的间距，px           | `number`                         | `6`              |
-| `teleport`     | 渲染到哪里；`false` 为原地渲染 | `string \| HTMLElement \| false` | `'body'`         |
+| 名称           | 说明                                                          | 类型                             | 默认值           |
+| -------------- | ------------------------------------------------------------- | -------------------------------- | ---------------- |
+| `open`         | 是否打开，配合 `v-model:open`                                 | `boolean`                        | `false`          |
+| `placement`    | 首选的一侧                                                    | `Placement`                      | `'bottom-start'` |
+| `trigger`      | 打开方式                                                      | `'click' \| 'hover' \| 'manual'` | `'click'`        |
+| `disabled`     | 不再打开                                                      | `boolean`                        | `false`          |
+| `hideOnSelect` | 选中后关闭                                                    | `boolean`                        | `true`           |
+| `sameWidth`    | 至少与触发元素一样宽                                          | `boolean`                        | `false`          |
+| `showDelay`    | `hover` 时多久打开，毫秒                                      | `number`                         | `100`            |
+| `hideDelay`    | `hover` 时离开后多久关闭，毫秒                                | `number`                         | `150`            |
+| `offset`       | 与触发元素的间距，px                                          | `number`                         | `6`              |
+| `teleport`     | 渲染到哪里；`false` 为原地渲染                                | `string \| HTMLElement \| false` | `'body'`         |
+| `items`        | 用数据写的菜单项，代替 `menu` 插槽，见[上文](#用数据写菜单项) | `ContextMenuItem[]`              | —                |
 
 ### Dropdown Events
 

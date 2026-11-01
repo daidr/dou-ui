@@ -541,6 +541,9 @@ export interface Locale {
     month: string
     week: string
     day: string
+    agenda: string
+    /** The agenda of a month without events. */
+    empty: string
     /** Heads the row of events without a time in the week and day views. */
     allDay: string
     prevWeek: string

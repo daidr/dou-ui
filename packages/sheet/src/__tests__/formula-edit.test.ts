@@ -165,6 +165,7 @@ describe('DouSheet formula editing', () => {
       'SUM',
       'SUMIF',
       'SUMIFS',
+      'SUMPRODUCT',
     ])
   })
 

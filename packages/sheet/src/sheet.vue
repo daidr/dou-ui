@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import {
+  DouFindReplace,
   DouPopover,
+  DouToggle,
+  DouTooltip,
   downloadBlob,
+  useApplePlatform,
   holdPointer,
   isComposing,
   matchesHotkey,
@@ -67,6 +71,12 @@ import {
   TrashIcon,
   UnfoldVerticalIcon,
   fileIconOf,
+  FunctionIcon,
+  LayersIcon,
+  LetterCaseIcon,
+  ReplaceIcon,
+  SearchIcon,
+  WholeWordIcon,
 } from '@dou-ui/icons'
 import {
   computed,
@@ -111,6 +121,7 @@ import {
   formatValue,
   inputText,
   parseInput,
+  type SheetInput,
 } from './core/format'
 import { createCommands, labelOf, mergeCommands, type SheetCommand } from './core/commands'
 import { SheetHistory, type SheetHistoryView } from './core/history'
@@ -178,6 +189,13 @@ import {
   type SheetResolvedType,
 } from './core/cell-type'
 import { ruleMessage, SheetChecks } from './core/validation'
+import {
+  cellMatcher,
+  foundFrom,
+  replaceInText,
+  type SheetSearchQuery,
+  type SheetMatch,
+} from './core/find'
 import {
   resolveSheetExtensions,
   type ResolvedSheetExtensions,
@@ -247,7 +265,7 @@ const emit = defineEmits<SheetEmits>()
 defineSlots<SheetSlots>()
 
 const messages = useSheetMessages(() => props.messages)
-const { locale } = useLocale()
+const { locale, t: common } = useLocale()
 /** The language weekdays are named in. */
 const lang = computed(() => locale.value.name)
 const uid = useId()
@@ -1935,14 +1953,19 @@ function commitEdit(move?: SheetDirection, leaving = false) {
 }
 
 /** Why a strict rule refuses a typed value for a cell, or `''` when it doesn't. */
-function refusal(row: number, col: number, parsed: { value?: SheetValue; format?: string }) {
-  const c = checks.value
+function refusal(
+  row: number,
+  col: number,
+  parsed: { value?: SheetValue; format?: string },
+  data = sheet.value,
+  c = checks.value,
+) {
   const rule = c.empty ? undefined : c.ruleAt(row, col)
   const value = parsed.value ?? null
   // a formula's result is checked once it is worked out, and marked
   if (!rule || rule.strict === false || (typeof value === 'string' && value.startsWith('=')))
     return ''
-  const old = cellOf(sheet.value.cells[row]?.[col])
+  const old = cellOf(data.cells[row]?.[col])
   const text = formatValue(value, old?.format ?? parsed.format, lang.value)
   return c.fits(row, col, value, text) ? '' : ruleMessage(rule, messages.value)
 }
@@ -2303,6 +2326,12 @@ function onKeydown(event: KeyboardEvent) {
   for (const [hotkey, name] of STYLE_KEYS)
     if (matchesHotkey(event, hotkey)) return keyCommand(event, name)
   if (matchesHotkey(event, 'mod+\\')) return keyCommand(event, 'clear')
+  if (matchesHotkey(event, 'mod+f')) return keyCommand(event, 'find')
+  if (matchesHotkey(event, replaceKey())) return keyCommand(event, 'replace')
+  if (matchesHotkey(event, 'f3') || matchesHotkey(event, 'mod+g'))
+    return keyCommand(event, 'find.next')
+  if (matchesHotkey(event, 'shift+f3') || matchesHotkey(event, 'mod+shift+g'))
+    return keyCommand(event, 'find.previous')
   if (matchesHotkey(event, 'mod+k')) {
     event.preventDefault()
     return editLink()
@@ -2335,7 +2364,7 @@ function onKeydown(event: KeyboardEvent) {
       if (clipMark.value) {
         event.preventDefault()
         clipMark.value = null
-      }
+      } else if (closeFind()) event.preventDefault()
       return
     case 'Enter':
       if (mod || event.altKey) return
@@ -5672,9 +5701,422 @@ function forEachSelected(callback: (point: SheetPoint) => void) {
   }
 }
 
+// Find and replace -------------------------------------------------------------------------
+
+const findOpen = ref(false)
+const findReplacing = ref(false)
+const findQuery = ref<SheetSearchQuery>({ search: '' })
+const findPanel = ref<InstanceType<typeof DouFindReplace>>()
+/** The matches, in order of sheet, row and column. */
+const found = shallowRef<SheetMatch[]>([])
+const foundCapped = ref(false)
+/** At most this many matches are kept, so a search over a huge workbook stays quick. */
+const FIND_LIMIT = 10_000
+
+/** The rows and columns a sheet doesn't show: hidden, filtered out or folded away. */
+function hiddenLinesOf(data: SheetData) {
+  if (data === sheet.value) return { rows: shownRowSizes.value, cols: shownColSizes.value }
+  const g = shownGroupsOf(data)
+  return {
+    rows: hideIn(data.rowSizes ?? NO_SIZES, rowsFilteredOut(undefined, data), g.rows.hidden),
+    cols: hideIn(data.colSizes ?? NO_SIZES, g.cols.hidden),
+  }
+}
+
+/** A cell's text as its editor would start with it: a formula, or the value as typed. */
+function inputTextOf(data: SheetData, input: SheetCellInput) {
+  const value = valueOf(input)
+  const cell = cellOf(input)
+  const typed = cell?.type ? resolveCellType(cell, doc.value, cellTypes.value) : undefined
+  if (!typed) return inputText(value)
+  const { definition, setup } = typed
+  const text = definition.edit
+    ? definition.edit(value, setup)
+    : value == null
+      ? undefined
+      : definition.format?.(value, setup)
+  return text ?? inputText(value)
+}
+
+/** Whether a cell is drawn as a switch, such as a checkbox: its value has no text to find. */
+function isToggle(input: SheetCellInput) {
+  const cell = cellOf(input)
+  return !!cell?.type && !!resolveCellType(cell, doc.value, cellTypes.value)?.definition.toggle
+}
+
+/** The cells that match a query, on the sheet shown or on every sheet, at most `limit` of them. */
+function findCells(query: SheetSearchQuery, limit = Infinity) {
+  const test = cellMatcher(query)
+  const out: SheetMatch[] = []
+  if (!test) return { found: out, capped: false }
+  const formulas = query.lookIn === 'formulas'
+  const sheets = doc.value.sheets
+  const list = query.scope === 'workbook' ? sheets.map((_, i) => i) : [sheetIndex.value]
+  for (const index of list) {
+    const data = sheets[index]
+    if (!data) continue
+    const key = sheetKey(data)
+    const hidden = hiddenLinesOf(data)
+    const spans = data === sheet.value ? merges.value : mergesOf(data)
+    const { cells } = data
+    for (let row = 0; row < cells.length; row++) {
+      const line = cells[row]
+      if (!line || hidden.rows[row] === 0) continue
+      for (let col = 0; col < line.length; col++) {
+        const input = line[col]
+        if (isBlank(input) || hidden.cols[col] === 0) continue
+        // the cells a merge covers don't show
+        const span = spans.at(row, col)
+        if (span && (span.top !== row || span.left !== col)) continue
+        if (!formulas && isToggle(input)) continue
+        const text = formulas ? inputTextOf(data, input) : cellText(input, { sheet: key, row, col })
+        if (!test(text)) continue
+        if (out.length >= limit) return { found: out, capped: true }
+        out.push({ sheet: index, row, col })
+      }
+    }
+  }
+  return { found: out, capped: false }
+}
+
+let findTimer = 0
+/** A search waits in `findTimer` for typing to pause. */
+const findWaiting = ref(false)
+/** Whether the search waiting in `findTimer` previews its first match when it runs. */
+let findPreview = false
+function runFind() {
+  clearTimeout(findTimer)
+  findTimer = 0
+  findWaiting.value = false
+  const preview = findPreview
+  findPreview = false
+  if (!findQuery.value.search) {
+    found.value = []
+    foundCapped.value = false
+    return
+  }
+  const result = findCells(findQuery.value, FIND_LIMIT)
+  found.value = result.found
+  foundCapped.value = result.capped
+  if (preview) previewFound()
+}
+/** Looks again a little later, so typing or a run of edits doesn't search on every change. */
+function scheduleFind(delay = 120, preview = false) {
+  clearTimeout(findTimer)
+  findPreview ||= preview
+  findWaiting.value ||= preview
+  findTimer = window.setTimeout(runFind, delay)
+}
+onBeforeUnmount(() => clearTimeout(findTimer))
+
+/** Goes to the first match from the active cell on, unless the active cell is one. */
+function previewFound() {
+  if (found.value.length && currentFound.value < 0) goToFound(foundFrom(found.value, here()))
+}
+
+/** Up to this many cells are searched as each key is typed; past it, once typing stops. */
+const FIND_AT_ONCE = 20_000
+/** About how many cells a query goes through. */
+function findSize(query: SheetSearchQuery) {
+  const sheets = query.scope === 'workbook' ? doc.value.sheets : [sheet.value]
+  let size = 0
+  for (const data of sheets) size += data.cells.length * (data.cells[0]?.length ?? 1)
+  return size
+}
+
+watch(findQuery, (query, old) => {
+  if (!findOpen.value) return
+  const { replace: _new, ...look } = query
+  const { replace: _old, ...looked } = old
+  // only the replacement changed: there is nothing to look for again
+  if (JSON.stringify(look) === JSON.stringify(looked)) return
+  // a new search, or new options, show the first match from the active cell on, as a preview;
+  // in a big workbook typing waits for a pause, so no key waits for the search
+  if (query.search !== old.search && findSize(query) > FIND_AT_ONCE) scheduleFind(150, true)
+  else {
+    findPreview = true
+    runFind()
+  }
+})
+// the cells change, or another sheet shows: the matches are looked for again
+watch([doc, engineId, sheetIndex, filteredRows, groups, viewFolds], () => {
+  if (findOpen.value && findQuery.value.search) scheduleFind()
+})
+
+/** The active cell, as a place among the matches. */
+const here = (): SheetMatch => ({ sheet: sheetIndex.value, ...active.value })
+
+/** Which match the active cell is on; `-1` when it is on none. */
+const currentFound = computed(() => {
+  const list = found.value
+  const i = foundFrom(list, here())
+  const f = list[i]
+  return f &&
+    f.sheet === sheetIndex.value &&
+    f.row === active.value.row &&
+    f.col === active.value.col
+    ? i
+    : -1
+})
+
+/** Selects a match, showing its sheet first when it is on another. */
+function goToFound(index: number) {
+  const f = found.value[index]
+  if (!f) return
+  const point = { row: f.row, col: f.col }
+  if (f.sheet !== sheetIndex.value) {
+    showSheet(f.sheet)
+    // the sheet puts back its own selection when it shows; this one comes after
+    void nextTick(() => select(selectCell(point)))
+  } else select(selectCell(point))
+}
+
+/** Goes to the next match; with the panel shut, or a search waiting, looks first. */
+function nextFound() {
+  if (!findOpen.value || findTimer) runFind()
+  const list = found.value
+  if (!list.length) return false
+  const i = currentFound.value
+  goToFound(i >= 0 ? (i + 1) % list.length : foundFrom(list, here()))
+}
+
+function previousFound() {
+  if (!findOpen.value || findTimer) runFind()
+  const list = found.value
+  if (!list.length) return false
+  const i = currentFound.value
+  const from = i >= 0 ? i : foundFrom(list, here())
+  goToFound((from - 1 + list.length) % list.length)
+}
+
+/** Opens the panel, with the replace box for `replace`; a given query is put in. */
+function openFind(replace = false, given?: Partial<SheetSearchQuery>) {
+  if (editing.value) commitEdit(undefined, true)
+  if (given) findQuery.value = { ...findQuery.value, ...given }
+  if ((replace || given?.replace !== undefined) && !props.readonly) findReplacing.value = true
+  findOpen.value = true
+  runFind()
+  void nextTick(() => findPanel.value?.focus(replace && !props.readonly ? 'replace' : 'find'))
+  return true
+}
+
+function closeFind() {
+  if (!findOpen.value) return false
+  clearTimeout(findTimer)
+  findTimer = 0
+  findWaiting.value = false
+  findOpen.value = false
+  focusGrid()
+  return true
+}
+
+/** Why a match is left as it is when replacing; `'same'` when the replacement changes nothing. */
+type ReplaceSkip = 'formula' | 'protected' | 'invalid' | 'shown' | 'same'
+
+/**
+ * What replacing does to a cell: its new value, or why it stays. A
+ * formula's result can't be replaced, only the formula with `lookIn: 'formulas'`.
+ * Looking in values, the text a cell shows is tried too when what was typed
+ * doesn't hold the match, as with `12.00` in a cell showing `¥12.00` for `12`;
+ * the cell keeps its number format, so only text that reads back as a value
+ * of the same kind can be put in.
+ */
+function replacementAt(
+  f: SheetMatch,
+  checksFor: (data: SheetData) => SheetChecks,
+): { value: SheetValue; format?: string } | ReplaceSkip {
+  const data = doc.value.sheets[f.sheet]!
+  const input = data.cells[f.row]?.[f.col]
+  const formulas = findQuery.value.lookIn === 'formulas'
+  const value = valueOf(input)
+  if (!formulas && typeof value === 'string' && value.startsWith('=')) return 'formula'
+  // a locked cell of a protected sheet would cancel the whole change
+  if (protectionOf(data) && isLocked(input, doc.value)) return 'protected'
+  const cell = cellOf(input)
+  const typed = cell?.type ? resolveCellType(cell, doc.value, cellTypes.value) : undefined
+  const parse = (text: string) => typed?.definition.parse?.(text, typed.setup) ?? parseInput(text)
+  const text = inputTextOf(data, input)
+  let next = replaceInText(text, findQuery.value)
+  let parsed: SheetInput
+  if (next !== text) parsed = parse(next)
+  else if (formulas || cellMatcher(findQuery.value)?.(text)) return 'same'
+  else {
+    const drawn = cellText(input, { sheet: sheetKey(data), row: f.row, col: f.col })
+    next = replaceInText(drawn, findQuery.value)
+    parsed = parse(next)
+    const read = parsed.value ?? null
+    if (next === drawn || typeof read !== typeof value || read === value) return 'shown'
+  }
+  if (refusal(f.row, f.col, parsed, data, checksFor(data))) return 'invalid'
+  return { value: parsed.value ?? null, format: cell?.format ?? parsed.format }
+}
+
+/** Writes the replacements, as one change to undo. */
+function writeReplacements(list: readonly SheetMatch[]) {
+  const writes: { at: SheetMatch; to: { value: SheetValue; format?: string } }[] = []
+  const made = new Map<SheetData, SheetChecks>()
+  const checksFor = (data: SheetData) => {
+    if (data === sheet.value) return checks.value
+    let c = made.get(data)
+    if (!c) made.set(data, (c = checksOf(data)))
+    return c
+  }
+  const skipped: Record<ReplaceSkip, number> = {
+    formula: 0,
+    protected: 0,
+    invalid: 0,
+    shown: 0,
+    same: 0,
+  }
+  for (const f of list) {
+    const to = replacementAt(f, checksFor)
+    if (typeof to === 'string') skipped[to]++
+    else writes.push({ at: f, to })
+  }
+  if (!writes.length) return { replaced: 0, skipped }
+  transact(
+    (tr) => {
+      for (const { at, to } of writes)
+        tr.updateCell(at, { value: to.value ?? undefined, format: to.format })
+    },
+    { action: 'replace' },
+  )
+  return { replaced: writes.length, skipped }
+}
+
+/** Says how many were replaced, and why any were left: shown as a notice then. */
+function tellReplaced(result: { replaced: number; skipped: Record<ReplaceSkip, number> }) {
+  const m = messages.value.find
+  const { formula, protected: locked, invalid, shown: onlyShown } = result.skipped
+  const why = [
+    formula && format(m.skippedFormula, { count: formula }),
+    locked && format(m.skippedProtected, { count: locked }),
+    invalid && format(m.skippedInvalid, { count: invalid }),
+    onlyShown && format(m.skippedShown, { count: onlyShown }),
+  ].filter(Boolean)
+  const text = common('findReplace.replaced', { count: result.replaced }) + why.join('')
+  if (why.length) showNotice(text)
+  announce(text)
+}
+
+/** Replaces the match on the active cell and goes on to the next; first goes to one when it is on none. */
+function replaceFound() {
+  if (props.readonly) return false
+  const i = currentFound.value
+  if (i < 0) return nextFound()
+  const f = found.value[i]!
+  const result = writeReplacements([f])
+  if (!result.replaced && !result.skipped.same) tellReplaced(result)
+  runFind()
+  // on to the next match after this cell; the cell may still match, as with “a” → “aa”
+  const list = found.value
+  if (!list.length) return
+  const after = foundFrom(list, { ...f, col: f.col + 1 })
+  goToFound(after)
+}
+
+/** Replaces every match, also past those counted, as one change. */
+function replaceAllFound() {
+  if (props.readonly) return false
+  const list = foundCapped.value ? findCells(findQuery.value).found : found.value
+  if (!list.length) return false
+  tellReplaced(writeReplacements(list))
+  runFind()
+}
+
+/** The matches in view, as boxes; the current one stands out. */
+const foundRects = computed(() => {
+  const list = found.value
+  if (!findOpen.value || !list.length) return []
+  void scroll.value
+  const body = bodyRows.value
+  // the matches are in order, so those below the rows drawn can stop the loop
+  const lastRow = Math.max(body[body.length - 1] ?? 0, frozen.value.rows - 1)
+  const current = currentFound.value
+  const out: { key: string; rect: ViewRect; current: boolean }[] = []
+  const index = sheetIndex.value
+  for (let i = 0; i < list.length; i++) {
+    const f = list[i]!
+    if (f.sheet < index) continue
+    if (f.sheet > index || f.row > lastRow) break
+    const span = merges.value.cell(f)
+    const rect = rangeRect(span)
+    if (rect) out.push({ key: `${f.row}:${f.col}`, rect, current: i === current })
+  }
+  return out
+})
+
+/** In a narrow grid the panel sits above the cells instead of over them, so it hides none. */
+const findDocked = computed(() => viewWidth.value > 0 && viewWidth.value < 480)
+
+const findPanelEl = computed(() => findPanel.value?.$el as HTMLElement | undefined)
+const { width: findPanelWidth, height: findPanelHeight } = useElementSize(findPanelEl, {
+  box: 'border-box',
+})
+/**
+ * The panel moves to the bottom while it would cover the current match,
+ * as it would one in a frozen row, which no scrolling brings out from under it.
+ */
+const findBelow = computed(() => {
+  if (findDocked.value) return false
+  const rect = foundRects.value.find((f) => f.current)?.rect
+  if (!rect) return false
+  // the panel's place over the grid; see `.dou-sheet__find`
+  const top = FIND_INSET - colOutline.value
+  const right = viewWidth.value - FIND_INSET_RIGHT
+  const left = right - findPanelWidth.value
+  const bottom = top + findPanelHeight.value
+  return (
+    rect.y < bottom && rect.y + rect.height > top && rect.x < right && rect.x + rect.width > left
+  )
+})
+/** How far the panel is from the top and the right of the grid, as in the style sheet. */
+const FIND_INSET = 6
+const FIND_INSET_RIGHT = 14
+
+/** The toggles in the find box. */
+const findOptions = computed(() => {
+  const q = findQuery.value
+  const m = messages.value.find
+  return [
+    {
+      key: 'case',
+      label: common('findReplace.caseSensitive'),
+      icon: LetterCaseIcon,
+      pressed: !!q.caseSensitive,
+      set: (on: boolean): Partial<SheetSearchQuery> => ({ caseSensitive: on }),
+    },
+    {
+      key: 'whole',
+      label: m.wholeCell,
+      icon: WholeWordIcon,
+      pressed: !!q.wholeCell,
+      set: (on: boolean): Partial<SheetSearchQuery> => ({ wholeCell: on }),
+    },
+    {
+      key: 'formulas',
+      label: m.formulas,
+      icon: FunctionIcon,
+      pressed: q.lookIn === 'formulas',
+      set: (on: boolean): Partial<SheetSearchQuery> => ({ lookIn: on ? 'formulas' : 'values' }),
+    },
+    {
+      key: 'workbook',
+      label: m.workbook,
+      icon: LayersIcon,
+      pressed: q.scope === 'workbook',
+      set: (on: boolean): Partial<SheetSearchQuery> => ({ scope: on ? 'workbook' : 'sheet' }),
+    },
+  ]
+})
+
 // Commands ---------------------------------------------------------------------------------
 
 const writable = () => !props.readonly
+// known after mounting, so a server-rendered hint matches the first client render
+const apple = useApplePlatform()
+/** The key of `replace`: ⌘H hides the app on Apple platforms. */
+const replaceKey = () => (apple.value ? 'mod+alt+f' : 'mod+h')
 const styleCommand = (
   name: StyleToggle | 'wrap',
   icon: SheetCommand['icon'],
@@ -5857,6 +6299,33 @@ const builtinCommands: Record<string, SheetCommand> = {
     label: (m) => m.print,
     icon: PrinterIcon,
     run: () => print(),
+  },
+  // the panel; a query given (`{ search: '…' }`) is put in it
+  find: {
+    label: (m) => m.find.find,
+    icon: SearchIcon,
+    shortcut: 'mod+f',
+    run: (_, query?: Partial<SheetSearchQuery>) => openFind(false, query),
+  },
+  replace: {
+    label: (m) => m.find.replace,
+    icon: ReplaceIcon,
+    // a getter: the key is known once mounted
+    get shortcut() {
+      return replaceKey()
+    },
+    enabled: writable,
+    run: (_, query?: Partial<SheetSearchQuery>) => openFind(true, query),
+  },
+  'find.next': {
+    label: (m) => m.find.next,
+    shortcut: 'f3',
+    run: () => nextFound(),
+  },
+  'find.previous': {
+    label: (m) => m.find.previous,
+    shortcut: 'shift+f3',
+    run: () => previousFound(),
   },
 }
 
@@ -6064,6 +6533,10 @@ function editLinkTarget(target?: SheetCellTarget) {
 
 defineExpose<SheetExpose>({
   commands,
+  findCells: (query) => findCells(query).found,
+  openSearch: (query) =>
+    commands.run(query?.replace !== undefined && !props.readonly ? 'replace' : 'find', query),
+  closeSearch: closeFind,
   exportFile: exportFile as SheetExpose['exportFile'],
   saveFile: saveFile as SheetExpose['saveFile'],
   importFile,
@@ -6156,6 +6629,43 @@ defineExpose<SheetExpose>({
         @level="(level: number) => showGroupLevel('col', level)"
         @wheel="onOutlineWheel"
       />
+      <div
+        v-if="findOpen"
+        class="dou-sheet__find"
+        :class="{ 'is-docked': findDocked, 'is-below': findBelow }"
+      >
+        <DouFindReplace
+          ref="findPanel"
+          v-model:replacing="findReplacing"
+          :search="findQuery.search"
+          :replace="findQuery.replace ?? ''"
+          :count="found.length"
+          :current="currentFound"
+          :capped="foundCapped"
+          :searching="findWaiting"
+          :readonly="readonly"
+          @update:search="findQuery = { ...findQuery, search: $event }"
+          @update:replace="findQuery = { ...findQuery, replace: $event }"
+          @next="nextFound"
+          @previous="previousFound"
+          @replace-one="replaceFound"
+          @replace-all="replaceAllFound"
+          @close="closeFind"
+        >
+          <template #options>
+            <DouTooltip v-for="option in findOptions" :key="option.key" :content="option.label">
+              <DouToggle
+                :pressed="option.pressed"
+                size="sm"
+                :aria-label="option.label"
+                @update:pressed="(on: boolean) => (findQuery = { ...findQuery, ...option.set(on) })"
+              >
+                <component :is="option.icon" />
+              </DouToggle>
+            </DouTooltip>
+          </template>
+        </DouFindReplace>
+      </div>
       <div
         ref="root"
         class="dou-sheet__main"
@@ -6535,6 +7045,14 @@ defineExpose<SheetExpose>({
             </div>
           </template>
         </div>
+        <div
+          v-for="mark in foundRects"
+          :key="mark.key"
+          class="dou-sheet__found"
+          :class="{ 'is-current': mark.current }"
+          :style="rectStyle(mark.rect)"
+          aria-hidden="true"
+        />
         <div
           v-if="clipRect"
           class="dou-sheet__mark"

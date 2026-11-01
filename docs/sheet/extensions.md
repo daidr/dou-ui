@@ -270,6 +270,8 @@ const today = defineSheetExtension({
 | `filter`                                        | 加上或去掉筛选                                                 |
 | `clear`                                         | 清除格式（样式和数字格式），值不变；不是右键菜单里的“清除内容” |
 | `print`                                         | 打印当前工作表                                                 |
+| `find`、`replace`                               | 打开查找、替换面板；可以传查询，见[查找和替换](./#查找和替换)  |
+| `find.next`、`find.previous`                    | 下一个、上一个查找结果                                         |
 | `link`                                          | 插入或编辑当前单元格的链接                                     |
 | `link.open`、`link.remove`                      | 打开当前单元格的链接；删除选区里的链接                         |
 | `lock`                                          | 锁定或取消锁定选区，工作表受保护时不可用                       |

@@ -35,6 +35,7 @@ const iconSources = import.meta.glob<string>(
     '../../../packages/icons/icons/check.stroke.svg',
     '../../../packages/icons/icons/chevron-right.stroke.svg',
     '../../../packages/icons/icons/chevron-down.stroke.svg',
+    '../../../packages/icons/icons/chevron-up.stroke.svg',
     '../../../packages/icons/icons/arrow-left.stroke.svg',
     '../../../packages/icons/icons/arrow-up.stroke.svg',
     '../../../packages/icons/icons/bell.stroke.svg',
@@ -1093,6 +1094,26 @@ const arts: Record<string, string | ((id: string) => string)> = {
     rect(140, 64, 14, 10, 'p', 3) +
     rect(44, 85, 8, 8, 'ln', 2) +
     bar(58, 87, 40),
+  'find-replace':
+    rect(24, 30, 136, 78, 'p', 8) +
+    bar(36, 58, 18) +
+    rect(58, 54, 28, 12, 'ws', 3) +
+    bar(62, 58, 20, 'w') +
+    bar(90, 58, 44) +
+    bar(36, 72, 72) +
+    bar(36, 86, 30) +
+    rect(70, 82, 28, 12, 'ws', 3) +
+    bar(74, 86, 20, 'w') +
+    bar(102, 86, 30) +
+    bar(36, 100, 56) +
+    rect(52, 12, 128, 30, 'p f', 9) +
+    icon('chevron-right', 63, 27, 12, 'ico-3') +
+    rect(72, 18, 54, 18, 'p', 3) +
+    bar(78, 25, 22, 'k') +
+    bar(131, 25, 10, 't') +
+    icon('chevron-up', 151, 27, 11) +
+    icon('chevron-down', 162, 27, 11) +
+    icon('close', 173, 27, 11),
   'back-top':
     rect(40, 14, 120, 92, 'p', 8) +
     lines(52, 26, [96, 80, 88, 64, 76], 12, 'b') +

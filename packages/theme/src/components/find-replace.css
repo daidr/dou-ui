@@ -1,0 +1,140 @@
+/*
+ * FindReplace
+ *
+ * The floating find-and-replace panel of the editors: a find box with its
+ * option toggles inside, the match count and the arrows on one line, and
+ * the replace box under it when shown. A small raised surface, so it can
+ * sit over the content it searches.
+ *
+ * In a container narrower than 480px (the host sets `container-type`), the
+ * find box takes a line of its own and the count and buttons wrap under it.
+ */
+@layer dou.components {
+  .dou-find-replace {
+    display: flex;
+    gap: 2px;
+    align-items: flex-start;
+    box-sizing: border-box;
+    max-width: 100%;
+    padding: 4px;
+    border: 1px solid var(--dou-color-border);
+    /* concentric with the boxes inside, 4px padding and the 1px border in */
+    border-radius: calc(var(--dou-radius-control) + 5px);
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-md);
+    color: var(--dou-color-text);
+    font-family: var(--dou-font-family);
+    font-size: var(--dou-font-size-sm);
+    line-height: normal;
+  }
+  /* the buttons keep their size; the boxes give way in a narrow panel */
+  .dou-find-replace .dou-button {
+    flex: none;
+  }
+  .dou-find-replace__rows {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+  .dou-find-replace__row {
+    display: flex;
+    gap: 2px;
+    align-items: center;
+    min-width: 0;
+  }
+  .dou-find-replace__field {
+    display: flex;
+    flex: 1 1 auto;
+    gap: 1px;
+    align-items: center;
+    box-sizing: border-box;
+    width: 260px;
+    min-width: 0;
+    height: var(--dou-control-height-sm);
+    padding-right: 2px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-color-bg-surface);
+    transition: border-color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+    &:focus-within {
+      border-color: var(--dou-color-focus);
+    }
+    &.is-invalid {
+      border-color: var(--dou-color-danger);
+    }
+    /* square, 3px in from the box's edges; an icon-only button is as wide as it is high */
+    .dou-toggle {
+      --dou-button-height: calc(var(--dou-control-height-sm) - 6px);
+      flex: none;
+    }
+  }
+  .dou-find-replace__input {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 100%;
+    padding: 0 8px;
+    border: 0;
+    outline: none;
+    background: transparent;
+    color: var(--dou-color-text);
+    font: inherit;
+    font-family: var(--dou-font-family-mono);
+    font-size: max(var(--dou-font-size-input-min), var(--dou-font-size-sm));
+    &::placeholder {
+      color: var(--dou-color-text-tertiary);
+      font-family: var(--dou-font-family);
+    }
+  }
+  .dou-find-replace__status {
+    flex: none;
+    min-width: 64px;
+    padding: 0 6px;
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-sm);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    &.is-empty {
+      color: var(--dou-color-text-tertiary);
+    }
+  }
+  /*
+   * fingers get 40px targets: the buttons grow to 40px, and the toggles,
+   * 34px to fit in the 40px box, take taps from 40px around as icon buttons do
+   */
+  @media (pointer: coarse) {
+    .dou-find-replace .dou-find-replace__field {
+      height: 40px;
+      .dou-toggle {
+        --dou-button-height: 34px;
+      }
+    }
+    .dou-find-replace .dou-button:not(.dou-toggle) {
+      --dou-button-height: 40px;
+    }
+  }
+  @container (max-width: 480px) {
+    .dou-find-replace {
+      flex: 1 1 auto;
+    }
+    .dou-find-replace .dou-find-replace__rows {
+      flex: 1 1 auto;
+    }
+    .dou-find-replace .dou-find-replace__field {
+      width: auto;
+    }
+    /* the find box gets its own line; the count and the buttons go under it */
+    .dou-find-replace .dou-find-replace__row:first-child {
+      flex-wrap: wrap;
+      row-gap: 4px;
+      > .dou-find-replace__field {
+        flex-basis: 100%;
+      }
+    }
+    .dou-find-replace .dou-find-replace__status {
+      min-width: 0;
+      margin-right: auto;
+      padding: 0 4px;
+    }
+  }
+}

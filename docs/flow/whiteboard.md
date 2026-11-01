@@ -6,7 +6,7 @@
 
 ## 基础用法
 
-把 `whiteboardKit()` 加在 `flowKit()` 后面就可以用了。它把没写 `type` 的连线默认画成连接线，编辑器的 `edge-type` 属性仍然可以改成别的：
+把 `whiteboardKit()` 加在 `flowKit()` 后面就可以用了。它把没写 `type` 的连线默认画成连接线，编辑器的 `edgeType` 属性仍然可以改成别的：
 
 ```vue
 <script setup lang="ts">

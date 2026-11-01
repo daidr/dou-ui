@@ -40,7 +40,7 @@ app.use(DouGridLayout)
 
 传入的布局如果有重叠、超出列数或者上方有空隙，组件会先整理好再显示，但不会因此更新 `v-model`。
 
-列宽随网格的宽度变化，行高由 `row-height` 决定（默认 80px），格子之间的间距由 `gap` 决定（默认 16px，也可以写成 `[横向, 纵向]`）。位置完全由样式算出，服务端渲染时也能直接显示正确的布局。
+列宽随网格的宽度变化，行高由 `rowHeight` 决定（默认 80px），格子之间的间距由 `gap` 决定（默认 16px，也可以写成 `[横向, 纵向]`）。位置完全由样式算出，服务端渲染时也能直接显示正确的布局。
 
 ## 拖动把手
 
@@ -71,7 +71,7 @@ app.use(DouGridLayout)
 - 在较窄的断点上拖动或缩放后，这个断点的位置单独保存在 `v-model:layouts` 里（`{ md: [{ id, x, y, w, h }, …] }`），不影响最宽时的布局。清空某个断点就回到推算的布局；后来新加的格子在已保存的断点里按推算的位置出现。
 - 只有 1 列时只能上下换位置和改高度，右边的缩放把手会隐藏。
 - `columns` 和 `breakpoints` 可以换成自己的断点，名字随意，`breakpoints` 写每个断点生效的最小宽度。`columns` 写成一个数字时不分断点。
-- 当前断点可以从组件实例的 `breakpoint` 读到，变化时触发 `breakpoint-change`。服务端渲染和首次测量之前按最宽的断点显示。
+- 当前断点可以从组件实例的 `breakpoint` 读到，变化时触发 `breakpointChange`。服务端渲染和首次测量之前按最宽的断点显示。
 
 ## 从外部拖入
 
@@ -118,7 +118,7 @@ grid.value.focusItem(id)
 | 拿起后按 Esc，或移走焦点 | 取消，回到原处                             |
 | 用鼠标或手指拖动时按 Esc | 取消这次拖动                               |
 
-每一步都会通过读屏播报格子的位置和大小。格子的读屏名称默认是它的 `id`，用 `item-label` 换成更好懂的名字，比如标题。
+每一步都会通过读屏播报格子的位置和大小。格子的读屏名称默认是它的 `id`，用 `itemLabel` 换成更好懂的名字，比如标题。
 
 ## 不用组件
 
@@ -150,17 +150,17 @@ const narrow = deriveLayout(next, 12, { columns: 6 })
 
 | 名称          | 说明                                             | 类型                               | 默认值                         |
 | ------------- | ------------------------------------------------ | ---------------------------------- | ------------------------------ |
-| `model-value` | 最宽时各项的位置和大小，支持 `v-model`           | `GridItem[]`                       | `[]`                           |
+| `modelValue`  | 最宽时各项的位置和大小，支持 `v-model`           | `GridItem[]`                       | `[]`                           |
 | `layouts`     | 较窄断点上单独保存的位置，支持 `v-model:layouts` | `GridLayouts`                      | `{}`                           |
 | `columns`     | 列数，一个数字或每个断点一个                     | `number \| Record<string, number>` | `{ lg: 12, md: 6, sm: 1 }`     |
 | `breakpoints` | 每个断点生效的最小宽度（网格自身的宽度，px）     | `Record<string, number>`           | `{ lg: 1024, md: 640, sm: 0 }` |
-| `row-height`  | 行高（px）                                       | `number`                           | `80`                           |
+| `rowHeight`   | 行高（px）                                       | `number`                           | `80`                           |
 | `gap`         | 间距（px）                                       | `number \| [number, number]`       | `16`                           |
 | `compact`     | 自动往上靠，或者自由摆放                         | `'vertical' \| false`              | `'vertical'`                   |
 | `editable`    | 能否拖动和缩放                                   | `boolean`                          | `false`                        |
 | `handle`      | 只从 `DouGridLayoutHandle` 开始拖动              | `boolean`                          | `false`                        |
 | `resize`      | 哪些边可以拖动改大小，`false` 时不能改           | `boolean \| GridResizeHandle[]`    | `['e', 's', 'se']`             |
-| `item-label`  | 格子的读屏名称                                   | `(item: GridItem) => string`       | 格子的 `id`                    |
+| `itemLabel`   | 格子的读屏名称                                   | `(item: GridItem) => string`       | 格子的 `id`                    |
 | `label`       | 网格的读屏名称                                   | `string`                           | 编辑时为 `'网格布局'`          |
 | `messages`    | 替换语言包里的文字                               | `DashboardMessagesOverride`        | —                              |
 
@@ -183,9 +183,9 @@ const narrow = deriveLayout(next, 12, { columns: 6 })
 | `update:layouts`    | 在较窄的断点上改动时                   | `GridLayouts`                                |
 | `change`            | 同上，带上原因和断点                   | `{ items, id, reason, breakpoint }`          |
 | `drop`              | 从外部拖入的格子放下后                 | `{ item, data, breakpoint }`                 |
-| `breakpoint-change` | 断点变化时                             | `string`                                     |
-| `drag-start`        | 开始拖动、缩放或拖入（包括用键盘拿起） | `{ id, kind: 'move' \| 'resize' \| 'drop' }` |
-| `drag-end`          | 结束拖动或缩放                         | `{ id, kind, cancelled }`                    |
+| `breakpointChange`  | 断点变化时                             | `string`                                     |
+| `dragStart`         | 开始拖动、缩放或拖入（包括用键盘拿起） | `{ id, kind: 'move' \| 'resize' \| 'drop' }` |
+| `dragEnd`           | 结束拖动或缩放                         | `{ id, kind, cancelled }`                    |
 
 ### GridLayout Slots
 

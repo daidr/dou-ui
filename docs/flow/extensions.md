@@ -24,7 +24,7 @@ const marks = defineFlowExtension({
 const extensions = [flowKit(), marks]
 ```
 
-不传 `extensions` 时等于 `[flowKit()]`。传了就要自己带上 `flowKit()`，除非不需要默认节点。`node-types` 和 `port-types` 属性仍然可用，同名时它们覆盖扩展里的定义。
+不传 `extensions` 时等于 `[flowKit()]`。传了就要自己带上 `flowKit()`，除非不需要默认节点。`nodeTypes` 和 `portTypes` 属性仍然可用，同名时它们覆盖扩展里的定义。
 
 扩展的名字、节点类型和端口类型都不能重复，重复时会抛出错误。
 
@@ -37,8 +37,8 @@ const extensions = [flowKit(), marks]
 | `nodeTypes`        | 节点类型，见[自定义节点](./custom-nodes)                                                                                                                    | `NodeTypeSpec[]`                                            |
 | `portTypes`        | 端口类型，见[端口类型与连接规则](./ports)                                                                                                                   | `PortTypes`                                                 |
 | `edgeTypes`        | 连线类型，见[自定义连线类型](./edges#自定义连线类型)                                                                                                        | `EdgeTypeSpec[]`                                            |
-| `edgeType`         | 没写 `type` 的连线默认用哪种画法；编辑器的 `edge-type` 属性优先，多个扩展都设了时后面的生效                                                                 | `string`                                                    |
-| `canConnect`       | 连接规则，在 `can-connect` 属性之后检查，返回 `false` 或一段说明拒绝                                                                                        | `(connection, doc) => boolean \| string`                    |
+| `edgeType`         | 没写 `type` 的连线默认用哪种画法；编辑器的 `edgeType` 属性优先，多个扩展都设了时后面的生效                                                                  | `string`                                                    |
+| `canConnect`       | 连接规则，在 `canConnect` 属性之后检查，返回 `false` 或一段说明拒绝                                                                                         | `(connection, doc) => boolean \| string`                    |
 | `keymap`           | 画布有焦点时的快捷键，写法和 `useHotkey` 一样；处理函数返回 `false` 表示没处理，交给下一个                                                                  | `(ctx) => Record<string, (event) => boolean \| void>`       |
 | `transformPaste`   | 粘贴前改写节点和连线，比如清掉运行状态                                                                                                                      | `(data, ctx) => FlowDocument`                               |
 | `layers`           | 画在画布坐标里的组件，`below` 在连线下方，`above` 在节点上方，跟着画布移动和缩放                                                                            | `{ below?: Component[], above?: Component[] }`              |

@@ -144,8 +144,8 @@ app.use(DouUI, {
 设置了 `language` 之后：
 
 - 按 `Enter` 保留缩进；光标前是左括号（或 HTML 的开始标签）时多缩进一级，光标在一对括号之间时，右括号单独放到下一行。在空行上输入右括号，会对齐到与它配对的左括号所在行的缩进。
-- 输入左括号或引号时同时补上另一半，光标留在中间；再输入右括号或引号时跳过已经补上的那个。有选区时，输入括号或引号会把选区包起来。字母后面的引号（如 `it's`）、字符串和注释里的括号不会自动补全。在一对空括号之间按 `Backspace` 两边一起删除。`close-brackets` 设为 `false` 可以关闭这些。
-- 光标挨着括号时，它和配对的括号会加上细边框；找不到配对时边框是红色。字符串和注释里的括号不参与配对。`match-brackets` 设为 `false` 可以关闭。
+- 输入左括号或引号时同时补上另一半，光标留在中间；再输入右括号或引号时跳过已经补上的那个。有选区时，输入括号或引号会把选区包起来。字母后面的引号（如 `it's`）、字符串和注释里的括号不会自动补全。在一对空括号之间按 `Backspace` 两边一起删除。`closeBrackets` 设为 `false` 可以关闭这些。
+- 光标挨着括号时，它和配对的括号会加上细边框；找不到配对时边框是红色。字符串和注释里的括号不参与配对。`matchBrackets` 设为 `false` 可以关闭。
 - `Mod` + `/` 注释或取消注释所在的行，在 Vue 或 HTML 的 `<script>` 里用 `//`，在模板里用 `<!-- -->`。
 
 ## 选择与光标
@@ -312,7 +312,7 @@ const keymap: CodeKeymap = {
 
 <DocDemo src="code/wrap-fold" column />
 
-`Ctrl` + `Shift` + `[` / `]`（Apple 上是 `⌥` + `⌘` + `[` / `]`）折叠、展开光标所在的一段。实例方法 `fold(line?)`、`unfold(line?)`、`foldAll()`、`unfoldAll()` 用代码折叠，`line` 是从 1 开始的行号，和行号栏一致；它们返回 `boolean`，表示有没有折叠或展开。`folds` 是现在折叠着的各段的起始行号。折叠状态变化时触发 `fold-change` 事件，参数也是各段的起始行号，保存下来，之后逐个传给 `fold(line)` 就能恢复。用键盘折叠、展开时，读屏会读出折叠了哪几行。折叠是视图的状态，不影响 `v-model`；不需要折叠时把 `foldable` 设为 `false`。
+`Ctrl` + `Shift` + `[` / `]`（Apple 上是 `⌥` + `⌘` + `[` / `]`）折叠、展开光标所在的一段。实例方法 `fold(line?)`、`unfold(line?)`、`foldAll()`、`unfoldAll()` 用代码折叠，`line` 是从 1 开始的行号，和行号栏一致；它们返回 `boolean`，表示有没有折叠或展开。`folds` 是现在折叠着的各段的起始行号。折叠状态变化时触发 `foldChange` 事件，参数也是各段的起始行号，保存下来，之后逐个传给 `fold(line)` 就能恢复。用键盘折叠、展开时，读屏会读出折叠了哪几行。折叠是视图的状态，不影响 `v-model`；不需要折叠时把 `foldable` 设为 `false`。
 
 ## 手机触控
 
@@ -589,12 +589,12 @@ const createWorker = () =>
 
 ## 外观
 
-| 属性               | 默认值  | 说明                     |
-| ------------------ | ------- | ------------------------ |
-| `line-numbers`     | `true`  | 显示行号                 |
-| `active-line`      | `true`  | 给光标所在行加一层浅底色 |
-| `tab-size`         | `2`     | 制表位宽度，也是一级缩进 |
-| `indent-with-tabs` | `false` | 用制表符缩进，而不是空格 |
+| 属性             | 默认值  | 说明                     |
+| ---------------- | ------- | ------------------------ |
+| `lineNumbers`    | `true`  | 显示行号                 |
+| `activeLine`     | `true`  | 给光标所在行加一层浅底色 |
+| `tabSize`        | `2`     | 制表位宽度，也是一级缩进 |
+| `indentWithTabs` | `false` | 用制表符缩进，而不是空格 |
 
 字号、行高和颜色用 CSS 变量调整：
 
@@ -618,11 +618,11 @@ const createWorker = () =>
 
 `mode` 决定怎样显示：`split` 左右并排，`inline` 把删除和新增的行放在同一列里，左侧两列行号分别是原文和修改后的行号。默认的 `auto` 在宽度不少于 560px（两侧各约 30 列）时并排，更窄时（比如手机上）改为行内；工具栏上的按钮可以切换，用 `v-model:mode` 可以记住切换的结果。并排时两侧逐行对齐，一侧多出的行在另一侧用斜纹空行补齐，两侧一起上下、左右滚动；为了保持对齐，并排时不自动换行，`wrap` 只对行内显示生效。
 
-连续多行没有改动时，只保留改动前后各 `context` 行（默认 3 行），其余的收起成一条“N 行未改动”的栏，点一下展开。`collapse-unchanged` 设为 `false` 时全部显示，也可以写成 `{ context, minLines }`：至少能收起 `minLines` 行（默认 4 行）时才收起。工具栏上可以一次展开或收起全部；查找等操作把光标移进收起的行时，这一段会自动展开。
+连续多行没有改动时，只保留改动前后各 `context` 行（默认 3 行），其余的收起成一条“N 行未改动”的栏，点一下展开。`collapseUnchanged` 设为 `false` 时全部显示，也可以写成 `{ context, minLines }`：至少能收起 `minLines` 行（默认 4 行）时才收起。工具栏上可以一次展开或收起全部；查找等操作把光标移进收起的行时，这一段会自动展开。
 
 加上 `editable` 后可以在并排视图的右侧直接修改，对比结果随输入更新；行内视图总是只读的。`extensions` 只用在并排视图的右侧。`F7` / `Shift` + `F7` 跳到下一处 / 上一处改动，读屏会读出这是第几处改动和改了几行。
 
-对比按整行进行（Myers 算法，线性空间），行内再按词比较，中文按字比较；改动的词太多时只标整行。`ignore-whitespace` 把只有空白不同的行看作相同。也可以直接调用 `diffText(original, modified, options?)` 得到改动列表，每一项是 `{ originalStart, originalCount, modifiedStart, modifiedCount, parts }`，行号从 1 开始，`parts` 是改动的词在两段文本里的位置。
+对比按整行进行（Myers 算法，线性空间），行内再按词比较，中文按字比较；改动的词太多时只标整行。`ignoreWhitespace` 把只有空白不同的行看作相同。也可以直接调用 `diffText(original, modified, options?)` 得到改动列表，每一项是 `{ originalStart, originalCount, modifiedStart, modifiedCount, parts }`，行号从 1 开始，`parts` 是改动的词在两段文本里的位置。
 
 ## 代码输入框
 
@@ -657,15 +657,15 @@ const createWorker = () =>
 | `v-model:selection` | 选区                                                              | `CodeSelection`                    | 开头的光标 |
 | `readonly`          | 只读                                                              | `boolean`                          | `false`    |
 | `disabled`          | 禁用                                                              | `boolean`                          | `false`    |
-| `line-numbers`      | 显示行号                                                          | `boolean`                          | `true`     |
-| `active-line`       | 给光标所在行加底色                                                | `boolean`                          | `true`     |
-| `tab-size`          | 制表位宽度                                                        | `number`                           | `2`        |
-| `indent-with-tabs`  | 用制表符缩进                                                      | `boolean`                          | `false`    |
+| `lineNumbers`       | 显示行号                                                          | `boolean`                          | `true`     |
+| `activeLine`        | 给光标所在行加底色                                                | `boolean`                          | `true`     |
+| `tabSize`           | 制表位宽度                                                        | `number`                           | `2`        |
+| `indentWithTabs`    | 用制表符缩进                                                      | `boolean`                          | `false`    |
 | `placeholder`       | 文本为空时的提示                                                  | `string`                           | —          |
 | `language`          | 语言                                                              | `CodeLanguage`                     | —          |
 | `worker`            | 在 worker 里分词：`true` 用自带的 worker，函数创建自己的 worker   | `boolean \| (() => Worker)`        | `false`    |
-| `close-brackets`    | 输入括号和引号时补上另一半                                        | `boolean`                          | `true`     |
-| `match-brackets`    | 标出光标旁的括号和它的配对                                        | `boolean`                          | `true`     |
+| `closeBrackets`     | 输入括号和引号时补上另一半                                        | `boolean`                          | `true`     |
+| `matchBrackets`     | 标出光标旁的括号和它的配对                                        | `boolean`                          | `true`     |
 | `searchable`        | 提供查找替换面板                                                  | `boolean`                          | `true`     |
 | `wrap`              | 长行自动换行                                                      | `boolean`                          | `false`    |
 | `minimap`           | 在右侧显示小地图，编辑器窄于 480px 时不显示                       | `boolean`                          | `false`    |
@@ -675,10 +675,10 @@ const createWorker = () =>
 | `keymap`            | 额外的按键，比内置的优先                                          | `CodeKeymap`                       | —          |
 | `extensions`        | 扩展                                                              | `CodeExtension[]`                  | —          |
 | `diagnostics`       | 要显示的问题，之后跟着修改移动                                    | `CodeDiagnostic[]`                 | —          |
-| `tab-indents`       | `Tab` 用来缩进；关闭后 `Tab` 移到下一个控件，补全和片段里仍然可用 | `boolean`                          | `true`     |
+| `tabIndents`        | `Tab` 用来缩进；关闭后 `Tab` 移到下一个控件，补全和片段里仍然可用 | `boolean`                          | `true`     |
 | `teleport`          | 补全列表、说明和参数提示渲染到哪里；`false` 时在编辑器的边框内    | `string \| HTMLElement \| false`   | `false`    |
 | `autofocus`         | 挂载后获得焦点                                                    | `boolean`                          | `false`    |
-| `aria-label`        | 读屏读出的名称                                                    | `string`                           | —          |
+| `ariaLabel`         | 读屏读出的名称                                                    | `string`                           | —          |
 
 ### Events
 
@@ -687,7 +687,7 @@ const createWorker = () =>
 | `transaction` | 每次修改之后，包括撤销和外部的新值     | `CodeTransactionResult`                 |
 | `focus`       | 获得焦点                               | `FocusEvent`                            |
 | `blur`        | 失去焦点                               | `FocusEvent`                            |
-| `fold-change` | 折叠状态变化，包括修改让折叠的段换了行 | `number[]`（各段的起始行号，从 1 开始） |
+| `foldChange`  | 折叠状态变化，包括修改让折叠的段换了行 | `number[]`（各段的起始行号，从 1 开始） |
 
 ### 实例
 
@@ -722,37 +722,37 @@ const createWorker = () =>
 
 ### DouCodeDiff Props
 
-| 名称                   | 说明                                                      | 类型                                                 | 默认值   |
-| ---------------------- | --------------------------------------------------------- | ---------------------------------------------------- | -------- |
-| `original`             | 原文                                                      | `string`                                             | `''`     |
-| `v-model`              | 修改后的文本                                              | `string`                                             | `''`     |
-| `v-model:mode`         | 显示方式                                                  | `'split' \| 'inline' \| 'auto'`                      | `'auto'` |
-| `language`             | 语言，两侧相同                                            | `CodeLanguage`                                       | —        |
-| `readonly`             | 不能修改右侧                                              | `boolean`                                            | `true`   |
-| `collapse-unchanged`   | 收起没有改动的行                                          | `boolean \| { context?: number, minLines?: number }` | `true`   |
-| `ignore-whitespace`    | 只有空白不同的行看作相同                                  | `boolean`                                            | `false`  |
-| `words`                | 标出行内改动的词                                          | `boolean`                                            | `true`   |
-| `wrap`                 | 行内显示时自动换行                                        | `boolean`                                            | `false`  |
-| `extensions`           | 右侧编辑器的扩展，只在并排时使用                          | `CodeExtension[]`                                    | —        |
-| `toolbar`              | 显示工具栏：改动统计、上一处 / 下一处、展开全部、切换显示 | `boolean`                                            | `true`   |
-| `tab-size`、`messages` | 和编辑器相同                                              | —                                                    | —        |
+| 名称                  | 说明                                                      | 类型                                                 | 默认值   |
+| --------------------- | --------------------------------------------------------- | ---------------------------------------------------- | -------- |
+| `original`            | 原文                                                      | `string`                                             | `''`     |
+| `v-model`             | 修改后的文本                                              | `string`                                             | `''`     |
+| `v-model:mode`        | 显示方式                                                  | `'split' \| 'inline' \| 'auto'`                      | `'auto'` |
+| `language`            | 语言，两侧相同                                            | `CodeLanguage`                                       | —        |
+| `readonly`            | 不能修改右侧                                              | `boolean`                                            | `true`   |
+| `collapseUnchanged`   | 收起没有改动的行                                          | `boolean \| { context?: number, minLines?: number }` | `true`   |
+| `ignoreWhitespace`    | 只有空白不同的行看作相同                                  | `boolean`                                            | `false`  |
+| `words`               | 标出行内改动的词                                          | `boolean`                                            | `true`   |
+| `wrap`                | 行内显示时自动换行                                        | `boolean`                                            | `false`  |
+| `extensions`          | 右侧编辑器的扩展，只在并排时使用                          | `CodeExtension[]`                                    | —        |
+| `toolbar`             | 显示工具栏：改动统计、上一处 / 下一处、展开全部、切换显示 | `boolean`                                            | `true`   |
+| `tabSize`、`messages` | 和编辑器相同                                              | —                                                    | —        |
 
 实例上有 `hunks`（现在的改动列表）、`next()`、`previous()`、`expandAll()`、`collapseAll()`，以及 `original`、`modified` 两个编辑器实例（行内显示时只有 `modified`，是那一列的编辑器）。
 
 ### DouCodeInput Props
 
-| 名称                                                                                        | 说明                                                     | 类型                                     | 默认值                       |
-| ------------------------------------------------------------------------------------------- | -------------------------------------------------------- | ---------------------------------------- | ---------------------------- |
-| `v-model`                                                                                   | 代码；只有一行时，换行会变成空格                         | `string`                                 | —                            |
-| `multiline`                                                                                 | 允许多行，随内容长高                                     | `boolean`                                | `false`                      |
-| `autosize`                                                                                  | 多行时最少、最多显示的行数，超过后滚动                   | `{ minRows?: number, maxRows?: number }` | `{ minRows: 1, maxRows: 6 }` |
-| `size`                                                                                      | 尺寸，和输入框一致                                       | `'sm' \| 'md' \| 'lg'`                   | 跟随表单，否则 `'md'`        |
-| `invalid`                                                                                   | 显示为有错误                                             | `boolean`                                | `false`                      |
-| `disabled`、`readonly`                                                                      | 禁用、只读                                               | `boolean`                                | `false`                      |
-| `placeholder`                                                                               | 为空时的提示                                             | `string`                                 | —                            |
-| `language`、`extensions`、`diagnostics`、`keymap`、`close-brackets`、`tab-size`、`messages` | 和编辑器相同                                             | —                                        | —                            |
-| `teleport`                                                                                  | 补全列表、说明和参数提示渲染到哪里；`false` 时在输入框内 | `string \| HTMLElement \| false`         | 全局配置，否则 `body`        |
-| `keys`                                                                                      | 触屏上键盘上方的符号栏                                   | `boolean \| (CodeKey \| string)[]`       | `false`                      |
-| `aria-label`                                                                                | 读屏读出的名称                                           | `string`                                 | —                            |
+| 名称                                                                                      | 说明                                                     | 类型                                     | 默认值                       |
+| ----------------------------------------------------------------------------------------- | -------------------------------------------------------- | ---------------------------------------- | ---------------------------- |
+| `v-model`                                                                                 | 代码；只有一行时，换行会变成空格                         | `string`                                 | —                            |
+| `multiline`                                                                               | 允许多行，随内容长高                                     | `boolean`                                | `false`                      |
+| `autosize`                                                                                | 多行时最少、最多显示的行数，超过后滚动                   | `{ minRows?: number, maxRows?: number }` | `{ minRows: 1, maxRows: 6 }` |
+| `size`                                                                                    | 尺寸，和输入框一致                                       | `'sm' \| 'md' \| 'lg'`                   | 跟随表单，否则 `'md'`        |
+| `invalid`                                                                                 | 显示为有错误                                             | `boolean`                                | `false`                      |
+| `disabled`、`readonly`                                                                    | 禁用、只读                                               | `boolean`                                | `false`                      |
+| `placeholder`                                                                             | 为空时的提示                                             | `string`                                 | —                            |
+| `language`、`extensions`、`diagnostics`、`keymap`、`closeBrackets`、`tabSize`、`messages` | 和编辑器相同                                             | —                                        | —                            |
+| `teleport`                                                                                | 补全列表、说明和参数提示渲染到哪里；`false` 时在输入框内 | `string \| HTMLElement \| false`         | 全局配置，否则 `body`        |
+| `keys`                                                                                    | 触屏上键盘上方的符号栏                                   | `boolean \| (CodeKey \| string)[]`       | `false`                      |
+| `ariaLabel`                                                                               | 读屏读出的名称                                           | `string`                                 | —                            |
 
 事件有 `update:modelValue`、`enter`、`transaction`、`focus`、`blur`；实例和 `DouCodeEditor` 相同。

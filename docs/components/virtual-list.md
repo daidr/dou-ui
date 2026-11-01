@@ -30,7 +30,7 @@
 
 ## 滚动加载
 
-滚到距底部 `end-threshold`（默认 40px）以内时触发 `end-reached`，追加数据后列表变长，下一次到底会再次触发。
+滚到距底部 `end-threshold`（默认 40px）以内时触发 `endReached`，追加数据后列表变长，下一次到底会再次触发。
 
 <DocDemo src="virtual-list/infinite" column />
 
@@ -56,10 +56,10 @@
 
 ### Events
 
-| 名称          | 说明         | 参数             |
-| ------------- | ------------ | ---------------- |
-| `scroll`      | 滚动         | `(event: Event)` |
-| `end-reached` | 滚到接近底部 | —                |
+| 名称         | 说明         | 参数             |
+| ------------ | ------------ | ---------------- |
+| `scroll`     | 滚动         | `(event: Event)` |
+| `endReached` | 滚到接近底部 | —                |
 
 ### Slots
 

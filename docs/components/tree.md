@@ -38,7 +38,7 @@
 
 ## 懒加载
 
-传入 `load` 后，没有 `children` 的节点被视为“还没加载”，第一次展开时调用 `load(node)` 取回子节点，期间箭头换成加载指示。已知没有子节点的传 `isLeaf: true`。加载失败时分支收起并触发 `load-error`，下次展开会重新加载。
+传入 `load` 后，没有 `children` 的节点被视为“还没加载”，第一次展开时调用 `load(node)` 取回子节点，期间箭头换成加载指示。已知没有子节点的传 `isLeaf: true`。加载失败时分支收起并触发 `loadError`，下次展开会重新加载。
 
 <DocDemo src="tree/lazy" column />
 
@@ -142,7 +142,7 @@
 | `select`          | 用户选中了节点     | `(node: TreeNodeData)`                    |
 | `check`           | 用户勾选或取消勾选 | `(node: TreeNodeData, checked: boolean)`  |
 | `expand`          | 用户展开或收起分支 | `(node: TreeNodeData, expanded: boolean)` |
-| `load-error`      | `load` 失败        | `(node: TreeNodeData, error: unknown)`    |
+| `loadError`       | `load` 失败        | `(node: TreeNodeData, error: unknown)`    |
 
 ### Slots
 

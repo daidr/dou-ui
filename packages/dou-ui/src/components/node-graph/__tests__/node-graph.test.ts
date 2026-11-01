@@ -1,6 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
-import { h } from 'vue'
+import { createSSRApp, h } from 'vue'
+import { renderToString } from 'vue/server-renderer'
 import { DouNodeGraph, DouNodeGraphLegend } from '../../../index'
 import type { GraphEdge, GraphNode } from '../node-graph'
 
@@ -130,6 +131,43 @@ describe('DouNodeGraph', () => {
     await find(wrapper, '设计').trigger('keydown', { key: 'Enter' })
     expect(wrapper.emitted('update:selected')!.at(-1)).toEqual(['b'])
     wrapper.unmount()
+  })
+
+  it('flows top to bottom with the arrow keys turned', async () => {
+    const wrapper = mount(DouNodeGraph, {
+      props: { nodes, edges, direction: 'vertical' },
+      attachTo: document.body,
+    })
+    expect(wrapper.classes()).toContain('is-vertical')
+    const top = (label: string) =>
+      parseFloat((find(wrapper, label).element as HTMLElement).style.top)
+    expect(top('设计')).toBeGreaterThan(top('需求'))
+    expect(top('设计')).toBe(top('开发'))
+
+    await find(wrapper, '需求').trigger('keydown', { key: 'ArrowDown' })
+    const focused = document.activeElement as HTMLElement
+    expect(['设计', '开发']).toContain(focused.textContent!.trim())
+    await (
+      focused.textContent!.includes('设计') ? find(wrapper, '设计') : find(wrapper, '开发')
+    ).trigger('keydown', { key: 'ArrowUp' })
+    expect(document.activeElement!.textContent).toContain('需求')
+    wrapper.unmount()
+  })
+
+  it('renders the starting zoom on the server and keeps it after mounting', async () => {
+    const html = await renderToString(
+      createSSRApp({ render: () => h(DouNodeGraph, { nodes, edges, zoom: 0.5 }) }),
+    )
+    expect(html).toContain('scale(0.5)')
+
+    const wrapper = mount(DouNodeGraph, { props: { nodes, edges, zoom: 0.5 } })
+    await wrapper.vm.$nextTick()
+    const canvas = wrapper.find('.dou-node-graph__canvas').element as HTMLElement
+    expect(canvas.style.transform).toContain('scale(0.5)')
+    await wrapper.setProps({ zoom: 0.75 })
+    expect(canvas.style.transform).toContain('scale(0.75)')
+    await wrapper.setProps({ nodes: [...nodes, { id: 'f', label: '新节点' }] })
+    expect(canvas.style.transform).toContain('scale(0.75)')
   })
 
   it('fills the slots', () => {

@@ -30,6 +30,9 @@ import {
   DouRadioGroup,
   DouSwitch,
   DouTextarea,
+  DouNodeGraph,
+  type GraphEdge,
+  type GraphNode,
 } from 'dou-ui'
 import {
   DouGantt,
@@ -901,6 +904,31 @@ export const cases: Record<string, Case> = {
   'form-handwritten': {
     render: (n) => formHandwritten(n),
   },
+  // A dependency graph of n nodes in columns of about 20, each fed by one
+  // or two nodes of the column before and now and then by an earlier one,
+  // most of it off screen. Hovering a node in the middle lights up its chain.
+  'node-graph': {
+    render: (n) => nodeGraph(n),
+    budget: { 500: 200 },
+    act: (root) => hoverNode(root),
+  },
+  // The same graph flowing top to bottom.
+  'node-graph-vertical': {
+    render: (n) => nodeGraph(n, 'vertical'),
+    act: (root) => hoverNode(root),
+  },
+  // One frame of a wheel across the graph: moves the canvas, renders no node.
+  'node-graph-pan': {
+    render: (n) => nodeGraph(n),
+    budget: { 500: 4 },
+    frames: 10,
+    act: (root) =>
+      root
+        .querySelector('.dou-node-graph')!
+        .dispatchEvent(
+          new WheelEvent('wheel', { deltaX: 40, deltaY: 30, bubbles: true, cancelable: true }),
+        ),
+  },
   'flow-zoomed-out': {
     render: (n) => flowEditor(n, 0.2),
     act: (root) => wheel(root, 300, 200),
@@ -1582,6 +1610,40 @@ function flowEditor(n: number, zoom = 1) {
       'onUpdate:viewport': (value: typeof viewport.value) => (viewport.value = value),
       style: 'height: 720px',
     })
+}
+
+const statuses = ['finish', 'finish', 'process', 'wait', 'wait', 'error'] as const
+
+function nodeGraphData(n: number) {
+  const perColumn = 20
+  const nodes: GraphNode[] = Array.from({ length: n }, (_, i) => ({
+    id: `g${i}`,
+    label: label(i),
+    status: statuses[i % statuses.length],
+    extra: i % 4 === 0 ? `${(i % 9) + 1} 分钟` : undefined,
+    description: i % 7 === 0 ? '等待上游数据' : undefined,
+  }))
+  const edges: GraphEdge[] = []
+  for (let i = perColumn; i < n; i++) {
+    const column = Math.floor(i / perColumn)
+    const row = i % perColumn
+    const prev = (column - 1) * perColumn
+    edges.push({ from: `g${prev + row}`, to: `g${i}` })
+    if (row % 3 === 1) edges.push({ from: `g${prev + ((row + 5) % perColumn)}`, to: `g${i}` })
+    if (column > 2 && row % 5 === 2)
+      edges.push({ from: `g${prev - 2 * perColumn + row}`, to: `g${i}` })
+  }
+  return { nodes, edges }
+}
+
+function nodeGraph(n: number, direction: 'horizontal' | 'vertical' = 'horizontal') {
+  const { nodes, edges } = nodeGraphData(n)
+  return () => h(DouNodeGraph, { nodes, edges, direction, height: 720, zoomable: true })
+}
+
+function hoverNode(root: HTMLElement) {
+  const nodes = root.querySelectorAll('.dou-node-graph__node')
+  nodes[nodes.length >> 1]?.dispatchEvent(new PointerEvent('pointerenter'))
 }
 
 function wheel(root: HTMLElement, x: number, y: number) {

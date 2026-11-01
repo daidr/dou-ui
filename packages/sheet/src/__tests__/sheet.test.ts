@@ -297,6 +297,7 @@ describe('DouSheet', () => {
       'paste',
       'insert',
       'delete',
+      'group',
       'sort',
       'filter',
       'clear',

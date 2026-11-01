@@ -96,6 +96,7 @@ export interface SheetMessages {
   /** Sorting and filtering. */
   /** The conditions of filters and conditional formats. */
   ops: Record<SheetCondition['op'], string>
+  group: SheetGroupMessages
   filter: SheetFilterMessages
   /** Conditional formats: the toolbar's menu, the dialog that adds one and the list of them. */
   formats: SheetFormatsMessages
@@ -380,6 +381,30 @@ const zhCN: SheetMessages = {
     refused: '没有写入：{message}',
     added: '已为 {range} 设置数据验证',
     removed: '已删除 {range} 的数据验证',
+  },
+  group: {
+    group: '分组',
+    groupRows: '将 {count} 行分组',
+    groupCols: '将 {count} 列分组',
+    ungroupRows: '取消行分组',
+    ungroupCols: '取消列分组',
+    collapse: '折叠分组',
+    expand: '展开分组',
+    collapseRows: '折叠第 {from}–{to} 行',
+    expandRows: '展开第 {from}–{to} 行',
+    collapseCols: '折叠 {from}–{to} 列',
+    expandCols: '展开 {from}–{to} 列',
+    collapsedRows: '已折叠第 {from}–{to} 行',
+    expandedRows: '已展开第 {from}–{to} 行',
+    collapsedCols: '已折叠 {from}–{to} 列',
+    expandedCols: '已展开 {from}–{to} 列',
+    rowLevel: '行分组显示到第 {level} 级',
+    colLevel: '列分组显示到第 {level} 级',
+    levelShown: '已显示到第 {level} 级',
+    groupedRows: '已将 {count} 行分组',
+    groupedCols: '已将 {count} 列分组',
+    ungrouped: '已取消分组',
+    crossing: '不能这样分组：会和已有的分组交叉，或超过 8 层',
   },
   filter: {
     sortAsc: '升序排序',
@@ -675,6 +700,30 @@ const zhTW: SheetMessages = {
     refused: '沒有寫入：{message}',
     added: '已為 {range} 設定資料驗證',
     removed: '已刪除 {range} 的資料驗證',
+  },
+  group: {
+    group: '群組',
+    groupRows: '將 {count} 列設為群組',
+    groupCols: '將 {count} 欄設為群組',
+    ungroupRows: '取消列群組',
+    ungroupCols: '取消欄群組',
+    collapse: '摺疊群組',
+    expand: '展開群組',
+    collapseRows: '摺疊第 {from}–{to} 列',
+    expandRows: '展開第 {from}–{to} 列',
+    collapseCols: '摺疊 {from}–{to} 欄',
+    expandCols: '展開 {from}–{to} 欄',
+    collapsedRows: '已摺疊第 {from}–{to} 列',
+    expandedRows: '已展開第 {from}–{to} 列',
+    collapsedCols: '已摺疊 {from}–{to} 欄',
+    expandedCols: '已展開 {from}–{to} 欄',
+    rowLevel: '列群組顯示到第 {level} 層',
+    colLevel: '欄群組顯示到第 {level} 層',
+    levelShown: '已顯示到第 {level} 層',
+    groupedRows: '已將 {count} 列設為群組',
+    groupedCols: '已將 {count} 欄設為群組',
+    ungrouped: '已取消群組',
+    crossing: '無法這樣設定群組：會和現有群組交叉，或超過 8 層',
   },
   filter: {
     sortAsc: '遞增排序',
@@ -978,6 +1027,30 @@ const en: SheetMessages = {
     added: 'Data validation set on {range}',
     removed: 'Data validation removed from {range}',
   },
+  group: {
+    group: 'Group',
+    groupRows: 'Group {count} rows',
+    groupCols: 'Group {count} columns',
+    ungroupRows: 'Ungroup rows',
+    ungroupCols: 'Ungroup columns',
+    collapse: 'Collapse group',
+    expand: 'Expand group',
+    collapseRows: 'Collapse rows {from}–{to}',
+    expandRows: 'Expand rows {from}–{to}',
+    collapseCols: 'Collapse columns {from}–{to}',
+    expandCols: 'Expand columns {from}–{to}',
+    collapsedRows: 'Rows {from}–{to} collapsed',
+    expandedRows: 'Rows {from}–{to} expanded',
+    collapsedCols: 'Columns {from}–{to} collapsed',
+    expandedCols: 'Columns {from}–{to} expanded',
+    rowLevel: 'Show row groups to level {level}',
+    colLevel: 'Show column groups to level {level}',
+    levelShown: 'Showing level {level}',
+    groupedRows: '{count} rows grouped',
+    groupedCols: '{count} columns grouped',
+    ungrouped: 'Ungrouped',
+    crossing: "Can't group these: they would cross a group or nest more than 8 deep",
+  },
   filter: {
     sortAsc: 'Sort ascending',
     sortDesc: 'Sort descending',
@@ -1199,6 +1272,36 @@ export interface SheetValidationMessages {
   /** Read out: `{range}`. */
   added: string
   removed: string
+}
+
+export interface SheetGroupMessages {
+  /** Menu items: `{count}` rows or columns. */
+  group: string
+  groupRows: string
+  groupCols: string
+  ungroupRows: string
+  ungroupCols: string
+  collapse: string
+  expand: string
+  /** A group's button, and what is read out after pressing it: `{from}`, `{to}`. */
+  collapseRows: string
+  expandRows: string
+  collapseCols: string
+  expandCols: string
+  collapsedRows: string
+  expandedRows: string
+  collapsedCols: string
+  expandedCols: string
+  /** The level buttons, and what is read out after one: `{level}`. */
+  rowLevel: string
+  colLevel: string
+  levelShown: string
+  /** Read out after grouping: `{count}` rows or columns. */
+  groupedRows: string
+  groupedCols: string
+  ungrouped: string
+  /** Grouping lines that would cross a group, or nest too deep. */
+  crossing: string
 }
 
 export interface SheetFilterMessages {

@@ -40,7 +40,13 @@ const OWN_FIELDS = new Set(['id', 'cells', 'rowSizes', 'colSizes', 'rowCount', '
 export const isMetaKey = (key: string) => !OWN_FIELDS.has(key)
 
 /** The fields of a sheet whose ranges or formulas are anchored to its lines. */
-export const ANCHORED_META = ['merges', 'filter', 'conditionalFormats', 'validations'] as const
+export const ANCHORED_META = [
+  'merges',
+  'filter',
+  'conditionalFormats',
+  'validations',
+  'groups',
+] as const
 
 export const cellKey = (row: string, col: string) => `${row}:${col}`
 
@@ -180,6 +186,8 @@ export function anchorMeta(key: string, value: unknown, here: LayoutSheet, layou
       if (filter.sorted) out.sorted = { ...filter.sorted, col: colKey(filter.sorted.col as number) }
       return out
     }
+    case 'groups':
+      return (value as Json[]).map((group) => ({ ...group, range: range(group.range as string) }))
     case 'conditionalFormats':
     case 'validations':
       return (value as Json[]).map((rule) => {
@@ -225,6 +233,15 @@ export function resolveMeta(key: string, stored: unknown, here: LayoutSheet, lay
         else delete out.sorted
       }
       return out
+    }
+    case 'groups': {
+      // a group goes when its lines do
+      const groups: Json[] = []
+      for (const group of stored as Json[]) {
+        const text = range(group.range)
+        if (text !== null) groups.push({ ...group, range: text })
+      }
+      return groups.length ? groups : undefined
     }
     case 'conditionalFormats':
     case 'validations': {

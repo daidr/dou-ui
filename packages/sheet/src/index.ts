@@ -126,6 +126,8 @@ export type {
   SheetRefMap,
 } from './core/address'
 export { cellOf, valueOf } from './core/model'
+export { checkWorkbook, migrateWorkbook } from './core/document'
+export type { CheckWorkbookOptions, WorkbookProblem } from './core/document'
 export type {
   SheetCell,
   SheetCellInput,

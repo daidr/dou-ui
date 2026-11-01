@@ -9,6 +9,7 @@ import type { SheetGroup, SheetWorkbook } from '../core/model'
 import { applySheetSteps, SheetTransaction } from '../core/transaction'
 
 const plainBook = (groups?: SheetGroup[]): SheetWorkbook => ({
+  version: 1,
   sheets: [{ name: '表 1', cells: [], groups }],
 })
 
@@ -154,6 +155,7 @@ describe('groups', () => {
 const outlineShown = ref(true)
 
 const report = (): SheetWorkbook => ({
+  version: 1,
   sheets: [
     {
       name: '门店',

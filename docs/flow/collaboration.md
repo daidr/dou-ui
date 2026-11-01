@@ -25,7 +25,7 @@ import * as Y from 'yjs'
 const doc = new Y.Doc()
 const provider = new WebsocketProvider('wss://example.com', 'weekly-report', doc)
 
-const flow = ref<FlowDocument>({ nodes: [], edges: [] })
+const flow = ref<FlowDocument>({ version: 1, nodes: [], edges: [] })
 const extensions = [
   flowKit(),
   collaboration({

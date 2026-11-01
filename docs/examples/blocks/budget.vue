@@ -36,6 +36,7 @@ const last = items.length + 1 // 最后一行明细的行号
 const categories = ['人力', '市场活动', '线上投放', '差旅', '设备', '其他']
 
 const book = ref({
+  version: 1,
   styles: {
     head: { bold: true, fill: 'neutral' },
     total: { bold: true, fill: 'neutral' },

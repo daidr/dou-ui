@@ -29,7 +29,7 @@ export function readClipboard(text?: string | null): FlowDocument | null {
   try {
     const value = JSON.parse(text)
     if (value?.[MARK] && Array.isArray(value.nodes) && Array.isArray(value.edges))
-      return { nodes: value.nodes, edges: value.edges }
+      return { version: 1, nodes: value.nodes, edges: value.edges }
   } catch {
     // Not ours.
   }

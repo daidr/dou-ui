@@ -4,6 +4,7 @@
 
 ```ts
 interface SheetWorkbook {
+  version: 1 // 数据格式的版本
   sheets: SheetData[]
   styles?: Record<string, SheetStyle> // 命名样式，单元格按名字引用
   types?: Record<string, SheetTypeSetup> // 命名单元格类型设置，单元格的 type 按名字引用
@@ -212,12 +213,26 @@ interface SheetStyle {
 
 ```ts
 const book = {
+  version: 1,
   styles: { head: { bold: true, fill: 'neutral' }, warn: { tone: 'danger' } },
   sheets: [{ name: '表 1', cells: [[{ value: '项目', style: 'head' }]] }],
 }
 ```
 
 `tone` 和 `fill` 用主题的语义色，会跟着亮色、暗色模式变化；`color` 和 `background` 原样使用，暗色模式下需要自己留意对比度。
+
+## 检查与迁移
+
+工作簿里的 `version` 是数据格式的版本，目前是 `1`。保存或打开一份工作簿之前，可以先检查：
+
+```ts
+import { checkWorkbook, migrateWorkbook } from '@dou-ui/sheet'
+
+const book = migrateWorkbook(JSON.parse(saved))
+const problems = checkWorkbook(book, { extensions })
+```
+
+`checkWorkbook` 找出版本不对、工作表没有名字或重名、`id` 重复、单元格用了没有定义的样式或类型，以及写错或互相重叠的合并区域，每一项带 `code`、`path`（如 `sheets[0].cells[3][2]`）和出问题的工作表名 `sheet`。扩展加入的单元格类型要传入同样的 `extensions` 才认得。`migrateWorkbook` 补全旧数据或手写数据缺少的部分（`version`、`sheets`、每张表的 `cells`），丢掉不是对象的工作表；遇到比当前更新的版本时报错。两个函数也可以从不含组件的 `@dou-ui/sheet/core` 引入。
 
 ## 选区
 

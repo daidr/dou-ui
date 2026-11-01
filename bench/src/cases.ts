@@ -1571,7 +1571,7 @@ function formulaSheet(n: number) {
     r ? `=C${r}+B${r + 1}` : '=B1',
     r ? null : '=SUM(C:C)',
   ])
-  const book = ref<SheetWorkbook>({ sheets: [{ name: '表 1', cells, rowCount: n }] })
+  const book = ref<SheetWorkbook>({ version: 1, sheets: [{ name: '表 1', cells, rowCount: n }] })
   const grid = ref<SheetExpose>()
   ;(window as any).sheet = grid
   return () =>
@@ -1587,7 +1587,7 @@ function sheet(n: number, typed = false, conditional = false) {
   const cells = Array.from({ length: n }, (_, r) =>
     Array.from({ length: 20 }, (__, c) => (c === 0 ? `第 ${r + 1} 行` : (r * 7 + c * 13) % 1000)),
   )
-  const book = ref<SheetWorkbook>({ sheets: [{ name: '表 1', cells }] })
+  const book = ref<SheetWorkbook>({ version: 1, sheets: [{ name: '表 1', cells }] })
   if (typed) {
     const choices = ['未开始', { value: '进行中', tone: 'primary' as const }, '已完成']
     book.value.types = { status: { type: 'select', options: choices } }
@@ -1646,7 +1646,7 @@ function flowDocument(n: number): FlowDocument {
         target: { node: `n${i + perRow + 1}`, port: 'in' },
       })
   }
-  return { nodes, edges }
+  return { version: 1, nodes, edges }
 }
 
 function flowEditor(n: number, zoom = 1) {

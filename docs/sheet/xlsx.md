@@ -18,7 +18,10 @@ import { DouSheet, DouSheetToolbar, type SheetWorkbook } from '@dou-ui/sheet'
 import { xlsx } from '@dou-ui/sheet-xlsx'
 import { ref } from 'vue'
 
-const book = ref<SheetWorkbook>({ sheets: [{ name: '门店', cells: [['上海静安', 186400]] }] })
+const book = ref<SheetWorkbook>({
+  version: 1,
+  sheets: [{ name: '门店', cells: [['上海静安', 186400]] }],
+})
 const extensions = [xlsx()]
 </script>
 

@@ -118,6 +118,7 @@ describe('xml reading', () => {
 describe('readXlsx', () => {
   it('reads back what writeXlsx writes: values, formulas, formats and styles', async () => {
     const { book, warnings } = await roundTrip({
+      version: 1,
       styles: { head: { bold: true, background: '#e6eaf7', align: 'center' } },
       sheets: [
         {
@@ -147,7 +148,7 @@ describe('readXlsx', () => {
 
   it('reads only the results with formulas off', async () => {
     const { book } = await roundTrip(
-      { sheets: [{ name: 'S', cells: [[1, 2, '=A1+B1']] }] },
+      { version: 1, sheets: [{ name: 'S', cells: [[1, 2, '=A1+B1']] }] },
       { formulas: false },
     )
     expect(book.sheets[0]!.cells[0]).toEqual([1, 2, 3])
@@ -155,6 +156,7 @@ describe('readXlsx', () => {
 
   it('reads sizes, hidden lines, merges, frozen panes, groups and notes', async () => {
     const { book } = await roundTrip({
+      version: 1,
       sheets: [
         {
           name: 'S',
@@ -180,6 +182,7 @@ describe('readXlsx', () => {
 
   it('reads filters, conditional formats and validations', async () => {
     const { book, warnings } = await roundTrip({
+      version: 1,
       sheets: [
         {
           name: 'S',
@@ -242,6 +245,7 @@ describe('readXlsx', () => {
 
   it('reads several sheets, and formulas that refer across them', async () => {
     const { book } = await roundTrip({
+      version: 1,
       sheets: [
         { name: '一月', cells: [[10]] },
         { name: '二 月', cells: [["='一月'!A1*2"]] },
@@ -475,7 +479,7 @@ describe('readXlsx', () => {
       'The file has a password; remove it in the program it came from first',
     ])
     const cut = (
-      await writeXlsx(createFileSource({ sheets: [{ name: 'S', cells: [[1]] }] }))
+      await writeXlsx(createFileSource({ version: 1, sheets: [{ name: 'S', cells: [[1]] }] }))
     ).slice(0, 200)
     await expect(readXlsx(cut)).rejects.toBeInstanceOf(SheetFileError)
     expect((await failure(readXlsx(cut)))!.slice(0, 2)).toEqual(['damaged', '文件已损坏'])
@@ -495,14 +499,18 @@ describe('readXlsx', () => {
   })
 
   it('stops when called off', async () => {
-    const bytes = await writeXlsx(createFileSource({ sheets: [{ name: 'S', cells: [[1]] }] }))
+    const bytes = await writeXlsx(
+      createFileSource({ version: 1, sheets: [{ name: 'S', cells: [[1]] }] }),
+    )
     const controller = new AbortController()
     controller.abort()
     await expect(readXlsx(bytes, { signal: controller.signal })).rejects.toThrow(/abort/i)
   })
 
   it('is an importer the sheet picks for .xlsx files', async () => {
-    const bytes = await writeXlsx(createFileSource({ sheets: [{ name: 'S', cells: [['上海']] }] }))
+    const bytes = await writeXlsx(
+      createFileSource({ version: 1, sheets: [{ name: 'S', cells: [['上海']] }] }),
+    )
     expect(xlsxImporter.sniff!(bytes.subarray(0, 8))).toBe(true)
     const file = new File([bytes as BlobPart], '门店.xlsx')
     const result = await xlsxImporter.import(file, { messages: {} as never, locale: 'zh-CN' })

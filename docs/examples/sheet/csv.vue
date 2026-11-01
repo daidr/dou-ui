@@ -3,6 +3,7 @@ import { DouSheet, DouSheetTabs, DouSheetToolbar } from '@dou-ui/sheet'
 import { ref } from 'vue'
 
 const book = ref({
+  version: 1,
   sheets: [
     {
       name: '门店',

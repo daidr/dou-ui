@@ -14,6 +14,7 @@ const formNode = defineNodeType({
 })
 
 const doc = ref({
+  version: 1,
   nodes: [
     { id: 'ask', x: 0, y: 0, data: { label: '收到提问', outputs: [{ id: 'out' }] } },
     {

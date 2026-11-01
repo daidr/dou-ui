@@ -4,6 +4,7 @@ import { DouFlowControls, DouFlowEditor } from '@dou-ui/flow'
 import { markRaw, ref } from 'vue'
 
 const doc = ref({
+  version: 1,
   nodes: [
     {
       id: 'start',

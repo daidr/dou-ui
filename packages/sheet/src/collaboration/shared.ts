@@ -392,9 +392,9 @@ export function readSheet(parts: SharedSheet, here: LayoutSheet, layout: SheetLa
 /** The workbook a shared map holds; an empty workbook before it is filled. */
 export function readBook(book: SharedMap): SheetWorkbook {
   const parts = partsOf(book)
-  if (!parts) return { sheets: [] }
+  if (!parts) return { version: 1, sheets: [] }
   const layout = readLayout(parts)
-  const workbook: SheetWorkbook = { sheets: [] }
+  const workbook: SheetWorkbook = { version: 1, sheets: [] }
   if (parts.styles.size) workbook.styles = parts.styles.toJSON() as SheetWorkbook['styles']
   if (parts.types.size) workbook.types = parts.types.toJSON() as SheetWorkbook['types']
   book.forEach((value, key) => {

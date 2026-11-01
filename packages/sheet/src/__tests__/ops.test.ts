@@ -7,6 +7,7 @@ import type { SheetWorkbook } from '../core/model'
 import { applySheetSteps, SheetTransaction } from '../core/transaction'
 
 const book = (): SheetWorkbook => ({
+  version: 1,
   sheets: [
     {
       name: '表 1',
@@ -153,6 +154,7 @@ describe('fill', () => {
 
   it('fills ranges with styles and moved formulas', () => {
     const doc: SheetWorkbook = {
+      version: 1,
       sheets: [
         {
           name: '表 1',
@@ -172,10 +174,16 @@ describe('fill', () => {
   })
 
   it('fills upwards and to the left', () => {
-    const doc: SheetWorkbook = { sheets: [{ name: '表 1', cells: [[], [], [null, null, 5, 6]] }] }
+    const doc: SheetWorkbook = {
+      version: 1,
+      sheets: [{ name: '表 1', cells: [[], [], [null, null, 5, 6]] }],
+    }
     const left = new SheetTransaction(doc).fill('C3:D3', 'A3:D3')
     expect(cells(left)[2]).toEqual([3, 4, 5, 6])
-    const updoc: SheetWorkbook = { sheets: [{ name: '表 1', cells: [[], [], ['第 3 周']] }] }
+    const updoc: SheetWorkbook = {
+      version: 1,
+      sheets: [{ name: '表 1', cells: [[], [], ['第 3 周']] }],
+    }
     expect(cells(new SheetTransaction(updoc).fill('A3', 'A1:A3')).map((l) => l?.[0])).toEqual([
       '第 1 周',
       '第 2 周',
@@ -200,6 +208,7 @@ describe('formulas', () => {
 })
 
 const formulas = (): SheetWorkbook => ({
+  version: 1,
   sheets: [
     {
       name: '表1',
@@ -313,6 +322,7 @@ describe('clipboard', () => {
 })
 
 const merged = (): SheetWorkbook => ({
+  version: 1,
   sheets: [
     {
       name: '表1',

@@ -59,7 +59,10 @@ const pointer = (type: string, x: number, y: number, init: PointerEventInit = {}
     ...init,
   })
 
-function setup(doc: FlowDocument = { nodes: [], edges: [] }, extra: FlowExtension[] = []) {
+function setup(
+  doc: FlowDocument = { version: 1, nodes: [], edges: [] },
+  extra: FlowExtension[] = [],
+) {
   const flow = ref(doc)
   const selection = ref<FlowSelection>({ nodes: [], edges: [] })
   const viewport = ref<FlowViewport>({ x: 0, y: 0, zoom: 1 })
@@ -188,6 +191,7 @@ describe('whiteboard tools', () => {
 
   it('writes in the selected shape with Enter or a double click', async () => {
     const { root, flow, selection, key } = setup({
+      version: 1,
       nodes: [
         { id: 'a', type: 'shape', x: 0, y: 0, width: 160, height: 100, data: { shape: 'diamond' } },
       ],
@@ -244,6 +248,7 @@ describe('keyboard and names', () => {
 
   it('puts the next one after the selected node, joined to it', async () => {
     const { key, flow } = setup({
+      version: 1,
       nodes: [
         { id: 'a', type: 'shape', x: 0, y: 0, width: 160, height: 100, data: { shape: 'rect' } },
       ],
@@ -276,6 +281,7 @@ describe('keyboard and names', () => {
 
   it('names nodes in the editor language', async () => {
     const { root, drag, tool } = setup({
+      version: 1,
       nodes: [
         { id: 'a', type: 'shape', x: 0, y: 0, width: 100, height: 100, data: { shape: 'diamond' } },
         { id: 'b', type: 'sticky', x: 300, y: 0, width: 100, height: 100, data: { text: '买票' } },
@@ -319,6 +325,7 @@ describe('keyboard and names', () => {
 
   it('draws connectors without an edge-type prop', async () => {
     const { root } = setup({
+      version: 1,
       nodes: [
         { id: 'a', type: 'shape', x: 0, y: 0, width: 100, height: 100, data: { shape: 'rect' } },
         { id: 'b', type: 'text', x: 300, y: 0, width: 100, data: { text: '注' } },
@@ -372,6 +379,7 @@ describe('connector', () => {
 
   it('offers route, dash and arrows over the selected connectors', async () => {
     const { root, flow, selection } = setup({
+      version: 1,
       nodes: [
         { id: 'a', type: 'shape', x: 0, y: 0, width: 100, height: 100, data: { shape: 'rect' } },
         { id: 'b', type: 'shape', x: 300, y: 0, width: 100, height: 100, data: { shape: 'rect' } },
@@ -410,6 +418,7 @@ describe('connector', () => {
 
   it('says when the selected connectors differ, and opens one menu after another', async () => {
     const { root, selection } = setup({
+      version: 1,
       nodes: [
         { id: 'a', type: 'shape', x: 0, y: 0, width: 100, height: 100, data: { shape: 'rect' } },
         { id: 'b', type: 'shape', x: 300, y: 0, width: 100, height: 100, data: { shape: 'rect' } },
@@ -453,6 +462,7 @@ describe('connector', () => {
 
   it('joins any two anchors, in either direction', async () => {
     const { root, flow } = setup({
+      version: 1,
       nodes: [
         { id: 'a', type: 'shape', x: 0, y: 0, width: 100, height: 100, data: { shape: 'rect' } },
         { id: 'b', type: 'sticky', x: 300, y: 0, width: 100, height: 100, data: {} },
@@ -481,6 +491,7 @@ describe('connector', () => {
     })
     const { root, flow } = setup(
       {
+        version: 1,
         nodes: [
           { id: 'a', type: 'shape', x: 0, y: 0, width: 100, height: 100, data: { shape: 'rect' } },
           { id: 'b', type: 'plain', x: 300, y: 0, width: 100, height: 100, data: {} },
@@ -555,6 +566,7 @@ describe('pen and eraser', () => {
 
   it('erases the strokes it passes over once it lets go, and Escape keeps them', async () => {
     const { root, tool, drag, flow } = setup({
+      version: 1,
       nodes: [stroke('a', 50), stroke('b', 200)],
       edges: [],
     })
@@ -634,6 +646,7 @@ const at = (root: ReturnType<typeof setup>['root'], handle: string) =>
 describe('resize handles', () => {
   it('has four corners and four sides on a shape, only corners on an image', async () => {
     const { root, selection } = setup({
+      version: 1,
       nodes: [
         { id: 'a', type: 'shape', x: 0, y: 0, width: 100, height: 100, data: { shape: 'rect' } },
         { id: 'b', type: 'image', x: 200, y: 0, width: 100, height: 50, data: { src: 'a.png' } },
@@ -657,6 +670,7 @@ describe('resize handles', () => {
 
   it('drags the top left corner, keeping the bottom right in one undo step', async () => {
     const { root, flow, selection } = setup({
+      version: 1,
       nodes: [
         { id: 'a', type: 'shape', x: 0, y: 0, width: 100, height: 100, data: { shape: 'rect' } },
       ],
@@ -675,6 +689,7 @@ describe('resize handles', () => {
 
   it('keeps an image in proportion, and lets Shift stretch it', async () => {
     const { root, flow, selection } = setup({
+      version: 1,
       nodes: [
         { id: 'a', type: 'image', x: 0, y: 0, width: 100, height: 50, data: { src: 'a.png' } },
       ],
@@ -699,6 +714,7 @@ describe('resize handles', () => {
 
   it('moves the node frame, its outline and its edges along while dragging', async () => {
     const { root, flow, selection, key } = setup({
+      version: 1,
       nodes: [
         { id: 'a', type: 'image', x: 0, y: 0, width: 200, height: 100, data: { src: 'a.png' } },
         { id: 'b', type: 'shape', x: 400, y: 0, width: 100, height: 100, data: { shape: 'rect' } },
@@ -747,6 +763,7 @@ describe('resize handles', () => {
 
   it('draws the turn and corner handles above every node', async () => {
     const { root, selection } = setup({
+      version: 1,
       nodes: [
         { id: 'a', type: 'shape', x: 0, y: 0, width: 100, height: 100, data: { shape: 'rect' } },
         // a neighbour drawn after it, over where its turn handle sits
@@ -771,6 +788,7 @@ describe('resize handles', () => {
 
   it('turns the corner handles about the node, not about the board', async () => {
     const { root, selection } = setup({
+      version: 1,
       nodes: [
         {
           id: 'a',
@@ -797,6 +815,7 @@ describe('resize handles', () => {
 
   it('turns the selection outline with a turned node, with no editor resize handle', async () => {
     const { root, selection } = setup({
+      version: 1,
       nodes: [
         {
           id: 'a',
@@ -821,6 +840,7 @@ describe('resize handles', () => {
 
   it('picks a turned node with a box by what it covers, not by its upright box', async () => {
     const { root, selection } = setup({
+      version: 1,
       nodes: [
         // turned upright: it covers x 90–110, y -90–110
         {
@@ -864,20 +884,21 @@ describe('resize handles', () => {
       },
     })
     const node = { id: 'a', type: 'shape', x: 0, y: 0, width: 100, height: 100, data: {} }
-    const { root, flow } = setup({ nodes: [node], edges: [] }, [grab])
+    const { root, flow } = setup({ version: 1, nodes: [node], edges: [] }, [grab])
     await ticks()
     ctx!.previewNode('a', { width: 300 })
     await ticks()
     expect(root.find('[data-node-id="a"]').attributes('style')).toContain('width: 300px')
-    flow.value = { nodes: [], edges: [] }
+    flow.value = { version: 1, nodes: [], edges: [] }
     await ticks()
-    flow.value = { nodes: [node], edges: [] }
+    flow.value = { version: 1, nodes: [node], edges: [] }
     await ticks()
     expect(root.find('[data-node-id="a"]').attributes('style')).toContain('width: 100px')
   })
 
   it('lets text reflow while it widens', async () => {
     const { root, selection } = setup({
+      version: 1,
       nodes: [{ id: 't', type: 'text', x: 0, y: 0, width: 100, data: { text: '戴兜' } }],
       edges: [],
     })
@@ -896,6 +917,7 @@ describe('resize handles', () => {
 
   it('only widens text, turned or not, and keeps no height', async () => {
     const { root, flow, selection } = setup({
+      version: 1,
       nodes: [
         {
           id: 't',
@@ -985,6 +1007,7 @@ describe('turning', () => {
 
   it('turns with the handle in one undo step; a turned node has its own corner handle', async () => {
     const { root, flow, selection } = setup({
+      version: 1,
       nodes: [
         { id: 'a', type: 'shape', x: 0, y: 0, width: 100, height: 100, data: { shape: 'rect' } },
       ],
@@ -1011,6 +1034,7 @@ describe('turning', () => {
 
   it('lets Escape put a turn back', async () => {
     const { root, flow, selection } = setup({
+      version: 1,
       nodes: [{ id: 'a', type: 'sticky', x: 0, y: 0, width: 100, height: 100, data: {} }],
       edges: [],
     })
@@ -1031,6 +1055,7 @@ describe('turning', () => {
 describe('layers', () => {
   it('draws nodes by z, then in document order', async () => {
     const { root } = setup({
+      version: 1,
       nodes: [card('a', 0, 2), card('b', 50), card('c', 300, -1)],
       edges: [],
     })
@@ -1040,6 +1065,7 @@ describe('layers', () => {
 
   it('moves the selection one step past what it overlaps, or to the top or bottom', async () => {
     const { root, selection } = setup({
+      version: 1,
       // a and b overlap; c is far off
       nodes: [card('a', 0), card('b', 50), card('c', 400)],
       edges: [],
@@ -1073,6 +1099,7 @@ describe('layers', () => {
 
   it('works in a plain flow too, through flowKit', async () => {
     const flow = ref<FlowDocument>({
+      version: 1,
       nodes: [
         { id: 'a', x: 0, y: 0, width: 100, height: 60, data: { label: 'a' } },
         { id: 'b', x: 50, y: 20, width: 100, height: 60, data: { label: 'b' } },
@@ -1113,7 +1140,7 @@ describe('layers', () => {
   })
 
   it('puts what is added on top, once nodes have a z', async () => {
-    const { flow, tool, drag } = setup({ nodes: [card('a', 0, 3)], edges: [] })
+    const { flow, tool, drag } = setup({ version: 1, nodes: [card('a', 0, 3)], edges: [] })
     await ticks()
     tool.value = 'rect'
     await ticks()
@@ -1142,7 +1169,7 @@ describe('images', () => {
       uploaded.push(file.name)
       return `https://example.com/${encodeURIComponent(file.name)}`
     }
-    const flow = ref<FlowDocument>({ nodes: [], edges: [] })
+    const flow = ref<FlowDocument>({ version: 1, nodes: [], edges: [] })
     const wrapper = mount(
       defineComponent(
         () => () =>
@@ -1197,7 +1224,7 @@ describe('images', () => {
         }
       },
     )
-    const flow = ref<FlowDocument>({ nodes: [], edges: [] })
+    const flow = ref<FlowDocument>({ version: 1, nodes: [], edges: [] })
     const wrapper = mount(
       defineComponent(
         () => () =>
@@ -1225,7 +1252,7 @@ describe('images', () => {
   })
 
   it('says so when an upload fails', async () => {
-    const flow = ref<FlowDocument>({ nodes: [], edges: [] })
+    const flow = ref<FlowDocument>({ version: 1, nodes: [], edges: [] })
     const wrapper = mount(
       defineComponent(
         () => () =>

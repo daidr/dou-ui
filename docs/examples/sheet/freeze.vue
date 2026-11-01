@@ -6,6 +6,7 @@ const months = Array.from({ length: 12 }, (_, i) => `${i + 1}月`)
 const stores = ['静安店', '徐汇店', '浦东店', '虹口店', '长宁店', '闵行店', '宝山店', '杨浦店']
 
 const book = ref({
+  version: 1,
   styles: { head: { bold: true, fill: 'neutral' } },
   sheets: [
     {

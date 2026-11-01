@@ -2,6 +2,14 @@
 
 编辑器的内容是一份普通的 JSON，可以直接保存和读取。节点和连线都有自己的 `id`，连线通过 `id` 引用节点和端口。
 
+```ts
+interface FlowDocument {
+  version: 1 // 数据格式的版本
+  nodes: FlowNode[]
+  edges: FlowEdge[]
+}
+```
+
 <DocDemo src="flow/data" column />
 
 ## 节点
@@ -91,3 +99,16 @@ editor.value?.transact((tr) => {
 ```
 
 事务提供 `addNode`、`removeNode`（连同它的连线）、`updateNode`、`moveNode`、`updateData`、`addEdge`、`removeEdge`、`updateEdge`。`transaction` 事件会带上这个事务，里面的 `steps` 是这次修改的全部步骤，`inverse` 是撤销它的步骤。
+
+## 检查与迁移
+
+文档里的 `version` 是数据格式的版本，目前是 `1`。保存或打开一份文档之前，可以先检查：
+
+```ts
+import { checkDocument, migrateDocument } from '@dou-ui/flow'
+
+const doc = migrateDocument(JSON.parse(saved))
+const problems = checkDocument(doc, { extensions, nodeTypes })
+```
+
+`checkDocument` 找出版本不对、节点或连线缺少 `id` 或 `id` 重复、坐标不是数字、连线的两端指向不存在的节点、`parent` 指向不存在的分组或绕成一圈，每一项带 `code`、`path`（如 `edges[0].target`）和出问题的 `nodeId` 或 `edgeId`。传入和编辑器一样的 `extensions`、`nodeTypes`、`edgeTypes` 时，还会检查没有注册的节点类型、连线类型，以及连线用到了节点没有的端口；只传 `nodeTypes` 或 `edgeTypes` 时，和编辑器一样按默认的 `flowKit()` 算。`migrateDocument` 补全旧文档或手写文档缺少的部分（`version`、`nodes`、`edges`），丢掉不是对象的节点和连线；遇到比当前更新的版本时报错。

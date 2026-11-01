@@ -25,7 +25,7 @@ import * as Y from 'yjs'
 const doc = new Y.Doc()
 const provider = new WebsocketProvider('wss://example.com', 'budget-2026', doc)
 
-const book = ref<SheetWorkbook>({ sheets: [{ name: '表 1', cells: [] }] })
+const book = ref<SheetWorkbook>({ version: 1, sheets: [{ name: '表 1', cells: [] }] })
 const extensions = [
   collaboration({
     book: doc.getMap('book'),

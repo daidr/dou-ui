@@ -53,6 +53,7 @@ function frame(id: string, x: number, label: string, items: [string, string, str
 }
 
 const doc = ref<FlowDocument>({
+  version: 1,
   nodes: [
     {
       id: 'topic',

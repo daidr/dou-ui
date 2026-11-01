@@ -608,7 +608,7 @@ export const csvImporter = defineSheetImporter({
   async import(file) {
     const text = await file.text()
     const name = baseName(file) || 'Sheet1'
-    return { book: { sheets: [{ name, cells: readCSV(text) }] } }
+    return { book: { version: 1, sheets: [{ name, cells: readCSV(text) }] } }
   },
 })
 

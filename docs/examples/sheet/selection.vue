@@ -3,6 +3,7 @@ import { DouSheet, formatRange } from '@dou-ui/sheet'
 import { computed, ref } from 'vue'
 
 const book = ref({
+  version: 1,
   sheets: [
     {
       name: '库存',

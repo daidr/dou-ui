@@ -202,6 +202,7 @@ describe('format', () => {
 })
 
 const book = (): SheetWorkbook => ({
+  version: 1,
   sheets: [
     {
       name: '表 1',

@@ -12,6 +12,7 @@ const task = (title, owner, status, due, done) => [
 ]
 
 const book = ref({
+  version: 1,
   styles: { head: { bold: true, fill: 'neutral' } },
   types: {
     status: {

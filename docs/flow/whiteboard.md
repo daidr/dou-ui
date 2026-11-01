@@ -15,7 +15,7 @@ import { whiteboardKit } from '@dou-ui/flow/whiteboard'
 import { ref } from 'vue'
 
 const extensions = [flowKit(), whiteboardKit()]
-const board = ref<FlowDocument>({ nodes: [], edges: [] })
+const board = ref<FlowDocument>({ version: 1, nodes: [], edges: [] })
 </script>
 
 <template>
@@ -152,6 +152,7 @@ const extensions = [
 
 ```ts
 const board: FlowDocument = {
+  version: 1,
   nodes: [
     {
       id: 'a',

@@ -366,6 +366,8 @@ export interface SheetTypeSetup {
 export type SheetSelectOption = SheetValue | { value: SheetValue; tone?: Tone }
 
 export interface SheetWorkbook {
+  /** The version of the format; see `migrateWorkbook`. */
+  version: 1
   sheets: SheetData[]
   /** Named styles, which cells refer to by name. */
   styles?: Record<string, SheetStyle>

@@ -4,6 +4,7 @@ import { ref } from 'vue'
 
 // 选中第 2 行的一格或两格，拖动右下角的填充柄向下延伸
 const book = ref({
+  version: 1,
   sheets: [
     {
       name: '排期',

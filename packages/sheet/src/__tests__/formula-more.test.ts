@@ -5,7 +5,7 @@ import { SheetError, SheetFormulaEngine, type SheetResult } from '../formula'
 /** Works out one formula over some cells of a sheet named 表1. */
 function calc(formula: string, cells: SheetWorkbook['sheets'][number]['cells'] = []) {
   const engine = new SheetFormulaEngine(
-    { sheets: [{ name: '表1', cells }] },
+    { version: 1, sheets: [{ name: '表1', cells }] },
     { now: () => new Date(2026, 9, 31, 9, 30) },
   )
   return show(engine.evaluate(formula))

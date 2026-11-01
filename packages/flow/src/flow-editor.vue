@@ -2047,6 +2047,7 @@ function copySelection(): FlowDocument | null {
   if (!ids.size) return null
   const raw = toRaw(doc.value)
   return {
+    version: 1,
     nodes: raw.nodes.filter((node) => ids.has(node.id)),
     edges: raw.edges.filter((edge) => ids.has(edge.source.node) && ids.has(edge.target.node)),
   }
@@ -2175,7 +2176,7 @@ function takingPort(node: FlowNode, from: Required<FlowEndpoint>) {
   const fromPort = portSpec(from)
   if (!fromPort) return undefined
   const spec = specOf(node)
-  const next = { nodes: [...doc.value.nodes, node], edges: doc.value.edges }
+  const next = { ...doc.value, nodes: [...doc.value.nodes, node] }
   for (const port of portsOf(spec, node)) {
     if (port.kind === fromPort.kind) continue
     const end = { node: node.id, port: port.id }

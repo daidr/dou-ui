@@ -386,6 +386,7 @@ function onLinkOpen(event: SheetLinkOpenEvent) {
 
 ```ts
 const book = {
+  version: 1,
   types: {
     status: {
       type: 'select',

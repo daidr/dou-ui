@@ -57,6 +57,7 @@ const link = (from: string, to: string, port = 'out') => ({
 })
 
 const doc = ref<FlowDocument>({
+  version: 1,
   nodes: [
     step('start', 'start', 0, 0),
     step('retrieve', 'retrieve', 0, 128),

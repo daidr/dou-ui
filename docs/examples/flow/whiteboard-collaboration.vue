@@ -36,7 +36,7 @@ function createClient(name: string): Client {
     doc,
     awareness: new Awareness(doc),
     // 协同时节点从共享文档读取，这里的初始值不会用到
-    flow: ref<FlowDocument>({ nodes: [], edges: [] }),
+    flow: ref<FlowDocument>({ version: 1, nodes: [], edges: [] }),
     extensions: [],
   }
 }
@@ -50,6 +50,7 @@ function createDemo() {
   fillMaps(
     { nodes: first.doc.getMap('nodes'), edges: first.doc.getMap('edges') },
     {
+      version: 1,
       nodes: [
         {
           id: 'goal',

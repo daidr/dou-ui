@@ -17,6 +17,7 @@ import {
 import { mergeCommands } from '../core/commands'
 
 const book = (): SheetWorkbook => ({
+  version: 1,
   sheets: [
     {
       name: '预算',

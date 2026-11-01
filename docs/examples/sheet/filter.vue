@@ -23,6 +23,7 @@ const rows = Array.from({ length: 24 }, (_, i) => {
 })
 
 const book = ref<SheetWorkbook>({
+  version: 1,
   styles: { head: { bold: true, fill: 'neutral' } },
   sheets: [
     {

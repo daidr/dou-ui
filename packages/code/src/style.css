@@ -996,7 +996,7 @@
     pointer-events: none;
     & > .dou-code-keys {
       border-color: color-mix(in oklab, var(--dou-color-text) 10%, transparent);
-      background-color: color-mix(in oklab, var(--dou-color-bg-surface) 86%, transparent);
+      background-color: color-mix(in oklab, var(--dou-color-bg-surface) 92%, transparent);
       box-shadow: var(--dou-shadow-md);
       -webkit-backdrop-filter: blur(20px) saturate(1.8);
       backdrop-filter: blur(20px) saturate(1.8);

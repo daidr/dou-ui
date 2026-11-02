@@ -47,16 +47,19 @@ function addInput() {
 需要一次做好几处修改时，先用 `transaction()` 开一个事务，逐步修改，再用 `dispatch` 提交，整个事务是一步撤销：
 
 ```ts
-const tr = builder.transaction()
+// 页面里用模板引用；设计器里面的组件改成 const designer = useFormBuilder()
+const designer = builder.value!
+
+const tr = designer.transaction()
 tr.update('phone', { label: '联系电话', required: true })
 tr.move('phone', null, 0)
-builder.dispatch(tr, { selection: ['phone'] })
+designer.dispatch(tr, { selection: ['phone'] })
 ```
 
 `moveTo` 的位置按移动前的子节点算，就像在当前列表里指出一个缝隙。比如分组里依次是 `a`、`b`、`c`，把 `a` 移到 `c` 后面要写 `index: 3`（`c` 之后的缝隙），结果是 `b`、`c`、`a`：
 
 ```ts
-builder.moveTo({ parent: 'contact', index: 3 }, ['a'])
+designer.moveTo({ parent: 'contact', index: 3 }, ['a'])
 ```
 
 事务的方法按 id 和位置修改，不看选中了什么：

@@ -43,7 +43,7 @@ const book = readBook(ydoc.getMap('book'))
 - 讨论不算修改。同一个单元格的不同写法（`1` 和 `{ value: 1 }`、空文字和空单元格）不算修改。
 - 工作表的保护、命名样式（比如解锁单元格的样式）和工作簿的设置不画在单元格上，用 `diffWorkbooks` 查看。
 
-`nextChange()` 和 `previousChange()` 依次选中下一个、上一个改过的单元格，会切换到别的工作表，没有更多时返回 `false`，可以接在自己的按钮上。对比时[查找](./#查找和替换)只能查找，不能替换。`compare` 设为 `null` 回到编辑。
+`nextChange()` 和 `previousChange()` 依次选中下一个、上一个改过的单元格，会切换到别的工作表，没有更多时返回 `false`，可以接在自己的按钮上。对比时[查找](./filter#查找和替换)只能查找，不能替换。`compare` 设为 `null` 回到编辑。
 
 只想知道改了多少，不需要显示时，用 `diffWorkbooks`：
 
@@ -61,7 +61,7 @@ const { cells, addedSheets, removedSheets, changedSheets, changedStyles, bookCha
 
 `restore(book)` 把工作簿换成某个版本，算一次修改，可以撤销。只写入有差异的部分：多出的工作表删掉、少了的加回来、顺序调回去，再写入改过的单元格和设置。协同编辑时只把这些写进共享文档，别人正在修改的其他单元格不受影响。没有差异时返回 `false`。和 `transact` 一样，`readonly` 不限制代码里的调用；对比时（传了 `compare`）表格不能修改，`transact`、`undo`、`redo` 都不生效，`restore` 是唯一能用的修改。
 
-恢复和撤销一样不受[保护](./#保护)的限制：版本里的保护设置、锁定和解锁的样式都会恢复，受保护工作表上锁定的单元格也会写回版本里的内容。扩展的 `transaction` 仍然会收到这次修改（`meta.action` 为 `restore`），可以[取消](./extensions#取消修改)它，这时返回 `false`。
+恢复和撤销一样不受[保护](./protect)的限制：版本里的保护设置、锁定和解锁的样式都会恢复，受保护工作表上锁定的单元格也会写回版本里的内容。扩展的 `transaction` 仍然会收到这次修改（`meta.action` 为 `restore`），可以[取消](./extensions#取消修改)它，这时返回 `false`。
 
 恢复前表格不会自动保存版本。想让用户能回到恢复前的样子，在调用前先存一份：
 

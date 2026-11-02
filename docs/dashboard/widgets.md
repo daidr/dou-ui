@@ -102,7 +102,7 @@ pivotWidget({
 
 ## 导出格子的数据
 
-`exporters` 传入电子表格的导出器后，表格、图表和透视表格子的标题栏会多出一个“导出”按钮（编辑时在格子菜单里），选一种文件就会下载这个格子的数据，文件名和工作表名取格子的标题。导出器来自 `@dou-ui/sheet`（`csvExporter`）和 `@dou-ui/sheet-xlsx`（`xlsxExporter`），也可以用自己写的，写法见电子表格的[导出器与导入器](../sheet/extensions#导出器与导入器)。在代码里导入它们时，需要另外安装 `@dou-ui/sheet` 和 `@dou-ui/sheet-xlsx`：
+`exporters` 传入电子表格的导出器后，表格、图表和透视表格子的标题栏会多出一个“导出”按钮（编辑时在格子菜单里），选一种文件就会下载这个格子的数据，文件名和工作表名取格子的标题。导出器来自 `@dou-ui/sheet`（`csvExporter`）和 `@dou-ui/sheet-xlsx`（`xlsxExporter`），也可以用自己写的，写法见电子表格的[导出器与导入器](../sheet/exporters)。在代码里导入它们时，需要另外安装 `@dou-ui/sheet` 和 `@dou-ui/sheet-xlsx`：
 
 ```vue
 <script setup>

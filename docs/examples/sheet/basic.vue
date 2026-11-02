@@ -40,8 +40,8 @@ const book = ref({
         [
           '场地',
           1,
-          { value: '=B4*C4', format: '¥#,##0' },
           { value: 4200, format: '¥#,##0' },
+          { value: '=B4*C4', format: '¥#,##0' },
           '戴兜',
           { value: '2026-11-14', format: 'm月d日' },
         ],

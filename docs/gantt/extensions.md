@@ -25,21 +25,21 @@ const extensions = [owners, quietDays('2026-11-09', '2026-11-11', '团建')]
 
 ## 扩展的字段
 
-| 名称          | 说明                                                                                                                       | 类型                                                  |
-| ------------- | -------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| `name`        | 扩展的名字                                                                                                                 | `string`                                              |
-| `priority`    | 优先级，越大越先处理按键和规则，默认 `100`                                                                                 | `number`                                              |
-| `columns`     | 加在表格已有列之后的列，写法同 `columns` 属性                                                                              | `GanttColumn[]`                                       |
-| `canLink`     | 依赖规则，在 `canLink` 属性之后检查，返回 `true` 允许，返回字符串拒绝并作为提示                                            | `(link, doc) => boolean \| string`                    |
-| `canMove`     | 移动规则，在 `canMove` 属性之后检查，用法相同                                                                              | `(move, doc) => boolean \| string`                    |
-| `keymap`      | 甘特图有焦点时的快捷键，写法和 `useHotkey` 一样；处理函数返回 `false` 表示没处理，交给下一个                               | `(ctx) => Record<string, (event) => boolean \| void>` |
-| `markers`     | 标记线，和 `markers` 属性画在一起；读到的数据变化时重新计算                                                                | `(ctx) => GanttMarker[]`                              |
-| `layers`      | 画在时间轴坐标里的组件，`below` 在依赖线下方，`above` 在任务条上方，跟着时间轴滚动                                         | `{ below?: Component[], above?: Component[] }`        |
-| `contextMenu` | 右键菜单的项，排在内置项前面，`target.kind` 是 `task`、`link` 或 `canvas`，带 `point` 和 `time`，见[右键菜单](./#右键菜单) | `(ctx, target) => ContextMenuItem[]`                  |
-| `overlays`    | 浮在甘特图上方的组件，不随时间轴滚动，比如面板                                                                             | `Component[]`                                         |
-| `setup`       | 甘特图挂载后调用，可以返回一个函数，在卸载时调用                                                                           | `(ctx) => void \| (() => void)`                       |
-| `transaction` | 每次修改生效前按优先级调用，可以继续往里加步骤，或用 `tr.cancel()` 取消；撤销和重做也会经过这里                            | `(tr, ctx) => void`                                   |
-| `history`     | 替换甘特图自带的撤销记录，只用第一个提供它的扩展，例如[协同编辑](./collaboration)只撤销自己的修改                          | `(ctx) => GanttHistoryHandler`                        |
+| 名称          | 说明                                                                                                                  | 类型                                                  |
+| ------------- | --------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| `name`        | 扩展的名字                                                                                                            | `string`                                              |
+| `priority`    | 优先级，越大越先处理按键和规则，默认 `100`                                                                            | `number`                                              |
+| `columns`     | 加在表格已有列之后的列，写法同 `columns` 属性                                                                         | `GanttColumn[]`                                       |
+| `canLink`     | 依赖规则，在 `canLink` 属性之后检查，返回 `true` 允许，返回字符串拒绝并作为提示                                       | `(link, doc) => boolean \| string`                    |
+| `canMove`     | 移动规则，在 `canMove` 属性之后检查，用法相同                                                                         | `(move, doc) => boolean \| string`                    |
+| `keymap`      | 甘特图有焦点时的快捷键，写法和 `useHotkey` 一样；处理函数返回 `false` 表示没处理，交给下一个                          | `(ctx) => Record<string, (event) => boolean \| void>` |
+| `markers`     | 标记线，和 `markers` 属性画在一起；读到的数据变化时重新计算                                                           | `(ctx) => GanttMarker[]`                              |
+| `layers`      | 画在时间轴坐标里的组件，`below` 在依赖线下方，`above` 在任务条上方，跟着时间轴滚动                                    | `{ below?: Component[], above?: Component[] }`        |
+| `contextMenu` | 右键菜单的项，排在内置项前面，`target.kind` 是 `task`、`link` 或 `canvas`，带 `point` 和 `time`，见[右键菜单](./menu) | `(ctx, target) => ContextMenuItem[]`                  |
+| `overlays`    | 浮在甘特图上方的组件，不随时间轴滚动，比如面板                                                                        | `Component[]`                                         |
+| `setup`       | 甘特图挂载后调用，可以返回一个函数，在卸载时调用                                                                      | `(ctx) => void \| (() => void)`                       |
+| `transaction` | 每次修改生效前按优先级调用，可以继续往里加步骤，或用 `tr.cancel()` 取消；撤销和重做也会经过这里                       | `(tr, ctx) => void`                                   |
+| `history`     | 替换甘特图自带的撤销记录，只用第一个提供它的扩展，例如[协同编辑](./collaboration)只撤销自己的修改                     | `(ctx) => GanttHistoryHandler`                        |
 
 `ctx` 和组件里 `useGantt()` 拿到的是同一个对象。
 

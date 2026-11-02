@@ -159,11 +159,18 @@ const dashboardSidebar = ecosystem('仪表盘', [
 const formBuilderSidebar = ecosystem('表单设计器', [
   { text: '介绍', link: '/form-builder/' },
   { text: '表单描述', link: '/form-builder/document' },
+  { text: '布局', link: '/form-builder/layout' },
   { text: '字段类型', link: '/form-builder/fields' },
+  { text: '校验', link: '/form-builder/validation' },
   { text: '联动与表达式', link: '/form-builder/logic' },
   { text: '标签页、分步与列表', link: '/form-builder/structure' },
+  { text: '只读展示', link: '/form-builder/readonly' },
   { text: '设计器', link: '/form-builder/builder' },
+  { text: '属性面板', link: '/form-builder/builder-inspector' },
+  { text: '设计器扩展', link: '/form-builder/builder-extensions' },
+  { text: '用代码修改设计器', link: '/form-builder/builder-api' },
   { text: '协同编辑', link: '/form-builder/collaboration' },
+  { text: '性能', link: '/form-builder/performance' },
 ])
 
 export default defineConfig({

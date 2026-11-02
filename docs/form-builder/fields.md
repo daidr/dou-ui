@@ -38,6 +38,12 @@
 
 ## 自定义字段
 
+内置字段覆盖了 `dou-ui` 的常用输入控件。需要别的控件时，用 `defineFormField` 注册一个字段类型，通过 `fields` 传给渲染器：
+
+<DocDemo src="form-builder/custom-field" column />
+
+字段组件拿到 `modelValue`、触发 `update:modelValue`，描述里的 `props`（加上类型的 `defaultProps`）作为它的属性传入。和内置类型同名的类型会替换内置的那个。
+
 ```ts
 import { defineFormField } from '@dou-ui/form-builder'
 
@@ -66,6 +72,9 @@ const chips = defineFormField<{ options: string[] }>({
 | `fitValue(value, options)`      | 选项变化后把旧值收窄到新选项提供的范围，见[联动与表达式](./logic#选项来源)                                  |
 | `format(value, props, context)` | 只读时显示的文字，见下文                                                                                    |
 | `readonlyComponent`             | 只读时代替文字显示值的组件，拿到 `modelValue` 和与 `component` 相同的属性，组件声明了 `readonly` 时也会传入 |
+| `icon`                          | 设计器字段面板里的图标，比如 `@dou-ui/icons` 里的一个                                                       |
+| `group`                         | 字段面板里的分组：`input`、`choice`、`more`（默认）、`display`，或者自己起的名字                            |
+| `settings`                      | 设计器属性面板里的设置，是一组表单节点，值写进节点的 `props`，见[属性面板](./builder-inspector)             |
 
 字段组件里调用 `useFormField()`，可以拿到正在渲染的 `node`、它的 `type` 和合并后的 `props`。字段组件不需要自己处理标签和错误信息，外层的表单项会处理；组件里的可聚焦元素会自动和标签关联（`dou-ui` 的输入控件都是这样做的，自己写的控件可以用 `useFormItem()` 拿到 `inputId`）。
 

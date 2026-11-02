@@ -123,6 +123,13 @@ export interface RendererContext {
   validators: () => Record<string, FormValidator> | undefined
   /** Whether values show as text. */
   readonly: () => boolean
+  /** The ids of the formula fields on a circle, which are not worked out. */
+  blockedFormulas: () => ReadonlySet<string>
+  /**
+   * In a read-only form, a copy of the values with every formula worked
+   * out, which formula fields show; nothing writes the model itself.
+   */
+  settled: () => FormModel
   /** Whether the controls are read-only, as in a read-only builder's settings. */
   controlsReadonly: () => boolean
   /** The options from a source, shared by every field asking the same thing. */
@@ -155,8 +162,6 @@ export interface NodeScope {
   prefix: () => string
   /** The item, read as `item` by expressions. */
   item: () => unknown
-  /** Fields of the item whose formulas read each other in a circle; they are not worked out. */
-  blocked: () => ReadonlySet<string>
 }
 
 export const scopeKey: InjectionKey<NodeScope> = Symbol('DouFormNodeScope')
@@ -177,7 +182,6 @@ export const disabledKey: InjectionKey<() => boolean> = Symbol('DouFormNodeDisab
 export const rootScope: NodeScope = {
   prefix: () => '',
   item: () => null,
-  blocked: () => new Set(),
 }
 
 /** The full path of a name in a scope. */

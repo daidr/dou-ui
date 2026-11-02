@@ -773,7 +773,10 @@ function compileNode(node: ExpressionNode): Run {
  * when it runs stops the path there: `values.rows[i].name` reads `rows`,
  * and `values[key]` reads everything (`''`).
  */
-function pathOf(node: ExpressionNode, root: 'values' | 'item' = 'values'): string | undefined {
+export function pathOf(
+  node: ExpressionNode,
+  root: 'values' | 'item' = 'values',
+): string | undefined {
   const keys: string[] = []
   let current = node
   while (current.kind === 'member') {
@@ -787,7 +790,7 @@ function pathOf(node: ExpressionNode, root: 'values' | 'item' = 'values'): strin
 }
 
 /** The computed keys along a member chain, e.g. `i` in `values.rows[i]`. */
-function computedKeys(node: ExpressionNode): ExpressionNode[] {
+export function computedKeys(node: ExpressionNode): ExpressionNode[] {
   const keys: ExpressionNode[] = []
   for (let current = node; current.kind === 'member'; current = current.object)
     if (current.key.kind !== 'literal') keys.push(current.key)

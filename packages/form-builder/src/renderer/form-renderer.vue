@@ -25,7 +25,7 @@ import type {
   FormRendererProps,
   FormRendererSlots,
 } from './context'
-import { findFormulaCycles, formulasOf, settleFormulas } from '../core/formulas'
+import { analyseFormulas, settleFormulas } from '../core/formulas'
 import { FormNodeView, nodeKey } from './node-view'
 
 defineOptions({ name: 'DouFormRenderer' })
@@ -74,22 +74,24 @@ watch(
 // Formulas: each field with one holds its result, worked out again as
 // soon as a value it reads changes (synchronously, so a formula reading
 // another formula sees its new result). Formulas on a circle are skipped.
-const formulas = computed(() => {
-  const cycles = findFormulaCycles(props.form)
-  for (const cycle of cycles) warnCycle(cycle)
-  return formulasOf(props.form)
+// The document's formulas and the items' make one set, so a circle through
+// both is found too; each one on it is skipped, here and in the lists.
+const analysis = computed(() => {
+  const result = analyseFormulas(props.form, props.functions)
+  for (const cycle of result.cycles) warnCycle(cycle.map(({ label }) => label))
+  return result
 })
 watch(
-  [formulas, model, () => props.functions, () => props.readonly],
-  ([list, target, functions, readonly], _, onCleanup) => {
+  [analysis, model, () => props.functions, () => props.readonly],
+  ([formulas, target, functions, readonly], _, onCleanup) => {
     // A read-only form works formulas out as it shows them, and writes nothing.
     if (readonly) return
     // Everything at once first, so the server renders the results the page
     // will have: watchers there run only once, before the lists fill in.
-    settleFormulas(props.form, target, functions)
+    settleFormulas(props.form, target, functions, formulas)
     const scope = effectScope()
     scope.run(() => {
-      for (const { name, expression } of list)
+      for (const { name, expression } of formulas.formulas)
         watch(
           () => expression.evaluate({ values: target, value: null, functions }),
           (result) => {
@@ -103,6 +105,15 @@ watch(
   },
   { immediate: true },
 )
+
+// A read-only form shows formulas worked out on a copy of the values, so a
+// total reads the items' results even when the model has none of them.
+const settled = computed(() => {
+  if (!props.readonly) return model.value
+  const copy = cloneValue(model.value)
+  settleFormulas(props.form, copy, props.functions, analysis.value)
+  return copy
+})
 
 // Options from sources, kept per source and `arg` for the renderer's
 // life; a failed call is forgotten so the next one tries again.
@@ -189,6 +200,8 @@ provide(rendererKey, {
   functions: () => props.functions,
   validators: () => props.validators,
   readonly: () => props.readonly,
+  blockedFormulas: () => analysis.value.blocked,
+  settled: () => settled.value,
   controlsReadonly,
   load,
   sourceVersion: (name) => everyVersion.value + (versions[name] ?? 0),

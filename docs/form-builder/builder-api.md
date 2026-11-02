@@ -8,7 +8,7 @@ wide: true
 
 ## 命令
 
-组件实例和设计器内部的 `useFormBuilder()` 是同一个对象，可以读当前的 `document` 和 `selection`，也可以调用下面的命令。命令和设计器里的按钮、快捷键做的事一样，不传 `ids` 时作用于选中的节点：
+命令和设计器里的按钮、快捷键做的事一样，不传 `ids` 时作用于选中的节点：
 
 | 命令                  | 作用                                                                            |
 | --------------------- | ------------------------------------------------------------------------------- |
@@ -70,22 +70,24 @@ builder.moveTo({ parent: 'contact', index: 3 }, ['a'])
 
 ### FormBuilder Exposes
 
-组件实例和 `useFormBuilder()` 是同一个对象。
-
-| 名称                            | 说明                                                                       | 类型                                            |
-| ------------------------------- | -------------------------------------------------------------------------- | ----------------------------------------------- |
-| `document`                      | 当前的表单描述                                                             | `FormDocument`                                  |
-| `selection`                     | 选中的节点 id                                                              | `readonly string[]`                             |
-| `fields`                        | 全部字段类型，内置的和传入的                                               | `ReadonlyMap<string, FormFieldType>`            |
-| `readonly`                      | 设计器是否只读，只读时修改表单的命令什么都不做                             | `boolean`                                       |
-| `mode` / `setMode`              | 当前模式，切换模式                                                         | `FormBuilderMode` / `(mode) => void`            |
-| `canUndo` / `canRedo`           | 能否撤销、重做                                                             | `boolean`                                       |
-| `undo` / `redo`                 | 撤销、重做                                                                 | `() => void`                                    |
-| `add`                           | 新建一个节点并选中，返回它的 id（建不了时为 `undefined`），见[命令](#命令) | `(type: string, place?) => string \| undefined` |
-| `remove` / `duplicate` / `wrap` | 删除、复制、放进新分组，不传 `ids` 时作用于选中的节点                      | `(ids?: string[]) => void`                      |
-| `moveTo` / `moveBy`             | 移到某个容器的某个位置；在同一个容器里上移或下移                           | —                                               |
-| `addPage`                       | 给标签页或分步加一页                                                       | `(id?: string) => void`                         |
-| `replace`                       | 换掉整张表单，记为一步撤销                                                 | `(document: FormDocument) => void`              |
-| `select` / `selectParent`       | 选中节点；选中最后选中的节点所在的容器                                     | —                                               |
-| `transaction` / `dispatch`      | 开一个事务、提交事务，整个事务是一步撤销                                   | —                                               |
-| `shownPage`                     | 画布上标签页或分步当前显示的那一页                                         | `(container) => FormPageNode \| undefined`      |
+| 名称                            | 说明                                                                       | 类型                                                                               |
+| ------------------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `document`                      | 当前的表单描述                                                             | `FormDocument`                                                                     |
+| `selection`                     | 选中的节点 id                                                              | `readonly string[]`                                                                |
+| `fields`                        | 全部字段类型，内置的和传入的                                               | `ReadonlyMap<string, FormFieldType>`                                               |
+| `messages`                      | 设计器当前语言的文字                                                       | `FormBuilderMessages`                                                              |
+| `readonly`                      | 设计器是否只读，只读时修改表单的命令什么都不做                             | `boolean`                                                                          |
+| `mode` / `setMode`              | 当前模式，切换模式                                                         | `FormBuilderMode` / `(mode: FormBuilderMode) => void`                              |
+| `canUndo` / `canRedo`           | 能否撤销、重做                                                             | `boolean`                                                                          |
+| `undo` / `redo`                 | 撤销、重做                                                                 | `() => void`                                                                       |
+| `add`                           | 新建一个节点并选中，返回它的 id（建不了时为 `undefined`），见[命令](#命令) | `(type: string, place?: FormBuilderInsertPlace) => string \| undefined`            |
+| `remove` / `duplicate` / `wrap` | 删除、复制、放进新分组，不传 `ids` 时作用于选中的节点                      | `(ids?: readonly string[]) => void`                                                |
+| `moveTo`                        | 移到某个容器的某个位置                                                     | `(place: FormBuilderInsertPlace, ids?: readonly string[]) => void`                 |
+| `moveBy`                        | 在同一个容器里上移或下移                                                   | `(delta: -1 \| 1, ids?: readonly string[]) => void`                                |
+| `addPage`                       | 给标签页或分步加一页                                                       | `(id?: string) => void`                                                            |
+| `replace`                       | 换掉整张表单，记为一步撤销                                                 | `(document: FormDocument) => void`                                                 |
+| `select`                        | 选中节点，`mode` 为 `'replace'`（默认）、`'toggle'` 或 `'extend'`          | `(ids: string \| readonly string[] \| null, mode?: FormBuilderSelectMode) => void` |
+| `selectParent`                  | 选中最后选中的节点所在的容器                                               | `() => void`                                                                       |
+| `transaction`                   | 基于当前表单开一个事务                                                     | `() => FormBuilderTransaction`                                                     |
+| `dispatch`                      | 提交事务，整个事务是一步撤销                                               | `(tr: FormBuilderTransaction, options?: FormBuilderDispatchOptions) => void`       |
+| `shownPage`                     | 画布上标签页或分步当前显示的那一页                                         | `(container: FormContainerNode) => FormPageNode \| undefined`                      |

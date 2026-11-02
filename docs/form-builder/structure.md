@@ -152,7 +152,6 @@ interface FormListNode {
 | `migrateDocument(data)`                    | 把保存的描述升级到当前版本         |
 | `visibleValues(form, model, options?)`     | 去掉隐藏字段的值后的拷贝           |
 | `emptyItem(list, fields)`                  | 列表的一个新项，字段取各自的默认值 |
-| `findItemFormulaCycles(list)`              | 找出列表项里互相引用的公式         |
 | `useFormRendererMessages(override?)`       | 当前语言的文字                     |
 | `formatMessage(text, params)`              | 替换文字里的 `{name}`              |
 | `isTabs` / `isSteps` / `isPage` / `isList` | 判断节点种类                       |

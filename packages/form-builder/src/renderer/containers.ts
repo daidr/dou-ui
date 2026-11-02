@@ -24,7 +24,6 @@ import {
 import type { FormItemExpose, FormRule, StepItem } from 'dou-ui'
 import { PlusIcon, TrashIcon } from '@dou-ui/icons'
 import { getPath, isList, setPath, valueNodes } from '../core/document'
-import { findItemFormulaCycles } from '../core/formulas'
 import { rulesOf } from '../core/rules'
 import type {
   FormListNode,
@@ -381,15 +380,6 @@ export function listView(
     const value = getPath(renderer.model(), path())
     return Array.isArray(value) ? (value as Record<string, unknown>[]) : []
   })
-  /** Item fields whose formulas read each other in a circle. */
-  const blocked = computed(() => {
-    const cycles = findItemFormulaCycles(list())
-    for (const cycle of cycles)
-      console.warn(
-        `[@dou-ui/form-builder] form formulas of list "${list().name}" read each other in a circle (${cycle.join(' -> ')}); they are not worked out`,
-      )
-    return new Set(cycles.flat())
-  })
   const rules = computed(() => listRules(list(), renderer, path))
 
   function write(next: Record<string, unknown>[]) {
@@ -494,7 +484,6 @@ export function listView(
                     position: index,
                     columns: node.columns ?? props.columns,
                     inset: props.inset + 1,
-                    blocked: blocked.value,
                     sortable,
                     canRemove,
                     readonly,
@@ -551,7 +540,6 @@ const ListItemView = defineComponent({
     position: { type: Number, required: true },
     columns: { type: Number, required: true },
     inset: { type: Number, required: true },
-    blocked: { type: Object as PropType<ReadonlySet<string>>, required: true },
     sortable: Boolean,
     canRemove: Boolean,
     /** Without the remove button. */
@@ -563,7 +551,6 @@ const ListItemView = defineComponent({
     provide(scopeKey, {
       prefix: () => `${props.path}.${props.index}.`,
       item: () => props.item,
-      blocked: () => props.blocked,
     })
     return () => {
       const messages = renderer.messages()

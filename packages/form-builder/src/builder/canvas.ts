@@ -154,6 +154,8 @@ export const FormBuilderCanvas = defineComponent({
       functions: () => undefined,
       validators: () => undefined,
       readonly: () => false,
+      blockedFormulas: () => new Set(),
+      settled: () => scratch,
       controlsReadonly: () => false,
       load: () => Promise.resolve([]),
       sourceVersion: () => 0,
@@ -411,7 +413,6 @@ const DesignNode = defineComponent({
       const scope: NodeScope = {
         prefix,
         item: () => null,
-        blocked: () => new Set(),
       }
       provide(scopeKey, scope)
     }

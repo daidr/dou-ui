@@ -33,7 +33,7 @@ wide: true
 - 依赖的字段还没填时，公式字段是空的，而不是 0：乘、除、取余有一边为空时结果为空；加、减两边都为空时结果为空，只有一边为空时空的一边按 0 计算。需要别的规则时，可以写成 `empty(values.count) ? null : values.price * values.count`。
 - 要在表单旁边显示公式的结果（或者字段的默认值）时，放进渲染器的默认插槽，像上面的例子那样。渲染器先算好再画插槽；放在渲染器外面时，服务端渲染的页面激活时内容会对不上。
 
-如果几个公式互相引用形成环（`a` 读 `b`，`b` 又读 `a`），这些公式都不会计算，渲染器在控制台提示一次。设计器可以用 `findFormulaCycles(form)` 提前找出它们。
+如果几个公式互相引用形成环（`a` 读 `b`，`b` 又读 `a`），这些公式都不会计算，渲染器在控制台提示一次。列表项的公式也算在内：表单的合计 `sum(values.items, 'total')` 读每一项的 `total`，项的 `total` 又读 `values.sum` 时同样成环。设计器可以用 `findFormulaCycles(form)` 提前找出它们，列表项的字段写成 `items.total` 这样带列表名的形式；`checkDocument` 也会报出 `formula-cycle`。
 
 公式写入的值不会触发 `change` 事件，`change` 只表示使用者填写了字段。
 
@@ -166,5 +166,5 @@ formula: 'round(values.price + tax(values.price), 2)'
 | `parseExpression(source)`                                           | 只解析，返回语法树，供可视化的条件编辑使用                                                             |
 | `checkExpression(source, options?)`                                 | 检查语法、字段和函数，返回问题列表                                                                     |
 | `fitToOptions(value, options)` / `fitPathToOptions(value, options)` | 把值收窄到选项提供的范围                                                                               |
-| `findFormulaCycles(form)`                                           | 找出互相引用的公式                                                                                     |
+| `findFormulaCycles(form, functions?)`                               | 找出互相引用的公式，列表项的也在内；表单自己定义了 `sum`、`min`、`max` 时传入 `functions`              |
 | `truthy(value)` / `isEmptyValue(value)` / `equalValues(a, b)`       | 表达式里真假、空值和相等的判断                                                                         |

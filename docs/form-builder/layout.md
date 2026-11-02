@@ -8,6 +8,8 @@ wide: true
 
 ## 栅格
 
+下面的设备登记表在表单宽度达到 480px 时两个字段一行，更窄时每个字段占满一行；上方的切换按钮把标签放到字段左边。
+
 <DocDemo src="form-builder/layout" column />
 
 - 默认 12 列，由描述的 `columns` 修改；

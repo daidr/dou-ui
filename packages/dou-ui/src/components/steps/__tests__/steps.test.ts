@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DouConfigProvider, DouSteps, en } from '../../../index'
-import { h } from 'vue'
+import { h, nextTick } from 'vue'
 
 const items = [
   { title: '填写信息' },
@@ -9,6 +9,21 @@ const items = [
   { title: '完成支付' },
   { title: '发货', disabled: true },
 ]
+
+/** The row needs `need` px with every title, `compact` px with only the current one. */
+function sizes(need: number, compact: number, width: { value: number }) {
+  vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    return this.classList.contains('dou-steps') ? width.value : 0
+  })
+  vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    if (!this.classList.contains('dou-steps')) return 0
+    return Math.max(width.value, this.classList.contains('is-compact') ? compact : need)
+  })
+}
 
 describe('DouSteps', () => {
   it('works out each status from current', () => {
@@ -61,5 +76,46 @@ describe('DouSteps', () => {
       'not started',
       'not started',
     ])
+  })
+
+  describe('when the row does not fit', () => {
+    afterEach(() => vi.restoreAllMocks())
+
+    it('keeps only the current title and shows the rest when room comes back', async () => {
+      const width = { value: 300 }
+      const observers: ResizeObserverCallback[] = []
+      vi.stubGlobal(
+        'ResizeObserver',
+        class {
+          constructor(callback: ResizeObserverCallback) {
+            observers.push(callback)
+          }
+          observe() {}
+          disconnect() {}
+        },
+      )
+      sizes(600, 280, width)
+      const wrapper = mount(DouSteps, { props: { items, current: 1 } })
+      await nextTick()
+      expect(wrapper.classes()).toContain('is-compact')
+      // the hidden titles still read out
+      expect(wrapper.findAll('.dou-steps__title').map((t) => t.text())).toHaveLength(4)
+
+      width.value = 640
+      observers.forEach((callback) => callback([], {} as ResizeObserver))
+      await nextTick()
+      expect(wrapper.classes()).not.toContain('is-compact')
+      vi.unstubAllGlobals()
+    })
+
+    it('stays as it is when everything fits, and never compacts vertically', async () => {
+      const width = { value: 600 }
+      sizes(500, 280, width)
+      expect(mount(DouSteps, { props: { items } }).classes()).not.toContain('is-compact')
+      width.value = 200
+      const vertical = mount(DouSteps, { props: { items, direction: 'vertical' } })
+      await nextTick()
+      expect(vertical.classes()).not.toContain('is-compact')
+    })
   })
 })

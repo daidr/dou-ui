@@ -4,7 +4,7 @@ wide: true
 
 # 汇总内核
 
-汇总的内核在 `@dou-ui/pivot/engine` 里，可以单独使用，比如在服务端或 worker 里。这个入口不含组件和样式。在页面里时，内核的函数和 API 表里的类型也可以直接从 `@dou-ui/pivot` 引入。
+汇总的内核在 `@dou-ui/pivot/engine` 里，可以单独使用，比如在服务端或 worker 里。这个入口不含组件和样式。在页面里使用时，内核的函数和 API 表里的类型也可以直接从 `@dou-ui/pivot` 引入。
 
 ## 基础用法
 

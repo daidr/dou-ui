@@ -139,7 +139,7 @@ const config = ref<PivotConfig>({ rows: ['region'], columns: ['month'], values: 
 | --------------------------------- | -------------------------------------------------- | ---------------------------------- |
 | `result`                          | 当前的汇总结果，见[汇总内核](./engine#pivotresult) | `PivotResult`                      |
 | `expandAll({ axis? })`            | 展开所有组                                         | `(options?) => void`               |
-| `collapseAll({ axis?, depth? })`  | 折叠从第 `depth` 层开始的所有组                    | `(options?) => void`               |
+| `collapseAll({ axis?, depth? })`  | 折叠从第 `depth` 级开始的所有组                    | `(options?) => void`               |
 | `toggle(axis, path, open?)`       | 展开或折叠一个组                                   | `(axis, path, open?) => void`      |
 | `selectAll()`                     | 选中全部格子                                       | `() => void`                       |
 | `copy({ all? })`                  | 复制选中的格子，`all` 复制整张表                   | `(options?) => Promise<void>`      |

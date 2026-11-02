@@ -77,7 +77,9 @@ defineChartSeries({
     const buckets = new Map<number, number[]>()
     series.x.values.forEach((x, i) => {
       const key = Math.round(x)
-      buckets.set(key, [...(buckets.get(key) ?? []), i])
+      let bucket = buckets.get(key)
+      if (!bucket) buckets.set(key, (bucket = []))
+      bucket.push(i)
     })
     return buckets
   },
@@ -106,15 +108,31 @@ defineChartSeries({
 
 ### defineChartSeries
 
-| 选项        | 说明                                                                 | 类型                                                |
-| ----------- | -------------------------------------------------------------------- | --------------------------------------------------- |
-| `type`      | 系列类型，组件名为 `DouChart` 加上首字母大写的类型                   | `string`                                            |
-| `zero`      | 数值轴包含 0                                                         | `boolean`                                           |
-| `stackable` | 支持 `stack` 堆叠                                                    | `boolean`                                           |
-| `band`      | 在每个位置并排分配空间，x 轴两端留出半个位置                         | `boolean`                                           |
-| `inset`     | 每个点周围需要的空间（像素），坐标轴会放宽到能放下                   | `(series) => number`                                |
-| `tooltip`   | 提示框默认按位置还是按单个点显示                                     | `'axis' \| 'item'`                                  |
-| `hit`       | 按单个点显示时，找出指针下的点和它的半径                             | `(series, view, x, y) => { index, radius } \| null` |
-| `prepare`   | 数据不再变化、浏览器空闲时提前做的准备，返回值放在 `series.prepared` | `(series) => unknown`                               |
-| `props`     | 组件自己的属性，写法和 Vue 组件的 `props` 相同                       | `object`                                            |
-| `draw`      | 绘制                                                                 | `(painter, series, view) => void`                   |
+| 选项        | 说明                                                                             | 类型                                                |
+| ----------- | -------------------------------------------------------------------------------- | --------------------------------------------------- |
+| `type`      | 系列类型，组件名为 `DouChart` 加上首字母大写的类型                               | `string`                                            |
+| `zero`      | 数值轴包含 0                                                                     | `boolean`                                           |
+| `stackable` | 支持 `stack` 堆叠                                                                | `boolean`                                           |
+| `band`      | 在每个位置并排分配空间，x 轴两端留出半个位置                                     | `boolean`                                           |
+| `inset`     | 每个点周围需要的空间（像素），坐标轴会放宽到能放下                               | `(series) => number`                                |
+| `tooltip`   | 提示框默认按位置还是按单个点显示                                                 | `'axis' \| 'item'`                                  |
+| `hit`       | 按单个点显示时，找出指针下的点和它的半径                                         | `(series, view, x, y) => { index, radius } \| null` |
+| `prepare`   | 数据不再变化、浏览器空闲时提前做的准备，返回值放在 `series.prepared`             | `(series) => unknown`                               |
+| `props`     | 组件自己的属性，写法和 Vue 组件的 `props` 相同；会和下方的通用属性合并，不要重名 | `object`                                            |
+| `draw`      | 绘制                                                                             | `(painter, series, view) => void`                   |
+
+### 通用属性
+
+`defineChartSeries` 生成的组件都带有下面这些属性，自己的 `props` 会和它们合并。
+
+| 名称             | 说明                                     | 类型                                        |
+| ---------------- | ---------------------------------------- | ------------------------------------------- |
+| `y`              | 必填，纵轴的值：字段名，或从行取值的函数 | `string \| (row, index: number) => unknown` |
+| `name`           | 系列名称                                 | `string`                                    |
+| `data`           | 这个系列自己的数据                       | `object[] \| Record<string, ArrayLike>`     |
+| `x`              | 这个系列自己的横轴取值                   | `string \| (row, index: number) => unknown` |
+| `color`          | 颜色，任意 CSS 颜色                      | `string`                                    |
+| `tone`           | 用语气色作为颜色                         | `Tone`                                      |
+| `axis`           | 对应的数值轴                             | `'y' \| 'y2'`                               |
+| `stack`          | 堆叠分组，`stackable` 为 `true` 时有效   | `string \| boolean`                         |
+| `v-model:hidden` | 隐藏系列                                 | `boolean`                                   |

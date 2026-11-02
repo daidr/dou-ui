@@ -55,15 +55,13 @@ app.use(DouChart).use(DouChartAxis).use(DouChartLine).use(DouChartBar)
 
 ## 图表类型
 
-| 组件                                               | 用途                   | 文档                               |
-| -------------------------------------------------- | ---------------------- | ---------------------------------- |
-| `DouChartLine`、`DouChartArea`                     | 折线图、面积图         | [折线图与面积图](./line)           |
-| `DouChartBar`、`DouChartWaterfall`                 | 柱状图、瀑布图         | [柱状图](./bar)                    |
-| `DouChartHistogram`、`DouChartBoxplot`             | 直方图、箱线图         | [直方图与箱线图](./distribution)   |
-| `DouChartScatter`、`DouChartHeatmap`               | 散点图、气泡图、热力图 | [散点图与热力图](./scatter)        |
-| `DouChartPie`                                      | 饼图、环形图、玫瑰图   | [饼图](./pie)                      |
-| `DouChartTreemap`、`DouChartSunburst`              | 矩形树图、旭日图       | [层级数据](./hierarchy)            |
-| `DouChartRadar`、`DouChartFunnel`、`DouChartGauge` | 雷达图、漏斗图、仪表盘 | [雷达图、漏斗图与仪表盘](./others) |
+- [折线图、面积图](./line)：`DouChartLine`、`DouChartArea`
+- [柱状图、瀑布图](./bar)：`DouChartBar`、`DouChartWaterfall`
+- [直方图、箱线图](./distribution)：`DouChartHistogram`、`DouChartBoxplot`
+- [散点图、气泡图、热力图](./scatter)：`DouChartScatter`、`DouChartHeatmap`
+- [饼图、环形图、玫瑰图](./pie)：`DouChartPie`
+- [矩形树图、旭日图](./hierarchy)：`DouChartTreemap`、`DouChartSunburst`
+- [雷达图、漏斗图、仪表盘](./others)：`DouChartRadar`、`DouChartFunnel`、`DouChartGauge`
 
 内置系列不够用时，可以用 `defineChartSeries` 定义自己的系列，见[自定义系列](./custom)。
 
@@ -82,6 +80,19 @@ app.use(DouChart).use(DouChartAxis).use(DouChartLine).use(DouChartBar)
 图表第一次出现在屏幕上时有入场动画：柱子和面积从基线长出，折线从左到右画出，饼图沿顺时针展开。数据变化时，各个值移动到新的位置。
 
 开启了减弱动效，或者数据点超过 2000 个时，图表直接显示最终的样子。
+
+## 语言
+
+图表里的文字（“没有数据”、读屏读出的概要、数据表的表头等）跟随 [ConfigProvider](/components/config-provider) 的语言，内置简体中文、繁体中文和英文。
+
+`messages` 可以改写其中几条：
+
+```vue-html
+<DouChart :data="rows" :messages="{ empty: '本月还没有订单' }" />
+```
+
+- `chartLocales` 是内置的三份文案，按语言名称（如 `'zh-CN'`）索引。要支持其他语言时，往里面加一份完整的 `ChartMessages`。
+- `useChartMessages(override?)` 返回当前语言的文案，自定义系列或提示框里需要相同的文字时使用。
 
 ## API
 
@@ -111,16 +122,16 @@ app.use(DouChart).use(DouChartAxis).use(DouChartLine).use(DouChartBar)
 | `hover`        | 提示框换到另一处内容；收起时参数为 `null`                              | `ChartPointEvent \| null` |
 | `update:table` | 在数据表里按 `Esc` 关闭时触发                                          | `false`                   |
 
-### Chart Exposes
-
-| 名称        | 说明                              |
-| ----------- | --------------------------------- |
-| `exportSVG` | 导出 SVG 文本，见[导出](./export) |
-| `exportPNG` | 导出 PNG 图片，见[导出](./export) |
-
 ### Chart Slots
 
 | 名称      | 说明                 |
 | --------- | -------------------- |
 | `default` | 系列、坐标轴等组件   |
 | `empty`   | 没有数据时显示的内容 |
+
+### Chart Exposes
+
+| 名称        | 说明                              |
+| ----------- | --------------------------------- |
+| `exportSVG` | 导出 SVG 文本，见[导出](./export) |
+| `exportPNG` | 导出 PNG 图片，见[导出](./export) |

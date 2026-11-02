@@ -327,7 +327,7 @@ export interface ChartScatterProps extends ChartSeriesProps {
   radius?: number
 }
 
-export interface ChartHeatmapProps extends Omit<ChartSeriesProps, 'color'> {
+export interface ChartHeatmapProps extends Omit<ChartSeriesProps, 'color' | 'axis'> {
   /** The category of each row down the side (a key or a function): one row of cells each, the first at the top. */
   y: ChartAccessor
   /** The value of each cell, a key or a function: the larger, the stronger its color. */

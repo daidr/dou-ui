@@ -12,6 +12,7 @@ interface Version {
 const head = (value: string) => ({ value, style: 'head' })
 const money = (value: number) => ({ value, format: '¥#,##0' })
 const budget = (rows: (string | number)[][]): SheetWorkbook => ({
+  version: 1,
   styles: { head: { bold: true, fill: 'neutral' } },
   sheets: [
     {

@@ -66,6 +66,7 @@ describe('filter rules', () => {
 })
 
 const orders = (): SheetWorkbook => ({
+  version: 1,
   sheets: [
     {
       name: '订单',

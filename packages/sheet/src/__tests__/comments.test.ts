@@ -11,6 +11,7 @@ import { applySheetSteps, SheetTransaction } from '../core/transaction'
 const dai = { id: 'dai', name: '戴兜' }
 
 const plan = (): SheetWorkbook => ({
+  version: 1,
   sheets: [
     {
       id: 'budget',

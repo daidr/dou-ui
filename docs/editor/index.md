@@ -24,7 +24,7 @@ app.use(DouEditor)
 
 ## 基础用法
 
-`v-model` 绑定一个块数组，格式见[文档数据](./data)。
+`v-model` 绑定一份文档，里面的 `blocks` 是块数组，格式见[文档数据](./data)。
 
 <DocDemo src="editor/basic" column />
 
@@ -43,7 +43,7 @@ app.use(DouEditor)
 
 ## 打开链接
 
-编辑时按住 `Ctrl` / `⌘` 点击链接，或者在只读状态下点击链接，链接会在新标签页打开。打开之前会触发 `link-open` 事件，参数里有链接地址 `link` 和链接所在块的 id `block`。调用 `event.preventDefault()` 后编辑器不再自己打开，可以改用应用的路由，或者先让用户确认：
+编辑时按住 `Ctrl` / `⌘` 点击链接，或者在只读状态下点击链接，链接会在新标签页打开。打开之前会触发 `linkOpen` 事件，参数里有链接地址 `link` 和链接所在块的 id `block`。调用 `event.preventDefault()` 后编辑器不再自己打开，可以改用应用的路由，或者先让用户确认：
 
 ```ts
 import type { EditorLinkOpenEvent } from '@dou-ui/editor'
@@ -58,7 +58,7 @@ function onLinkOpen(event: EditorLinkOpenEvent) {
 
 ## 读取和修改内容
 
-`v-model` 会在每次修改后更新。也可以通过组件实例读取或替换内容：
+`v-model` 会在每次修改后更新。也可以通过组件实例读取或替换其中的块：
 
 ```vue
 <script setup lang="ts">
@@ -85,46 +85,46 @@ function reset() {
 
 ## API
 
-### Props
+### Editor Props
 
-| 名称          | 说明                                                                                    | 类型                     | 默认值          |
-| ------------- | --------------------------------------------------------------------------------------- | ------------------------ | --------------- |
-| `modelValue`  | 文档内容，用 `v-model` 绑定                                                             | `PartialBlock[]`         | —               |
-| `readonly`    | 只读                                                                                    | `boolean`                | `false`         |
-| `searchable`  | 内置的查找面板（`Mod+F`），关闭后按键交还给浏览器，见[快捷操作](./shortcuts#查找和替换) | `boolean`                | `true`          |
-| `placeholder` | 光标所在空块里的提示文字                                                                | `string`                 | 跟随语言        |
-| `ariaLabel`   | 编辑区域的无障碍名称                                                                    | `string`                 | —               |
-| `autofocus`   | 挂载后获得焦点                                                                          | `boolean`                | `false`         |
-| `messages`    | 替换内置文字，只写要改的部分即可，例如 `{ types: { paragraph: '段落' } }`               | `EditorMessagesOverride` | —               |
-| `extensions`  | 使用的扩展，见[扩展](./extensions)，只在创建时读取                                      | `EditorExtension[]`      | `[editorKit()]` |
-| `plugins`     | 额外的 ProseMirror 插件，排在内置插件之前                                               | `Plugin[]`               | —               |
-| `history`     | 使用内置的撤销记录，使用自己的撤销方案时关闭                                            | `boolean`                | `true`          |
-| `undo`        | 替换撤销命令                                                                            | `Command`                | —               |
-| `redo`        | 替换重做命令                                                                            | `Command`                | —               |
-| `selection`   | 光标所在的块和选中的块，用 `v-model:selection` 绑定，见[跟踪光标](./editing#跟踪光标)   | `EditorSelection`        | —               |
-| `compare`     | 要对比的旧版本，见[历史版本](./versions)                                                | `Block[] \| null`        | —               |
+| 名称          | 说明                                                                                    | 类型                                   | 默认值          |
+| ------------- | --------------------------------------------------------------------------------------- | -------------------------------------- | --------------- |
+| `v-model`     | 文档，见[文档数据](./data)                                                              | `EditorDocument<PartialBlock>`         | —               |
+| `readonly`    | 只读                                                                                    | `boolean`                              | `false`         |
+| `searchable`  | 内置的查找面板（`Mod+F`），关闭后按键交还给浏览器，见[快捷操作](./shortcuts#查找和替换) | `boolean`                              | `true`          |
+| `placeholder` | 光标所在空块里的提示文字                                                                | `string`                               | 跟随语言        |
+| `ariaLabel`   | 编辑区域的无障碍名称                                                                    | `string`                               | —               |
+| `autofocus`   | 挂载后获得焦点                                                                          | `boolean`                              | `false`         |
+| `messages`    | 替换内置文字，只写要改的部分即可，例如 `{ types: { paragraph: '段落' } }`               | `EditorMessagesOverride`               | —               |
+| `extensions`  | 使用的扩展，见[扩展](./extensions)，只在创建时读取                                      | `EditorExtension[]`                    | `[editorKit()]` |
+| `plugins`     | 额外的 ProseMirror 插件，排在内置插件之前                                               | `Plugin[]`                             | —               |
+| `history`     | 使用内置的撤销记录，使用自己的撤销方案时关闭                                            | `boolean`                              | `true`          |
+| `undo`        | 替换撤销命令                                                                            | `Command`                              | —               |
+| `redo`        | 替换重做命令                                                                            | `Command`                              | —               |
+| `selection`   | 光标所在的块和选中的块，用 `v-model:selection` 绑定，见[跟踪光标](./editing#跟踪光标)   | `EditorSelection`                      | —               |
+| `compare`     | 要对比的旧版本，见[历史版本](./versions)                                                | `EditorDocument<PartialBlock> \| null` | —               |
 
-### Events
+### Editor Events
 
 | 名称                | 说明                                                                                                             | 参数                                |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
-| `update:modelValue` | 文档修改后触发                                                                                                   | `(blocks: Block[])`                 |
-| `change`            | 同上，不绑定 `v-model` 时使用。和 `update:modelValue` 一样每次修改都会触发，不像表单控件的 `change` 那样等到失焦 | `(blocks: Block[])`                 |
+| `update:modelValue` | 文档修改后触发                                                                                                   | `(doc: EditorDocument)`             |
+| `change`            | 同上，不绑定 `v-model` 时使用。和 `update:modelValue` 一样每次修改都会触发，不像表单控件的 `change` 那样等到失焦 | `(doc: EditorDocument)`             |
 | `transaction`       | 每次修改后触发，在 `update:modelValue` 之前，给出修改涉及的块和来源，见[跟踪修改](./editing#跟踪修改)            | `(result: EditorTransactionResult)` |
 | `update:selection`  | 光标移到另一个块，或选中的块变化时触发，见[跟踪光标](./editing#跟踪光标)                                         | `(selection: EditorSelection)`      |
-| `link-open`         | 打开链接之前触发，见[打开链接](#打开链接)                                                                        | `(event: EditorLinkOpenEvent)`      |
+| `linkOpen`          | 打开链接之前触发，见[打开链接](#打开链接)                                                                        | `(event: EditorLinkOpenEvent)`      |
 | `focus`             | 获得焦点                                                                                                         | `(event: FocusEvent)`               |
 | `blur`              | 失去焦点                                                                                                         | `(event: FocusEvent)`               |
 
-### 实例方法
+### Editor Exposes
 
 | 名称                           | 说明                                                                                                                             | 类型                                                                                                     |
 | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | `view`                         | ProseMirror 的 `EditorView`，挂载后可用                                                                                          | `EditorView \| null`                                                                                     |
 | `focus`                        | 获得焦点                                                                                                                         | `() => void`                                                                                             |
 | `blur`                         | 失去焦点                                                                                                                         | `() => void`                                                                                             |
-| `getBlocks`                    | 读取当前文档                                                                                                                     | `() => Block[]`                                                                                          |
-| `setBlocks`                    | 替换整个文档，不进入撤销记录                                                                                                     | `(blocks: PartialBlock[]) => void`                                                                       |
+| `getBlocks`                    | 读取当前文档的块                                                                                                                 | `() => Block[]`                                                                                          |
+| `setBlocks`                    | 替换全部的块，不进入撤销记录                                                                                                     | `(blocks: PartialBlock[]) => void`                                                                       |
 | `getHTML`                      | 把当前文档写成 HTML，见[导入与导出](./import-export)                                                                             | `() => string`                                                                                           |
 | `setHTML`                      | 用 HTML 替换整个文档，不进入撤销记录                                                                                             | `(html: string) => void`                                                                                 |
 | `run`                          | 执行一个 ProseMirror 命令，返回是否执行了                                                                                        | `(command: Command) => boolean`                                                                          |
@@ -140,7 +140,7 @@ function reset() {
 | `getSelection`                 | 读取光标所在的块和选中的块                                                                                                       | `() => EditorSelection`                                                                                  |
 | `undo` / `redo`                | 撤销、重做                                                                                                                       | `() => boolean`                                                                                          |
 | `canUndo` / `canRedo`          | 现在能否撤销、重做                                                                                                               | `boolean`                                                                                                |
-| `restore`                      | 换成某个版本的内容，可以撤销，见[历史版本](./versions)                                                                           | `(blocks: PartialBlock[]) => boolean`                                                                    |
+| `restore`                      | 换成某个版本的内容，可以撤销，见[历史版本](./versions)                                                                           | `(doc: EditorDocument<PartialBlock>) => boolean`                                                         |
 | `nextChange`、`previousChange` | 对比时跳到下一处、上一处差异，见[历史版本](./versions)                                                                           | `() => boolean`                                                                                          |
 
 ### CSS 变量

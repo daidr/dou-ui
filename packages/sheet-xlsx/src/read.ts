@@ -390,7 +390,7 @@ export async function readXlsx(
     sheets.push(data)
   }
   if (!sheets.length) sheets.push({ name: 'Sheet1', cells: [] })
-  const book: SheetWorkbook = { sheets }
+  const book: SheetWorkbook = { version: 1, sheets }
   if (styleNames.size) book.styles = styles
   const lock = childOf(workbook, 'workbookProtection')
   if (lock && isOn(lock.attrs.lockStructure)) {

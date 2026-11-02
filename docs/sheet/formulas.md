@@ -194,7 +194,10 @@ const finance = defineSheetExtension({ name: 'finance', functions: [TAX] })
 import { DouSheet, useSheetFormulas } from '@dou-ui/sheet'
 import { computed, ref } from 'vue'
 
-const book = ref({ sheets: [{ name: '预算', cells: [[1200], [800], ['=SUM(A1:A2)']] }] })
+const book = ref({
+  version: 1,
+  sheets: [{ name: '预算', cells: [[1200], [800], ['=SUM(A1:A2)']] }],
+})
 const formulas = useSheetFormulas(book)
 const total = computed(() => formulas.result(0, 'A3'))
 </script>

@@ -44,7 +44,7 @@ const active = ref<string | null>(null)
 { id: 'venue', comments: [{ id: 'v1', author: { id: 'qing', name: '阿青' }, body: '场地费含税吗？', createdAt: '…' }] }
 ```
 
-已解决的讨论不再显示小三角，但仍然在 `comments` 里。在侧栏里把 `active-comment` 设为它的 id，卡片会在单元格旁打开，点“重新打开”就恢复了；上面的示例勾选“显示已解决”可以试试。
+已解决的讨论不再显示小三角，但仍然在 `comments` 里。在侧栏里把 `activeComment` 设为它的 id，卡片会在单元格旁打开，点“重新打开”就恢复了；上面的示例勾选“显示已解决”可以试试。
 
 评论不进撤销记录：按 `Ctrl/⌘+Z` 撤销的是单元格的修改，不会撤掉刚发出的评论，撤销单元格的值时讨论也留在原处。
 
@@ -63,11 +63,11 @@ CSV、导出的图片和打印里不包含评论。
 
 ## 和侧栏联动
 
-`v-model:active-comment` 是当前打开的讨论。点击带讨论的单元格会更新它；在侧栏里设置它，表格会切到讨论所在的工作表，滚动到单元格并打开讨论。上面的示例用它做了一个评论列表，讨论所在的单元格通过 `getCommentAnchors()` 读取。
+`v-model:activeComment` 是当前打开的讨论。点击带讨论的单元格会更新它；在侧栏里设置它，表格会切到讨论所在的工作表，滚动到单元格并打开讨论。上面的示例用它做了一个评论列表，讨论所在的单元格通过 `getCommentAnchors()` 读取。
 
 ## 保存到服务器
 
-每次修改评论都会触发 `comment-action` 事件，参数是这次修改（`CommentAction`，见 [CommentThread](/components/comment-thread#数据格式)），比如“回复了某条讨论”。可以直接发给服务器，也可以用来通知被回复的人。
+每次修改评论都会触发 `commentAction` 事件，参数是这次修改（`CommentAction`，见 [CommentThread](/components/comment-thread#数据格式)），比如“回复了某条讨论”。可以直接发给服务器，也可以用来通知被回复的人。
 
 ```vue
 <DouSheet
@@ -119,7 +119,7 @@ collaboration({
 | --------------- | ---------------------------------------------------------------------------------------------------------- | ----------------- | ------ |
 | `comments`      | 所有讨论，支持 `v-model:comments`；不传时没有评论功能（用 `collaboration({ comments })` 共享讨论时不用传） | `CommentThread[]` | —      |
 | `author`        | 当前用户；不传时只能查看讨论                                                                               | `CommentAuthor`   | —      |
-| `activeComment` | 打开的讨论，支持 `v-model:active-comment`                                                                  | `string \| null`  | —      |
+| `activeComment` | 打开的讨论，支持 `v-model:activeComment`                                                                   | `string \| null`  | —      |
 | `commentable`   | 能否发起和回复讨论，`readonly` 时同样有效                                                                  | `boolean`         | `true` |
 
 ### Events
@@ -128,7 +128,7 @@ collaboration({
 | ---------------------- | ------------------ | ------------------------------------ |
 | `update:comments`      | 讨论变化           | `(threads: CommentThread[]) => void` |
 | `update:activeComment` | 打开的讨论变化     | `(id: string \| null) => void`       |
-| `comment-action`       | 在这里做的一次修改 | `(action: CommentAction) => void`    |
+| `commentAction`        | 在这里做的一次修改 | `(action: CommentAction) => void`    |
 
 ### 实例方法
 

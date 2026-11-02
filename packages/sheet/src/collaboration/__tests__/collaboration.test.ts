@@ -10,6 +10,7 @@ import { anchorFormula, resolveFormula, SheetLayout, SheetLines } from '../ancho
 import { syncList } from '../shared'
 
 const START = (): SheetWorkbook => ({
+  version: 1,
   styles: { head: { bold: true } },
   sheets: [
     {
@@ -94,7 +95,7 @@ async function pair(options: { awareness?: boolean; readonly?: boolean } = {}) {
   const a = client(START(), { awareness: options.awareness, name: '戴兜' })
   await flush()
   const b = client(
-    { sheets: [{ name: '空', cells: [] }] },
+    { version: 1, sheets: [{ name: '空', cells: [] }] },
     { awareness: options.awareness, name: '阿青', readonly: options.readonly },
     a.doc,
   )
@@ -209,7 +210,7 @@ describe('fillBook and readBook', () => {
 
   it('gives sheets without an id one', () => {
     const doc = new Y.Doc()
-    fillBook(doc.getMap('book'), { sheets: [{ name: '表', cells: [[1]] }] })
+    fillBook(doc.getMap('book'), { version: 1, sheets: [{ name: '表', cells: [[1]] }] })
     const [sheet] = readBook(doc.getMap('book')).sheets
     expect(sheet!.id).toBeTypeOf('string')
     expect(sheet!.cells).toEqual([[1]])
@@ -253,7 +254,7 @@ describe('collaboration', () => {
 
     for (const side of [a, b]) {
       const rows = side.book.value.sheets[0]!.cells.map((row) =>
-        cell({ sheets: [{ name: '', cells: [row] }] }, 0, 0, 0),
+        cell({ version: 1, sheets: [{ name: '', cells: [row] }] }, 0, 0, 0),
       )
       expect(rows.slice(0, 5)).toEqual(['门店', '苏州', '上海', '杭州', '合计'])
       // 阿青's formula was written on 合计's row and still points at 合计

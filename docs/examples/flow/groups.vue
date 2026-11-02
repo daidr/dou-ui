@@ -4,6 +4,7 @@ import { DouFlowControls, DouFlowEditor, type FlowDocument } from '@dou-ui/flow'
 import { markRaw, ref } from 'vue'
 
 const doc = ref<FlowDocument>({
+  version: 1,
   nodes: [
     { id: 'collect', type: 'group', x: 0, y: 0, width: 216, height: 196, data: { label: '收集' } },
     {

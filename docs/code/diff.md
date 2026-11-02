@@ -24,7 +24,7 @@
 
 连续多行没有改动时，只保留改动前后各 3 行，其余的收起为“N 行未改动”，点击即可展开。
 
-`collapse-unchanged` 设为 `false` 时显示全部行，也可以传入 `{ context, minLines }`：`context` 是改动前后保留的行数，`minLines` 是至少能收起多少行时才收起（默认 4）。
+`collapseUnchanged` 设为 `false` 时显示全部行，也可以传入 `{ context, minLines }`：`context` 是改动前后保留的行数，`minLines` 是至少能收起多少行时才收起（默认 4）。
 
 ## 编辑
 
@@ -47,25 +47,25 @@ const hunks = diffText('上海\n戴兜\n', '上海\n阿青\n')
 
 ## API
 
-### Props
+### CodeDiff Props
 
-| 名称                 | 说明                             | 类型                                                 | 默认值   |
-| -------------------- | -------------------------------- | ---------------------------------------------------- | -------- |
-| `original`           | 原文                             | `string`                                             | `''`     |
-| `v-model`            | 修改后的文本                     | `string`                                             | `''`     |
-| `v-model:mode`       | 显示方式                         | `'split' \| 'inline' \| 'auto'`                      | `'auto'` |
-| `language`           | 语言                             | `CodeLanguage \| null`                               | —        |
-| `editable`           | 允许在并排视图的右侧修改         | `boolean`                                            | `false`  |
-| `collapse-unchanged` | 收起未改动的行                   | `boolean \| { context?: number, minLines?: number }` | `true`   |
-| `ignore-whitespace`  | 只有空白不同的行视为相同         | `boolean`                                            | `false`  |
-| `words`              | 标出行内改动的词                 | `boolean`                                            | `true`   |
-| `wrap`               | `inline` 视图中自动换行          | `boolean`                                            | `false`  |
-| `extensions`         | 右侧编辑器的扩展，只在并排时使用 | `CodeExtension[]`                                    | —        |
-| `toolbar`            | 显示工具栏                       | `boolean`                                            | `true`   |
-| `tab-size`           | 制表位宽度                       | `number`                                             | `2`      |
-| `messages`           | 改写界面上的文字                 | `Partial<CodeMessages>`                              | —        |
+| 名称                | 说明                             | 类型                                                 | 默认值   |
+| ------------------- | -------------------------------- | ---------------------------------------------------- | -------- |
+| `original`          | 原文                             | `string`                                             | `''`     |
+| `v-model`           | 修改后的文本                     | `string`                                             | `''`     |
+| `v-model:mode`      | 显示方式                         | `'split' \| 'inline' \| 'auto'`                      | `'auto'` |
+| `language`          | 语言                             | `CodeLanguage \| null`                               | —        |
+| `editable`          | 允许在并排视图的右侧修改         | `boolean`                                            | `false`  |
+| `collapseUnchanged` | 收起未改动的行                   | `boolean \| { context?: number, minLines?: number }` | `true`   |
+| `ignoreWhitespace`  | 只有空白不同的行视为相同         | `boolean`                                            | `false`  |
+| `words`             | 标出行内改动的词                 | `boolean`                                            | `true`   |
+| `wrap`              | `inline` 视图中自动换行          | `boolean`                                            | `false`  |
+| `extensions`        | 右侧编辑器的扩展，只在并排时使用 | `CodeExtension[]`                                    | —        |
+| `toolbar`           | 显示工具栏                       | `boolean`                                            | `true`   |
+| `tabSize`           | 制表位宽度                       | `number`                                             | `2`      |
+| `messages`          | 改写界面上的文字                 | `Partial<CodeMessages>`                              | —        |
 
-### 实例
+### CodeDiff Exposes
 
 | 名称                           | 说明                                             |
 | ------------------------------ | ------------------------------------------------ |

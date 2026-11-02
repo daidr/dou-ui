@@ -26,6 +26,7 @@ async function saveSelection() {
 }
 
 const doc = ref<FlowDocument>({
+  version: 1,
   nodes: [
     {
       id: 'goal',

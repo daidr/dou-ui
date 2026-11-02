@@ -96,6 +96,7 @@ const row = (name: string, owner: string, ratio: number) => [
   { value: ratio, type: 'progress' },
 ]
 const book = ref<SheetWorkbook>({
+  version: 1,
   styles: { head: { bold: true, fill: 'neutral' } },
   sheets: [
     {

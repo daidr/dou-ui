@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { DouEditor, image, editorKit } from '@dou-ui/editor'
+import { DouEditor, image, editorKit, type EditorDocument, type PartialBlock } from '@dou-ui/editor'
 import { ref } from 'vue'
 
 // 示例里只在本地显示，实际使用时把文件上传到自己的存储，返回图片地址
@@ -22,14 +22,17 @@ const photo =
       '</svg>',
   )
 
-const blocks = ref([
-  { type: 'heading', props: { level: 2 }, content: '周末去崇明' },
-  { type: 'paragraph', content: '戴兜拍的东滩傍晚，拖动图片两侧可以调整宽度。' },
-  { type: 'image', props: { src: photo, caption: '东滩湿地', width: 70 } },
-  { type: 'paragraph', content: '' },
-])
+const doc = ref<EditorDocument<PartialBlock>>({
+  version: 1,
+  blocks: [
+    { type: 'heading', props: { level: 2 }, content: '周末去崇明' },
+    { type: 'paragraph', content: '戴兜拍的东滩傍晚，拖动图片两侧可以调整宽度。' },
+    { type: 'image', props: { src: photo, caption: '东滩湿地', width: 70 } },
+    { type: 'paragraph', content: '' },
+  ],
+})
 </script>
 
 <template>
-  <DouEditor v-model="blocks" :extensions="extensions" aria-label="游记" />
+  <DouEditor v-model="doc" :extensions="extensions" aria-label="游记" />
 </template>

@@ -47,13 +47,13 @@
 
 ## 透明度
 
-`show-alpha` 加上透明度条，值变成 `#rrggbbaa` 或 `rgb(… / 0.8)` 这样带透明度的写法（完全不透明时不写透明度）。色样下面垫一层棋盘格，半透明一眼可见。
+`showAlpha` 加上透明度条，值变成 `#rrggbbaa` 或 `rgb(… / 0.8)` 这样带透明度的写法（完全不透明时不写透明度）。色样下面垫一层棋盘格，半透明一眼可见。
 
 <DocDemo src="color-picker/alpha" />
 
 ## 预设色与清空
 
-`presets` 在弹出层底部列出一排色样，点一下直接选中，预设色可以写成任意格式。`clearable` 允许清空，值变成 `null`；`show-text` 为 `false` 时字段只剩色样。
+`presets` 在弹出层底部列出一排色样，点一下直接选中，预设色可以写成任意格式。`clearable` 允许清空，值变成 `null`；`showText` 为 `false` 时字段只剩色样。
 
 <DocDemo src="color-picker/presets" />
 

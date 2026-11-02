@@ -13,6 +13,7 @@ import {
 } from '../../index'
 
 const START = (): FlowDocument => ({
+  version: 1,
   nodes: [
     { id: 'a', x: 0, y: 0, data: { label: '读取笔记', outputs: [{ id: 'out' }] } },
     {
@@ -141,7 +142,7 @@ function connect(a: Y.Doc, b: Y.Doc) {
 async function pair() {
   const one = client(START())
   await ticks()
-  const two = client({ nodes: [], edges: [] })
+  const two = client({ version: 1, nodes: [], edges: [] })
   const line = connect(one.doc, two.doc)
   await ticks()
   return { one, two, line }
@@ -298,10 +299,10 @@ describe('collaboration', () => {
   it('shows what the others select and drag', async () => {
     const doc = new Y.Doc()
     fillMaps({ nodes: doc.getMap('nodes'), edges: doc.getMap('edges') }, START())
-    const one = client({ nodes: [], edges: [] }, { doc, awareness: true })
+    const one = client({ version: 1, nodes: [], edges: [] }, { doc, awareness: true })
     const other = new Y.Doc()
     Y.applyUpdate(other, Y.encodeStateAsUpdate(doc))
-    const two = client({ nodes: [], edges: [] }, { doc: other, awareness: true })
+    const two = client({ version: 1, nodes: [], edges: [] }, { doc: other, awareness: true })
     await ticks()
     two.selection.value = { nodes: ['a'], edges: [] }
     await ticks()
@@ -339,16 +340,17 @@ describe('collaboration', () => {
   it('turns the outline of a turned node the others select', async () => {
     const doc = new Y.Doc()
     const start: FlowDocument = {
+      version: 1,
       nodes: [
         { id: 't', type: 'turned', x: 200, y: 40, width: 160, height: 90, data: { rotation: 30 } },
       ],
       edges: [],
     }
     fillMaps({ nodes: doc.getMap('nodes'), edges: doc.getMap('edges') }, start)
-    const one = client({ nodes: [], edges: [] }, { doc, awareness: true })
+    const one = client({ version: 1, nodes: [], edges: [] }, { doc, awareness: true })
     const other = new Y.Doc()
     Y.applyUpdate(other, Y.encodeStateAsUpdate(doc))
-    const two = client({ nodes: [], edges: [] }, { doc: other, awareness: true })
+    const two = client({ version: 1, nodes: [], edges: [] }, { doc: other, awareness: true })
     await ticks()
     two.selection.value = { nodes: ['t'], edges: [] }
     await ticks()

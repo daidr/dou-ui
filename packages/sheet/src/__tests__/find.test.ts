@@ -13,6 +13,7 @@ import {
 import { cellMatcher, foundFrom, replaceInText } from '../core/find'
 
 const book = (): SheetWorkbook => ({
+  version: 1,
   sheets: [
     {
       name: '采购',

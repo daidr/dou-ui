@@ -5,7 +5,7 @@ import { nextTick } from 'vue'
 import DouEditor from '../../editor.vue'
 import type { EditorExpose, EditorSelection, EditorTransactionResult } from '../../editor'
 import { diffBlocks } from '../changes'
-import type { Block, PartialBlock } from '../model'
+import type { Block, EditorDocument, PartialBlock } from '../model'
 import { p, shape } from './helpers'
 
 type Wrapper = ReturnType<typeof mount>
@@ -17,7 +17,10 @@ afterEach(() => {
 })
 
 async function editor(blocks: PartialBlock[], props: Record<string, unknown> = {}) {
-  wrapper = mount(DouEditor, { attachTo: document.body, props: { modelValue: blocks, ...props } })
+  wrapper = mount(DouEditor, {
+    attachTo: document.body,
+    props: { modelValue: { version: 1, blocks }, ...props },
+  })
   await nextTick()
   return wrapper.vm as unknown as EditorExpose
 }
@@ -299,10 +302,10 @@ describe('review follow-ups', () => {
   it('hands back the ids it gave blocks without one', async () => {
     wrapper = mount(DouEditor, {
       attachTo: document.body,
-      props: { modelValue: [{ content: 'x' }] },
+      props: { modelValue: { version: 1, blocks: [{ content: 'x' }] } },
     })
     await nextTick()
-    const emitted = wrapper.emitted('update:modelValue')![0]![0] as Block[]
+    const emitted = (wrapper.emitted('update:modelValue')![0]![0] as EditorDocument).blocks
     expect(emitted[0]!.id).toBeTruthy()
     expect(wrapper.emitted('transaction')).toBeUndefined()
   })

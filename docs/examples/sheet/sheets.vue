@@ -13,6 +13,7 @@ const month = (name, rows) => ({
 })
 
 const book = ref({
+  version: 1,
   styles: { head: { bold: true, fill: 'neutral' } },
   sheets: [
     month('九月', [

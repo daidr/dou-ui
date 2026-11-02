@@ -1,8 +1,15 @@
 # 文档数据
 
-块编辑器的内容是一个块数组，可以直接存成 JSON。修改下面的文档，可以看到数据的变化：
+块编辑器的内容是一份普通的 JSON，用 `v-model` 绑定，可以直接存储和传输。`blocks` 是按顺序排列的块，缩进的块放在上一级块的 `children` 里。修改下面的文档，可以看到数据的变化：
 
 <DocDemo src="editor/data" column />
+
+```ts
+interface EditorDocument {
+  version: 1 // 数据格式的版本
+  blocks: Block[]
+}
+```
 
 ## 块
 
@@ -25,7 +32,7 @@ interface Block {
 }
 ```
 
-`v-model` 和 `change` 事件给出的都是完整的 `Block`。传入时可以省略大部分字段，写成 `PartialBlock`：
+`v-model` 和 `change` 事件给出的都是完整的 `Block`。传入时可以省略大部分字段，写成 `PartialBlock`（这时文档的类型是 `EditorDocument<PartialBlock>`）：
 
 - `id` 省略时自动生成随机 UUID。
 - `type` 省略时为 `'paragraph'`。
@@ -33,10 +40,10 @@ interface Block {
 - `props` 和 `children` 可以省略。
 
 ```ts
-const blocks: PartialBlock[] = [
-  { type: 'heading', props: { level: 1 }, content: '标题' },
-  { content: '一段文字' },
-]
+const doc: EditorDocument<PartialBlock> = {
+  version: 1,
+  blocks: [{ type: 'heading', props: { level: 1 }, content: '标题' }, { content: '一段文字' }],
+}
 ```
 
 块的 id 在拆分、合并、移动、转换类型时都保持不变，复制出来的块会得到新的 id。保存修改时可以按 id 对比前后两份数据，也可以直接用 `transaction` 事件给出的修改列表，见[跟踪修改](./editing#跟踪修改)。
@@ -91,3 +98,32 @@ type InlineContent =
 - 格式、链接和颜色都相同的相邻片段会合并成一个。
 
 代码块里的文字不带格式，换行直接写在 `text` 里。分隔线没有文字，`content` 为空数组。
+
+## 检查与迁移
+
+文档里的 `version` 是数据格式的版本，目前是 `1`。保存或打开一份文档之前，可以先检查：
+
+```ts
+import { checkDocument, migrateDocument } from '@dou-ui/editor'
+
+const doc = migrateDocument(JSON.parse(saved))
+const problems = checkDocument(doc, { extensions })
+```
+
+`checkDocument` 找出版本不对、块的 `id` 重复、同一张表格里行的 `id` 重复，以及扩展里没有的块类型、文字格式和行内节点（编辑器会把没有的块类型显示成正文，把没有的格式和行内节点丢掉）。每一项带 `code`、`path`（如 `blocks[1].children[0]`）和出问题的 `blockId`。传入和编辑器一样的 `extensions`，不传时按默认的 `editorKit()` 检查。整份数据的形状不对（不是对象，或者列表不是数组）时只报 `shape`，先修好形状才能检查别的。`migrateDocument` 补全旧数据或手写数据缺少的部分（`version`、`blocks`），丢掉不是对象的块；传入的不是对象（包括数组和 `null`），或者版本不认识时报错，以免把损坏的存档当成空文档再保存回去。还没有存档时用 `emptyDocument()` 新建：
+
+```ts
+import { emptyDocument, migrateDocument } from '@dou-ui/editor'
+
+const doc = ref(saved ? migrateDocument(JSON.parse(saved)) : emptyDocument())
+```
+
+`version` 的类型是字面量 `1`。在 TypeScript 里手写文档时，给 `ref` 标上类型，否则 `version` 会被推断成 `number`：
+
+```ts
+import type { EditorDocument, PartialBlock } from '@dou-ui/editor'
+
+const doc = ref<EditorDocument<PartialBlock>>({ version: 1, blocks: [] })
+```
+
+`v-model` 的形状不对（例如传了旧的块数组、缺少 `blocks` 或 `version`）时，编辑器会尽量读出内容，并在开发环境下给出警告；写回的文档总是带 `version: 1`。

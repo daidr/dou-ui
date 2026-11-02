@@ -129,7 +129,7 @@ export class SheetFormulaEngine {
   private linked: string | undefined
   /** The formulas the one running needed but had no results for. */
   private missing: Formula[] = []
-  private current: SheetWorkbook = { sheets: [] }
+  private current: SheetWorkbook = { version: 1, sheets: [] }
 
   /** The workbook it has. */
   get doc() {

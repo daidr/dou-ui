@@ -36,7 +36,7 @@
 
 ## 离开前确认
 
-`before-leave` 在切换前调用，参数是要去的值和当前的值；返回 `false`（或 resolve 为 `false`）就留在当前标签。
+`beforeLeave` 在切换前调用，参数是要去的值和当前的值；返回 `false`（或 resolve 为 `false`）就留在当前标签。
 
 <DocDemo src="tabs/before-leave" column />
 

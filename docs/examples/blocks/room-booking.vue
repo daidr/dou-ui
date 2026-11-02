@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatTime, type GanttTask } from '@dou-ui/gantt'
+import { formatTime, type GanttTask, type GanttDocument } from '@dou-ui/gantt'
 import {
   DouScheduler,
   findConflict,
@@ -41,17 +41,21 @@ const meeting = (
   end: at(date, to),
   data: { host },
 })
-const tasks = ref<GanttTask[]>([
-  meeting('302', '周会', '09:30', '10:30', '戴兜'),
-  meeting('301', '候选人面试', '10:00', '11:00', '阿青'),
-  meeting('301', '设计评审', '14:00', '15:30', '阿青'),
-  meeting('303', '一对一', '11:00', '11:30', '林小满'),
-  meeting('501', '新人培训', '13:00', '17:00', '周舟'),
-  meeting('502', '季度分享会', '16:00', '18:00', '戴兜'),
-  meeting('302', '需求对齐', '15:00', '16:00', '陈一'),
-  meeting('302', '周会', '09:30', '10:30', '戴兜', workday(1)),
-  meeting('501', '客户来访', '10:00', '12:00', '林小满', workday(1)),
-])
+const plan = ref<GanttDocument>({
+  version: 1,
+  tasks: [
+    meeting('302', '周会', '09:30', '10:30', '戴兜'),
+    meeting('301', '候选人面试', '10:00', '11:00', '阿青'),
+    meeting('301', '设计评审', '14:00', '15:30', '阿青'),
+    meeting('303', '一对一', '11:00', '11:30', '林小满'),
+    meeting('501', '新人培训', '13:00', '17:00', '周舟'),
+    meeting('502', '季度分享会', '16:00', '18:00', '戴兜'),
+    meeting('302', '需求对齐', '15:00', '16:00', '陈一'),
+    meeting('302', '周会', '09:30', '10:30', '戴兜', workday(1)),
+    meeting('501', '客户来访', '10:00', '12:00', '林小满', workday(1)),
+  ],
+  links: [],
+})
 
 /* 日期与楼层 */
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -80,7 +84,7 @@ const messages = { scheduler: { resource: '会议室' } }
 const roomOf = (id?: string) => rooms.find((room) => room.id === id)
 
 /* 同一间会议室的预约不能重叠 */
-const canMove = (move: SchedulerMove) => !findConflict(tasks.value, move) || '这段时间已有预约'
+const canMove = (move: SchedulerMove) => !findConflict(plan.value.tasks, move) || '这段时间已有预约'
 
 /* 新建与编辑 */
 const scheduler = useTemplateRef('scheduler')
@@ -118,7 +122,7 @@ function save() {
   if (!draft.title.trim()) return void toast.warning('请填写会议主题')
   if (draft.to <= draft.from) return void toast.warning('结束时间要晚于开始时间')
   const task = editing.value ?? undefined
-  if (findConflict(tasks.value, { task, resource: draft.room, start, end }))
+  if (findConflict(plan.value.tasks, { task, resource: draft.room, start, end }))
     return void toast.warning(`${roomOf(draft.room)?.title} 这段时间已有预约`)
   const fields = {
     title: draft.title.trim(),
@@ -188,7 +192,7 @@ const hostOptions = people.map((name) => ({ value: name, label: name }))
 
     <DouScheduler
       ref="scheduler"
-      v-model:tasks="tasks"
+      v-model="plan"
       :resources="shown"
       :range="[date, date]"
       :calendar="{ hours: ['09:00', '18:00'] }"

@@ -19,6 +19,7 @@ import {
 import type { SheetExpose } from '../types'
 
 const book = (): SheetWorkbook => ({
+  version: 1,
   sheets: [
     { name: '九月', cells: [['静安', 10]] },
     { name: '十月', cells: [['静安', 12]] },
@@ -52,7 +53,10 @@ describe('sheets in a transaction', () => {
     for (const step of tr.inverse) back.step(step)
     expect(back.doc).toEqual(before)
     // the last sheet stays
-    const one = new SheetTransaction({ sheets: [{ name: 'a', cells: [] }] }).removeSheet(0)
+    const one = new SheetTransaction({
+      version: 1,
+      sheets: [{ name: 'a', cells: [] }],
+    }).removeSheet(0)
     expect(one.changed).toBe(false)
   })
 

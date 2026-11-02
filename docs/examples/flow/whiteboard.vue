@@ -6,6 +6,7 @@ import { ref } from 'vue'
 const extensions = [flowKit(), whiteboardKit()]
 
 const doc = ref<FlowDocument>({
+  version: 1,
   nodes: [
     {
       id: 'goal',

@@ -59,6 +59,7 @@ export function rowsToWorkbook(
   const colSizes: Record<number, number> = {}
   columns.forEach((column, i) => column.width && (colSizes[i] = Math.round(column.width)))
   return {
+    version: 1,
     sheets: [
       {
         name,

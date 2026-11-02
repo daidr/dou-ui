@@ -4,8 +4,7 @@ import {
   defineGanttExtension,
   parseTime,
   useGantt,
-  type GanttLink,
-  type GanttTask,
+  type GanttDocument,
 } from '@dou-ui/gantt'
 import { computed, defineComponent, h, ref } from 'vue'
 import { day } from './dates'
@@ -50,22 +49,19 @@ const owners = defineGanttExtension({
 
 const extensions = [owners, quietDays(day(8), day(10), '团建')]
 
-const tasks = ref<GanttTask[]>([
-  { id: 'ui', title: '设计稿', start: day(-2), end: day(2), data: { owner: '戴兜' } },
-  { id: 'fe', title: '前端开发', start: day(3), end: day(7), data: { owner: '戴兜' } },
-  { id: 'qa', title: '测试', start: day(11), end: day(13), data: { owner: '小林' } },
-])
-const links = ref<GanttLink[]>([{ id: 'l1', from: 'ui', to: 'fe' }])
+const plan = ref<GanttDocument>({
+  version: 1,
+  tasks: [
+    { id: 'ui', title: '设计稿', start: day(-2), end: day(2), data: { owner: '戴兜' } },
+    { id: 'fe', title: '前端开发', start: day(3), end: day(7), data: { owner: '戴兜' } },
+    { id: 'qa', title: '测试', start: day(11), end: day(13), data: { owner: '小林' } },
+  ],
+  links: [{ id: 'l1', from: 'ui', to: 'fe' }],
+})
 </script>
 
 <template>
-  <DouGantt
-    v-model:tasks="tasks"
-    v-model:links="links"
-    :extensions="extensions"
-    :table-width="360"
-    style="height: 220px"
-  />
+  <DouGantt v-model="plan" :extensions="extensions" :table-width="360" style="height: 220px" />
 </template>
 
 <style scoped>

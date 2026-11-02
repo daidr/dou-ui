@@ -1450,6 +1450,7 @@ function toSheet(options: { name?: string } = {}): PivotSheetWorkbook {
   const colSizes: Record<number, number> = {}
   grid.widths.forEach((w, i) => (colSizes[i] = w))
   return {
+    version: 1,
     sheets: [
       {
         name: options.name ?? messages.value.pivot,

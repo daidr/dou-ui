@@ -6,7 +6,7 @@
 
 ## 连线类型
 
-`edge.type` 决定一条连线怎么画，不写时用编辑器的 `edge-type` 属性；属性没设时用扩展的 `edgeType`，都没有就是 `bezier`。新画的连线不带 `type`，所以也跟着 `edge-type` 走。下面三种由 `flowKit()` 提供，找不到的类型按 `bezier` 画。
+`edge.type` 决定一条连线怎么画，不写时用编辑器的 `edgeType` 属性；属性没设时用扩展的 `edgeType`，都没有就是 `bezier`。新画的连线不带 `type`，所以也跟着 `edgeType` 走。下面三种由 `flowKit()` 提供，找不到的类型按 `bezier` 画。
 
 | 类型       | 画法                                                      |
 | ---------- | --------------------------------------------------------- |
@@ -32,7 +32,7 @@
 { id: 'e2', source: { node: 'ocr', port: 'clear' }, target: { node: 'note', port: 'in' }, label: '直接整理' }
 ```
 
-缩小到 `simple-zoom` 以下时标签不显示，见[大型流程](./performance)。
+缩小到 `simpleZoom` 以下时标签不显示，见[大型流程](./performance)。
 
 ## 流动的连线
 
@@ -44,7 +44,7 @@
 
 ## 自定义连线类型
 
-用 `defineEdgeType` 声明，放进扩展的 `edgeTypes` 或编辑器的 `edge-types` 属性。和节点类型一样，两个扩展定义了同名的类型会报错，包括 `flowKit()` 里的三种；想换掉某个内置类型，用 `edge-types` 属性，它会覆盖扩展里的同名类型。`route` 拿到两端的位置和朝向，返回路径和标签的位置，坐标都是画布坐标。画新连线时没有 `edge`。
+用 `defineEdgeType` 声明，放进扩展的 `edgeTypes` 或编辑器的 `edgeTypes` 属性。和节点类型一样，两个扩展定义了同名的类型会报错，包括 `flowKit()` 里的三种；想换掉某个内置类型，用 `edgeTypes` 属性，它会覆盖扩展里的同名类型。`route` 拿到两端的位置和朝向，返回路径和标签的位置，坐标都是画布坐标。画新连线时没有 `edge`。
 
 ```ts
 import { defineEdgeType, defineFlowExtension } from '@dou-ui/flow'
@@ -74,17 +74,17 @@ const edges = defineFlowExtension({ name: 'edges', edgeTypes: [elbow] })
 
 | 名称       | 说明                                                | 类型                      |
 | ---------- | --------------------------------------------------- | ------------------------- |
-| `type`     | 连线类型，不写时用编辑器的 `edge-type`              | `string`                  |
+| `type`     | 连线类型，不写时用编辑器的 `edgeType`               | `string`                  |
 | `label`    | 连线中间的文字                                      | `string`                  |
 | `animated` | 显示成沿方向流动的虚线                              | `boolean`                 |
 | `data`     | 自己的数据；折线把中间一段的位置存在 `data.bend` 里 | `Record<string, unknown>` |
 
-### FlowEditor 属性
+### FlowEditor Props
 
-| 名称         | 说明                                                                           | 类型             | 默认值 |
-| ------------ | ------------------------------------------------------------------------------ | ---------------- | ------ |
-| `edge-type`  | 没写 `type` 的连线用哪种画法，不设时用扩展的 `edgeType`，再没有就是 `'bezier'` | `string`         | —      |
-| `edge-types` | 扩展之外的连线类型，同名时覆盖扩展里的                                         | `EdgeTypeSpec[]` | —      |
+| 名称        | 说明                                                                           | 类型             | 默认值 |
+| ----------- | ------------------------------------------------------------------------------ | ---------------- | ------ |
+| `edgeType`  | 没写 `type` 的连线用哪种画法，不设时用扩展的 `edgeType`，再没有就是 `'bezier'` | `string`         | —      |
+| `edgeTypes` | 扩展之外的连线类型，同名时覆盖扩展里的                                         | `EdgeTypeSpec[]` | —      |
 
 ### EdgeTypeSpec
 

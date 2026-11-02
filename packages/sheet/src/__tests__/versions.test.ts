@@ -8,6 +8,7 @@ import { SheetTransaction } from '../core/transaction'
 import { diffWorkbooks, restoreWorkbook } from '../core/versions'
 
 const v1 = (): SheetWorkbook => ({
+  version: 1,
   styles: { head: { bold: true } },
   sheets: [
     {
@@ -27,6 +28,7 @@ const v1 = (): SheetWorkbook => ({
 })
 
 const v2 = (): SheetWorkbook => ({
+  version: 1,
   styles: { head: { bold: true, color: '#555' } },
   sheets: [
     {
@@ -63,6 +65,7 @@ describe('diffWorkbooks', () => {
 
   it('takes the ways of writing one cell for the same cell', () => {
     const a: SheetWorkbook = {
+      version: 1,
       sheets: [
         {
           id: 's',
@@ -74,6 +77,7 @@ describe('diffWorkbooks', () => {
       ],
     }
     const b: SheetWorkbook = {
+      version: 1,
       sheets: [
         {
           id: 's',
@@ -170,6 +174,7 @@ describe('DouSheet versions', () => {
 
   it('shows what a changed cell held as it showed then: formatted, formulas worked out', async () => {
     const before: SheetWorkbook = {
+      version: 1,
       sheets: [
         {
           id: 's',
@@ -179,6 +184,7 @@ describe('DouSheet versions', () => {
       ],
     }
     const now: SheetWorkbook = {
+      version: 1,
       sheets: [{ id: 's', name: 's', cells: [[{ value: 48000, format: '¥#,##0' }, 12600, 60600]] }],
     }
     const grid = ref<SheetExpose>()

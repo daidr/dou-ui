@@ -112,7 +112,7 @@ if (missed.length) notice.value = missed.map((path) => errors[path]).join('；')
 
 ## API
 
-### Props
+### FormRenderer Props
 
 | 名称       | 说明                                                               | 类型                                | 默认值           |
 | ---------- | ------------------------------------------------------------------ | ----------------------------------- | ---------------- |
@@ -128,7 +128,7 @@ if (missed.length) notice.value = missed.map((path) => errors[path]).join('；')
 | keepHidden | 提交时保留隐藏字段的值，见[隐藏字段的值](./structure#隐藏字段的值) | `boolean`                           | `false`          |
 | messages   | 替换部分文字，见[文字](./structure#文字)                           | `FormRendererMessagesOverride`      | —                |
 
-### 事件
+### FormRenderer Events
 
 | 名称    | 说明                                                   | 参数                               |
 | ------- | ------------------------------------------------------ | ---------------------------------- |
@@ -137,13 +137,13 @@ if (missed.length) notice.value = missed.map((path) => errors[path]).join('；')
 | invalid | 提交但有字段未通过                                     | `(errors: Record<string, string>)` |
 | reset   | 重置为初始值                                           | —                                  |
 
-### 插槽
+### FormRenderer Slots
 
 | 名称    | 说明                                                   |
 | ------- | ------------------------------------------------------ |
 | default | 放在所有字段后面，通常是按钮；表单是分步时放在最后一步 |
 
-### 实例方法
+### FormRenderer Exposes
 
 | 名称          | 说明                                                                            | 类型                                                          |
 | ------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------- |

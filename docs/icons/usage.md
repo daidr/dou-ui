@@ -30,7 +30,7 @@ import { SearchIcon, TrashIcon } from '@dou-ui/icons'
 <DocDemo src="icons-usage/size-color" />
 
 - `size` 默认 `1em`，图标与周围文字一样大；数字按像素处理，也可以传任意 CSS 长度。
-- 线宽默认随尺寸做光学补偿：16px 时 1.25px，24px 时 1.5px，48px 时 2.25px（`0.75px + 尺寸 / 32`）。传入 `stroke-width` 则固定为该像素值。补偿按图标的字号计算，放在 `DouIcon` 里时会自动使用 `DouIcon` 的尺寸。
+- 线宽默认随尺寸做光学补偿：16px 时 1.25px，24px 时 1.5px，48px 时 2.25px（`0.75px + 尺寸 / 32`）。传入 `strokeWidth` 则固定为该像素值。补偿按图标的字号计算，放在 `DouIcon` 里时会自动使用 `DouIcon` 的尺寸。
 - 颜色总是 `currentColor`，用 `color` 或外层文字颜色控制。
 
 ## 搭配 DouUI
@@ -113,10 +113,10 @@ export const TargetIcon = createIcon('target', [
 
 ### Props
 
-| 名称           | 说明                                   | 类型               | 默认值 |
-| -------------- | -------------------------------------- | ------------------ | ------ |
-| `size`         | 宽高，数字按像素处理                   | `number \| string` | `1em`  |
-| `stroke-width` | 固定线宽，数字按像素处理               | `number \| string` | 随尺寸 |
-| `label`        | 可读名称；不提供时图标对读屏软件不可见 | `string`           | —      |
+| 名称          | 说明                                   | 类型               | 默认值 |
+| ------------- | -------------------------------------- | ------------------ | ------ |
+| `size`        | 宽高，数字按像素处理                   | `number \| string` | `1em`  |
+| `strokeWidth` | 固定线宽，数字按像素处理               | `number \| string` | 随尺寸 |
+| `label`       | 可读名称；不提供时图标对读屏软件不可见 | `string`           | —      |
 
 `class`、`style` 与其他属性都会落到 `<svg>` 上。

@@ -27,6 +27,7 @@ import {
 } from '../index'
 
 const book = (): SheetWorkbook => ({
+  version: 1,
   sheets: [
     {
       name: '预算',
@@ -62,6 +63,7 @@ describe('exportWorkbook', () => {
     // with `formulas`, the formula as written, the type not asked
     const written = await exportWorkbook(
       {
+        version: 1,
         sheets: [{ name: '表', cells: [[1, 2, '=A1+B1', { value: '=A1/4', type: 'stars' }]] }],
       },
       csvExporter,
@@ -69,7 +71,7 @@ describe('exportWorkbook', () => {
     )
     expect(await written.text()).toBe('1,2,=A1+B1,=A1/4')
     const lines = await exportWorkbook(
-      { sheets: [{ name: '表', cells: [['+1'], ['b']] }] },
+      { version: 1, sheets: [{ name: '表', cells: [['+1'], ['b']] }] },
       csvExporter,
       { options: { newline: '\n', escapeFormulas: false, bom: false } },
     )
@@ -140,7 +142,10 @@ describe('exportWorkbook', () => {
 
 describe('file source', () => {
   it('gives errors as SheetError in result, as their code in plain', () => {
-    const source = createFileSource({ sheets: [{ name: 'S', cells: [['=1/0', '=A1']] }] })
+    const source = createFileSource({
+      version: 1,
+      sheets: [{ name: 'S', cells: [['=1/0', '=A1']] }],
+    })
     expect(isSheetError(source.result(0, 0, 0))).toBe(true)
     expect(source.plain(0, 0, 0)).toBe('#DIV/0!')
     expect(source.result(0, 0, 1)).toBe(source.result(0, 0, 0))
@@ -160,6 +165,7 @@ describe('file source', () => {
     })
     await exportWorkbook(
       {
+        version: 1,
         styles: { h: { bold: true, tone: 'primary', fill: 'warning' } },
         sheets: [
           {
@@ -188,6 +194,7 @@ describe('file source', () => {
 
   it('takes a sheet by name, and refuses exporters that draw the grid', async () => {
     const two: SheetWorkbook = {
+      version: 1,
       sheets: [
         { name: '预算', cells: [[1]] },
         { name: '门店', cells: [['上海']] },
@@ -309,6 +316,7 @@ describe('DouSheet files', () => {
       import: async (file) => ({ book: JSON.parse(await file.text()) as SheetWorkbook }),
     })
     const replacement: SheetWorkbook = {
+      version: 1,
       sheets: [
         { name: '预算', cells: [[1, 2]] },
         { name: '汇总', cells: [['=预算!A1+预算!B1']] },
@@ -419,6 +427,7 @@ describe('DouSheet files', () => {
     const { wrapper, doc, sheet } = setup({ extensions: [jsonExtension] })
     await sheet().importFile(
       json({
+        version: 1,
         sheets: [
           { name: '预算', cells: [[5]] },
           { name: '汇总', cells: [['=预算!A1*2']] },
@@ -433,11 +442,13 @@ describe('DouSheet files', () => {
 
   it('renames the sheets and styles the imported rules name, too', async () => {
     const { wrapper, doc, sheet } = setup({ extensions: [jsonExtension] }, undefined, {
+      version: 1,
       styles: { hl: { bold: true } },
       sheets: [{ name: '选项', cells: [['x']] }],
     })
     await sheet().importFile(
       json({
+        version: 1,
         styles: { hl: { italic: true } },
         sheets: [
           { name: '选项', cells: [['a'], ['b']] },
@@ -481,10 +492,12 @@ describe('DouSheet files', () => {
 
   it("brings cell types along: the file's for replace, renamed when they clash for append and insert", async () => {
     const host: SheetWorkbook = {
+      version: 1,
       types: { s: { type: 'select', options: ['host'] } },
       sheets: [{ name: 'A', cells: [[{ value: 'host', type: 's' }]] }],
     }
     const incoming: SheetWorkbook = {
+      version: 1,
       types: { s: { type: 'select', options: ['incoming'] } },
       sheets: [{ name: 'B', cells: [[{ value: 'incoming', type: 's' }]] }],
     }
@@ -510,11 +523,13 @@ describe('DouSheet files', () => {
 
   it('swaps the styles for replace', async () => {
     const { wrapper, doc, sheet } = setup({ extensions: [jsonExtension] }, undefined, {
+      version: 1,
       styles: { h: { bold: true } },
       sheets: [{ name: 'A', cells: [[{ value: 1, style: 'h' }]] }],
     })
     await sheet().importFile(
       json({
+        version: 1,
         styles: { h: { italic: true } },
         sheets: [{ name: 'B', cells: [[{ value: 2, style: 'h' }]] }],
       }),
@@ -622,7 +637,7 @@ describe('DouSheet files', () => {
       import: (_file, context) => {
         signal = context.signal
         return new Promise((resolve) => {
-          finish = () => resolve({ book: { sheets: [{ name: 'x', cells: [[1]] }] } })
+          finish = () => resolve({ book: { version: 1, sheets: [{ name: 'x', cells: [[1]] }] } })
         })
       },
     })

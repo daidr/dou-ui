@@ -124,7 +124,10 @@ describe('code block view', () => {
       () =>
         h(DouConfigProvider, { defaults: { DouCodeBlock: { highlight: fake } } }, () =>
           h(DouEditor, {
-            modelValue: [{ type: 'codeBlock', props: { language: 'typescript' }, content: 'a' }],
+            modelValue: {
+              version: 1,
+              blocks: [{ type: 'codeBlock', props: { language: 'typescript' }, content: 'a' }],
+            },
           }),
         ),
       { attachTo: document.body },

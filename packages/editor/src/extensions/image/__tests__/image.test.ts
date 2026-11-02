@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { nextTick } from 'vue'
 import { image, isSafeImageSrc } from '..'
 import { resolveEditorExtensions } from '../../../core/extension'
-import { blocksToDoc, docToBlocks, type Block } from '../../../core/model'
+import { blocksToDoc, docToBlocks, type EditorDocument } from '../../../core/model'
 import DouEditor from '../../../editor.vue'
 import { editorKit } from '../../editor-kit'
 
@@ -59,7 +59,7 @@ describe('image', () => {
       attachTo: document.body,
       props: {
         extensions: [editorKit(), image({ upload })],
-        modelValue: [{ id: 'a', content: '' }],
+        modelValue: { version: 1, blocks: [{ id: 'a', content: '' }] },
       },
     })
     await nextTick()
@@ -73,14 +73,14 @@ describe('image', () => {
     })
     surface.dispatchEvent(event)
     await nextTick()
-    let blocks = wrapper.emitted('update:modelValue')!.at(-1)![0] as Block[]
+    let blocks = (wrapper.emitted('update:modelValue')!.at(-1)![0] as EditorDocument).blocks
     // the empty paragraph made room for the image; nothing is stored until the upload is done
     expect(blocks.map((block) => [block.type, block.props.src])).toEqual([['image', '']])
     expect(wrapper.element.querySelector('.dou-editor-image__status')).toBeTruthy()
     finish!('https://example.com/shot.png')
     await flush()
     await nextTick()
-    blocks = wrapper.emitted('update:modelValue')!.at(-1)![0] as Block[]
+    blocks = (wrapper.emitted('update:modelValue')!.at(-1)![0] as EditorDocument).blocks
     expect(blocks[0]!.props.src).toBe('https://example.com/shot.png')
     expect(wrapper.element.querySelector('.dou-editor-image__status')).toBeNull()
     expect(wrapper.element.querySelector('img')!.getAttribute('src')).toBe(

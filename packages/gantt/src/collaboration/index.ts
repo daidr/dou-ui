@@ -286,7 +286,8 @@ export function collaboration(options: CollaborationOptions): GanttExtension {
           applying = false
         }
       }
-      const current = () => ({
+      const current = (): GanttDocument => ({
+        version: 1,
         tasks: toRaw(context.tasks.value),
         links: toRaw(context.links.value),
       })

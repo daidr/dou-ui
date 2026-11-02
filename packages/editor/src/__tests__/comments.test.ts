@@ -303,7 +303,7 @@ function mark(view: EditorView, text: string, id: string) {
 describe('comments with collaboration', () => {
   it('shares threads and their anchors; undo leaves them', async () => {
     const docA = new Y.Doc()
-    fillMap(docA.getMap('document'), [{ id: 'a', content: '第三季度收入' }])
+    fillMap(docA.getMap('document'), { version: 1, blocks: [{ id: 'a', content: '第三季度收入' }] })
     const docB = new Y.Doc()
     Y.applyUpdate(docB, Y.encodeStateAsUpdate(docA))
     link(docA, docB)
@@ -364,7 +364,7 @@ describe('comments with collaboration', () => {
 
   it('keeps two people commenting on overlapping text apart', async () => {
     const docA = new Y.Doc()
-    fillMap(docA.getMap('document'), [{ id: 'a', content: '第三季度收入' }])
+    fillMap(docA.getMap('document'), { version: 1, blocks: [{ id: 'a', content: '第三季度收入' }] })
     const docB = new Y.Doc()
     Y.applyUpdate(docB, Y.encodeStateAsUpdate(docA))
     const viewA = plainClient(docA)

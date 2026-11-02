@@ -22,13 +22,13 @@ app.use(DouGantt)
 
 ## 基础用法
 
-`v-model:tasks` 绑定任务列表，`v-model:links` 绑定任务之间的依赖，格式见[文档数据](./data)。有子任务的任务是汇总任务，它的起止时间和进度由子任务算出；`type: 'milestone'` 的任务是里程碑，画成一个菱形。
+`v-model` 绑定一份排期，里面的 `tasks` 是任务列表，`links` 是任务之间的依赖，格式见[文档数据](./data)。有子任务的任务是汇总任务，它的起止时间和进度由子任务算出；`type: 'milestone'` 的任务是里程碑，画成一个菱形。
 
 <DocDemo src="gantt/basic" column />
 
 ## 编辑
 
-不设置 `readonly` 时，甘特图可以直接拖动编辑，改动通过 `v-model:tasks` 和 `v-model:links` 写回：
+不设置 `readonly` 时，甘特图可以直接拖动编辑，改动通过 `v-model` 写回：
 
 - 拖动任务条改动起止时间，工期（工作日或工作小时）不变，跨过休息日时任务条相应变长；选中多个任务时一起移动，拖动汇总任务会移动它的全部子任务。
 - 拖动任务条两端调整开始或结束时间，拖动底部的圆点调整进度。
@@ -58,10 +58,10 @@ app.use(DouGantt)
 
 在任务条、表格的行、依赖线或时间轴空白处点右键，或者按键盘上的菜单键（`Shift` + `F10`），会打开菜单；触屏上按住任务条或行片刻后松手也会打开。内置的菜单项有重命名、在下方添加任务、添加子任务、缩进、取消缩进、删除任务和删除依赖；在时间轴空白处添加的任务从点击的那天开始。
 
-`context-menu` 属性或扩展的 `contextMenu` 都可以加自己的项，顺序是属性的项、扩展的项、内置项；`menu` 设为 `false` 时不显示内置项。只是加几项时用属性更直接，需要和其他功能一起复用时写成扩展。`target.kind` 是 `task`、`link` 或 `canvas`（时间轴空白处），`target.point` 是打开菜单的位置（时间轴坐标），`target.time` 是该位置对应的时间（分钟），可以用来在点击的地方添加任务或里程碑。从表格或键盘打开时，位置在任务的开始处。`taskContextmenu`、`linkContextmenu` 事件先于菜单触发，调用 `event.preventDefault()` 就不打开菜单。
+`contextMenu` 属性或扩展的 `contextMenu` 都可以加自己的项，顺序是属性的项、扩展的项、内置项；`menu` 设为 `false` 时不显示内置项。只是加几项时用属性更直接，需要和其他功能一起复用时写成扩展。`target.kind` 是 `task`、`link` 或 `canvas`（时间轴空白处），`target.point` 是打开菜单的位置（时间轴坐标），`target.time` 是该位置对应的时间（分钟），可以用来在点击的地方添加任务或里程碑。从表格或键盘打开时，位置在任务的开始处。`taskContextmenu`、`linkContextmenu` 事件先于菜单触发，调用 `event.preventDefault()` 就不打开菜单。
 
 ```vue
-<DouGantt v-model:tasks="tasks" :context-menu="contextMenu" />
+<DouGantt v-model="plan" :context-menu="contextMenu" />
 ```
 
 ```ts
@@ -121,11 +121,11 @@ const milestones = defineGanttExtension({
 
 新建依赖时会拒绝这些情况：连到自己、连到自己的上级或子任务、两个任务之间已经有依赖、会形成循环依赖。拖到这样的任务条上时，任务条显示为不可连接，并提示原因。
 
-`can-link` 可以加上自己的限制：返回 `true` 允许，返回字符串则拒绝并把它作为提示。其他返回值都会拒绝，注意最后要 `return true`，漏写时开发环境下会提示。上面的示例里，已完成的任务不能再加前置任务。
+`canLink` 可以加上自己的限制：返回 `true` 允许，返回字符串则拒绝并把它作为提示。其他返回值都会拒绝，注意最后要 `return true`，漏写时开发环境下会提示。上面的示例里，已完成的任务不能再加前置任务。
 
 ### 移动的限制
 
-`can-move` 在写入新的起止时间之前检查，拖动和键盘操作都会经过它。参数里的 `start`、`end` 是将要写入的值，写法和任务原来的一样；返回 `true` 允许，返回字符串则拒绝并作为提示，其他返回值按“不能移到这里”拒绝。拖动时被拒绝的任务条显示为红色边框，松开后不会写入。
+`canMove` 在写入新的起止时间之前检查，拖动和键盘操作都会经过它。参数里的 `start`、`end` 是将要写入的值，写法和任务原来的一样；返回 `true` 允许，返回字符串则拒绝并作为提示，其他返回值按“不能移到这里”拒绝。拖动时被拒绝的任务条显示为红色边框，松开后不会写入。
 
 ```ts
 const canMove = ({ start }: GanttMove) => start >= today || '不能排在今天之前'
@@ -163,7 +163,7 @@ gantt.value.transact((tr) => {
 })
 ```
 
-每次修改，不论来自拖动、撤销还是 `transact`，都会更新 `v-model` 并触发 `transaction` 事件；被扩展[取消](./extensions#取消修改)的修改不会生效，触发的是 `transaction-cancel` 事件。事件参数里的 `steps` 是这次修改的步骤列表，`inverse` 是撤销它的步骤，可以用来同步到服务端或做协同编辑；另一端用 `applyGanttSteps(doc, steps)` 应用。
+每次修改，不论来自拖动、撤销还是 `transact`，都会更新 `v-model` 并触发 `transaction` 事件；被扩展[取消](./extensions#取消修改)的修改不会生效，触发的是 `transactionCancel` 事件。事件参数里的 `steps` 是这次修改的步骤列表，`inverse` 是撤销它的步骤，可以用来同步到服务端或做协同编辑；另一端用 `applyGanttSteps(doc, steps)` 应用。
 
 | 方法                           | 说明                                                                                 |
 | ------------------------------ | ------------------------------------------------------------------------------------ |
@@ -182,7 +182,7 @@ gantt.value.transact((tr) => {
 
 默认是手动排期：拖动哪个任务只改哪个，依赖只用来画线和检查。后续任务开始得比依赖允许的早时，这条依赖线显示为虚线。
 
-`scheduling="auto"` 开启自动排期：移动任务、延长任务或新建依赖后，等着它的后续任务按依赖往后推，工期不变。被推动的任务和这次修改在同一个事务里，撤销一次就全部还原。拖动时，被推动的任务在新位置显示虚线轮廓，松开后才写入；被推动的任务同样要经过 `can-move` 检查。
+`scheduling="auto"` 开启自动排期：移动任务、延长任务或新建依赖后，等着它的后续任务按依赖往后推，工期不变。被推动的任务和这次修改在同一个事务里，撤销一次就全部还原。拖动时，被推动的任务在新位置显示虚线轮廓，松开后才写入；被推动的任务同样要经过 `canMove` 检查。
 
 自动排期只往后推，不会把任务往前拉。刚刚被拖动的任务和 `locked: true` 的任务不会被推动，它们的前置依赖如果因此不满足，依赖线显示为虚线。
 
@@ -203,9 +203,9 @@ gantt.value.transact((tr) => {
 ```ts
 import { computeCriticalPath, computeSchedule, findBrokenLinks } from '@dou-ui/gantt'
 
-const { moves, violated, cycle } = computeSchedule({ tasks, links }, { calendar, pull: false })
-const { tasks: critical } = computeCriticalPath({ tasks, links }, { calendar })
-const broken = findBrokenLinks({ tasks, links }, { calendar })
+const { moves, violated, cycle } = computeSchedule(plan, { calendar, pull: false })
+const { tasks: critical } = computeCriticalPath(plan, { calendar })
+const broken = findBrokenLinks(plan, { calendar })
 ```
 
 `moves` 是需要移动的任务和它们新的 `start`、`end`；`violated` 是排期之后仍然没有满足的依赖；`cycle` 是处在循环依赖上（或在它之后）的任务，它们不会被移动。`fixed` 选项可以指定不移动的任务。返回值里是 `Map` 和 `Set`，需要转成 JSON 时先换成普通对象和数组，如 `Object.fromEntries(moves)`、`[...violated]`。
@@ -228,13 +228,13 @@ const broken = findBrokenLinks({ tasks, links }, { calendar })
 
 <DocDemo src="gantt/baseline" column />
 
-`takeBaseline(tasks)` 把当前的日期保存成基线，汇总任务按子任务覆盖的范围保存。基线是普通的数组，和任务一起存到服务端即可，需要对比时再传回来；可以保存多份，切换 `baseline` 查看不同时期的计划。
+`takeBaseline(plan.value.tasks)` 把当前的日期保存成基线，汇总任务按子任务覆盖的范围保存。基线是普通的数组，和任务一起存到服务端即可，需要对比时再传回来；可以保存多份，切换 `baseline` 查看不同时期的计划。
 
 ```ts
 import { takeBaseline, type GanttBaselineItem } from '@dou-ui/gantt'
 
 const baseline = ref<GanttBaselineItem[]>()
-baseline.value = takeBaseline(tasks.value) // [{ id, start, end }, …]
+baseline.value = takeBaseline(plan.value.tasks) // [{ id, start, end }, …]
 ```
 
 ## 导出与打印
@@ -281,7 +281,7 @@ import { downloadBlob } from 'dou-ui'
 downloadBlob(await gantt.value.exportPNG(), '排期.png')
 ```
 
-任务数据本身需要保存为 JSON 时，直接序列化 `tasks` 和 `links` 即可。
+排期本身需要保存时，直接把 `v-model` 的数据序列化成 JSON 即可。
 
 ## 导入
 
@@ -354,3 +354,72 @@ gantt.value.importCSV(sheetToCSV(book.sheets[0]))
 ## 窄屏
 
 宽度小于 520px 时表格自动收起，只显示时间轴。任务名显示在任务条上或旁边；任务条不在视野里的行，任务名固定显示在时间轴左侧。也可以用 `:table="false"` 主动隐藏表格。
+
+## API
+
+### Gantt Props
+
+| 名称                | 说明                                                                                          | 类型                                                         | 默认值                                 |
+| ------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------ | -------------------------------------- |
+| `v-model`           | 排期：任务和依赖，见[文档数据](./data)                                                        | `GanttDocument`                                              | `{ version: 1, tasks: [], links: [] }` |
+| `v-model:selection` | 选中的任务 id                                                                                 | `string[]`                                                   | `[]`                                   |
+| `v-model:scale`     | 时间刻度，见[时间刻度](#时间刻度)                                                             | `GanttScale`                                                 | 按内容自动选择                         |
+| `columns`           | 表格的列，见[列](./data#列)                                                                   | `GanttColumn[]`                                              | 名称、开始、工期                       |
+| `table`             | 显示左侧的表格；窄于 520px 时自动收起                                                         | `boolean`                                                    | `true`                                 |
+| `tableWidth`        | 表格的初始宽度（px）                                                                          | `number`                                                     | `360`                                  |
+| `rowHeight`         | 行高（px）                                                                                    | `number`                                                     | `36`                                   |
+| `barLabel`          | 任务名放在哪里：`auto` 放得下时在条内，否则在条旁                                             | `'auto' \| 'inside' \| 'outside' \| 'none'`                  | `'auto'`                               |
+| `range`             | 固定时间轴的范围；不设时跟随任务，滚到两头会继续延伸                                          | `[string, string]`                                           | —                                      |
+| `today`             | 显示当前时间线                                                                                | `boolean`                                                    | `true`                                 |
+| `weekStart`         | 一周的第一天：`0` 周日，`1` 周一                                                              | `0 \| 1`                                                     | 跟随语言                               |
+| `calendar`          | 工作日历，见[工作日历](#工作日历)                                                             | `GanttCalendar`                                              | —                                      |
+| `scheduling`        | `manual` 只改动拖动的任务；`auto` 同时把后续任务往后推，见[自动排期](#自动排期)               | `'manual' \| 'auto'`                                         | `'manual'`                             |
+| `critical`          | 高亮关键路径，见[关键路径](#关键路径)                                                         | `boolean`                                                    | `false`                                |
+| `markers`           | 标记线，见[标记线](#标记线)                                                                   | `GanttMarker[]`                                              | —                                      |
+| `baseline`          | 基线，见[基线](#基线)                                                                         | `GanttBaselineItem[]`                                        | —                                      |
+| `addRow`            | 可编辑时在表格最下方显示添加任务的一行                                                        | `boolean`                                                    | `true`                                 |
+| `menu`              | 显示内置的菜单项，见[右键菜单](#右键菜单)                                                     | `boolean`                                                    | `true`                                 |
+| `contextMenu`       | 自己的菜单项，排在最前面                                                                      | `(target: GanttMenuTarget) => GanttMenuItem[]`               | —                                      |
+| `canLink`           | 连依赖前的最后一道检查，返回 `true` 允许，返回字符串时显示为原因，见[依赖的限制](#依赖的限制) | `(link, doc: GanttDocument) => boolean \| string`            | —                                      |
+| `canMove`           | 写入新的时间前的最后一道检查，见[移动的限制](#移动的限制)                                     | `(move: GanttMove, doc: GanttDocument) => boolean \| string` | —                                      |
+| `readonly`          | 只读：不能拖动、连线和撤销                                                                    | `boolean`                                                    | `false`                                |
+| `extensions`        | 扩展，见[扩展](./extensions)                                                                  | `(GanttExtension \| GanttExtension[])[]`                     | —                                      |
+| `ariaLabel`         | 甘特图的无障碍名称                                                                            | `string`                                                     | —                                      |
+| `messages`          | 覆盖文案，只需写要改的部分                                                                    | `GanttMessagesOverride`                                      | —                                      |
+
+### Gantt Events
+
+| 名称                         | 说明                                                                               | 参数                                   |
+| ---------------------------- | ---------------------------------------------------------------------------------- | -------------------------------------- |
+| `transaction`                | 每次修改后触发，包括撤销和重做，在 `v-model` 更新之后，见[用代码修改](#用代码修改) | `(tr: GanttTransaction)`               |
+| `link`                       | 拖动连好一条依赖                                                                   | `(link: GanttLink)`                    |
+| `taskClick` / `taskDblclick` | 点击、双击任务                                                                     | `(task: GanttTask, event: MouseEvent)` |
+| `taskContextmenu`            | 在任务上打开菜单前触发，`event.preventDefault()` 可以不打开                        | `(task: GanttTask, event: MouseEvent)` |
+| `linkClick`                  | 点击依赖线                                                                         | `(link: GanttLink, event: MouseEvent)` |
+| `linkContextmenu`            | 在依赖线上打开菜单前触发，`event.preventDefault()` 可以不打开                      | `(link: GanttLink, event: MouseEvent)` |
+
+### Gantt Slots
+
+| 名称      | 说明                                                | 参数                          |
+| --------- | --------------------------------------------------- | ----------------------------- |
+| `cell`    | 表格的单元格                                        | `{ task, row, column, text }` |
+| `bar`     | 任务条里的内容，替换任务名                          | `{ task, row }`               |
+| `default` | 画在甘特图上面的内容，比如面板，可以用 `useGantt()` | —                             |
+
+### Gantt Exposes
+
+| 名称                                              | 说明                                                                          | 类型                                              |
+| ------------------------------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------- |
+| `transact`                                        | 在一个事务里修改，算作一步撤销                                                | `(fn: (tr) => void, meta?) => GanttTransaction`   |
+| `undo` / `redo`                                   | 撤销、重做                                                                    | `() => boolean`                                   |
+| `canUndo` / `canRedo`                             | 能否撤销、重做                                                                | `boolean`                                         |
+| `schedule`                                        | 移动任务让所有依赖都满足，算作一步撤销；只往后推，`pull` 为 `true` 时也往前拉 | `(options?: { pull?: boolean }) => GanttSchedule` |
+| `insertTask`                                      | 在某个任务之后（或里面）添加一个任务并开始编辑名称，返回它的 id               | `(near: string \| null, options?) => string`      |
+| `indentTask` / `outdentTask`                      | 缩进、取消缩进                                                                | `(id: string) => boolean`                         |
+| `editCell`                                        | 开始编辑表格的单元格，默认名称；不能编辑时返回 `false`                        | `(id: string, key?: string) => boolean`           |
+| `fit`                                             | 选一个能放下全部任务的日宽，并滚动到第一个任务                                | `() => void`                                      |
+| `scrollToDate` / `scrollToToday` / `scrollToTask` | 滚动到某个时间、现在或某个任务                                                | —                                                 |
+| `focusTask`                                       | 让键盘停在某个任务上，滚动到它并聚焦任务条                                    | `(id: string) => void`                            |
+| `zoomIn` / `zoomOut`                              | 放大、缩小时间轴，视图中间的时间不动                                          | `() => void`                                      |
+| `exportSVG` / `exportPNG` / `toCSV`               | 导出 SVG 文本、PNG 或 CSV 文本，见[导出与打印](#导出与打印)                   | —                                                 |
+| `print`                                           | 打印全部行                                                                    | `(options?: GanttPrintOptions) => void`           |

@@ -1,27 +1,24 @@
 <script setup lang="ts">
-import {
-  DouGantt,
-  GanttCSVError,
-  type GanttCSVResult,
-  type GanttLink,
-  type GanttTask,
-} from '@dou-ui/gantt'
+import { DouGantt, GanttCSVError, type GanttCSVResult, type GanttDocument } from '@dou-ui/gantt'
 import { DouButton, DouSpace, downloadBlob, toast } from 'dou-ui'
 import { ref, useTemplateRef } from 'vue'
 import { day } from './dates'
 
-const tasks = ref<GanttTask[]>([
-  { id: 'p', title: '门店小程序上线' },
-  { id: 'ui', parent: 'p', title: '设计稿', start: day(-3), end: day(1), progress: 1 },
-  { id: 'fe', parent: 'p', title: '页面开发', start: day(2), end: day(8), progress: 0.3 },
-  { id: 'qa', parent: 'p', title: '测试', start: day(9), end: day(11) },
-  { id: 'go', parent: 'p', title: '提交审核', type: 'milestone', start: day(12) },
-])
-const links = ref<GanttLink[]>([
-  { id: 'l1', from: 'ui', to: 'fe' },
-  { id: 'l2', from: 'fe', to: 'qa' },
-  { id: 'l3', from: 'qa', to: 'go' },
-])
+const plan = ref<GanttDocument>({
+  version: 1,
+  tasks: [
+    { id: 'p', title: '门店小程序上线' },
+    { id: 'ui', parent: 'p', title: '设计稿', start: day(-3), end: day(1), progress: 1 },
+    { id: 'fe', parent: 'p', title: '页面开发', start: day(2), end: day(8), progress: 0.3 },
+    { id: 'qa', parent: 'p', title: '测试', start: day(9), end: day(11) },
+    { id: 'go', parent: 'p', title: '提交审核', type: 'milestone', start: day(12) },
+  ],
+  links: [
+    { id: 'l1', from: 'ui', to: 'fe' },
+    { id: 'l2', from: 'fe', to: 'qa' },
+    { id: 'l3', from: 'qa', to: 'go' },
+  ],
+})
 
 const gantt = useTemplateRef('gantt')
 const picker = useTemplateRef('picker')
@@ -92,8 +89,7 @@ async function onPick(event: Event) {
   </DouSpace>
   <DouGantt
     ref="gantt"
-    v-model:tasks="tasks"
-    v-model:links="links"
+    v-model="plan"
     :columns="[
       { key: 'title' },
       { key: 'start', width: 96 },

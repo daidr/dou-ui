@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { DouGantt, type GanttExtension, type GanttLink, type GanttTask } from '@dou-ui/gantt'
+import { DouGantt, type GanttDocument, type GanttExtension } from '@dou-ui/gantt'
 import { collaboration, fillMaps } from '@dou-ui/gantt/collaboration'
 import { DouSwitch } from 'dou-ui'
 import { onBeforeUnmount, onMounted, ref, shallowRef, type Ref } from 'vue'
@@ -25,8 +25,7 @@ interface Client {
   name: string
   doc: Y.Doc
   awareness: Awareness
-  tasks: Ref<GanttTask[]>
-  links: Ref<GanttLink[]>
+  plan: Ref<GanttDocument>
   extensions: GanttExtension[]
 }
 
@@ -38,8 +37,7 @@ function createClient(name: string): Client {
     doc,
     awareness,
     // 协同时任务从共享文档读取，这里的初始值不会用到
-    tasks: ref<GanttTask[]>([]),
-    links: ref<GanttLink[]>([]),
+    plan: ref<GanttDocument>({ version: 1, tasks: [], links: [] }),
     extensions: [],
   }
 }
@@ -53,6 +51,7 @@ function createDemo() {
   fillMaps(
     { tasks: first.doc.getMap('tasks'), links: first.doc.getMap('links') },
     {
+      version: 1,
       tasks: [
         { id: 'shop', title: '上海门店开业' },
         {
@@ -134,8 +133,7 @@ onBeforeUnmount(() => {
     <section v-for="client in clients" :key="client.name" class="gantt-collab__pane">
       <div class="gantt-collab__name">{{ client.name }}</div>
       <DouGantt
-        v-model:tasks="client.tasks.value"
-        v-model:links="client.links.value"
+        v-model="client.plan.value"
         :extensions="client.extensions"
         scheduling="auto"
         :table-width="200"

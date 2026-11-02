@@ -13,7 +13,7 @@ import { editorKey } from '../editor'
 
 /*
  * The thread a piece of text is about, beside that text: opened by a
- * click on highlighted text or `v-model:active-comment`, or empty while
+ * click on highlighted text or `v-model:activeComment`, or empty while
  * a new thread's first comment is being written.
  */
 

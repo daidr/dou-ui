@@ -10,7 +10,7 @@
 
 ## 只能选叶子
 
-`leaf-only` 让分支只负责展开收起，只有最末一级可以选中。
+`leafOnly` 让分支只负责展开收起，只有最末一级可以选中。
 
 <DocDemo src="tree-select/leaf-only" style="max-width: 360px" />
 
@@ -20,7 +20,7 @@
 
 <DocDemo src="tree-select/multiple" style="max-width: 420px" />
 
-`check-strictly` 让每个节点单独勾选，互不影响：
+`checkStrictly` 让每个节点单独勾选，互不影响：
 
 <DocDemo src="tree-select/multiple-2" style="max-width: 420px" />
 
@@ -91,7 +91,7 @@
 | `node`   | 树里每一行的内容，参数为 `{ node, selected, checked }` |
 | `empty`  | 没有节点或没有匹配时的内容                             |
 
-### 方法
+### Exposes
 
 | 名称      | 说明     |
 | --------- | -------- |

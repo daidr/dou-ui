@@ -40,6 +40,7 @@ region('华南', [
 ])
 
 const book = ref({
+  version: 1,
   styles: {
     head: { bold: true, fill: 'neutral' },
     total: { bold: true },

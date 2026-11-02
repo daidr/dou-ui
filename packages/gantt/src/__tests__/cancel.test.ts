@@ -1,8 +1,9 @@
 import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
-import { defineGanttExtension, DouGantt, type GanttTask, type GanttTransaction } from '../index'
+import { defineGanttExtension, DouGantt, type GanttTransaction } from '../index'
 import type { GanttExpose } from '../types'
+import { bind, planRef } from './plan-ref'
 
 afterEach(() => {
   document.body.innerHTML = ''
@@ -10,7 +11,7 @@ afterEach(() => {
 
 describe('cancelling a change', () => {
   it('lets an extension cancel a change, with a reason shown and read out', async () => {
-    const tasks = ref<GanttTask[]>([
+    const { doc, tasks } = planRef([
       { id: 'a', title: '需求评审', start: '2026-11-02', end: '2026-11-04' },
       { id: 'b', title: '上线', start: '2026-11-05', end: '2026-11-06' },
     ])
@@ -29,8 +30,7 @@ describe('cancelling a change', () => {
         () => () =>
           h(DouGantt, {
             ref: gantt,
-            tasks: tasks.value,
-            'onUpdate:tasks': (value: GanttTask[]) => (tasks.value = value),
+            ...bind(doc),
             extensions: [guard],
             onTransactionCancel: (tr: GanttTransaction) => cancels.push(tr),
             onTransaction: (tr: GanttTransaction) => seen.push(tr),

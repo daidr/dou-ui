@@ -7,6 +7,7 @@ import type { SheetWorkbook } from '../core/model'
 import { applySheetSteps, SheetTransaction } from '../core/transaction'
 
 const plan = (): SheetWorkbook => ({
+  version: 1,
   sheets: [
     {
       name: '预算',

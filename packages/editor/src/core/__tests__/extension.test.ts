@@ -6,7 +6,7 @@ import DouEditor from '../../editor.vue'
 import { editorKit } from '../../extensions/editor-kit'
 import { useEditorMessages } from '../../locale'
 import { defineEditorExtension, resolveEditorExtensions, toEditorKey } from '../extension'
-import { blocksToDoc, docToBlocks } from '../model'
+import { blocksToDoc, docToBlocks, type EditorDocument } from '../model'
 
 const CalloutView = defineComponent({
   props: ['block', 'updateProps', 'selected', 'editable'],
@@ -69,7 +69,7 @@ describe('defineBlock', () => {
       attachTo: document.body,
       props: {
         extensions: [editorKit(), callout],
-        modelValue: [{ id: 'a', type: 'note', content: 'Hello' }],
+        modelValue: { version: 1, blocks: [{ id: 'a', type: 'note', content: 'Hello' }] },
       },
     })
     await nextTick()
@@ -78,7 +78,9 @@ describe('defineBlock', () => {
     expect(element.querySelector('.dou-editor__text')!.textContent).toBe('Hello')
     ;(element.querySelector('.tone') as HTMLButtonElement).click()
     await nextTick()
-    const emitted = wrapper.emitted('update:modelValue')!.at(-1)![0] as { props: object }[]
+    const emitted = (wrapper.emitted('update:modelValue')!.at(-1)![0] as EditorDocument).blocks as {
+      props: object
+    }[]
     expect(emitted[0]!.props).toEqual({ tone: 'warning' })
     expect(wrapper.element.querySelector('.callout')!.getAttribute('data-tone')).toBe('warning')
     wrapper.unmount()

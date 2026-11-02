@@ -51,6 +51,8 @@ export interface FlowEdge<Data extends FlowData = FlowData> {
 }
 
 export interface FlowDocument {
+  /** The version of the format; see `migrateDocument`. */
+  version: 1
   nodes: FlowNode[]
   edges: FlowEdge[]
 }
@@ -97,7 +99,7 @@ export interface Rect {
   height: number
 }
 
-export const emptyDocument = (): FlowDocument => ({ nodes: [], edges: [] })
+export const emptyDocument = (): FlowDocument => ({ version: 1, nodes: [], edges: [] })
 export const emptySelection = (): FlowSelection => ({ nodes: [], edges: [] })
 
 let counter = 0

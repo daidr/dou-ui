@@ -181,7 +181,7 @@ const doc = migrateDocument(JSON.parse(saved))
 const problems = checkDocument(doc, { widgets })
 ```
 
-`checkDocument` 找出版本不对、缺少或重复的 id、没有注册的类型，以及不是整格的位置，每一项带 `code`、`path` 和出问题的 `widgetId`。`migrateDocument` 补全旧文档或手写文档缺少的部分（`version`、`place`），丢掉不是对象的格子和不合法的位置；遇到比当前更新的版本时报错。
+`checkDocument` 找出版本不对、缺少或重复的 id、没有注册的类型，以及不是整格的位置，每一项带 `code`、`path` 和出问题的 `widgetId`。整份数据的形状不对（不是对象，或者 `widgets` 不是数组）时只报 `shape`。`migrateDocument` 补全旧文档或手写文档缺少的部分（`version`、`place`），丢掉不是对象的格子和不合法的位置；传入的不是对象（包括数组和 `null`），或者版本不认识时报错，以免把损坏的存档当成空文档再保存回去。还没有存档时用 `emptyDocument()` 新建。
 
 ## API
 
@@ -194,12 +194,12 @@ const problems = checkDocument(doc, { widgets })
 | `editable`      | 能否添加、移动、缩放、修改和删除格子          | `boolean`                          | `false`                        |
 | `columns`       | 列数：一个数字，或按断点分别给出              | `number \| Record<string, number>` | `{ lg: 12, md: 6, sm: 1 }`     |
 | `breakpoints`   | 每个断点从多宽开始（仪表盘自身的宽度）        | `Record<string, number>`           | `{ lg: 1024, md: 640, sm: 0 }` |
-| `row-height`    | 一行的高度（px）                              | `number`                           | `80`                           |
+| `rowHeight`     | 一行的高度（px）                              | `number`                           | `80`                           |
 | `gap`           | 格子之间的间距（px），或 `[横向, 纵向]`       | `number \| [number, number]`       | `16`                           |
 | `compact`       | `'vertical'` 自动往上靠，`false` 自由摆放     | `'vertical' \| false`              | `'vertical'`                   |
 | `label`         | 仪表盘的无障碍名称                            | `string`                           | —                              |
 | `messages`      | 替换语言包里的文字                            | `DashboardMessagesOverride`        | —                              |
-| `create-id`     | 生成新格子的 id                               | `(type: string) => string`         | 类型加几个随机字母             |
+| `createId`      | 生成新格子的 id                               | `(type: string) => string`         | 类型加几个随机字母             |
 | `collaboration` | 与他人协同编辑，见[协同编辑](./collaboration) | `DashboardCollaboration`           | —                              |
 
 ### Dashboard Events
@@ -209,7 +209,7 @@ const problems = checkDocument(doc, { widgets })
 | `change`           | 每次修改之后 | `{ before, doc, steps, inverse, meta }` |
 | `breakpointChange` | 断点变化时   | `string`                                |
 
-### Dashboard Methods
+### Dashboard Exposes
 
 | 名称                       | 说明                                                     |
 | -------------------------- | -------------------------------------------------------- |

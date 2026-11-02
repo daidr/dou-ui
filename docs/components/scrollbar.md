@@ -10,7 +10,7 @@
 
 ## 最大高度
 
-`max-height` 让区域随内容长高，到上限后开始滚动，适合下拉面板和侧栏。
+`maxHeight` 让区域随内容长高，到上限后开始滚动，适合下拉面板和侧栏。
 
 ```vue
 <DouScrollbar max-height="50vh">…</DouScrollbar>

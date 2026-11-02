@@ -96,7 +96,7 @@ export interface TableProps<T = any> {
   columns: TableColumn<T>[]
   /**
    * The keys of the top-level columns to show, in order. Bind with
-   * `v-model:column-keys` to let people hide and reorder columns; leave it
+   * `v-model:columnKeys` to let people hide and reorder columns; leave it
    * unset to show every column as given.
    */
   columnKeys?: string[]

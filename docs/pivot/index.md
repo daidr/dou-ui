@@ -330,7 +330,7 @@ downloadBlob(blob, '销售额.xlsx')
 
 ### 打印
 
-表格只渲染看得到的部分，直接打印页面只能打出一屏。`print()` 把整张表写成普通的表格再打印：纸张是 A4，表格比竖向的纸宽时自动横向，列的表头在每一页重复。`title` 是表格上方的标题，默认用 `aria-label`；`orientation` 可以指定 `'portrait'` 或 `'landscape'`。
+表格只渲染看得到的部分，直接打印页面只能打出一屏。`print()` 把整张表写成普通的表格再打印：纸张是 A4，表格比竖向的纸宽时自动横向，列的表头在每一页重复。`title` 是表格上方的标题，默认用 `ariaLabel`；`orientation` 可以指定 `'portrait'` 或 `'landscape'`。
 
 ## 总计
 
@@ -454,24 +454,24 @@ result.get(east, result.columns.find(['Q1']), 1) // 华东 Q1 的第 2 个值
 
 ### Pivot Props
 
-| 名称               | 说明                                                                  | 类型                                      | 默认值         |
-| ------------------ | --------------------------------------------------------------------- | ----------------------------------------- | -------------- |
-| `data`             | 记录：对象数组，或按列给出的数组                                      | `object[] \| PivotColumns`                | —              |
-| `fields`           | 字段的说明                                                            | `PivotField[]`                            | 从记录的键推断 |
-| `config`           | 字段放在哪里，支持 `v-model:config`                                   | `PivotConfig`                             | `{}`           |
-| `collapsed`        | 折叠的组，支持 `v-model:collapsed`                                    | `PivotCollapsed`                          | `{}`           |
-| `max-height`       | 最大高度，数字按 px 计算；内容更少时随内容变矮                        | `number \| string`                        | `480`          |
-| `size`             | 行高：28、32、40px                                                    | `'sm' \| 'md' \| 'lg'`                    | `'md'`         |
-| `row-header-width` | 行头的宽度（px），窄屏上会自动收窄                                    | `number`                                  | `200`          |
-| `column-width`     | 每个数值列的最小宽度（px），表格较宽时会适当加宽                      | `number`                                  | `120`          |
-| `layout`           | 紧凑式或表格式布局                                                    | `'compact' \| 'tabular'`                  | `'compact'`    |
-| `resizable`        | 能否拖动调整列宽                                                      | `boolean`                                 | `true`         |
-| `worker`           | 是否在 worker 中汇总；`'auto'` 超过 10 万条时使用                     | `boolean \| 'auto'`                       | `'auto'`       |
-| `engine`           | 在别处汇总：自己的 worker 或服务端                                    | `PivotEngine`                             | —              |
-| `aggregators`      | 自定义的汇总方式                                                      | `PivotAggregator[]`                       | —              |
-| `highlight`        | 标出一个行分组和一个列分组，路径同 `cellClick` 给出的 `row`、`column` | `{ row?: unknown[]; column?: unknown[] }` | —              |
-| `aria-label`       | 读屏读出的名称                                                        | `string`                                  | `'数据透视表'` |
-| `messages`         | 替换语言包里的文字                                                    | `PivotMessagesOverride`                   | —              |
+| 名称             | 说明                                                                  | 类型                                      | 默认值         |
+| ---------------- | --------------------------------------------------------------------- | ----------------------------------------- | -------------- |
+| `data`           | 记录：对象数组，或按列给出的数组                                      | `object[] \| PivotColumns`                | —              |
+| `fields`         | 字段的说明                                                            | `PivotField[]`                            | 从记录的键推断 |
+| `config`         | 字段放在哪里，支持 `v-model:config`                                   | `PivotConfig`                             | `{}`           |
+| `collapsed`      | 折叠的组，支持 `v-model:collapsed`                                    | `PivotCollapsed`                          | `{}`           |
+| `maxHeight`      | 最大高度，数字按 px 计算；内容更少时随内容变矮                        | `number \| string`                        | `480`          |
+| `size`           | 行高：28、32、40px                                                    | `'sm' \| 'md' \| 'lg'`                    | `'md'`         |
+| `rowHeaderWidth` | 行头的宽度（px），窄屏上会自动收窄                                    | `number`                                  | `200`          |
+| `columnWidth`    | 每个数值列的最小宽度（px），表格较宽时会适当加宽                      | `number`                                  | `120`          |
+| `layout`         | 紧凑式或表格式布局                                                    | `'compact' \| 'tabular'`                  | `'compact'`    |
+| `resizable`      | 能否拖动调整列宽                                                      | `boolean`                                 | `true`         |
+| `worker`         | 是否在 worker 中汇总；`'auto'` 超过 10 万条时使用                     | `boolean \| 'auto'`                       | `'auto'`       |
+| `engine`         | 在别处汇总：自己的 worker 或服务端                                    | `PivotEngine`                             | —              |
+| `aggregators`    | 自定义的汇总方式                                                      | `PivotAggregator[]`                       | —              |
+| `highlight`      | 标出一个行分组和一个列分组，路径同 `cellClick` 给出的 `row`、`column` | `{ row?: unknown[]; column?: unknown[] }` | —              |
+| `ariaLabel`      | 读屏读出的名称                                                        | `string`                                  | `'数据透视表'` |
+| `messages`       | 替换语言包里的文字                                                    | `PivotMessagesOverride`                   | —              |
 
 ### PivotFields Props
 
@@ -516,7 +516,7 @@ result.get(east, result.columns.find(['Q1']), 1) // 华东 Q1 的第 2 个值
 | `sort`     | 按某一列的数值给行组排序 | `{ valueIndex: number, column?: unknown[], order } \| null`                     | —           |
 | `totals`   | 总计行和总计列           | `{ rows?: boolean, columns?: boolean }`                                         | 都显示      |
 
-### Pivot Methods
+### Pivot Exposes
 
 | 名称                                      | 说明                                                      | 类型                                |
 | ----------------------------------------- | --------------------------------------------------------- | ----------------------------------- |

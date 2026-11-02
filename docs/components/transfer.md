@@ -16,7 +16,7 @@
 
 ## 右侧顺序
 
-`v-model` 的顺序与右侧列表的顺序一致。`target-order` 决定移过去的条目放在哪里：`push`（默认）追加到末尾，`unshift` 插到开头，`original` 按 `data` 中的原顺序排列。
+`v-model` 的顺序与右侧列表的顺序一致。`targetOrder` 决定移过去的条目放在哪里：`push`（默认）追加到末尾，`unshift` 插到开头，`original` 按 `data` 中的原顺序排列。
 
 <DocDemo src="transfer/target-order" />
 

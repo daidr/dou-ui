@@ -30,8 +30,8 @@ const extensions = [owners, quietDays('2026-11-09', '2026-11-11', '团建')]
 | `name`        | 扩展的名字                                                                                                                 | `string`                                              |
 | `priority`    | 优先级，越大越先处理按键和规则，默认 `100`                                                                                 | `number`                                              |
 | `columns`     | 加在表格已有列之后的列，写法同 `columns` 属性                                                                              | `GanttColumn[]`                                       |
-| `canLink`     | 依赖规则，在 `can-link` 属性之后检查，返回 `true` 允许，返回字符串拒绝并作为提示                                           | `(link, doc) => boolean \| string`                    |
-| `canMove`     | 移动规则，在 `can-move` 属性之后检查，用法相同                                                                             | `(move, doc) => boolean \| string`                    |
+| `canLink`     | 依赖规则，在 `canLink` 属性之后检查，返回 `true` 允许，返回字符串拒绝并作为提示                                            | `(link, doc) => boolean \| string`                    |
+| `canMove`     | 移动规则，在 `canMove` 属性之后检查，用法相同                                                                              | `(move, doc) => boolean \| string`                    |
 | `keymap`      | 甘特图有焦点时的快捷键，写法和 `useHotkey` 一样；处理函数返回 `false` 表示没处理，交给下一个                               | `(ctx) => Record<string, (event) => boolean \| void>` |
 | `markers`     | 标记线，和 `markers` 属性画在一起；读到的数据变化时重新计算                                                                | `(ctx) => GanttMarker[]`                              |
 | `layers`      | 画在时间轴坐标里的组件，`below` 在依赖线下方，`above` 在任务条上方，跟着时间轴滚动                                         | `{ below?: Component[], above?: Component[] }`        |
@@ -57,7 +57,7 @@ interface GanttHistoryHandler {
 
 ## 取消修改
 
-在 `transaction` 里调用 `tr.cancel(reason?)` 取消这次修改：它的步骤都不会生效，也不进撤销记录，后面的扩展不再收到它，也不触发 `transaction` 事件。甘特图下方会短暂显示 `reason`，读屏也会读出；不写时显示“这次修改没有生效”。甘特图触发 `transaction-cancel` 事件，`tr.cancelReason` 是取消的原因。`transact` 返回这次的事务：被取消时 `tr.cancelled` 为 `true`，`tr.changed` 为 `false`。比如上线任务的日期由发布系统决定：
+在 `transaction` 里调用 `tr.cancel(reason?)` 取消这次修改：它的步骤都不会生效，也不进撤销记录，后面的扩展不再收到它，也不触发 `transaction` 事件。甘特图下方会短暂显示 `reason`，读屏也会读出；不写时显示“这次修改没有生效”。甘特图触发 `transactionCancel` 事件，`tr.cancelReason` 是取消的原因。`transact` 返回这次的事务：被取消时 `tr.cancelled` 为 `true`，`tr.changed` 为 `false`。比如上线任务的日期由发布系统决定：
 
 ```ts
 const fixedLaunch = defineGanttExtension({
@@ -119,6 +119,7 @@ const duplicate = defineGanttExtension({
 
 | 名称                                             | 说明                                                            |
 | ------------------------------------------------ | --------------------------------------------------------------- |
+| `doc`                                            | 当前的整份排期，和 `v-model` 同形状，可直接交给 `checkDocument` |
 | `tasks`、`links`、`selection`                    | 当前的任务、依赖和选中的任务                                    |
 | `active`                                         | 键盘所在的任务                                                  |
 | `rows`                                           | 排好的行，带算好的起止时间和汇总                                |

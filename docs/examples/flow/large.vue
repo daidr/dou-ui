@@ -32,7 +32,7 @@ function build(): FlowDocument {
         target: { node: `n${i + columns + 1}`, port: 'in' },
       })
   }
-  return { nodes, edges }
+  return { version: 1 as const, nodes, edges }
 }
 
 const doc = shallowRef(build())

@@ -27,7 +27,7 @@ import {
 /** Works out one formula over some cells of a sheet named 表1. */
 function calc(formula: string, cells: SheetWorkbook['sheets'][number]['cells'] = []) {
   const engine = new SheetFormulaEngine(
-    { sheets: [{ name: '表1', cells }] },
+    { version: 1, sheets: [{ name: '表1', cells }] },
     {
       now: () => new Date(2026, 9, 31, 9, 30),
     },
@@ -227,6 +227,7 @@ describe('functions', () => {
 })
 
 const book = (): SheetWorkbook => ({
+  version: 1,
   sheets: [
     {
       name: '明细',
@@ -307,13 +308,14 @@ describe('SheetFormulaEngine', () => {
     engine.update(tr)
     // the formulas moved down a row and now point at the rows they moved to
     expect(engine.result(0, 2, 1)).toBe(70)
-    const outside: SheetWorkbook = { sheets: [{ name: '新', cells: [[1, '=A1+1']] }] }
-    engine.update({ doc: outside, steps: [], before: { sheets: [] } })
+    const outside: SheetWorkbook = { version: 1, sheets: [{ name: '新', cells: [[1, '=A1+1']] }] }
+    engine.update({ doc: outside, steps: [], before: { version: 1, sheets: [] } })
     expect(engine.result(0, 0, 1)).toBe(2)
   })
 
   it('gives #CYCLE! for formulas that depend on themselves', () => {
     const doc: SheetWorkbook = {
+      version: 1,
       sheets: [{ name: '表', cells: [['=B1', '=A1+1', '=A1', '=D1', 5]] }],
     }
     const engine = new SheetFormulaEngine(doc)
@@ -331,6 +333,7 @@ describe('SheetFormulaEngine', () => {
   it('works out long chains without running out of stack', () => {
     const n = 20_000
     const doc: SheetWorkbook = {
+      version: 1,
       sheets: [
         {
           name: '链',
@@ -349,7 +352,7 @@ describe('SheetFormulaEngine', () => {
 
   it('works out TODAY() again on every change', () => {
     let day = 1
-    const doc: SheetWorkbook = { sheets: [{ name: '表', cells: [['=TODAY()']] }] }
+    const doc: SheetWorkbook = { version: 1, sheets: [{ name: '表', cells: [['=TODAY()']] }] }
     const engine = new SheetFormulaEngine(doc, { now: () => new Date(2026, 9, day) })
     expect(engine.result(0, 0, 0)).toBe('2026-10-01')
     day = 2
@@ -368,7 +371,10 @@ describe('SheetFormulaEngine', () => {
         return Array.isArray(ns) ? ns[0]! * 0.06 : ns
       },
     })
-    const doc: SheetWorkbook = { sheets: [{ name: '表', cells: [[100, '=tax(A1)', '=TAX()']] }] }
+    const doc: SheetWorkbook = {
+      version: 1,
+      sheets: [{ name: '表', cells: [[100, '=tax(A1)', '=TAX()']] }],
+    }
     const engine = new SheetFormulaEngine(doc, { functions: [TAX] })
     expect(engine.result(0, 0, 1)).toBeCloseTo(6)
     expect(show(engine.result(0, 0, 2))).toBe('#VALUE!')
@@ -389,6 +395,7 @@ describe('SheetFormulaEngine', () => {
       },
     })
     const doc: SheetWorkbook = {
+      version: 1,
       sheets: [
         { name: '表', cells: [[100, '=TAX(A1)', '=TAX(,0.1)', '=TAX(F1,0.1)', '=TAX("x")']] },
       ],
@@ -413,6 +420,7 @@ describe('SheetFormulaEngine', () => {
 
 function setup(extensions: SheetExtension[] = []) {
   const doc = ref<SheetWorkbook>({
+    version: 1,
     sheets: [
       {
         name: '表1',

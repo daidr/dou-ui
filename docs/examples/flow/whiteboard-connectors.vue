@@ -17,6 +17,7 @@ const box = (id: string, x: number, y: number, text: string) => ({
 
 // 选中一条连接线，用浮动工具栏换走向、线型和箭头
 const doc = ref<FlowDocument>({
+  version: 1,
   nodes: [
     box('plan', 0, 120, '定周末计划'),
     box('show', 260, 0, '上海看展'),

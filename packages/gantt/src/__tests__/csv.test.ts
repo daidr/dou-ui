@@ -243,6 +243,7 @@ describe('readGanttCSV', () => {
 })
 
 const doc = (): GanttDocument => ({
+  version: 1,
   tasks: [
     { id: 'p', title: '发布' },
     {
@@ -271,6 +272,7 @@ describe('applyGanttCSV', () => {
     for (let i = 0; i < count; i++) lines.push(`n${i},任务 ${i},2026-03-02,3`)
     const result = parse(lines.join('\n'))
     const old: GanttDocument = {
+      version: 1,
       tasks: Array.from({ length: count }, (_, i) => ({ id: `o${i}`, title: `旧 ${i}` })),
       links: Array.from({ length: count - 1 }, (_, i) => ({
         id: `l${i}`,

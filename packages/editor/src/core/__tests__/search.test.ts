@@ -30,7 +30,7 @@ describe('searching the document', () => {
 function setup(props: Record<string, unknown> = {}) {
   const wrapper = mount(DouEditor, {
     attachTo: document.body,
-    props: { modelValue: blocks(), ...props },
+    props: { modelValue: { version: 1, blocks: blocks() }, ...props },
   })
   const editor = () => wrapper.vm as unknown as EditorExpose
   const inputs = () => wrapper.findAll<HTMLInputElement>('.dou-find-replace__input')
@@ -113,7 +113,7 @@ describe('the find panel', () => {
   it('only finds while comparing with a version', async () => {
     const { wrapper, editor, inputs } = setup()
     await nextTick()
-    await wrapper.setProps({ compare: editor().getBlocks() })
+    await wrapper.setProps({ compare: { version: 1, blocks: editor().getBlocks() } })
     editor().openSearch({ search: '白板', replace: '黑板' })
     await nextTick()
     expect(inputs().length).toBe(1)

@@ -10,7 +10,7 @@
 
 ## 水平布局
 
-`layout="horizontal"` 把标签放在值的左边，标签宽度由 `label-width` 统一。
+`layout="horizontal"` 把标签放在值的左边，标签宽度由 `labelWidth` 统一。
 
 <DocDemo src="descriptions/horizontal" column />
 

@@ -177,6 +177,7 @@ export type PivotSheetCell =
 
 /** A workbook in the shape `DouSheet`'s `v-model` takes. */
 export interface PivotSheetWorkbook {
+  version: 1
   sheets: {
     name: string
     cells: PivotSheetCell[][]

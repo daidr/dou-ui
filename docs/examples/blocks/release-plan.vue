@@ -5,9 +5,8 @@ import {
   takeBaseline,
   type GanttBaselineItem,
   type GanttColumn,
-  type GanttLink,
   type GanttScale,
-  type GanttTask,
+  type GanttDocument,
 } from '@dou-ui/gantt'
 import { DownloadIcon, RedoIcon, UndoIcon } from '@dou-ui/icons'
 import { downloadBlob, toast } from 'dou-ui'
@@ -16,90 +15,93 @@ import { day } from '../gantt/dates'
 
 // 示例数据：一次版本发布，从需求到上线
 const owner = (name: string) => ({ data: { owner: name } })
-const tasks = ref<GanttTask[]>([
-  { id: 'req', title: '需求' },
-  {
-    id: 'r1',
-    parent: 'req',
-    title: '用户访谈',
-    start: day(-12),
-    end: day(-9),
-    progress: 1,
-    ...owner('戴兜'),
-  },
-  {
-    id: 'r2',
-    parent: 'req',
-    title: '需求评审',
-    type: 'milestone',
-    start: day(-9),
-    ...owner('戴兜'),
-  },
-  { id: 'des', title: '设计' },
-  {
-    id: 'd1',
-    parent: 'des',
-    title: '交互稿',
-    start: day(-7),
-    end: day(-3),
-    progress: 1,
-    ...owner('阿青'),
-  },
-  {
-    id: 'd2',
-    parent: 'des',
-    title: '视觉稿',
-    start: day(-4),
-    end: day(1),
-    progress: 0.7,
-    ...owner('阿青'),
-  },
-  { id: 'dev', title: '开发' },
-  {
-    id: 'v1',
-    parent: 'dev',
-    title: '会员接口',
-    start: day(-3),
-    end: day(4),
-    progress: 0.5,
-    ...owner('林小满'),
-  },
-  {
-    id: 'v2',
-    parent: 'dev',
-    title: '会员中心页面',
-    start: day(2),
-    end: day(9),
-    progress: 0.1,
-    ...owner('周舟'),
-  },
-  { id: 'v3', parent: 'dev', title: '支付接入', start: day(5), end: day(10), ...owner('林小满') },
-  { id: 'qa', title: '测试' },
-  { id: 'q1', parent: 'qa', title: '功能测试', start: day(11), end: day(14), ...owner('陈一') },
-  { id: 'q2', parent: 'qa', title: '灰度发布', start: day(15), end: day(16), ...owner('戴兜') },
-  {
-    id: 'go',
-    title: '正式上线',
-    type: 'milestone',
-    start: day(16),
-    tone: 'primary',
-    ...owner('戴兜'),
-  },
-])
-const links = ref<GanttLink[]>([
-  { id: 'l1', from: 'r1', to: 'r2' },
-  { id: 'l2', from: 'r2', to: 'd1' },
-  { id: 'l3', from: 'd1', to: 'd2', type: 'ss' },
-  { id: 'l4', from: 'd2', to: 'v2' },
-  { id: 'l5', from: 'v1', to: 'v3' },
-  { id: 'l6', from: 'v2', to: 'q1' },
-  { id: 'l7', from: 'v3', to: 'q1' },
-  { id: 'l8', from: 'q1', to: 'q2' },
-  { id: 'l9', from: 'q2', to: 'go' },
-])
+const plan = ref<GanttDocument>({
+  version: 1,
+  tasks: [
+    { id: 'req', title: '需求' },
+    {
+      id: 'r1',
+      parent: 'req',
+      title: '用户访谈',
+      start: day(-12),
+      end: day(-9),
+      progress: 1,
+      ...owner('戴兜'),
+    },
+    {
+      id: 'r2',
+      parent: 'req',
+      title: '需求评审',
+      type: 'milestone',
+      start: day(-9),
+      ...owner('戴兜'),
+    },
+    { id: 'des', title: '设计' },
+    {
+      id: 'd1',
+      parent: 'des',
+      title: '交互稿',
+      start: day(-7),
+      end: day(-3),
+      progress: 1,
+      ...owner('阿青'),
+    },
+    {
+      id: 'd2',
+      parent: 'des',
+      title: '视觉稿',
+      start: day(-4),
+      end: day(1),
+      progress: 0.7,
+      ...owner('阿青'),
+    },
+    { id: 'dev', title: '开发' },
+    {
+      id: 'v1',
+      parent: 'dev',
+      title: '会员接口',
+      start: day(-3),
+      end: day(4),
+      progress: 0.5,
+      ...owner('林小满'),
+    },
+    {
+      id: 'v2',
+      parent: 'dev',
+      title: '会员中心页面',
+      start: day(2),
+      end: day(9),
+      progress: 0.1,
+      ...owner('周舟'),
+    },
+    { id: 'v3', parent: 'dev', title: '支付接入', start: day(5), end: day(10), ...owner('林小满') },
+    { id: 'qa', title: '测试' },
+    { id: 'q1', parent: 'qa', title: '功能测试', start: day(11), end: day(14), ...owner('陈一') },
+    { id: 'q2', parent: 'qa', title: '灰度发布', start: day(15), end: day(16), ...owner('戴兜') },
+    {
+      id: 'go',
+      title: '正式上线',
+      type: 'milestone',
+      start: day(16),
+      tone: 'primary',
+      ...owner('戴兜'),
+    },
+  ],
+  links: [
+    { id: 'l1', from: 'r1', to: 'r2' },
+    { id: 'l2', from: 'r2', to: 'd1' },
+    { id: 'l3', from: 'd1', to: 'd2', type: 'ss' },
+    { id: 'l4', from: 'd2', to: 'v2' },
+    { id: 'l5', from: 'v1', to: 'v3' },
+    { id: 'l6', from: 'v2', to: 'q1' },
+    { id: 'l7', from: 'v3', to: 'q1' },
+    { id: 'l8', from: 'q1', to: 'q2' },
+    { id: 'l9', from: 'q2', to: 'go' },
+  ],
+})
 
 // 立项时保存的计划：视觉稿多用了两天，后面的开发和测试跟着推迟
-const planned = takeBaseline(tasks.value).map((item) => {
+const planned = takeBaseline(plan.value.tasks).map((item) => {
   const shift = ['d2', 'v2', 'q1', 'q2', 'go', 'v3'].includes(item.id) ? -2 : 0
   if (!shift) return item
   const move = (date?: string) => {
@@ -131,8 +133,8 @@ const gantt = useTemplateRef('gantt')
 
 /* 概况 */
 const leaves = computed(() => {
-  const parents = new Set(tasks.value.map((task) => task.parent).filter(Boolean))
-  return tasks.value.filter((task) => !parents.has(task.id) && task.type !== 'milestone')
+  const parents = new Set(plan.value.tasks.map((task) => task.parent).filter(Boolean))
+  return plan.value.tasks.filter((task) => !parents.has(task.id) && task.type !== 'milestone')
 })
 const progress = computed(() => {
   let done = 0
@@ -147,24 +149,24 @@ const progress = computed(() => {
   return total ? Math.round((done / total) * 100) : 0
 })
 const daysLeft = computed(() => {
-  const go = tasks.value.find((task) => task.id === 'go')
+  const go = plan.value.tasks.find((task) => task.id === 'go')
   const at = go?.start ? new Date(`${go.start}T00:00`).getTime() : Date.now()
   return Math.max(0, Math.ceil((at - Date.now()) / 86_400_000))
 })
 const behind = computed(() => {
   const plans = new Map(baseline.value.map((item) => [item.id, item]))
-  const parents = new Set(tasks.value.map((task) => task.parent).filter(Boolean))
-  return tasks.value.filter((task) => {
+  const parents = new Set(plan.value.tasks.map((task) => task.parent).filter(Boolean))
+  return plan.value.tasks.filter((task) => {
     if (parents.has(task.id)) return false
-    const plan = plans.get(task.id)
+    const was = plans.get(task.id)
     const now = spanOf(task)
-    const then = plan && spanOf({ ...plan, title: '', type: task.type })
+    const then = was && spanOf({ ...was, title: '', type: task.type })
     return now && then && now.end > then.end
   }).length
 })
 
 function saveBaseline() {
-  baseline.value = takeBaseline(tasks.value)
+  baseline.value = takeBaseline(plan.value.tasks)
   showBaseline.value = true
   toast.success('已把当前日期保存为基线')
 }
@@ -248,8 +250,7 @@ async function exportAs(kind: unknown) {
 
     <DouGantt
       ref="gantt"
-      v-model:tasks="tasks"
-      v-model:links="links"
+      v-model="plan"
       v-model:scale="scale"
       :columns="columns"
       :table-width="320"

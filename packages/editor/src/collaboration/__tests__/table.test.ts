@@ -79,7 +79,7 @@ const TABLE: PartialBlock = {
 
 function pair(blocks: PartialBlock[] = [TABLE]) {
   const source = new Y.Doc()
-  fillMap(source.getMap('document'), blocks)
+  fillMap(source.getMap('document'), { version: 1, blocks })
   const docA = new Y.Doc()
   const docB = new Y.Doc()
   Y.applyUpdate(docA, Y.encodeStateAsUpdate(source))

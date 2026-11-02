@@ -20,7 +20,7 @@
 
 `actions` 插槽在底部左侧，适合放添加附件、联网搜索、选择模型这类按钮。`header` 插槽在文字上方，可以放 [ChatAttachments](./chat-attachments)。
 
-在输入框里粘贴文件，或把文件拖进来时，会触发 `attach`，参数是文件列表。只有附件没有文字也想允许发送时，用 `can-submit` 自己决定能否发送。
+在输入框里粘贴文件，或把文件拖进来时，会触发 `attach`，参数是文件列表。只有附件没有文字也想允许发送时，用 `canSubmit` 自己决定能否发送。
 
 <DocDemo src="chat-input/actions" column />
 
@@ -34,7 +34,7 @@
 
 ## 发送快捷键
 
-`submit-on="mod-enter"` 时回车换行，Ctrl / ⌘ + 回车发送，适合经常输入多行内容的场景。`min-rows` 和 `max-rows` 控制最少显示几行、最多增高到几行。`size` 可选 `sm`、`md`、`lg`，放在侧边栏这类窄的地方时用 `sm`。
+`submit-on="mod-enter"` 时回车换行，Ctrl / ⌘ + 回车发送，适合经常输入多行内容的场景。`minRows` 和 `maxRows` 控制最少显示几行、最多增高到几行。`size` 可选 `sm`、`md`、`lg`，放在侧边栏这类窄的地方时用 `sm`。
 
 <DocDemo src="chat-input/mod-enter" column />
 

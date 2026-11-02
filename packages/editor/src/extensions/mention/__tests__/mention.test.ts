@@ -8,7 +8,7 @@ import { mention, type MentionItem } from '..'
 import { findBlockById } from '../../../core/blocks'
 import { createEditorView } from '../../../core/editor'
 import { resolveEditorExtensions } from '../../../core/extension'
-import { blocksToDoc, docToBlocks, type Block } from '../../../core/model'
+import { blocksToDoc, docToBlocks, type EditorDocument } from '../../../core/model'
 import DouEditor from '../../../editor.vue'
 import { editorKit } from '../../editor-kit'
 import { getMention, setMentionItems } from '../state'
@@ -137,7 +137,7 @@ describe('mention suggestions', () => {
           editorKit(),
           mention({ search: () => new Promise<MentionItem[]>((resolve) => pending.push(resolve)) }),
         ],
-        modelValue: [{ id: 'a', content: '' }],
+        modelValue: { version: 1, blocks: [{ id: 'a', content: '' }] },
       },
     })
     await nextTick()
@@ -156,7 +156,7 @@ describe('mention suggestions', () => {
     expect([...items].map((item) => item.textContent)).toEqual([expect.stringContaining('戴兜')])
     items[0]!.click()
     await nextTick()
-    const blocks = wrapper.emitted('update:modelValue')!.at(-1)![0] as Block[]
+    const blocks = (wrapper.emitted('update:modelValue')!.at(-1)![0] as EditorDocument).blocks
     expect(blocks[0]!.content[0]).toEqual({
       type: 'inline',
       name: 'mention',

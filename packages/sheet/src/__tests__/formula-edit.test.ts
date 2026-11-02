@@ -60,6 +60,7 @@ describe('formula editing helpers', () => {
 })
 
 const book = (): SheetWorkbook => ({
+  version: 1,
   sheets: [{ name: '表 1', cells: [[1, 2, 3], [4, 5, 6], [null]] }],
 })
 

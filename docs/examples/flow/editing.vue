@@ -15,6 +15,7 @@ const groups = [...new Set(reviewTypes.map((spec) => spec.palette!.group))].map(
 const [submission, extract] = reviewTypes.map((spec) => spec.defaults!())
 
 const doc = ref<FlowDocument>({
+  version: 1,
   nodes: [
     { id: 'a', type: 'submission', x: 0, y: 40, data: submission! },
     { id: 'b', type: 'extract', x: 256, y: 40, data: extract! },

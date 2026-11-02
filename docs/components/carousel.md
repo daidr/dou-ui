@@ -61,7 +61,7 @@
 | `update:modelValue` | 切换后触发     | `(index: number)`                   |
 | `change`            | 当前这一张变化 | `(index: number, previous: number)` |
 
-### Carousel 实例方法
+### Carousel Exposes
 
 | 名称          | 说明         |
 | ------------- | ------------ |

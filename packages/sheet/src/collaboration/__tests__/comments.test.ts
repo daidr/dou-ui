@@ -8,6 +8,7 @@ import { DouSheet } from '../../index'
 import type { SheetExpose, SheetWorkbook } from '../../index'
 
 const START = (): SheetWorkbook => ({
+  version: 1,
   sheets: [
     {
       id: 'budget',
@@ -39,7 +40,7 @@ const flush = async () => {
 function client(author: typeof dai, from?: Y.Doc) {
   const doc = new Y.Doc()
   if (from) Y.applyUpdate(doc, Y.encodeStateAsUpdate(from))
-  const book = ref(from ? { sheets: [{ name: '空', cells: [] }] } : START())
+  const book = ref(from ? { version: 1 as const, sheets: [{ name: '空', cells: [] }] } : START())
   const threads = ref<CommentThread[]>([])
   const extension = collaboration({ book: doc.getMap('book'), comments: doc.getMap('comments') })
   const grid = ref<SheetExpose>()

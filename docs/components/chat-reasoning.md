@@ -18,7 +18,7 @@
 
 ## 展开状态
 
-用 `v-model:open` 可以自己控制展开。`auto-collapse` 设为 `false` 时，思考结束后保持展开。
+用 `v-model:open` 可以自己控制展开。`autoCollapse` 设为 `false` 时，思考结束后保持展开。
 
 ## API
 

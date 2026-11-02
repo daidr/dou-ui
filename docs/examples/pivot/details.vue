@@ -28,6 +28,10 @@ const records = computed(() =>
     amount: money.format(order.amount),
   })),
 )
+// 抽屉打开时标出被点击的格子所在的行和列
+const highlight = computed(() =>
+  open.value && cell.value ? { row: cell.value.row, column: cell.value.column } : undefined,
+)
 const title = computed(() => {
   const where = cell.value
     ? [...cell.value.labels.row, ...cell.value.labels.column].join(' · ')
@@ -47,6 +51,7 @@ function onCellClick(next) {
     :data="orders"
     :fields="fields"
     :max-height="260"
+    :highlight="highlight"
     @cell-click="onCellClick"
   />
   <DouDrawer v-model:open="open" :title="title" :size="520">

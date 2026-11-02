@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useCoarsePointer } from '../../utils/media'
 import type { ContextMenuItem } from '../context-menu/context-menu'
 import { DouIcon } from '../icon'
 import DouDropdownItem from './dropdown-item.vue'
@@ -10,7 +11,7 @@ defineOptions({ name: 'DouDropdownItems' })
 const props = defineProps<{ items: ContextMenuItem[] }>()
 
 // Shortcuts mean nothing without a keyboard.
-const coarse = () => typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches
+const coarse = useCoarsePointer()
 
 /** Every item marked or not: one choice, read as radio items. */
 const choice = computed(
@@ -28,7 +29,7 @@ const picked = computed(() => props.items.find((item) => item.checked)?.key)
       :disabled="item.disabled"
       :tone="item.tone"
       :divided="item.divided"
-      :shortcut="coarse() ? undefined : item.shortcut"
+      :shortcut="coarse ? undefined : item.shortcut"
     >
       <template v-if="item.icon" #prefix>
         <DouIcon><component :is="item.icon" /></DouIcon>
@@ -45,7 +46,7 @@ const picked = computed(() => props.items.find((item) => item.checked)?.key)
       :tone="item.tone"
       :divided="item.divided"
       :checked="item.checked"
-      :shortcut="coarse() ? undefined : item.shortcut"
+      :shortcut="coarse ? undefined : item.shortcut"
     >
       <template v-if="item.icon" #prefix>
         <DouIcon><component :is="item.icon" /></DouIcon>

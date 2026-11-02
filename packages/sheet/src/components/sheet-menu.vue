@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { DouContextMenu, DouDropdownItem, DouDropdownSub, DouIcon } from 'dou-ui'
-import { useTemplateRef } from 'vue'
+import { onMounted, ref, useTemplateRef } from 'vue'
 import type { SheetMenuItem } from '../types'
 
 defineProps<{ items: SheetMenuItem[] }>()
@@ -8,7 +8,11 @@ const emit = defineEmits<{ select: [key: unknown] }>()
 const open = defineModel<boolean>('open', { default: false })
 
 // shortcuts mean nothing without a keyboard
-const coarse = () => typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches
+// Read once mounted, so server-rendered markup matches the first render.
+const coarse = ref(false)
+onMounted(() => {
+  coarse.value = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches
+})
 
 const menu = useTemplateRef<InstanceType<typeof DouContextMenu>>('menu')
 
@@ -40,7 +44,7 @@ defineExpose({
             :disabled="child.disabled"
             :tone="child.tone"
             :divided="child.divided"
-            :shortcut="coarse() ? undefined : child.shortcut"
+            :shortcut="coarse ? undefined : child.shortcut"
           >
             <template v-if="child.icon" #prefix>
               <DouIcon><component :is="child.icon" /></DouIcon>
@@ -54,7 +58,7 @@ defineExpose({
           :disabled="item.disabled"
           :tone="item.tone"
           :divided="item.divided"
-          :shortcut="coarse() ? undefined : item.shortcut"
+          :shortcut="coarse ? undefined : item.shortcut"
         >
           <template v-if="item.icon" #prefix>
             <DouIcon><component :is="item.icon" /></DouIcon>

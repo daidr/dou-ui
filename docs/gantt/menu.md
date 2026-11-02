@@ -18,11 +18,16 @@
 
 ```vue
 <script setup lang="ts">
-import { DouGantt, type GanttMenuTarget } from '@dou-ui/gantt'
+import { DouGantt, type GanttDocument, type GanttMenuTarget } from '@dou-ui/gantt'
 import { CheckIcon } from '@dou-ui/icons'
 import type { ContextMenuItem } from 'dou-ui'
-import { useTemplateRef } from 'vue'
+import { ref, useTemplateRef } from 'vue'
 
+const plan = ref<GanttDocument>({
+  version: 1,
+  tasks: [{ id: 'ui', title: '设计稿', start: '2026-03-02', end: '2026-03-06', progress: 0.6 }],
+  links: [],
+})
 const gantt = useTemplateRef<InstanceType<typeof DouGantt>>('gantt')
 
 function contextMenu(target: GanttMenuTarget): ContextMenuItem[] {

@@ -1,6 +1,10 @@
 # 导出图片
 
-`exportSVG` 和 `exportPNG` 把流程画成图片，样子和画布上一致：节点、连线、连线上的文字都在，选中框、手柄和网格点不画。它们在组件实例和 `useFlowEditor()` 上都有。
+`exportSVG` 和 `exportPNG` 把流程画成图片，样子和画布上一致：节点、连线、连线上的文字都在，选中框、手柄和网格点不画。
+
+## 基础用法
+
+两个方法在组件实例和 `useFlowEditor()` 上都有：
 
 <DocDemo src="flow/export" column />
 
@@ -9,7 +13,11 @@ const svg = editor.value.exportSVG() // SVG 文本
 const png = await editor.value.exportPNG() // PNG 的 Blob
 ```
 
-导出的范围有三种：
+导出的方法只返回内容，下载可以用 `dou-ui` 的 [`downloadBlob`](../guide/composables#downloadblob)，如上面示例所示。
+
+## 范围
+
+`range` 有三种：
 
 - `'all'`（默认）：全部节点，四周留 `padding`（默认 24px）。
 - `'view'`：画布上现在看得到的部分，大小和画布一致，边上的节点和连线在画布边缘截断。不使用 `padding`。
@@ -17,13 +25,18 @@ const png = await editor.value.exportPNG() // PNG 的 Blob
 
 折叠的分组按折叠后的样子画，导出的图里不画折叠箭头。放不下的文字只画能完整显示的行，最后一行末尾加省略号，和画布上一致。
 
-SVG 里的颜色都写成 sRGB 的 `rgb(…)`、`rgba(…)` 或 `#rrggbb`，矢量设计软件可以直接打开和编辑。主题里用到的 `oklab`、`color-mix` 等写法会先换算成这几种。文字按画布上的字体和字号换行，用的是页面上的字体，在没有这个字体的电脑上打开时会换成其他字体。
+## SVG
 
-PNG 默认按 2 倍像素导出，`pixelRatio` 可以改。图片节点的图片会嵌进 PNG；图片地址在别的域名下、又不允许跨域读取时读不到，那张图片画成和画布上一样的占位（灰色方块加图片图标）。读不到的地址会记下来，同一个编辑器之后再导出时不再请求。SVG 里的图片保留原来的地址。
+- 颜色都写成 sRGB 的 `rgb(…)`、`rgba(…)` 或 `#rrggbb`，矢量设计软件可以直接打开和编辑；主题里用到的 `oklab`、`color-mix` 等写法会先换算成这几种。
+- 文字按画布上的字体和字号换行，用的是页面上的字体，在没有这个字体的电脑上打开时会换成其他字体。
+- 图片保留原来的地址。
 
-浏览器对画布的尺寸有限制（每边 16384 像素；总像素数在 iPhone 和 iPad 上约 1677 万，其他设备上是 16384 × 16384），图片很大时 `exportPNG()` 会自动降低 `pixelRatio`，降到 1 仍然放不下时会抛出 `RangeError`，不会生成一张模糊的图。这时可以用 `range: 'view'` 或 `range: 'selection'` 分几次导出，或者改用 `exportSVG()`。
+## PNG
 
-导出的方法只返回内容，下载可以用 `dou-ui` 的 [`downloadBlob`](../guide/composables#downloadblob)，如上面示例所示。
+- 默认按 2 倍像素导出，`pixelRatio` 可以改。
+- 图片节点的图片会嵌进 PNG。图片地址在别的域名下、又不允许跨域读取时读不到，那张图片画成和画布上一样的占位（灰色方块加图片图标）；读不到的地址会记下来，同一个编辑器之后再导出时不再请求。
+
+浏览器对画布的尺寸有限制：每边 16384 像素，总像素数在 iPhone 和 iPad 上约 1677 万，其他设备上是 16384 × 16384。图片很大时 `exportPNG()` 会自动降低 `pixelRatio`，降到 1 仍然放不下时会抛出 `RangeError`，不会生成一张模糊的图。这时可以用 `range: 'view'` 或 `range: 'selection'` 分几次导出，或者改用 `exportSVG()`。
 
 ## 自定义节点
 
@@ -70,10 +83,16 @@ const noteNode = defineNodeType<{ text?: string }>({
 
 ## API
 
+### Exposes
+
 | 名称                  | 说明          | 类型                                            |
 | --------------------- | ------------- | ----------------------------------------------- |
 | `exportSVG(options?)` | 导出 SVG 文本 | `(options?: FlowExportOptions) => string`       |
 | `exportPNG(options?)` | 导出 PNG      | `(options?: FlowImageOptions) => Promise<Blob>` |
+
+### FlowExportOptions / FlowImageOptions
+
+`exportSVG` 的选项是 `FlowExportOptions`；`exportPNG` 的 `FlowImageOptions` 多一个 `pixelRatio`。
 
 | 选项         | 说明                                   | 类型                             | 默认值  |
 | ------------ | -------------------------------------- | -------------------------------- | ------- |

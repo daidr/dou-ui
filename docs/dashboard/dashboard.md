@@ -181,7 +181,9 @@ const doc = migrateDocument(JSON.parse(saved))
 const problems = checkDocument(doc, { widgets })
 ```
 
-`checkDocument` 找出版本不对、缺少或重复的 id、没有注册的类型，以及不是整格的位置，每一项带 `code`、`path` 和出问题的 `widgetId`。整份数据的形状不对（不是对象，或者 `widgets` 不是数组）时只报 `shape`。`migrateDocument` 补全旧文档或手写文档缺少的部分（`version`、`place`），丢掉不是对象的格子和不合法的位置；传入的不是对象（包括数组和 `null`），或者版本不认识时报错，以免把损坏的存档当成空文档再保存回去。还没有存档时用 `emptyDocument()` 新建。
+- `checkDocument` 找出版本不对、缺少或重复的 id、没有注册的类型，以及不是整格的位置，每一项带 `code`、`path` 和出问题的 `widgetId`。整份数据的形状不对（不是对象，或者 `widgets` 不是数组）时只报 `shape`。
+- `migrateDocument` 补全旧文档或手写文档缺少的部分（`version`、`place`），丢掉不是对象的格子和不合法的位置。传入的不是对象（包括数组和 `null`），或者版本不认识时报错，以免把损坏的存档当成空文档再保存回去。
+- 还没有存档时用 `emptyDocument()` 新建。
 
 ## API
 

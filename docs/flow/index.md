@@ -87,7 +87,9 @@ app.use(DouFlowEditor)
 
 其他编辑器的下一个结果还可以用 `Ctrl` / `⌘` + `G`，流程图里这个键已经用来分组，所以只有 `F3`。
 
-组件实例的 `openSearch({ search: '质检' })` 打开查找框并填好查询，触屏设备上没有快捷键，可以像下面的示例一样放一个按钮调用它；`closeSearch()` 关闭查找框。只要结果时用 `findNodes({ search })`，它只返回匹配的节点 id，可以自己决定怎么展示。查询的类型是 `FlowSearchQuery`（`search` 和 `caseSensitive`）。应用有自己的全局搜索时，把 `searchable` 设为 `false`，`Ctrl` / `⌘` + `F` 就留给页面。
+- `openSearch({ search: '质检' })` 打开查找框并填好查询。触屏设备上没有快捷键，可以像下面的示例一样放一个按钮调用它；`closeSearch()` 关闭查找框。
+- 只要结果时用 `findNodes({ search })`，它只返回匹配的节点 id，可以自己决定怎么展示。查询的类型是 `FlowSearchQuery`（`search` 和 `caseSensitive`）。
+- 应用有自己的全局搜索时，把 `searchable` 设为 `false`，`Ctrl` / `⌘` + `F` 就留给页面。
 
 面板上的文字在 [ConfigProvider](../components/config-provider) 语言包的 `findReplace` 里。
 

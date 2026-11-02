@@ -89,7 +89,25 @@ const codeSidebar = ecosystem('代码编辑器', [
   { text: '大文件', link: '/code/performance' },
   { text: '协同编辑', link: '/code/collaboration' },
 ])
-const chartSidebar = ecosystem('图表', [{ text: '介绍', link: '/chart/' }])
+const chartSidebar = ecosystem('图表', [
+  { text: '介绍', link: '/chart/' },
+  { text: '折线图与面积图', link: '/chart/line' },
+  { text: '柱状图', link: '/chart/bar' },
+  { text: '直方图与箱线图', link: '/chart/distribution' },
+  { text: '散点图与热力图', link: '/chart/scatter' },
+  { text: '饼图', link: '/chart/pie' },
+  { text: '层级数据', link: '/chart/hierarchy' },
+  { text: '雷达图、漏斗图与仪表盘', link: '/chart/others' },
+  { text: '坐标轴', link: '/chart/axes' },
+  { text: '数据标签与标注', link: '/chart/labels' },
+  { text: '提示框与图例', link: '/chart/interaction' },
+  { text: '缩放与框选', link: '/chart/zoom' },
+  { text: '大量数据', link: '/chart/performance' },
+  { text: '外观', link: '/chart/theme' },
+  { text: '无障碍', link: '/chart/accessibility' },
+  { text: '导出与服务端渲染', link: '/chart/export' },
+  { text: '自定义系列', link: '/chart/custom' },
+])
 const pivotSidebar = ecosystem('数据透视', [{ text: '介绍', link: '/pivot/' }])
 const dashboardSidebar = ecosystem('仪表盘', [
   { text: '网格布局', link: '/dashboard/' },

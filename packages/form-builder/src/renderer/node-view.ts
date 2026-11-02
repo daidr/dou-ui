@@ -338,7 +338,7 @@ function fieldView(
     watch(
       () => {
         const node = field()
-        if (!node.formula || !node.name || scope.blocked().has(node.name)) return undefined
+        if (!node.formula || !node.name || renderer.blockedFormulas().has(node.id)) return undefined
         const expression = tryCompileExpression(node.formula)
         return expression
           ? {
@@ -402,18 +402,14 @@ function fieldView(
   }
 
   const { locale } = useLocale()
-  /** What a read-only field shows: a formula's result is worked out, since nothing writes it. */
+  /**
+   * What a read-only field shows: a formula's result is worked out, since
+   * nothing writes it, from the values with every formula worked out, so a
+   * total reads the items' results too.
+   */
   function shownValue(node: FormFieldNode, name: string) {
-    const blockedFormula = scope.prefix() && scope.blocked().has(node.name!)
-    if (node.formula && !blockedFormula) {
-      const expression = tryCompileExpression(node.formula)
-      if (expression)
-        return expression.evaluate({
-          values: renderer.model(),
-          item: scope.item(),
-          functions: renderer.functions(),
-        })
-    }
+    if (node.formula && !renderer.blockedFormulas().has(node.id))
+      return getPath(renderer.settled(), name)
     return getPath(renderer.model(), name)
   }
   function readonlyView(node: FormFieldNode, spec: FormFieldType, bound: Record<string, unknown>) {
@@ -464,9 +460,8 @@ function fieldView(
     if (request.value && declares(spec.component, 'loading')) bound.loading = loading.value
     if (disabled.value) bound.disabled = true
     if (spec.kind === 'display' || !node.name) return h(spec.component, bound)
-    const blockedFormula = scope.prefix() && scope.blocked().has(node.name)
     // A field that holds a formula's result shows it but takes no input.
-    if (node.formula && !blockedFormula) {
+    if (node.formula && !renderer.blockedFormulas().has(node.id)) {
       if (declares(spec.component, 'readonly')) bound.readonly = true
       else bound.disabled = true
       // Steppers would only invite a change that cannot be made.

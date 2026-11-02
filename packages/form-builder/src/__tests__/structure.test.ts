@@ -1,12 +1,13 @@
 import { describe, expect, it, vi } from 'vitest'
-import { defineComponent, h, nextTick, reactive } from 'vue'
+import { createSSRApp, defineComponent, h, nextTick, reactive } from 'vue'
+import { renderToString } from 'vue/server-renderer'
 import { mount } from '@vue/test-utils'
 import { DouConfigProvider, en } from 'dou-ui'
 import {
   checkDocument,
   DouFormRenderer,
   evaluateExpression,
-  findItemFormulaCycles,
+  findFormulaCycles,
   migrateDocument,
   useFormRendererMessages,
   visibleValues,
@@ -44,6 +45,19 @@ const guests: FormListNode = {
   ],
 }
 
+// `sum` reads the items' `total`, which reads `sum` again.
+const circle = () =>
+  doc([
+    { id: 'sum', type: 'input-number', name: 'sum', formula: "sum(values.guests, 'total') + 1" },
+    {
+      ...guests,
+      children: [
+        ...guests.children.filter((node) => node.id !== 'gt'),
+        { id: 'gt', type: 'input-number', name: 'total', formula: 'values.sum + 1' },
+      ],
+    },
+  ])
+
 describe('expressions in lists', () => {
   it('reads the item and sums one key of every item', () => {
     expect(evaluateExpression('item.price * 2', { item: { price: 3 } })).toBe(6)
@@ -63,8 +77,8 @@ describe('expressions in lists', () => {
         { id: 'c', type: 'input-number', name: 'c', formula: 'item.a' },
       ],
     }
-    expect(findItemFormulaCycles(list).map((cycle) => new Set(cycle))).toEqual([
-      new Set(['a', 'b']),
+    expect(findFormulaCycles(doc([list])).map((cycle) => new Set(cycle))).toEqual([
+      new Set(['rows.a', 'rows.b']),
     ])
   })
 })
@@ -135,6 +149,115 @@ describe('lists', () => {
     await nextTick()
     expect(model.guests[1].total).toBe(240)
     expect(model.sum).toBe(440)
+  })
+
+  it('renders totals across item formulas on the server too', async () => {
+    const model = reactive<Record<string, any>>({
+      guests: [
+        { name: '戴兜', price: 100, count: 2 },
+        { name: '阿青', price: 80, count: 1 },
+      ],
+    })
+    const form = doc([
+      guests,
+      { id: 'sum', type: 'input-number', name: 'sum', formula: "sum(values.guests, 'total')" },
+    ])
+    const html = await renderToString(
+      createSSRApp({ render: () => h(DouFormRenderer, { model, form }) }),
+    )
+    expect(model.sum).toBe(280)
+    expect(html).toContain('value="280"')
+  })
+
+  it('finds circles through the form and its items, and skips them', async () => {
+    const form = circle()
+    expect(findFormulaCycles(form).map((cycle) => new Set(cycle))).toEqual([
+      new Set(['sum', 'guests.total']),
+    ])
+    expect(checkDocument(form).filter((p) => p.code === 'formula-cycle')).toMatchObject([
+      { nodeId: 'sum', path: 'nodes[0]' },
+    ])
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const model = reactive<Record<string, any>>({ guests: [{ price: 2, count: 3 }] })
+    mount(DouFormRenderer, { props: { model, form } })
+    await flush()
+    expect(model.sum ?? null).toBeNull()
+    expect(model.guests[0].total ?? null).toBeNull()
+    expect(warn.mock.calls.flat().join('\n')).toContain('read each other in a circle')
+    // The server skips them too.
+    const served = reactive<Record<string, any>>({ guests: [{ price: 2, count: 3 }] })
+    await renderToString(
+      createSSRApp({ render: () => h(DouFormRenderer, { model: served, form }) }),
+    )
+    expect(served.sum ?? null).toBeNull()
+    expect(served.guests[0].total ?? null).toBeNull()
+    warn.mockRestore()
+  })
+
+  it('lets an item formula read a total of other keys', () => {
+    const form = doc([
+      {
+        ...guests,
+        children: [
+          ...guests.children,
+          {
+            id: 's',
+            type: 'input-number',
+            name: 'share',
+            formula: "item.total / sum(values.guests, 'price')",
+          },
+        ],
+      },
+    ])
+    expect(findFormulaCycles(form)).toEqual([])
+    expect(findFormulaCycles(form, { sum: () => 0 })).toEqual([['guests.share']])
+  })
+
+  it('lets an item formula read how many items there are', async () => {
+    const form = doc([
+      { id: 'n', type: 'input-number', name: 'n', formula: 'len(values.guests)' },
+      { id: 'tot', type: 'input-number', name: 'tot', formula: "sum(values.guests, 'total')" },
+      { id: 'none', type: 'switch', name: 'none', formula: 'empty(values.guests)' },
+      {
+        ...guests,
+        children: [
+          ...guests.children,
+          { id: 's', type: 'input-number', name: 'share', formula: 'values.tot / values.n' },
+        ],
+      },
+    ])
+    expect(findFormulaCycles(form)).toEqual([])
+    expect(findFormulaCycles(form, ['len'])).toEqual([['n', 'guests.share']])
+    const model = reactive<Record<string, any>>({
+      guests: [
+        { name: '戴兜', price: 2, count: 3 },
+        { name: '阿青', price: 1, count: 4 },
+      ],
+    })
+    mount(DouFormRenderer, { props: { model, form } })
+    await flush()
+    expect(model).toMatchObject({
+      n: 2,
+      tot: 10,
+      none: false,
+      guests: [{ share: 5 }, { share: 5 }],
+    })
+  })
+
+  it('shows totals of item formulas the model does not hold when read-only', async () => {
+    const model = reactive<Record<string, any>>({
+      guests: [{ name: '戴兜', price: 100, count: 2 }],
+    })
+    const form = doc([
+      guests,
+      { id: 'sum', type: 'input-number', name: 'sum', formula: "sum(values.guests, 'total')" },
+    ])
+    const html = await renderToString(
+      createSSRApp({ render: () => h(DouFormRenderer, { model, form, readonly: true }) }),
+    )
+    expect(model).toEqual({ guests: [{ name: '戴兜', price: 100, count: 2 }] })
+    const wrapper = mount(DouFormRenderer, { props: { model, form, readonly: true } })
+    for (const text of [html, wrapper.html()]) expect(text.match(/>200</g)?.length).toBe(2)
   })
 
   it('checks the fields of every item and shows and hides by item', async () => {
@@ -423,7 +546,7 @@ describe('checkDocument', () => {
       ['expression', 'item.x'],
       ['duplicate-name', 'name'],
       ['formula-cycle', 'f1 → f2'],
-      ['formula-cycle', 'a → b'],
+      ['formula-cycle', 'rows.a → rows.b'],
     ])
     expect(problems.find((problem) => problem.code === 'expression')!.property).toBe('visibleWhen')
     const item = problems.find((problem) => problem.nodeId === 'r2')!

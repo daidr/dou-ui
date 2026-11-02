@@ -59,11 +59,11 @@ app.use(DouCodeEditor)
 
 以下生态包提供了基于代码编辑器的版本，都在各自的 `code` 子路径中：
 
-| 用在哪里   | 引入                                               | 文档                                                               |
-| ---------- | -------------------------------------------------- | ------------------------------------------------------------------ |
-| 块编辑器   | `codeEditorBlock` from `@dou-ui/editor/code`       | [代码块](/editor/code-block#用代码编辑器编辑)                      |
-| 电子表格   | `DouSheetCodeFormulaBar` from `@dou-ui/sheet/code` | [代码版编辑栏](/sheet/formulas#代码版编辑栏)                       |
-| 表单设计器 | `codeExpressions` from `@dou-ui/form-builder/code` | [用代码输入框写表达式](/form-builder/builder#用代码输入框写表达式) |
+| 用在哪里   | 引入                                               | 文档                                                                         |
+| ---------- | -------------------------------------------------- | ---------------------------------------------------------------------------- |
+| 块编辑器   | `codeEditorBlock` from `@dou-ui/editor/code`       | [代码块](/editor/code-block#用代码编辑器编辑)                                |
+| 电子表格   | `DouSheetCodeFormulaBar` from `@dou-ui/sheet/code` | [代码版编辑栏](/sheet/formulas#代码版编辑栏)                                 |
+| 表单设计器 | `codeExpressions` from `@dou-ui/form-builder/code` | [用代码输入框写表达式](/form-builder/builder-inspector#用代码输入框写表达式) |
 
 完整的页面示例见区块[代码练习](/blocks/code-practice)和[配置编辑](/blocks/config-editor)。
 

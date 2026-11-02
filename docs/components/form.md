@@ -128,7 +128,7 @@ schema 自己决定空值是否合法，必填标记则无法从 schema 推断�
 
 详情页常用同一张表单展示数据。`readonly` 让内部所有输入类控件只读：值照常显示、文字可以选中复制，但不能修改，选择器不会展开，清除按钮也不出现。和 `disabled` 不同，只读的控件不变灰，仍可获得焦点，并带有 `aria-readonly`。
 
-表单渲染器的 `readonly` 表现不同：它把值换成文字，并隐藏必填标记和字段说明，见[表单渲染器的只读展示](/form-builder/#只读展示)。
+表单渲染器的 `readonly` 表现不同：它把值换成文字，并隐藏必填标记和字段说明，见[表单渲染器的只读展示](/form-builder/readonly)。
 
 <DocDemo src="form/readonly" column />
 

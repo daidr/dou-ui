@@ -1,8 +1,12 @@
+---
+wide: true
+---
+
 # 字段类型
 
 ## 内置字段
 
-每个内置字段对应 `dou-ui` 的一个组件，类型名就是组件名去掉 `Dou` 后的短横线写法，例如 `input-number` 渲染 `DouInputNumber`。`radio-group`、`checkbox-group`、`checkbox` 在组件外加了一层：前两个用 `options` 生成选项，`checkbox` 用 `text` 作为旁边的文字。节点的 `props` 原样传给组件，可用的设置见对应组件的文档；密码框就是 `input` 加上 `props: { type: 'password', showPassword: true }`。
+每个内置字段对应 `dou-ui` 的一个组件，类型名是组件名去掉 `Dou` 后的短横线写法，例如 `input-number` 渲染 `DouInputNumber`。`radio-group`、`checkbox-group`、`checkbox` 在组件外加了一层：前两个用 `options` 生成选项，`checkbox` 用 `text` 作为旁边的文字。节点的 `props` 原样传给组件，可用的设置见对应组件的文档；密码框是 `input` 加上 `props: { type: 'password', showPassword: true }`。
 
 | type                | 组件                                                   | 值                            | 空值                           |
 | ------------------- | ------------------------------------------------------ | ----------------------------- | ------------------------------ |
@@ -38,6 +42,12 @@
 
 ## 自定义字段
 
+内置字段覆盖了 `dou-ui` 的常用输入控件。需要别的控件时，用 `defineFormField` 注册一个字段类型，通过 `fields` 传给渲染器：
+
+<DocDemo src="form-builder/custom-field" column />
+
+字段组件拿到 `modelValue`、触发 `update:modelValue`，描述里的 `props`（加上类型的 `defaultProps`）作为它的属性传入。和内置类型同名的类型会替换内置的那个。
+
 ```ts
 import { defineFormField } from '@dou-ui/form-builder'
 
@@ -49,8 +59,13 @@ const chips = defineFormField<{ options: string[] }>({
 })
 ```
 
+```ts
+// 放在组件外面或 setup 里，不要在模板里写 :fields="[chips]"，每次渲染都会新建数组
+const fields = [chips]
+```
+
 ```vue
-<DouFormRenderer :form="form" :fields="[chips]" />
+<DouFormRenderer :form="form" :fields="fields" />
 ```
 
 | 名称                            | 说明                                                                                                        |
@@ -66,6 +81,9 @@ const chips = defineFormField<{ options: string[] }>({
 | `fitValue(value, options)`      | 选项变化后把旧值收窄到新选项提供的范围，见[联动与表达式](./logic#选项来源)                                  |
 | `format(value, props, context)` | 只读时显示的文字，见下文                                                                                    |
 | `readonlyComponent`             | 只读时代替文字显示值的组件，拿到 `modelValue` 和与 `component` 相同的属性，组件声明了 `readonly` 时也会传入 |
+| `icon`                          | 设计器字段面板里的图标，比如 `@dou-ui/icons` 里的一个                                                       |
+| `group`                         | 字段面板里的分组：`input`、`choice`、`more`（默认）、`display`，或者自己起的名字                            |
+| `settings`                      | 设计器属性面板里的设置，是一组表单节点，值写进节点的 `props`，见[属性面板](./builder-inspector)             |
 
 字段组件里调用 `useFormField()`，可以拿到正在渲染的 `node`、它的 `type` 和合并后的 `props`。字段组件不需要自己处理标签和错误信息，外层的表单项会处理；组件里的可聚焦元素会自动和标签关联（`dou-ui` 的输入控件都是这样做的，自己写的控件可以用 `useFormItem()` 拿到 `inputId`）。
 
@@ -75,7 +93,7 @@ const chips = defineFormField<{ options: string[] }>({
 
 - 类型有 `format(value, props, context)` 时用它返回的文字。`props` 是合并后的设置，从来源加载的选项也已经放进去了；`context` 有 `node`、渲染器的文字 `messages`（如 `yes`、`no`、列表分隔符 `separator`、范围两端之间的 `rangeSeparator`）和 `dou-ui` 当前的 `locale`。
 - 没有 `format` 但有 `optionsProp` 时，显示选中选项的文字。
-- 都没有时显示值本身：列表用分隔符连起来，`true` / `false` 显示“是”“否”，对象取它的 `label` 或 `name`，两者都没有时只能显示成 JSON，开发环境下会在控制台提示给类型加 `format` 或 `readonlyComponent`。`formatValue(value, context)` 就是这个默认的做法，自己的 `format` 处理不了的值可以交给它。
+- 都没有时显示值本身：列表用分隔符连起来，`true` / `false` 显示“是”“否”，对象取它的 `label` 或 `name`，两者都没有时只能显示成 JSON，开发环境下会在控制台提示给类型加 `format` 或 `readonlyComponent`。`formatValue(value, context)` 是这个默认的做法，自己的 `format` 处理不了的值可以交给它。
 
 ```ts
 const money = defineFormField({

@@ -1,16 +1,7 @@
-import {
-  isContainer,
-  isField,
-  isList,
-  isPage,
-  isSteps,
-  isTabs,
-  valueNodes,
-  walkNodes,
-} from './document'
+import { isContainer, isField, isList, isPage, isSteps, isTabs } from './document'
 import { checkExpression } from './expression'
 import type { ExpressionProblem } from './expression'
-import { findFormulaCycles, findItemFormulaCycles } from './formulas'
+import { analyseFormulas } from './formulas'
 import type { FormDocument, FormNode } from './types'
 import { resolveFields } from '../fields/builtin'
 import type { FormFieldType } from '../fields/define'
@@ -215,20 +206,17 @@ export function checkDocument(
   visit(document.nodes, undefined, [], 'nodes')
   duplicateNames(document.nodes, problems, paths)
 
-  const cycle = (names: string[], scope: readonly FormNode[]) => {
-    const node = valueNodes(scope).find((each) => each.name === names[0])
+  for (const cycle of analyseFormulas(document, options.functions).cycles) {
+    const text = cycle.map(({ label }) => label)
+    const node = cycle[0]!.node
     problems.push({
       code: 'formula-cycle',
-      nodeId: node?.id,
-      path: (node && paths.get(node)) ?? '',
-      text: names.join(' → '),
-      message: `The formulas read each other: ${names.join(' -> ')}`,
+      nodeId: node.id,
+      path: paths.get(node) ?? '',
+      text: text.join(' → '),
+      message: `The formulas read each other: ${text.join(' -> ')}`,
     })
   }
-  for (const names of findFormulaCycles(document)) cycle(names, document.nodes)
-  for (const node of walkNodes(document.nodes))
-    if (isList(node))
-      for (const names of findItemFormulaCycles(node)) cycle(names, node.children ?? [])
   return problems
 }
 

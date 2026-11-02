@@ -1,3 +1,7 @@
+---
+wide: true
+---
+
 # 标签页、分步与列表
 
 字段较多的表单可以分成几页：用标签页随意切换，或者用分步一页一页地填。需要填写多份同样内容时（比如几位同行人、几行采购明细），用列表让使用者自己添加、删除和调整顺序。
@@ -148,7 +152,6 @@ interface FormListNode {
 | `migrateDocument(data)`                    | 把保存的描述升级到当前版本         |
 | `visibleValues(form, model, options?)`     | 去掉隐藏字段的值后的拷贝           |
 | `emptyItem(list, fields)`                  | 列表的一个新项，字段取各自的默认值 |
-| `findItemFormulaCycles(list)`              | 找出列表项里互相引用的公式         |
 | `useFormRendererMessages(override?)`       | 当前语言的文字                     |
 | `formatMessage(text, params)`              | 替换文字里的 `{name}`              |
 | `isTabs` / `isSteps` / `isPage` / `isList` | 判断节点种类                       |

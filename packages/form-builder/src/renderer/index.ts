@@ -12,13 +12,15 @@ export type {
   FormRendererSlots,
   FormOptionsLoader,
 } from './context'
-export { findFormulaCycles, findItemFormulaCycles } from '../core/formulas'
+export { findFormulaCycles } from '../core/formulas'
 export { checkDocument, checkDocumentShape, migrateDocument } from '../core/check'
 export type { CheckDocumentOptions, DocumentProblem, DocumentShapeProblem } from '../core/check'
 export { emptyItem, fillValues, startValue, visibleValues } from '../core/values'
 export type { VisibleValuesOptions } from '../core/values'
 export { formatMessage, formRendererLocales, useFormRendererMessages } from '../locale'
 export type { FormRendererMessages, FormRendererMessagesOverride } from '../locale'
+// The form's rule and result types, so props and methods are typed from one import.
+export type { FormRules, FormValidateResult } from 'dou-ui'
 export { builtinFields, resolveFields } from '../fields/builtin'
 export { defineFormField, fieldProps, useFormField } from '../fields/define'
 export type { FormFieldContext, FormFieldProps, FormFieldType } from '../fields/define'

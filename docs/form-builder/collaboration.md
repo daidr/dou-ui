@@ -1,3 +1,7 @@
+---
+wide: true
+---
+
 # 协同编辑
 
 `@dou-ui/form-builder/collaboration` 让多人同时编辑同一张表单。表单保存在 [Yjs](https://yjs.dev) 的共享文档里，各端的修改会自动合并，断网期间的修改在重新连接后也会合并。

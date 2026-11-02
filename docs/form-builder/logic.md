@@ -1,6 +1,10 @@
+---
+wide: true
+---
+
 # 联动与表达式
 
-表单里常有这样的需求：选了某一项才出现另一个字段，勾上某个选项后另一个字段变成必填，金额由单价和数量算出来。这些逻辑写成**表达式**存在描述里，和字段一起保存、一起修改，不需要额外写代码。
+选了某一项才出现另一个字段、勾上某个选项后另一个字段变成必填、金额由单价和数量算出来，这些逻辑写成表达式存在描述里，和字段一起保存、一起修改。
 
 表达式是一门很小的语言，由渲染器自己解析和执行，不会交给 `eval` 或 `new Function`。它只能读表单的值、调用内置函数和你注册的函数，所以执行从数据库取回的描述是安全的。
 
@@ -20,13 +24,16 @@
 
 ## 公式
 
-`formula` 让字段保存一个表达式的结果。它读到的值一变就立即重新计算，公式之间可以互相引用，按依赖顺序算出结果。公式字段只用来显示结果：能设为只读的控件（文本框、数字框等）设为只读（数字框同时隐藏加减按钮），其他控件设为禁用。
-
-算术结果会去掉小数的二进制误差，`0.1 * 3` 得到 `0.3`。依赖的字段还没填时，公式字段是空的，而不是 0：乘、除、取余有一边为空时结果为空；加、减两边都为空时结果为空，只有一边为空时空的一边按 0 计算。需要别的规则时，可以写成 `empty(values.count) ? null : values.price * values.count`。
+`formula` 让字段保存一个表达式的结果。它读到的值一变就立即重新计算，公式之间可以互相引用，按依赖顺序算出结果。
 
 <DocDemo src="form-builder/logic-formula" column />
 
-如果几个公式互相引用形成环（`a` 读 `b`，`b` 又读 `a`），这些公式都不会计算，渲染器在控制台提示一次。设计器可以用 `findFormulaCycles(form)` 提前找出它们。
+- 公式字段只用来显示结果：文本框、数字框等能设为只读的控件设为只读（数字框同时隐藏加减按钮），其他控件设为禁用。
+- 算术结果会去掉小数的二进制误差，`0.1 * 3` 得到 `0.3`。
+- 依赖的字段还没填时，公式字段是空的，而不是 0：乘、除、取余有一边为空时结果为空；加、减两边都为空时结果为空，只有一边为空时空的一边按 0 计算。需要别的规则时，可以写成 `empty(values.count) ? null : values.price * values.count`。
+- 要在表单旁边显示公式的结果（或者字段的默认值）时，放进渲染器的默认插槽，像上面的例子那样。渲染器先算好再画插槽；放在渲染器外面时，服务端渲染出的页面上这里是空的，要等页面激活后才显示结果。
+
+如果几个公式互相引用形成环（`a` 读 `b`，`b` 又读 `a`），这些公式都不会计算，渲染器在控制台提示一次。列表项的公式也算在内：表单的合计 `sum(values.items, 'total')` 读每一项的 `total`，项的 `total` 又读 `values.sum` 时同样成环。设计器可以用 `findFormulaCycles(form)` 提前找出它们，列表项的字段写成 `items.total` 这样带列表名的形式；`checkDocument` 也会报出 `formula-cycle`。
 
 公式写入的值不会触发 `change` 事件，`change` 只表示使用者填写了字段。
 
@@ -46,11 +53,15 @@
 source: { name: 'cities', arg: 'values.province' }
 ```
 
-`arg` 表达式的结果就是交给加载函数的参数。要传多个值时写成列表，比如 `[values.province, values.kind]`。
-
-参数变化时重新加载。新的选项里如果没有字段当前的值，这个值会被清空（多选时只去掉不再提供的项），比如换了省份，城市就清空。第一次加载不清空，所以编辑已有数据时，从接口取回的值会保留。`keep: true` 可以关掉自动清空。同一个来源、同一个参数的结果会被缓存，几个字段问同一件事只请求一次；加载失败的结果不缓存，下次重新请求。加载期间，支持 `loading` 的控件（如 `select`）会显示加载状态。选项在服务端更新后，调用实例方法 `reloadSource(name)` 丢掉这个来源的缓存并重新加载，不传 `name` 时重新加载全部来源。
+`arg` 表达式的结果作为参数交给加载函数。要传多个值时写成列表，比如 `[values.province, values.kind]`。
 
 <DocDemo src="form-builder/logic-source" column />
+
+- 参数变化时重新加载。新的选项里如果没有字段当前的值，这个值会被清空（多选时只去掉不再提供的项），比如换了省份，城市就清空。
+- 第一次加载不清空，所以编辑已有数据时，从接口取回的值会保留。`keep: true` 可以关掉自动清空。
+- 同一个来源、同一个参数的结果会被缓存，几个字段问同一件事只请求一次；加载失败的结果不缓存，下次重新请求。
+- 加载期间，支持 `loading` 的控件（如 `select`）会显示加载状态。
+- 选项在服务端更新后，调用实例方法 `reloadSource(name)` 丢掉这个来源的缓存并重新加载，不传 `name` 时重新加载全部来源。
 
 内置类型里，`select`、`radio-group`、`checkbox-group`、`segmented-control`、`cascader` 的选项写入 `options`，`tree-select` 写入 `data`。自定义字段类型用 `optionsProp` 指定由哪个属性接收选项，用 `fitValue(value, options)` 决定选项变化后怎样清理旧值（内置的 `fitToOptions` 处理单个值和列表，`fitPathToOptions` 处理级联的路径）。
 
@@ -59,7 +70,7 @@ source: { name: 'cities', arg: 'values.province' }
 | 写法                                                                     | 说明                                                                                                                                                                   |
 | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `12`、`1.5`、`'上海'`、`"上海"`、`true`、`null`、`[1, 2]`                | 数字、文字、布尔值、空值、列表                                                                                                                                         |
-| `values.city`、`values.contact.phone`、`values.list[0]`、`values['a-b']` | 读取表单的值，路径上缺了就是 `null`                                                                                                                                    |
+| `values.city`、`values.contact.phone`、`values.list[0]`、`values['a-b']` | 读取表单的值，路径上缺了时为 `null`                                                                                                                                    |
 | `value`                                                                  | 当前字段自己的值                                                                                                                                                       |
 | `item.price`                                                             | 列表里同一项的值                                                                                                                                                       |
 | `+ - * / %`                                                              | 算术。`+` 两边有文字时拼接文字。`* / %` 有一边为空时得到 `null`；`+ -` 两边都为空时得到 `null`，只有一边为空时按 0 计算；结果不是有限数字（比如除以 0）时也得到 `null` |
@@ -148,12 +159,12 @@ formula: 'round(values.price + tax(values.price), 2)'
 
 ### 工具函数
 
-| 名称                                                                | 说明                                                                                                   |
-| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `compileExpression(source)`                                         | 解析表达式，返回 `evaluate`、读到的字段 `fields`、调用的函数 `calls`；解析失败时抛出 `ExpressionError` |
-| `evaluateExpression(source, scope)`                                 | 解析并执行，`scope` 为 `{ values, value?, item?, functions? }`                                         |
-| `parseExpression(source)`                                           | 只解析，返回语法树，供可视化的条件编辑使用                                                             |
-| `checkExpression(source, options?)`                                 | 检查语法、字段和函数，返回问题列表                                                                     |
-| `fitToOptions(value, options)` / `fitPathToOptions(value, options)` | 把值收窄到选项提供的范围                                                                               |
-| `findFormulaCycles(form)`                                           | 找出互相引用的公式                                                                                     |
-| `truthy(value)` / `isEmptyValue(value)` / `equalValues(a, b)`       | 表达式里真假、空值和相等的判断                                                                         |
+| 名称                                                                | 说明                                                                                                      |
+| ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `compileExpression(source)`                                         | 解析表达式，返回 `evaluate`、读到的字段 `fields`、调用的函数 `calls`；解析失败时抛出 `ExpressionError`    |
+| `evaluateExpression(source, scope)`                                 | 解析并执行，`scope` 为 `{ values, value?, item?, functions? }`                                            |
+| `parseExpression(source)`                                           | 只解析，返回语法树，供可视化的条件编辑使用                                                                |
+| `checkExpression(source, options?)`                                 | 检查语法、字段和函数，返回问题列表                                                                        |
+| `fitToOptions(value, options)` / `fitPathToOptions(value, options)` | 把值收窄到选项提供的范围                                                                                  |
+| `findFormulaCycles(form, functions?)`                               | 找出互相引用的公式，列表项的也在内；表单自己定义了 `sum`、`min`、`max`、`len`、`empty` 时传入 `functions` |
+| `truthy(value)` / `isEmptyValue(value)` / `equalValues(a, b)`       | 表达式里真假、空值和相等的判断                                                                            |

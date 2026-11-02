@@ -1125,11 +1125,18 @@ const folding = {
 
 /** Whether lines in view start a block, worked out only while the gutter is pointed at (or on touch screens). */
 const gutterHover = ref(false)
-const coarse = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches
+/**
+ * A touch screen. Read once mounted, never while rendering on the server:
+ * the first render must match the server's markup, then touch-only parts show.
+ */
+const coarse = ref(false)
+onMounted(() => {
+  coarse.value = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches
+})
 let foldCache = { doc: null as CodeText | null, ends: new Map<number, number | null>() }
 const foldableLines = computed(() => {
   const out = new Set<number>()
-  if (!props.foldable || !(gutterHover.value || coarse)) return out
+  if (!props.foldable || !(gutterHover.value || coarse.value)) return out
   void syntaxTick.value
   if (foldCache.doc !== doc.value) foldCache = { doc: doc.value, ends: new Map() }
   for (const n of shownLines.value.numbers) {
@@ -3847,7 +3854,7 @@ const magnifier = computed(() => {
 // ---------------------------------------------------------------- touch: keyboard
 
 const showKeys = computed(
-  () => !!props.keys && coarse && focused.value && !props.readonly && !props.disabled,
+  () => !!props.keys && coarse.value && focused.value && !props.readonly && !props.disabled,
 )
 const keysList = computed(() => (Array.isArray(props.keys) ? props.keys : undefined))
 const keysEditor = { run }
@@ -3915,7 +3922,7 @@ function onViewportChange() {
 }
 
 /** On a touch screen the keyboard comes and goes with focus; the view follows it meanwhile. */
-const following = computed(() => coarse && focused.value)
+const following = computed(() => coarse.value && focused.value)
 function unfollow() {
   const vv = typeof window !== 'undefined' ? window.visualViewport : null
   vv?.removeEventListener('resize', onViewportChange)

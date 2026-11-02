@@ -1957,6 +1957,13 @@ function onBodyContextmenu(event: MouseEvent) {
   if (showMenu({ kind: 'canvas' }, event.clientX, event.clientY)) event.preventDefault()
 }
 
+/** The empty timeline below the last row opens the same menu as the rows' blank space. */
+function onCanvasContextmenu(event: MouseEvent) {
+  if (event.target !== event.currentTarget || event.defaultPrevented) return
+  if (Date.now() - touchedAt < 1000) return event.preventDefault()
+  if (showMenu({ kind: 'canvas' }, event.clientX, event.clientY)) event.preventDefault()
+}
+
 /** The menu key, or Shift+F10, opens the menu of the task the keyboard is on, at its bar. */
 function openKeyMenu() {
   const id = active.value
@@ -2833,7 +2840,11 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
       @scroll.passive="onChartScroll"
       @wheel="onWheel"
     >
-      <div class="dou-gantt__canvas" :style="{ width: `${totalWidth}px` }">
+      <div
+        class="dou-gantt__canvas"
+        :style="{ width: `${totalWidth}px` }"
+        @contextmenu="onCanvasContextmenu"
+      >
         <TimeHeader
           :top-cells="topCells"
           :bottom-cells="bottomCells"

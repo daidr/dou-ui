@@ -56,33 +56,33 @@ app.use(DouGantt)
 
 ### Gantt Props
 
-| 名称                | 说明                                                                                                   | 类型                                                         | 默认值                                 |
-| ------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------ | -------------------------------------- |
-| `v-model`           | 排期：任务和依赖，见[文档数据](./data)                                                                 | `GanttDocument`                                              | `{ version: 1, tasks: [], links: [] }` |
-| `v-model:selection` | 选中的任务 id                                                                                          | `string[]`                                                   | `[]`                                   |
-| `v-model:scale`     | 时间刻度，见[时间轴](./timeline#时间刻度)                                                              | `GanttScale`                                                 | 按内容自动选择                         |
-| `columns`           | 表格的列，见[列](./data#列)                                                                            | `GanttColumn[]`                                              | 名称、开始、工期                       |
-| `table`             | 显示左侧的表格；窄于 520px 时自动收起                                                                  | `boolean`                                                    | `true`                                 |
-| `tableWidth`        | 表格的初始宽度（px）                                                                                   | `number`                                                     | `360`                                  |
-| `rowHeight`         | 行高（px）                                                                                             | `number`                                                     | `36`                                   |
-| `barLabel`          | 任务名放在哪里：`auto` 放得下时在条内，否则在条旁                                                      | `'auto' \| 'inside' \| 'outside' \| 'none'`                  | `'auto'`                               |
-| `range`             | 固定时间轴的范围；不设时跟随任务，滚到两头会继续延伸                                                   | `[string, string]`                                           | —                                      |
-| `today`             | 显示当前时间线                                                                                         | `boolean`                                                    | `true`                                 |
-| `weekStart`         | 一周的第一天：`0` 周日，`1` 周一                                                                       | `0 \| 1`                                                     | 跟随语言                               |
-| `calendar`          | 工作日历，见[工作日历](./timeline#工作日历)                                                            | `GanttCalendar`                                              | —                                      |
-| `scheduling`        | `manual` 只改动拖动的任务；`auto` 同时把后续任务往后推，见[自动排期](./scheduling)                     | `'manual' \| 'auto'`                                         | `'manual'`                             |
-| `critical`          | 高亮关键路径，见[关键路径](./scheduling#关键路径)                                                      | `boolean`                                                    | `false`                                |
-| `markers`           | 标记线，见[标记线](./markers#标记线)                                                                   | `GanttMarker[]`                                              | —                                      |
-| `baseline`          | 基线，见[基线](./markers#基线)                                                                         | `GanttBaselineItem[]`                                        | —                                      |
-| `addRow`            | 可编辑时在表格最下方显示添加任务的一行                                                                 | `boolean`                                                    | `true`                                 |
-| `menu`              | 显示内置的菜单项，见[右键菜单](./menu)                                                                 | `boolean`                                                    | `true`                                 |
-| `contextMenu`       | 自己的菜单项，排在最前面                                                                               | `(target: GanttMenuTarget) => ContextMenuItem[]`             | —                                      |
-| `canLink`           | 连依赖前的最后一道检查，返回 `true` 允许，返回字符串时显示为原因，见[依赖的限制](./editing#依赖的限制) | `(link, doc: GanttDocument) => boolean \| string`            | —                                      |
-| `canMove`           | 写入新的时间前的最后一道检查，见[移动的限制](./editing#移动的限制)                                     | `(move: GanttMove, doc: GanttDocument) => boolean \| string` | —                                      |
-| `readonly`          | 只读：不能拖动、连线和撤销                                                                             | `boolean`                                                    | `false`                                |
-| `extensions`        | 扩展，见[扩展](./extensions)                                                                           | `(GanttExtension \| GanttExtension[])[]`                     | —                                      |
-| `ariaLabel`         | 甘特图的无障碍名称                                                                                     | `string`                                                     | —                                      |
-| `messages`          | 覆盖文案，只需写要改的部分                                                                             | `GanttMessagesOverride`                                      | —                                      |
+| 名称                | 说明                                                                                                   | 类型                                                                                         | 默认值                                 |
+| ------------------- | ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- | -------------------------------------- |
+| `v-model`           | 排期：任务和依赖，见[文档数据](./data)                                                                 | `GanttDocument`                                                                              | `{ version: 1, tasks: [], links: [] }` |
+| `v-model:selection` | 选中的任务 id                                                                                          | `string[]`                                                                                   | `[]`                                   |
+| `v-model:scale`     | 时间刻度，见[时间轴](./timeline#时间刻度)                                                              | `GanttScale`                                                                                 | 按内容自动选择                         |
+| `columns`           | 表格的列，见[列](./data#列)                                                                            | `GanttColumn[]`                                                                              | 名称、开始、工期                       |
+| `table`             | 显示左侧的表格；窄于 520px 时自动收起                                                                  | `boolean`                                                                                    | `true`                                 |
+| `tableWidth`        | 表格的初始宽度（px）                                                                                   | `number`                                                                                     | `360`                                  |
+| `rowHeight`         | 行高（px）                                                                                             | `number`                                                                                     | `36`                                   |
+| `barLabel`          | 任务名放在哪里：`auto` 放得下时在条内，否则在条旁                                                      | `'auto' \| 'inside' \| 'outside' \| 'none'`                                                  | `'auto'`                               |
+| `range`             | 固定时间轴的范围；不设时跟随任务，滚到两头会继续延伸                                                   | `[string, string]`                                                                           | —                                      |
+| `today`             | 显示当前时间线                                                                                         | `boolean`                                                                                    | `true`                                 |
+| `weekStart`         | 一周的第一天：`0` 周日，`1` 周一                                                                       | `0 \| 1`                                                                                     | 跟随语言                               |
+| `calendar`          | 工作日历，见[工作日历](./timeline#工作日历)                                                            | `GanttCalendar`                                                                              | —                                      |
+| `scheduling`        | `manual` 只改动拖动的任务；`auto` 同时把后续任务往后推，见[自动排期](./scheduling)                     | `'manual' \| 'auto'`                                                                         | `'manual'`                             |
+| `critical`          | 高亮关键路径，见[关键路径](./scheduling#关键路径)                                                      | `boolean`                                                                                    | `false`                                |
+| `markers`           | 标记线，见[标记线](./markers#标记线)                                                                   | `GanttMarker[]`                                                                              | —                                      |
+| `baseline`          | 基线，见[基线](./markers#基线)                                                                         | `GanttBaselineItem[]`                                                                        | —                                      |
+| `addRow`            | 可编辑时在表格最下方显示添加任务的一行                                                                 | `boolean`                                                                                    | `true`                                 |
+| `menu`              | 显示内置的菜单项，见[右键菜单](./menu)                                                                 | `boolean`                                                                                    | `true`                                 |
+| `contextMenu`       | 自己的菜单项，排在最前面                                                                               | `(target: GanttMenuTarget) => ContextMenuItem[]`                                             | —                                      |
+| `canLink`           | 连依赖前的最后一道检查，返回 `true` 允许，返回字符串时显示为原因，见[依赖的限制](./editing#依赖的限制) | `(link: Pick<GanttLink, 'from' \| 'to' \| 'type'>, doc: GanttDocument) => boolean \| string` | —                                      |
+| `canMove`           | 写入新的时间前的最后一道检查，见[移动的限制](./editing#移动的限制)                                     | `(move: GanttMove, doc: GanttDocument) => boolean \| string`                                 | —                                      |
+| `readonly`          | 只读：不能拖动、连线和在表格里编辑，撤销重做的快捷键也不响应；代码调用 `transact` 仍然生效             | `boolean`                                                                                    | `false`                                |
+| `extensions`        | 扩展，见[扩展](./extensions)                                                                           | `(GanttExtension \| GanttExtension[])[]`                                                     | —                                      |
+| `ariaLabel`         | 甘特图的无障碍名称                                                                                     | `string`                                                                                     | —                                      |
+| `messages`          | 覆盖文案，只需写要改的部分                                                                             | `GanttMessagesOverride`                                                                      | —                                      |
 
 ### Gantt Events
 
@@ -106,24 +106,24 @@ app.use(DouGantt)
 
 ### Gantt Exposes
 
-| 名称                         | 说明                                                                          | 类型                                                 |
-| ---------------------------- | ----------------------------------------------------------------------------- | ---------------------------------------------------- |
-| `transact`                   | 在一个事务里修改，算作一步撤销                                                | `(fn: (tr) => void, meta?) => GanttTransaction`      |
-| `undo` / `redo`              | 撤销、重做                                                                    | `() => boolean`                                      |
-| `canUndo` / `canRedo`        | 能否撤销、重做                                                                | `boolean`                                            |
-| `schedule`                   | 移动任务让所有依赖都满足，算作一步撤销；只往后推，`pull` 为 `true` 时也往前拉 | `(options?: { pull?: boolean }) => GanttSchedule`    |
-| `insertTask`                 | 在某个任务之后（或里面）添加一个任务并开始编辑名称，返回它的 id               | `(near: string \| null, options?) => string`         |
-| `indentTask` / `outdentTask` | 缩进、取消缩进                                                                | `(id: string) => boolean`                            |
-| `editCell`                   | 开始编辑表格的单元格，默认名称；不能编辑时返回 `false`                        | `(id: string, key?: string) => boolean`              |
-| `fit`                        | 选一个能放下全部任务的日宽，并滚动到第一个任务                                | `() => void`                                         |
-| `scrollToDate`               | 滚动到某个时间                                                                | `(date: string) => void`                             |
-| `scrollToToday`              | 滚动到现在                                                                    | `() => void`                                         |
-| `scrollToTask`               | 滚动到某个任务                                                                | `(id: string) => void`                               |
-| `focusTask`                  | 让键盘停在某个任务上，滚动到它并聚焦任务条                                    | `(id: string) => void`                               |
-| `zoomIn` / `zoomOut`         | 放大、缩小时间轴，视图中间的时间不动                                          | `() => void`                                         |
-| `exportSVG`                  | 导出 SVG 文本，见[导出与打印](./export)                                       | `(options?) => string`                               |
-| `exportPNG`                  | 导出 PNG                                                                      | `(options?) => Promise<Blob>`                        |
-| `toCSV`                      | 导出 CSV 文本                                                                 | `(options?) => string`                               |
-| `readCSV`                    | 读取 CSV 里的任务，不放进甘特图，见[导入](./import)                           | `(text: string) => GanttCSVResult`                   |
-| `importCSV`                  | 把 CSV 里的任务放进甘特图，一步撤销；只读时返回 `null`                        | `(text: string, options?) => GanttCSVResult \| null` |
-| `print`                      | 打印全部行                                                                    | `(options?: GanttPrintOptions) => void`              |
+| 名称                         | 说明                                                                          | 类型                                                                        |
+| ---------------------------- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `transact`                   | 在一个事务里修改，算作一步撤销                                                | `(fn: (tr) => void, meta?) => GanttTransaction`                             |
+| `undo` / `redo`              | 撤销、重做                                                                    | `() => boolean`                                                             |
+| `canUndo` / `canRedo`        | 能否撤销、重做                                                                | `boolean`                                                                   |
+| `schedule`                   | 移动任务让所有依赖都满足，算作一步撤销；只往后推，`pull` 为 `true` 时也往前拉 | `(options?: { pull?: boolean }) => GanttSchedule`                           |
+| `insertTask`                 | 在某个任务之后（或里面）添加一个任务并开始编辑名称，返回它的 id               | `(near: string \| null, options?: GanttInsertOptions) => string`            |
+| `indentTask` / `outdentTask` | 缩进、取消缩进                                                                | `(id: string) => boolean`                                                   |
+| `editCell`                   | 开始编辑表格的单元格，默认名称；不能编辑时返回 `false`                        | `(id: string, key?: string) => boolean`                                     |
+| `fit`                        | 选一个能放下全部任务的日宽，并滚动到第一个任务                                | `() => void`                                                                |
+| `scrollToDate`               | 滚动到某个时间                                                                | `(date: string) => void`                                                    |
+| `scrollToToday`              | 滚动到现在                                                                    | `() => void`                                                                |
+| `scrollToTask`               | 滚动到某个任务                                                                | `(id: string) => void`                                                      |
+| `focusTask`                  | 让键盘停在某个任务上，滚动到它并聚焦任务条                                    | `(id: string) => void`                                                      |
+| `zoomIn` / `zoomOut`         | 放大、缩小时间轴，视图中间的时间不动                                          | `() => void`                                                                |
+| `exportSVG`                  | 导出 SVG 文本，见[导出与打印](./export)                                       | `(options?: GanttExportOptions) => string`                                  |
+| `exportPNG`                  | 导出 PNG                                                                      | `(options?: GanttImageOptions) => Promise<Blob>`                            |
+| `toCSV`                      | 导出 CSV 文本                                                                 | `(options?: GanttCSVExportOptions) => string`                               |
+| `readCSV`                    | 读取 CSV 里的任务，不放进甘特图，见[导入](./import)                           | `(text: string) => GanttCSVResult`                                          |
+| `importCSV`                  | 把 CSV 里的任务放进甘特图，一步撤销；只读时返回 `null`                        | `(text: string, options?: GanttCSVImportOptions) => GanttCSVResult \| null` |
+| `print`                      | 打印全部行                                                                    | `(options?: GanttPrintOptions) => void`                                     |

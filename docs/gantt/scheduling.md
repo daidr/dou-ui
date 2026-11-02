@@ -34,7 +34,14 @@
 排期的计算也可以单独使用，比如在服务端检查计划：
 
 ```ts
-import { computeCriticalPath, computeSchedule, findBrokenLinks } from '@dou-ui/gantt'
+import {
+  computeCriticalPath,
+  computeSchedule,
+  findBrokenLinks,
+  type GanttCalendar,
+} from '@dou-ui/gantt'
+
+const calendar: GanttCalendar = { holidays: ['2026-10-01'] }
 
 const { moves, violated, cycle } = computeSchedule(plan, { calendar, pull: false })
 const { tasks: critical } = computeCriticalPath(plan, { calendar })

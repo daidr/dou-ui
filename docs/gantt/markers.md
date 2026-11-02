@@ -43,8 +43,8 @@ baseline.value = takeBaseline(plan.value.tasks) // [{ id, start, end }, …]
 
 ### GanttBaselineItem
 
-| 名称    | 说明                       | 类型     |
-| ------- | -------------------------- | -------- |
-| `id`    | 任务的 id                  | `string` |
-| `start` | 计划的开始时间             | `string` |
-| `end`   | 计划的结束时间，里程碑没有 | `string` |
+| 名称    | 说明                       | 类型                  |
+| ------- | -------------------------- | --------------------- |
+| `id`    | 任务的 id                  | `string`              |
+| `start` | 计划的开始时间             | `string`              |
+| `end`   | 计划的结束时间，里程碑没有 | `string \| undefined` |

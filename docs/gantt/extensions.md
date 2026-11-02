@@ -115,20 +115,22 @@ const duplicate = defineGanttExtension({
 
 ## useGantt
 
-在图层、浮层，以及甘特图的插槽和默认插槽里，`useGantt()` 返回当前甘特图的状态和操作：
+在图层、浮层，以及甘特图的插槽和默认插槽里，`useGantt()` 返回当前甘特图的状态和操作，类型是 `GanttContext`：
 
-| 名称                                             | 说明                                                            |
-| ------------------------------------------------ | --------------------------------------------------------------- |
-| `doc`                                            | 当前的整份排期，和 `v-model` 同形状，可直接交给 `checkDocument` |
-| `tasks`、`links`、`selection`                    | 当前的任务、依赖和选中的任务                                    |
-| `active`                                         | 键盘所在的任务                                                  |
-| `rows`                                           | 排好的行，带算好的起止时间和汇总                                |
-| `preview`                                        | 拖动中将要写入的日期（包括会被推后的任务），不在拖动时为 `null` |
-| `readonly`、`scale`、`dayWidth`、`rowHeight`     | 只读状态、当前刻度、日宽、行高                                  |
-| `transact`、`undo`、`redo`、`canUndo`、`canRedo` | 修改与撤销，同组件实例                                          |
-| `fit`、`zoomIn`、`zoomOut`                       | 缩放                                                            |
-| `scrollToDate`、`scrollToTask`、`scrollToToday`  | 滚动                                                            |
-| `focusTask(id)`                                  | 把键盘焦点放到任务上                                            |
-| `xOf(time)`、`rowTop(id)`                        | 时间和行在时间轴上的位置                                        |
-| `announce(text)`                                 | 让读屏软件播报一段文字                                          |
-| `messages`                                       | 当前语言的文案                                                  |
+| 名称                                                              | 说明                                                                |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `doc`                                                             | 当前的整份排期，和 `v-model` 同形状，可直接交给 `checkDocument`     |
+| `tasks`、`links`、`selection`                                     | 当前的任务、依赖和选中的任务                                        |
+| `active`                                                          | 键盘所在的任务                                                      |
+| `rows`                                                            | 排好的行，带算好的起止时间和汇总                                    |
+| `preview`                                                         | 拖动中将要写入的日期（包括会被推后的任务），不在拖动时为 `null`     |
+| `readonly`、`scale`、`dayWidth`、`rowHeight`                      | 只读状态、当前刻度、日宽、行高                                      |
+| `critical`、`brokenLinks`                                         | 打开 `critical` 时的关键路径（否则为 `null`）；没有被日期满足的依赖 |
+| `transact`、`undo`、`redo`、`canUndo`、`canRedo`                  | 修改与撤销，同组件实例                                              |
+| `schedule`、`editCell`、`insertTask`、`indentTask`、`outdentTask` | 自动排期、编辑单元格、添加任务、缩进和取消缩进，同组件实例          |
+| `fit`、`zoomIn`、`zoomOut`                                        | 缩放                                                                |
+| `scrollToDate`、`scrollToTask`、`scrollToToday`                   | 滚动                                                                |
+| `focusTask(id)`                                                   | 把键盘焦点放到任务上                                                |
+| `xOf(time)`、`rowTop(id)`                                         | 时间和行在时间轴上的位置                                            |
+| `announce(text)`                                                  | 让读屏软件播报一段文字                                              |
+| `messages`                                                        | 当前语言的文案                                                      |

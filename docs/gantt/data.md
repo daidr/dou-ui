@@ -56,7 +56,7 @@ import { formatTime, spanOf } from '@dou-ui/gantt'
 const a = spanOf(taskA)
 const b = spanOf(taskB)
 const overlap = a && b && a.start < b.end && b.start < a.end
-formatTime(a.end) // '2026-03-07 00:00'
+if (a) formatTime(a.end) // '2026-03-07 00:00'
 ```
 
 ### 汇总任务和里程碑
@@ -99,7 +99,9 @@ interface GanttLink {
 `key` 为 `title`、`start`、`end`、`duration`、`progress` 的是内置列，自带表头和格式；其他列没有 `value` 时读取任务 `data` 里与 `key` 同名的字段。不设 `width` 的列分掉剩下的宽度。
 
 ```ts
-const columns = [
+import type { GanttColumn } from '@dou-ui/gantt'
+
+const columns: GanttColumn[] = [
   { key: 'title' },
   { key: 'owner', title: '负责人', width: 80, value: (task) => task.data?.owner },
   { key: 'start', width: 96 },
@@ -114,7 +116,7 @@ const columns = [
 自定义列默认把输入的文字原样写入。要保存数字或其他类型时，用 `parse` 把文字转成要写入的值，返回 `undefined` 表示无法识别，输入框会保留并标红；用 `format` 决定值在单元格里显示成什么文字，输入框里显示的是值本身转成的文字。`input: 'number'` 让手机弹出数字键盘。
 
 ```ts
-const columns = [
+const columns: GanttColumn[] = [
   { key: 'title' },
   {
     key: 'budget',

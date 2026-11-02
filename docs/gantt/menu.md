@@ -4,7 +4,9 @@
 
 ## 内置菜单项
 
-内置的菜单项有重命名、在下方添加任务、添加子任务、缩进、取消缩进、删除任务和删除依赖。在时间轴空白处添加的任务从点击的那天开始。
+- 任务上：重命名、在下方添加任务、添加子任务、缩进、取消缩进、删除任务；
+- 依赖线上：删除依赖；
+- 时间轴空白处（包括最后一行下方）：添加任务，新任务从点击的那天开始。
 
 `menu` 设为 `false` 时不显示内置项。
 
@@ -15,23 +17,37 @@
 <DocDemo src="gantt/menu" />
 
 ```vue
-<DouGantt v-model="plan" :context-menu="contextMenu" />
-```
-
-```ts
-import type { GanttMenuTarget } from '@dou-ui/gantt'
-import { FileTextIcon } from '@dou-ui/icons'
+<script setup lang="ts">
+import { DouGantt, type GanttMenuTarget } from '@dou-ui/gantt'
+import { CheckIcon } from '@dou-ui/icons'
 import type { ContextMenuItem } from 'dou-ui'
+import { useTemplateRef } from 'vue'
 
-const contextMenu = (target: GanttMenuTarget): ContextMenuItem[] =>
-  target.kind === 'task'
-    ? [{ key: 'details', label: '查看详情', icon: FileTextIcon, run: () => open(target.task.id) }]
-    : []
+const gantt = useTemplateRef<InstanceType<typeof DouGantt>>('gantt')
+
+function contextMenu(target: GanttMenuTarget): ContextMenuItem[] {
+  if (target.kind !== 'task') return []
+  const { task } = target
+  return [
+    {
+      key: 'done',
+      label: '标记完成',
+      icon: CheckIcon,
+      disabled: task.progress === 1,
+      run: () => gantt.value?.transact((tr) => tr.updateTask(task.id, { progress: 1 })),
+    },
+  ]
+}
+</script>
+
+<template>
+  <DouGantt ref="gantt" v-model="plan" :context-menu="contextMenu" />
+</template>
 ```
 
 `target` 说明菜单是在哪里打开的：
 
-- `kind` 是 `task`、`link` 或 `canvas`（时间轴空白处）；
+- `kind` 是 `task`、`link` 或 `canvas`（时间轴空白处，包括最后一行下方）；
 - `point` 是打开菜单的位置（时间轴坐标），`time` 是这个位置对应的时间（分钟），可以用来在点击的地方添加任务或里程碑；
 - 从表格或键盘打开时，位置在任务的开始处。
 
@@ -40,6 +56,8 @@ const contextMenu = (target: GanttMenuTarget): ContextMenuItem[] =>
 只是加几项时用属性更直接，需要和其他功能一起复用时写成[扩展](./extensions)。扩展的 `contextMenu` 多一个参数 `ctx`：
 
 ```ts
+import { defineGanttExtension, formatTime } from '@dou-ui/gantt'
+
 // 在空白处右键的位置添加里程碑；time 是分钟数，用 formatTime 写成日期
 const milestones = defineGanttExtension({
   name: 'milestones',
@@ -86,5 +104,5 @@ const milestones = defineGanttExtension({
 | `kind`  | 在哪里打开                          | `'task' \| 'link' \| 'canvas'` |
 | `task`  | `kind` 为 `task` 时，打开菜单的任务 | `GanttTask`                    |
 | `link`  | `kind` 为 `link` 时，打开菜单的依赖 | `GanttLink`                    |
-| `point` | 打开菜单的位置，时间轴坐标          | `{ x: number, y: number }`     |
+| `point` | 打开菜单的位置，时间轴坐标          | `GanttPoint`（`{ x, y }`）     |
 | `time`  | 这个位置对应的时间（分钟）          | `number`                       |

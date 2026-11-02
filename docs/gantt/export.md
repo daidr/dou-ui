@@ -58,7 +58,7 @@ CSV 默认写入表格软件能排序和计算的值：
 
 ### GanttExportOptions
 
-`exportSVG` 和 `exportPNG` 的选项：
+`exportSVG` 的选项：
 
 | 名称         | 说明                                                            | 类型              | 默认值           |
 | ------------ | --------------------------------------------------------------- | ----------------- | ---------------- |
@@ -66,7 +66,14 @@ CSV 默认写入表格软件能排序和计算的值：
 | `table`      | 是否画出左侧表格                                                | `boolean`         | 跟随当前是否显示 |
 | `scale`      | 按哪个刻度绘制，如 `'week'`                                     | `GanttScale`      | 当前的缩放       |
 | `background` | 是否填充表头和行的底色                                          | `boolean`         | `true`           |
-| `pixelRatio` | 只用于 PNG，每个 CSS 像素对应的图片像素                         | `number`          | `2`              |
+
+### GanttImageOptions
+
+`exportPNG` 的选项，包含 `GanttExportOptions` 的全部字段，另外还有：
+
+| 名称         | 说明                        | 类型     | 默认值 |
+| ------------ | --------------------------- | -------- | ------ |
+| `pixelRatio` | 每个 CSS 像素对应的图片像素 | `number` | `2`    |
 
 ### GanttCSVExportOptions
 

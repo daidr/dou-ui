@@ -18,7 +18,7 @@
 
 触屏上按住任务条片刻再拖动，直接滑动则是滚动时间轴；上下滑到时间轴的尽头后，页面接着滚动。
 
-`locked: true` 的任务不能拖动，`readonly` 关闭全部编辑。
+`locked: true` 的任务不能拖动。`readonly` 关闭界面上的全部编辑，代码调用 `transact` 仍然生效。
 
 ## 在表格里编辑
 
@@ -78,29 +78,29 @@ const canMove = ({ start }: GanttMove) => start >= today || '不能排在今天�
 
 ### 相关 Props
 
-| 名称       | 说明                                                       | 类型                                                         | 默认值  |
-| ---------- | ---------------------------------------------------------- | ------------------------------------------------------------ | ------- |
-| `readonly` | 只读：不能拖动、连线和撤销                                 | `boolean`                                                    | `false` |
-| `addRow`   | 可编辑时在表格最下方显示添加任务的一行                     | `boolean`                                                    | `true`  |
-| `canLink`  | 连依赖前的最后一道检查，返回 `true` 允许，返回字符串时拒绝 | `(link, doc: GanttDocument) => boolean \| string`            | —       |
-| `canMove`  | 写入新的时间前的最后一道检查                               | `(move: GanttMove, doc: GanttDocument) => boolean \| string` | —       |
+| 名称       | 说明                                                                                       | 类型                                                                                         | 默认值  |
+| ---------- | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- | ------- |
+| `readonly` | 只读：不能拖动、连线和在表格里编辑，撤销重做的快捷键也不响应；代码调用 `transact` 仍然生效 | `boolean`                                                                                    | `false` |
+| `addRow`   | 可编辑时在表格最下方显示添加任务的一行                                                     | `boolean`                                                                                    | `true`  |
+| `canLink`  | 连依赖前的最后一道检查，返回 `true` 允许，返回字符串时拒绝                                 | `(link: Pick<GanttLink, 'from' \| 'to' \| 'type'>, doc: GanttDocument) => boolean \| string` | —       |
+| `canMove`  | 写入新的时间前的最后一道检查                                                               | `(move: GanttMove, doc: GanttDocument) => boolean \| string`                                 | —       |
 
 ### GanttMove
 
-| 名称    | 说明                                         | 类型        |
-| ------- | -------------------------------------------- | ----------- |
-| `task`  | 要移动的任务                                 | `GanttTask` |
-| `start` | 将要写入的开始时间                           | `string`    |
-| `end`   | 将要写入的结束时间，没有结束时间的里程碑不带 | `string`    |
+| 名称    | 说明                                         | 类型                  |
+| ------- | -------------------------------------------- | --------------------- |
+| `task`  | 要移动的任务                                 | `GanttTask`           |
+| `start` | 将要写入的开始时间                           | `string`              |
+| `end`   | 将要写入的结束时间，没有结束时间的里程碑不带 | `string \| undefined` |
 
 ### 相关 Exposes
 
-| 名称                         | 说明                                                            | 类型                                         |
-| ---------------------------- | --------------------------------------------------------------- | -------------------------------------------- |
-| `undo` / `redo`              | 撤销、重做                                                      | `() => boolean`                              |
-| `canUndo` / `canRedo`        | 能否撤销、重做                                                  | `boolean`                                    |
-| `insertTask`                 | 在某个任务之后（或里面）添加一个任务并开始编辑名称，返回它的 id | `(near: string \| null, options?) => string` |
-| `indentTask` / `outdentTask` | 缩进、取消缩进                                                  | `(id: string) => boolean`                    |
-| `editCell`                   | 开始编辑表格的单元格，默认名称；不能编辑时返回 `false`          | `(id: string, key?: string) => boolean`      |
+| 名称                         | 说明                                                            | 类型                                                             |
+| ---------------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `undo` / `redo`              | 撤销、重做                                                      | `() => boolean`                                                  |
+| `canUndo` / `canRedo`        | 能否撤销、重做                                                  | `boolean`                                                        |
+| `insertTask`                 | 在某个任务之后（或里面）添加一个任务并开始编辑名称，返回它的 id | `(near: string \| null, options?: GanttInsertOptions) => string` |
+| `indentTask` / `outdentTask` | 缩进、取消缩进                                                  | `(id: string) => boolean`                                        |
+| `editCell`                   | 开始编辑表格的单元格，默认名称；不能编辑时返回 `false`          | `(id: string, key?: string) => boolean`                          |
 
 `insertTask` 的 `options`：`where` 是 `'after'`（默认）或 `'inside'`；`start` 是开始时间，日期或分钟数，不写时接在上一个任务后面，或从今天开始。

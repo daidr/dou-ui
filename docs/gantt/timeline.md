@@ -28,7 +28,9 @@
 <DocDemo src="gantt/calendar" column />
 
 ```ts
-const calendar = {
+import type { GanttCalendar } from '@dou-ui/gantt'
+
+const calendar: GanttCalendar = {
   holidays: ['2026-10-01', '2026-10-02'],
   workdays: ['2026-10-10'], // 调休上班
   hours: [

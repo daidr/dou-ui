@@ -159,12 +159,12 @@ formula: 'round(values.price + tax(values.price), 2)'
 
 ### 工具函数
 
-| 名称                                                                | 说明                                                                                                   |
-| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `compileExpression(source)`                                         | 解析表达式，返回 `evaluate`、读到的字段 `fields`、调用的函数 `calls`；解析失败时抛出 `ExpressionError` |
-| `evaluateExpression(source, scope)`                                 | 解析并执行，`scope` 为 `{ values, value?, item?, functions? }`                                         |
-| `parseExpression(source)`                                           | 只解析，返回语法树，供可视化的条件编辑使用                                                             |
-| `checkExpression(source, options?)`                                 | 检查语法、字段和函数，返回问题列表                                                                     |
-| `fitToOptions(value, options)` / `fitPathToOptions(value, options)` | 把值收窄到选项提供的范围                                                                               |
-| `findFormulaCycles(form, functions?)`                               | 找出互相引用的公式，列表项的也在内；表单自己定义了 `sum`、`min`、`max` 时传入 `functions`              |
-| `truthy(value)` / `isEmptyValue(value)` / `equalValues(a, b)`       | 表达式里真假、空值和相等的判断                                                                         |
+| 名称                                                                | 说明                                                                                                      |
+| ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `compileExpression(source)`                                         | 解析表达式，返回 `evaluate`、读到的字段 `fields`、调用的函数 `calls`；解析失败时抛出 `ExpressionError`    |
+| `evaluateExpression(source, scope)`                                 | 解析并执行，`scope` 为 `{ values, value?, item?, functions? }`                                            |
+| `parseExpression(source)`                                           | 只解析，返回语法树，供可视化的条件编辑使用                                                                |
+| `checkExpression(source, options?)`                                 | 检查语法、字段和函数，返回问题列表                                                                        |
+| `fitToOptions(value, options)` / `fitPathToOptions(value, options)` | 把值收窄到选项提供的范围                                                                                  |
+| `findFormulaCycles(form, functions?)`                               | 找出互相引用的公式，列表项的也在内；表单自己定义了 `sum`、`min`、`max`、`len`、`empty` 时传入 `functions` |
+| `truthy(value)` / `isEmptyValue(value)` / `equalValues(a, b)`       | 表达式里真假、空值和相等的判断                                                                            |

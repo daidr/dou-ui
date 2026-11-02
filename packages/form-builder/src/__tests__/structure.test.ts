@@ -213,6 +213,37 @@ describe('lists', () => {
     expect(findFormulaCycles(form, { sum: () => 0 })).toEqual([['guests.share']])
   })
 
+  it('lets an item formula read how many items there are', async () => {
+    const form = doc([
+      { id: 'n', type: 'input-number', name: 'n', formula: 'len(values.guests)' },
+      { id: 'tot', type: 'input-number', name: 'tot', formula: "sum(values.guests, 'total')" },
+      { id: 'none', type: 'switch', name: 'none', formula: 'empty(values.guests)' },
+      {
+        ...guests,
+        children: [
+          ...guests.children,
+          { id: 's', type: 'input-number', name: 'share', formula: 'values.tot / values.n' },
+        ],
+      },
+    ])
+    expect(findFormulaCycles(form)).toEqual([])
+    expect(findFormulaCycles(form, ['len'])).toEqual([['n', 'guests.share']])
+    const model = reactive<Record<string, any>>({
+      guests: [
+        { name: '戴兜', price: 2, count: 3 },
+        { name: '阿青', price: 1, count: 4 },
+      ],
+    })
+    mount(DouFormRenderer, { props: { model, form } })
+    await flush()
+    expect(model).toMatchObject({
+      n: 2,
+      tot: 10,
+      none: false,
+      guests: [{ share: 5 }, { share: 5 }],
+    })
+  })
+
   it('shows totals of item formulas the model does not hold when read-only', async () => {
     const model = reactive<Record<string, any>>({
       guests: [{ name: '戴兜', price: 100, count: 2 }],

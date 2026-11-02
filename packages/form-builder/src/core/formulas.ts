@@ -39,7 +39,7 @@ export interface FormulaAnalysis {
  * field is a circle of one. The items' fields are named with their list's,
  * e.g. `rows.total`; a circle can go through the document's formulas and
  * the items' alike. Pass the form's `functions` (or their names) when it
- * has its own `sum`, `min` or `max`, which may read any key of the items.
+ * has its own `sum`, `min`, `max`, `len` or `empty`, which may read any key of the items.
  */
 export function findFormulaCycles(
   document: FormDocument,
@@ -76,14 +76,16 @@ export function analyseFormulas(
   ]
   // What reading `path` in a scope reads: its formulas there, and all of a
   // list's. With a `key`, as in `sum(values.rows, 'total')`, only that key
-  // of the list's items.
-  const reads = (scope: Scope, path: string, key?: string): Formula[] => [
+  // of the list's items; with `key` `null`, as in `len(values.rows)`, none
+  // of them, only how many there are.
+  const reads = (scope: Scope, path: string, key?: string | null): Formula[] => [
     ...scope.formulas.filter(({ name }) => related(name, path)),
     ...scope.lists
       .filter(({ node }) => node.name !== undefined && related(node.name, path))
-      .flatMap(({ node, scope: inner }) =>
-        key !== undefined && node.name === path ? reads(inner, key) : everyFormula(inner),
-      ),
+      .flatMap(({ node, scope: inner }) => {
+        if (key === undefined || node.name !== path) return everyFormula(inner)
+        return key === null ? [] : reads(inner, key)
+      }),
   ]
   const edges = all.map((formula) => {
     const scope = scopes.get(formula)!
@@ -153,11 +155,14 @@ export function analyseFormulas(
 
 /** The functions that take a list and one key of its items, e.g. `sum(values.rows, 'total')`. */
 const keyed = new Set(['sum', 'min', 'max'])
+/** The functions that read only how many items a list has, e.g. `len(values.rows)`. */
+const counting = new Set(['len', 'empty'])
 
 interface Read {
   root: 'values' | 'item' | 'value'
   path: string
-  key?: string
+  /** The key of every item an aggregate reads, or `null` for none, only the count. */
+  key?: string | null
 }
 
 /** What an expression reads, like its `fields` and `itemFields`, with the keys aggregates read. */
@@ -171,7 +176,7 @@ function readsOf(
       ? functions.includes(name)
       : !!functions && Object.hasOwn(functions, name)
   const result: Read[] = []
-  const member = (node: ExpressionNode, key?: string) => {
+  const member = (node: ExpressionNode, key?: string | null) => {
     for (const root of ['values', 'item'] as const) {
       const path = pathOf(node, root)
       if (path === undefined) continue
@@ -202,6 +207,14 @@ function readsOf(
           typeof key.value === 'string' &&
           rest.length === 0 &&
           member(list, key.value)
+        )
+          return
+        if (
+          counting.has(node.name) &&
+          !own(node.name) &&
+          list?.kind === 'member' &&
+          key === undefined &&
+          member(list, null)
         )
           return
         node.args.forEach(visit)

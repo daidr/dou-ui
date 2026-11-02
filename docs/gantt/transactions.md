@@ -4,14 +4,32 @@
 
 ## 基础用法
 
-```ts
-const tr = gantt.value.transact((tr) => {
-  tr.setSpan('fe', '2026-03-09', '2026-03-13')
-  tr.updateTask('fe', { progress: 0.2 })
-  tr.addLink({ id: 'l5', from: 'be', to: 'qa' })
-})
-tr.changed // 是否真的改动了
+```vue
+<script setup lang="ts">
+import { DouGantt, type GanttDocument } from '@dou-ui/gantt'
+import { ref, useTemplateRef } from 'vue'
+
+const plan = ref<GanttDocument>({ version: 1, tasks: [], links: [] })
+const gantt = useTemplateRef<InstanceType<typeof DouGantt>>('gantt')
+
+function update() {
+  const tr = gantt.value?.transact((tr) => {
+    tr.setSpan('fe', '2026-03-09', '2026-03-13')
+    tr.updateTask('fe', { progress: 0.2 })
+    tr.addLink({ id: 'l5', from: 'be', to: 'qa' })
+  })
+  console.log(tr?.changed) // 是否真的改动了
+}
+</script>
+
+<template>
+  <DouGantt ref="gantt" v-model="plan" />
+</template>
 ```
+
+下面的例子把没开始的任务都推迟一天，多个任务的修改合成一步，撤销一次即可恢复：
+
+<DocDemo src="gantt/transact" />
 
 `transact` 返回这次的事务。`readonly` 只限制界面上的编辑，`transact` 仍然可以修改。
 

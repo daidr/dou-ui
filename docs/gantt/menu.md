@@ -10,7 +10,9 @@
 
 ## 添加菜单项
 
-`contextMenu` 返回自己的菜单项，写法同 [ContextMenu](/components/context-menu) 的 `items`：
+`contextMenu` 返回自己的菜单项，写法同 [ContextMenu](/components/context-menu) 的 `items`。下面的例子在任务上加了“标记完成”，在时间轴空白处加了“在这里添加里程碑”：
+
+<DocDemo src="gantt/menu" />
 
 ```vue
 <DouGantt v-model="plan" :context-menu="contextMenu" />
@@ -18,6 +20,7 @@
 
 ```ts
 import type { GanttMenuTarget } from '@dou-ui/gantt'
+import { FileTextIcon } from '@dou-ui/icons'
 import type { ContextMenuItem } from 'dou-ui'
 
 const contextMenu = (target: GanttMenuTarget): ContextMenuItem[] =>

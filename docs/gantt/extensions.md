@@ -73,7 +73,7 @@ const fixedLaunch = defineGanttExtension({
 
 ## 图层组件
 
-图层的坐标就是时间轴的坐标：横向从时间轴起点算起，纵向从第一行的顶部算起。用 `position: absolute` 摆放，位置从 `useGantt()` 里取：
+图层的坐标和时间轴的坐标相同：横向从时间轴起点算起，纵向从第一行的顶部算起。用 `position: absolute` 摆放，位置从 `useGantt()` 里取：
 
 - `xOf(time)`：日期字符串或分钟数在时间轴上的横坐标；只写日期时是当天开始处。缩放和滚动时会更新。
 - `rowTop(id)`：任务所在行的顶部；任务被收起时返回 `null`。

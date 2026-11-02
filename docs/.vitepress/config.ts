@@ -123,7 +123,22 @@ const chartSidebar = ecosystem('图表', [
   { text: '导出与服务端渲染', link: '/chart/export' },
   { text: '自定义系列', link: '/chart/custom' },
 ])
-const pivotSidebar = ecosystem('数据透视', [{ text: '介绍', link: '/pivot/' }])
+const pivotSidebar = ecosystem('数据透视', [
+  { text: '介绍', link: '/pivot/' },
+  { text: '字段面板', link: '/pivot/fields' },
+  { text: '分组、排序与筛选', link: '/pivot/grouping' },
+  { text: '汇总方式', link: '/pivot/values' },
+  { text: '显示方式', link: '/pivot/show' },
+  { text: '计算值', link: '/pivot/formula' },
+  { text: '条件格式', link: '/pivot/mark' },
+  { text: '布局与折叠', link: '/pivot/layout' },
+  { text: '查看明细', link: '/pivot/details' },
+  { text: '复制与导出', link: '/pivot/export' },
+  { text: '透视图', link: '/pivot/chart' },
+  { text: '大量数据', link: '/pivot/performance' },
+  { text: '汇总内核', link: '/pivot/engine' },
+  { text: '无障碍', link: '/pivot/accessibility' },
+])
 const dashboardSidebar = ecosystem('仪表盘', [
   { text: '网格布局', link: '/dashboard/' },
   { text: '仪表盘', link: '/dashboard/dashboard' },

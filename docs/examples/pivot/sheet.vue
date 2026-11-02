@@ -1,4 +1,5 @@
 <script setup>
+import { DouButton } from 'dou-ui'
 import { DouPivot } from '@dou-ui/pivot'
 import { DouSheet } from '@dou-ui/sheet'
 import { ref, shallowRef } from 'vue'

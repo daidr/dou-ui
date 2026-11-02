@@ -70,7 +70,7 @@ export const markOf = (
  * label). Throws a `PivotFormulaError` when it is not well formed, names a
  * field that is not there, or sums up one that is not a number.
  */
-export function checkPivotFormula(source: PivotSource<unknown>, text: string): PivotFormula {
+export function checkPivotFormula<Row>(source: PivotSource<Row>, text: string): PivotFormula {
   const formula = parsePivotFormula(text)
   const byLabel = new Map<string, string>()
   for (const f of source.fields.values()) if (!byLabel.has(f.label)) byLabel.set(f.label, f.name)

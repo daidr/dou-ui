@@ -1,7 +1,7 @@
 <script setup>
 import { DouPivot } from '@dou-ui/pivot'
 import { CopyIcon, DownloadIcon, PrinterIcon } from '@dou-ui/icons'
-import { downloadBlob } from 'dou-ui'
+import { DouButton, DouSpace, downloadBlob } from 'dou-ui'
 import { ref } from 'vue'
 import { fields, orders } from './orders'
 

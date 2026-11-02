@@ -67,8 +67,11 @@ const more = ref({ start: false, end: false })
 function measure() {
   const box = el.value
   if (!box) return
-  const left = Math.abs(box.scrollLeft)
-  const rest = box.scrollWidth - box.clientWidth - left
+  // from the start side, also right to left; kept in range while the row bounces
+  const max = box.scrollWidth - box.clientWidth
+  const fromStart = getComputedStyle(box).direction === 'rtl' ? -box.scrollLeft : box.scrollLeft
+  const left = Math.min(Math.max(fromStart, 0), Math.max(max, 0))
+  const rest = max - left
   more.value = { start: left > 1, end: rest > 1 }
 }
 let observer: ResizeObserver | undefined

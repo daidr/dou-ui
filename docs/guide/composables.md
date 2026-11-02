@@ -26,10 +26,12 @@ DouUI 的组件建立在一组组合式函数上。下面这些已经导出，�
 | `useElementSize` / `useResizeObserver`            | 读取元素尺寸，或在尺寸变化时执行回调                   | [下文](#useelementsize)                                            |
 | `useIntersection`                                 | 元素是否出现在视口或滚动容器中                         | [下文](#useintersection)                                           |
 | `holdPointer`                                     | 触摸拖动开始后不再滚动页面，按下的元素被移除也不中断   | [下文](#holdpointer)                                               |
+| `useTouchScroll`                                  | 等触摸滚动（含惯性和回弹）停下后再改滚动位置           | [下文](#usetouchscroll)                                            |
+| `scrollPositionOf` / `createScrollLink`           | 读取不超出范围的滚动位置；让几个滚动区域同步滚动       | [下文](#scrollpositionof)                                          |
 | `svgToPNG` / `fitPixelRatio`                      | 把 SVG 画成 PNG，超出画布上限时抛出 `RangeError`       | [下文](#svgtopng)                                                  |
 | `downloadBlob`                                    | 把 `Blob` 存成下载的文件                               | [下文](#downloadblob)                                              |
 
-除 `holdPointer`、`svgToPNG`、`fitPixelRatio`、`downloadBlob` 外，这些函数都要在 `setup` 中调用，组件卸载时自动清理监听。
+除 `holdPointer`、`scrollPositionOf`、`createScrollLink`、`svgToPNG`、`fitPixelRatio`、`downloadBlob` 外，这些函数都要在 `setup` 中调用，组件卸载时自动清理监听。
 
 ## 自己写一个浮层
 
@@ -169,6 +171,38 @@ function onPointerdown(event: PointerEvent) {
 在手机上，手指按下后滑动默认会滚动页面，浏览器一旦开始滚动就会发出 `pointercancel`，拖动随之中断。`holdPointer` 要在 `pointerdown` 里调用，拖动真正开始时调用 `grab()`，此后这次触摸不再滚动页面；拖动结束或取消时调用 `release()`。在 `grab()` 之前，手指仍然可以正常滚动页面，适合先长按再拖动的列表。
 
 触摸事件始终发往手指按下的那个元素。拖动时这个元素可能被移除，例如条目被拖进了另一个列表，或者虚拟列表滚动后不再渲染它，此后它的事件不会再冒泡到页面。`holdPointer` 会在这个元素上单独监听，并把指针捕获到第二个参数给出的元素上，所以第二个参数应当是拖动期间一直存在的元素，例如列表容器。用鼠标时它什么也不做。Sortable、Tree、Drawer 的拖动都基于它实现。
+
+## useTouchScroll
+
+```ts
+const touch = useTouchScroll()
+
+function onItemsPrepended(shift: number) {
+  touch.whenSettled(() => (listEl.value!.scrollTop += shift))
+}
+```
+
+在 iOS 上，手指按住滚动、松手后的惯性滚动、到达两端时的回弹进行期间，脚本写入的 `scrollTop`、`scrollLeft` 会被丢弃。在列表顶部插入内容后补偿滚动位置、给无限延伸的时间轴向前补一段时间这类操作，如果在这时进行，内容就会跳走。
+
+`useTouchScroll` 返回两个函数：`active()` 判断当前是否有手指按在屏幕上，或者它带起的滚动还没有停；`whenSettled(callback)` 在没有触摸滚动时立即执行 `callback`，否则等滚动停下后再执行，同一个函数在等待期间多次传入只执行一次。触摸滚动停下的标准是手指离开后 150ms 内没有新的滚动事件。用鼠标、触控板滚动时 `active()` 始终是 `false`。
+
+ChatList、VirtualList、甘特图和排程视图在顶部加载内容、向前延伸时间轴时都用它等待滚动停下。
+
+## scrollPositionOf
+
+```ts
+import { createScrollLink, scrollPositionOf } from 'dou-ui'
+
+const { top, left } = scrollPositionOf(el)
+
+const link = createScrollLink('y')
+const onBodyScroll = () => link.follow(body.value!, aside.value!)
+const onAsideScroll = () => link.follow(aside.value!, body.value!)
+```
+
+内容在两端回弹时，iOS 和 macOS 报告的滚动位置会小于 0 或大于最大值。`scrollPositionOf(el)` 返回限制在滚动范围内的 `top`、`left`，根据滚动位置计算可见范围、触发加载时用它代替直接读取 `scrollTop`、`scrollLeft`。
+
+`createScrollLink(axis)` 让几个滚动区域保持同步，例如表格的固定列和旁边的网格。`axis` 可以是 `'x'`、`'y'` 或 `'both'`（默认）。在 `from` 的滚动事件里调用 `follow(from, to)`，`to` 会滚动到相同的位置；这次写入引起的 `to` 的滚动事件不会再反过来同步 `from`，所以惯性滚动中的区域不会被拉回到上一帧的位置。甘特图的表格与时间轴、CodeDiff 的左右两栏都基于它同步。
 
 ## svgToPNG
 

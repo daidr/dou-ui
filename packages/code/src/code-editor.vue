@@ -27,6 +27,7 @@ import {
   holdPointer,
   isApplePlatform,
   isComposing,
+  scrollPositionOf,
   useLocale,
   useNamespace,
   useZIndex,
@@ -4150,8 +4151,10 @@ function onMinimapUp(event: PointerEvent) {
 function onScroll() {
   const el = scroller.value
   if (!el) return
-  scrollTop.value = el.scrollTop
-  scrollLeft.value = el.scrollLeft
+  // iOS reports positions past either end while the content bounces back
+  const { top, left } = scrollPositionOf(el)
+  scrollTop.value = top
+  scrollLeft.value = left
   updateClip()
 }
 

@@ -30,7 +30,7 @@ defineOptions({ name: 'DouSheetTabs' })
 
 withDefaults(
   defineProps<{
-    /** Hide the button that adds a sheet. */
+    /** Whether to show the button that adds a sheet; `true` by default. */
     addable?: boolean
   }>(),
   { addable: true },

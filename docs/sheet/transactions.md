@@ -4,14 +4,27 @@
 
 ## 基础用法
 
-```ts
-sheet.value.transact((tr) => {
-  tr.setValue('A5', '鼠标')
-  tr.updateCell('B5', { value: 98, format: '#,##0' })
-  tr.setValue("'表 2'!A1", '汇总') // 指定工作表
-  tr.setValue({ row: 4, col: 2 }, true) // 用坐标，即 C5
-  tr.setSize('col', 0, 140)
-})
+```vue
+<script setup lang="ts">
+import { DouSheet } from '@dou-ui/sheet'
+import { useTemplateRef } from 'vue'
+
+const sheet = useTemplateRef<InstanceType<typeof DouSheet>>('sheet')
+
+function fill() {
+  sheet.value?.transact((tr) => {
+    tr.setValue('A5', '鼠标')
+    tr.updateCell('B5', { value: 98, format: '#,##0' })
+    tr.setValue("'表 2'!A1", '汇总') // 指定工作表
+    tr.setValue({ row: 4, col: 2 }, true) // 用坐标，即 C5
+    tr.setSize('col', 0, 140)
+  })
+}
+</script>
+
+<template>
+  <DouSheet ref="sheet" v-model="book" />
+</template>
 ```
 
 <DocDemo src="sheet/transact" column />
@@ -71,7 +84,10 @@ sheet.value.transact((tr) => {
 | `comment`                | 发起、删除讨论时写入或去掉单元格的 `comment`，见[评论](./comments) |
 | `restore`                | 恢复到某个版本，见[历史版本](./versions)                           |
 | `protect`                | 锁定单元格，保护工作表和工作簿结构                                 |
-| `style`、`freeze`        | 工具栏或快捷键修改样式、格式；工具栏冻结行列                       |
+| `style`、`freeze`        | 工具栏或快捷键修改样式、数字格式；工具栏冻结行列                   |
+| `sort`、`filter`         | 排序；开关筛选、修改筛选条件，见[筛选与排序](./filter)             |
+| `format`                 | 添加、修改和删除条件格式，见[条件格式](./rules)                    |
+| `validation`             | 添加、修改和删除数据验证，见[数据验证](./rules)                    |
 | `sheet`                  | 标签栏里新建、重命名、复制、移动、删除工作表                       |
 | `import`                 | 导入文件                                                           |
 | `replace`                | 查找面板里的替换、全部替换                                         |
@@ -93,28 +109,30 @@ sheet.value.transact((tr) => {
 
 ### 事务方法
 
-各页列出了相关的方法：[行、列与合并](./rows#事务方法)、[批注与链接](./notes#事务方法)、[排序、筛选与查找](./filter#事务方法)、[条件格式与数据验证](./rules#事务方法)、[保护](./protect#事务方法)、[工具栏与工作表](./toolbar#事务方法)。下面是读写单元格的方法：
+各页列出了相关的方法：[行、列与合并](./rows#事务方法)、[批注与链接](./notes#事务方法)、[筛选、排序与查找](./filter#事务方法)、[条件格式与数据验证](./rules#事务方法)、[保护](./protect#事务方法)、[工具栏与工作表](./toolbar#事务方法)。下面是读写单元格的方法：
 
-| 方法                        | 说明                                                                                                       |
-| --------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `getCell(cell)`             | 读取单元格，包括这次事务里已经做的修改                                                                     |
-| `setValue(cell, value)`     | 写入值，保留样式和格式                                                                                     |
-| `updateCell(cell, patch)`   | 修改单元格的部分字段，值为 `undefined` 的字段会被删除                                                      |
-| `setCell(cell, input)`      | 整个替换单元格，`undefined` 清空                                                                           |
-| `setCells(cell, block)`     | 以 `cell` 为左上角写入一块单元格（二维数组）                                                               |
-| `clearValues(range)`        | 清空一片区域的值，保留样式                                                                                 |
-| `moveCells(range, cell)`    | 把一块单元格移到以 `cell` 为左上角的位置，原位置清空                                                       |
-| `fill(from, to, { mode? })` | 用 `from` 的内容按填充柄的规则填满 `to`；`mode` 为 `auto`（默认）、`series`（一个数字也逐个加一）或 `copy` |
-| `setComment(cell, id)`      | 把讨论放到单元格上，`undefined` 去掉，见[评论](./comments#用代码修改)                                      |
-| `cancel(reason?)`           | 取消这次修改，在扩展的 `transaction` 里使用                                                                |
-| `setMeta(meta)`             | 设置修改选项                                                                                               |
+| 方法                                    | 说明                                                                                                                                                                 |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `getCell(cell)`                         | 读取单元格，包括这次事务里已经做的修改                                                                                                                               |
+| `setValue(cell, value)`                 | 写入值，保留样式和格式                                                                                                                                               |
+| `updateCell(cell, patch)`               | 修改单元格的部分字段，值为 `undefined` 的字段会被删除                                                                                                                |
+| `setCell(cell, input)`                  | 整个替换单元格，`undefined` 清空                                                                                                                                     |
+| `setCells(cell, block)`                 | 以 `cell` 为左上角写入一块单元格（二维数组）                                                                                                                         |
+| `clearValues(range)`                    | 清空一片区域的值，保留样式                                                                                                                                           |
+| `moveCells(range, cell)`                | 把一块单元格移到以 `cell` 为左上角的位置，原位置清空                                                                                                                 |
+| `fill(from, to, { mode?, keepStyle? })` | 用 `from` 的内容按填充柄的规则填满 `to`；`mode` 为 `auto`（默认）、`series`（一个数字也逐个加一）或 `copy`；`keepStyle` 为 `true` 时被填的单元格保留自己的样式和格式 |
+| `setComment(cell, id)`                  | 把讨论放到单元格上，`undefined` 去掉，见[评论](./comments#用代码修改)                                                                                                |
+| `cancel(reason?)`                       | 取消这次修改，在扩展的 `transaction` 里使用                                                                                                                          |
+| `setMeta(meta)`                         | 设置修改选项                                                                                                                                                         |
 
 ### SheetTransaction
 
-| 属性                        | 说明                                 |
-| --------------------------- | ------------------------------------ |
-| `steps`、`inverse`          | 这次修改的步骤、撤销它的步骤         |
-| `meta`                      | 修改选项，`meta.action` 是修改的来源 |
-| `changed`                   | 是否有改动                           |
-| `cancelled`、`cancelReason` | 是否被取消、取消的原因               |
-| `doc`                       | 修改后的工作簿                       |
+| 属性                        | 说明                                                 |
+| --------------------------- | ---------------------------------------------------- |
+| `steps`、`inverse`          | 这次修改的步骤、撤销它的步骤                         |
+| `meta`                      | 修改选项，`meta.action` 是修改的来源                 |
+| `changed`                   | 是否有改动                                           |
+| `cancelled`、`cancelReason` | 是否被取消、取消的原因                               |
+| `doc`                       | 修改后的工作簿                                       |
+| `before`                    | 修改前的工作簿                                       |
+| `sheet`                     | 没写工作表时，单元格和区域所在的工作表（序号或名称） |

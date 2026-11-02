@@ -9,7 +9,7 @@
 ```ts
 const book = {
   version: 1,
-  styles: { blank: { locked: false } },
+  styles: { head: { bold: true }, blank: { locked: false } },
   sheets: [
     {
       name: '报价单',

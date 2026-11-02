@@ -38,7 +38,7 @@ const extensions = [progress]
 
 各部分的写法见：
 
-- [自定义单元格类型](./cell-types)：`cellTypes`
+- [自定义单元格类型](./custom-cell-types)：`cellTypes`
 - [命令与工具栏按钮](./commands)：`commands`、`keymap`、`contextMenu`、`toolbar`
 - [导出器与导入器](./exporters)：`exporters`、`importers`
 - [自定义函数](./formulas#自定义函数)：`functions`
@@ -97,7 +97,7 @@ const systemColumn = defineSheetExtension({
 - 组件触发 `transactionCancel` 事件，`tr.cancelReason` 是取消的原因。`transact` 返回的事务 `tr.cancelled` 为 `true`。
 - 撤销、重做和协同编辑里别人的修改（`meta.history` 为 `false`）已经发生过，不能取消，调用 `cancel()` 不起作用。
 
-[保护](./protect)就是这样实现的：表格在扩展之后检查每次修改，违反保护时取消它。流程图和甘特图的扩展也用同样的 `tr.cancel()`。
+[保护](./protect)也会取消违反它的修改，同样触发 `transactionCancel`。在事件里用 `checkProtection(tr)` 可以分清是被保护还是被扩展取消的。
 
 ## 改写粘贴的内容
 
@@ -155,7 +155,7 @@ ctx.transact(
 | ---------------- | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------- |
 | `name`           | 扩展的名字                                                                           | `string`                                                          |
 | `priority`       | 优先级，越大越先处理按键和钩子                                                       | `number`，默认 `100`                                              |
-| `cellTypes`      | 单元格类型，见[自定义单元格类型](./cell-types)                                       | `SheetCellType[]`                                                 |
+| `cellTypes`      | 单元格类型，见[自定义单元格类型](./custom-cell-types)                                | `SheetCellType[]`                                                 |
 | `functions`      | 公式里可以调用的函数，见[自定义函数](./formulas#自定义函数)                          | `SheetFunction[]`                                                 |
 | `commands`       | 命令，见[命令](./commands)                                                           | `Record<string, SheetCommand>`                                    |
 | `keymap`         | 快捷键，见[快捷键](./commands#快捷键)                                                | `(ctx) => Record<string, ((event) => boolean \| void) \| string>` |

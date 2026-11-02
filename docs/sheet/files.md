@@ -66,7 +66,7 @@ async function onImport(event: SheetImportEvent) {
 
 ## 出错时
 
-导入或保存文件失败时，表格上方显示一条简短的提示，同时触发 `fileError` 事件。失败的情况包括没有能读这个文件的导入方式、导入方式出错、导出的图片太大。
+导入或保存文件失败时，表格下方显示一条简短的提示，同时触发 `fileError` 事件。失败的情况包括没有能读这个文件的导入方式、导入方式出错、导出的图片太大。
 
 - 事件里有 `action`（`'import'` 或 `'export'`）、`file`、`importer` 或 `exporter`、`error`，以及表格要显示的提示文字 `message`。
 - 在事件里调用 `preventDefault()`，表格不再显示自带的提示，读屏仍会播报。

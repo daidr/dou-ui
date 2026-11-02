@@ -1,9 +1,9 @@
-<script setup>
-import { DouSheet } from '@dou-ui/sheet'
-import { DouButton } from 'dou-ui'
-import { ref, shallowRef } from 'vue'
+<script setup lang="ts">
+import { DouSheet, type SheetWorkbook } from '@dou-ui/sheet'
+import { DouButton, DouToggle } from 'dou-ui'
+import { ref, useTemplateRef } from 'vue'
 
-const book = ref({
+const book = ref<SheetWorkbook>({
   version: 1,
   styles: { head: { bold: true } },
   sheets: [
@@ -24,20 +24,28 @@ const book = ref({
 })
 
 // 表格外的按钮通过 ref 上的 commands 执行命令
-const sheet = shallowRef()
-const run = (name) => sheet.value?.commands.run(name)
-const pressed = (name) => !!sheet.value?.commands.pressed(name)
+const sheet = useTemplateRef<InstanceType<typeof DouSheet>>('sheet')
+const run = (name: string) => sheet.value?.commands.run(name)
+const pressed = (name: string) => !!sheet.value?.commands.pressed(name)
+const can = (name: string) => !!sheet.value?.commands.can(name)
 </script>
 
 <template>
   <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px">
-    <DouButton size="sm" :variant="pressed('bold') ? 'solid' : 'outline'" @click="run('bold')">
+    <DouToggle size="sm" variant="outline" :pressed="pressed('bold')" @update:pressed="run('bold')">
       加粗
+    </DouToggle>
+    <DouButton size="sm" variant="outline" :disabled="!can('merge')" @click="run('merge')">
+      合并
     </DouButton>
-    <DouButton size="sm" variant="outline" @click="run('merge')">合并</DouButton>
-    <DouButton size="sm" :variant="pressed('filter') ? 'solid' : 'outline'" @click="run('filter')">
+    <DouToggle
+      size="sm"
+      variant="outline"
+      :pressed="pressed('filter')"
+      @update:pressed="run('filter')"
+    >
       筛选
-    </DouButton>
+    </DouToggle>
     <DouButton size="sm" variant="outline" @click="run('find')">查找</DouButton>
   </div>
   <DouSheet ref="sheet" v-model="book" style="height: 200px" />

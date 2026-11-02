@@ -54,10 +54,10 @@ const book = ref<SheetWorkbook>({
 :deep(.status-bar) {
   display: flex;
   justify-content: space-between;
-  padding: 4px 12px;
+  padding: var(--dou-space-sm) var(--dou-space-md);
   border-top: 1px solid var(--dou-color-border);
   color: var(--dou-color-text-secondary);
-  font-size: 12px;
+  font-size: var(--dou-font-size-sm);
   font-variant-numeric: tabular-nums;
 }
 </style>

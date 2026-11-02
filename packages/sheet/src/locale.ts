@@ -1507,6 +1507,20 @@ const en: SheetMessages = {
   },
 }
 
+/**
+ * Texts to override: any of them, and in a group (error reasons, function
+ * help, …) any of its entries.
+ */
+export type SheetMessagesOverride = {
+  [K in keyof SheetMessages]?: SheetMessages[K] extends string
+    ? string
+    : SheetMessages[K] extends readonly unknown[]
+      ? SheetMessages[K]
+      : SheetMessages[K] extends (...args: never[]) => unknown
+        ? SheetMessages[K]
+        : Partial<SheetMessages[K]>
+}
+
 export const sheetLocales: Record<string, SheetMessages> = {
   'zh-CN': zhCN,
   'zh-TW': zhTW,

@@ -83,7 +83,7 @@ app.use(DouSheet)
 | `commentable`           | 能否发起和回复讨论                                           | `boolean`                                | `true`  |
 | `compare`               | 要对比的旧版本，见[历史版本](./versions)                     | `SheetWorkbook \| null`                  | —       |
 | `ariaLabel`             | 表格的无障碍名称                                             | `string`                                 | —       |
-| `messages`              | 覆盖表格的文案，只需写要改的部分                             | `Partial<SheetMessages>`                 | —       |
+| `messages`              | 覆盖表格的文案，只需写要改的部分                             | `SheetMessagesOverride`                  | —       |
 
 ### Sheet Events
 
@@ -106,25 +106,25 @@ app.use(DouSheet)
 
 ### Sheet Exposes
 
-| 名称                                                | 说明                                                               |
-| --------------------------------------------------- | ------------------------------------------------------------------ |
-| `transact(run, meta?)`                              | 在一个事务里修改，返回这次的事务，见[用代码修改](./transactions)   |
-| `undo()`、`redo()`                                  | 撤销、重做，返回是否执行                                           |
-| `canUndo`、`canRedo`                                | 能否撤销、重做                                                     |
-| `commands`                                          | 执行和查询命令，见[命令](./commands)                               |
-| `select(target)`                                    | 选中一个区域并滚动到那里，如 `'A1:C4'`、`'B:B'`                    |
-| `scrollTo(cell)`                                    | 把单元格滚动到可见处                                               |
-| `showSheet(sheet)`                                  | 按序号、`id` 或名字切换工作表，没有这个工作表时返回 `false`        |
-| `edit(cell?)`                                       | 打开单元格的编辑框，默认当前单元格                                 |
-| `editNote(cell?)`、`editLink(cell?)`                | 打开批注、链接的输入框，见[批注与链接](./notes)                    |
-| `focus()`                                           | 让表格获得焦点                                                     |
-| `copy()`、`cut()`、`paste(clip?)`                   | 复制、剪切、粘贴，见[复制与粘贴](./clipboard)                      |
-| `openSearch(query?)`、`closeSearch()`               | 打开、关闭查找面板，见[查找和替换](./filter#查找和替换)            |
-| `findCells(query)`                                  | 查找单元格，返回 `{ sheet, row, col }` 列表                        |
-| `findInvalid(sheet?)`                               | 不符合数据验证的单元格，见[数据验证](./rules#数据验证)             |
-| `toCSV(options?)`                                   | 当前工作表转成 CSV 文本，见[CSV](./files#csv)                      |
-| `exportSVG(options?)`、`exportPNG(options?)`        | 导出图片，见[导出图片与打印](./files#导出图片与打印)               |
-| `print(options?)`                                   | 打印整张工作表                                                     |
-| `exportFile`、`saveFile`、`importFile`              | 导出、导出并下载、导入文件，见[导入导出](./files)                  |
-| `comment(cell?)`、`getCommentAnchors()`             | 打开讨论、读取讨论所在的单元格，见[评论](./comments)               |
-| `restore(book)`、`nextChange()`、`previousChange()` | 恢复版本、在对比中跳到下一处或上一处改动，见[历史版本](./versions) |
+| 名称                                                | 说明                                                                                  |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `transact(run, meta?)`                              | 在一个事务里修改，返回这次的事务，见[用代码修改](./transactions)                      |
+| `undo()`、`redo()`                                  | 撤销、重做，返回是否执行                                                              |
+| `canUndo`、`canRedo`                                | 能否撤销、重做                                                                        |
+| `commands`                                          | 执行和查询命令，见[命令](./commands)                                                  |
+| `select(target)`                                    | 选中一个区域并滚动到那里，如 `'A1:C4'`、`'B:B'`                                       |
+| `scrollTo(cell)`                                    | 把单元格滚动到可见处                                                                  |
+| `showSheet(sheet)`                                  | 按序号、`id` 或名字切换工作表，没有这个工作表时返回 `false`                           |
+| `edit(cell?)`                                       | 打开单元格的编辑框，默认当前单元格                                                    |
+| `editNote(cell?)`、`editLink(cell?)`                | 打开批注、链接的输入框，见[批注与链接](./notes)                                       |
+| `focus()`                                           | 让表格获得焦点                                                                        |
+| `copy()`、`cut()`、`paste(clip?)`                   | 复制、剪切、粘贴，见[复制与粘贴](./clipboard)                                         |
+| `openSearch(query?)`、`closeSearch()`               | 打开、关闭查找面板，没有打开或关闭时返回 `false`，见[查找和替换](./filter#查找和替换) |
+| `findCells(query)`                                  | 查找单元格，返回 `{ sheet, row, col }` 列表                                           |
+| `findInvalid(sheet?)`                               | 不符合数据验证的单元格，见[数据验证](./rules#数据验证)                                |
+| `toCSV(options?)`                                   | 当前（或 `sheet` 指定的）工作表转成 CSV 文本，见[CSV](./files#csv)                    |
+| `exportSVG(options?)`、`exportPNG(options?)`        | 导出图片，见[导出图片与打印](./files#导出图片与打印)                                  |
+| `print(options?)`                                   | 打印整张工作表                                                                        |
+| `exportFile`、`saveFile`、`importFile`              | 导出、导出并下载、导入文件，见[导入导出](./files)                                     |
+| `comment(cell?)`、`getCommentAnchors()`             | 打开讨论（打不开时返回 `false`）、读取讨论所在的单元格，见[评论](./comments)          |
+| `restore(book)`、`nextChange()`、`previousChange()` | 恢复版本、在对比中跳到下一处或上一处改动，见[历史版本](./versions)                    |

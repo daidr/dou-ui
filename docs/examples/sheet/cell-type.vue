@@ -33,7 +33,8 @@ const rating = defineSheetCellType({
   format: (value) => (typeof value === 'number' ? `${value} 星` : undefined),
   edit: (value) => (typeof value === 'number' ? String(value) : undefined),
   valid: (value) =>
-    (Number.isInteger(value) && Number(value) >= 0 && Number(value) <= 5) || '评分要填 0 到 5',
+    (Number.isInteger(value) && Number(value) >= 0 && Number(value) <= 5) ||
+    '评分应为 0 到 5 的整数',
   render: Stars,
   plain: (value) => value,
 })
@@ -69,9 +70,10 @@ const book = ref<SheetWorkbook>({
   display: inline-flex;
   gap: 2px;
   color: var(--dou-color-text-tertiary);
-  font-size: 14px;
+  font-size: var(--dou-font-size-md);
 }
 :deep(.rating-cell .is-on) {
   color: var(--dou-color-warning);
+  fill: currentColor;
 }
 </style>

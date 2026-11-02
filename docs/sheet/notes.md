@@ -34,7 +34,7 @@ const cells = [[{ value: '场地', note: '上海展览中心 2 号厅，含两�
 
 ## 链接
 
-单元格的 `link` 是它的链接，值可以是任何内容。带链接的单元格文字显示为强调色并加下划线。
+`link` 是单元格的链接地址，单元格的值可以是任何内容。带链接的单元格文字显示为强调色并加下划线。
 
 ```ts
 const cells = [
@@ -113,3 +113,4 @@ function onLinkOpen(event: SheetLinkOpenEvent) {
 | `target`           | 链接指向哪里：`{ kind: 'web', href }` 或 `{ kind: 'cell', sheet?, range }` | `SheetLinkTarget`     |
 | `cell`             | 单元格：工作表的序号、行和列                                               | `{ sheet, row, col }` |
 | `preventDefault()` | 不让表格自己打开                                                           | `() => void`          |
+| `defaultPrevented` | 是否已调用 `preventDefault()`                                              | `boolean`             |

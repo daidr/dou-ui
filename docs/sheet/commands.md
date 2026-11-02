@@ -14,7 +14,7 @@ const { commands } = useSheet()
 commands.run('bold', true) // 加粗选区
 commands.can('merge') // 现在能否合并
 commands.pressed('filter') // 是否有筛选
-commands.get('today.insert') // { name, label, icon, shortcut, toggle }
+commands.get('today.insert') // { name, label, icon, shortcut, toggle, builtin }
 ```
 
 - `run` 在命令不能执行或没做任何事时返回 `false`；异步命令开始执行就返回 `true`。
@@ -120,14 +120,14 @@ const today = defineSheetExtension({
 
 ### SheetCommands
 
-| 名称              | 说明                                           |
-| ----------------- | ---------------------------------------------- |
-| `run(name, arg?)` | 执行命令，返回是否执行                         |
-| `can(name)`       | 命令是否存在并且现在能执行                     |
-| `pressed(name)`   | 开关类命令是否打开                             |
-| `get(name)`       | 命令的文字、图标和快捷键；没有时为 `undefined` |
-| `has(name)`       | 是否有这个命令                                 |
-| `names()`         | 所有命令的名字，包括内置的和扩展加的           |
+| 名称              | 说明                                                                         |
+| ----------------- | ---------------------------------------------------------------------------- |
+| `run(name, arg?)` | 执行命令，返回是否执行                                                       |
+| `can(name)`       | 命令是否存在并且现在能执行                                                   |
+| `pressed(name)`   | 开关类命令是否打开                                                           |
+| `get(name)`       | 命令的文字、图标、快捷键，以及是否是内置命令 `builtin`；没有时为 `undefined` |
+| `has(name)`       | 是否有这个命令                                                               |
+| `names()`         | 所有命令的名字，包括内置的和扩展加的                                         |
 
 ### SheetToolbarItem
 

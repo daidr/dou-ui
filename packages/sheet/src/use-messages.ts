@@ -1,12 +1,12 @@
 import { useLocale } from 'dou-ui'
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
-import { sheetMessagesFor, type SheetMessages } from './locale'
+import { sheetMessagesFor, type SheetMessages, type SheetMessagesOverride } from './locale'
 
 /**
  * The spreadsheet's texts, picked by the name of DouUI's current locale.
  * Pass `messages` to override any of them.
  */
-export function useSheetMessages(override?: MaybeRefOrGetter<Partial<SheetMessages> | undefined>) {
+export function useSheetMessages(override?: MaybeRefOrGetter<SheetMessagesOverride | undefined>) {
   const { locale } = useLocale()
   return computed<SheetMessages>(() => {
     const base = sheetMessagesFor(locale.value.name)

@@ -49,16 +49,6 @@ describe('server rendering', () => {
     const problems = [...warn.mock.calls, ...error.mock.calls]
       .map((args) => String(args[0]))
       .filter((message) => /hydration|mismatch/i.test(message))
-    for (const c of [...warn.mock.calls, ...error.mock.calls])
-      process.stdout.write(
-        c
-          .map((x) =>
-            x instanceof Node
-              ? ((x as Element).outerHTML?.slice(0, 300) ?? x.textContent)
-              : String(x).slice(0, 300),
-          )
-          .join(' | ') + '\n',
-      )
     expect(problems).toEqual([])
     app.unmount()
   })

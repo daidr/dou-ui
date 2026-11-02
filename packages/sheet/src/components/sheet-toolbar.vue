@@ -53,6 +53,7 @@ import {
   computed,
   nextTick,
   onBeforeUnmount,
+  onMounted,
   ref,
   useTemplateRef,
   watch,
@@ -274,7 +275,11 @@ const childIcon = (child: SheetMenuItem) =>
 const childShortcut = (child: SheetMenuItem) =>
   child.shortcut ?? (child.command ? sheet.commands.get(child.command)?.shortcut : undefined)
 // shortcuts mean nothing without a keyboard, as in the right-click menu
-const coarse = () => typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches
+// Read once mounted, so server-rendered markup matches the first render.
+const coarse = ref(false)
+onMounted(() => {
+  coarse.value = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches
+})
 const childDisabled = (child: SheetMenuItem) =>
   child.disabled ?? (child.command ? !sheet.commands.can(child.command) : false)
 
@@ -746,7 +751,7 @@ onBeforeUnmount(() => observer?.disconnect())
                           :disabled="childDisabled(grand)"
                           :divided="grand.divided"
                           :tone="grand.tone"
-                          :shortcut="coarse() ? undefined : childShortcut(grand)"
+                          :shortcut="coarse ? undefined : childShortcut(grand)"
                           @click="runChild(grand)"
                         >
                           <template v-if="childIcon(grand)" #prefix>
@@ -760,7 +765,7 @@ onBeforeUnmount(() => observer?.disconnect())
                         :disabled="childDisabled(child)"
                         :divided="child.divided"
                         :tone="child.tone"
-                        :shortcut="coarse() ? undefined : childShortcut(child)"
+                        :shortcut="coarse ? undefined : childShortcut(child)"
                         @click="runChild(child)"
                       >
                         <template v-if="childIcon(child)" #prefix>

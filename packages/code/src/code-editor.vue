@@ -27,6 +27,7 @@ import {
   holdPointer,
   isApplePlatform,
   isComposing,
+  useGlobalConfig,
   useLocale,
   useNamespace,
   useZIndex,
@@ -148,7 +149,7 @@ const props = withDefaults(defineProps<CodeEditorProps>(), {
   foldable: true,
   keys: true,
   messages: undefined,
-  teleport: false,
+  teleport: undefined,
   tabIndents: true,
   gutter: true,
 })
@@ -2203,6 +2204,37 @@ function closeProblems() {
 // The touch toolbar and the hover box would cover each other: the toolbar, asked for last, wins.
 watch(menuOpen, (open) => open && closeProblems())
 
+// A press anywhere else on the page puts the box away; inside the editor, the press decides.
+function onPressAway(event: PointerEvent) {
+  const at = event.target as Node | null
+  if (at && (root.value?.contains(at) || problemEl.value?.contains(at))) return
+  closeProblems()
+}
+watch(
+  () => !!problemBox.value,
+  (open, _old, onCleanup) => {
+    if (!open || typeof window === 'undefined') return
+    window.addEventListener('pointerdown', onPressAway, true)
+    onCleanup(() => window.removeEventListener('pointerdown', onPressAway, true))
+  },
+)
+
+/** The line whose problem icon in the gutter is under a pointer. */
+function problemIconLine(event: Event) {
+  const cell = (event.target as Element | null)?.closest?.(`.${ns.e('problem-icon')}`)
+  const line = cell?.getAttribute('data-line')
+  return line ? Number(line) : null
+}
+
+/** Shows the problems on a line, as a press on its icon in the gutter asks. */
+function showLineProblems(n: number) {
+  const line = doc.value.line(n)
+  const first = diagnostics.value.find((problem) => problem.from >= line.from)
+  if (!first || first.from > line.to) return
+  menuOpen.value = false
+  showInfo(first.from, false)
+}
+
 function runFix(index: number) {
   const fix = fixes.value[index]
   if (!fix) return
@@ -2326,18 +2358,10 @@ function floatingStyle(pos: number, size: { width: number; height: number }, abo
   let view = visibleBox()
   if (floatingTarget.value) {
     // Above the page: in the window's coordinates, wherever the window is scrolled.
-    void viewportTick.value
-    if (inside.top + lineHeight.value <= view.top || inside.top >= view.bottom) return null
-    if (inside.x < view.left || inside.x > view.right) return null
-    const rect = content.value?.getBoundingClientRect()
-    if (!rect) return null
-    at = { x: rect.left + inside.x, top: rect.top + inside.top }
-    view = {
-      left: 0,
-      top: 0,
-      right: document.documentElement.clientWidth,
-      bottom: document.documentElement.clientHeight,
-    }
+    const page = toPage(inside)
+    if (!page) return null
+    at = page
+    view = pageBox()
   }
   const { width, height } = size
   const lh = lineHeight.value
@@ -2813,23 +2837,81 @@ watch([signatureEl, signature], () => measureFloating(signatureEl.value, signatu
   flush: 'post',
 })
 
-/** Where the boxes about the text render: inside the frame (`null`), or above the page. */
-const floatingTarget = computed(() => props.teleport || null)
+const config = useGlobalConfig()
+/**
+ * Where the boxes about the text and the touch handles render: above the
+ * page by default, so a short editor never cuts them off; inside the frame
+ * (`null`) when `teleport` is `false`, and until the editor is mounted.
+ */
+const floatingTarget = computed(() =>
+  // Only once mounted: the server's markup keeps them in place, so hydrating never looks for them in the body.
+  props.teleport === false || !mounted.value
+    ? null
+    : props.teleport || config.value.teleport || 'body',
+)
 const floatingZ = ref(0)
 /** Bumped when the page scrolls or resizes, for boxes placed in the window's coordinates. */
 const viewportTick = ref(0)
 const bumpViewport = () => viewportTick.value++
-const floatingOpen = computed(() => !!(problemBox.value || completion.value || signature.value))
+const floatingOpen = computed(
+  () =>
+    !!(problemBox.value || completion.value || signature.value) || (touchUi.value && focused.value),
+)
 watch(floatingOpen, (open, _old, onCleanup) => {
   if (!open || !floatingTarget.value || typeof window === 'undefined') return
   floatingZ.value = nextZIndex()
+  const vv = window.visualViewport
   window.addEventListener('scroll', bumpViewport, { capture: true, passive: true })
   window.addEventListener('resize', bumpViewport, { passive: true })
+  vv?.addEventListener('resize', bumpViewport, { passive: true })
+  vv?.addEventListener('scroll', bumpViewport, { passive: true })
   onCleanup(() => {
     window.removeEventListener('scroll', bumpViewport, { capture: true })
     window.removeEventListener('resize', bumpViewport)
+    vv?.removeEventListener('resize', bumpViewport)
+    vv?.removeEventListener('scroll', bumpViewport)
   })
 })
+
+/** Where a point of the content is in the window; `null` while it is out of the editor's view. */
+function toPage(inside: { x: number; top: number }) {
+  void viewportTick.value
+  const view = visibleBox()
+  if (inside.top + lineHeight.value <= view.top || inside.top >= view.bottom) return null
+  if (inside.x < view.left - 1 || inside.x > view.right + 1) return null
+  const rect = content.value?.getBoundingClientRect()
+  if (!rect) return null
+  return { x: rect.left + inside.x, top: rect.top + inside.top }
+}
+
+/** The editor's text in view, in the window's coordinates. */
+function frameInPage() {
+  void viewportTick.value
+  const view = visibleBox()
+  const rect = content.value?.getBoundingClientRect()
+  const x = rect?.left ?? 0
+  const y = rect?.top ?? 0
+  return { left: x + view.left, top: y + view.top, right: x + view.right, bottom: y + view.bottom }
+}
+
+/**
+ * The part of the page in view, in the window's coordinates: on a phone,
+ * above the keyboard and the bar of keys over it.
+ */
+function pageBox() {
+  void viewportTick.value
+  const vv = window.visualViewport
+  const left = vv ? vv.offsetLeft : 0
+  const top = vv ? vv.offsetTop : 0
+  const width = vv ? vv.width : document.documentElement.clientWidth
+  const height = vv ? vv.height : document.documentElement.clientHeight
+  return {
+    left,
+    top,
+    right: left + width,
+    bottom: top + height - (showKeys.value ? KEYS_SPACE : 0),
+  }
+}
 
 /** After each change: opens, updates or closes the completion list and the parameter hints, and moves the snippet's places. */
 function updateAssist(result: CodeTransactionResult) {
@@ -2944,8 +3026,19 @@ const searchControl = {
 
 // ---------------------------------------------------------------- the hidden textarea
 
-/** What the textarea holds: the text from `from` to `to`, and the caret inside it. */
-let mirror = { from: 0, to: 0, value: '', start: 0, end: 0 }
+/**
+ * What the textarea holds: the text from `from` to `to`, and the caret
+ * inside it. `selected` is the selection its caret stands for, on a touch
+ * screen: whatever the textarea is given there replaces it.
+ */
+let mirror: {
+  from: number
+  to: number
+  value: string
+  start: number
+  end: number
+  selected: { from: number; to: number } | null
+} = { from: 0, to: 0, value: '', start: 0, end: 0, selected: null }
 const inputBox = ref({ top: pad.y, left: pad.x, height: 20 })
 
 function syncInput() {
@@ -2963,9 +3056,14 @@ function syncInput() {
     from = line.from + snapCluster(line.text, from - line.from)
   }
   const value = text.slice(from, to)
-  const start = Math.max(0, Math.min(rangeFrom(main), to) - from)
+  let start = Math.max(0, Math.min(rangeFrom(main), to) - from)
   const end = Math.max(0, Math.min(rangeTo(main), to) - from)
-  mirror = { from, to, value, start, end }
+  // On a touch screen the textarea keeps only a caret, at the selection's end: a selection
+  // there would bring the system's own handles and menu up over the editor's.
+  const selected =
+    coarse.value && !isEmptyRange(main) ? { from: rangeFrom(main), to: rangeTo(main) } : null
+  if (selected) start = end
+  mirror = { from, to, value, start, end, selected }
   composeMap = null
   // Put the textarea where its caret lines up with the drawn main cursor, so input methods open there.
   const startLine = text.lineAt(from)
@@ -2988,14 +3086,21 @@ function syncInput() {
     el.setSelectionRange(start, end, main.head < main.anchor ? 'backward' : 'forward')
 }
 
+/** The text a change in the textarea replaces: the part it changed, or the selection its caret stands for. */
+function inputRange(diff: { from: number; to: number }) {
+  const { selected } = mirror
+  const from = composedPos(selected ? selected.from : mirror.from + diff.from, -1)
+  const to = Math.max(from, composedPos(selected ? selected.to : mirror.from + diff.to, 1))
+  return { from, to }
+}
+
 /** Turns what the textarea now holds into a change of the text. */
 function readInput() {
   const el = input.value
   if (!el || props.readonly) return
   const diff = diffText(mirror.value, el.value, mirror.start)
   if (!diff) return
-  const from = composedPos(mirror.from + diff.from, -1)
-  const to = Math.max(from, composedPos(mirror.from + diff.to, 1))
+  const { from, to } = inputRange(diff)
   let { insert } = diff
   // The Enter that confirmed a composition only confirms it.
   if (insert.endsWith('\n') && performance.now() - confirmEnter < 200) {
@@ -3012,6 +3117,9 @@ function readInput() {
     dispatch(transaction().replaceSelection(insert).setMeta({ action: 'input' }))
     return
   }
+  // The caret standing for the selection deleted something: the selection goes.
+  if (mirror.selected && !insert && from === rangeFrom(main) && to === rangeTo(main))
+    return run(deleteCharBackward)
   if (!insert && isEmptyRange(main)) {
     const line = text.lineAt(main.head)
     const col = main.head - line.from
@@ -3024,6 +3132,10 @@ function readInput() {
   // Anything else (autocorrect, a word recomposed): apply it as it is, and take the caret the textarea has.
   const tr = transaction().setMeta({ action: insert ? 'input' : 'delete' })
   tr.replace(from, to, insert)
+  if (mirror.selected) {
+    dispatch(tr.select(from + insert.length))
+    return
+  }
   const result = tr.resolve()
   const base = composedPos(mirror.from, 1)
   const caret = (offset: number) => base + offset
@@ -3044,9 +3156,7 @@ function onInput() {
       preview.value = null
       return
     }
-    const from = composedPos(mirror.from + diff.from, -1)
-    const to = Math.max(from, composedPos(mirror.from + diff.to, 1))
-    preview.value = { from, to, insert: diff.insert }
+    preview.value = { ...inputRange(diff), insert: diff.insert }
     return
   }
   readInput()
@@ -3498,6 +3608,13 @@ function onPointerDown(event: PointerEvent, area: 'text' | 'gutter') {
     return
   }
   const pos = posAtCoords({ x: event.clientX, y: event.clientY })
+  // A click on a problem's icon shows it; a finger's tap does, once it ends in place.
+  const iconLine = area === 'gutter' ? problemIconLine(event) : null
+  if (iconLine !== null && event.pointerType === 'mouse') {
+    event.preventDefault()
+    showLineProblems(iconLine)
+    return
+  }
   if (event.pointerType !== 'mouse') {
     onPointerCancel()
     const x = event.clientX
@@ -3506,7 +3623,11 @@ function onPointerDown(event: PointerEvent, area: 'text' | 'gutter') {
       x,
       y,
       pointer: event.pointerId,
-      hold: holdPointer(event, root.value),
+      // Lets go when the finger lifts unheard (Safari can send its `pointerup` to a removed line).
+      hold: holdPointer(event, root.value, () => {
+        onPointerCancel()
+        endDrag()
+      }),
       // A long press selects the word under the finger; sliding on from there selects word by word.
       timer: window.setTimeout(() => {
         if (!touch) return
@@ -3561,6 +3682,8 @@ function onPointerMove(event: PointerEvent) {
 function onPointerUp(event: PointerEvent, area: 'text' | 'gutter') {
   if (!touch || event.pointerId !== touch.pointer) return
   onPointerCancel()
+  const iconLine = area === 'gutter' ? problemIconLine(event) : null
+  if (iconLine !== null) return showLineProblems(iconLine)
   const pos = posAtCoords({ x: event.clientX, y: event.clientY })
   const main = mainRange(state.value.selection)
   // A tap on the cursor itself opens the toolbar, or puts it away.
@@ -3619,8 +3742,10 @@ const handles = computed(() => {
       ]
   const out: Array<{ kind: HandleKind; left: number; top: number }> = []
   for (const [kind, pos] of ends) {
-    const at = pointOf(pos)
-    if (at) out.push({ kind, left: at.x, top: at.top + lineHeight.value })
+    const inside = pointOf(pos)
+    // Above the page, a handle shows only while its end is in the editor's view.
+    const at = inside && floatingTarget.value ? toPage(inside) : inside
+    if (at) out.push({ kind, left: Math.round(at.x), top: Math.round(at.top + lineHeight.value) })
   }
   return out
 })
@@ -3641,7 +3766,10 @@ function onHandleDown(event: PointerEvent, kind: HandleKind) {
   event.stopPropagation()
   onPointerCancel()
   endHandlePress()
-  const hold = holdPointer(event, root.value)
+  const hold = holdPointer(event, root.value, () => {
+    clearHandlePress()
+    endDrag()
+  })
   hold.grab()
   handlePress = {
     kind,
@@ -3757,14 +3885,21 @@ const menuItems = computed(() => {
 const menuStyle = computed(() => {
   if (!menuItems.value.length) return null
   const main = mainRange(state.value.selection)
-  const start = pointOf(rangeFrom(main))
-  const end = pointOf(rangeTo(main))
+  let start = pointOf(rangeFrom(main))
+  let end = pointOf(rangeTo(main))
+  let view = visibleBox()
+  let frame = view
+  if (floatingTarget.value) {
+    start = start && toPage(start) && { ...start, ...toPage(start)! }
+    end = end && toPage(end) && { ...end, ...toPage(end)! }
+    view = pageBox()
+    frame = frameInPage()
+  }
   if (!start && !end) return null
-  const view = visibleBox()
   const { width, height } = menuSize.value
   const lh = lineHeight.value
   const sameRow = start && end && start.top === end.top
-  const x = sameRow ? (start.x + end.x) / 2 : (view.left + view.right) / 2
+  const x = sameRow ? (start!.x + end!.x) / 2 : (frame.left + frame.right) / 2
   const above = start ? start.top - GAP - height : -Infinity
   const below = (end ?? start)!.top + lh + HANDLE + GAP
   let top = above >= view.top + GAP ? above : below
@@ -3811,19 +3946,38 @@ function pasteFromClipboard() {
     .catch(() => {})
 }
 
+/** The editor's font, for the magnifier when it is drawn above the page. */
+const frameFont = shallowRef<Record<string, string>>({})
+function readFrameFont() {
+  const el = root.value
+  if (!el) return
+  const style = getComputedStyle(el)
+  frameFont.value = {
+    fontFamily: style.fontFamily,
+    fontSize: style.fontSize,
+    '--dou-code-editor-line-height': `${lineHeight.value}px`,
+    '--dou-code-editor-tab-size': String(props.tabSize),
+    '--dou-code-editor-bg': style.getPropertyValue('--dou-code-editor-bg'),
+  }
+}
+
 /** The magnifier over a finger dragging the selection: the row at the moving end, larger. */
 const MAGNIFIER = { width: 128, scale: 1.5 }
 const magnifier = computed(() => {
   if (!touchDrag.value) return null
   void metrics.value
   const head = mainRange(state.value.selection).head
-  const at = pointOf(head)
-  if (!at) return null
-  const row = rows.value.find((r) => r.n === at.n)
+  const inside = pointOf(head)
+  if (!inside) return null
+  const row = rows.value.find((r) => r.n === inside.n)
   if (!row) return null
+  const outside = !!floatingTarget.value
+  const page = outside ? toPage(inside) : inside
+  if (!page) return null
+  const at = { ...inside, x: page.x, top: page.top }
   const lh = lineHeight.value
   const height = Math.round(lh * MAGNIFIER.scale) + 8
-  const view = visibleBox()
+  const view = outside ? pageBox() : visibleBox()
   const { width } = MAGNIFIER
   const above = at.top - GAP - height
   const top = above >= view.top + 4 ? above : at.top + lh + HANDLE + GAP
@@ -3834,7 +3988,7 @@ const magnifier = computed(() => {
       ? partsOf(row)
       : ([[row.text, null]] as Part[])
   // The text, scaled from the row's left edge, slid so the moving end sits under the caret.
-  const x = at.x - pad.x
+  const x = inside.x - pad.x
   const caret = Math.max(4, Math.min(width - 4, at.x - left))
   return {
     parts,
@@ -3843,6 +3997,8 @@ const magnifier = computed(() => {
     style: {
       transform: `translate(${Math.round(left)}px, ${Math.round(top)}px)`,
       height: `${height}px`,
+      // Above the page, it takes the editor's font with it.
+      ...(outside ? frameFont.value : null),
     },
     textStyle: {
       transform: `translateX(${caret - x * MAGNIFIER.scale}px) scale(${MAGNIFIER.scale})`,
@@ -3863,8 +4019,14 @@ const keysZIndex = ref<number>()
 watch(showKeys, (shown) => {
   if (shown) keysZIndex.value = nextZIndex()
 })
-/** The height of the bar of keys, which the keyboard pushes up and the cursor keeps clear of. */
-const KEYS_HEIGHT = 45
+/**
+ * The bar of keys floats over the keyboard, a gap apart, the way the
+ * phone's own bars do: its height, the gap, and the room it takes from the
+ * view, which the cursor keeps clear of.
+ */
+const KEYS_HEIGHT = 44
+const KEYS_GAP = 8
+const KEYS_SPACE = KEYS_HEIGHT + KEYS_GAP * 2
 const viewport = ref({ top: 0, left: 0, width: 0, height: 0 })
 
 function readViewport() {
@@ -3877,7 +4039,7 @@ function readViewport() {
 const keysStyle = computed(() => {
   const { top, left, width, height } = viewport.value
   return {
-    transform: `translate(${left}px, ${top + height - KEYS_HEIGHT}px)`,
+    transform: `translate(${left}px, ${top + height - KEYS_HEIGHT - KEYS_GAP}px)`,
     width: `${width}px`,
     zIndex: keysZIndex.value,
   }
@@ -3900,7 +4062,7 @@ function followViewport() {
   const visibleTop = Math.max(rect.top, vv.offsetTop)
   const visibleBottom = Math.min(
     rect.bottom,
-    vv.offsetTop + vv.height - (showKeys.value ? KEYS_HEIGHT : 0),
+    vv.offsetTop + vv.height - (showKeys.value ? KEYS_SPACE : 0),
   )
   if (at.bottom + room > visibleBottom && visibleBottom - visibleTop >= lh * 3) {
     el.scrollTop += (at.bottom + room - visibleBottom) / ratio.value
@@ -3912,7 +4074,7 @@ function followViewport() {
   // Whatever the editor couldn't scroll, the page does.
   const after = coordsAtPos(mainRange(state.value.selection).head)
   if (!after) return
-  const bottom = vv.offsetTop + vv.height - (showKeys.value ? KEYS_HEIGHT : 0)
+  const bottom = vv.offsetTop + vv.height - (showKeys.value ? KEYS_SPACE : 0)
   if (after.bottom + room > bottom) window.scrollBy(0, after.bottom + room - bottom)
 }
 
@@ -4204,6 +4366,7 @@ function refreshMetrics() {
   measure.refresh(props.tabSize)
   pad.y = measure.padY
   pad.x = measure.padX
+  readFrameFont()
   metrics.value++
   syncInput()
 }
@@ -4303,9 +4466,14 @@ function onFocus(event: FocusEvent) {
 }
 
 function onBlur(event: FocusEvent) {
+  // A press or drag never outlives the focus: the page must scroll again once the keyboard is away.
+  onPointerCancel()
+  endHandlePress()
+  endDrag()
   focused.value = false
   menuOpen.value = false
-  if (problemBox.value?.keyboard) closeProblems()
+  // A finger's box goes with the keyboard; a mouse's stays while the mouse is over it.
+  if (problemBox.value?.keyboard || touchUi.value) closeProblems()
   closeCompletion()
   closeSignature()
   closeHistory()
@@ -4698,39 +4866,7 @@ defineExpose<CodeEditorExpose>(api)
                 :style="{ transform: `translate(${cursor.left - 1}px, ${cursor.top}px)` }"
               />
             </div>
-            <div
-              v-for="handle in handles"
-              :key="handle.kind"
-              :class="[ns.e('handle'), ns.is(handle.kind, true)]"
-              :style="{ transform: `translate(${handle.left}px, ${handle.top}px)` }"
-              aria-hidden="true"
-              @pointerdown="onHandleDown($event, handle.kind)"
-            />
-            <div
-              v-if="magnifier"
-              :class="ns.e('magnifier')"
-              :style="magnifier.style"
-              aria-hidden="true"
-            >
-              <div
-                :class="ns.e('magnifier-text')"
-                :style="[magnifier.textStyle, { paddingLeft: `${magnifier.indent}px` }]"
-              >
-                <template v-for="(part, i) in magnifier.parts" :key="i"
-                  ><span
-                    v-if="part[3] !== undefined"
-                    :class="ns.e('inline')"
-                    :style="{ width: `${widthOf(magnifier.inlines[part[3]!]!)}px` }"
-                    ><RenderPart :render="magnifier.inlines[part[3]!]!.render" /></span
-                  ><span v-else-if="part[1]" :class="part[1]" :title="part[2]" :style="part[4]">{{
-                    part[0]
-                  }}</span
-                  ><template v-else>{{ part[0] }}</template></template
-                >
-              </div>
-              <div :class="ns.e('magnifier-caret')" :style="{ left: `${magnifier.caret - 1}px` }" />
-            </div>
-            <!-- The boxes about the text: inside the frame, or above the page for a small editor. -->
+            <!-- The boxes about the text and the touch handles: above the page, or inside the frame. -->
             <Teleport :to="floatingTarget || 'body'" :disabled="!floatingTarget">
               <div
                 :class="[ns.e('floating'), ns.is('outside', !!floatingTarget)]"
@@ -4866,28 +5002,66 @@ defineExpose<CodeEditorExpose>(api)
                     <RenderPart v-else :render="signature!.result.info" />
                   </div>
                 </div>
+                <div
+                  v-for="handle in handles"
+                  :key="handle.kind"
+                  :class="[ns.e('handle'), ns.is(handle.kind, true)]"
+                  :style="{ transform: `translate(${handle.left}px, ${handle.top}px)` }"
+                  aria-hidden="true"
+                  @pointerdown="onHandleDown($event, handle.kind)"
+                />
+                <div
+                  v-if="magnifier"
+                  :class="ns.e('magnifier')"
+                  :style="magnifier.style"
+                  aria-hidden="true"
+                >
+                  <div
+                    :class="ns.e('magnifier-text')"
+                    :style="[magnifier.textStyle, { paddingLeft: `${magnifier.indent}px` }]"
+                  >
+                    <template v-for="(part, i) in magnifier.parts" :key="i"
+                      ><span
+                        v-if="part[3] !== undefined"
+                        :class="ns.e('inline')"
+                        :style="{ width: `${widthOf(magnifier.inlines[part[3]!]!)}px` }"
+                        ><RenderPart :render="magnifier.inlines[part[3]!]!.render" /></span
+                      ><span
+                        v-else-if="part[1]"
+                        :class="part[1]"
+                        :title="part[2]"
+                        :style="part[4]"
+                        >{{ part[0] }}</span
+                      ><template v-else>{{ part[0] }}</template></template
+                    >
+                  </div>
+                  <div
+                    :class="ns.e('magnifier-caret')"
+                    :style="{ left: `${magnifier.caret - 1}px` }"
+                  />
+                </div>
+                <div
+                  v-if="menuStyle"
+                  ref="menuEl"
+                  :class="ns.e('menu')"
+                  role="toolbar"
+                  :aria-label="messages.editMenu"
+                  :style="menuStyle"
+                  @pointerdown.stop.prevent
+                >
+                  <button
+                    v-for="item in menuItems"
+                    :key="item.key"
+                    type="button"
+                    tabindex="-1"
+                    :class="ns.e('menu-button')"
+                    @click="item.run()"
+                  >
+                    {{ item.label }}
+                  </button>
+                </div>
               </div>
             </Teleport>
-            <div
-              v-if="menuStyle"
-              ref="menuEl"
-              :class="ns.e('menu')"
-              role="toolbar"
-              :aria-label="messages.editMenu"
-              :style="menuStyle"
-              @pointerdown.stop.prevent
-            >
-              <button
-                v-for="item in menuItems"
-                :key="item.key"
-                type="button"
-                tabindex="-1"
-                :class="ns.e('menu-button')"
-                @click="item.run()"
-              >
-                {{ item.label }}
-              </button>
-            </div>
             <textarea
               ref="input"
               :class="ns.e('input')"

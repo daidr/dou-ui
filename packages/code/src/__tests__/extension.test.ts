@@ -20,6 +20,8 @@ function setup(extensions: CodeExtension[], extra: Record<string, unknown> = {},
       () => () =>
         h(DouCodeEditor, {
           ref: editor,
+          // Measured boxes in the frame: the test page has no layout to place them above.
+          teleport: false,
           modelValue: code.value,
           'onUpdate:modelValue': (value: string) => (code.value = value),
           extensions,
@@ -189,6 +191,28 @@ describe('extensions', () => {
     await content.trigger('pointerdown', point)
     await content.trigger('pointerup', point)
     await content.trigger('pointerleave', point)
+    expect(wrapper.find('.dou-code-editor__problems').exists()).toBe(true)
+  })
+
+  it("shows a line's problems on a tap on its icon in the gutter, and puts them away on a press elsewhere", async () => {
+    const { wrapper } = setup([noVar])
+    await nextTick()
+    const icon = wrapper.find('.dou-code-editor__problem-icon')
+    expect(icon.exists()).toBe(true)
+    const point = { pointerType: 'touch', pointerId: 1, button: 0, clientX: 4, clientY: 18 }
+    const focus = vi.spyOn(HTMLTextAreaElement.prototype, 'focus')
+    await icon.trigger('pointerdown', point)
+    await icon.trigger('pointerup', point)
+    expect(wrapper.find('.dou-code-editor__problems').exists()).toBe(true)
+    // Showing it neither selects the line nor brings the keyboard up.
+    expect(wrapper.find('.dou-code-editor__menu').exists()).toBe(false)
+    expect(focus).not.toHaveBeenCalled()
+    focus.mockRestore()
+    document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+    await nextTick()
+    expect(wrapper.find('.dou-code-editor__problems').exists()).toBe(false)
+    // A mouse click on it shows it at once.
+    await icon.trigger('pointerdown', { ...point, pointerType: 'mouse' })
     expect(wrapper.find('.dou-code-editor__problems').exists()).toBe(true)
   })
 

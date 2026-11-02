@@ -19,6 +19,8 @@ function setup(extensions: CodeExtension[], initial = '') {
       () => () =>
         h(DouCodeEditor, {
           ref: editor,
+          // Measured boxes in the frame: the test page has no layout to place them above.
+          teleport: false,
           modelValue: code.value,
           'onUpdate:modelValue': (value: string) => (code.value = value),
           extensions,

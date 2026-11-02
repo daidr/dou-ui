@@ -23,20 +23,59 @@ export interface PointerHold {
  * `root` is an element that stays in the page for the whole drag; it
  * captures the pointer, so its events go on without the element. Leave it
  * out when the element itself captures the pointer and is never removed.
+ *
+ * The hold also lets go by itself once the last finger is lifted, whether
+ * or not the `pointerup` reached the code that would call `release()`
+ * (Safari on iOS sends it to a removed element, where nothing hears it):
+ * a hold that outlived its touch would keep the whole page from scrolling.
+ * `onLost` is then called, for the drag to end as well.
  */
-export function holdPointer(event: PointerEvent, root?: Element | null): PointerHold {
+export function holdPointer(
+  event: PointerEvent,
+  root?: Element | null,
+  onLost?: () => void,
+): PointerHold {
   // A mouse never scrolls the page by dragging.
   if (event.pointerType === 'mouse') return { grab() {}, release() {} }
   const target = event.target instanceof Element ? event.target : null
   let grabbed = false
+  let held = true
   const block = (e: Event) => {
     if (grabbed && e.cancelable) e.preventDefault()
   }
+  // After the pointer's own events, so a `pointerup` that did arrive ends the drag first.
+  const end = (e: Event) => {
+    if ((e as TouchEvent).touches?.length) return
+    setTimeout(() => {
+      if (!held) return
+      release()
+      onLost?.()
+    })
+  }
   window.addEventListener('touchmove', block, { passive: false })
   target?.addEventListener('touchmove', block, { passive: false })
+  for (const type of ['touchend', 'touchcancel']) {
+    window.addEventListener(type, end, { passive: true })
+    target?.addEventListener(type, end, { passive: true })
+  }
+  function release() {
+    if (held) {
+      held = false
+      window.removeEventListener('touchmove', block)
+      target?.removeEventListener('touchmove', block)
+      for (const type of ['touchend', 'touchcancel']) {
+        window.removeEventListener(type, end)
+        target?.removeEventListener(type, end)
+      }
+    }
+    if (!grabbed) return
+    grabbed = false
+    if (root?.isConnected && root.hasPointerCapture?.(event.pointerId))
+      root.releasePointerCapture(event.pointerId)
+  }
   return {
     grab() {
-      if (grabbed) return
+      if (grabbed || !held) return
       grabbed = true
       try {
         if (root?.isConnected) root.setPointerCapture?.(event.pointerId)
@@ -44,13 +83,6 @@ export function holdPointer(event: PointerEvent, root?: Element | null): Pointer
         // the pointer is already gone
       }
     },
-    release() {
-      window.removeEventListener('touchmove', block)
-      target?.removeEventListener('touchmove', block)
-      if (!grabbed) return
-      grabbed = false
-      if (root?.isConnected && root.hasPointerCapture?.(event.pointerId))
-        root.releasePointerCapture(event.pointerId)
-    },
+    release,
   }
 }

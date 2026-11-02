@@ -216,6 +216,8 @@
     touch-action: manipulation;
     user-select: none;
     -webkit-user-select: none;
+    /* a long press selects through the editor's own handles, never the system's menu */
+    -webkit-touch-callout: none;
     .dou-code-editor.is-disabled & {
       cursor: not-allowed;
     }
@@ -853,6 +855,7 @@
     width: 0;
     height: 0;
     touch-action: none;
+    -webkit-touch-callout: none;
     -webkit-tap-highlight-color: transparent;
 
     /* a finger-sized area around the knob */
@@ -980,19 +983,37 @@
     }
   }
 
-  /* the bar of keys, kept right above the phone's keyboard */
+  /*
+   * the bar of keys, floating a gap above the phone's keyboard and in from
+   * the screen's edges, like the system's own bars over it
+   */
   .dou-code-editor__keys {
     position: fixed;
     top: 0;
     left: 0;
+    box-sizing: border-box;
+    padding: 0 max(8px, env(safe-area-inset-right)) 0 max(8px, env(safe-area-inset-left));
+    pointer-events: none;
+    & > .dou-code-keys {
+      border-color: color-mix(in oklab, var(--dou-color-text) 10%, transparent);
+      background-color: color-mix(in oklab, var(--dou-color-bg-surface) 86%, transparent);
+      box-shadow: var(--dou-shadow-md);
+      -webkit-backdrop-filter: blur(20px) saturate(1.8);
+      backdrop-filter: blur(20px) saturate(1.8);
+      pointer-events: auto;
+    }
   }
 
   /* symbol keys: a strip that scrolls sideways, the arrow keys fixed at its end */
+  /* a capsule: the keys inside are rounded to match, 4px in */
   .dou-code-keys {
     display: flex;
     box-sizing: border-box;
-    height: 45px;
-    border-top: 1px solid var(--dou-color-border);
+    height: 44px;
+    padding: 0 3px;
+    overflow: hidden;
+    border: 1px solid var(--dou-color-border);
+    border-radius: 22px;
     background-color: var(--dou-color-bg-surface);
     color: var(--dou-color-text);
     font-family: var(--dou-font-family-mono);
@@ -1006,7 +1027,6 @@
     gap: 2px;
     align-items: center;
     min-width: 0;
-    padding: 0 4px;
     overflow-x: auto;
     overscroll-behavior-x: contain;
     scrollbar-width: none;
@@ -1016,12 +1036,22 @@
     }
   }
   .dou-code-keys__arrows {
+    position: relative;
     display: flex;
     flex: none;
     gap: 2px;
     align-items: center;
-    padding: 0 4px;
-    box-shadow: -1px 0 0 var(--dou-color-border-subtle);
+    padding-left: 5px;
+    /* a short hairline apart from the keys that scroll */
+    &::before {
+      position: absolute;
+      top: 10px;
+      bottom: 10px;
+      left: 0;
+      width: 1px;
+      background-color: var(--dou-color-border-subtle);
+      content: '';
+    }
   }
   .dou-code-keys__key {
     display: inline-flex;
@@ -1033,7 +1063,7 @@
     height: 36px;
     padding: 0 8px;
     border: 0;
-    border-radius: var(--dou-radius-control);
+    border-radius: 18px;
     background: none;
     color: inherit;
     font: inherit;

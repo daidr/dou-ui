@@ -54,7 +54,7 @@ const { data } = useDashboardWidget<{ source: string }, { amount: number }>()
 </template>
 ```
 
-`error` 是出错的原因，`refresh()` 重新请求这个格子的数据源。没有数据源的格子也可以自己用 `setStatus` 显示状态，见[加载、出错与空态](./dashboard#加载、出错与空态)。
+`error` 是出错的原因，`refresh()` 重新请求这个格子的数据源。没有数据源的格子也可以自己用 `setStatus` 显示状态，见[加载、出错与空态](./custom-widgets#加载、出错与空态)。
 
 ## 筛选
 
@@ -89,7 +89,7 @@ function pick(region: string) {
 
 ```vue
 <DouDashboardFilterBar :for="dashboard" :fields="fields" />
-<DouDashboard ref="dashboard" v-model:filters="filters" … />
+<DouDashboard ref="dashboard" v-model:filters="filters" :widgets="widgets" :sources="sources" />
 ```
 
 ```ts
@@ -119,14 +119,13 @@ const fields: DashboardFilterField[] = [
 
 ### Dashboard Exposes
 
-| 名称                              | 说明                                             |
-| --------------------------------- | ------------------------------------------------ |
-| `setFilter(key, value, options?)` | 设置筛选，空值清除；`options.label` 是显示的文字 |
-| `clearFilters()`                  | 清除全部筛选                                     |
-| `refresh(source?)`                | 重新请求一个数据源，不传时全部重新请求           |
-| `filters`                         | 当前筛选的值                                     |
-| `linkedFilters`                   | 格子设置的筛选 `{ key, value, label, widget }`   |
-| `document`                        | 当前文档                                         |
+| 名称            | 说明                                                 | 类型                                                                         |
+| --------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `setFilter`     | 设置筛选，空值清除；`options.label` 是显示的文字     | `(key: string, value: unknown, options?: DashboardSetFilterOptions) => void` |
+| `clearFilters`  | 清除全部筛选                                         | `() => void`                                                                 |
+| `refresh`       | 重新请求一个数据源，不传时全部重新请求               | `(source?: string) => void`                                                  |
+| `filters`       | 当前筛选的值                                         | `DashboardFilters`                                                           |
+| `linkedFilters` | 格子设置的筛选，每项 `{ key, value, label, widget }` | `readonly DashboardLinkedFilter[]`                                           |
 
 ### DashboardSourceOptions
 
@@ -138,14 +137,14 @@ const fields: DashboardFilterField[] = [
 
 ### useDashboardWidget
 
-| 名称                              | 说明                                     |
-| --------------------------------- | ---------------------------------------- |
-| `data`                            | `props.source` 按当前筛选取回的结果      |
-| `error`                           | 出错的原因                               |
-| `filters`                         | 对这个格子生效的筛选（不含它自己设置的） |
-| `setFilter(key, value, options?)` | 为其他格子设置筛选，空值清除             |
-| `ownFilters`                      | 这个格子设置的、仍然生效的筛选           |
-| `refresh()`                       | 重新请求这个格子的数据源                 |
+| 名称         | 说明                                     | 类型                                                                         |
+| ------------ | ---------------------------------------- | ---------------------------------------------------------------------------- |
+| `data`       | `props.source` 按当前筛选取回的结果      | `Readonly<Ref<D \| undefined>>`                                              |
+| `error`      | 出错的原因                               | `Readonly<Ref<unknown>>`                                                     |
+| `filters`    | 对这个格子生效的筛选（不含它自己设置的） | `ComputedRef<DashboardFilters>`                                              |
+| `setFilter`  | 为其他格子设置筛选，空值清除             | `(key: string, value: unknown, options?: DashboardSetFilterOptions) => void` |
+| `ownFilters` | 这个格子设置的、仍然生效的筛选           | `ComputedRef<DashboardFilters>`                                              |
+| `refresh`    | 重新请求这个格子的数据源                 | `() => void`                                                                 |
 
 ### DashboardFilterBar Props
 

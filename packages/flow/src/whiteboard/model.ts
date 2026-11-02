@@ -43,7 +43,10 @@ export interface WhiteboardInkData extends WhiteboardNodeData {
   points: number[]
   /** The size the points were drawn at; the stroke stretches with the node. */
   box: [number, number]
-  /** The stroke's width at full pressure. `4` by default. */
+  /**
+   * The stroke's width drawn with a mouse or finger. `4` by default; a pen
+   * makes it 0.4 to 1.6 times as wide as it presses lighter or harder.
+   */
   size?: number
   /** The text color when left out. */
   tone?: Tone

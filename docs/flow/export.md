@@ -17,7 +17,7 @@ const png = await editor.value.exportPNG() // PNG 的 Blob
 
 ## 范围
 
-`range` 有三种：
+`range` 决定导出哪一部分，有三种：
 
 - `'all'`（默认）：全部节点，四周留 `padding`（默认 24px）。
 - `'view'`：画布上现在看得到的部分，大小和画布一致，边上的节点和连线在画布边缘截断。不使用 `padding`。
@@ -27,11 +27,15 @@ const png = await editor.value.exportPNG() // PNG 的 Blob
 
 ## SVG
 
+SVG 是文本，可以在矢量设计软件里继续编辑。
+
 - 颜色都写成 sRGB 的 `rgb(…)`、`rgba(…)` 或 `#rrggbb`，矢量设计软件可以直接打开和编辑；主题里用到的 `oklab`、`color-mix` 等写法会先换算成这几种。
 - 文字按画布上的字体和字号换行，用的是页面上的字体，在没有这个字体的电脑上打开时会换成其他字体。
 - 图片保留原来的地址。
 
 ## PNG
+
+PNG 是位图，适合直接发送或插入文档。
 
 - 默认按 2 倍像素导出，`pixelRatio` 可以改。
 - 图片节点的图片会嵌进 PNG。图片地址在别的域名下、又不允许跨域读取时读不到，那张图片画成和画布上一样的占位（灰色方块加图片图标）；读不到的地址会记下来，同一个编辑器之后再导出时不再请求。
@@ -43,6 +47,9 @@ const png = await editor.value.exportPNG() // PNG 的 Blob
 节点类型可以提供 `draw`，返回节点的 SVG 标记，坐标以节点左上角为原点。没有 `draw` 的节点画成一张带名称和端口的卡片。
 
 ```ts
+import { defineNodeType, drawCard } from '@dou-ui/flow'
+import NoteNode from './note-node.vue'
+
 const noteNode = defineNodeType<{ text?: string }>({
   type: 'note',
   component: NoteNode,
@@ -60,20 +67,7 @@ const noteNode = defineNodeType<{ text?: string }>({
 
 节点类型写了 [`rotation`](./custom-nodes#definenodetype) 时，`draw` 也要自己画出旋转，例如把内容包在 `<g transform="rotate(角度 宽/2 高/2)">` 里；导出的画布范围会按旋转后的外接框留出。
 
-`draw` 的第二个参数提供这些工具：
-
-| 名称                         | 说明                                                                                                                                              |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `width`、`height`            | 节点的大小                                                                                                                                        |
-| `style(...classes)`          | 在编辑器里用这些类名（从外到内）建一个元素，返回它的计算样式，用来读取主题里的颜色和尺寸                                                          |
-| `color(value)`               | 把 CSS 颜色（可以带 `var()`）换算成 sRGB 的 `rgb(…)`、`rgba(…)` 或 `#rrggbb`                                                                      |
-| `text(value, box, options?)` | 在方框里写文字，按宽度换行，超出高度的行不画，最后一行加省略号；`options` 有 `size`、`weight`、`lineHeight`、`color`、`align`、`valign`、`nowrap` |
-| `icon(icon, box, color)`     | 画一个图标组件，例如 `@dou-ui/icons` 里的图标                                                                                                     |
-| `image(src, box, options?)`  | 画一张图片，PNG 里会嵌入图片数据；`options.radius` 是圆角                                                                                         |
-| `port(id)`                   | 按画布上的样子画一个端口                                                                                                                          |
-| `ports`                      | 每个端口在节点上的位置                                                                                                                            |
-| `messages`                   | 编辑器当前的文案                                                                                                                                  |
-| `escape(text)`               | 转义 SVG 里的文字                                                                                                                                 |
+`draw` 的第二个参数是 `FlowDrawContext`，提供节点的大小、读取主题颜色、写文字、画图标和图片、画端口等工具，见下方的 [FlowDrawContext](#flowdrawcontext)。
 
 `drawCard(draw)` 画出编辑器默认的卡片（边框、底色和圆角），从 `@dou-ui/flow` 导入。
 
@@ -100,3 +94,39 @@ const noteNode = defineNodeType<{ text?: string }>({
 | `padding`    | 四周留白，单位 px；`'view'` 不使用     | `number`                         | `24`    |
 | `background` | 是否铺上画布的底色；`false` 时背景透明 | `boolean`                        | `true`  |
 | `pixelRatio` | 仅 PNG：每个 CSS 像素对应的图片像素    | `number`                         | `2`     |
+
+### 函数
+
+| 名称                       | 说明                                                  | 类型                                                                              |
+| -------------------------- | ----------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `drawCard(draw, classes?)` | 画出编辑器默认的卡片，`classes` 是卡片上额外的类名    | `(draw: FlowDrawContext, classes?: string[]) => string`                           |
+| `drawLayer`                | 扩展的选项：返回画在所有节点上方的 SVG 标记，画布坐标 | `(ctx: FlowExtensionContext, draw: FlowDrawContext, nodes: FlowNode[]) => string` |
+
+### FlowDrawContext
+
+| 名称               | 说明                                                                                     | 类型                                                                  |
+| ------------------ | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `width` / `height` | 节点的大小；`drawLayer` 里是整张图的大小                                                 | `number`                                                              |
+| `style`            | 在编辑器里用这些类名（从外到内）建一个元素，返回它的计算样式，用来读取主题里的颜色和尺寸 | `(...classes: string[]) => CSSStyleDeclaration`                       |
+| `color`            | 把 CSS 颜色（可以带 `var()`）换算成 sRGB 的 `rgb(…)`、`rgba(…)` 或 `#rrggbb`             | `(value: string) => string`                                           |
+| `text`             | 在方框里写文字，按宽度换行，超出高度的行不画，最后一行加省略号                           | `(value: string, box: Rect, options?: FlowDrawTextOptions) => string` |
+| `icon`             | 画一个图标组件，例如 `@dou-ui/icons` 里的图标                                            | `(icon: Component, box: Rect, color: string) => string`               |
+| `image`            | 画一张图片，PNG 里会嵌入图片数据；`radius` 是圆角                                        | `(src: string, box: Rect, options?: { radius?: number }) => string`   |
+| `port`             | 按画布上的样子画一个端口                                                                 | `(id: string) => string`                                              |
+| `ports`            | 每个端口在节点上的位置                                                                   | `ReadonlyMap<string, PortAnchor>`                                     |
+| `messages`         | 编辑器当前的文案                                                                         | `FlowMessages`                                                        |
+| `escape`           | 转义 SVG 里的文字                                                                        | `(text: string) => string`                                            |
+
+`Rect` 是 `{ x, y, width, height }`。
+
+### FlowDrawTextOptions
+
+| 名称         | 说明                         | 类型                           | 默认值        |
+| ------------ | ---------------------------- | ------------------------------ | ------------- |
+| `size`       | 字号（px）                   | `number`                       | 编辑器的字号  |
+| `weight`     | 字重，如 `500`               | `string \| number`             | `400`         |
+| `lineHeight` | 行高（px）                   | `number`                       | 字号的 1.5 倍 |
+| `color`      | 文字颜色                     | `string`                       | —             |
+| `align`      | 水平对齐                     | `'start' \| 'center' \| 'end'` | `'start'`     |
+| `valign`     | 文字比方框矮时的垂直位置     | `'top' \| 'middle'`            | `'top'`       |
+| `nowrap`     | 只写一行，超出的部分用省略号 | `boolean`                      | `false`       |

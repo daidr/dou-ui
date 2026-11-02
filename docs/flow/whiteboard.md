@@ -43,11 +43,15 @@ const board = ref<FlowDocument>({ version: 1, nodes: [], edges: [] })
 - 画完一个形状、便签或文字会回到选择工具，画笔和橡皮会一直保持。
 - 双击工具按钮可以一直保持这个工具，按钮下方会出现一个小点，按 Esc 或 V 回到选择。
 - 用键盘时，选好工具后按 Enter 放一个默认大小的：选中了一个节点时放在它后面并连上，否则放在视野中间，都会避开已有的节点。点工具按钮后焦点回到画布，可以直接按键。
-- 在触屏上，选了画图工具后单指按下就是画，不会滚动页面；选择工具下单指仍然是平移画布。
+- 在触屏上，选了画图工具后单指按下开始画，不会滚动页面；选择工具下单指仍然是平移画布。
 
 要用自己的工具栏，传入 `toolbar: false` 关掉内置的，再用 `tool` 和它共享当前工具：
 
 ```ts
+import { flowKit } from '@dou-ui/flow'
+import { whiteboardKit, type WhiteboardTool } from '@dou-ui/flow/whiteboard'
+import { ref } from 'vue'
+
 const tool = ref<WhiteboardTool>('select')
 const extensions = [flowKit(), whiteboardKit({ tool, toolbar: false })]
 ```
@@ -58,10 +62,10 @@ const extensions = [flowKit(), whiteboardKit({ tool, toolbar: false })]
 
 ## 画笔与橡皮
 
-画笔按指针移动的轨迹画线，并略微平滑手抖：
+画笔按指针移动的轨迹画线，并略微平滑手抖。
 
-- 用触控笔时线条随压力变粗变细，鼠标和手指画出的线粗细一致；
-- 每一笔是一个 `ink` 节点，可以选中、拖动、拉伸、旋转，也可以撤销；
+- 用触控笔时线条随压力变粗变细，鼠标和手指画出的线粗细一致。
+- 每一笔是一个 `ink` 节点，可以选中、拖动、拉伸、旋转，也可以撤销。
 - 笔迹只在线条上能点中，空白处会点到下面的东西。
 
 橡皮按住后划过的笔迹会先变淡，松开时一起擦掉，算一步撤销；按 Esc 取消，什么都不擦。橡皮只擦笔迹，不擦形状和便签。
@@ -90,11 +94,11 @@ const extensions = [
 
 ## 旋转
 
-选中一个白板节点后，它下方有一个圆形的旋转手柄，拖动它旋转：
+选中一个白板节点后，它下方有一个圆形的旋转手柄，拖动它旋转。
 
-- 按住 Shift 以 15° 为一档，接近直角时会自动对齐；拖动时按 Esc 取消；
-- 右键菜单里也有“顺时针旋转 90°”和“取消旋转”；
-- 角度存在 `data.rotation`（度，顺时针），锚点和连接线跟着转；
+- 按住 Shift 以 15° 为一档，接近直角时会自动对齐；拖动时按 Esc 取消。
+- 只选中一个节点时，右键菜单里也有“顺时针旋转 90°”和“取消旋转”。
+- 角度存在 `data.rotation`（度，顺时针），锚点和连接线跟着转。
 - 旋转后的节点用自己的缩放手柄，沿着节点自己的边拉伸。
 
 ## 层级
@@ -130,7 +134,7 @@ const extensions = [
 
 ## 协同编辑
 
-白板的数据就是节点和连线，所以加上 [`collaboration()`](./collaboration) 扩展就能多人同时编辑：形状、便签、笔迹、图片、旋转和层级都会同步。工具、正在画的笔迹和正在输入的文字只在自己这边，松手或写完后才同步给其他人。
+白板的数据是普通的节点和连线，所以加上 [`collaboration()`](./collaboration) 扩展就能多人同时编辑：形状、便签、笔迹、图片、旋转和层级都会同步。工具、正在画的笔迹和正在输入的文字只在自己这边，松手或写完后才同步给其他人。
 
 <DocDemo src="flow/whiteboard-collaboration" column />
 
@@ -157,7 +161,7 @@ const extensions = [
 | `image`  | `{ src, alt? }`                                             | 图片，`alt` 给读屏用           |
 
 - 每种节点的 `data` 都可以带 `rotation`。旋转只属于白板节点，所以放在 `data` 里；层级 `z` 是所有节点都有的绘制顺序，放在节点上。
-- 笔迹的 `points` 是 `x, y, 压力` 三个一组的平铺数组，坐标相对节点左上角；`box` 是画下时的宽高，节点被拉伸时笔迹跟着按比例拉伸；`size` 是满压力时的粗细，默认 `4`。
+- 笔迹的 `points` 是 `x, y, 压力` 三个一组的平铺数组，坐标相对节点左上角；`box` 是画下时的宽高，节点被拉伸时笔迹跟着按比例拉伸；`size` 是鼠标、手指画出的线宽，默认 `4`，用触控笔时随压力在 0.4 到 1.6 倍之间变化。
 
 `tone` 取主题的语气色：`neutral`、`primary`、`success`、`warning`、`danger`。形状默认是 `neutral`，用正文颜色描边；其他颜色会给形状描边并淡淡地铺底，给便签铺底。
 
@@ -206,13 +210,23 @@ type WhiteboardTool =
 
 ### 导出
 
-| 名称                                                          | 说明                                                                                                     |
-| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `shapeNode`、`stickyNode`、`textNode`、`inkNode`、`imageNode` | 节点类型，可以单独放进自己的扩展里                                                                       |
-| `connectorEdge`                                               | 连接线的连线类型，`data` 见[连接线](#连接线)                                                             |
-| `whiteboardKeys`、`imageKey`                                  | 每个工具的按键和插入图片的按键，用来在自己的工具栏上显示                                                 |
-| `pickImages(ctx, options?)`                                   | 打开文件选择并插入选中的图片，给自己的工具栏用                                                           |
-| `insertImages(ctx, files, options?)`                          | 插入图片文件。`options.at` 是画布坐标，默认视野中间；`options.upload` 默认用 `whiteboardKit` 的 `upload` |
+以下都从 `@dou-ui/flow/whiteboard` 引入。
+
+| 名称                                                          | 说明                                           | 类型                                                                                         |
+| ------------------------------------------------------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `shapeNode`、`stickyNode`、`textNode`、`inkNode`、`imageNode` | 节点类型，可以单独放进自己的扩展里             | `NodeTypeSpec`                                                                               |
+| `connectorEdge`                                               | 连接线的连线类型，`data` 见[连接线](#连接线)   | `EdgeTypeSpec`                                                                               |
+| `whiteboardKeys`                                              | 每个工具的按键，用来在自己的工具栏上显示       | `Record<WhiteboardTool, string>`                                                             |
+| `imageKey`                                                    | 插入图片的按键                                 | `string`                                                                                     |
+| `pickImages`                                                  | 打开文件选择并插入选中的图片，给自己的工具栏用 | `(ctx: FlowEditorContext, options?: WhiteboardImageOptions) => void`                         |
+| `insertImages`                                                | 插入图片文件                                   | `(ctx: FlowEditorContext, files: File[], options?: WhiteboardImageOptions) => Promise<void>` |
+
+### WhiteboardImageOptions
+
+| 名称     | 说明                   | 类型                                                                | 默认值                      |
+| -------- | ---------------------- | ------------------------------------------------------------------- | --------------------------- |
+| `at`     | 图片放在哪里，画布坐标 | `{ x: number; y: number }`                                          | 视野中间                    |
+| `upload` | 这次插入用的上传函数   | `(file: File) => WhiteboardUploaded \| Promise<WhiteboardUploaded>` | `whiteboardKit` 的 `upload` |
 
 ### CSS 变量
 

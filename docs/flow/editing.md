@@ -55,7 +55,7 @@ const publish = defineNodeType({
 <DouFlowEditor>
   <template #quickAdd="{ types, choose, close }">
     <button v-for="spec in types" :key="spec.type" @click="choose(spec.type)">
-      {{ spec.palette.label }}
+      {{ spec.palette?.label ?? spec.type }}
     </button>
   </template>
 </DouFlowEditor>
@@ -77,7 +77,9 @@ const publish = defineNodeType({
 
 ```ts
 import { defineFlowExtension } from '@dou-ui/flow'
+import { PlayIcon } from '@dou-ui/icons'
 import type { ContextMenuItem } from 'dou-ui'
+import { run } from './runner' // 自己的运行逻辑
 
 const runFromHere = defineFlowExtension({
   name: 'run-from-here',
@@ -98,9 +100,15 @@ const runFromHere = defineFlowExtension({
 
 选中的内容不变时，文档每改一次，`toolbarItems` 和 `edgeToolbarItems` 都会重新调用一次，所以里面只根据传进来的节点或连线拼出按钮，不要做请求数据之类耗时的事；菜单要用的数据先放进节点的 `data` 或扩展自己的状态里。
 
-一个按钮要给出几个选项时，用 `children` 代替 `run`，写上菜单项。编辑器在按钮下方弹出菜单，给按钮加上 `aria-haspopup` 和 `aria-expanded`，再点一次关上，点另一个按钮直接换成它的菜单。每一项都写了 `checked` 时，菜单是单选，读屏读作单选项；用键盘打开时焦点落在当前选中的那一项上。白板[连接线](./whiteboard#连接线)的走向、线型和箭头就是这样做的：
+一个按钮要给出几个选项时，用 `children` 代替 `run`，写上菜单项。编辑器在按钮下方弹出菜单，给按钮加上 `aria-haspopup` 和 `aria-expanded`，再点一次关上，点另一个按钮直接换成它的菜单。每一项都写了 `checked` 时，菜单是单选，读屏读作单选项；用键盘打开时焦点落在当前选中的那一项上。白板[连接线](./whiteboard#连接线)的走向、线型和箭头也是这样做的：
 
 ```ts
+import { defineFlowExtension } from '@dou-ui/flow'
+import { MaximizeIcon } from '@dou-ui/icons'
+import { resize } from './resize' // 自己的修改逻辑：(nodes, size) => void
+
+const names = { sm: '小', md: '中', lg: '大' }
+
 const size = defineFlowExtension({
   name: 'size',
   toolbarItems: (ctx, nodes) => [
@@ -119,11 +127,14 @@ const size = defineFlowExtension({
 })
 ```
 
-不在工具栏里的按钮可以调用 `ctx.showMenu(items, point, button)` 自己弹出菜单：菜单开在按钮下方，放不下时翻到按钮上方，再点一次按钮关上；`ctx.menuItems(target)` 返回右键菜单在某个目标上会显示的项，内置的“更多”按钮就是把它作为 `children`。
+不在工具栏里的按钮可以调用 `ctx.showMenu(items, point, button)` 自己弹出菜单：菜单开在按钮下方，放不下时翻到按钮上方，再点一次按钮关上；`ctx.menuItems(target)` 返回右键菜单在某个目标上会显示的项，内置的“更多”按钮把它作为 `children`。
 
 开关一类的按钮用 `pressed` 表示是否打开，编辑器据此给按钮加上按下的样式和 `aria-pressed`。按钮的操作也有快捷键时，把它写在 `shortcut` 里，提示中会显示出来。`shortcut` 只用于显示，按键要在 `keymap` 里绑定：
 
 ```ts
+import { defineFlowExtension, type FlowExtensionContext } from '@dou-ui/flow'
+import { PinIcon } from '@dou-ui/icons'
+
 /** 固定或取消固定选中的节点 */
 function togglePin(ctx: FlowExtensionContext) {
   // ...

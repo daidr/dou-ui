@@ -48,15 +48,21 @@ const portTypes = {
 
 节点类型的 `ports` 可以写成函数，根据节点数据算出端口，端口的类型就能跟着节点里的表单变化。下面的“读取变量”和“设置变量”节点，端口类型由选中的变量决定：
 
-```js
-const variableNode = defineNodeType({
+```ts
+import { defineNodeType } from '@dou-ui/flow'
+import VariableNode from './variable-node.vue'
+
+// 变量名到类型，例如 { city: { type: 'string' } }
+import { variables } from './variables'
+
+const variableNode = defineNodeType<{ mode: 'get' | 'set'; name: string }>({
   type: 'variable',
   component: VariableNode,
   ports: (node) => [
     {
       id: 'value',
-      kind: node.data.mode === 'get' ? 'output' : 'input',
-      dataType: variables[node.data.name].type,
+      kind: node.data?.mode === 'get' ? 'output' : 'input',
+      dataType: variables[node.data?.name ?? '']?.type,
     },
   ],
 })
@@ -86,7 +92,7 @@ const variableNode = defineNodeType({
 
 拖动时，指针停在不能连的端口上，这个端口和正在画的线会变红，指针变成禁止的样式。松开后连线不会生成，读屏会说明原因，例如“端口类型不匹配”“这样会连成环”。这些文字可以通过 `messages.refused` 修改。
 
-`joinRefusal(doc, connection, ports, options)` 返回同样的原因，可以用来在界面上给出自己的提示。
+`joinRefusal(doc, connection, ports, options)` 判断一条连线能不能接上：能接上时返回 `null`，否则返回 `{ reason }`（`reason` 为 `'direction'`、`'self'`、`'type'`、`'duplicate'`、`'cycle'` 或 `'custom'`，`'custom'` 时还可能带 `message`）。按 `reason` 从 `messages.refused[reason]` 取文字，就能给出和编辑器一样的提示。
 
 ## 数量限制
 

@@ -71,7 +71,10 @@ const lane = defineNodeType({
   size: { width: 640, height: 160 },
 })
 
-const extensions: FlowExtension[] = [flowKit(), { name: 'lanes', nodeTypes: [lane] }]
+const extensions: (FlowExtension | FlowExtension[])[] = [
+  flowKit(),
+  { name: 'lanes', nodeTypes: [lane] },
+]
 ```
 
 `groupNodes(ids, 'lane')` 用这个类型把节点包起来。容器节点的组件和普通节点一样收到 `data`、`updateData` 等属性，`data.collapsed` 为真时编辑器按折叠处理。不需要内置分组时用 `flowKit({ group: false })`。

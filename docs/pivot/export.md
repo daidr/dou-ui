@@ -66,7 +66,7 @@ const blob = await exportWorkbook(pivot.value.toSheet({ name: '销售额' }), xl
 downloadBlob(blob, '销售额.xlsx')
 ```
 
-需要另外安装 `@dou-ui/sheet` 和 `@dou-ui/sheet-xlsx`。自己写的导出器也一样能用，写法见电子表格的[导出器与导入器](../sheet/exporters)。在仪表盘里，透视表格子可以直接从标题栏导出，见仪表盘的[导出格子的数据](../dashboard/widgets#导出格子的数据)。
+需要另外安装 `@dou-ui/sheet` 和 `@dou-ui/sheet-xlsx`。自己写的导出器也一样能用，写法见电子表格的[导出器与导入器](../sheet/exporters)。在仪表盘里，透视表格子可以直接从标题栏导出，见仪表盘的[导出格子的数据](../dashboard/export#导出格子的数据)。
 
 ## 打印
 

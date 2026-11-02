@@ -34,7 +34,12 @@ values: ['amount', { formula: '毛利 / 销售额', label: '毛利率', format: 
 `@dou-ui/pivot/engine` 提供两个函数，可以在保存前检查公式：
 
 ```ts
-import { checkPivotFormula, parsePivotFormula, PivotSource } from '@dou-ui/pivot/engine'
+import {
+  checkPivotFormula,
+  parsePivotFormula,
+  PivotFormulaError,
+  PivotSource,
+} from '@dou-ui/pivot/engine'
 
 parsePivotFormula('(amount - cost) / amount') // 只检查写法
 checkPivotFormula(new PivotSource(orders, { fields }), '毛利 / 销售额') // 还检查字段是否存在、是否是数字
@@ -46,10 +51,12 @@ checkPivotFormula(new PivotSource(orders, { fields }), '毛利 / 销售额') // 
 
 ### PivotFormulaError
 
-| 名称     | 说明                         | 类型     |
-| -------- | ---------------------------- | -------- |
-| `code`   | 出错的原因                   | `string` |
-| `at`     | 出错处在公式里的字符位置     | `number` |
-| `detail` | 相关的文字，比如写错的字段名 | `string` |
+| 名称     | 说明                         | 类型                    |
+| -------- | ---------------------------- | ----------------------- |
+| `code`   | 出错的原因                   | `PivotFormulaErrorCode` |
+| `at`     | 出错处在公式里的字符位置     | `number`                |
+| `detail` | 相关的文字，比如写错的字段名 | `string`                |
 
-`code` 的取值和语言包 `formula.errors` 的键相同，可以通过 `messages` 改写对应的提示。
+`PivotFormulaErrorCode` 的取值：`empty`（公式是空的）、`incomplete`（不完整）、`unknownChar`（无法识别的字符）、`unexpected`（不应出现的内容）、`expected`（缺少应有的内容）、`unclosedBracket`（缺少“]”）、`emptyName`（方括号里没有字段名）、`unknownFunction`（没有这个函数）、`needsField`（函数需要一个字段）、`needsName`（应当是字段名）、`unknownField`（没有这个字段）、`notNumber`（不是数字字段）。
+
+这些取值和语言包 `formula.errors` 的键相同，可以通过 `messages` 改写对应的提示。

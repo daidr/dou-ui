@@ -37,7 +37,7 @@ app.use(DouPivotFields)
 
 <DocDemo src="pivot/basic" />
 
-行上的多个字段显示成一棵树，组所在的行就是这一组的小计。列上的多个字段显示成多级表头，展开的组后面有一列“合计”。最下方的总计行在滚动时始终可见，最右侧是总计列。
+行上的多个字段显示成一棵树，组所在的行显示这一组的小计。列上的多个字段显示成多级表头，展开的组后面有一列“合计”。最下方的总计行在滚动时始终可见，最右侧是总计列。
 
 `config` 支持 `v-model:config`，在表格里排序时会更新它。它是普通的数据，可以直接保存下来，下次打开时恢复同样的视图。
 
@@ -46,7 +46,17 @@ app.use(DouPivotFields)
 `fields` 是一个数组，每一项描述一个字段：
 
 ```ts
-const fields = [
+import type { PivotConfig, PivotField } from '@dou-ui/pivot'
+import { ref } from 'vue'
+
+interface Order {
+  region: string
+  month: number
+  amount: number
+  cost: number
+}
+
+const fields: PivotField<Order>[] = [
   { name: 'region', label: '大区', order: ['华东', '华南', '华北', '西南'] },
   { name: 'month', label: '月份', format: (m) => `${m} 月` },
   {
@@ -57,8 +67,11 @@ const fields = [
   },
   { name: 'profit', label: '毛利', value: (row) => row.amount - row.cost },
 ]
+
+const config = ref<PivotConfig>({ rows: ['region'], columns: ['month'], values: ['amount'] })
 ```
 
+- 给 `PivotField` 传入记录的类型，`value` 收到的 `row` 就带有类型。`config` 用 `PivotConfig` 标注，后面各页的片段只写出其中的字段。
 - `name` 是记录上的键，`config` 里用它指代字段；`label` 是表头上显示的名字。
 - `type` 不写时根据前 100 条记录推断。
 - `format` 决定组名或数值怎么显示：数字字段传 `Intl.NumberFormat` 的选项，日期字段传 `Intl.DateTimeFormat` 的选项，或者传一个函数。
@@ -124,7 +137,7 @@ const fields = [
 
 | 名称                              | 说明                                               | 类型                               |
 | --------------------------------- | -------------------------------------------------- | ---------------------------------- |
-| `result`                          | 当前的汇总结果，见[不用组件](./engine#pivotresult) | `PivotResult`                      |
+| `result`                          | 当前的汇总结果，见[汇总内核](./engine#pivotresult) | `PivotResult`                      |
 | `expandAll({ axis? })`            | 展开所有组                                         | `(options?) => void`               |
 | `collapseAll({ axis?, depth? })`  | 折叠从第 `depth` 层开始的所有组                    | `(options?) => void`               |
 | `toggle(axis, path, open?)`       | 展开或折叠一个组                                   | `(axis, path, open?) => void`      |

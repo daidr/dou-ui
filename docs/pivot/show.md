@@ -40,7 +40,7 @@ wide: true
 
 ## 点击和导出
 
-`cellClick` 的 `value`、导出的 CSV 和 `toGrid()` 里都是显示的数字，比如占比是 `0.213`。要拿到汇总的原值，用 `result.get(row, column, valueIndex)`，见[不用组件](./engine)。
+`cellClick` 的 `value`、导出的 CSV 和 `toGrid()` 里都是显示的数字，比如占比是 `0.213`。要拿到汇总的原值，用 `result.get(row, column, valueIndex)`，见[汇总内核](./engine)。
 
 ## API
 

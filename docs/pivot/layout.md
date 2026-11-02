@@ -8,7 +8,7 @@ wide: true
 
 ## 布局
 
-默认的紧凑式布局把行上的字段放在同一列里，缩进成一棵树，组所在的行就是它的小计。`layout="tabular"` 改成表格式：每个行字段单独一列，组名只在这一组的第一行显示，展开的组在子项后面另起一行“小计”。
+默认的紧凑式布局把行上的字段放在同一列里，缩进成一棵树，组所在的行显示它的小计。`layout="tabular"` 改成表格式：每个行字段单独一列，组名只在这一组的第一行显示，展开的组在子项后面另起一行“小计”。
 
 <DocDemo src="pivot/layout" />
 
@@ -20,7 +20,7 @@ wide: true
 
 ## 展开与折叠
 
-点击组名或前面的箭头可以展开、折叠这一组，按住 Alt 点击会同时切换同一层的所有组。列上的组在表头里同样可以展开折叠。折叠的组只占一行或一列，显示这一组的合计。
+点击组名或前面的箭头可以展开、折叠这一组，按住 Alt 点击会同时切换同一级的所有组。列上的组在表头里同样可以展开折叠。折叠的组只占一行或一列，显示这一组的合计。
 
 <DocDemo src="pivot/collapse" />
 
@@ -38,7 +38,7 @@ const collapsed = ref({
 通过 ref 还可以一次展开或折叠多个组：
 
 ```ts
-pivot.value.collapseAll({ axis: 'rows', depth: 2 }) // 行上只展开到第 2 层
+pivot.value.collapseAll({ axis: 'rows', depth: 2 }) // 行上只展开到第 2 级
 pivot.value.expandAll() // 两个方向都全部展开
 pivot.value.toggle('rows', ['华东'], false) // 折叠华东
 ```
@@ -56,10 +56,10 @@ pivot.value.toggle('rows', ['华东'], false) // 折叠华东
 | `rows`    | 折叠的行组，每项是组名的路径 | `unknown[][]` | `[]`   |
 | `columns` | 折叠的列组                   | `unknown[][]` | `[]`   |
 
-### Exposes
+### Pivot Exposes
 
 | 名称                             | 说明                                                                | 类型                          |
 | -------------------------------- | ------------------------------------------------------------------- | ----------------------------- |
 | `expandAll({ axis? })`           | 展开所有组，`axis` 是 `'rows'` 或 `'columns'`，不写时两个方向都展开 | `(options?) => void`          |
-| `collapseAll({ axis?, depth? })` | 折叠从第 `depth` 层开始的所有组，`depth` 默认 1，即只显示最外层     | `(options?) => void`          |
+| `collapseAll({ axis?, depth? })` | 折叠从第 `depth` 级开始的所有组，`depth` 默认 1，即只显示最外层     | `(options?) => void`          |
 | `toggle(axis, path, open?)`      | 展开或折叠一个组，不传 `open` 时切换                                | `(axis, path, open?) => void` |

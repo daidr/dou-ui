@@ -38,7 +38,7 @@ const data = shallowRef({
 
 - 页面把需要的字段分片读取，每片不超过几毫秒，读好后整块交给 worker，不会占用或修改你传入的数组；
 - 之后调整布局只发送配置；
-- 汇总超过 120 毫秒时，表格保留上一次的结果，盖一层浅色并显示“正在汇总…”，新的结果出来后替换。
+- 汇总超过 120 毫秒时，表格保留上一次的结果，表格变淡并显示“正在汇总…”，新的结果出来后替换。
 
 `:worker="true"` 不论多少条都用 worker，`:worker="false"` 总是在页面中汇总。不支持 worker 的环境（服务端渲染、测试）总是在页面中汇总。
 
@@ -89,14 +89,14 @@ return JSON.stringify(result.pack({ plain: true }))
 
 ```ts
 // 页面
-import { PivotResult } from '@dou-ui/pivot/engine'
+import { PivotResult, type PivotEngine } from '@dou-ui/pivot/engine'
 
-const engine = {
-  async compute(source, config, { signal }) {
+const engine: PivotEngine = {
+  async compute(source, config, request) {
     const response = await fetch('/api/pivot', {
       method: 'POST',
       body: JSON.stringify(config),
-      signal,
+      signal: request?.signal,
     })
     return PivotResult.unpack(await response.json(), source, config)
   },

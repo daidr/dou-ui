@@ -1538,7 +1538,7 @@ function print(options: PivotPrintOptions = {}) {
   const orientation =
     options.orientation ??
     (grid.widths.reduce((a, b) => a + b, 0) > PAGE_WIDTH.portrait ? 'landscape' : 'portrait')
-  const title = options.title ?? props.ariaLabel ?? ''
+  const title = options.title ?? ariaLabel.value
   const iframe = document.createElement('iframe')
   iframe.setAttribute('aria-hidden', 'true')
   iframe.style.cssText = 'position:fixed;width:0;height:0;border:0;visibility:hidden'

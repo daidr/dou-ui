@@ -136,8 +136,8 @@ const pivotSidebar = ecosystem('数据透视', [
   { text: '复制与导出', link: '/pivot/export' },
   { text: '透视图', link: '/pivot/chart' },
   { text: '大量数据', link: '/pivot/performance' },
-  { text: '不用组件', link: '/pivot/engine' },
-  { text: '键盘与读屏', link: '/pivot/accessibility' },
+  { text: '汇总内核', link: '/pivot/engine' },
+  { text: '无障碍', link: '/pivot/accessibility' },
 ])
 const dashboardSidebar = ecosystem('仪表盘', [
   { text: '网格布局', link: '/dashboard/' },

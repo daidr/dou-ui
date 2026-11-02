@@ -25,7 +25,7 @@ import type {
   FormRendererProps,
   FormRendererSlots,
 } from './context'
-import { findFormulaCycles, formulasOf } from '../core/formulas'
+import { findFormulaCycles, formulasOf, settleFormulas } from '../core/formulas'
 import { FormNodeView, nodeKey } from './node-view'
 
 defineOptions({ name: 'DouFormRenderer' })
@@ -84,6 +84,9 @@ watch(
   ([list, target, functions, readonly], _, onCleanup) => {
     // A read-only form works formulas out as it shows them, and writes nothing.
     if (readonly) return
+    // Everything at once first, so the server renders the results the page
+    // will have: watchers there run only once, before the lists fill in.
+    settleFormulas(props.form, target, functions)
     const scope = effectScope()
     scope.run(() => {
       for (const { name, expression } of list)

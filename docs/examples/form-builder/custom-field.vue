@@ -37,6 +37,8 @@ const model = reactive<Record<string, string>>({})
 </script>
 
 <template>
-  <DouFormRenderer :form="form" :fields="fields" :model="model" />
-  <p>{{ model.size }} · {{ model.sugar }}</p>
+  <DouFormRenderer :form="form" :fields="fields" :model="model">
+    <!-- 放在默认插槽里：渲染器填好默认值之后才画出这一行 -->
+    <p>{{ model.size }} · {{ model.sugar }}</p>
+  </DouFormRenderer>
 </template>

@@ -62,9 +62,10 @@ const model = reactive<Record<string, any>>({})
 
 <template>
   <div style="display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: 480px">
-    <DouFormRenderer :form="form" :model="model" />
-    <div style="color: var(--dou-color-text-secondary)">
-      {{ model.total == null ? '填好单价和数量后显示应付金额' : `应付 ${model.total} 元` }}
-    </div>
+    <DouFormRenderer :form="form" :model="model">
+      <div style="color: var(--dou-color-text-secondary)">
+        {{ model.total == null ? '填好单价和数量后显示应付金额' : `应付 ${model.total} 元` }}
+      </div>
+    </DouFormRenderer>
   </div>
 </template>

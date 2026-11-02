@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import { defineComponent, h, nextTick, reactive } from 'vue'
+import { createSSRApp, defineComponent, h, nextTick, reactive } from 'vue'
+import { renderToString } from 'vue/server-renderer'
 import { mount } from '@vue/test-utils'
 import { DouConfigProvider, en } from 'dou-ui'
 import {
@@ -135,6 +136,24 @@ describe('lists', () => {
     await nextTick()
     expect(model.guests[1].total).toBe(240)
     expect(model.sum).toBe(440)
+  })
+
+  it('renders totals across item formulas on the server too', async () => {
+    const model = reactive<Record<string, any>>({
+      guests: [
+        { name: '戴兜', price: 100, count: 2 },
+        { name: '阿青', price: 80, count: 1 },
+      ],
+    })
+    const form = doc([
+      guests,
+      { id: 'sum', type: 'input-number', name: 'sum', formula: "sum(values.guests, 'total')" },
+    ])
+    const html = await renderToString(
+      createSSRApp({ render: () => h(DouFormRenderer, { model, form }) }),
+    )
+    expect(model.sum).toBe(280)
+    expect(html).toContain('value="280"')
   })
 
   it('checks the fields of every item and shows and hides by item', async () => {

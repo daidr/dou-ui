@@ -1,3 +1,7 @@
+---
+wide: true
+---
+
 # 用代码修改
 
 设计器的组件实例和设计器内部的 `useFormBuilder()` 是同一个对象，可以读当前的表单和选中的节点，也可以调用命令和事务修改表单。
@@ -47,7 +51,7 @@ builder.moveTo({ parent: 'contact', index: 3 }, ['a'])
 | `move(id, parent, index)`       | 移动节点，`index` 按移走之后的位置算                |
 | `updateDocument(patch)`         | 修改表单本身的设置，如 `{ layout: 'horizontal' }`   |
 
-事务的每一步都会检查结构，不符合时抛出错误：页面只能放进标签页和分步，标签页和分步里只能放页面，节点不能移到自己里面，id 不能重复。`update` 不能改 `id`、`type` 和 `children`，请改用 `insert`、`remove` 和 `move`。`meta.group` 相同、间隔不到一秒的事务合并成一步撤销；`meta.history` 为 `false` 时不记入撤销。每次修改（包括撤销和重做）都会触发 `change` 事件，参数就是这个事务，`steps` 是它做了哪些修改。
+事务的每一步都会检查结构，不符合时抛出错误：页面只能放进标签页和分步，标签页和分步里只能放页面，节点不能移到自己里面，id 不能重复。`update` 不能改 `id`、`type` 和 `children`，请改用 `insert`、`remove` 和 `move`。`meta.group` 相同、间隔不到一秒的事务合并成一步撤销；`meta.history` 为 `false` 时不记入撤销。每次修改（包括撤销和重做）都会触发 `change` 事件，参数是这个事务，`steps` 是它做了哪些修改。
 
 从外部换掉整份描述（比如加载另一张表单）时，撤销记录会清空。
 

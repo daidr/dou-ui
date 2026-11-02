@@ -1,3 +1,7 @@
+---
+wide: true
+---
+
 # 表单描述
 
 表单描述 `FormDocument` 是一份能直接 `JSON.stringify` 的普通数据。渲染器和后续的设计器都只认它。

@@ -1,3 +1,7 @@
+---
+wide: true
+---
+
 # 校验
 
 描述里的规则会转成 `DouForm` 的规则，检查时机也一样：文本框失焦时检查，出错后每次输入都重新检查；选择类字段每次改动都检查。
@@ -67,8 +71,16 @@
 没有对应字段的路径不会显示，比如写错的名字、当前隐藏的字段。`setErrors` 把这些路径作为数组返回，开发环境下还会在控制台提示。把它们放在表单上方的提示里，用户才不会漏看：
 
 ```ts
-const missed = renderer.value.setErrors(errors)
-if (missed.length) notice.value = missed.map((path) => errors[path]).join('；')
+import { DouFormRenderer } from '@dou-ui/form-builder'
+import { ref, useTemplateRef } from 'vue'
+
+const renderer = useTemplateRef<InstanceType<typeof DouFormRenderer>>('renderer')
+const notice = ref('')
+
+function showErrors(errors: Record<string, string>) {
+  const missed = renderer.value?.setErrors(errors) ?? []
+  notice.value = missed.map((path) => errors[path]).join('；')
+}
 ```
 
 ## API

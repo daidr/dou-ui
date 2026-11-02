@@ -1,3 +1,7 @@
+---
+wide: true
+---
+
 # 表单设计器
 
 `@dou-ui/form-builder` 用一份 JSON 描述表单：有哪些字段、怎么排版、要满足哪些规则。`DouFormRenderer` 把这份描述渲染成 `DouForm`，校验、重置、滚动到出错字段这些行为和手写的表单一样。

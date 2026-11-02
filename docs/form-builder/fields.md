@@ -1,8 +1,12 @@
+---
+wide: true
+---
+
 # 字段类型
 
 ## 内置字段
 
-每个内置字段对应 `dou-ui` 的一个组件，类型名就是组件名去掉 `Dou` 后的短横线写法，例如 `input-number` 渲染 `DouInputNumber`。`radio-group`、`checkbox-group`、`checkbox` 在组件外加了一层：前两个用 `options` 生成选项，`checkbox` 用 `text` 作为旁边的文字。节点的 `props` 原样传给组件，可用的设置见对应组件的文档；密码框就是 `input` 加上 `props: { type: 'password', showPassword: true }`。
+每个内置字段对应 `dou-ui` 的一个组件，类型名是组件名去掉 `Dou` 后的短横线写法，例如 `input-number` 渲染 `DouInputNumber`。`radio-group`、`checkbox-group`、`checkbox` 在组件外加了一层：前两个用 `options` 生成选项，`checkbox` 用 `text` 作为旁边的文字。节点的 `props` 原样传给组件，可用的设置见对应组件的文档；密码框是 `input` 加上 `props: { type: 'password', showPassword: true }`。
 
 | type                | 组件                                                   | 值                            | 空值                           |
 | ------------------- | ------------------------------------------------------ | ----------------------------- | ------------------------------ |
@@ -84,7 +88,7 @@ const chips = defineFormField<{ options: string[] }>({
 
 - 类型有 `format(value, props, context)` 时用它返回的文字。`props` 是合并后的设置，从来源加载的选项也已经放进去了；`context` 有 `node`、渲染器的文字 `messages`（如 `yes`、`no`、列表分隔符 `separator`、范围两端之间的 `rangeSeparator`）和 `dou-ui` 当前的 `locale`。
 - 没有 `format` 但有 `optionsProp` 时，显示选中选项的文字。
-- 都没有时显示值本身：列表用分隔符连起来，`true` / `false` 显示“是”“否”，对象取它的 `label` 或 `name`，两者都没有时只能显示成 JSON，开发环境下会在控制台提示给类型加 `format` 或 `readonlyComponent`。`formatValue(value, context)` 就是这个默认的做法，自己的 `format` 处理不了的值可以交给它。
+- 都没有时显示值本身：列表用分隔符连起来，`true` / `false` 显示“是”“否”，对象取它的 `label` 或 `name`，两者都没有时只能显示成 JSON，开发环境下会在控制台提示给类型加 `format` 或 `readonlyComponent`。`formatValue(value, context)` 是这个默认的做法，自己的 `format` 处理不了的值可以交给它。
 
 ```ts
 const money = defineFormField({

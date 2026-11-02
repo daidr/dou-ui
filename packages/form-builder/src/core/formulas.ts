@@ -1,6 +1,6 @@
-import { isField, valueNodes } from './document'
-import { related, tryCompileExpression } from './expression'
-import type { CompiledExpression } from './expression'
+import { cloneValue, getPath, isField, isList, setPath, valueNodes } from './document'
+import { equalValues, related, tryCompileExpression } from './expression'
+import type { CompiledExpression, FormFunction } from './expression'
 import type { FormDocument, FormListNode, FormNode } from './types'
 
 export interface FormulaField {
@@ -81,4 +81,60 @@ function analyse(nodes: readonly FormNode[], reads: 'fields' | 'itemFields') {
   for (let i = 0; i < all.length; i++) if (order[i] === -1) connect(i)
 
   return { formulas: all.filter((_, index) => !onCycle.has(index)), cycles }
+}
+
+/**
+ * Works out every formula of the form at once, the items' included, and
+ * writes the results into `values`, going over them again until nothing
+ * changes. The renderer's watchers keep results up to date in the page; on
+ * the server, where watchers run only once, this gives the same values the
+ * page will have, so a formula reading the items' formulas is not left behind.
+ */
+export function settleFormulas(
+  document: FormDocument,
+  values: Record<string, unknown>,
+  functions?: Readonly<Record<string, FormFunction>>,
+) {
+  const top = formulasOf(document)
+  // Each pass settles at least one more formula in a chain, so this many always do.
+  for (let pass = 0; pass <= top.length; pass++) {
+    let changed = settleItems(document.nodes, values, values, functions)
+    for (const { name, expression } of top)
+      changed =
+        write(values, name, expression.evaluate({ values, value: null, functions })) || changed
+    if (!changed) return
+  }
+}
+
+function settleItems(
+  nodes: readonly FormNode[],
+  target: Record<string, unknown>,
+  values: Record<string, unknown>,
+  functions: Readonly<Record<string, FormFunction>> | undefined,
+) {
+  let changed = false
+  for (const node of valueNodes(nodes)) {
+    if (!isList(node)) continue
+    const items = getPath(target, node.name)
+    if (!Array.isArray(items)) continue
+    const formulas = analyse(node.children, 'itemFields').formulas
+    for (const item of items as unknown[]) {
+      if (item === null || typeof item !== 'object') continue
+      const row = item as Record<string, unknown>
+      for (let pass = 0; pass <= formulas.length; pass++) {
+        let again = settleItems(node.children, row, values, functions)
+        for (const { name, expression } of formulas)
+          again = write(row, name, expression.evaluate({ values, item: row, functions })) || again
+        if (!again) break
+        changed = true
+      }
+    }
+  }
+  return changed
+}
+
+function write(target: Record<string, unknown>, name: string, result: unknown) {
+  if (equalValues(result, getPath(target, name))) return false
+  setPath(target, name, cloneValue(result))
+  return true
 }

@@ -59,6 +59,16 @@ const flowSidebar = ecosystem('流程编辑器', [
 
 const ganttSidebar = ecosystem('甘特图', [
   { text: '介绍', link: '/gantt/' },
+  { text: '编辑', link: '/gantt/editing' },
+  { text: '右键菜单', link: '/gantt/menu' },
+  { text: '键盘操作', link: '/gantt/keyboard' },
+  { text: '时间轴', link: '/gantt/timeline' },
+  { text: '自动排期', link: '/gantt/scheduling' },
+  { text: '标记线与基线', link: '/gantt/markers' },
+  { text: '工具栏', link: '/gantt/toolbar' },
+  { text: '导出与打印', link: '/gantt/export' },
+  { text: '导入', link: '/gantt/import' },
+  { text: '用代码修改', link: '/gantt/transactions' },
   { text: '文档数据', link: '/gantt/data' },
   { text: '扩展', link: '/gantt/extensions' },
   { text: '协同编辑', link: '/gantt/collaboration' },

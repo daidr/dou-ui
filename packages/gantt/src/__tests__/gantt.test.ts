@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { defineGanttExtension, takeBaseline, useGantt } from '../index'
 import { DouGantt } from '../index'
-import type { GanttExpose, GanttTask } from '../index'
+import type { GanttExpose, GanttMenuTarget, GanttTask } from '../index'
 import { bind, planRef } from './plan-ref'
 
 const sample = (): GanttTask[] => [
@@ -514,6 +514,22 @@ describe('DouGantt', () => {
     ;(document.querySelector('[role="menuitem"]') as HTMLElement).click()
     expect(run).toHaveBeenCalledWith('a')
     expect(seen).toEqual(['task'])
+    wrapper.unmount()
+  })
+
+  it('opens the blank-space menu below the last row too', async () => {
+    const seen: string[] = []
+    const contextMenu = (target: GanttMenuTarget) => {
+      seen.push(target.kind)
+      return [{ key: 'here', label: '这里', run: () => {} }]
+    }
+    const { wrapper } = setup({ contextMenu })
+    await nextTick()
+    await wrapper.find('.dou-gantt__canvas').trigger('contextmenu')
+    await nextTick()
+    await nextTick()
+    expect(seen).toEqual(['canvas'])
+    expect(document.querySelector('[role="menuitem"]')?.textContent?.trim()).toBe('这里')
     wrapper.unmount()
   })
 

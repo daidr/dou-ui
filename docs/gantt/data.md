@@ -56,12 +56,12 @@ import { formatTime, spanOf } from '@dou-ui/gantt'
 const a = spanOf(taskA)
 const b = spanOf(taskB)
 const overlap = a && b && a.start < b.end && b.start < a.end
-formatTime(a.end) // '2026-03-07 00:00'
+if (a) formatTime(a.end) // '2026-03-07 00:00'
 ```
 
 ### 汇总任务和里程碑
 
-有子任务的任务就是汇总任务。它的起止时间是子任务覆盖的范围，进度是子任务按时长加权的平均值，自己的 `start`、`end`、`progress` 不会被读取。点击表格里的箭头收起或展开子任务，结果写回任务的 `collapsed`。
+有子任务的任务是汇总任务。它的起止时间是子任务覆盖的范围，进度是子任务按时长加权的平均值，自己的 `start`、`end`、`progress` 不会被读取。点击表格里的箭头收起或展开子任务，结果写回任务的 `collapsed`。
 
 `type: 'milestone'` 是里程碑，只读 `start`，画成一个菱形。只写日期的里程碑落在那一天的正中。
 
@@ -88,7 +88,7 @@ interface GanttLink {
 | `ff`         | 前置任务完成后，后续任务才能完成 | 结束端 → 结束端             |
 | `sf`         | 前置任务开始后，后续任务才能完成 | 开始端 → 结束端             |
 
-`lag` 是两端之间的间隔，按工作时间计算：数字表示工作日，字符串可以带单位，`'2d'` 是两个工作日，`'4h'` 是四个工作小时，`'30m'` 是三十个工作分钟。手动排期时，依赖不满足的连线画成虚线；[自动排期](./#自动排期)会按依赖推动后续任务。
+`lag` 是两端之间的间隔，按工作时间计算：数字表示工作日，字符串可以带单位，`'2d'` 是两个工作日，`'4h'` 是四个工作小时，`'30m'` 是三十个工作分钟。手动排期时，依赖不满足的连线画成虚线；[自动排期](./scheduling)会按依赖推动后续任务。
 
 连线从任务条的一端水平伸出，转直角进入另一个任务；两个任务挨得太近时，连线沿两行之间的缝隙绕回来。
 
@@ -99,7 +99,9 @@ interface GanttLink {
 `key` 为 `title`、`start`、`end`、`duration`、`progress` 的是内置列，自带表头和格式；其他列没有 `value` 时读取任务 `data` 里与 `key` 同名的字段。不设 `width` 的列分掉剩下的宽度。
 
 ```ts
-const columns = [
+import type { GanttColumn } from '@dou-ui/gantt'
+
+const columns: GanttColumn[] = [
   { key: 'title' },
   { key: 'owner', title: '负责人', width: 80, value: (task) => task.data?.owner },
   { key: 'start', width: 96 },
@@ -114,7 +116,7 @@ const columns = [
 自定义列默认把输入的文字原样写入。要保存数字或其他类型时，用 `parse` 把文字转成要写入的值，返回 `undefined` 表示无法识别，输入框会保留并标红；用 `format` 决定值在单元格里显示成什么文字，输入框里显示的是值本身转成的文字。`input: 'number'` 让手机弹出数字键盘。
 
 ```ts
-const columns = [
+const columns: GanttColumn[] = [
   { key: 'title' },
   {
     key: 'budget',

@@ -2,9 +2,29 @@
 wide: true
 ---
 
-# 用代码修改
+# 用代码修改设计器
 
-设计器的组件实例和设计器内部的 `useFormBuilder()` 是同一个对象，可以读当前的表单和选中的节点，也可以调用命令和事务修改表单。
+设计器的组件实例和设计器内部的 `useFormBuilder()` 是同一个对象，可以读当前的表单和选中的节点，也可以调用命令和事务修改表单。在页面里用模板引用拿到组件实例：
+
+```vue
+<script setup lang="ts">
+import { DouFormBuilder, type FormDocument } from '@dou-ui/form-builder'
+import { ref, useTemplateRef } from 'vue'
+
+const form = ref<FormDocument>({ version: 1, nodes: [] })
+const builder = useTemplateRef<InstanceType<typeof DouFormBuilder>>('builder')
+
+function addInput() {
+  builder.value?.add('input')
+}
+</script>
+
+<template>
+  <DouFormBuilder ref="builder" v-model="form" />
+</template>
+```
+
+`useFormBuilder()` 只能在设计器里面的组件中调用，比如自己摆放的面板、扩展的属性面板部分和字段类型的组件。
 
 ## 命令
 
@@ -27,8 +47,6 @@ wide: true
 需要一次做好几处修改时，先用 `transaction()` 开一个事务，逐步修改，再用 `dispatch` 提交，整个事务是一步撤销：
 
 ```ts
-const builder = useFormBuilder()
-
 const tr = builder.transaction()
 tr.update('phone', { label: '联系电话', required: true })
 tr.move('phone', null, 0)
@@ -64,7 +82,7 @@ builder.moveTo({ parent: 'contact', index: 3 }, ['a'])
 
 给了 `validators` 时，属性面板里的校验函数只能从这些名字里选，JSON 里写了别的名字会被指出来；没给时可以输入任意名字，不做检查。
 
-应用之后是一步撤销。代码里也可以用同样的检查：`checkDocumentShape(data)` 按路径列出结构问题，`checkDocument(document)` 列出内容问题，`documentPaths(document)` 给出每个节点 id 对应的路径；`replace(document)` 换掉整张表单，并记为一步撤销。
+应用之后是一步撤销。代码里也可以用同样的检查：`checkDocumentShape(data)` 按路径列出结构问题，`checkDocument(document)` 列出内容问题；`replace(document)` 换掉整张表单，并记为一步撤销。
 
 ## API
 

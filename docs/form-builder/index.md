@@ -35,7 +35,7 @@ app.use(DouFormBuilder)
 
 <DocDemo src="form-builder/basic" column />
 
-- 传入 `reactive` 对象就能随时读到填写的值；描述里有、`model` 里还没有的字段会先填上默认值。
+- 传入 `reactive` 对象就能随时读到填写的值；描述里有、`model` 里还没有的字段会先填上默认值。要在表单旁边显示这些值时放进默认插槽，原因见[公式](./logic#公式)。
 - 不传 `model` 时渲染器自己建一个，可以从 `submit` 事件或组件实例的 `model` 拿到。
 - 默认插槽放在所有字段后面，通常放提交和重置按钮。
 

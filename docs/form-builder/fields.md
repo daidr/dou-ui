@@ -59,8 +59,13 @@ const chips = defineFormField<{ options: string[] }>({
 })
 ```
 
+```ts
+// 放在组件外面或 setup 里，不要在模板里写 :fields="[chips]"，每次渲染都会新建数组
+const fields = [chips]
+```
+
 ```vue
-<DouFormRenderer :form="form" :fields="[chips]" />
+<DouFormRenderer :form="form" :fields="fields" />
 ```
 
 | 名称                            | 说明                                                                                                        |

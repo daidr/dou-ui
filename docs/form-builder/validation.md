@@ -34,8 +34,8 @@ wide: true
 
 表达式做不到的检查，比如向服务端确认账号是否可用，写成校验函数，通过渲染器的 `validators` 按名字注册。描述里的规则只写名字：
 
-```ts
-{ validator: 'accountFree', message: '这个账号已被占用' }
+```json
+{ "validator": "accountFree", "message": "这个账号已被占用" }
 ```
 
 这和 `sources`、`functions` 的做法一样，描述里不会出现函数，仍然可以存成 JSON、在设计器里编辑。

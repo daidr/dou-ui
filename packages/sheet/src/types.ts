@@ -19,7 +19,7 @@ import type {
 import type { SheetValidation, SheetWorkbook } from './core/model'
 import type { SheetSelection } from './core/selection'
 import type { SheetRef, SheetTransaction, SheetTransactionMeta } from './core/transaction'
-import type { SheetMessages } from './locale'
+import type { SheetMessagesOverride } from './locale'
 
 export interface SheetProps {
   /** The workbook. Changes come back through `update:modelValue`. */
@@ -51,7 +51,7 @@ export interface SheetProps {
   /** The grid's accessible name. */
   ariaLabel?: string
   /** Texts to change. */
-  messages?: Partial<SheetMessages>
+  messages?: SheetMessagesOverride
   /**
    * Changes the right-click menu: gets the items the grid would show and
    * where the menu opened, and returns the items to show. Items can be

@@ -1,6 +1,8 @@
 # 导入导出 xlsx
 
-`@dou-ui/sheet-xlsx` 是电子表格的一个扩展，把工作簿写成 `.xlsx` 文件，也能把 `.xlsx` 文件读成工作簿，常见的表格软件都能打开它写的文件。它不依赖其他库，压缩和解压用的是运行环境自带的 `CompressionStream` 和 `DecompressionStream`：2023 年以后的主流浏览器、Node 18 以上、Bun 和 Deno 都有，没有时会报错并说明原因。
+`@dou-ui/sheet-xlsx` 是电子表格的一个扩展，用于把工作簿写成 `.xlsx` 文件，以及把 `.xlsx` 文件读成工作簿。
+
+它不依赖其他库，压缩和解压使用运行环境自带的 `CompressionStream` 和 `DecompressionStream`。2023 年以后的主流浏览器、Node 18 以上、Bun 和 Deno 都有，没有时会报错并说明原因。
 
 ## 安装
 
@@ -10,7 +12,9 @@ bun add @dou-ui/sheet-xlsx
 
 ## 基础用法
 
-把 `xlsx()` 加到表格的 `extensions` 里，工具栏的导出菜单就会多出 XLSX，导入按钮和拖入文件也能读 `.xlsx` 文件：
+把 `xlsx()` 加到表格的 `extensions` 里，工具栏的导出菜单就会多出 XLSX，导入按钮和拖入文件也能读 `.xlsx` 文件。
+
+<DocDemo src="sheet/xlsx" column />
 
 ```vue
 <script setup lang="ts">
@@ -34,11 +38,9 @@ const extensions = [xlsx()]
 </template>
 ```
 
-<DocDemo src="sheet/xlsx" column />
-
 ## 导出
 
-可以导出整个工作簿、当前工作表或选区。工具栏的导出菜单里，XLSX 有子菜单，可以选择整个工作簿或当前工作表，选中了一片区域时还可以选择选区。用代码导出时和其他导出方式一样，默认导出整个工作簿：
+可以导出整个工作簿、当前工作表或选区。工具栏导出菜单里的 XLSX 有子菜单，用来选择范围。用代码导出时，默认导出整个工作簿：
 
 ```ts
 // 导出并下载
@@ -47,7 +49,10 @@ await grid.value.saveFile('xlsx', { fileName: '门店营收.xlsx' })
 const blob = await grid.value.exportFile('xlsx', { scope: 'sheet', options: { formulas: false } })
 ```
 
-不经过组件时，把 `xlsxExporter` 交给 `exportWorkbook`，在脚本、Worker 或服务端都能用。`exportWorkbook` 从[不含组件的入口](./extensions#不含组件的入口) `@dou-ui/sheet/core` 引入，`@dou-ui/sheet-xlsx` 也不引入组件和图标，Worker 里就不会加载 Vue。表格的 `colWidth`、`rowHeight` 不是默认的 96、28 时，在这里一并传入，文件里的列宽行高才和表格一致：
+不经过组件时，把 `xlsxExporter` 交给 `exportWorkbook`，在脚本、Worker 或服务端都能用：
+
+- `exportWorkbook` 从[不含组件的入口](./exporters#不含组件的入口) `@dou-ui/sheet/core` 引入，`@dou-ui/sheet-xlsx` 也不引入组件和图标，所以 Worker 里不会加载 Vue。
+- 表格的 `colWidth`、`rowHeight` 不是默认的 96、28 时，在这里一并传入，文件里的列宽行高才和表格一致。
 
 ```ts
 import { exportWorkbook } from '@dou-ui/sheet/core'
@@ -62,11 +67,13 @@ const blob = await exportWorkbook(book, xlsxExporter, { colWidth: 120 })
 
 选项可以在 `xlsx(options)` 里给出，作为每次导出和导入的默认值；`exportFile`、`importFile` 的 `options` 会覆盖它们。
 
-| 名称       | 说明                                                                                                                                                                                           | 默认值                             |
-| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
-| `formulas` | 导出时写入公式和计算结果，`false` 时只写结果，适合用了扩展函数、其他软件算不出来的公式，导出选区时总是只写结果；导入时读入公式，`false` 时只读文件里存的计算结果，适合用了表格没有的函数的文件 | `true`                             |
-| `messages` | 导入时的警告和错误文字，只给要换的几条，如 `{ warnings: { border: '框线' } }`；也可以借此加上表格没有的语言                                                                                    | 跟随表格的语言                     |
-| `label`    | 导出菜单里的名字，也是导入提示里这种文件的叫法（只在 `xlsx()` 里）                                                                                                                             | 由表格文案 `file.csv` 得出，见下文 |
+| 名称       | 说明                                                                                                        | 默认值                             |
+| ---------- | ----------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `formulas` | 导出时写入公式和计算结果，`false` 时只写结果；导入时读入公式，`false` 时只读文件里存的计算结果              | `true`                             |
+| `messages` | 导入时的警告和错误文字，只给要换的几条，如 `{ warnings: { border: '框线' } }`；也可以借此加上表格没有的语言 | 跟随表格的语言                     |
+| `label`    | 导出菜单里的名字，也是导入提示里这种文件的叫法（只在 `xlsx()` 里）                                          | 由表格文案 `file.csv` 得出，见下文 |
+
+`formulas: false` 适合两种情况：导出用了扩展函数、其他软件算不出来的公式；导入用了表格没有的函数的文件。导出选区时总是只写结果。
 
 导出菜单里的名字默认由表格的文案 `file.csv` 得出，把其中的“CSV”换成“XLSX”、`.csv` 换成 `.xlsx`，如 `CSV 文件 (.csv)` 得出 `XLSX 文件 (.xlsx)`。改过 `file.csv`、里面不再有“CSV”时，名字是 `XLSX (.xlsx)`，这时用 `label` 指定。
 
@@ -92,7 +99,7 @@ const blob = await exportWorkbook(book, xlsxExporter, { colWidth: 120 })
 
 ## 导入
 
-加了 `xlsx()` 以后，工具栏的导入按钮、拖入文件和 `importFile` 都能读 `.xlsx` 文件，写入方式（追加、替换、从当前单元格放入）和其他文件一样，见[导入与导出](./index#导入与导出)。读完、写入之前触发的 `import` 事件里，`warnings` 列出文件里有、表格放不下的内容，可以据此提示用户：
+加了 `xlsx()` 以后，工具栏的导入按钮、拖入文件和 `importFile` 都能读 `.xlsx` 文件，写入方式（追加、替换、从当前单元格放入）和其他文件一样，见[导入与导出](./files)。读完、写入之前触发的 `import` 事件里，`warnings` 列出文件里有、表格放不下的内容，可以据此提示用户：
 
 ```ts
 import type { SheetImportEvent } from '@dou-ui/sheet'
@@ -147,7 +154,7 @@ const result = await readXlsx(await file.arrayBuffer(), { locale: 'en' })
 | `validation`  | 表格没有的数据验证，如文本长度                                                                                 |
 | `filter`      | 表格没有的筛选条件，如按颜色筛选                                                                               |
 
-文件读不了时，导入会失败，抛出 [`SheetFileError`](./extensions#导出器与导入器)。它的 `code` 区分原因，`reason` 是给用户看的说明，跟随语言，表格的提示里显示的就是它；`message` 是给开发者看的英文：
+文件读不了时，导入会失败，抛出 [`SheetFileError`](./exporters)。它的 `code` 区分原因，`reason` 是给用户看的说明，跟随语言，表格的提示里显示的就是它；`message` 是给开发者看的英文：
 
 | `code`    | 原因                                                                                               |
 | --------- | -------------------------------------------------------------------------------------------------- |
@@ -162,7 +169,7 @@ import { toast } from 'dou-ui'
 function onFileError(event: SheetFileErrorEvent) {
   if (event.error instanceof SheetFileError && event.error.code === 'notXlsx') {
     event.preventDefault()
-    toast.error('请在原来的软件里另存为 .xlsx 文件后再导入')
+    toast.danger('请在原来的软件里另存为 .xlsx 文件后再导入')
   }
 }
 ```

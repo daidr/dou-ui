@@ -204,6 +204,7 @@ export type {
   SheetCompareMessages,
   SheetFileMessages,
   SheetMessages,
+  SheetMessagesOverride,
 } from './locale'
 
 declare module 'vue' {

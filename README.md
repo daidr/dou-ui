@@ -9,13 +9,17 @@
 
 设计取舍见 [设计原则](./docs/guide/philosophy.md)，视觉规范见 [视觉语言](./docs/guide/visual-language.md)，组件计划见 [路线图](./ROADMAP.md)。
 
-> 尚未发布到 npm。首个版本发布前 API 仍可能调整，变化记录在 [更新日志](./CHANGELOG.md)。
+UI 设计与组件由内部组件库演化而来，代码由 Claude Code 与 Codex 编写。
+
+> 仍处于早期阶段：`1.0.0` 之前，次版本号（`0.x.0`）的变化可能包含不兼容的改动，变化记录在 [更新日志](./CHANGELOG.md)。
 
 ## 安装
 
 ```sh
 bun add dou-ui
 ```
+
+想提前试用新功能，可以安装预发布版本：`bun add dou-ui@beta` 或 `bun add dou-ui@alpha`。正式版文档在 [ui.daidr.me](https://ui.daidr.me)，主分支的开发版文档在 [next.ui.daidr.me](https://next.ui.daidr.me)。
 
 需要 Vue 3.5 及以上。样式用到了级联层、`color-mix()` 等特性，面向近两年的主流浏览器。
 
@@ -55,15 +59,25 @@ Token 都是 CSS 变量，可以直接覆盖，也可以用 `@dou-ui/theme` 的 
 
 ## 包
 
-| 包                 | 内容                            |
-| ------------------ | ------------------------------- |
-| `dou-ui`           | 组件，附带全量样式 `style.css`  |
-| `@dou-ui/theme`    | 设计 Token、主题 API 与全部样式 |
-| `@dou-ui/icons`    | 线性图标库，可以单独使用        |
-| `@dou-ui/resolver` | 按需自动导入的解析器            |
-| `@dou-ui/nuxt`     | Nuxt 模块                       |
+| 包                     | 内容                            |
+| ---------------------- | ------------------------------- |
+| `dou-ui`               | 组件，附带全量样式 `style.css`  |
+| `@dou-ui/theme`        | 设计 Token、主题 API 与全部样式 |
+| `@dou-ui/icons`        | 线性图标库，可以单独使用        |
+| `@dou-ui/resolver`     | 按需自动导入的解析器            |
+| `@dou-ui/nuxt`         | Nuxt 模块                       |
+| `@dou-ui/editor`       | 块编辑器                        |
+| `@dou-ui/sheet`        | 电子表格                        |
+| `@dou-ui/sheet-xlsx`   | 电子表格的 .xlsx 导入导出       |
+| `@dou-ui/code`         | 代码编辑器                      |
+| `@dou-ui/chart`        | 图表                            |
+| `@dou-ui/flow`         | 流程编辑器与白板                |
+| `@dou-ui/gantt`        | 甘特图与资源排期                |
+| `@dou-ui/pivot`        | 数据透视表                      |
+| `@dou-ui/dashboard`    | 仪表盘                          |
+| `@dou-ui/form-builder` | 表单设计器                      |
 
-五个包使用同一个版本号，一起发布。
+所有包使用同一个版本号，一起发布。
 
 ## 仓库结构
 
@@ -95,7 +109,7 @@ bun run typecheck    # vue-tsc
 bun run test         # vitest
 bun run check        # 以上全部（CI 同款）
 
-bun run build        # 构建全部五个包
+bun run build        # 构建全部包
 ```
 
 ### 工具链
@@ -127,13 +141,6 @@ bun run build        # 构建全部五个包
 
 绘制规则见 [绘制规范](./docs/icons/design.md)。
 
-### 发布
+### 改动记录与发布
 
-五个包使用同一个版本号。改动先记在 [更新日志](./CHANGELOG.md) 的「未发布」下，发布时：
-
-```sh
-bun run release 0.1.0   # 同步五个包的版本号，并把「未发布」改成 0.1.0
-bun run check && bun run build
-```
-
-确认无误后再手动提交、打标签，并按 `theme` → `icons` → `dou-ui` → `resolver` → `nuxt` 的顺序在各自目录下执行 `bun publish`。
+改动了包的 PR 要在 `.changes/` 里加一条说明（`bun run changelog add`），写法见 [.changes/README.md](./.changes/README.md)。发版由 GitHub Actions 完成，带 npm 的透明度证明，流程见 [RELEASING.md](./RELEASING.md)。

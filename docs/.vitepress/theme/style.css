@@ -916,6 +916,22 @@ body {
   margin: 12px 0;
 }
 
+.doc-mobile-nav__version {
+  display: none;
+  margin-bottom: 8px;
+}
+
+/* the header has no room for the version menu on phones; the drawer has it */
+@media (max-width: 639px) {
+  .doc-header__version {
+    display: none;
+  }
+
+  .doc-mobile-nav__version {
+    display: inline-flex;
+  }
+}
+
 /* narrower screens */
 
 @media (max-width: 1279px) {

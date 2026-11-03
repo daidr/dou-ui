@@ -4,6 +4,7 @@ export {
   ArrowRightIcon,
   BellIcon,
   CalendarDaysIcon,
+  ChevronDownIcon,
   CloudUploadIcon,
   CodeIcon,
   FocusIcon,

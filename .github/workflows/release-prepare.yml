@@ -1,0 +1,83 @@
+# Prepare a release: bump the versions, turn .changes/ into the changelog and
+# open a "release: vX.Y.Z" pull request. Merging it starts release.yml, which
+# waits for approval before anything reaches npm.
+name: Prepare release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号，如 0.1.0-alpha.0、0.1.0-beta.1、0.1.0'
+        required: true
+        type: string
+
+concurrency:
+  group: release-prepare
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  prepare:
+    runs-on: [self-hosted, macOS, ARM64]
+    env:
+      VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # the changelog script reads which pull request added each fragment
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - run: bun install --frozen-lockfile
+
+      - name: Bump versions and write the changelog
+        run: bun run release "$VERSION"
+
+      - name: Check
+        run: bun run check
+
+      - name: Build
+        run: bun run build
+
+      - name: Push the release branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch -c "release-pr/v$VERSION"
+          git add -A packages CHANGELOG.md .changes
+          git commit -m "release: v$VERSION"
+          git push origin "release-pr/v$VERSION"
+
+      - name: Open the pull request
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('node:fs')
+            const version = process.env.VERSION
+            const notes = fs.readFileSync('.release/notes.md', 'utf8')
+            const { data } = await github.rest.pulls.create({
+              ...context.repo,
+              head: `release-pr/v${version}`,
+              base: context.ref.replace('refs/heads/', ''),
+              title: `release: v${version}`,
+              body: [
+                `合并后，发版工作流会构建并等待批准，批准后把 ${version} 发布到 npm。`,
+                '下面是这一版的更新日志，可以在这个 PR 里直接修改 CHANGELOG.md。',
+                '这个 PR 由工作流创建，不会触发 CI 和 Vercel 预览；检查与构建已在准备发版的工作流里通过。',
+                '',
+                '---',
+                '',
+                notes,
+              ].join('\n'),
+            })
+            core.notice(`已创建 ${data.html_url}`)

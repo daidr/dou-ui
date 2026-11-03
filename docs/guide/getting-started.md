@@ -1,13 +1,20 @@
 # 快速开始
 
 ::: warning 早期阶段
-DouUI 仍在搭建中，尚未发布到 npm，API 可能随时变化。
+DouUI 仍处于早期阶段，`1.0.0` 之前次版本号的变化可能包含不兼容的改动，升级前请看 [更新日志](https://github.com/daidr/dou-ui/releases)。
 :::
 
 ## 安装
 
 ```sh
 bun add dou-ui
+```
+
+想提前试用还没有正式发布的功能，可以安装测试版或预览版，详见 [版本与更新](./releases)。某个通道还没有发过版本时安装会报错，换用另一个即可：
+
+```sh
+bun add dou-ui@beta   # 测试版
+bun add dou-ui@alpha  # 预览版
 ```
 
 ## 全量注册

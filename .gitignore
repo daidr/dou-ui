@@ -21,3 +21,6 @@ packages/icons/review
 .nuxt
 .output
 .data
+
+# release tarballs and notes
+.release

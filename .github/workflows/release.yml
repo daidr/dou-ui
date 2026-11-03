@@ -1,0 +1,143 @@
+# Publish a release once its "release: vX.Y.Z" pull request is merged.
+# Builds on a GitHub-hosted runner, waits for approval in the `npm`
+# environment, then publishes every package with provenance, tags the commit
+# and creates the GitHub release. Publishing uses npm trusted publishing;
+# only the very first release, before the packages exist on npm, uses a
+# short-lived token stored as the environment's NPM_TOKEN secret.
+# A release on `latest` also moves the `stable` branch, which the docs at
+# ui.daidr.me deploy from.
+name: Release
+
+on:
+  push:
+    branches: [main, 'release/**']
+    paths: [packages/dou-ui/package.json]
+  # Publishes the branch's current commit, which must be the release commit
+  # itself; after a failed publish, prefer re-running the failed jobs.
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    # only release branches publish, whatever triggered the run
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/')
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.plan.outputs.version }}
+      release: ${{ steps.plan.outputs.release }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - id: plan
+        run: |
+          version=$(node -p "require('./packages/dou-ui/package.json').version")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [ "$version" = "0.0.0" ]; then
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          elif git ls-remote --exit-code --tags origin "refs/tags/v$version" > /dev/null; then
+            echo "v$version 已经发布过，跳过。"
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          elif [ "$(git show HEAD~1:packages/dou-ui/package.json | node -p "JSON.parse(require('fs').readFileSync(0, 'utf8')).version")" = "$version" ]; then
+            # Code merged after the release commit must not ship under its version.
+            echo "::error title=不是发版提交::当前提交 $(git rev-parse --short HEAD) 没有修改版本号，不是 v$version 的发版提交。请到发版提交触发的那次运行里重跑失败的 job，或者重新准备一个版本。"
+            exit 1
+          else
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: plan
+    if: needs.plan.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - run: bun install --frozen-lockfile
+
+      - name: Build
+        run: bun run gen && bun run build
+
+      - name: Pack and check the tarballs
+        run: bun run release:pack
+
+      - name: Dry run
+        run: bun run release:publish --dry-run
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release
+          path: .release/
+          include-hidden-files: true
+          if-no-files-found: error
+
+  publish:
+    needs: [plan, build]
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/')
+    runs-on: ubuntu-latest
+    # the environment's required reviewer approves every publish
+    environment: npm
+    permissions:
+      contents: write
+      id-token: write
+    env:
+      VERSION: ${{ needs.plan.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      # trusted publishing needs npm 11.5.1+, moving dist-tags with it 11.21+
+      - run: npm install -g npm@11
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: release
+          path: .release
+
+      - name: Publish to npm
+        id: publish
+        env:
+          # empty once trusted publishing is configured; see RELEASING.md
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: bun run release:publish
+
+      - name: Tag and create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.publish.outputs.tag }}
+        run: |
+          git tag "v$VERSION" "$GITHUB_SHA"
+          git push origin "v$VERSION"
+          flags=""
+          case "$TAG" in
+            latest) flags="--latest" ;;
+            alpha|beta) flags="--prerelease" ;;
+            *) flags="--latest=false" ;;
+          esac
+          gh release create "v$VERSION" --title "v$VERSION" --notes-file .release/notes.md --verify-tag $flags
+
+      - name: Move stable
+        if: steps.publish.outputs.tag == 'latest'
+        run: git push --force origin "$GITHUB_SHA:refs/heads/stable"

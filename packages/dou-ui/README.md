@@ -9,7 +9,9 @@
 
 设计取舍见 [设计原则](https://github.com/daidr/dou-ui/blob/main/docs/guide/philosophy.md)，视觉规范见 [视觉语言](https://github.com/daidr/dou-ui/blob/main/docs/guide/visual-language.md)，组件计划见 [路线图](https://github.com/daidr/dou-ui/blob/main/ROADMAP.md)。
 
-> 尚未发布到 npm。首个版本发布前 API 仍可能调整，变化记录在 [更新日志](https://github.com/daidr/dou-ui/blob/main/CHANGELOG.md)。
+UI 设计与组件由内部组件库演化而来，代码由 Claude Code 与 Codex 编写。文档见 [ui.daidr.me](https://ui.daidr.me)。
+
+> 仍处于早期阶段：`1.0.0` 之前，次版本号（`0.x.0`）的变化可能包含不兼容的改动，变化记录在 [更新日志](https://github.com/daidr/dou-ui/blob/main/CHANGELOG.md)。
 
 ## 安装
 

@@ -53,6 +53,7 @@
   "include": [
     "types",
     "test",
+    "scripts",
     "packages/*/src",
     "packages/*/scripts",
     "packages/*/vite.config.ts",

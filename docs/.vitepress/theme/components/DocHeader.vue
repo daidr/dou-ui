@@ -5,6 +5,7 @@ import { useColorMode } from 'dou-ui'
 import type { MenuOption } from 'dou-ui'
 import { GithubIcon, MenuIcon, SearchIcon } from '../icons'
 import { useDocs } from '../use-docs'
+import DocVersionMenu from './DocVersionMenu.vue'
 
 const emit = defineEmits<{ search: []; menu: [] }>()
 
@@ -52,6 +53,7 @@ const isMac = computed(() => mounted.value && /Mac|iPhone|iPad/.test(navigator.p
             >
           </template>
         </DouButton>
+        <DocVersionMenu class="doc-header__version" />
         <DouTooltip :content="dark ? '切换到亮色' : '切换到暗色'">
           <DouColorModeButton class="doc-icon-button" />
         </DouTooltip>

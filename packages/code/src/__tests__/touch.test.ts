@@ -63,6 +63,8 @@ function setup(initial = source) {
 
 afterEach(() => {
   vi.useRealTimers()
+  vi.unstubAllGlobals()
+  vi.restoreAllMocks()
   document.body.innerHTML = ''
 })
 
@@ -234,6 +236,8 @@ function stubViewport(height: number) {
   const view = Object.assign(new EventTarget(), {
     offsetTop: 0,
     offsetLeft: 0,
+    pageTop: 0,
+    pageLeft: 0,
     width: 390,
     height,
     scale: 1,
@@ -252,13 +256,136 @@ function layer() {
   return document.querySelector('.dou-code-editor__floating.is-outside')!
 }
 
-/** Whether the bar of keys above the page is faded out for a page scroll. */
-function keysScrolling() {
-  return document.querySelector('.dou-code-editor__keys')!.classList.contains('is-scrolling')
+/** Where the bar of keys is drawn, from its transform. */
+function keysPlace() {
+  const bar = document.querySelector<HTMLElement>('.dou-code-editor__keys')!
+  const [x, y] = bar.style.transform.match(/-?[\d.]+/g)!.map(Number)
+  return { x: x!, y: y! }
+}
+
+/** A finger down on the bar's grip, at the window's top left corner. */
+function pressGrip(grip: HTMLElement, pointerId: number) {
+  grip.dispatchEvent(
+    new PointerEvent('pointerdown', {
+      pointerId,
+      pointerType: 'touch',
+      button: 0,
+      clientX: 0,
+      clientY: 0,
+      bubbles: true,
+    }),
+  )
 }
 
 describe('touch on a phone', () => {
   afterEach(() => vi.unstubAllGlobals())
+
+  it('puts the bar of keys in the page, moved by its grip and not by the keyboard', async () => {
+    stubCoarsePointer()
+    const resize = stubViewport(800)
+    // The bar's box is where its transform puts it, as in a page with layout.
+    const box = HTMLElement.prototype.getBoundingClientRect
+    const rects = vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockImplementation(function (this: HTMLElement) {
+        if (!this.classList.contains('dou-code-editor__keys')) return box.call(this)
+        const [x = 0, y = 0] = (this.style.transform.match(/-?[\d.]+/g) ?? []).map(Number)
+        return DOMRect.fromRect({ x, y, width: 300, height: 44 })
+      })
+    const { tap } = setup()
+    await nextTick()
+    await tap(at(6, 0))
+    await nextTick()
+    await nextTick()
+    const grip = document.querySelector<HTMLElement>('.dou-code-editor__keys-grip')!
+    expect(grip.getAttribute('aria-label')).toBe('移动符号栏')
+    const before = keysPlace()
+    // The keyboard coming up leaves it where it is.
+    resize(400)
+    await nextTick()
+    expect(keysPlace()).toEqual(before)
+    grip.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        pointerId: 2,
+        pointerType: 'touch',
+        button: 0,
+        clientX: 10,
+        clientY: 10,
+        bubbles: true,
+      }),
+    )
+    window.dispatchEvent(
+      new PointerEvent('pointermove', { pointerId: 2, clientX: 30, clientY: 60 }),
+    )
+    window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 2, clientX: 30, clientY: 60 }))
+    await nextTick()
+    expect(keysPlace()).toEqual({ x: before.x + 20, y: before.y + 50 })
+    // Moved by a finger, it stays put as the keyboard comes up again.
+    resize(800)
+    resize(400)
+    await nextTick()
+    expect(keysPlace()).toEqual({ x: before.x + 20, y: before.y + 50 })
+    // And by the arrow keys, from the keyboard.
+    grip.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }))
+    await nextTick()
+    expect(keysPlace()).toEqual({ x: before.x + 20, y: before.y + 42 })
+    // Moved again, it stays put too.
+    resize(800)
+    pressGrip(grip, 2)
+    window.dispatchEvent(
+      new PointerEvent('pointermove', { pointerId: 2, clientX: 0, clientY: 100 }),
+    )
+    window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 2, clientX: 0, clientY: 100 }))
+    await nextTick()
+    const dragged = keysPlace()
+    expect(dragged).toEqual({ x: before.x + 20, y: before.y + 142 })
+    resize(400)
+    await nextTick()
+    expect(keysPlace()).toEqual(dragged)
+    // Unless the keyboard would cover it: then it comes up just above, not back below the editor.
+    pressGrip(grip, 3)
+    window.dispatchEvent(
+      new PointerEvent('pointermove', { pointerId: 3, clientX: 0, clientY: 300 }),
+    )
+    window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 3, clientX: 0, clientY: 300 }))
+    await nextTick()
+    expect(keysPlace().y).toBe(400 - 44 - 8)
+    resize(200)
+    await nextTick()
+    expect(keysPlace()).toEqual({ x: dragged.x, y: 200 - 44 - 8 })
+    rects.mockRestore()
+  })
+
+  it('reaches the bar of keys by Escape then Tab, keeps it while the focus is on it, and goes back by Escape', async () => {
+    stubCoarsePointer()
+    stubViewport(800)
+    const { tap, wrapper } = setup()
+    await nextTick()
+    await tap(at(6, 0))
+    await nextTick()
+    const textarea = wrapper.find('textarea').element
+    textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    const tab = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true })
+    textarea.dispatchEvent(tab)
+    expect(tab.defaultPrevented).toBe(true)
+    const grip = document.querySelector<HTMLElement>('.dou-code-editor__keys-grip')!
+    expect(document.activeElement).toBe(grip)
+    await nextTick()
+    expect(document.querySelector('.dou-code-editor__keys')).not.toBeNull()
+    expect(grip.getAttribute('aria-keyshortcuts')).toBe('ArrowUp ArrowDown ArrowLeft ArrowRight')
+    const stick = document.querySelector<HTMLElement>(
+      '.dou-code-editor__keys .dou-code-keys__stick',
+    )!
+    expect(stick.getAttribute('aria-keyshortcuts')).toBe('ArrowUp ArrowDown ArrowLeft ArrowRight')
+    // The stick moves the cursor from the keyboard and keeps the focus for the next arrow.
+    stick.focus()
+    stick.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+    await nextTick()
+    expect(document.activeElement).toBe(stick)
+    expect(document.querySelector('.dou-code-editor__keys')).not.toBeNull()
+    grip.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    expect(document.activeElement).toBe(textarea)
+  })
 
   it('follows the keyboard as it comes up or grows, not while a finger scrolls the page and its bars resize the view', async () => {
     stubCoarsePointer()
@@ -269,11 +396,11 @@ describe('touch on a phone', () => {
     await nextTick()
     await tap(at(6, 1))
     await nextTick()
-    resize(100)
+    resize(70)
     expect(scrollBy).toHaveBeenCalled()
     scrollBy.mockClear()
     // A row of candidates over the keyboard, a little taller.
-    resize(60)
+    resize(50)
     expect(scrollBy).toHaveBeenCalled()
     scrollBy.mockClear()
     // The browser's own bar grows back while a finger scrolls the page.
@@ -293,36 +420,6 @@ describe('touch on a phone', () => {
     await nextTick()
     resize(400, 2)
     expect(scrollBy).not.toHaveBeenCalled()
-  })
-
-  it("keeps the bar of keys in place for the editor's own scroll to the cursor", async () => {
-    stubCoarsePointer()
-    const resize = stubViewport(800)
-    vi.stubGlobal('scrollBy', () => window.dispatchEvent(new Event('scroll')))
-    const { tap } = setup()
-    await nextTick()
-    await tap(at(6, 1))
-    await nextTick()
-    resize(60)
-    await nextTick()
-    expect(keysScrolling()).toBe(false)
-  })
-
-  it('fades the bar of keys out while the page scrolls', async () => {
-    vi.useFakeTimers()
-    stubCoarsePointer()
-    stubViewport(400)
-    const { tap } = setup()
-    await nextTick()
-    await tap(at(6, 0))
-    await nextTick()
-    expect(keysScrolling()).toBe(false)
-    window.dispatchEvent(new Event('scroll'))
-    await nextTick()
-    expect(keysScrolling()).toBe(true)
-    vi.advanceTimersByTime(200)
-    await nextTick()
-    expect(keysScrolling()).toBe(false)
   })
 
   it("keeps only a caret in the textarea, so the system's own selection never shows; typing replaces the selection", async () => {
@@ -499,16 +596,48 @@ describe('DouCodeKeys', () => {
     expect(code.value).toBe('( )')
   })
 
-  it('repeats the arrow keys while held, and leaves a slide to the scrolling', async () => {
+  it('moves the cursor the way the stick leans, faster the further, and leaves a slide on the keys to the scrolling', async () => {
     vi.useFakeTimers()
     const { wrapper, editor, code } = setup('abcdefgh')
     await nextTick()
     editor.value!.select(8)
-    const left = wrapper.find('.dou-code-keys__arrows .dou-code-keys__key')
-    await left.trigger('pointerdown', { pointerType: 'touch', pointerId: 4, button: 0 })
-    vi.advanceTimersByTime(400 + 60 * 3)
-    await left.trigger('pointerup', { pointerId: 4 })
-    expect(editor.value!.selection.ranges[0]!.head).toBe(4)
+    const stick = wrapper.find('.dou-code-keys__stick')
+    expect(stick.attributes('aria-label')).toBe('移动光标')
+    const head = () => editor.value!.selection.ranges[0]!.head
+    // At the window's right edge, the pad grows in from it.
+    vi.stubGlobal('visualViewport', { pageLeft: 0, pageTop: 0, width: 390, height: 800 })
+    vi.spyOn(stick.element, 'getBoundingClientRect').mockReturnValue(
+      DOMRect.fromRect({ x: 350, y: 400, width: 36, height: 36 }),
+    )
+    await stick.trigger('pointerdown', {
+      pointerType: 'touch',
+      pointerId: 4,
+      button: 0,
+      clientX: 0,
+      clientY: 0,
+    })
+    // Within its rest, nothing moves.
+    await stick.trigger('pointermove', { pointerId: 4, clientX: -4, clientY: 0 })
+    expect(head()).toBe(8)
+    // Leaning left: a step at once, then on, quicker pushed all the way.
+    expect(stick.classes()).toContain('is-held')
+    // 390 - 4 - 52 - 368: the pad's edge 4px in from the window's.
+    expect(stick.find('.dou-code-keys__pad').attributes('style')).toContain('translate: -34px 0px')
+    await stick.trigger('pointermove', { pointerId: 4, clientX: -60, clientY: 0 })
+    expect(head()).toBe(7)
+    expect(stick.find('.dou-code-keys__thumb').attributes('style')).toContain(
+      'translate(-26px, 0px)',
+    )
+    vi.advanceTimersByTime(40 * 3)
+    expect(head()).toBe(4)
+    await stick.trigger('pointerup', { pointerId: 4 })
+    vi.advanceTimersByTime(1000)
+    expect(head()).toBe(4)
+    expect(stick.find('.dou-code-keys__thumb').attributes('style')).toContain('translate(0px, 0px)')
+    expect(stick.classes()).not.toContain('is-held')
+    // From the keyboard, the arrow keys.
+    await stick.trigger('keydown', { key: 'ArrowRight' })
+    expect(head()).toBe(5)
     // A finger that slides off is scrolling the bar: nothing is typed.
     const key = wrapper.findAll('.dou-code-keys__key').find((k) => k.text() === ';')!
     await key.trigger('pointerdown', {

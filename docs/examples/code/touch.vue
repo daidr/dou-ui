@@ -16,7 +16,7 @@ const editor = ref()
 <template>
   <div class="touch-demo">
     <DouCodeEditor ref="editor" v-model="code" :language="typescript" aria-label="触屏示例" />
-    <!-- 触屏上编辑器自带的符号栏会浮在键盘上方，这里只在桌面上显示一条 -->
+    <!-- 触屏上编辑器自带一条可拖动的符号栏，这里只在桌面上显示一条 -->
     <DouCodeKeys class="touch-demo__keys" :editor="editor" />
   </div>
 </template>

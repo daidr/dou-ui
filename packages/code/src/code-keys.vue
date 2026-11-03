@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon } from '@dou-ui/icons'
 import { useNamespace } from 'dou-ui'
+import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon } from '@dou-ui/icons'
 import { computed, onBeforeUnmount, ref } from 'vue'
 import {
   type CodeCommand,
@@ -12,6 +12,7 @@ import {
 } from './core/commands'
 import { defaultCodeKeys, keyName } from './code-keys'
 import { useCodeMessages } from './locale'
+import { visibleViewport } from './view/viewport'
 import type { CodeKey, CodeKeysProps } from './types'
 
 defineOptions({ name: 'DouCodeKeys' })
@@ -30,24 +31,8 @@ const symbolKeys = computed<CodeKey[]>(() =>
   (props.keys ?? defaultCodeKeys).map((key) => (typeof key === 'string' ? { label: key } : key)),
 )
 
-/** Moving the cursor, always at hand at the end of the bar. */
-const arrowKeys = computed<CodeKey[]>(() => {
-  const m = messages.value
-  return [
-    { label: m.cursorLeft, icon: ChevronLeftIcon, command: cursorCharLeft, repeat: true },
-    { label: m.cursorUp, icon: ChevronUpIcon, command: cursorLineUp, repeat: true },
-    { label: m.cursorDown, icon: ChevronDownIcon, command: cursorLineDown, repeat: true },
-    { label: m.cursorRight, icon: ChevronRightIcon, command: cursorCharRight, repeat: true },
-  ]
-})
-
 function fire(key: CodeKey) {
-  const command: CodeCommand = key.command ?? typeText(key.text ?? key.label)
-  const { editor } = props
-  if (!editor) return
-  editor.run(command)
-  // A key pressed while the editor is away (beside it on a desktop) brings the cursor back into view.
-  editor.focus?.()
+  run(key.command ?? typeText(key.text ?? key.label))
 }
 
 /** How far a finger may slide on a key before it counts as scrolling the bar. */
@@ -113,7 +98,122 @@ function onClick(event: MouseEvent, key: CodeKey) {
   if (event.detail === 0) fire(key)
 }
 
-onBeforeUnmount(stop)
+/**
+ * The stick at the end of the bar moves the cursor. Pressed, it grows into a
+ * round pad over the bar, the way a number field's keys do, so a thumb has
+ * room to lean it: past its rest it steps the way it leans, and the further,
+ * the faster. Lifted, it shrinks back.
+ */
+const STICK_REACH = 26
+const STICK_REST = 8
+/** The pad's radius once grown, and the room it keeps from the window's edge. */
+const PAD_RADIUS = 52
+const PAD_MARGIN = 4
+const MOVES = {
+  left: cursorCharLeft,
+  right: cursorCharRight,
+  up: cursorLineUp,
+  down: cursorLineDown,
+} as const
+type Lean = keyof typeof MOVES
+const thumb = ref({ x: 0, y: 0 })
+const held = ref(false)
+/** How far the pad moves in from the window's edge to fit, in px. */
+const padShift = ref({ x: 0, y: 0 })
+let stick: {
+  pointer: number
+  x: number
+  y: number
+  timer: number
+  lean: Lean | null
+  far: number
+} | null = null
+
+function leanOf(x: number, y: number): Lean | null {
+  if (Math.hypot(x, y) < STICK_REST) return null
+  return Math.abs(x) >= Math.abs(y) ? (x < 0 ? 'left' : 'right') : y < 0 ? 'up' : 'down'
+}
+
+/** Steps while the stick leans: slowly near its rest, fast pushed all the way and beyond. */
+function stepStick() {
+  if (!stick?.lean) return
+  run(MOVES[stick.lean])
+  stick.timer = window.setTimeout(stepStick, 280 - stick.far * 240)
+}
+
+function onStickDown(event: PointerEvent) {
+  if (event.button !== 0) return
+  event.preventDefault()
+  endStick()
+  const el = event.currentTarget as HTMLElement
+  el.setPointerCapture?.(event.pointerId)
+  // Grown from its middle, the pad moves in as it grows wherever it would reach past the window's edge.
+  const box = el.getBoundingClientRect()
+  const cx = box.left + box.width / 2
+  const cy = box.top + box.height / 2
+  const room = PAD_RADIUS + PAD_MARGIN
+  const view = visibleViewport()
+  padShift.value = {
+    x: Math.min(0, view.left + view.width - room - cx) + Math.max(0, view.left + room - cx),
+    y: Math.min(0, view.top + view.height - room - cy) + Math.max(0, view.top + room - cy),
+  }
+  held.value = true
+  stick = {
+    pointer: event.pointerId,
+    x: event.clientX,
+    y: event.clientY,
+    timer: 0,
+    lean: null,
+    far: 0,
+  }
+}
+
+function onStickMove(event: PointerEvent) {
+  if (!stick || event.pointerId !== stick.pointer) return
+  const x = event.clientX - stick.x
+  const y = event.clientY - stick.y
+  const d = Math.hypot(x, y)
+  const k = d > STICK_REACH ? STICK_REACH / d : 1
+  thumb.value = { x: x * k, y: y * k }
+  stick.far = Math.min(1, Math.max(0, d - STICK_REST) / (STICK_REACH * 1.5 - STICK_REST))
+  const lean = leanOf(x, y)
+  if (lean === stick.lean) return
+  clearTimeout(stick.timer)
+  stick.lean = lean
+  // A new way steps at once, then goes on.
+  stepStick()
+}
+
+function endStick() {
+  if (stick) clearTimeout(stick.timer)
+  stick = null
+  held.value = false
+  thumb.value = { x: 0, y: 0 }
+}
+
+/** With the stick focused, the arrow keys move the cursor. */
+function onStickKey(event: KeyboardEvent) {
+  const lean = (
+    { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' } as const
+  )[event.key as 'ArrowLeft']
+  if (!lean) return
+  event.preventDefault()
+  // From the keyboard, the focus stays on the stick, for the next arrow.
+  run(MOVES[lean], false)
+}
+
+function run(command: CodeCommand, focus = true) {
+  const { editor } = props
+  if (!editor) return
+  editor.run(command)
+  // A key pressed while the editor is away (beside it on a desktop) brings the cursor back into view.
+  if (focus) editor.focus?.()
+}
+
+onBeforeUnmount(() => {
+  stop()
+  endStick()
+})
 </script>
 
 <template>
@@ -145,20 +245,32 @@ onBeforeUnmount(stop)
     </div>
     <div :class="ns.e('arrows')">
       <button
-        v-for="(key, i) in arrowKeys"
-        :key="`a${i}`"
         type="button"
-        :class="[ns.e('key'), ns.is('pressed', pressed === `a${i}`), ns.is('icon', true)]"
-        :aria-label="key.label"
-        :title="key.label"
-        @pointerdown="onPointerDown($event, key, `a${i}`)"
-        @pointermove="onPointerMove"
-        @pointerup="onPointerUp"
-        @pointercancel="stop"
-        @pointerleave="stop"
-        @click="onClick($event, key)"
+        :class="[ns.e('stick'), ns.is('held', held)]"
+        :aria-label="messages.moveCursor"
+        :title="messages.moveCursor"
+        aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight"
+        @pointerdown="onStickDown"
+        @pointermove="onStickMove"
+        @pointerup="endStick"
+        @pointercancel="endStick"
+        @lostpointercapture="endStick"
+        @keydown="onStickKey"
       >
-        <component :is="key.icon" />
+        <span
+          :class="ns.e('pad')"
+          :style="held ? { translate: `${padShift.x}px ${padShift.y}px` } : undefined"
+          aria-hidden="true"
+        >
+          <ChevronUpIcon :class="[ns.e('way'), ns.is('up', true)]" />
+          <ChevronRightIcon :class="[ns.e('way'), ns.is('right', true)]" />
+          <ChevronDownIcon :class="[ns.e('way'), ns.is('down', true)]" />
+          <ChevronLeftIcon :class="[ns.e('way'), ns.is('left', true)]" />
+          <span
+            :class="ns.e('thumb')"
+            :style="{ transform: `translate(${thumb.x}px, ${thumb.y}px)` }"
+          />
+        </span>
       </button>
     </div>
   </div>

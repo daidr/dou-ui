@@ -243,7 +243,7 @@ watch(
       fromAway.value = markRaw(next)
     } catch (error) {
       if (id !== job || (error as Error).name === 'AbortError') return
-      if (props.engine) console.error(error)
+      if (props.engine) console.error('[@dou-ui/pivot] engine 汇总失败', error)
       else {
         // the own worker failed: sum up on the page from now on
         console.warn('[@dou-ui/pivot] worker 不可用，改为在页面中汇总', error)

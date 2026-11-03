@@ -16,6 +16,15 @@ export interface PivotWorkerLike {
 /** How long the page reads records before it lets other work run, in ms. */
 const SLICE = 6
 
+const PREFIX = '[@dou-ui/pivot]'
+/** Why the worker can't sum up, with the package prefix in front of what the browser said. */
+const brokenMessage = (message: string | undefined) =>
+  !message
+    ? `${PREFIX} worker 无法启动`
+    : message.startsWith(PREFIX)
+      ? message
+      : `${PREFIX} worker 无法启动：${message}`
+
 const abortError = () => new DOMException('A newer config came in', 'AbortError')
 
 /** Lets the page paint and handle input between slices of reading. */
@@ -95,7 +104,7 @@ export function createPivotWorker(worker: PivotWorkerLike | (() => PivotWorkerLi
       job.resolve(m)
     })
     w.addEventListener('error', (event) => {
-      broken = (event as ErrorEvent).message || '[@dou-ui/pivot] worker 无法启动'
+      broken = brokenMessage((event as ErrorEvent).message)
       for (const job of waiting.values()) job.resolve({ type: 'error', id: -1, message: broken })
       waiting.clear()
     })
@@ -137,7 +146,7 @@ export function createPivotWorker(worker: PivotWorkerLike | (() => PivotWorkerLi
       try {
         connect()
       } catch (error) {
-        broken = (error as Error).message || '[@dou-ui/pivot] worker 无法启动'
+        broken = brokenMessage((error as Error).message)
       }
       if (broken) throw new Error(broken)
       if (source !== current) {

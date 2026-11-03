@@ -11,6 +11,7 @@ import {
   type SchedulerResource,
 } from '..'
 import type { SchedulerMenuTarget, SchedulerMove, SchedulerRange } from '../types'
+import { later } from '../../../../../test/later'
 import { bind, planRef } from '../../__tests__/plan-ref'
 
 // happy-dom lays nothing out, so a scroller has no room to scroll; the timeline
@@ -78,11 +79,14 @@ const task = (tasks: { value: GanttTask[] }, id: string) =>
   tasks.value.find((item) => item.id === id)!
 
 // happy-dom lays nothing out: the chart sits at 0,0 with the 56px header on top
-const pointer = (type: string, x: number, y: number, el: EventTarget = window) =>
+const pointer = (type: string, x: number, y: number, el: EventTarget = window) => {
+  later()
   el.dispatchEvent(
     new PointerEvent(type, { button: 0, clientX: x, clientY: y, pointerId: 1, bubbles: true }),
   )
+}
 const pressKey = async (el: Element, key: string, init: KeyboardEventInit = {}) => {
+  later()
   el.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, ...init }))
   await nextTick()
 }

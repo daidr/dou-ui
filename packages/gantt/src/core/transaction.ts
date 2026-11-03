@@ -68,7 +68,7 @@ function previous<T extends object>(item: T, patch: Patch<T>): Patch<T> {
 function minutesOf(time: number | string, end: boolean) {
   if (typeof time === 'number') return time
   const parsed = parseTime(time)
-  if (!parsed) throw new RangeError(`Can't read the time "${time}"`)
+  if (!parsed) throw new RangeError(`[@dou-ui/gantt] can't read the time "${time}"`)
   return parsed.at + (end && parsed.dateOnly ? MINUTES_PER_DAY : 0)
 }
 

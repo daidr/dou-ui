@@ -46,8 +46,9 @@ import { sortRows, textCollator, type SheetSortKey } from './data'
 /** Throws when a rule's ranges aren't all ranges. */
 function checkRuleRange(range: SheetRuleRange) {
   const texts = rangesOf(range)
-  if (!texts.length) throw new RangeError('A rule needs a range')
-  for (const text of texts) if (!parseRange(text)) throw new RangeError(`"${text}" isn't a range`)
+  if (!texts.length) throw new RangeError('[@dou-ui/sheet] a rule needs a range')
+  for (const text of texts)
+    if (!parseRange(text)) throw new RangeError(`[@dou-ui/sheet] "${text}" isn't a range`)
 }
 
 type RuleKey = 'conditionalFormats' | 'validations'
@@ -291,7 +292,7 @@ export class SheetTransaction {
   /** A sheet as it is now in this transaction. */
   getSheet(ref: SheetRef = this.sheet): SheetData {
     const index = this.indexOf(ref)
-    if (index === -1) throw new RangeError(`There is no sheet "${ref}"`)
+    if (index === -1) throw new RangeError(`[@dou-ui/sheet] there is no sheet "${ref}"`)
     return this.book.sheets[index]!
   }
 
@@ -449,7 +450,10 @@ export class SheetTransaction {
     else if (vertical && t.bottom === s.bottom && t.top < s.top) direction = 'up'
     else if (horizontal && t.left === s.left && t.right > s.right) direction = 'right'
     else if (horizontal && t.right === s.right && t.left < s.left) direction = 'left'
-    else throw new RangeError('The range to fill must extend the cells it is filled from')
+    else
+      throw new RangeError(
+        '[@dou-ui/sheet] the range to fill must extend the cells it is filled from',
+      )
     const down = direction === 'down' || direction === 'up'
     const forward = direction === 'down' || direction === 'right'
     const count = down
@@ -523,7 +527,7 @@ export class SheetTransaction {
     if (top >= bounds.bottom || !keys.length) return this
     const body = { ...bounds, top }
     if (mergesOf(sheet).touching(body).length)
-      throw new RangeError('A range with merged cells cannot be sorted')
+      throw new RangeError('[@dou-ui/sheet] a range with merged cells cannot be sorted')
     const rows = Array.from({ length: bounds.bottom - top + 1 }, (_, i) => top + i)
     const cells = sheet.cells
     const valueAt =
@@ -574,7 +578,7 @@ export class SheetTransaction {
   filterColumn(col: number, rule: SheetFilterRule | undefined, sheet: SheetRef = this.sheet) {
     const index = this.mustIndex(sheet)
     const filter = this.book.sheets[index]!.filter
-    if (!filter) throw new RangeError('The sheet has no filter')
+    if (!filter) throw new RangeError('[@dou-ui/sheet] the sheet has no filter')
     const columns = { ...filter.columns }
     if (rule) columns[col] = rule
     else delete columns[col]
@@ -717,7 +721,7 @@ export class SheetTransaction {
     const data = this.book.sheets[index]!
     const span = groupSpan(range)
     const group = span && groupsOf(data).axis(span.axis).find(span.start, span.end)
-    if (!group) throw new RangeError(`There is no group "${range}"`)
+    if (!group) throw new RangeError(`[@dou-ui/sheet] there is no group "${range}"`)
     if (group.collapsed === collapsed) return this
     return this.setGroups(index, (g, i) => (i === group.index ? { ...g, collapsed } : g))
   }
@@ -746,10 +750,14 @@ export class SheetTransaction {
     if (laid.find(start, end)) return this
     const problem = laid.problem(start, end)
     if (problem === 'deep')
-      throw new RangeError(`"${groupRange(axis, start, end)}" would nest more than eight deep`)
+      throw new RangeError(
+        `[@dou-ui/sheet] "${groupRange(axis, start, end)}" would nest more than eight deep`,
+      )
     if (problem) {
       const other = groupRange(axis, problem.cross.start, problem.cross.end)
-      throw new RangeError(`"${groupRange(axis, start, end)}" would cross the group "${other}"`)
+      throw new RangeError(
+        `[@dou-ui/sheet] "${groupRange(axis, start, end)}" would cross the group "${other}"`,
+      )
     }
     // groups of the same level right beside it join it, as one group
     const joined = new Set<number>()
@@ -1274,11 +1282,13 @@ export class SheetTransaction {
   }
 
   private checkName(name: string, id?: string, self = -1) {
-    if (!name.trim()) throw new RangeError('A sheet needs a name')
+    if (!name.trim()) throw new RangeError('[@dou-ui/sheet] a sheet needs a name')
     this.book.sheets.forEach((sheet, i) => {
       if (i === self) return
-      if (sheet.name === name) throw new RangeError(`There is a sheet "${name}" already`)
-      if (id != null && sheet.id === id) throw new RangeError(`There is a sheet "${id}" already`)
+      if (sheet.name === name)
+        throw new RangeError(`[@dou-ui/sheet] there is a sheet "${name}" already`)
+      if (id != null && sheet.id === id)
+        throw new RangeError(`[@dou-ui/sheet] there is a sheet "${id}" already`)
     })
   }
 
@@ -1301,7 +1311,7 @@ export class SheetTransaction {
 
   private mustIndex(ref: SheetRef = this.sheet) {
     const index = this.indexOf(ref)
-    if (index === -1) throw new RangeError(`There is no sheet "${ref}"`)
+    if (index === -1) throw new RangeError(`[@dou-ui/sheet] there is no sheet "${ref}"`)
     return index
   }
 
@@ -1313,7 +1323,7 @@ export class SheetTransaction {
     if (typeof at === 'string') {
       const { sheet, ref } = splitSheet(at)
       const point = parseCell(ref)
-      if (!point) throw new RangeError(`"${at}" isn't a cell`)
+      if (!point) throw new RangeError(`[@dou-ui/sheet] "${at}" isn't a cell`)
       return { index: this.mustIndex(sheet), ...point }
     }
     return { index: this.mustIndex(at.sheet), row: at.row, col: at.col }
@@ -1326,7 +1336,7 @@ export class SheetTransaction {
       const split = splitSheet(at)
       sheet = split.sheet
       const range = parseRange(split.ref)
-      if (!range) throw new RangeError(`"${at}" isn't a range`)
+      if (!range) throw new RangeError(`[@dou-ui/sheet] "${at}" isn't a range`)
       bounds = boundsOf(range)
     } else {
       sheet = at.sheet
@@ -1614,7 +1624,7 @@ function linesOf(axis: SheetAxisName, at: SheetLinesAt, count?: number) {
   const first = line(a!)
   const last = line(b)
   if (extra != null || first < 0 || last < 0)
-    throw new RangeError(`"${at}" isn't ${axis === 'row' ? 'rows' : 'columns'}`)
+    throw new RangeError(`[@dou-ui/sheet] "${at}" isn't ${axis === 'row' ? 'rows' : 'columns'}`)
   return { from: Math.min(first, last), count: count ?? Math.abs(last - first) + 1 }
 }
 

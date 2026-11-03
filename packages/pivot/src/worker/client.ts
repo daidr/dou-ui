@@ -16,6 +16,16 @@ export interface PivotWorkerLike {
 /** How long the page reads records before it lets other work run, in ms. */
 const SLICE = 6
 
+const PREFIX = '[@dou-ui/pivot]'
+const CANNOT_START = 'the worker could not start'
+/** Why the worker can't sum up, with the package prefix in front of what the browser said. */
+const brokenMessage = (message: string | undefined) =>
+  !message
+    ? `${PREFIX} ${CANNOT_START}; check that the worker file loads (a 404, a CSP or cross-origin block, or a bundler that left it out), or use :worker="false" or createPivotWorker()`
+    : message.startsWith(PREFIX)
+      ? message
+      : `${PREFIX} ${CANNOT_START}: ${message}`
+
 const abortError = () => new DOMException('A newer config came in', 'AbortError')
 
 /** Lets the page paint and handle input between slices of reading. */
@@ -95,7 +105,7 @@ export function createPivotWorker(worker: PivotWorkerLike | (() => PivotWorkerLi
       job.resolve(m)
     })
     w.addEventListener('error', (event) => {
-      broken = (event as ErrorEvent).message || '[@dou-ui/pivot] worker 无法启动'
+      broken = brokenMessage((event as ErrorEvent).message)
       for (const job of waiting.values()) job.resolve({ type: 'error', id: -1, message: broken })
       waiting.clear()
     })
@@ -137,7 +147,7 @@ export function createPivotWorker(worker: PivotWorkerLike | (() => PivotWorkerLi
       try {
         connect()
       } catch (error) {
-        broken = (error as Error).message || '[@dou-ui/pivot] worker 无法启动'
+        broken = brokenMessage((error as Error).message)
       }
       if (broken) throw new Error(broken)
       if (source !== current) {
@@ -174,7 +184,7 @@ export function createPivotWorker(worker: PivotWorkerLike | (() => PivotWorkerLi
         if (answer.type === 'skipped') throw abortError()
         await ship(source, answer, signal)
       }
-      throw new Error('[@dou-ui/pivot] worker 一直缺少字段')
+      throw new Error('[@dou-ui/pivot] the worker still lacks fields after they were sent')
     },
     dispose() {
       w?.terminate?.()

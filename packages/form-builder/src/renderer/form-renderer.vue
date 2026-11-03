@@ -133,7 +133,9 @@ function load(name: string, arg: unknown) {
       ? Promise.resolve()
           .then(() => source(arg))
           .then((list) => (Array.isArray(list) ? list : []))
-      : Promise.reject(new Error(`there is no source "${name}" in \`sources\``))
+      : Promise.reject(
+          new Error(`[@dou-ui/form-builder] there is no source "${name}" in \`sources\``),
+        )
     result.catch((error: unknown) => {
       if (loaded.get(key) === result) loaded.delete(key)
       console.warn(`[@dou-ui/form-builder] form option source "${name}" failed:`, error)

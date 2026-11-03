@@ -296,6 +296,6 @@ export function useToolbarMenu(): ShallowRef<boolean> {
 /** The editor around a block component, for its messages, state and view. */
 export function useEditor(): EditorContext {
   const context = inject(editorKey, null)
-  if (!context) throw new Error('[@dou-ui/editor] useEditor() is only available inside the editor')
+  if (!context) throw new Error('[@dou-ui/editor] useEditor() must be called inside <DouEditor>')
   return context
 }

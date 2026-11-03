@@ -143,7 +143,9 @@ const engineConfig = computed<PivotConfig>(() => {
     const name = typeof v === 'string' ? undefined : v.aggregate
     if (!name || FAST_AGGREGATES.has(name) || BUILTIN_AGGREGATORS[name] || custom[name]) return true
     if (import.meta.env?.DEV)
-      console.warn(`[@dou-ui/pivot] 没有名为 "${name}" 的汇总方式，已跳过这个值`)
+      console.warn(
+        `[@dou-ui/pivot] there is no aggregate named "${name}", so this value is left out; register it in the aggregators prop`,
+      )
     return false
   })
   const next: PivotConfig = {
@@ -243,10 +245,17 @@ watch(
       fromAway.value = markRaw(next)
     } catch (error) {
       if (id !== job || (error as Error).name === 'AbortError') return
-      if (props.engine) console.error(error)
+      if (props.engine)
+        console.error(
+          '[@dou-ui/pivot] the engine passed to DouPivot failed in compute(); the table keeps the last result',
+          error,
+        )
       else {
         // the own worker failed: sum up on the page from now on
-        console.warn('[@dou-ui/pivot] worker 不可用，改为在页面中汇总', error)
+        console.warn(
+          '[@dou-ui/pivot] the worker is not available, so the table sums up on the page from now on',
+          error,
+        )
         ownEngine?.dispose?.()
         ownEngine = null
         ownEngineReady = null

@@ -2927,7 +2927,7 @@ function typedPlain(input: SheetCellInput, value: SheetValue) {
 function toCSV(options: SheetCSVWriteOptions & { sheet?: SheetRef } = {}) {
   const { sheet: target, ...rest } = options
   const data = doc.value.sheets[target == null ? sheetIndex.value : indexOfSheet(target)]
-  if (!data) throw new RangeError(`There is no sheet "${target}"`)
+  if (!data) throw new RangeError(`[@dou-ui/sheet] there is no sheet "${target}"`)
   const key = sheetKey(data)
   return sheetToCSV(data, {
     locale: lang.value,
@@ -2954,7 +2954,7 @@ function exportTarget(which?: SheetRef): SheetExportTarget {
     }
   }
   const data = doc.value.sheets[indexOfSheet(which)]
-  if (!data) throw new RangeError(`There is no sheet "${which}"`)
+  if (!data) throw new RangeError(`[@dou-ui/sheet] there is no sheet "${which}"`)
   if (data === sheet.value) return exportTarget()
   // another sheet, laid out as it would be shown
   const folded = shownGroupsOf(data)

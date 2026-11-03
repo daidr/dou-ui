@@ -257,7 +257,7 @@ function exportBounds(range: string | undefined, t: SheetExportTarget): SheetBou
   const lastCol = t.cols.count - 1
   if (range != null) {
     const parsed = parseRange(range)
-    if (!parsed) throw new RangeError(`"${range}" isn't a range`)
+    if (!parsed) throw new RangeError(`[@dou-ui/sheet] "${range}" isn't a range`)
     const b = boundsOf(parsed)
     return {
       top: Math.max(0, b.top),

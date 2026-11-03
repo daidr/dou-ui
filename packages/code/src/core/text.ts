@@ -241,7 +241,8 @@ export class CodeText {
 
   /** Line `n`, counting from 1. */
   line(n: number): CodeLine {
-    if (n < 1 || n > this.lines) throw new RangeError(`Line ${n} is outside 1–${this.lines}`)
+    if (n < 1 || n > this.lines)
+      throw new RangeError(`[@dou-ui/code] line ${n} is outside 1–${this.lines}`)
     let node = this[NODE]
     let index = n - 1
     let from = 0
@@ -262,7 +263,8 @@ export class CodeText {
 
   /** The text of line `n` (from 1); quicker than `line(n).text`, which also finds where it starts. */
   lineText(n: number): string {
-    if (n < 1 || n > this.lines) throw new RangeError(`Line ${n} is outside 1–${this.lines}`)
+    if (n < 1 || n > this.lines)
+      throw new RangeError(`[@dou-ui/code] line ${n} is outside 1–${this.lines}`)
     let node = this[NODE]
     let index = n - 1
     while (node instanceof Branch) {
@@ -280,7 +282,7 @@ export class CodeText {
   /** The line that holds offset `pos`; a line break belongs to the line before it. */
   lineAt(pos: number): CodeLine {
     if (pos < 0 || pos > this.length)
-      throw new RangeError(`Offset ${pos} is outside 0–${this.length}`)
+      throw new RangeError(`[@dou-ui/code] offset ${pos} is outside 0–${this.length}`)
     let node = this[NODE]
     let from = 0
     let number = 1
@@ -302,7 +304,7 @@ export class CodeText {
       number++
     }
     // unreachable: `pos` is inside the leaf
-    throw new RangeError(`Offset ${pos} not found`)
+    throw new RangeError(`[@dou-ui/code] offset ${pos} not found`)
   }
 
   /** The text of lines `from`–`to`, both counted from 1 and included. */
@@ -331,7 +333,7 @@ export class CodeText {
   /** A new text with `from`–`to` replaced by `insert`; this one stays as it is. */
   replace(from: number, to: number, insert: string | readonly string[]): CodeText {
     if (from < 0 || to > this.length || from > to)
-      throw new RangeError(`Range ${from}–${to} is outside 0–${this.length}`)
+      throw new RangeError(`[@dou-ui/code] range ${from}–${to} is outside 0–${this.length}`)
     const lines = typeof insert === 'string' ? splitLines(insert) : insert
     if (from === to && lines.length === 1 && !lines[0]) return this
     const start = this.lineAt(from)

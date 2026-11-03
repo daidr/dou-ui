@@ -8,9 +8,10 @@
  * source is checked by a test; this catches anything a build step adds.
  * Run after `bun run build`.
  */
+import { fileURLToPath } from 'node:url'
 import { Glob } from 'bun'
 
-const root = new URL('../', import.meta.url).pathname
+const root = fileURLToPath(new URL('../', import.meta.url))
 // Bun still writes the `--buncss-light/dark` switches next to each `color-scheme`; only reading them matters.
 const forbidden = /light-dark\(|var\(--[a-z]+css-(?:light|dark)\b/
 const problems: string[] = []

@@ -6,10 +6,11 @@
  * imports, followed transitively) renders. Classes are read from
  * `useNamespace('<block>')` calls and `dou-*` literals in the source.
  */
+import { fileURLToPath } from 'node:url'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 
-const here = dirname(new URL(import.meta.url).pathname)
+const here = dirname(fileURLToPath(import.meta.url))
 const src = resolve(here, '../src')
 const themeSrc = resolve(here, '../../theme/src')
 

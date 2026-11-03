@@ -723,7 +723,7 @@
     background-image: linear-gradient(var(--dou-editor-selected), var(--dou-editor-selected));
   }
 
-  .is-block-selecting {
+  .dou-editor .is-block-selecting {
     caret-color: transparent;
 
     & ::selection {

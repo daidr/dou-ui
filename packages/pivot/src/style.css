@@ -468,10 +468,11 @@
       pointer-events: none;
     }
   }
-  .is-focused .is-active {
+  .dou-pivot.is-focused .dou-pivot__cell.is-active,
+  .dou-pivot.is-focused .dou-pivot__row-head.is-active {
     box-shadow: inset 0 0 0 2px var(--dou-pivot-ring);
   }
-  .is-focused.is-scrolled-x .dou-pivot__row-head.is-active {
+  .dou-pivot.is-focused.is-scrolled-x .dou-pivot__row-head.is-active {
     box-shadow:
       inset 0 0 0 2px var(--dou-pivot-ring),
       4px 0 6px -4px var(--dou-pivot-scroll-shadow);

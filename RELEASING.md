@@ -18,7 +18,7 @@
 
 1. 在 Actions 里运行「Prepare release」，填版本号。它会改好所有包的版本号、把 `.changes/` 汇总进 CHANGELOG.md，跑完检查和构建，然后开一个「release: vX.Y.Z」PR。
 
-   这个 PR 由工作流自己的 token 创建，GitHub 不会为它触发 CI、Changelog 检查和 Vercel 预览；检查和构建已经在「Prepare release」里跑过（文档站构建除外）。如果给 `main` 设了必需的状态检查，PR 会一直显示“等待状态检查”：可以用管理员权限绕过合并，或者在本地检出这个分支、推一个提交（比如修改 CHANGELOG.md 的措辞），由你推送的提交会正常触发检查。
+   这个 PR 由 github-actions[bot] 创建，GitHub 会把它当作外部贡献者，PR 页面上要先点一次 Approve and run workflows。CI 对 `release-pr/` 分支会跳过检查和基准测试（「Prepare release」已经在同一份代码上跑过检查和构建），Changelog 检查也会跳过；被跳过的 job 在必需检查里算通过。
 
 2. 看一遍 PR 里的更新日志，需要的话直接在 PR 里改 CHANGELOG.md，然后合并。
 3. 合并后「Release」工作流在 GitHub 托管的机器上构建、打包并演练发布，然后停在 `npm` 环境等待批准。在工作流页面点 Review deployments → Approve。
@@ -68,7 +68,7 @@ bun run changelog preview          # 看待发布的改动
 
 1. 在 npmjs.com 创建组织 `dou-ui`（公开包免费），`@dou-ui/*` 都发布在这个作用域下。账号开启 2FA。
 2. 首次发布前，npm 上还没有这些包，无法配置可信发布，所以首个版本用一个短期 token 发：
-   - 在 npmjs.com 创建 Granular Access Token：Packages and scopes 选 Read and write，范围包含 `dou-ui` 组织和 `dou-ui` 这个包名；有效期选最短（如 1 天）。
+   - 在 npmjs.com 创建 Granular Access Token：Packages and scopes 选 **All packages** 的 Read and write（`dou-ui` 这个包还不存在，没法单独选，只选组织会在发布它时失败），勾选 **Bypass two-factor authentication**（否则发布会被 2FA 拦下），有效期选最短（如 1 天）。
    - 把它存成 `npm` 环境的 secret `NPM_TOKEN`（Settings → Environments → npm → Environment secrets）。
    - 照常走「发一个版本」的流程。工作流仍在 GitHub 托管的机器上发布，并带透明度证明。
 3. 首个版本发布成功后：
@@ -79,6 +79,6 @@ bun run changelog preview          # 看待发布的改动
 
 ### Vercel 与 DNS
 
-- Settings → Domains 添加 `next.ui.daidr.me`，环境选 Preview，Git Branch 填 `main`；在 `daidr.me` 的 DNS 加 CNAME `next.ui`，值按 Vercel 显示的填写。
-- 首个正式版发布、`stable` 分支出现之后：Settings → Environments → Production → Branch Tracking 改为 `stable`。在那之前 ui.daidr.me 仍然部署 `main`。
+- Settings → Domains 添加 `next.ui.daidr.me`。生产分支还是 `main` 时，Vercel 不允许把它挂到预览环境，所以先把它也连到 Production，和 ui.daidr.me 内容相同；在 `daidr.me` 的 DNS 加 CNAME `next.ui`，值按 Vercel 显示的填写。
+- 首个正式版发布、`stable` 分支出现之后：先在 Settings → Environments → Production → Branch Tracking（旧界面在 Settings → Git → Production Branch）把生产分支改为 `stable`，再在 Settings → Domains 编辑 `next.ui.daidr.me`，改为 Preview、Git Branch 填 `main`。在那之前 ui.daidr.me 部署的是 `main`，会显示开发版横幅，这是预期的。
 - 文档按 `VERCEL_GIT_COMMIT_REF` 判断自己是正式版还是开发版，不需要额外的环境变量。

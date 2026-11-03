@@ -93,7 +93,7 @@ app.use(DouCodeEditor)
 | `foldable`          | 允许折叠代码                                                             | `boolean`                          | `true`                |
 | `minimap`           | 在右侧显示小地图，编辑器窄于 480px 时不显示                              | `boolean`                          | `false`               |
 | `worker`            | 在 Web Worker 中分析语法，见[大文件](./performance#在-worker-中分析语法) | `boolean \| (() => Worker)`        | `false`               |
-| `keys`              | 触屏上键盘上方的符号栏，见[手机触控](./touch)                            | `boolean \| (CodeKey \| string)[]` | `true`                |
+| `keys`              | 触屏上可拖动的符号栏，见[手机触控](./touch)                              | `boolean \| (CodeKey \| string)[]` | `true`                |
 | `keymap`            | 额外的快捷键，优先于内置快捷键，见[用代码修改](./transactions#快捷键)    | `CodeKeymap`                       | —                     |
 | `extensions`        | 扩展，见[扩展](./extensions)                                             | `CodeExtension[]`                  | —                     |
 | `diagnostics`       | 要显示的问题，见[诊断](./assist#诊断)                                    | `CodeDiagnostic[]`                 | —                     |

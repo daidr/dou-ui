@@ -19,6 +19,7 @@ import {
   LetterCaseIcon,
   RegexIcon,
   WholeWordIcon,
+  GripVerticalIcon,
 } from '@dou-ui/icons'
 import {
   DouFindReplace,
@@ -2911,12 +2912,18 @@ function onAnyScroll(event: Event) {
   }
   bumpViewport()
 }
+/** The bar of keys, on a touch screen while the editor takes input. */
+const showKeys = computed(
+  () => !!props.keys && coarse.value && focused.value && !props.readonly && !props.disabled,
+)
 const floatingOpen = computed(
   () =>
-    !!(problemBox.value || completion.value || signature.value) || (touchUi.value && focused.value),
+    !!(problemBox.value || completion.value || signature.value) ||
+    (touchUi.value && focused.value) ||
+    showKeys.value,
 )
 watch(floatingOpen, (open, _old, onCleanup) => {
-  if (!open || !floatingTarget.value || typeof window === 'undefined') return
+  if (!open || typeof window === 'undefined') return
   floatingZ.value = nextZIndex()
   // The boxes above the page take the editor's own variables with them, as they are now.
   readFrameFont()
@@ -2971,7 +2978,7 @@ function pageBox() {
     left,
     top,
     right: left + width,
-    bottom: top + height - (showKeys.value ? KEYS_SPACE : 0),
+    bottom: top + height,
   }
 }
 
@@ -4099,9 +4106,6 @@ const magnifier = computed(() => {
 
 // ---------------------------------------------------------------- touch: keyboard
 
-const showKeys = computed(
-  () => !!props.keys && coarse.value && focused.value && !props.readonly && !props.disabled,
-)
 const keysList = computed(() => (Array.isArray(props.keys) ? props.keys : undefined))
 const keysEditor = { run }
 const { next: nextZIndex } = useZIndex()
@@ -4110,33 +4114,149 @@ watch(showKeys, (shown) => {
   if (shown) keysZIndex.value = nextZIndex()
 })
 /**
- * The bar of keys floats over the keyboard, a gap apart, the way the
- * phone's own bars do: its height, the gap, and the room it takes from the
- * view, which the cursor keeps clear of.
+ * The bar of keys sits in the page below the editor, and scrolls with it:
+ * it never follows the keyboard, whose bars and panels each browser draws
+ * its own way. A finger moves it anywhere by its grip, and it keeps that
+ * place by the editor while the editor is in use.
  */
 const KEYS_HEIGHT = 44
 const KEYS_GAP = 8
-const KEYS_SPACE = KEYS_HEIGHT + KEYS_GAP * 2
-const viewport = ref({ top: 0, left: 0, width: 0, height: 0 })
-
-function readViewport() {
-  const vv = window.visualViewport
-  viewport.value = vv
-    ? { top: vv.offsetTop, left: vv.offsetLeft, width: vv.width, height: vv.height }
-    : { top: 0, left: 0, width: window.innerWidth, height: window.innerHeight }
+const keysEl = ref<HTMLElement>()
+/** Where the bar is, from the editor's top left corner; `null` until it first shows. */
+const keysAt = ref<{ x: number; y: number } | null>(null)
+/** Whether a finger or a key moved the bar: then it stays put, even as the keyboard comes up. */
+let keysMoved = false
+const keysShift = ref({ x: 0, y: 0 })
+function readKeysShift() {
+  const el = keysEl.value
+  if (!el) return
+  const rect = el.getBoundingClientRect()
+  const at = keysClient.value
+  if (!at) return
+  // Moves the bar so that it lands where it is placed in the window, wherever its box starts.
+  keysShift.value = {
+    x: keysShift.value.x + at.x - rect.left,
+    y: keysShift.value.y + at.y - rect.top,
+  }
 }
 
+/** The editor's box in the window, as of the last scroll. */
+function rootInPage() {
+  void viewportTick.value
+  return root.value?.getBoundingClientRect() ?? null
+}
+
+/** The bar's width: the editor's, within the window. */
+const keysWidth = computed(() => {
+  const rect = rootInPage()
+  if (!rect) return 0
+  return Math.max(0, Math.min(rect.width, visibleViewport().width - KEYS_GAP * 2))
+})
+
+/** Keeps the bar within the part of the page in view. */
+function clampKeys(at: { x: number; y: number }) {
+  const rect = rootInPage()
+  if (!rect) return at
+  const view = visibleViewport()
+  const x = rect.left + at.x
+  const y = rect.top + at.y
+  const left = Math.max(
+    view.left + KEYS_GAP,
+    Math.min(x, view.left + view.width - keysWidth.value - KEYS_GAP),
+  )
+  const top = Math.max(
+    view.top + KEYS_GAP,
+    Math.min(y, view.top + view.height - KEYS_HEIGHT - KEYS_GAP),
+  )
+  return { x: left - rect.left, y: top - rect.top }
+}
+
+/** Below the editor, a gap apart, or as low as the page in view goes. */
+function placeKeys() {
+  const rect = rootInPage()
+  if (!rect) return
+  keysAt.value = clampKeys({ x: 0, y: rect.height + KEYS_GAP })
+}
+
+const keysClient = computed(() => {
+  const rect = rootInPage()
+  const at = keysAt.value
+  return rect && at ? { x: rect.left + at.x, y: rect.top + at.y } : null
+})
+
 const keysStyle = computed(() => {
-  const { top, left, width, height } = viewport.value
+  const at = keysClient.value
+  if (!at) return { visibility: 'hidden' as const, zIndex: keysZIndex.value }
   return {
-    transform: `translate(${left}px, ${top + height - KEYS_HEIGHT - KEYS_GAP}px)`,
-    width: `${width}px`,
+    transform: `translate(${Math.round(at.x + keysShift.value.x)}px, ${Math.round(at.y + keysShift.value.y)}px)`,
+    width: `${keysWidth.value}px`,
     zIndex: keysZIndex.value,
   }
 })
 
+watch(showKeys, (shown) => {
+  if (shown && typeof window !== 'undefined' && !keysAt.value) placeKeys()
+})
+// After drawing, from the box as drawn: wherever the page scrolled, the bar's own box starts.
+watch([showKeys, viewportTick], () => readKeysShift(), { flush: 'post' })
+
+/** A finger on the bar's grip: where it went down, and where the bar was then. */
+let keysDrag: {
+  pointer: number
+  x: number
+  y: number
+  from: { x: number; y: number }
+  hold: ReturnType<typeof holdPointer>
+} | null = null
+
+function onKeysGripDown(event: PointerEvent) {
+  if (event.button !== 0 || !keysAt.value) return
+  event.preventDefault()
+  const hold = holdPointer(event, keysEl.value, endKeysDrag)
+  hold.grab()
+  keysDrag = {
+    pointer: event.pointerId,
+    x: event.clientX,
+    y: event.clientY,
+    from: keysAt.value,
+    hold,
+  }
+  window.addEventListener('pointermove', onKeysGripMove)
+  window.addEventListener('pointerup', endKeysDrag)
+  window.addEventListener('pointercancel', endKeysDrag)
+}
+
+function onKeysGripMove(event: PointerEvent) {
+  const press = keysDrag
+  if (!press || event.pointerId !== press.pointer) return
+  keysAt.value = clampKeys({
+    x: press.from.x + event.clientX - press.x,
+    y: press.from.y + event.clientY - press.y,
+  })
+}
+
+function endKeysDrag() {
+  keysDrag?.hold.release()
+  keysDrag = null
+  window.removeEventListener('pointermove', onKeysGripMove)
+  window.removeEventListener('pointerup', endKeysDrag)
+  window.removeEventListener('pointercancel', endKeysDrag)
+}
+
+/** The grip moves by the arrow keys too, a step at a time. */
+function onKeysGripKey(event: KeyboardEvent) {
+  const step = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] }[
+    event.key
+  ]
+  if (!step || !keysAt.value) return
+  event.preventDefault()
+  keysMoved = true
+  const by = event.shiftKey ? 40 : 8
+  keysAt.value = clampKeys({ x: keysAt.value.x + step[0]! * by, y: keysAt.value.y + step[1]! * by })
+}
+
 /**
- * Keeps the main cursor clear of the phone's keyboard and the bar above it:
+ * Keeps the main cursor clear of the phone's keyboard:
  * scrolls the editor when the cursor can move inside it, else the page.
  */
 function followViewport() {
@@ -4151,10 +4271,7 @@ function followViewport() {
   const rect = el.getBoundingClientRect()
   const view = visibleViewport()
   const visibleTop = Math.max(rect.top, view.top)
-  const visibleBottom = Math.min(
-    rect.bottom,
-    view.top + view.height - (showKeys.value ? KEYS_SPACE : 0),
-  )
+  const visibleBottom = Math.min(rect.bottom, view.top + view.height)
   if (at.bottom + room > visibleBottom && visibleBottom - visibleTop >= lh * 3) {
     el.scrollTop += (at.bottom + room - visibleBottom) / ratio.value
     onScroll()
@@ -4165,11 +4282,8 @@ function followViewport() {
   // Whatever the editor couldn't scroll, the page does.
   const after = coordsAtPos(mainRange(state.value.selection).head)
   if (!after) return
-  const bottom = view.top + view.height - (showKeys.value ? KEYS_SPACE : 0)
-  if (after.bottom + room > bottom) {
-    ownScrollUntil = performance.now() + 200
-    window.scrollBy(0, after.bottom + room - bottom)
-  }
+  const bottom = view.top + view.height
+  if (after.bottom + room > bottom) window.scrollBy(0, after.bottom + room - bottom)
 }
 
 /** How much of the window the keyboard took when last seen. */
@@ -4187,18 +4301,15 @@ function readKeyboard() {
  * cursor then would fight the finger.
  */
 function onViewportChange() {
-  readViewport()
   const now = readKeyboard()
   const grew = now > keyboardHeight + 1
   keyboardHeight = now
-  if (grew && !fingerScrolling) followViewport()
+  if (!grew || fingerScrolling) return
+  followViewport()
+  // Not moved yet, the bar finds its place again, in view above the keyboard.
+  if (showKeys.value && !keysMoved) placeKeys()
 }
 
-/**
- * While the page scrolls, the bar of keys fades out: the browser moves the
- * page faster than the bar can follow the keyboard, and it would shake.
- */
-const pageScrolling = ref(false)
 /**
  * A finger scrolls the page, by dragging or by the glide after it: the view
  * resizing meanwhile is the browser's bars, never a reason to scroll back.
@@ -4207,20 +4318,12 @@ const pageScrolling = ref(false)
  */
 let fingerScrolling = false
 let pageScrollTimer = 0
-/** Until when a page scroll is the editor's own, keeping the cursor in view, which leaves the bar be. */
-let ownScrollUntil = 0
 function settleLater() {
   clearTimeout(pageScrollTimer)
-  pageScrollTimer = window.setTimeout(() => {
-    readViewport()
-    pageScrolling.value = false
-    fingerScrolling = false
-  }, 160)
+  pageScrollTimer = window.setTimeout(() => (fingerScrolling = false), 160)
 }
 function onPageScroll() {
-  if (performance.now() < ownScrollUntil) return
-  pageScrolling.value = true
-  settleLater()
+  if (fingerScrolling) settleLater()
 }
 function onFingerMove() {
   fingerScrolling = true
@@ -4233,22 +4336,16 @@ function unfollow() {
   if (typeof window === 'undefined') return
   const vv = window.visualViewport
   vv?.removeEventListener('resize', onViewportChange)
-  vv?.removeEventListener('scroll', readViewport)
-  vv?.removeEventListener('scroll', onPageScroll)
   window.removeEventListener('scroll', onPageScroll)
   window.removeEventListener('touchmove', onFingerMove)
   clearTimeout(pageScrollTimer)
-  pageScrolling.value = false
   fingerScrolling = false
 }
 watch(following, (on) => {
   const vv = window.visualViewport
   if (on) {
-    readViewport()
     keyboardHeight = readKeyboard()
     vv?.addEventListener('resize', onViewportChange)
-    vv?.addEventListener('scroll', readViewport)
-    vv?.addEventListener('scroll', onPageScroll, { passive: true })
     window.addEventListener('scroll', onPageScroll, { passive: true })
     window.addEventListener('touchmove', onFingerMove, { passive: true })
   } else unfollow()
@@ -5315,9 +5412,24 @@ defineExpose<CodeEditorExpose>(api)
     <Teleport to="body">
       <div
         v-if="showKeys"
-        :class="[ns.e('keys'), ns.is('scrolling', pageScrolling)]"
+        ref="keysEl"
+        :class="[
+          ns.e('keys'),
+          ns.is('fixed', anchorMode === 'fixed'),
+          ns.is('scrolling', boxScrolling),
+        ]"
         :style="keysStyle"
       >
+        <button
+          type="button"
+          :class="ns.e('keys-grip')"
+          :aria-label="messages.moveKeys"
+          @pointerdown="onKeysGripDown"
+          @keydown="onKeysGripKey"
+          @mousedown.prevent
+        >
+          <GripVerticalIcon />
+        </button>
         <CodeKeys :editor="keysEditor" :keys="keysList" :messages="messages" />
       </div>
     </Teleport>

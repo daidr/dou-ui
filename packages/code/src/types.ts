@@ -73,7 +73,7 @@ export interface CodeEditorProps {
   /** Replaces any of the editor's texts, which otherwise follow DouUI's locale. */
   messages?: Partial<CodeMessages>
   /**
-   * The bar of symbol keys above a phone's keyboard, shown on touch screens
+   * The bar of symbol keys below the editor, moved by its grip, shown on touch screens
    * while the editor can be typed in. An array sets the keys that scroll;
    * a string is a key that types itself. `false` leaves the bar out. On by default.
    */
@@ -212,7 +212,7 @@ export interface CodeInputProps {
    * the page by default. `false` keeps them inside the box.
    */
   teleport?: string | HTMLElement | false
-  /** The bar of symbol keys above a phone's keyboard; off by default. */
+  /** The bar of symbol keys below the box, moved by its grip; off by default. */
   keys?: boolean | ReadonlyArray<CodeKey | string>
   messages?: Partial<CodeMessages>
   autofocus?: boolean

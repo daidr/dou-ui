@@ -332,23 +332,29 @@ export function useTimeAxis(o: TimeAxisOptions) {
 
   // What is in view ---------------------------------------------------------------
 
-  /** The time in view, with some room either side. */
+  /**
+   * The time in view, with some room either side, but never past either end:
+   * what is drawn past the end would widen the timeline, and scrolling on
+   * would draw more, so a fixed `range` would scroll on for ever.
+   */
   const timeWindow = computed(() => ({
-    start: origin.value + (scrollLeft.value - OVERSCAN_X) / ppm.value,
-    end: origin.value + (scrollLeft.value + (o.viewWidth.value || 800) + OVERSCAN_X) / ppm.value,
+    start: Math.max(extent.value.start, origin.value + (scrollLeft.value - OVERSCAN_X) / ppm.value),
+    end: Math.min(
+      extent.value.end,
+      origin.value + (scrollLeft.value + (o.viewWidth.value || 800) + OVERSCAN_X) / ppm.value,
+    ),
   }))
 
   function cells(unit: TimeUnit, step = 1): HeaderCell[] {
     const { start, end } = timeWindow.value
-    return unitsBetween(unit, Math.max(start, origin.value), end, o.weekStart.value, step).map(
-      (cell) => ({
-        key: cell.start,
-        end: cell.end,
-        left: xOf(cell.start),
-        width: (cell.end - cell.start) * ppm.value,
-        label: unitLabel(unit, cell.start, o.messages.value, dayWidth.value),
-      }),
-    )
+    return unitsBetween(unit, start, end, o.weekStart.value, step).map((cell) => ({
+      key: cell.start,
+      end: cell.end,
+      left: xOf(cell.start),
+      // a cell that runs past the end stops there
+      width: (Math.min(cell.end, extent.value.end) - cell.start) * ppm.value,
+      label: unitLabel(unit, cell.start, o.messages.value, dayWidth.value),
+    }))
   }
 
   const headerStep = computed(() => (level.value.bottom === 'hour' ? hourStep(dayWidth.value) : 1))

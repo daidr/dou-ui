@@ -182,6 +182,29 @@ describe('DouGantt', () => {
     wrapper.unmount()
   })
 
+  it('draws nothing past the end of a fixed range, however far it is scrolled', async () => {
+    const { wrapper } = setup({ range: ['2026-03-01', '2026-03-31'] })
+    await nextTick()
+    const chart = wrapper.find('.dou-gantt__chart')
+    const width = Number.parseFloat(
+      wrapper.find('.dou-gantt__canvas').attributes('style')!.slice(7),
+    )
+    // happy-dom lets any position be written, as if what is drawn had widened the timeline
+    chart.element.scrollLeft = width * 4
+    await chart.trigger('scroll')
+    await nextTick()
+    const past = wrapper
+      .findAll('.dou-gantt__cell, .dou-gantt__gridline, .dou-gantt__off')
+      .map((el) => el.attributes('style') ?? '')
+      .filter((style) => {
+        const left = Number.parseFloat(/left: ([\d.-]+)px/.exec(style)?.[1] ?? '0')
+        const size = Number.parseFloat(/width: ([\d.-]+)px/.exec(style)?.[1] ?? '0')
+        return left + size > width + 0.5
+      })
+    expect(past).toEqual([])
+    wrapper.unmount()
+  })
+
   it('moves a bar by whole days, as one undo step', async () => {
     const { wrapper, tasks } = setup()
     await nextTick()

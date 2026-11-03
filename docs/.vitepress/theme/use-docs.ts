@@ -13,7 +13,20 @@ export interface SidebarGroup {
   items: NavLink[]
 }
 
+/** Which release line the site documents, set at build time. */
+export interface ReleaseInfo {
+  /** `stable` is the current release; `next` follows the main branch. */
+  channel: 'stable' | 'next'
+  /** Version of the packages the pages were built from. */
+  version: string
+  /** Origins of the two sites. */
+  sites: { stable: string; next: string }
+  /** Where the release notes are listed. */
+  changelog: string
+}
+
 interface ThemeConfig {
+  release?: ReleaseInfo
   nav?: NavLink[]
   sidebar?: Record<string, SidebarGroup[]>
   socialLinks?: { icon: string; link: string }[]
@@ -88,5 +101,6 @@ export function useDocs() {
     next,
     allPages,
     social: computed(() => theme.value.socialLinks ?? []),
+    release: computed(() => theme.value.release),
   }
 }

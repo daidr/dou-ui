@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitepress'
 import type { DefaultTheme, MarkdownOptions } from 'vitepress'
@@ -5,6 +6,21 @@ import { demoCode } from './demo-code'
 import { colorModeScript } from '../../packages/dou-ui/src/components/color-mode/use-color-mode'
 
 const r = (path: string) => fileURLToPath(new URL(path, import.meta.url))
+
+/**
+ * ui.daidr.me documents the current release and deploys from the `stable`
+ * branch; every other build (main, previews, local) is the development docs.
+ * `DOU_DOCS_CHANNEL` overrides the guess.
+ */
+const sites = { stable: 'https://ui.daidr.me', next: 'https://next.ui.daidr.me' }
+const channel: 'stable' | 'next' =
+  (process.env.DOU_DOCS_CHANNEL ??
+    (process.env.VERCEL_GIT_COMMIT_REF === 'stable' ? 'stable' : 'next')) === 'stable'
+    ? 'stable'
+    : 'next'
+const version: string = JSON.parse(
+  readFileSync(r('../../packages/dou-ui/package.json'), 'utf8'),
+).version
 
 const markdown: MarkdownOptions = {
   config(md) {
@@ -186,11 +202,26 @@ export default defineConfig({
   head: [
     // Apply the remembered color mode before the first paint.
     ['script', {}, colorModeScript()],
+    // Only the release docs belong in search results.
+    ...(channel === 'next'
+      ? ([['meta', { name: 'robots', content: 'noindex, nofollow' }]] as const)
+      : []),
   ],
+  // Every page names its release-docs address as the original.
+  transformHead({ pageData }) {
+    const path = pageData.relativePath.replace(/(^|\/)index\.md$/, '$1').replace(/\.md$/, '')
+    return [['link', { rel: 'canonical', href: `${sites.stable}/${path}` }]]
+  },
   // Header anchors stop below the sticky header.
   scrollOffset: 88,
   markdown,
   themeConfig: {
+    release: {
+      channel,
+      version,
+      sites,
+      changelog: 'https://github.com/daidr/dou-ui/releases',
+    },
     nav: [
       { text: '指南', link: '/guide/philosophy' },
       { text: '组件', link: '/components/overview' },
@@ -294,6 +325,7 @@ export default defineConfig({
             { text: '设计原则', link: '/guide/philosophy' },
             { text: '视觉语言', link: '/guide/visual-language' },
             { text: '快速开始', link: '/guide/getting-started' },
+            { text: '版本与更新', link: '/guide/releases' },
             { text: '主题与 Token', link: '/guide/theming' },
             { text: '主题编辑器', link: '/guide/theme-editor' },
             { text: '国际化', link: '/guide/i18n' },

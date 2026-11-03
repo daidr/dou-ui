@@ -1,0 +1,128 @@
+# Publish a release once its "release: vX.Y.Z" pull request is merged.
+# Builds on a GitHub-hosted runner, waits for approval in the `npm`
+# environment, then publishes every package with npm trusted publishing
+# (provenance included), tags the commit and creates the GitHub release.
+# A release on `latest` also moves the `stable` branch, which the docs at
+# ui.daidr.me deploy from.
+name: Release
+
+on:
+  push:
+    branches: [main, 'release/**']
+    paths: [packages/dou-ui/package.json]
+  # re-run the release of the current commit, e.g. after a failed publish
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.plan.outputs.version }}
+      release: ${{ steps.plan.outputs.release }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: plan
+        run: |
+          version=$(node -p "require('./packages/dou-ui/package.json').version")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [ "$version" = "0.0.0" ]; then
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          elif git ls-remote --exit-code --tags origin "refs/tags/v$version" > /dev/null; then
+            echo "v$version 已经发布过，跳过。"
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: plan
+    if: needs.plan.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - run: bun install --frozen-lockfile
+
+      - name: Build
+        run: bun run gen && bun run build
+
+      - name: Pack and check the tarballs
+        run: bun run release:pack
+
+      - name: Dry run
+        run: bun run release:publish --dry-run
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release
+          path: .release/
+          include-hidden-files: true
+          if-no-files-found: error
+
+  publish:
+    needs: [plan, build]
+    runs-on: ubuntu-latest
+    # the environment's required reviewer approves every publish
+    environment: npm
+    permissions:
+      contents: write
+      id-token: write
+    env:
+      VERSION: ${{ needs.plan.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      # trusted publishing needs npm 11.5.1+, moving dist-tags with it 11.21+
+      - run: npm install -g npm@11
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: release
+          path: .release
+
+      - name: Publish to npm
+        id: publish
+        run: bun run release:publish
+
+      - name: Tag and create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.publish.outputs.tag }}
+        run: |
+          git tag "v$VERSION" "$GITHUB_SHA"
+          git push origin "v$VERSION"
+          flags=""
+          case "$TAG" in
+            latest) flags="--latest" ;;
+            alpha|beta) flags="--prerelease" ;;
+            *) flags="--latest=false" ;;
+          esac
+          gh release create "v$VERSION" --title "v$VERSION" --notes-file .release/notes.md --verify-tag $flags
+
+      - name: Move stable
+        if: steps.publish.outputs.tag == 'latest'
+        run: git push --force origin "$GITHUB_SHA:refs/heads/stable"

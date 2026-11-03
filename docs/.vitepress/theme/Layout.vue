@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useData, useRoute } from 'vitepress'
 import { computed, ref, watch } from 'vue'
+import DocChannelBanner from './components/DocChannelBanner.vue'
 import DocFooterNav from './components/DocFooterNav.vue'
 import DocHeader from './components/DocHeader.vue'
 import DocHome from './components/DocHome.vue'
@@ -34,6 +35,7 @@ watch(
   <div class="doc-layout" :class="{ 'has-sidebar': hasSidebar }">
     <DouLink class="doc-skip" href="#main">跳到正文</DouLink>
     <DocHeader @search="searching = true" @menu="drawer = true" />
+    <DocChannelBanner />
     <DocNotFound v-if="page.isNotFound" />
     <DocHome v-else-if="isHome" />
     <div v-else class="doc-body" :class="{ 'doc-body--wide': wide }">

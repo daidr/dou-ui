@@ -101,7 +101,7 @@ function contextMenu(target: SchedulerMenuTarget): ContextMenuItem[] {
 | `v-model:scale`     | 时间刻度                                                 | `GanttScale`                                                     | 按内容自动缩放                         |
 | `resources`         | 资源，按顺序排成行                                       | `SchedulerResource[]`                                            | —                                      |
 | `calendar`          | 工作日历                                                 | `GanttCalendar`                                                  | —                                      |
-| `range`             | 固定时间轴的范围                                         | `[string, string]`                                               | —                                      |
+| `range`             | 固定时间轴的范围；不设时两端随滚动延伸                   | `[string, string]`                                               | —                                      |
 | `today`             | 显示当前时间线                                           | `boolean`                                                        | `true`                                 |
 | `weekStart`         | 一周的第一天                                             | `0 \| 1`                                                         | 跟随语言                               |
 | `markers`           | 标记线                                                   | `GanttMarker[]`                                                  | —                                      |

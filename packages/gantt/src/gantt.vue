@@ -2836,6 +2836,7 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
     <div
       ref="chart"
       class="dou-gantt__chart"
+      :class="{ 'is-fixed': range }"
       tabindex="-1"
       @scroll.passive="onChartScroll"
       @wheel="onWheel"

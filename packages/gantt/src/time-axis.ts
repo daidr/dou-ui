@@ -21,11 +21,16 @@ const OVERSCAN_X = 320
 const FIT_MAX = 64
 const ZOOM_STEP = 1.5
 /**
- * Room kept before the view, in screens and at least in px. Time can only be
- * added there once a scroll is over, so it is enough for a run of fast swipes.
+ * Room kept before the view, in screens and at least in px, but no more
+ * time than `ROOM_BEFORE_TIME`. Time can only be added there once a touch
+ * scroll is over, so it is enough for a long run of fast swipes that never
+ * lets the momentum stop. Only what is in view is drawn, so room costs
+ * nothing but scroll width.
  */
-const ROOM_BEFORE = 80
-const ROOM_BEFORE_MIN = 32_000
+const ROOM_BEFORE = 300
+const ROOM_BEFORE_MIN = 400_000
+/** A thousand years, in minutes. */
+const ROOM_BEFORE_TIME = 1000 * 365 * MINUTES_PER_DAY
 /** Room kept after the view, in screens; time is added there as you scroll. */
 const ROOM_AFTER = 4
 
@@ -99,7 +104,33 @@ export function useTimeAxis(o: TimeAxisOptions) {
 
   /** px of room kept before the view. */
   const roomBefore = computed(() =>
-    Math.max(ROOM_BEFORE * (o.viewWidth.value || 800), ROOM_BEFORE_MIN),
+    Math.min(
+      Math.max(ROOM_BEFORE * (o.viewWidth.value || 800), ROOM_BEFORE_MIN),
+      ROOM_BEFORE_TIME * ppm.value,
+    ),
+  )
+
+  const touch = useTouchScroll()
+
+  /** Where the timeline would start, without a fixed range. */
+  const freeStart = computed(() => {
+    const start = Math.min(content.value.start, reach.value?.start ?? Infinity)
+    return dayStart(start - roomBefore.value / ppm.value)
+  })
+
+  /**
+   * The start held while a touch scroll goes on. A later start moves the
+   * content, and the scroll position has to follow it, which iOS drops then:
+   * content coming in earlier, the room changing as the screen turns. So the
+   * start stays where it was and moves once the scroll is over.
+   */
+  const heldStart = ref<number | null>(null)
+  watch(
+    touch.active,
+    (on) => {
+      heldStart.value = on ? freeStart.value : null
+    },
+    { flush: 'sync' },
   )
 
   /** The span the timeline covers. */
@@ -108,12 +139,10 @@ export function useTimeAxis(o: TimeAxisOptions) {
     if (fixed?.[0] && fixed[1])
       return { start: dayStart(fixed[0].at), end: dayStart(fixed[1].at) + MINUTES_PER_DAY }
     const width = o.viewWidth.value || 800
-    const before = roomBefore.value / ppm.value
     const after = Math.max((ROOM_AFTER * width) / ppm.value, 7 * MINUTES_PER_DAY)
-    const start = Math.min(content.value.start, reach.value?.start ?? Infinity)
     const end = Math.max(content.value.end, reach.value?.end ?? -Infinity)
     return {
-      start: dayStart(start - before),
+      start: heldStart.value ?? freeStart.value,
       end: dayStart(end + after) + MINUTES_PER_DAY,
     }
   })
@@ -132,7 +161,6 @@ export function useTimeAxis(o: TimeAxisOptions) {
   const viewStart = ref(0)
   const scrollbar = ref(0)
 
-  const touch = useTouchScroll()
   const link = createScrollLink('y')
 
   function onChartScroll() {
@@ -171,7 +199,9 @@ export function useTimeAxis(o: TimeAxisOptions) {
     if (left + width > totalWidth.value - ROOM_AFTER * width)
       keep(viewStart.value, viewStart.value + ((ROOM_AFTER + 1) * width) / ppm.value)
     if (touch.active.value) touch.whenSettled(growBefore)
-    else if (left < roomBefore.value / 2) growBefore()
+    // without a finger it is filled right away, but only near the start: a
+    // scrollbar thumb dragged there would jump back under the pointer
+    else if (left < 2 * width) growBefore()
   }
 
   function growBefore() {
@@ -249,6 +279,8 @@ export function useTimeAxis(o: TimeAxisOptions) {
       reach.value = null
       keep(viewStart.value, viewStart.value + o.viewWidth.value / ppm.value)
     }
+    // a pinch moves the scroll position anyway, so the start moves with it
+    if (heldStart.value != null) heldStart.value = freeStart.value
   }
 
   function onWheel(event: WheelEvent) {

@@ -375,6 +375,11 @@
     overscroll-behavior-x: none;
   }
 
+  /* a fixed range has ends, and bounces at them */
+  .dou-gantt__chart.is-fixed {
+    overscroll-behavior-x: contain;
+  }
+
   .dou-gantt__canvas {
     position: relative;
     min-height: 100%;

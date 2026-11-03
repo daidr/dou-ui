@@ -32,6 +32,7 @@ function setup() {
   let axis!: ReturnType<typeof useTimeAxis>
   const { el, state } = iosScroller(() => axis?.totalWidth.value ?? 0)
   document.body.append(el)
+  const content = ref({ start: parseTime('2026-03-02')!.at, end: parseTime('2026-03-20')!.at })
   const wrapper = mount(
     defineComponent({
       setup() {
@@ -45,10 +46,7 @@ function setup() {
           weekStart: computed(() => 1),
           calendar: computed(() => resolveCalendar()),
           messages: computed(() => ganttLocales['zh-CN']!),
-          content: computed(() => ({
-            start: parseTime('2026-03-02')!.at,
-            end: parseTime('2026-03-20')!.at,
-          })),
+          content: computed(() => content.value),
           fitWidth: () => 800,
         })
         return () => null
@@ -64,7 +62,7 @@ function setup() {
   }
   /** The time at the left edge of what's drawn. */
   const shownStart = () => axis.origin.value + axis.scrollLeft.value / axis.ppm.value
-  return { wrapper, axis, state, scroll, shownStart, el }
+  return { wrapper, axis, state, scroll, shownStart, el, content }
 }
 
 const touch = (type: string) =>
@@ -86,15 +84,20 @@ describe('time axis on iOS', () => {
     await nextTick()
     const origin = axis.origin.value
     const room = axis.scrollLeft.value
-    expect(room).toBeGreaterThanOrEqual(80 * 800 - 800)
-    // swipe back thirty screens; writes are dropped meanwhile
-    touch('touchstart')
+    expect(room).toBeGreaterThanOrEqual(300 * 800 - 800)
+    // swipe back two hundred screens in a run of swipes that never lets the
+    // momentum stop; writes are dropped meanwhile
     state.dropWrites = true
-    for (let left = room; left > room - 30 * 800; left -= 400) await scroll(left)
-    touch('touchend')
+    let left = room
+    for (let swipe = 0; swipe < 100; swipe++) {
+      touch('touchstart')
+      for (let i = 0; i < 4; i++) await scroll((left -= 400))
+      touch('touchend')
+      await scroll((left -= 400))
+    }
     // the start never came near, and nothing moved under the finger
     expect(axis.origin.value).toBe(origin)
-    expect(axis.scrollLeft.value).toBeGreaterThan(5 * 800)
+    expect(axis.scrollLeft.value).toBeGreaterThan(40 * 800)
     const at = shownStart()
     // once the scroll is over, the room is made up again and the view stays put
     state.dropWrites = false
@@ -102,7 +105,7 @@ describe('time axis on iOS', () => {
     await nextTick()
     expect(axis.origin.value).toBeLessThan(origin)
     expect(shownStart()).toBeCloseTo(at, 3)
-    expect(axis.scrollLeft.value).toBeGreaterThanOrEqual(80 * 800 - 800)
+    expect(axis.scrollLeft.value).toBeGreaterThanOrEqual(300 * 800 - 800)
     vi.useRealTimers()
     wrapper.unmount()
   })
@@ -117,13 +120,40 @@ describe('time axis on iOS', () => {
     const end = axis.totalWidth.value
     // forty screens on, without ever reaching the end
     for (let i = 0; i < 80; i++) {
-      left += 400
-      expect(left + 800).toBeLessThan(axis.totalWidth.value)
-      await scroll(left)
+      await scroll((left += 400))
+      // always a few screens ahead
+      expect(axis.totalWidth.value - left - 800).toBeGreaterThanOrEqual(3 * 800)
     }
     expect(axis.totalWidth.value).toBeGreaterThan(end)
     expect(axis.origin.value).toBe(origin)
     touch('touchend')
+    wrapper.unmount()
+  })
+
+  it('keeps the view in place when content comes in earlier during a touch scroll', async () => {
+    vi.useFakeTimers()
+    const { wrapper, axis, state, scroll, shownStart, content } = setup()
+    await nextTick()
+    const origin = axis.origin.value
+    touch('touchstart')
+    state.dropWrites = true
+    await scroll(axis.scrollLeft.value - 400)
+    const at = shownStart()
+    // a task a year earlier comes in, as from someone else editing the plan
+    content.value = { ...content.value, start: content.value.start - 365 * 24 * 60 }
+    await nextTick()
+    await scroll(axis.scrollLeft.value - 400)
+    expect(axis.origin.value).toBe(origin)
+    expect(shownStart()).toBeCloseTo(at - 400 / axis.ppm.value, 3)
+    touch('touchend')
+    const rest = shownStart()
+    // once the scroll is over, the start moves out and the view stays put
+    state.dropWrites = false
+    vi.advanceTimersByTime(200)
+    await nextTick()
+    expect(axis.origin.value).toBeLessThan(origin - 300 * 24 * 60)
+    expect(shownStart()).toBeCloseTo(rest, 3)
+    vi.useRealTimers()
     wrapper.unmount()
   })
 

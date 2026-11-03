@@ -229,8 +229,101 @@ async function selectWord(content: { trigger: (type: string, init?: object) => P
   await nextTick()
 }
 
+/** A view of the page that a test can shrink, the way a keyboard and the browser's bars do. */
+function stubViewport(height: number) {
+  const view = Object.assign(new EventTarget(), {
+    offsetTop: 0,
+    offsetLeft: 0,
+    width: 390,
+    height,
+    scale: 1,
+  })
+  vi.stubGlobal('visualViewport', view)
+  vi.stubGlobal('innerHeight', 800)
+  return (next: number, scale = 1) => {
+    view.height = next
+    view.scale = scale
+    view.dispatchEvent(new Event('resize'))
+  }
+}
+
+/** The layer above the page, with the handles in it. */
+function layer() {
+  return document.querySelector('.dou-code-editor__floating.is-outside')!
+}
+
+/** Whether the bar of keys above the page is faded out for a page scroll. */
+function keysScrolling() {
+  return document.querySelector('.dou-code-editor__keys')!.classList.contains('is-scrolling')
+}
+
 describe('touch on a phone', () => {
   afterEach(() => vi.unstubAllGlobals())
+
+  it('follows the keyboard as it comes up or grows, not while a finger scrolls the page and its bars resize the view', async () => {
+    stubCoarsePointer()
+    const resize = stubViewport(800)
+    const scrollBy = vi.fn<(x: number, y: number) => void>()
+    vi.stubGlobal('scrollBy', scrollBy)
+    const { tap } = setup()
+    await nextTick()
+    await tap(at(6, 1))
+    await nextTick()
+    resize(100)
+    expect(scrollBy).toHaveBeenCalled()
+    scrollBy.mockClear()
+    // A row of candidates over the keyboard, a little taller.
+    resize(60)
+    expect(scrollBy).toHaveBeenCalled()
+    scrollBy.mockClear()
+    // The browser's own bar grows back while a finger scrolls the page.
+    window.dispatchEvent(new Event('touchmove'))
+    resize(20)
+    expect(scrollBy).not.toHaveBeenCalled()
+  })
+
+  it('takes zooming in for no keyboard', async () => {
+    stubCoarsePointer()
+    const resize = stubViewport(800)
+    const scrollBy = vi.fn<(x: number, y: number) => void>()
+    vi.stubGlobal('scrollBy', scrollBy)
+    const { tap } = setup()
+    await nextTick()
+    await tap(at(6, 1))
+    await nextTick()
+    resize(400, 2)
+    expect(scrollBy).not.toHaveBeenCalled()
+  })
+
+  it("keeps the bar of keys in place for the editor's own scroll to the cursor", async () => {
+    stubCoarsePointer()
+    const resize = stubViewport(800)
+    vi.stubGlobal('scrollBy', () => window.dispatchEvent(new Event('scroll')))
+    const { tap } = setup()
+    await nextTick()
+    await tap(at(6, 1))
+    await nextTick()
+    resize(60)
+    await nextTick()
+    expect(keysScrolling()).toBe(false)
+  })
+
+  it('fades the bar of keys out while the page scrolls', async () => {
+    vi.useFakeTimers()
+    stubCoarsePointer()
+    stubViewport(400)
+    const { tap } = setup()
+    await nextTick()
+    await tap(at(6, 0))
+    await nextTick()
+    expect(keysScrolling()).toBe(false)
+    window.dispatchEvent(new Event('scroll'))
+    await nextTick()
+    expect(keysScrolling()).toBe(true)
+    vi.advanceTimersByTime(200)
+    await nextTick()
+    expect(keysScrolling()).toBe(false)
+  })
 
   it("keeps only a caret in the textarea, so the system's own selection never shows; typing replaces the selection", async () => {
     stubCoarsePointer()
@@ -289,6 +382,70 @@ describe('touch on a phone', () => {
     const event = new Event('touchmove', { cancelable: true })
     window.dispatchEvent(event)
     expect(event.defaultPrevented).toBe(false)
+  })
+
+  it('hides the handles above the page while a box around the editor scrolls, until it stops', async () => {
+    vi.useFakeTimers()
+    const size = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(200)
+    const width = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(300)
+    const wrapper = mount(
+      defineComponent(
+        () => () =>
+          h('div', { class: 'panel' }, [h(DouCodeEditor, { modelValue: source, keys: false })]),
+      ),
+      { attachTo: document.body },
+    )
+    await nextTick()
+    const content = wrapper.find('.dou-code-editor__content')
+    const point = { pointerType: 'touch', pointerId: 1, button: 0, ...at(6, 0) }
+    await content.trigger('pointerdown', point)
+    await content.trigger('pointerup', point)
+    await nextTick()
+    expect(layer().classList.contains('is-scrolling')).toBe(false)
+    wrapper.find('.panel').element.dispatchEvent(new Event('scroll'))
+    await nextTick()
+    expect(layer().classList.contains('is-scrolling')).toBe(true)
+    vi.advanceTimersByTime(200)
+    await nextTick()
+    expect(layer().classList.contains('is-scrolling')).toBe(false)
+    // The page itself carries the layer along: nothing to hide.
+    document.dispatchEvent(new Event('scroll'))
+    await nextTick()
+    expect(layer().classList.contains('is-scrolling')).toBe(false)
+    wrapper.unmount()
+    size.mockRestore()
+    width.mockRestore()
+  })
+
+  it('keeps the layer fixed for an editor in a fixed box, and hides it while the page scrolls one in a sticky box', async () => {
+    vi.useFakeTimers()
+    const size = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(200)
+    const width = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(300)
+    for (const position of ['fixed', 'sticky']) {
+      const wrapper = mount(
+        defineComponent(
+          () => () =>
+            h('div', { style: { position } }, [
+              h(DouCodeEditor, { modelValue: source, keys: false }),
+            ]),
+        ),
+        { attachTo: document.body },
+      )
+      await nextTick()
+      const content = wrapper.find('.dou-code-editor__content')
+      const point = { pointerType: 'touch', pointerId: 1, button: 0, ...at(6, 0) }
+      await content.trigger('pointerdown', point)
+      await content.trigger('pointerup', point)
+      await nextTick()
+      expect(layer().classList.contains('is-fixed')).toBe(position === 'fixed')
+      document.dispatchEvent(new Event('scroll'))
+      await nextTick()
+      expect(layer().classList.contains('is-scrolling')).toBe(position === 'sticky')
+      vi.advanceTimersByTime(200)
+      wrapper.unmount()
+    }
+    size.mockRestore()
+    width.mockRestore()
   })
 
   it('draws the handles above the page by default, so a one-line box never cuts them off', async () => {

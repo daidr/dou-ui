@@ -7,11 +7,13 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { formatFragment, parseFragment, type Fragment, type RenderContext } from './changelog'
 import { readPackages } from './workspace'
 import { sorted } from './sorted'
 
-export const root = new URL('../../', import.meta.url).pathname
+// fileURLToPath, not `.pathname`, which is `/D:/…` on Windows.
+export const root = fileURLToPath(new URL('../../', import.meta.url))
 export const changesDir = join(root, '.changes')
 export const prereleaseDir = join(changesDir, 'prerelease')
 

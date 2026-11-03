@@ -4,10 +4,11 @@
  *   - dist/index.js     token API (themeToCss, defineTheme, ...)
  *   - dist/*.d.ts       type declarations
  */
+import { fileURLToPath } from 'node:url'
 import { rm } from 'node:fs/promises'
 import { Glob } from 'bun'
 
-const root = new URL('../', import.meta.url).pathname
+const root = fileURLToPath(new URL('../', import.meta.url))
 const dist = `${root}dist`
 
 await rm(dist, { recursive: true, force: true })

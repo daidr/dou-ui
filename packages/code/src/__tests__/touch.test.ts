@@ -229,8 +229,63 @@ async function selectWord(content: { trigger: (type: string, init?: object) => P
   await nextTick()
 }
 
+/** A view of the page that a test can shrink, the way a keyboard and the browser's bars do. */
+function stubViewport(height: number) {
+  const view = Object.assign(new EventTarget(), {
+    offsetTop: 0,
+    offsetLeft: 0,
+    width: 390,
+    height,
+  })
+  vi.stubGlobal('visualViewport', view)
+  vi.stubGlobal('innerHeight', 800)
+  return (next: number) => {
+    view.height = next
+    view.dispatchEvent(new Event('resize'))
+  }
+}
+
+/** Whether the bar of keys above the page is faded out for a page scroll. */
+function keysScrolling() {
+  return document.querySelector('.dou-code-editor__keys')!.classList.contains('is-scrolling')
+}
+
 describe('touch on a phone', () => {
   afterEach(() => vi.unstubAllGlobals())
+
+  it('follows the keyboard as it comes up, not while the page scrolls and its bars resize the view', async () => {
+    stubCoarsePointer()
+    const resize = stubViewport(800)
+    const scrollBy = vi.fn<(x: number, y: number) => void>()
+    vi.stubGlobal('scrollBy', scrollBy)
+    const { tap } = setup()
+    await nextTick()
+    await tap(at(6, 1))
+    await nextTick()
+    resize(40)
+    expect(scrollBy).toHaveBeenCalled()
+    scrollBy.mockClear()
+    // The browser's own bar grows back while the page scrolls.
+    resize(10)
+    expect(scrollBy).not.toHaveBeenCalled()
+  })
+
+  it('fades the bar of keys out while the page scrolls', async () => {
+    vi.useFakeTimers()
+    stubCoarsePointer()
+    stubViewport(400)
+    const { tap } = setup()
+    await nextTick()
+    await tap(at(6, 0))
+    await nextTick()
+    expect(keysScrolling()).toBe(false)
+    window.dispatchEvent(new Event('scroll'))
+    await nextTick()
+    expect(keysScrolling()).toBe(true)
+    vi.advanceTimersByTime(200)
+    await nextTick()
+    expect(keysScrolling()).toBe(false)
+  })
 
   it("keeps only a caret in the textarea, so the system's own selection never shows; typing replaces the selection", async () => {
     stubCoarsePointer()

@@ -539,7 +539,8 @@
       --dou-code-editor-error: var(--dou-color-danger-text);
       --dou-code-editor-warning: var(--dou-color-warning-text);
       --dou-code-editor-info: var(--dou-color-primary-text);
-      position: fixed;
+      /* in the page, so it scrolls with it; moved to the window's corner as of the last scroll */
+      position: absolute;
       top: 0;
       left: 0;
       display: block;
@@ -998,6 +999,13 @@
     box-sizing: border-box;
     padding: 0 max(8px, env(safe-area-inset-right)) 0 max(8px, env(safe-area-inset-left));
     pointer-events: none;
+    transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
+    &.is-scrolling {
+      opacity: 0;
+      & > .dou-code-keys {
+        pointer-events: none;
+      }
+    }
     /* a capsule: the keys inside are rounded to match, 4px in */
     & > .dou-code-keys {
       height: 44px;

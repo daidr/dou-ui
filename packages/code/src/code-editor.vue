@@ -2849,9 +2849,27 @@ const floatingTarget = computed(() =>
   teleport.value.disabled || !mounted.value ? null : teleport.value.to,
 )
 const floatingZ = ref(0)
+const floatingEl = ref<HTMLElement>()
+/**
+ * The layer above the page sits in the page, not fixed to the window, so it
+ * scrolls with the page on its own and never lags behind a finger's scroll.
+ * Its boxes are placed in the window's coordinates; this moves the layer so
+ * those land where the window has them, as of the last scroll.
+ */
+const layerShift = ref({ x: 0, y: 0 })
+function readLayerShift() {
+  const el = floatingEl.value
+  if (!el || !floatingTarget.value) return
+  const rect = el.getBoundingClientRect()
+  const { x, y } = layerShift.value
+  layerShift.value = { x: x - rect.left, y: y - rect.top }
+}
 /** Bumped when the page scrolls or resizes, for boxes placed in the window's coordinates. */
 const viewportTick = ref(0)
-const bumpViewport = () => viewportTick.value++
+const bumpViewport = () => {
+  readLayerShift()
+  viewportTick.value++
+}
 const floatingOpen = computed(
   () =>
     !!(problemBox.value || completion.value || signature.value) || (touchUi.value && focused.value),
@@ -2861,6 +2879,7 @@ watch(floatingOpen, (open, _old, onCleanup) => {
   floatingZ.value = nextZIndex()
   // The boxes above the page take the editor's own variables with them, as they are now.
   readFrameFont()
+  readLayerShift()
   const vv = window.visualViewport
   window.addEventListener('scroll', bumpViewport, { capture: true, passive: true })
   window.addEventListener('resize', bumpViewport, { passive: true })
@@ -4107,24 +4126,62 @@ function followViewport() {
   if (after.bottom + room > bottom) window.scrollBy(0, after.bottom + room - bottom)
 }
 
+/** How much of the window the keyboard took when last seen. */
+let keyboardHeight = 0
+function readKeyboard() {
+  const vv = window.visualViewport
+  return vv ? Math.max(0, window.innerHeight - vv.height) : 0
+}
+
+/**
+ * Follows the keyboard as it comes up or grows, and only then: the view
+ * also resizes while the page scrolls, as the browser's own bars shrink and
+ * grow, and scrolling the page back to the cursor then would fight the finger.
+ */
 function onViewportChange() {
   readViewport()
-  followViewport()
+  const now = readKeyboard()
+  const grew = now > keyboardHeight + 100
+  keyboardHeight = now
+  if (grew) followViewport()
+}
+
+/**
+ * While the page scrolls, the bar of keys fades out: the browser moves the
+ * page faster than the bar can follow the keyboard, and it would shake.
+ */
+const pageScrolling = ref(false)
+let pageScrollTimer = 0
+function onPageScroll() {
+  pageScrolling.value = true
+  clearTimeout(pageScrollTimer)
+  pageScrollTimer = window.setTimeout(() => {
+    readViewport()
+    pageScrolling.value = false
+  }, 160)
 }
 
 /** On a touch screen the keyboard comes and goes with focus; the view follows it meanwhile. */
 const following = computed(() => coarse.value && focused.value)
 function unfollow() {
-  const vv = typeof window !== 'undefined' ? window.visualViewport : null
+  if (typeof window === 'undefined') return
+  const vv = window.visualViewport
   vv?.removeEventListener('resize', onViewportChange)
   vv?.removeEventListener('scroll', readViewport)
+  vv?.removeEventListener('scroll', onPageScroll)
+  window.removeEventListener('scroll', onPageScroll)
+  clearTimeout(pageScrollTimer)
+  pageScrolling.value = false
 }
 watch(following, (on) => {
   const vv = window.visualViewport
   if (on) {
     readViewport()
+    keyboardHeight = readKeyboard()
     vv?.addEventListener('resize', onViewportChange)
     vv?.addEventListener('scroll', readViewport)
+    vv?.addEventListener('scroll', onPageScroll, { passive: true })
+    window.addEventListener('scroll', onPageScroll, { passive: true })
   } else unfollow()
 })
 
@@ -4900,8 +4957,17 @@ defineExpose<CodeEditorExpose>(api)
             <!-- The boxes about the text and the touch handles: above the page, or inside the frame. -->
             <Teleport :to="floatingTarget || 'body'" :disabled="!floatingTarget">
               <div
+                ref="floatingEl"
                 :class="[ns.e('floating'), ns.is('outside', !!floatingTarget)]"
-                :style="floatingTarget ? { ...frameVars, zIndex: floatingZ } : undefined"
+                :style="
+                  floatingTarget
+                    ? {
+                        ...frameVars,
+                        zIndex: floatingZ,
+                        transform: `translate(${layerShift.x}px, ${layerShift.y}px)`,
+                      }
+                    : undefined
+                "
               >
                 <div
                   v-if="problemStyle"
@@ -5173,7 +5239,11 @@ defineExpose<CodeEditorExpose>(api)
       <RenderPart v-for="panel in panels.bottom" :key="panel.key" :render="panel.render" />
     </div>
     <Teleport to="body">
-      <div v-if="showKeys" :class="ns.e('keys')" :style="keysStyle">
+      <div
+        v-if="showKeys"
+        :class="[ns.e('keys'), ns.is('scrolling', pageScrolling)]"
+        :style="keysStyle"
+      >
         <CodeKeys :editor="keysEditor" :keys="keysList" :messages="messages" />
       </div>
     </Teleport>

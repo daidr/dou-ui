@@ -47,6 +47,8 @@ describe('DouVirtualList', () => {
   it('follows the scroll position', async () => {
     const wrapper = make()
     const el = wrapper.element as HTMLElement
+    // happy-dom lays nothing out; a browser reports the spacer's height
+    Object.defineProperty(el, 'scrollHeight', { get: () => 320_000 })
     el.scrollTop = 3200
     await wrapper.trigger('scroll')
     const rendered = wrapper.findAll('.dou-virtual-list__item')

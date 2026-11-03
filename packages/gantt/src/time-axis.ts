@@ -1,4 +1,4 @@
-import { useNow } from 'dou-ui'
+import { createScrollLink, scrollPositionOf, useNow, useTouchScroll } from 'dou-ui'
 import { computed, onMounted, ref, watch, type ComputedRef, type Ref, type ShallowRef } from 'vue'
 import { offTime, type WorkCalendar } from './core/calendar'
 import {
@@ -115,26 +115,59 @@ export function useTimeAxis(o: TimeAxisOptions) {
   const viewStart = ref(0)
   const scrollbar = ref(0)
 
+  const touch = useTouchScroll()
+  const link = createScrollLink('y')
+
   function onChartScroll() {
     const el = o.chart.value!
     const body = o.tableBody.value
-    scrollTop.value = el.scrollTop
-    scrollLeft.value = el.scrollLeft
-    viewStart.value = origin.value + el.scrollLeft / ppm.value
-    if (body && Math.abs(body.scrollTop - el.scrollTop) >= 1) body.scrollTop = el.scrollTop
-    if (o.range()) return
+    // iOS reports positions past either end while the content bounces back
+    const { top, left } = scrollPositionOf(el)
+    scrollTop.value = top
+    scrollLeft.value = left
+    viewStart.value = origin.value + left / ppm.value
+    if (body) link.follow(el, body)
+    grow()
+  }
+
+  /**
+   * Adds time at the end that comes near. Time added before the start moves
+   * the content right, and the scroll position has to follow it; iOS drops
+   * that move while a touch scroll, its momentum or the bounce at the end
+   * goes on, and the next scroll event would then read the old position
+   * against the new start, jumping back further every time. So it waits
+   * until the scroll is over, and is skipped while the edge bounces.
+   */
+  function grow() {
+    const el = o.chart.value
+    if (!el || o.range()) return
     const width = o.viewWidth.value
     const view = width / ppm.value
-    if (el.scrollLeft < width / 2)
-      grown.value = { ...grown.value, before: grown.value.before + 2 * view }
-    else if (el.scrollLeft + width > totalWidth.value - width / 2)
+    const left = scrollPositionOf(el).left
+    if (left + width > totalWidth.value - width / 2)
       grown.value = { ...grown.value, after: grown.value.after + 2 * view }
+    // a touch scroll can't grow until it stops, so near the start it waits,
+    // then leaves more room, so the next swipe doesn't run into the start
+    else if (touch.active.value && left < 2 * width) touch.whenSettled(growAfterTouch)
+    else if (left < width / 2) {
+      // the bounce ends with one more scroll event, at the start
+      if (el.scrollLeft < 0) return
+      grown.value = { ...grown.value, before: grown.value.before + 2 * view }
+    }
+  }
+
+  function growAfterTouch() {
+    const el = o.chart.value
+    if (!el || o.range() || el.scrollLeft < 0) return
+    const width = o.viewWidth.value
+    if (scrollPositionOf(el).left >= 2 * width) return
+    grown.value = { ...grown.value, before: grown.value.before + (4 * width) / ppm.value }
   }
 
   function onTableScroll() {
     const body = o.tableBody.value!
     const el = o.chart.value
-    if (el && Math.abs(el.scrollTop - body.scrollTop) >= 1) el.scrollTop = body.scrollTop
+    if (el) link.follow(body, el)
   }
 
   // keep the time at the left edge in place as the axis changes under it
@@ -145,7 +178,7 @@ export function useTimeAxis(o: TimeAxisOptions) {
       if (!el) return
       const target = Math.round((viewStart.value - origin.value) * ppm.value)
       if (Math.abs(el.scrollLeft - target) >= 1) el.scrollLeft = target
-      scrollLeft.value = el.scrollLeft
+      scrollLeft.value = scrollPositionOf(el).left
     },
     { flush: 'post' },
   )
@@ -162,7 +195,7 @@ export function useTimeAxis(o: TimeAxisOptions) {
     const el = o.chart.value
     if (!el) return
     el.scrollLeft = Math.round((viewStart.value - origin.value) * ppm.value)
-    scrollLeft.value = el.scrollLeft
+    scrollLeft.value = scrollPositionOf(el).left
   }
 
   function fit() {

@@ -1,5 +1,7 @@
 import { computed, onBeforeUnmount, shallowRef } from 'vue'
 import { createOffsets } from '../components/virtual-list/virtual-list'
+import { scrollPositionOf } from '../utils/scroll'
+import { useTouchScroll } from './use-touch-scroll'
 
 export interface UseMeasuredSizesOptions<K> {
   /** How many items there are. */
@@ -17,10 +19,12 @@ export interface UseMeasuredSizesOptions<K> {
  *
  * Unmeasured items count at their estimate. Rendered items are watched for
  * size changes; when one above the top of the view changes, the scroll
- * position moves by the same amount, so what the reader sees stays put.
+ * position moves by the same amount, so what the reader sees stays put;
+ * a move iOS drops during a touch scroll is made once the scroll is over.
  */
 export function useMeasuredSizes<K>(options: UseMeasuredSizesOptions<K>) {
   const known = new Map<K, number>()
+  const touch = useTouchScroll()
   // Bumped when a measurement changes; reading it ties offsets to it.
   const version = shallowRef(0)
 
@@ -44,7 +48,7 @@ export function useMeasuredSizes<K>(options: UseMeasuredSizesOptions<K>) {
     let shift = 0
     let changed = false
     const el = options.container()
-    const top = el?.scrollTop ?? 0
+    const top = el ? scrollPositionOf(el).top : 0
     const seen = new Set<K>()
     for (const { key, index } of items) {
       if (seen.has(key)) continue
@@ -58,7 +62,7 @@ export function useMeasuredSizes<K>(options: UseMeasuredSizesOptions<K>) {
     }
     if (!changed) return
     version.value++
-    if (el && shift) el.scrollTop = top + shift
+    if (el && shift) touch.shiftScroll(el, shift)
   }
 
   const observer =

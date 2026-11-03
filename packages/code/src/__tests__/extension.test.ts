@@ -1,6 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
+import { DouConfigProvider } from 'dou-ui'
 import {
   type CodeDiagnostic,
   type CodeEditorExpose,
@@ -20,6 +21,8 @@ function setup(extensions: CodeExtension[], extra: Record<string, unknown> = {},
       () => () =>
         h(DouCodeEditor, {
           ref: editor,
+          // Measured boxes in the frame: the test page has no layout to place them above.
+          teleport: false,
           modelValue: code.value,
           'onUpdate:modelValue': (value: string) => (code.value = value),
           extensions,
@@ -190,6 +193,96 @@ describe('extensions', () => {
     await content.trigger('pointerup', point)
     await content.trigger('pointerleave', point)
     expect(wrapper.find('.dou-code-editor__problems').exists()).toBe(true)
+  })
+
+  it("shows a line's problems on a tap on its icon in the gutter, and puts them away on a press elsewhere", async () => {
+    const { wrapper } = setup([noVar])
+    await nextTick()
+    const icon = wrapper.find('.dou-code-editor__problem-icon')
+    expect(icon.exists()).toBe(true)
+    const point = { pointerType: 'touch', pointerId: 1, button: 0, clientX: 4, clientY: 18 }
+    const focus = vi.spyOn(HTMLTextAreaElement.prototype, 'focus')
+    await icon.trigger('pointerdown', point)
+    await icon.trigger('pointerup', point)
+    expect(wrapper.find('.dou-code-editor__problems').exists()).toBe(true)
+    // Showing it neither selects the line nor brings the keyboard up.
+    expect(wrapper.find('.dou-code-editor__menu').exists()).toBe(false)
+    expect(focus).not.toHaveBeenCalled()
+    focus.mockRestore()
+    document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+    await nextTick()
+    expect(wrapper.find('.dou-code-editor__problems').exists()).toBe(false)
+    // A mouse click on it shows it at once.
+    await icon.trigger('pointerdown', { ...point, pointerType: 'mouse' })
+    expect(wrapper.find('.dou-code-editor__problems').exists()).toBe(true)
+  })
+
+  it("carries the editor's variables to the boxes above the page", async () => {
+    const wrapper = mount(
+      defineComponent(
+        () => () =>
+          h(DouCodeEditor, {
+            modelValue: source,
+            extensions: [noVar],
+            style: '--dou-code-editor-font-size: 18px; --dou-code-editor-warning: rgb(1, 2, 3)',
+          }),
+      ),
+      { attachTo: document.body },
+    )
+    await nextTick()
+    const icon = wrapper.find('.dou-code-editor__problem-icon')
+    await icon.trigger('pointerdown', { pointerType: 'mouse', button: 0, clientX: 4, clientY: 18 })
+    await nextTick()
+    const layer = document.querySelector<HTMLElement>('.dou-code-editor__floating.is-outside')!
+    expect(wrapper.element.contains(layer)).toBe(false)
+    expect(layer.style.getPropertyValue('--dou-code-editor-font-size')).toBe('18px')
+    expect(layer.style.getPropertyValue('--dou-code-editor-warning')).toBe('rgb(1, 2, 3)')
+    wrapper.unmount()
+  })
+
+  it('keeps the boxes in place when the config provider says teleport: false', async () => {
+    const wrapper = mount(
+      defineComponent(
+        () => () =>
+          h(DouConfigProvider, { teleport: false }, () => h(DouCodeEditor, { modelValue: source })),
+      ),
+      { attachTo: document.body },
+    )
+    await nextTick()
+    const layer = document.querySelector('.dou-code-editor__floating')!
+    expect(wrapper.element.contains(layer)).toBe(true)
+    expect(layer.classList.contains('is-outside')).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('shows the problem under the cursor on a tap there before offering the toolbar', async () => {
+    const { wrapper } = setup([noVar])
+    await nextTick()
+    const content = wrapper.find('.dou-code-editor__content')
+    const point = {
+      pointerType: 'touch',
+      pointerId: 1,
+      button: 0,
+      clientX: 12 + 8 + 2,
+      clientY: 18,
+    }
+    const tap = async () => {
+      await content.trigger('pointerdown', point)
+      await content.trigger('pointerup', point)
+    }
+    const shown = () => wrapper.find('.dou-code-editor__problems').exists()
+    const menu = () => wrapper.find('.dou-code-editor__menu').exists()
+    await tap()
+    expect(shown()).toBe(true)
+    // Put away, then tapped again on the cursor standing there: the problem first.
+    document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+    await nextTick()
+    await tap()
+    expect(shown()).toBe(true)
+    expect(menu()).toBe(false)
+    // With it shown, the next tap there brings the toolbar.
+    await tap()
+    expect(menu()).toBe(true)
   })
 
   it('draws gutter markers and passes presses on them', async () => {

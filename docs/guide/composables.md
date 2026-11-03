@@ -25,6 +25,7 @@ DouUI 的组件建立在一组组合式函数上。下面这些已经导出，�
 | `useClipboard`                                    | 复制文本，并在复制成功后的一段时间内给出 `copied`      | [下文](#useclipboard)                                              |
 | `useElementSize` / `useResizeObserver`            | 读取元素尺寸，或在尺寸变化时执行回调                   | [下文](#useelementsize)                                            |
 | `useIntersection`                                 | 元素是否出现在视口或滚动容器中                         | [下文](#useintersection)                                           |
+| `useTeleport`                                     | 决定浮层渲染到哪里：自己的 `teleport`，否则全局配置    | [下文](#useteleport)                                               |
 | `holdPointer`                                     | 触摸拖动开始后不再滚动页面，按下的元素被移除也不中断   | [下文](#holdpointer)                                               |
 | `useTouchScroll`                                  | 在 iOS 触摸滚动（含惯性和回弹）期间可靠地修改滚动位置  | [下文](#usetouchscroll)                                            |
 | `scrollPositionOf`                                | 读取不超出范围的滚动位置                               | [下文](#scrollpositionof)                                          |
@@ -36,7 +37,7 @@ DouUI 的组件建立在一组组合式函数上。下面这些已经导出，�
 
 ## 自己写一个浮层
 
-组合前四个函数，可以实现一个与内置浮层行为一致的面板：
+组合前四个函数，可以实现一个与内置浮层行为一致的面板。要像内置浮层一样跟随 `teleport` 属性与全局配置，再加上 [`useTeleport`](#useteleport)：
 
 <DocDemo src="composables/floating" />
 
@@ -146,6 +147,21 @@ const { isIntersecting, ratio, entry } = useIntersection(el, {
 
 <DocDemo src="composables/intersection" />
 
+## useTeleport
+
+```ts
+const props = defineProps<{ teleport?: TeleportTarget }>()
+const teleport = useTeleport(() => props.teleport)
+```
+
+```vue-html
+<Teleport :to="teleport.to" :disabled="teleport.disabled">
+  <div class="my-panel">...</div>
+</Teleport>
+```
+
+传入组件自己的 `teleport` 属性，返回 `{ to, disabled }`。属性没有传时使用 [ConfigProvider](../components/config-provider) 的 `teleport`，两处都没有设置时渲染到 `body`。取到的值为 `false` 时 `disabled` 为 `true`，浮层留在原处渲染。组件自己传的值优先，所以单个组件可以用 `false` 留在原处，也可以在全局为 `false` 时另外指定一个目标。
+
 ## holdPointer
 
 ```ts
@@ -170,6 +186,8 @@ function onPointerdown(event: PointerEvent) {
 ```
 
 在手机上，手指按下后滑动默认会滚动页面，浏览器一旦开始滚动就会发出 `pointercancel`，拖动随之中断。`holdPointer` 要在 `pointerdown` 里调用，拖动真正开始时调用 `grab()`，此后这次触摸不再滚动页面；拖动结束或取消时调用 `release()`。在 `grab()` 之前，手指仍然可以正常滚动页面，适合先长按再拖动的列表。
+
+有时浏览器不会发出这次触摸的 `pointerup`，例如按下的元素在拖动中被移除后，Safari 会把它发给已经不在页面上的元素。手指全部离开屏幕后，如果还没有调用 `release()`，`holdPointer` 会自己释放，并补发一个 `pointercancel`：元素还在页面上时从它发出，否则从第二个参数给出的元素发出，再调用第三个参数 `onLost`。上面的例子在 `window` 上监听 `pointercancel`，会收到补发的事件并结束拖动；不方便监听时，可以把收起拖动的代码放进 `onLost`。
 
 触摸事件始终发往手指按下的那个元素。拖动时这个元素可能被移除，例如条目被拖进了另一个列表，或者虚拟列表滚动后不再渲染它，此后它的事件不会再冒泡到页面。`holdPointer` 会在这个元素上单独监听，并把指针捕获到第二个参数给出的元素上，所以第二个参数应当是拖动期间一直存在的元素，例如列表容器。用鼠标时它什么也不做。Sortable、Tree、Drawer 的拖动都基于它实现。
 

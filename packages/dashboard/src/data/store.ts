@@ -109,7 +109,7 @@ export function createSourceStore(sources: () => DashboardSources | undefined) {
     if (!source) {
       entry.state.value = {
         status: 'error',
-        error: new Error(`No source is named "${entry.name}"`),
+        error: new Error(`[@dou-ui/dashboard] no source is named "${entry.name}"`),
       }
       return
     }

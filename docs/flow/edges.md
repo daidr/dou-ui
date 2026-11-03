@@ -6,7 +6,7 @@
 
 ## 连线类型
 
-`edge.type` 决定一条连线怎么画，不写时用编辑器的 `edgeType` 属性；属性没设时用扩展的 `edgeType`，都没有就是 `bezier`。新画的连线不带 `type`，所以也跟着 `edgeType` 走。下面三种由 `flowKit()` 提供，找不到的类型按 `bezier` 画。
+`edge.type` 决定一条连线怎么画，不写时用编辑器的 `edgeType` 属性；属性没设时用扩展的 `edgeType`，都没有时用 `bezier`。新画的连线不带 `type`，所以也跟着 `edgeType` 走。下面三种由 `flowKit()` 提供，找不到的类型按 `bezier` 画。
 
 | 类型       | 画法                                                      |
 | ---------- | --------------------------------------------------------- |
@@ -29,7 +29,14 @@
 选中一个节点后按 `E`，会选中它的第一条连线（先是从它出发的，再是连到它的），继续按 `E` 换下一条，`Shift` + `E` 换上一条。读屏会播报这条线连接的两个节点和它的标签，比如“连线：识别文字 → 整理成笔记，标签：直接整理”。选中后可以按 `Enter` 编辑标签，按 `Delete` 删除，按 `Esc` 取消选择。
 
 ```ts
-{ id: 'e2', source: { node: 'ocr', port: 'clear' }, target: { node: 'note', port: 'in' }, label: '直接整理' }
+import type { FlowEdge } from '@dou-ui/flow'
+
+const edge: FlowEdge = {
+  id: 'e2',
+  source: { node: 'ocr', port: 'clear' },
+  target: { node: 'note', port: 'in' },
+  label: '直接整理',
+}
 ```
 
 缩小到 `simpleZoom` 以下时标签不显示，见[大型流程](./performance)。
@@ -39,7 +46,14 @@
 `animated: true` 让连线显示成沿着方向流动的虚线，适合标出正在运行的那一段。系统开启了“减少动态效果”时虚线不动。
 
 ```ts
-{ id: 'e1', source: { node: 'photo', port: 'out' }, target: { node: 'ocr', port: 'in' }, animated: true }
+import type { FlowEdge } from '@dou-ui/flow'
+
+const edge: FlowEdge = {
+  id: 'e1',
+  source: { node: 'photo', port: 'out' },
+  target: { node: 'ocr', port: 'in' },
+  animated: true,
+}
 ```
 
 ## 自定义连线类型
@@ -64,7 +78,7 @@ const elbow = defineEdgeType({
 const edges = defineFlowExtension({ name: 'edges', edgeTypes: [elbow] })
 ```
 
-`route` 还可以返回一个 `handle`：`at` 是手柄的位置，`axis` 是它能移动的方向，`move(point)` 把指针的画布坐标换算成要写进 `edge.data` 的内容。选中连线时编辑器会画出这个手柄，拖动它就是一步撤销。内置的 `bezierEdge`、`stepEdge`、`straightEdge` 也可以直接拿来改。
+`route` 还可以返回一个 `handle`：`at` 是手柄的位置，`axis` 是它能移动的方向，`move(point)` 把指针的画布坐标换算成要写进 `edge.data` 的内容。选中连线时编辑器会画出这个手柄，拖动它算作一步撤销。内置的 `bezierEdge`、`stepEdge`、`straightEdge` 也可以直接拿来改。
 
 `route` 返回的 `marks` 是箭头这类附加的笔画：和连线用同一种颜色和粗细，但连线是虚线时它仍然是实线，导出图片时也一样。连线类型的 `style(edge)` 可以按 `edge.data` 给连线加样式，例如虚线；白板的[连接线](./whiteboard#连接线)用这两项实现线型和箭头。
 
@@ -83,7 +97,7 @@ const edges = defineFlowExtension({ name: 'edges', edgeTypes: [elbow] })
 
 | 名称        | 说明                                                                           | 类型             | 默认值 |
 | ----------- | ------------------------------------------------------------------------------ | ---------------- | ------ |
-| `edgeType`  | 没写 `type` 的连线用哪种画法，不设时用扩展的 `edgeType`，再没有就是 `'bezier'` | `string`         | —      |
+| `edgeType`  | 没写 `type` 的连线用哪种画法，不设时用扩展的 `edgeType`，再没有时用 `'bezier'` | `string`         | —      |
 | `edgeTypes` | 扩展之外的连线类型，同名时覆盖扩展里的                                         | `EdgeTypeSpec[]` | —      |
 
 ### EdgeTypeSpec

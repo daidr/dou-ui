@@ -81,7 +81,7 @@ app.use(DouGridLayout)
 
 和拖动格子一样，鼠标移动几像素后开始，手指按住片刻后开始。在较窄的断点上拖入时，新格子在这个断点上放在松手的位置，在最宽的布局里放在第一个放得下的位置。
 
-拖动只能用指针完成，所以来源最好是按钮，同时支持点击添加，让键盘和读屏用户也能用：点击时用 `findPlace` 算出第一个放得下的位置，加进 `v-model` 后用 `focusItem` 把焦点移到新格子上。上面示例里的按钮就是这样做的：
+拖动只能用指针完成，所以来源最好是按钮，同时支持点击添加，让键盘和读屏用户也能用：点击时用 `findPlace` 算出第一个放得下的位置，加进 `v-model` 后用 `focusItem` 把焦点移到新格子上。上面示例里的按钮也是这样做的：
 
 ```ts
 const size = { w: 3, h: 2 }
@@ -96,7 +96,7 @@ grid.value.focusItem(id)
 
 <DocDemo src="dashboard/limits" />
 
-用 `resize` 选择哪些边可以拖动改大小：`'e'`（右边）、`'s'`（下边）、`'se'`（右下角），默认三个都有；设为 `false` 时不能改大小。
+用 `resize` 选择哪些边可以拖动改大小：`'e'`（右边）、`'s'`（下边）、`'se'`（右下角），默认 `true`，三处都可以；设为 `false` 时不能改大小。
 
 ## 触屏
 
@@ -159,7 +159,7 @@ const narrow = deriveLayout(next, 12, { columns: 6 })
 | `compact`     | 自动往上靠，或者自由摆放                         | `'vertical' \| false`              | `'vertical'`                   |
 | `editable`    | 能否拖动和缩放                                   | `boolean`                          | `false`                        |
 | `handle`      | 只从 `DouGridLayoutHandle` 开始拖动              | `boolean`                          | `false`                        |
-| `resize`      | 哪些边可以拖动改大小，`false` 时不能改           | `boolean \| GridResizeHandle[]`    | `['e', 's', 'se']`             |
+| `resize`      | 哪些边可以拖动改大小，`false` 时不能改           | `boolean \| GridResizeHandle[]`    | `true`（三处都可以）           |
 | `itemLabel`   | 格子的读屏名称                                   | `(item: GridItem) => string`       | 格子的 `id`                    |
 | `label`       | 网格的读屏名称                                   | `string`                           | 编辑时为 `'网格布局'`          |
 | `messages`    | 替换语言包里的文字                               | `DashboardMessagesOverride`        | —                              |

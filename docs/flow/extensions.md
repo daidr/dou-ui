@@ -78,7 +78,7 @@ interface FlowPressHandler {
 
 拖动节点、调整连线和改变分组大小时，编辑器每一帧都会提交一次修改。`ctx.gesturing` 在这期间为 `true`，松手后变回 `false`，需要把一次拖动当作一个修改来处理时（例如同步到服务器）可以等它变回 `false`。正在拉出的连线在 `ctx.connectingPath` 里，是画布坐标下的 SVG 路径，没有在连线时为 `null`。
 
-自己做的手柄如果想松手时才提交一次修改，拖动过程中用 `ctx.previewNode(id, patch)` 把节点显示成改动后的样子，`patch` 可以包含 `x`、`y`、`width`、`height` 和 `data`。节点的外框、端口、连线和 `getNodeRect` 都会跟着变，文档本身不变。白板的缩放和旋转手柄就是这样做的。
+自己做的手柄如果想松手时才提交一次修改，拖动过程中用 `ctx.previewNode(id, patch)` 把节点显示成改动后的样子，`patch` 可以包含 `x`、`y`、`width`、`height` 和 `data`。节点的外框、端口、连线和 `getNodeRect` 都会跟着变，文档本身不变。白板的缩放和旋转手柄也是这样做的。
 
 ```ts
 // 拖动中：只改显示
@@ -101,6 +101,8 @@ ctx.transact((tr) => tr.updateData(node.id, { rotation }))
 在 `transaction` 里调用 `tr.cancel(reason?)` 取消这次修改：它的步骤都不会生效，也不进撤销记录，后面的扩展不再收到它，也不触发 `transaction` 事件。编辑器下方会短暂显示 `reason`，读屏也会读出；不写时显示“这次修改没有生效”。编辑器触发 `transactionCancel` 事件，`tr.cancelReason` 是取消的原因。`transact` 返回这次的事务：被取消时 `tr.cancelled` 为 `true`，`tr.changed` 为 `false`。比如不让删除开始节点：
 
 ```ts
+import { defineFlowExtension } from '@dou-ui/flow'
+
 const keepStart = defineFlowExtension({
   name: 'keep-start',
   transaction: (tr) => {
@@ -114,7 +116,7 @@ const keepStart = defineFlowExtension({
 
 ## 图层组件
 
-图层的坐标就是画布坐标，用 `position: absolute` 和节点的位置摆放即可。`getNodeRect(id)` 返回节点的位置和尺寸，节点移动或改变大小时会更新。
+图层用的是画布坐标，用 `position: absolute` 和节点的位置摆放即可。`getNodeRect(id)` 返回节点的位置和尺寸，节点移动或改变大小时会更新。
 
 <<< @/examples/flow/mark-rings.vue
 

@@ -64,7 +64,7 @@ const extensions = [
 ```ts
 import { fillMaps } from '@dou-ui/flow/collaboration'
 
-fillMaps({ nodes: doc.getMap('nodes'), edges: doc.getMap('edges') }, flow)
+fillMaps({ nodes: doc.getMap('nodes'), edges: doc.getMap('edges') }, flow.value)
 ```
 
 这一步通常在创建共享文档时在服务器上做一次。节点和连线按 id 保存，即使两端同时写入同一个流程，也不会出现重复的节点。

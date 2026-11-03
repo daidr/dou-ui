@@ -13,6 +13,7 @@ import {
 } from '..'
 import type { DashboardDocument, DashboardExpose } from '..'
 import { collaboration, fillMap, readMap } from '../collaboration'
+import { later } from '../../../../test/later'
 
 const Stat = defineComponent({
   setup() {
@@ -262,6 +263,7 @@ describe('collaboration', () => {
     expect(one.wrapper.findAll('.dou-dashboard__widget.has-peers')).toHaveLength(1)
 
     // focusing a widget here shares it
+    later()
     one.wrapper
       .find('[data-grid-id="a"]')
       .element.dispatchEvent(new FocusEvent('focusin', { bubbles: true }))

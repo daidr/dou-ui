@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, useId } from 'vue'
+import { computed, onBeforeUnmount, ref, useId, watch } from 'vue'
 import { ariaHotkey, useApplePlatform } from '../../composables/use-hotkey'
 import type { VirtualElement } from '../../composables/use-floating'
 import { usePopup } from '../../composables/use-popup'
@@ -7,6 +7,7 @@ import { useNamespace } from '../../utils/namespace'
 import { OnlyChild } from '../../utils/only-child'
 import { DouKbd } from '../kbd'
 import type { TooltipProps, TooltipSlots } from './tooltip'
+import { claimTooltip, releaseTooltip } from './only-one'
 import { useTeleport } from '../../utils/teleport'
 
 defineOptions({ name: 'DouTooltip', inheritAttrs: false })
@@ -60,6 +61,13 @@ function onPointermove(event: PointerEvent) {
   pointer.value = { x: event.clientX, y: event.clientY }
   update()
 }
+
+// A tooltip whose trigger left the page without unmounting is just dropped.
+const close = () => {
+  if ((triggerRef.value?.$el as Node | undefined)?.isConnected !== false) open.value = false
+}
+watch(open, (value) => (value ? claimTooltip(close) : releaseTooltip(close)), { immediate: true })
+onBeforeUnmount(() => releaseTooltip(close))
 
 const interactive = computed(() => props.interactive && !props.followCursor)
 

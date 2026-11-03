@@ -68,15 +68,20 @@ function innerWidth(el: HTMLElement) {
   )
 }
 
-/** Scrolls the row, never the page, so the current step shows. */
+/** Scrolls the row, never the page, so the current step shows inside the padding kept for the focus ring. */
 function reveal() {
   const el = root.value
   const item = el?.children[current.value] as HTMLElement | undefined
   if (!el || !item || el.scrollWidth <= el.clientWidth) return
+  const style = getComputedStyle(el)
   const box = el.getBoundingClientRect()
+  const left = box.left + el.clientLeft + (parseFloat(style.paddingLeft) || 0)
+  const right = box.left + el.clientLeft + el.clientWidth - (parseFloat(style.paddingRight) || 0)
   const rect = item.getBoundingClientRect()
-  if (rect.left < box.left) el.scrollLeft -= box.left - rect.left
-  else if (rect.right > box.right) el.scrollLeft += rect.right - box.right
+  // the line after a step is not part of it: align the step's own content
+  const main = item.firstElementChild?.getBoundingClientRect() ?? rect
+  if (main.left < left) el.scrollLeft -= left - main.left
+  else if (main.right > right) el.scrollLeft += main.right - right
 }
 
 /** Measures again with every title shown, after the steps change. */
@@ -85,23 +90,66 @@ function remeasure() {
   void nextTick(measure)
 }
 
+/*
+ * The row is measured again when its own width changes, when a step's
+ * text changes size (a late title, a web font), and when what the steps
+ * say changes, wherever that is rendered (a slot is rendered inside the
+ * tooltip's trigger, not by this component). Hidden titles keep their
+ * 1px box, so fonts loading also measures again.
+ */
+let said = ''
+function whatItSays() {
+  const el = root.value
+  if (!el) return ''
+  const titles = [...el.querySelectorAll<HTMLElement>('.' + ns.e('text'))].map((text) => {
+    const status = text.querySelector('.' + ns.e('status'))?.textContent ?? ''
+    return (text.textContent ?? '').replace(status, '')
+  })
+  return [props.direction, props.size, ...titles].join('\n')
+}
+
+function watchTexts() {
+  const el = root.value
+  if (!observer || !el) return
+  observer.disconnect()
+  observer.observe(el)
+  el.querySelectorAll('.' + ns.e('text')).forEach((text) => observer!.observe(text))
+}
+
+const onFonts = () => remeasure()
+
+function onChange() {
+  const now = whatItSays()
+  if (now === said) return
+  said = now
+  watchTexts()
+  remeasure()
+}
+
+let mutations: MutationObserver | undefined
+
 onMounted(() => {
+  said = whatItSays()
   measure()
-  if (typeof ResizeObserver !== 'undefined' && root.value) {
+  if (typeof ResizeObserver !== 'undefined') {
     observer = new ResizeObserver(() => measure())
-    observer.observe(root.value)
+    watchTexts()
   }
+  if (typeof MutationObserver !== 'undefined' && root.value) {
+    mutations = new MutationObserver(onChange)
+    mutations.observe(root.value, { childList: true, characterData: true, subtree: true })
+  }
+  document.fonts?.addEventListener('loadingdone', onFonts)
 })
-onBeforeUnmount(() => observer?.disconnect())
 watch(
-  () => [
-    props.direction,
-    props.size,
-    props.items.map((item) => item.title + (item.description ?? '')),
-  ],
-  remeasure,
-  { deep: true },
+  () => [props.direction, props.size],
+  () => void nextTick(onChange),
 )
+onBeforeUnmount(() => {
+  observer?.disconnect()
+  mutations?.disconnect()
+  document.fonts?.removeEventListener('loadingdone', onFonts)
+})
 watch(current, () => void nextTick(measure))
 
 function go(item: StepItem, index: number) {
@@ -128,7 +176,17 @@ function go(item: StepItem, index: number) {
       :class="[ns.e('item'), ns.is(statusOf(item, index)), ns.is('disabled', !!item.disabled)]"
       :aria-current="index === current ? 'step' : undefined"
     >
-      <DouTooltip :content="item.title" :disabled="!compact || index === current">
+      <DouTooltip :disabled="!compact || index === current">
+        <template #content>
+          <slot name="title" :item="item" :index="index" :status="statusOf(item, index)">
+            {{ item.title }}
+          </slot>
+          <span v-if="item.description || $slots.description" :class="ns.e('tip-description')">
+            <slot name="description" :item="item" :index="index" :status="statusOf(item, index)">
+              {{ item.description }}
+            </slot>
+          </span>
+        </template>
         <component
           :is="clickable ? 'button' : 'div'"
           :type="clickable ? 'button' : undefined"

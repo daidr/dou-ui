@@ -236,6 +236,12 @@
     }
   }
 
+  /* the description under a folded step's title, in its tooltip */
+  .dou-steps__tip-description {
+    display: block;
+    opacity: 0.72;
+  }
+
   /* vertical: the line runs down from the marker, beside the text */
   .dou-steps--vertical {
     flex-direction: column;

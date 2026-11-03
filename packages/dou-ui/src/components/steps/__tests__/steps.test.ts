@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DouConfigProvider, DouSteps, en } from '../../../index'
-import { h, nextTick } from 'vue'
+import { h, nextTick, ref } from 'vue'
 
 const items = [
   { title: '填写信息' },
@@ -106,6 +106,62 @@ describe('DouSteps', () => {
       await nextTick()
       expect(wrapper.classes()).not.toContain('is-compact')
       vi.unstubAllGlobals()
+    })
+
+    it('measures again when a title grows after mounting', async () => {
+      const width = { value: 300 }
+      vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(function (
+        this: HTMLElement,
+      ) {
+        return this.classList.contains('dou-steps') ? width.value : 0
+      })
+      vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockImplementation(function (
+        this: HTMLElement,
+      ) {
+        if (!this.classList.contains('dou-steps')) return 0
+        if (this.classList.contains('is-compact')) return 280
+        return this.textContent!.includes('很长很长') ? 900 : 280
+      })
+      const late = ref(false)
+      const wrapper = mount({
+        render: () =>
+          h(
+            DouSteps,
+            { items, current: 0 },
+            {
+              title: ({ item }: { item: { title: string } }) =>
+                late.value ? item.title + '很长很长' : item.title,
+            },
+          ),
+      })
+      await nextTick()
+      const steps = wrapper.findComponent(DouSteps)
+      expect(steps.classes()).not.toContain('is-compact')
+
+      late.value = true
+      // the mutation is seen after the render, then the row is measured
+      await new Promise((resolve) => setTimeout(resolve))
+      await nextTick()
+      expect(steps.classes()).toContain('is-compact')
+    })
+
+    it('shows the title slot in the tooltip of a folded step', async () => {
+      const width = { value: 300 }
+      sizes(600, 280, width)
+      const wrapper = mount(DouSteps, {
+        props: { items, current: 0 },
+        slots: { title: ({ item }: { item: { title: string } }) => `「${item.title}」` },
+        attachTo: document.body,
+      })
+      await nextTick()
+      expect(wrapper.classes()).toContain('is-compact')
+      await wrapper.findAll('.dou-steps__main')[1]!.trigger('focusin')
+      await nextTick()
+      const tip = document.querySelector('[role="tooltip"]')
+      expect(tip?.textContent).toContain('「确认订单」')
+      expect(tip?.textContent).toContain('核对金额')
+      wrapper.unmount()
+      document.body.innerHTML = ''
     })
 
     it('stays as it is when everything fits, and never compacts vertically', async () => {

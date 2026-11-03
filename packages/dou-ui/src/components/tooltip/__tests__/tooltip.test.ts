@@ -12,6 +12,28 @@ afterEach(() => {
 })
 
 describe('DouTooltip', () => {
+  it('shows one tooltip at a time', async () => {
+    const wrapper = mount(
+      {
+        render: () => [
+          h(DouTooltip, { content: '甲' }, () => h('button', { id: 'a' }, 'a')),
+          h(DouTooltip, { content: '乙' }, () => h('button', { id: 'b' }, 'b')),
+        ],
+      },
+      { attachTo: document.body },
+    )
+    const [first, second] = wrapper.findAllComponents(DouTooltip)
+    await wrapper.get('#a').trigger('focusin')
+    expect(first!.emitted('update:open')?.at(-1)).toEqual([true])
+
+    await wrapper.get('#b').trigger('mouseenter')
+    vi.advanceTimersByTime(200)
+    await nextTick()
+    expect(second!.emitted('update:open')?.at(-1)).toEqual([true])
+    expect(first!.emitted('update:open')?.at(-1)).toEqual([false])
+    wrapper.unmount()
+  })
+
   it('shows after the delay on hover and describes the trigger', async () => {
     const wrapper = mount(DouTooltip, {
       props: { content: '复制链接' },

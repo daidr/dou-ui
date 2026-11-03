@@ -35,23 +35,35 @@ export function viewportOf(target: HTMLElement | Window) {
   return { top: Math.max(rect.top, 0), bottom: Math.min(rect.bottom, window.innerHeight) }
 }
 
-const clamp = (value: number, max: number) => Math.min(Math.max(value, 0), Math.max(0, max))
+const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max)
 
 /**
  * Where `el` is scrolled to, kept inside its scroll range. While content
  * bounces back at an end, iOS and macOS report positions before the start
- * (negative) or past the end; anything worked out from the position should
- * read it from here instead.
+ * or past the end; anything worked out from the position should read it
+ * from here instead.
+ *
+ * `left` is in the browser's own terms, so it can be written back as is:
+ * from 0 to the right in a left-to-right box, and from 0 to the left, as a
+ * negative number, in a right-to-left one. `Math.abs(left)` is how far it
+ * is from the start either way.
+ *
+ * The direction is read from the computed style only when the box scrolls
+ * sideways; a caller that knows it already passes `rtl`.
  */
-export function scrollPositionOf(el: HTMLElement): { top: number; left: number } {
+export function scrollPositionOf(el: HTMLElement, rtl?: boolean): { top: number; left: number } {
+  const maxTop = Math.max(0, el.scrollHeight - el.clientHeight)
+  const maxLeft = Math.max(0, el.scrollWidth - el.clientWidth)
+  if (!maxLeft) return { top: clamp(el.scrollTop, 0, maxTop), left: 0 }
+  rtl ??= el.scrollLeft !== 0 && getComputedStyle(el).direction === 'rtl'
   return {
-    top: clamp(el.scrollTop, el.scrollHeight - el.clientHeight),
-    left: clamp(el.scrollLeft, el.scrollWidth - el.clientWidth),
+    top: clamp(el.scrollTop, 0, maxTop),
+    left: rtl ? clamp(el.scrollLeft, -maxLeft, 0) : clamp(el.scrollLeft, 0, maxLeft),
   }
 }
 
 /** Which way elements linked by `createScrollLink` follow each other. */
-export type ScrollLinkAxis = 'x' | 'y' | 'both'
+export type ScrollLinkAxis = 'x' | 'y' | 'xy'
 
 export interface ScrollLink {
   /**
@@ -64,7 +76,7 @@ export interface ScrollLink {
 }
 
 /** Keeps scrollers in step, e.g. a fixed column and the grid beside it. */
-export function createScrollLink(axis: ScrollLinkAxis = 'both'): ScrollLink {
+export function createScrollLink(axis: ScrollLinkAxis = 'xy'): ScrollLink {
   const written = new WeakMap<HTMLElement, { top: number; left: number }>()
   const y = axis !== 'x'
   const x = axis !== 'y'

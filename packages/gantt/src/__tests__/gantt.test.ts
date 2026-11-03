@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { defineGanttExtension, takeBaseline, useGantt } from '../index'
 import { DouGantt } from '../index'
@@ -12,6 +12,22 @@ const sample = (): GanttTask[] => [
   { id: 'b', parent: 'p', title: '开发', start: '2026-03-09', end: '2026-03-13' },
   { id: 'm', parent: 'p', title: '上线', type: 'milestone', start: '2026-03-16' },
 ]
+
+// happy-dom lays nothing out, so a scroller has no room to scroll; the timeline
+// gets the width a browser would give it, so a position written to it is read back
+const scrollWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollWidth')
+beforeAll(() => {
+  Object.defineProperty(HTMLElement.prototype, 'scrollWidth', {
+    configurable: true,
+    get(this: HTMLElement) {
+      return this.classList.contains('dou-gantt__chart') ? 1e7 : (scrollWidth?.get?.call(this) ?? 0)
+    },
+  })
+})
+afterAll(() => {
+  if (scrollWidth) Object.defineProperty(HTMLElement.prototype, 'scrollWidth', scrollWidth)
+  else delete (HTMLElement.prototype as { scrollWidth?: number }).scrollWidth
+})
 
 function setup(extra: Record<string, unknown> = {}) {
   const { doc, tasks, links } = planRef(sample(), [

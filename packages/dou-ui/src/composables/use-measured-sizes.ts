@@ -19,9 +19,8 @@ export interface UseMeasuredSizesOptions<K> {
  *
  * Unmeasured items count at their estimate. Rendered items are watched for
  * size changes; when one above the top of the view changes, the scroll
- * position moves by the same amount, so what the reader sees stays put.
- * Not during a touch scroll: iOS drops the move, or fights the momentum
- * with it.
+ * position moves by the same amount, so what the reader sees stays put;
+ * a move iOS drops during a touch scroll is made once the scroll is over.
  */
 export function useMeasuredSizes<K>(options: UseMeasuredSizesOptions<K>) {
   const known = new Map<K, number>()
@@ -63,7 +62,7 @@ export function useMeasuredSizes<K>(options: UseMeasuredSizesOptions<K>) {
     }
     if (!changed) return
     version.value++
-    if (el && shift && !touch.active()) el.scrollTop = top + shift
+    if (el && shift) touch.shiftScroll(el, shift)
   }
 
   const observer =

@@ -102,9 +102,6 @@ function reachTop() {
 
 /** The first message, and how far it is from the top of the messages. */
 let topAnchor: { node: Element; y: number } | undefined
-/** How far the messages moved while a touch scroll went on. */
-let pendingShift = 0
-
 /** Kept by hand while it lasts, so the browser's own anchoring can't add to it. */
 function setTopAnchor(el: HTMLElement, anchor: typeof topAnchor) {
   topAnchor = anchor
@@ -127,14 +124,9 @@ function keepTopAnchor() {
   const shift = y - topAnchor.y
   if (Math.abs(shift) < 1) return
   topAnchor.y = y
-  pendingShift += shift
-  touch.whenSettled(applyShift)
-}
-
-function applyShift() {
   const el = viewportRef.value
-  if (el && pendingShift) el.scrollTop += pendingShift
-  pendingShift = 0
+  // a move iOS drops during a touch scroll is made once it is over
+  if (el) touch.shiftScroll(el, shift)
 }
 
 function onWheel(event: WheelEvent) {

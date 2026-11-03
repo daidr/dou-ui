@@ -36,9 +36,14 @@
     padding: var(--dou-chat-list-padding);
   }
 
-  /* with `items`: each message carries the gap above it, the spacer the padding below */
+  /*
+   * with `items`: each message carries the gap above it, the first one too,
+   * so a message keeps its place when earlier ones are added above it; the
+   * spacer pulls the first gap back to the padding, and adds the padding below
+   */
   .dou-chat-list.is-virtual .dou-virtual-list__spacer {
     box-sizing: content-box;
+    margin-top: calc(var(--dou-chat-list-padding) - var(--dou-chat-list-gap));
     padding-bottom: var(--dou-chat-list-padding);
   }
 
@@ -46,10 +51,6 @@
     display: flex;
     flex-direction: column;
     padding: var(--dou-chat-list-gap) var(--dou-chat-list-padding) 0;
-
-    &[data-index='0'] {
-      padding-top: var(--dou-chat-list-padding);
-    }
   }
 
   .dou-chat-list__scroll {

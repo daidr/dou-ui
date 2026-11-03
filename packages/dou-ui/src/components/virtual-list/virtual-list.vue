@@ -132,13 +132,7 @@ watch(
 // also when the view is at the very top.
 const touch = useTouchScroll()
 let anchor: { key: VirtualListKey; offset: number } | undefined
-/**
- * Items changed during a touch scroll: iOS drops a scroll position written
- * then, so the anchor waits, with where the view was, until the scroll is over.
- */
-let held: { key: VirtualListKey; offset: number; top: number } | undefined
 function remember(el: HTMLElement) {
-  if (held) return
   if (!measured.value || !props.items.length) return (anchor = undefined)
   const top = scrollPositionOf(el).top
   const index = offsets.value.find(top)
@@ -147,25 +141,19 @@ function remember(el: HTMLElement) {
     offset: offsets.value.start(index) - top,
   }
 }
-function restore() {
-  const el = elRef.value
-  const kept = held ?? anchor
-  if (!kept || !el) return (held = undefined)
-  const index = props.items.findIndex((item, at) => keyOf(item, at) === kept.key)
-  // the reader went on scrolling the old layout since the items changed
-  const moved = held ? scrollPositionOf(el).top - held.top : 0
-  held = undefined
-  if (index >= 0) scrollTo(Math.max(0, offsets.value.start(index) - kept.offset + moved))
-  remember(el)
-}
 watch(
   () => props.items,
-  () => {
+  (items) => {
+    const held = anchor
     const el = elRef.value
-    if (!anchor || !el) return
-    if (!touch.active()) return restore()
-    held ??= { ...anchor, top: scrollPositionOf(el).top }
-    touch.whenSettled(restore)
+    if (!held || !el) return
+    const index = items.findIndex((item, at) => keyOf(item, at) === held.key)
+    if (index < 0) return
+    // a move iOS drops during a touch scroll is made once it is over
+    const target = Math.max(0, offsets.value.start(index) - held.offset)
+    touch.shiftScroll(el, target - el.scrollTop)
+    scrollTop.value = scrollPositionOf(el).top
+    remember(el)
   },
   { flush: 'post' },
 )

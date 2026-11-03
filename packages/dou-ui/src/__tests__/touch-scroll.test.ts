@@ -120,7 +120,7 @@ describe('useTouchScroll', () => {
     expect(done).toHaveBeenCalledTimes(1)
 
     touch('touchstart')
-    expect(touchScroll.active()).toBe(true)
+    expect(touchScroll.active.value).toBe(true)
     touchScroll.whenSettled(done)
     touchScroll.whenSettled(done)
     vi.advanceTimersByTime(500)
@@ -133,7 +133,7 @@ describe('useTouchScroll', () => {
     expect(done).toHaveBeenCalledTimes(1)
     vi.advanceTimersByTime(100)
     expect(done).toHaveBeenCalledTimes(2)
-    expect(touchScroll.active()).toBe(false)
+    expect(touchScroll.active.value).toBe(false)
     wrapper.unmount()
   })
 })
@@ -172,22 +172,58 @@ describe('loading earlier items at the top', () => {
     wrapper.unmount()
   })
 
-  it('waits for a touch scroll to end, then adds what the reader scrolled meanwhile', async () => {
+  it('moves right away during a touch scroll where the browser takes the move', async () => {
     vi.useFakeTimers()
     const { wrapper, items, el } = list()
     touch('touchstart')
-    el.scrollTop = -20
-    el.dispatchEvent(new Event('scroll'))
+    for (const top of [320, 300]) {
+      el.scrollTop = top
+      el.dispatchEvent(new Event('scroll'))
+    }
     items.value = [...make(-10, 10), ...items.value]
     await nextTick()
     await nextTick()
-    // iOS would drop a position written now
-    expect(el.scrollTop).toBe(-20)
-    touch('touchend')
-    el.scrollTop = 30
+    expect(el.scrollTop).toBe(800)
+    // the finger goes on from there
+    el.scrollTop = 790
     el.dispatchEvent(new Event('scroll'))
+    touch('touchend')
     vi.advanceTimersByTime(200)
-    expect(el.scrollTop).toBe(530)
+    expect(el.scrollTop).toBe(790)
+    wrapper.unmount()
+  })
+
+  it('makes a move iOS dropped once the touch scroll is over', async () => {
+    vi.useFakeTimers()
+    const { wrapper, items, el } = list()
+    // iOS: a position written during the touch scroll is dropped
+    let top = 0
+    let drop = true
+    Object.defineProperty(el, 'scrollTop', {
+      configurable: true,
+      get: () => top,
+      set: (value: number) => {
+        if (!drop) top = value
+      },
+    })
+    const scrollTo = (value: number) => {
+      top = value
+      el.dispatchEvent(new Event('scroll'))
+    }
+    touch('touchstart')
+    scrollTo(300)
+    scrollTo(290)
+    items.value = [...make(-10, 10), ...items.value]
+    await nextTick()
+    await nextTick()
+    expect(el.scrollTop).toBe(290)
+    // momentum goes on from where it was, not from where the move took it
+    scrollTo(280)
+    touch('touchend')
+    scrollTo(270)
+    drop = false
+    vi.advanceTimersByTime(200)
+    expect(el.scrollTop).toBe(770)
     wrapper.unmount()
   })
 
@@ -234,5 +270,27 @@ describe('loading earlier items at the top', () => {
     resizeAll()
     expect(viewport.scrollTop).toBe(240)
     wrapper.unmount()
+  })
+})
+
+describe('right to left', () => {
+  it('reads and follows positions in the browser’s own terms', () => {
+    const a = document.createElement('div')
+    const b = document.createElement('div')
+    for (const el of [a, b]) {
+      el.style.direction = 'rtl'
+      document.body.append(el)
+      sized(el, { width: 1000 })
+      position(el)
+    }
+    a.scrollLeft = -300
+    expect(scrollPositionOf(a).left).toBe(-300)
+    a.scrollLeft = 20
+    expect(scrollPositionOf(a).left).toBe(0)
+    a.scrollLeft = -950
+    expect(scrollPositionOf(a).left).toBe(-900)
+    a.scrollLeft = -300
+    createScrollLink('x').follow(a, b)
+    expect(b.scrollLeft).toBe(-300)
   })
 })

@@ -146,12 +146,22 @@ export function useTimeAxis(o: TimeAxisOptions) {
     const left = scrollPositionOf(el).left
     if (left + width > totalWidth.value - width / 2)
       grown.value = { ...grown.value, after: grown.value.after + 2 * view }
+    // a touch scroll can't grow until it stops, so near the start it waits,
+    // then leaves more room, so the next swipe doesn't run into the start
+    else if (touch.active.value && left < 2 * width) touch.whenSettled(growAfterTouch)
     else if (left < width / 2) {
       // the bounce ends with one more scroll event, at the start
       if (el.scrollLeft < 0) return
-      if (touch.active()) return touch.whenSettled(grow)
       grown.value = { ...grown.value, before: grown.value.before + 2 * view }
     }
+  }
+
+  function growAfterTouch() {
+    const el = o.chart.value
+    if (!el || o.range() || el.scrollLeft < 0) return
+    const width = o.viewWidth.value
+    if (scrollPositionOf(el).left >= 2 * width) return
+    grown.value = { ...grown.value, before: grown.value.before + (4 * width) / ppm.value }
   }
 
   function onTableScroll() {
@@ -168,7 +178,7 @@ export function useTimeAxis(o: TimeAxisOptions) {
       if (!el) return
       const target = Math.round((viewStart.value - origin.value) * ppm.value)
       if (Math.abs(el.scrollLeft - target) >= 1) el.scrollLeft = target
-      scrollLeft.value = el.scrollLeft
+      scrollLeft.value = scrollPositionOf(el).left
     },
     { flush: 'post' },
   )
@@ -185,7 +195,7 @@ export function useTimeAxis(o: TimeAxisOptions) {
     const el = o.chart.value
     if (!el) return
     el.scrollLeft = Math.round((viewStart.value - origin.value) * ppm.value)
-    scrollLeft.value = el.scrollLeft
+    scrollLeft.value = scrollPositionOf(el).left
   }
 
   function fit() {

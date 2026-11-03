@@ -100,6 +100,8 @@ describe('time axis on iOS', () => {
     await nextTick()
     expect(axis.origin.value).toBeLessThan(origin)
     expect(shownStart()).toBeCloseTo(origin, 3)
+    // with room for the next swipe: four screens
+    expect(axis.scrollLeft.value).toBeGreaterThanOrEqual(4 * 800 - 1)
     wrapper.unmount()
   })
 

@@ -7,6 +7,17 @@ DouUI 的所有包（`dou-ui`、`@dou-ui/theme`、`@dou-ui/icons` 以及生态�
 
 这个文件由发版脚本生成：改动先以碎片文件记在 [`.changes/`](./.changes/README.md) 里，发布时汇总到这里。
 
+## 0.1.0-alpha.1 · 2026-11-03
+
+### 改进
+
+- **@dou-ui/code**：触屏上的符号栏改为放在编辑器下方、随页面滚动，按住左端的拖动柄可以移到任意位置，不再贴着键盘；四个方向键换成一个摇杆，按下后放大，推得越远光标移动越快。 ([#285](https://github.com/daidr/dou-ui/pull/285))
+
+### 修复
+
+- **@dou-ui/code**：iOS Safari 上滚动页面时，代码编辑器的选区菜单不再越跑越远。 ([#285](https://github.com/daidr/dou-ui/pull/285))
+- **@dou-ui/gantt**：设了 `range` 的甘特图和资源排期不能再无限往右滚动，滚到范围末端就停。 ([#286](https://github.com/daidr/dou-ui/pull/286))
+
 ## 0.1.0-alpha.0 · 2026-11-03
 
 首个版本。

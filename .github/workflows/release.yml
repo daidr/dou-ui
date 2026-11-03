@@ -44,7 +44,7 @@ jobs:
           elif git ls-remote --exit-code --tags origin "refs/tags/v$version" > /dev/null; then
             echo "v$version 已经发布过，跳过。"
             echo "release=false" >> "$GITHUB_OUTPUT"
-          elif ! git diff --name-only HEAD~1 HEAD | grep -qx packages/dou-ui/package.json; then
+          elif [ "$(git show HEAD~1:packages/dou-ui/package.json | node -p "JSON.parse(require('fs').readFileSync(0, 'utf8')).version")" = "$version" ]; then
             # Code merged after the release commit must not ship under its version.
             echo "::error title=不是发版提交::当前提交 $(git rev-parse --short HEAD) 没有修改版本号，不是 v$version 的发版提交。请到发版提交触发的那次运行里重跑失败的 job，或者重新准备一个版本。"
             exit 1

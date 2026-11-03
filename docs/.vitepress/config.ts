@@ -152,8 +152,11 @@ const pivotSidebar = ecosystem('数据透视', [
 const dashboardSidebar = ecosystem('仪表盘', [
   { text: '网格布局', link: '/dashboard/' },
   { text: '仪表盘', link: '/dashboard/dashboard' },
+  { text: '自定义格子', link: '/dashboard/custom-widgets' },
+  { text: '文档与事务', link: '/dashboard/document' },
   { text: '数据与筛选', link: '/dashboard/data' },
   { text: '内置格子', link: '/dashboard/widgets' },
+  { text: '导出与打印', link: '/dashboard/export' },
   { text: '协同编辑', link: '/dashboard/collaboration' },
 ])
 const formBuilderSidebar = ecosystem('表单设计器', [

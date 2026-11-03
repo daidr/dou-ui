@@ -23,8 +23,8 @@
 ```vue
 <DouFlowEditor v-model="doc" :simple-zoom="0.3">
   <template #simple="{ node }">
-    <MyStatusDot :status="node.data.status" />
-    {{ node.data.label }}
+    <MyStatusDot :status="node.data?.status" />
+    {{ node.data?.label }}
   </template>
 </DouFlowEditor>
 ```

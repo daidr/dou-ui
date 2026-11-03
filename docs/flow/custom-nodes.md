@@ -8,11 +8,11 @@
 import { defineNodeType } from '@dou-ui/flow'
 import PromptNode from './prompt-node.vue'
 
-const promptNode = defineNodeType({
+const promptNode = defineNodeType<{ title: string }>({
   type: 'prompt',
   component: PromptNode,
   ports: [{ id: 'text', kind: 'output' }],
-  label: (node) => node.data.title,
+  label: (node) => node.data?.title ?? '',
 })
 ```
 
@@ -62,4 +62,5 @@ const promptNode = defineNodeType({
 | `frame`     | 设为 `false` 时编辑器不画卡片（边框、底色、阴影），由组件自己画外形，例如圆形；选中时显示一圈细框                                                                                                                                                                        | `boolean`                                    |
 | `rotation`  | 节点绕中心旋转的角度（顺时针，单位度），默认 `0`，配合 `frame: false` 使用。组件和导出用的 `draw` 要自己画出旋转；编辑器据此转动选中细框，框选、视口裁剪、浮动工具栏和协作时别人看到的选中框也都按旋转后的样子算。旋转后编辑器不显示调整大小的手柄，需要的话由组件自己画 | `(node) => number`                           |
 | `bounds`    | 节点画到自身方框外时在屏幕上占的范围，选中节点上方的工具栏按它定位；默认是方框按 `rotation` 旋转后的外接框                                                                                                                                                               | `(node, rect) => Rect`                       |
+| `palette`   | 在节点面板和松手处的添加列表里怎样列出；不写时不列出，见[NodePaletteSpec](./editing#nodepalettespec)                                                                                                                                                                     | `NodePaletteSpec`                            |
 | `draw`      | 导出图片时把节点画成 SVG，见[导出图片](./export#自定义节点)；不写时画成带名称和端口的卡片                                                                                                                                                                                | `(node, draw: FlowDrawContext) => string`    |

@@ -18,6 +18,7 @@ bun add yjs
 <script setup lang="ts">
 import { DouDashboard, type DashboardDocument } from '@dou-ui/dashboard'
 import { collaboration } from '@dou-ui/dashboard/collaboration'
+import { statWidget, textWidget } from '@dou-ui/dashboard/widgets'
 import { ref } from 'vue'
 import { WebsocketProvider } from 'y-websocket'
 import * as Y from 'yjs'
@@ -25,6 +26,7 @@ import * as Y from 'yjs'
 const doc = new Y.Doc()
 const provider = new WebsocketProvider('wss://example.com', 'sales-dashboard', doc)
 
+const widgets = [statWidget(), textWidget()]
 const dashboard = ref<DashboardDocument>({ version: 1, widgets: [] })
 const shared = collaboration({
   widgets: doc.getMap('widgets'),
@@ -61,7 +63,7 @@ const shared = collaboration({
 ```ts
 import { fillMap } from '@dou-ui/dashboard/collaboration'
 
-fillMap(doc.getMap('widgets'), dashboard)
+fillMap(doc.getMap('widgets'), dashboard.value)
 ```
 
 这一步通常在创建共享文档时在服务器上做一次。`readMap` 反过来从共享文档读出仪表盘，例如在服务器上保存快照。

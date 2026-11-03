@@ -367,7 +367,16 @@
     min-width: 0;
     overflow: auto;
     outline: none;
-    /* sideways it stays in the chart; up and down the page scrolls on once the chart is at its end */
+    /*
+     * sideways it stays in the chart, without bouncing at an end: the timeline has
+     * none to show, room is added as you scroll; up and down the page scrolls on
+     * once the chart is at its end
+     */
+    overscroll-behavior-x: none;
+  }
+
+  /* a fixed range has ends, and bounces at them */
+  .dou-gantt__chart.is-fixed {
     overscroll-behavior-x: contain;
   }
 

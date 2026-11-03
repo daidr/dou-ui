@@ -1297,6 +1297,7 @@ defineExpose<SchedulerExpose>({
     <div
       ref="chart"
       class="dou-gantt__chart"
+      :class="{ 'is-fixed': range }"
       tabindex="-1"
       @scroll.passive="axis.onChartScroll"
       @wheel="axis.onWheel"

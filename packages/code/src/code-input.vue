@@ -1,14 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, useAttrs, watchEffect } from 'vue'
 import type { StyleValue } from 'vue'
-import {
-  useFormDisabled,
-  useFormItem,
-  useFormReadonly,
-  useFormSize,
-  useGlobalConfig,
-  useNamespace,
-} from 'dou-ui'
+import { useFormDisabled, useFormItem, useFormReadonly, useFormSize, useNamespace } from 'dou-ui'
 import CodeEditor from './code-editor.vue'
 import type { CodeKeymap } from './core/keymap'
 import type { CodeTransactionResult } from './core/transaction'
@@ -39,7 +32,6 @@ const emit = defineEmits<CodeInputEmits>()
 
 const ns = useNamespace('code-input')
 const attrs = useAttrs()
-const config = useGlobalConfig()
 const { formItem } = useFormItem()
 const size = useFormSize(() => props.size)
 const disabled = useFormDisabled(() => props.disabled)
@@ -48,12 +40,6 @@ const invalid = computed(() => props.invalid || !!formItem?.invalid.value)
 
 const editor = ref<CodeEditorExpose>()
 const root = ref<HTMLElement>()
-
-// Boxes about the text go above the page: a box this small can't hold them.
-// `false` keeps them inside, where an overflow-hidden box may cut them off.
-const teleport = computed(() =>
-  props.teleport === false ? false : (props.teleport ?? (config.value.teleport || 'body')),
-)
 
 function submit() {
   emit('enter')

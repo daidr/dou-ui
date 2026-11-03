@@ -12,7 +12,7 @@ import {
   StickyNoteIcon,
   TypeIcon,
 } from '@dou-ui/icons'
-import { DouTooltip } from 'dou-ui'
+import { DouTooltip, scrollPositionOf } from 'dou-ui'
 import { computed, onBeforeUnmount, ref, useTemplateRef, watch, type Component } from 'vue'
 import { useFlowEditor } from '../context'
 import { pickImages } from './image'
@@ -64,10 +64,13 @@ function insertImage() {
 // side with more, and the tool in hand kept in view.
 const el = useTemplateRef<HTMLElement>('el')
 const more = ref({ start: false, end: false })
+/** Right to left; read when the row is laid out, not on every scroll. */
+let rtl = false
 function measure() {
   const box = el.value
   if (!box) return
-  const left = Math.abs(box.scrollLeft)
+  // from the start, also right to left, and kept in range while the row bounces
+  const left = Math.abs(scrollPositionOf(box, rtl).left)
   const rest = box.scrollWidth - box.clientWidth - left
   more.value = { start: left > 1, end: rest > 1 }
 }
@@ -77,7 +80,10 @@ watch(
   (box) => {
     observer?.disconnect()
     if (!box || typeof ResizeObserver === 'undefined') return
-    observer = new ResizeObserver(measure)
+    observer = new ResizeObserver(() => {
+      rtl = getComputedStyle(box).direction === 'rtl'
+      measure()
+    })
     observer.observe(box)
   },
   { flush: 'post' },

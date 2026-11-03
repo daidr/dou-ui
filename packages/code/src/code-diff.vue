@@ -7,7 +7,7 @@ import {
   FoldVerticalIcon,
   UnfoldVerticalIcon,
 } from '@dou-ui/icons'
-import { DouButton, DouTooltip, useNamespace } from 'dou-ui'
+import { DouButton, DouTooltip, createScrollLink, useNamespace } from 'dou-ui'
 import { computed, h, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import CodeEditor from './code-editor.vue'
 import { type CodeDiffHunk, diffText, lineStarts } from './core/diff'
@@ -333,23 +333,16 @@ const sideB = ref<HTMLElement>()
 const extensionsA = [sideExtension('a')]
 
 // Both sides scroll together; they are the same height, line for line.
-let syncing: HTMLElement | null = null
+const link = createScrollLink()
 function onScroll(event: Event) {
   if (view.value !== 'split') return
   const from = (event.target as HTMLElement).closest(`.${ns.e('side')}`)
   const source = from?.querySelector<HTMLElement>('.dou-code-editor__scroller')
-  if (!source || source !== event.target || syncing === source) return
+  if (!source || source !== event.target) return
   const other = (from === sideA.value ? sideB.value : sideA.value)?.querySelector<HTMLElement>(
     '.dou-code-editor__scroller',
   )
-  if (!other) return
-  if (other.scrollTop === source.scrollTop && other.scrollLeft === source.scrollLeft) return
-  syncing = other
-  other.scrollTop = source.scrollTop
-  other.scrollLeft = source.scrollLeft
-  requestAnimationFrame(() => {
-    if (syncing === other) syncing = null
-  })
+  if (other) link.follow(source, other)
 }
 
 // ---------------------------------------------------------------- inline

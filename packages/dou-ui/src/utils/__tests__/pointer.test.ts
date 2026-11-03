@@ -29,6 +29,36 @@ describe('holdPointer', () => {
     expect(touchmove(item).defaultPrevented).toBe(false)
   })
 
+  it('lets go by itself once the finger is lifted, when nothing released it', async () => {
+    const list = document.body.appendChild(document.createElement('ul'))
+    const item = list.appendChild(document.createElement('li'))
+    const lost = vi.fn<() => void>()
+    const hold = holdPointer(press(item), list, lost)
+    hold.grab()
+    item.remove()
+    // The lifted finger is only heard by the removed element.
+    item.dispatchEvent(new Event('touchend'))
+    await new Promise((resolve) => setTimeout(resolve))
+    expect(lost).toHaveBeenCalledTimes(1)
+    expect(touchmove(window).defaultPrevented).toBe(false)
+    // Released already: a later release is harmless, and the hold isn't lost twice.
+    hold.release()
+    window.dispatchEvent(new Event('touchend'))
+    await new Promise((resolve) => setTimeout(resolve))
+    expect(lost).toHaveBeenCalledTimes(1)
+  })
+
+  it('stays while a released drag already ended it', async () => {
+    const item = document.body.appendChild(document.createElement('div'))
+    const lost = vi.fn<() => void>()
+    const hold = holdPointer(press(item), null, lost)
+    hold.grab()
+    window.dispatchEvent(new Event('touchend'))
+    hold.release()
+    await new Promise((resolve) => setTimeout(resolve))
+    expect(lost).not.toHaveBeenCalled()
+  })
+
   it('keeps a removed element from scrolling', () => {
     const list = document.body.appendChild(document.createElement('ul'))
     const item = list.appendChild(document.createElement('li'))

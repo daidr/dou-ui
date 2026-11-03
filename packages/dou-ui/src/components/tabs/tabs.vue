@@ -16,6 +16,7 @@ import {
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, PlusIcon } from '@dou-ui/icons'
 import { useReducedMotion } from '../../composables/use-motion'
 import { useNamespace } from '../../utils/namespace'
+import { scrollPositionOf } from '../../utils/scroll'
 import { useLocale } from '../config-provider/use-config'
 import { useFormSize } from '../form/use-form-item'
 import { DouTooltip } from '../tooltip'
@@ -185,8 +186,10 @@ function updateOverflow() {
     return
   }
   const max = list.scrollWidth - list.clientWidth
+  // from the start, also right to left, and kept in range while the row bounces
+  const left = Math.abs(scrollPositionOf(list).left)
   // a sub-pixel remainder is not something to scroll to
-  overflow.value = { start: list.scrollLeft > 1, end: list.scrollLeft < max - 1 }
+  overflow.value = { start: left > 1, end: left < max - 1 }
 }
 
 function reveal(smooth: boolean) {

@@ -12,6 +12,8 @@ import {
   watch,
 } from 'vue'
 import { useMeasuredSizes } from '../../composables/use-measured-sizes'
+import { useTouchScroll } from '../../composables/use-touch-scroll'
+import { scrollPositionOf } from '../../utils/scroll'
 import { useNamespace } from '../../utils/namespace'
 import { createOffsets } from './virtual-list'
 import type {
@@ -111,7 +113,8 @@ const style = computed(() =>
 let reachedEnd = false
 function onScroll(event: Event) {
   const el = event.currentTarget as HTMLElement
-  scrollTop.value = el.scrollTop
+  // iOS reports positions past either end while the content bounces back
+  scrollTop.value = scrollPositionOf(el).top
   remember(el)
   emit('scroll', event)
   const atEnd = el.scrollTop + el.clientHeight >= el.scrollHeight - props.endThreshold
@@ -125,23 +128,32 @@ watch(
 )
 
 // With measured items, items added or removed above the view keep the
-// first visible item where it was, e.g. earlier messages loaded on top.
+// first visible item where it was, e.g. earlier messages loaded on top,
+// also when the view is at the very top.
+const touch = useTouchScroll()
 let anchor: { key: VirtualListKey; offset: number } | undefined
 function remember(el: HTMLElement) {
-  if (!measured.value || el.scrollTop <= 0 || !props.items.length) return (anchor = undefined)
-  const index = offsets.value.find(el.scrollTop)
+  if (!measured.value || !props.items.length) return (anchor = undefined)
+  const top = scrollPositionOf(el).top
+  const index = offsets.value.find(top)
   anchor = {
     key: keyOf(props.items[index]!, index),
-    offset: offsets.value.start(index) - el.scrollTop,
+    offset: offsets.value.start(index) - top,
   }
 }
 watch(
   () => props.items,
   (items) => {
     const held = anchor
-    if (!held || !elRef.value) return
+    const el = elRef.value
+    if (!held || !el) return
     const index = items.findIndex((item, at) => keyOf(item, at) === held.key)
-    if (index >= 0) scrollTo(Math.max(0, offsets.value.start(index) - held.offset))
+    if (index < 0) return
+    // a move iOS drops during a touch scroll is made once it is over
+    const target = Math.max(0, offsets.value.start(index) - held.offset)
+    touch.shiftScroll(el, target - el.scrollTop)
+    scrollTop.value = scrollPositionOf(el).top
+    remember(el)
   },
   { flush: 'post' },
 )

@@ -6,6 +6,8 @@ import { onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { DouVirtualList } from '../virtual-list'
 import type { VirtualListExpose } from '../virtual-list'
 import { useReducedMotion } from '../../composables/use-motion'
+import { useTouchScroll } from '../../composables/use-touch-scroll'
+import { scrollPositionOf } from '../../utils/scroll'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import type { ChatListEmits, ChatListExpose, ChatListProps, ChatListSlots } from './chat-list'
@@ -63,10 +65,14 @@ watch(atBottom, (value) => emit('atBottomChange', value))
 let following = true
 let lastTop = 0
 let atTop = false
+const touch = useTouchScroll()
 
 function distanceToBottom(el: HTMLElement) {
   return el.scrollHeight - el.scrollTop - el.clientHeight
 }
+
+const isTop = (el: HTMLElement) =>
+  scrollPositionOf(el).top <= 0 && el.scrollHeight > el.clientHeight
 
 function onScroll() {
   const el = viewportRef.value
@@ -76,9 +82,51 @@ function onScroll() {
   else if (el.scrollTop < lastTop) following = false
   lastTop = el.scrollTop
   atBottom.value = near
-  const top = el.scrollTop <= 0 && el.scrollHeight > el.clientHeight
-  if (top && !atTop) emit('topReached')
-  atTop = top
+  if (!isTop(el)) {
+    atTop = false
+    setTopAnchor(el, undefined)
+  } else if (!atTop) touch.whenSettled(reachTop)
+}
+
+// Earlier messages loaded on top keep what is in view where it was. On iOS
+// the top is reached while the content still bounces; a position written
+// then is dropped, so `topReached` waits until the scroll is over.
+function reachTop() {
+  const el = viewportRef.value
+  if (!el || atTop || !isTop(el)) return
+  atTop = true
+  // the virtual list keeps its own first item in place
+  if (!props.items) setTopAnchor(el, anchorOf())
+  emit('topReached')
+}
+
+/** The first message, and how far it is from the top of the messages. */
+let topAnchor: { node: Element; y: number } | undefined
+/** Kept by hand while it lasts, so the browser's own anchoring can't add to it. */
+function setTopAnchor(el: HTMLElement, anchor: typeof topAnchor) {
+  topAnchor = anchor
+  el.style.overflowAnchor = anchor ? 'none' : ''
+}
+
+const offsetOf = (node: Element, content: Element) =>
+  node.getBoundingClientRect().top - content.getBoundingClientRect().top
+
+function anchorOf() {
+  const content = contentRef.value
+  const node = content?.firstElementChild
+  return content && node ? { node, y: offsetOf(node, content) } : undefined
+}
+
+function keepTopAnchor() {
+  const content = contentRef.value
+  if (!content || !topAnchor?.node.isConnected) return
+  const y = offsetOf(topAnchor.node, content)
+  const shift = y - topAnchor.y
+  if (Math.abs(shift) < 1) return
+  topAnchor.y = y
+  const el = viewportRef.value
+  // a move iOS drops during a touch scroll is made once it is over
+  if (el) touch.shiftScroll(el, shift)
 }
 
 function onWheel(event: WheelEvent) {
@@ -96,6 +144,7 @@ function scrollToBottom(behavior: ScrollBehavior = reducedMotion.value ? 'auto' 
 
 function follow() {
   const el = viewportRef.value
+  if (el && !props.items) keepTopAnchor()
   if (!el || !props.autoScroll || !following) {
     if (el) atBottom.value = distanceToBottom(el) <= props.threshold
     return

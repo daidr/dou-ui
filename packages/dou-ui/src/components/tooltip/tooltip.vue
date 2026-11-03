@@ -62,12 +62,31 @@ function onPointermove(event: PointerEvent) {
   update()
 }
 
+/*
+ * Tooltips that hover or focus opened show one at a time. One opened
+ * through `open` from outside (a guide, say) takes no part: it neither
+ * closes the others nor is closed by them.
+ */
+let byTrigger = false
 // A tooltip whose trigger left the page without unmounting is just dropped.
 const close = () => {
   if ((triggerRef.value?.$el as Node | undefined)?.isConnected !== false) open.value = false
 }
-watch(open, (value) => (value ? claimTooltip(close) : releaseTooltip(close)), { immediate: true })
+watch(open, (value) => {
+  if (value && byTrigger) claimTooltip(close)
+  else if (!value) {
+    releaseTooltip(close)
+    byTrigger = false
+  }
+})
 onBeforeUnmount(() => releaseTooltip(close))
+/** Marks what follows (the open after the delay) as the trigger's own doing. */
+const fromTrigger = (handler?: (event: Event) => void) =>
+  handler &&
+  ((event: Event) => {
+    byTrigger = true
+    handler(event)
+  })
 
 const interactive = computed(() => props.interactive && !props.followCursor)
 
@@ -84,6 +103,7 @@ const leave = (handler?: (event: Event) => void) =>
   ((event: Event) => {
     touch = false
     handler(event)
+    if (!open.value) byTrigger = false
   })
 function onPointerType(event: PointerEvent) {
   touch = event.pointerType === 'touch'
@@ -103,8 +123,8 @@ const focusin = (handler?: (event: Event) => void) =>
 
 const triggerProps = computed(() => ({
   ...triggerListeners.value,
-  onMouseenter: notTouch(triggerListeners.value.onMouseenter),
-  onFocusin: notTouch(focusin(triggerListeners.value.onFocusin)),
+  onMouseenter: notTouch(fromTrigger(triggerListeners.value.onMouseenter)),
+  onFocusin: notTouch(focusin(fromTrigger(triggerListeners.value.onFocusin))),
   onMouseleave: leave(triggerListeners.value.onMouseleave),
   onFocusout: leave(triggerListeners.value.onFocusout),
   onPointerenter: onPointerType,

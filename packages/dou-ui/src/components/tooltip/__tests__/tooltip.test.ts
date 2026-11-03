@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { h, nextTick } from 'vue'
+import { h, nextTick, ref } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DouButton, DouConfigProvider, DouTooltip } from '../../../index'
 
@@ -31,6 +31,39 @@ describe('DouTooltip', () => {
     await nextTick()
     expect(second!.emitted('update:open')?.at(-1)).toEqual([true])
     expect(first!.emitted('update:open')?.at(-1)).toEqual([false])
+    wrapper.unmount()
+  })
+
+  it('leaves tooltips opened through open alone', async () => {
+    const a = ref(true)
+    const b = ref(true)
+    const wrapper = mount(
+      {
+        render: () => [
+          h(
+            DouTooltip,
+            { content: '甲', open: a.value, 'onUpdate:open': (v: boolean) => (a.value = v) },
+            () => h('button', { id: 'a' }, 'a'),
+          ),
+          h(
+            DouTooltip,
+            { content: '乙', open: b.value, 'onUpdate:open': (v: boolean) => (b.value = v) },
+            () => h('button', { id: 'b' }, 'b'),
+          ),
+          h(DouTooltip, { content: '丙' }, () => h('button', { id: 'c' }, 'c')),
+        ],
+      },
+      { attachTo: document.body },
+    )
+    await nextTick()
+    expect([a.value, b.value]).toEqual([true, true])
+
+    // hovering another tooltip does not close them, and they do not close it
+    await wrapper.get('#c').trigger('mouseenter')
+    vi.advanceTimersByTime(200)
+    await nextTick()
+    expect([a.value, b.value]).toEqual([true, true])
+    expect(wrapper.findAllComponents(DouTooltip)[2]!.emitted('update:open')?.at(-1)).toEqual([true])
     wrapper.unmount()
   })
 

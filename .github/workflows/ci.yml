@@ -11,8 +11,14 @@ concurrency:
 
 jobs:
   check:
-    # pull requests from forks never run on the self-hosted machine
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    # Pull requests from forks never run on the self-hosted machine. Release
+    # pull requests only change versions and the changelog, and "Prepare
+    # release" already checked and built that tree; a skipped job still
+    # counts as passing for required checks.
+    if: >-
+      github.event_name != 'pull_request' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+      !startsWith(github.head_ref, 'release-pr/'))
     runs-on: [self-hosted, macOS, ARM64]
     steps:
       - uses: actions/checkout@v4
@@ -63,8 +69,14 @@ jobs:
           exit $status
 
   bench:
-    # pull requests from forks never run on the self-hosted machine
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    # Pull requests from forks never run on the self-hosted machine. Release
+    # pull requests only change versions and the changelog, and "Prepare
+    # release" already checked and built that tree; a skipped job still
+    # counts as passing for required checks.
+    if: >-
+      github.event_name != 'pull_request' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+      !startsWith(github.head_ref, 'release-pr/'))
     runs-on: [self-hosted, macOS, ARM64]
     steps:
       - uses: actions/checkout@v4

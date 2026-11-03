@@ -21,16 +21,24 @@ const OVERSCAN_X = 320
 const FIT_MAX = 64
 const ZOOM_STEP = 1.5
 /**
- * Room kept before the view, in screens and at least in px, but no more
- * time than `ROOM_BEFORE_TIME`. Time can only be added there once a touch
- * scroll is over, so it is enough for a long run of fast swipes that never
- * lets the momentum stop. Only what is in view is drawn, so room costs
- * nothing but scroll width.
+ * Room kept before the view on a touch screen, in screens and at least in
+ * px, but no more time than `ROOM_BEFORE_TIME`. Time can only be added there
+ * once a touch scroll is over, so it is enough for a long run of fast swipes
+ * that never lets the momentum stop. Only what is in view is drawn, so room
+ * costs nothing but scroll width.
  */
 const ROOM_BEFORE = 300
 const ROOM_BEFORE_MIN = 400_000
-/** A thousand years, in minutes. */
-const ROOM_BEFORE_TIME = 1000 * 365 * MINUTES_PER_DAY
+/** Ten thousand years, in minutes: room for a run of swipes at the widest scale too. */
+const ROOM_BEFORE_TIME = 10_000 * 365 * MINUTES_PER_DAY
+/** The earliest the timeline goes, some 190,000 years back, well within what a date can be. */
+const EARLIEST = -1e11
+/**
+ * Room kept before the view with a mouse or trackpad, in screens. It is
+ * filled as soon as the view comes near the start, and stays small so the
+ * scrollbar thumb still shows where the view is.
+ */
+const ROOM_BEFORE_POINTER = 4
 /** Room kept after the view, in screens; time is added there as you scroll. */
 const ROOM_AFTER = 4
 
@@ -103,19 +111,20 @@ export function useTimeAxis(o: TimeAxisOptions) {
   const reach = ref<{ start: number; end: number } | null>(null)
 
   /** px of room kept before the view. */
-  const roomBefore = computed(() =>
-    Math.min(
-      Math.max(ROOM_BEFORE * (o.viewWidth.value || 800), ROOM_BEFORE_MIN),
-      ROOM_BEFORE_TIME * ppm.value,
-    ),
-  )
+  /** Whether there is a touch screen; read once mounted, so the server render matches. */
+  const coarse = ref(false)
+  const roomBefore = computed(() => {
+    const width = o.viewWidth.value || 800
+    if (!coarse.value) return ROOM_BEFORE_POINTER * width
+    return Math.min(Math.max(ROOM_BEFORE * width, ROOM_BEFORE_MIN), ROOM_BEFORE_TIME * ppm.value)
+  })
 
   const touch = useTouchScroll()
 
   /** Where the timeline would start, without a fixed range. */
   const freeStart = computed(() => {
     const start = Math.min(content.value.start, reach.value?.start ?? Infinity)
-    return dayStart(start - roomBefore.value / ppm.value)
+    return Math.max(EARLIEST, dayStart(start - roomBefore.value / ppm.value))
   })
 
   /**
@@ -255,6 +264,7 @@ export function useTimeAxis(o: TimeAxisOptions) {
   }
 
   onMounted(() => {
+    coarse.value = window.matchMedia?.('(any-pointer: coarse)').matches ?? false
     measureScrollbar()
     scrollToTime(content.value.start)
   })

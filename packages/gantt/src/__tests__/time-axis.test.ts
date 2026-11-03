@@ -2,6 +2,7 @@ import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { computed, defineComponent, nextTick, ref, shallowRef } from 'vue'
 import { resolveCalendar } from '../core/calendar'
+import type { GanttScale } from '../core/scale'
 import { parseTime } from '../core/time'
 import { ganttLocales } from '../locale'
 import { useTimeAxis } from '../time-axis'
@@ -28,7 +29,9 @@ function iosScroller(total: () => number, width = 800) {
   return { el, state }
 }
 
-function setup() {
+/** A timeline on a touch screen, or with `coarse` false, one with a mouse. */
+function setup(scale: GanttScale = 'day', coarse = true) {
+  vi.stubGlobal('matchMedia', (query: string) => ({ matches: coarse, media: query }))
   let axis!: ReturnType<typeof useTimeAxis>
   const { el, state } = iosScroller(() => axis?.totalWidth.value ?? 0)
   document.body.append(el)
@@ -40,7 +43,7 @@ function setup() {
           chart: shallowRef(el),
           tableBody: shallowRef(null),
           viewWidth: ref(800),
-          scale: ref('day'),
+          scale: ref(scale),
           range: () => undefined,
           today: () => false,
           weekStart: computed(() => 1),
@@ -74,6 +77,7 @@ const touch = (type: string) =>
 
 afterEach(() => {
   vi.useRealTimers()
+  vi.unstubAllGlobals()
   document.body.innerHTML = ''
 })
 
@@ -107,6 +111,25 @@ describe('time axis on iOS', () => {
     expect(shownStart()).toBeCloseTo(at, 3)
     expect(axis.scrollLeft.value).toBeGreaterThanOrEqual(300 * 800 - 800)
     vi.useRealTimers()
+    wrapper.unmount()
+  })
+
+  it('leaves the same room at the year scale', async () => {
+    const { wrapper, axis, state, scroll } = setup('year')
+    await nextTick()
+    const origin = axis.origin.value
+    const room = axis.scrollLeft.value
+    expect(room).toBeGreaterThanOrEqual(300 * 800 - 800)
+    state.dropWrites = true
+    let left = room
+    for (let swipe = 0; swipe < 100; swipe++) {
+      touch('touchstart')
+      for (let i = 0; i < 4; i++) await scroll((left -= 400))
+      touch('touchend')
+      await scroll((left -= 400))
+    }
+    expect(axis.origin.value).toBe(origin)
+    expect(axis.scrollLeft.value).toBeGreaterThan(40 * 800)
     wrapper.unmount()
   })
 
@@ -157,8 +180,11 @@ describe('time axis on iOS', () => {
     wrapper.unmount()
   })
 
-  it('makes up the room before the view right away without a finger', async () => {
-    const { wrapper, axis, scroll, shownStart } = setup()
+  it('keeps little room with a mouse, made up right away near the start', async () => {
+    const { wrapper, axis, scroll, shownStart } = setup('day', false)
+    await nextTick()
+    // a few screens, so the scrollbar thumb still shows where the view is
+    expect(axis.scrollLeft.value).toBeLessThan(5 * 800)
     await nextTick()
     const origin = axis.origin.value
     await scroll(100)

@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { sorted } from './sorted'
 
 export interface WorkspacePackage {
   /** Directory name under `packages/`, e.g. `sheet`. */
@@ -26,10 +27,11 @@ type Manifest = {
  * after the packages it depends on.
  */
 export function readPackages(root: string): WorkspacePackage[] {
-  const dirs = readdirSync(join(root, 'packages'), { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name)
-    .toSorted()
+  const dirs = sorted(
+    readdirSync(join(root, 'packages'), { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name),
+  )
   const manifests = new Map<string, Manifest & { dir: string }>()
   for (const dir of dirs) {
     let pkg: Manifest
@@ -46,13 +48,13 @@ export function readPackages(root: string): WorkspacePackage[] {
     path: join(root, 'packages', pkg.dir),
     name: pkg.name,
     version: pkg.version,
-    internal: Object.keys({
-      ...pkg.dependencies,
-      ...pkg.peerDependencies,
-      ...pkg.optionalDependencies,
-    })
-      .filter((name) => manifests.has(name) && name !== pkg.name)
-      .toSorted(),
+    internal: sorted(
+      Object.keys({
+        ...pkg.dependencies,
+        ...pkg.peerDependencies,
+        ...pkg.optionalDependencies,
+      }).filter((name) => manifests.has(name) && name !== pkg.name),
+    ),
   }))
   return sortByDependencies(packages)
 }
@@ -64,7 +66,7 @@ export function sortByDependencies<T extends { name: string; internal: string[] 
   const byName = new Map(packages.map((pkg) => [pkg.name, pkg]))
   const done = new Set<string>()
   const visiting = new Set<string>()
-  const sorted: T[] = []
+  const order: T[] = []
   const visit = (pkg: T, path: string[]) => {
     if (done.has(pkg.name)) return
     if (visiting.has(pkg.name)) {
@@ -77,8 +79,8 @@ export function sortByDependencies<T extends { name: string; internal: string[] 
     }
     visiting.delete(pkg.name)
     done.add(pkg.name)
-    sorted.push(pkg)
+    order.push(pkg)
   }
   for (const pkg of packages) visit(pkg, [])
-  return sorted
+  return order
 }

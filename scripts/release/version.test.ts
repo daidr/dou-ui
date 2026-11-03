@@ -8,6 +8,7 @@ import {
   formatVersion,
   parseVersion,
 } from './version'
+import { sorted } from './sorted'
 
 const v = (text: string) => parseVersion(text)!
 
@@ -30,11 +31,11 @@ describe('parseVersion', () => {
 
 describe('compareVersions', () => {
   it('orders alpha before beta before the release', () => {
-    const sorted = ['0.3.0', '0.2.9', '0.3.0-beta.0', '0.3.0-alpha.2', '0.3.0-alpha.10']
-      .map(v)
-      .toSorted(compareVersions)
-      .map(formatVersion)
-    expect(sorted).toEqual(['0.2.9', '0.3.0-alpha.2', '0.3.0-alpha.10', '0.3.0-beta.0', '0.3.0'])
+    const order = sorted(
+      ['0.3.0', '0.2.9', '0.3.0-beta.0', '0.3.0-alpha.2', '0.3.0-alpha.10'].map(v),
+      compareVersions,
+    ).map(formatVersion)
+    expect(order).toEqual(['0.2.9', '0.3.0-alpha.2', '0.3.0-alpha.10', '0.3.0-beta.0', '0.3.0'])
   })
 })
 

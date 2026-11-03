@@ -52,6 +52,7 @@
   },
   "include": [
     "types",
+    "scripts",
     "packages/*/src",
     "packages/*/scripts",
     "packages/*/vite.config.ts",

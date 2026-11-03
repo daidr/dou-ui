@@ -1,4 +1,5 @@
 import { compareVersions, parseVersion } from './version'
+import { sorted } from './sorted'
 
 /** Kinds of change, in the order a release lists them. */
 export const changeTypes = ['说明', '不兼容', '新增', '改进', '修复', '性能'] as const
@@ -93,7 +94,10 @@ function renderItem(fragment: Fragment, ctx: RenderContext): string {
 export function renderChanges(fragments: Fragment[], ctx: RenderContext): string {
   const parts: string[] = []
   for (const type of changeTypes) {
-    const items = fragments.filter((fragment) => fragment.type === type).toSorted(byName)
+    const items = sorted(
+      fragments.filter((fragment) => fragment.type === type),
+      byName,
+    )
     if (!items.length) continue
     if (type === '说明') {
       parts.push(...items.map((item) => item.body))

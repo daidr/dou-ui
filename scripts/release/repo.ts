@@ -9,6 +9,7 @@ import {
 import { join } from 'node:path'
 import { formatFragment, parseFragment, type Fragment, type RenderContext } from './changelog'
 import { readPackages } from './workspace'
+import { sorted } from './sorted'
 
 export const root = new URL('../../', import.meta.url).pathname
 export const changesDir = join(root, '.changes')
@@ -36,9 +37,7 @@ export function renderContext(): RenderContext {
 
 const fragmentFiles = (dir: string) =>
   existsSync(dir)
-    ? readdirSync(dir)
-        .filter((file) => file.endsWith('.md') && file !== 'README.md')
-        .toSorted()
+    ? sorted(readdirSync(dir).filter((file) => file.endsWith('.md') && file !== 'README.md'))
     : []
 
 /** The pull request whose squash commit added a file, from its `(#123)` suffix. */

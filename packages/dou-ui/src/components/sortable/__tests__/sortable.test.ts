@@ -50,6 +50,25 @@ describe('DouSortable', () => {
     expect(items[0]!.attributes('aria-description')).toContain('空格键')
   })
 
+  it('cancels a finger drag whose pointerup never came, once the finger is lifted', async () => {
+    const wrapper = mountList({ handle: true })
+    const handle = wrapper.find('[data-dou-sortable-handle]').element
+    handle.dispatchEvent(pointer('pointerdown', 10, 10, { pointerType: 'touch', pointerId: 7 }))
+    window.dispatchEvent(pointer('pointermove', 10, 60, { pointerType: 'touch', pointerId: 7 }))
+    expect(document.documentElement.classList.contains('dou-sortable-dragging')).toBe(true)
+    // Safari sent the pointerup elsewhere; only the lifted finger is heard.
+    window.dispatchEvent(new Event('touchend'))
+    await new Promise((resolve) => setTimeout(resolve))
+    await nextTick()
+    expect(document.documentElement.classList.contains('dou-sortable-dragging')).toBe(false)
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined()
+    // A later move drives nothing.
+    window.dispatchEvent(pointer('pointermove', 10, 90, { pointerType: 'touch', pointerId: 7 }))
+    window.dispatchEvent(pointer('pointerup', 10, 90, { pointerType: 'touch', pointerId: 7 }))
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined()
+    expect(names(wrapper)).toEqual(['苹果', '香蕉', '橙子'])
+  })
+
   it('moves an item with the keyboard and announces it', async () => {
     vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
       cb(0)

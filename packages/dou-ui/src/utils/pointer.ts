@@ -28,7 +28,10 @@ export interface PointerHold {
  * or not the `pointerup` reached the code that would call `release()`
  * (Safari on iOS sends it to a removed element, where nothing hears it):
  * a hold that outlived its touch would keep the whole page from scrolling.
- * `onLost` is then called, for the drag to end as well.
+ * The drag is then cancelled the usual way: a `pointercancel` for the same
+ * pointer goes out from the pressed element (or `root`, or the window, when
+ * it is gone), so code that ends a drag on `pointercancel` ends it here too.
+ * `onLost` is called after it.
  */
 export function holdPointer(
   event: PointerEvent,
@@ -49,6 +52,14 @@ export function holdPointer(
     setTimeout(() => {
       if (!held) return
       release()
+      const at = target?.isConnected ? target : root?.isConnected ? root : window
+      at.dispatchEvent(
+        new PointerEvent('pointercancel', {
+          pointerId: event.pointerId,
+          pointerType: event.pointerType,
+          bubbles: true,
+        }),
+      )
       onLost?.()
     })
   }

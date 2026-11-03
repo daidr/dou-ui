@@ -535,6 +535,7 @@
     display: contents;
     &.is-outside {
       --dou-code-editor-font-size: var(--dou-font-size-sm);
+      --dou-code-editor-bg: var(--dou-color-bg-surface);
       --dou-code-editor-error: var(--dou-color-danger-text);
       --dou-code-editor-warning: var(--dou-color-warning-text);
       --dou-code-editor-info: var(--dou-color-primary-text);
@@ -918,7 +919,10 @@
     overflow: hidden;
     border: 1px solid var(--dou-color-border);
     border-radius: 999px;
-    background-color: var(--dou-code-editor-bg);
+    /* the editor's own background, over a solid one when that is see-through */
+    background:
+      linear-gradient(var(--dou-code-editor-bg), var(--dou-code-editor-bg)),
+      var(--dou-color-bg-surface);
     box-shadow: var(--dou-shadow-md);
     pointer-events: none;
   }
@@ -994,26 +998,48 @@
     box-sizing: border-box;
     padding: 0 max(8px, env(safe-area-inset-right)) 0 max(8px, env(safe-area-inset-left));
     pointer-events: none;
+    /* a capsule: the keys inside are rounded to match, 4px in */
     & > .dou-code-keys {
-      border-color: color-mix(in oklab, var(--dou-color-text) 10%, transparent);
+      height: 44px;
+      padding: 0 3px;
+      overflow: hidden;
+      border: 1px solid color-mix(in oklab, var(--dou-color-text) 10%, transparent);
+      border-radius: 22px;
       background-color: color-mix(in oklab, var(--dou-color-bg-surface) 92%, transparent);
       box-shadow: var(--dou-shadow-md);
       -webkit-backdrop-filter: blur(20px) saturate(1.8);
       backdrop-filter: blur(20px) saturate(1.8);
       pointer-events: auto;
+      .dou-code-keys__scroll {
+        padding: 0;
+      }
+      .dou-code-keys__arrows {
+        position: relative;
+        padding: 0 0 0 5px;
+        box-shadow: none;
+        /* a short hairline apart from the keys that scroll */
+        &::before {
+          position: absolute;
+          top: 10px;
+          bottom: 10px;
+          left: 0;
+          width: 1px;
+          background-color: var(--dou-color-border-subtle);
+          content: '';
+        }
+      }
+      .dou-code-keys__key {
+        border-radius: 18px;
+      }
     }
   }
 
   /* symbol keys: a strip that scrolls sideways, the arrow keys fixed at its end */
-  /* a capsule: the keys inside are rounded to match, 4px in */
   .dou-code-keys {
     display: flex;
     box-sizing: border-box;
-    height: 44px;
-    padding: 0 3px;
-    overflow: hidden;
-    border: 1px solid var(--dou-color-border);
-    border-radius: 22px;
+    height: 45px;
+    border-top: 1px solid var(--dou-color-border);
     background-color: var(--dou-color-bg-surface);
     color: var(--dou-color-text);
     font-family: var(--dou-font-family-mono);
@@ -1027,6 +1053,7 @@
     gap: 2px;
     align-items: center;
     min-width: 0;
+    padding: 0 4px;
     overflow-x: auto;
     overscroll-behavior-x: contain;
     scrollbar-width: none;
@@ -1036,22 +1063,12 @@
     }
   }
   .dou-code-keys__arrows {
-    position: relative;
     display: flex;
     flex: none;
     gap: 2px;
     align-items: center;
-    padding-left: 5px;
-    /* a short hairline apart from the keys that scroll */
-    &::before {
-      position: absolute;
-      top: 10px;
-      bottom: 10px;
-      left: 0;
-      width: 1px;
-      background-color: var(--dou-color-border-subtle);
-      content: '';
-    }
+    padding: 0 4px;
+    box-shadow: -1px 0 0 var(--dou-color-border-subtle);
   }
   .dou-code-keys__key {
     display: inline-flex;
@@ -1063,7 +1080,7 @@
     height: 36px;
     padding: 0 8px;
     border: 0;
-    border-radius: 18px;
+    border-radius: var(--dou-radius-control);
     background: none;
     color: inherit;
     font: inherit;

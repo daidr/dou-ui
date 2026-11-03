@@ -144,4 +144,6 @@ app.use(DouCodeEditor)
 | `--dou-code-editor-selection`   | 选区颜色                       | 主色的浅色                    |
 | `--dou-code-editor-active-line` | 光标所在行的底色               | 文字色的 4%                   |
 
+浮在页面上的补全列表、说明和提示会带上编辑器上的字号、背景色、选区颜色和问题颜色（`--dou-code-editor-error`、`--dou-code-editor-warning`、`--dou-code-editor-info`），在编辑器上设置即可。
+
 语法颜色见[语言 · 颜色](./languages#颜色)。

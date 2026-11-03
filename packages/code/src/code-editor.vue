@@ -27,9 +27,9 @@ import {
   holdPointer,
   isApplePlatform,
   isComposing,
-  useGlobalConfig,
   useLocale,
   useNamespace,
+  useTeleport,
   useZIndex,
 } from 'dou-ui'
 import {
@@ -2837,7 +2837,7 @@ watch([signatureEl, signature], () => measureFloating(signatureEl.value, signatu
   flush: 'post',
 })
 
-const config = useGlobalConfig()
+const teleport = useTeleport(() => props.teleport)
 /**
  * Where the boxes about the text and the touch handles render: above the
  * page by default, so a short editor never cuts them off; inside the frame
@@ -2845,9 +2845,7 @@ const config = useGlobalConfig()
  */
 const floatingTarget = computed(() =>
   // Only once mounted: the server's markup keeps them in place, so hydrating never looks for them in the body.
-  props.teleport === false || !mounted.value
-    ? null
-    : props.teleport || config.value.teleport || 'body',
+  teleport.value.disabled || !mounted.value ? null : teleport.value.to,
 )
 const floatingZ = ref(0)
 /** Bumped when the page scrolls or resizes, for boxes placed in the window's coordinates. */
@@ -2860,6 +2858,8 @@ const floatingOpen = computed(
 watch(floatingOpen, (open, _old, onCleanup) => {
   if (!open || !floatingTarget.value || typeof window === 'undefined') return
   floatingZ.value = nextZIndex()
+  // The boxes above the page take the editor's own variables with them, as they are now.
+  readFrameFont()
   const vv = window.visualViewport
   window.addEventListener('scroll', bumpViewport, { capture: true, passive: true })
   window.addEventListener('resize', bumpViewport, { passive: true })
@@ -3690,10 +3690,12 @@ function onPointerUp(event: PointerEvent, area: 'text' | 'gutter') {
   const onCursor =
     area === 'text' && focused.value && isEmptyRange(main) && main.head === pos && caretHandle.value
   const wasOpen = menuOpen.value
+  // A problem under the cursor is shown first; a tap with it already shown brings the toolbar.
+  const showsProblem = area === 'text' && problemsAt(pos).length > 0 && !problemBox.value
   touchUi.value = true
   select(area === 'gutter' ? 'line' : 'char', pos, false)
   caretHandle.value = area === 'text'
-  menuOpen.value = area === 'gutter' || (onCursor && !wasOpen)
+  menuOpen.value = area === 'gutter' || (onCursor && !wasOpen && !showsProblem)
   // A tap on a problem shows it, the way hovering does with a mouse.
   if (area === 'text' && !menuOpen.value) showInfo(pos, false)
   focusInput()
@@ -3946,18 +3948,34 @@ function pasteFromClipboard() {
     .catch(() => {})
 }
 
+/** The editor's variables the boxes use, carried to them when they are drawn above the page. */
+const FRAME_VARS = [
+  '--dou-code-editor-font-size',
+  '--dou-code-editor-line-height',
+  '--dou-code-editor-bg',
+  '--dou-code-editor-error',
+  '--dou-code-editor-warning',
+  '--dou-code-editor-info',
+  '--dou-code-editor-selection',
+] as const
+const frameVars = shallowRef<Record<string, string>>({})
 /** The editor's font, for the magnifier when it is drawn above the page. */
 const frameFont = shallowRef<Record<string, string>>({})
 function readFrameFont() {
   const el = root.value
   if (!el) return
   const style = getComputedStyle(el)
+  const vars: Record<string, string> = {}
+  for (const name of FRAME_VARS) {
+    const value = style.getPropertyValue(name).trim()
+    if (value) vars[name] = value
+  }
+  frameVars.value = vars
   frameFont.value = {
     fontFamily: style.fontFamily,
     fontSize: style.fontSize,
     '--dou-code-editor-line-height': `${lineHeight.value}px`,
     '--dou-code-editor-tab-size': String(props.tabSize),
-    '--dou-code-editor-bg': style.getPropertyValue('--dou-code-editor-bg'),
   }
 }
 
@@ -4870,7 +4888,7 @@ defineExpose<CodeEditorExpose>(api)
             <Teleport :to="floatingTarget || 'body'" :disabled="!floatingTarget">
               <div
                 :class="[ns.e('floating'), ns.is('outside', !!floatingTarget)]"
-                :style="floatingTarget ? { zIndex: floatingZ } : undefined"
+                :style="floatingTarget ? { ...frameVars, zIndex: floatingZ } : undefined"
               >
                 <div
                   v-if="problemStyle"

@@ -63,6 +63,8 @@ function setup(initial = source) {
 
 afterEach(() => {
   vi.useRealTimers()
+  vi.unstubAllGlobals()
+  vi.restoreAllMocks()
   document.body.innerHTML = ''
 })
 
@@ -520,16 +522,48 @@ describe('DouCodeKeys', () => {
     expect(code.value).toBe('( )')
   })
 
-  it('repeats the arrow keys while held, and leaves a slide to the scrolling', async () => {
+  it('moves the cursor the way the stick leans, faster the further, and leaves a slide on the keys to the scrolling', async () => {
     vi.useFakeTimers()
     const { wrapper, editor, code } = setup('abcdefgh')
     await nextTick()
     editor.value!.select(8)
-    const left = wrapper.find('.dou-code-keys__arrows .dou-code-keys__key')
-    await left.trigger('pointerdown', { pointerType: 'touch', pointerId: 4, button: 0 })
-    vi.advanceTimersByTime(400 + 60 * 3)
-    await left.trigger('pointerup', { pointerId: 4 })
-    expect(editor.value!.selection.ranges[0]!.head).toBe(4)
+    const stick = wrapper.find('.dou-code-keys__stick')
+    expect(stick.attributes('aria-label')).toBe('移动光标')
+    const head = () => editor.value!.selection.ranges[0]!.head
+    // At the window's right edge, the pad grows in from it.
+    vi.stubGlobal('visualViewport', { pageLeft: 0, pageTop: 0, width: 390, height: 800 })
+    vi.spyOn(stick.element, 'getBoundingClientRect').mockReturnValue(
+      DOMRect.fromRect({ x: 350, y: 400, width: 36, height: 36 }),
+    )
+    await stick.trigger('pointerdown', {
+      pointerType: 'touch',
+      pointerId: 4,
+      button: 0,
+      clientX: 0,
+      clientY: 0,
+    })
+    // Within its rest, nothing moves.
+    await stick.trigger('pointermove', { pointerId: 4, clientX: -4, clientY: 0 })
+    expect(head()).toBe(8)
+    // Leaning left: a step at once, then on, quicker pushed all the way.
+    expect(stick.classes()).toContain('is-held')
+    // 390 - 4 - 52 - 368: the pad's edge 4px in from the window's.
+    expect(stick.find('.dou-code-keys__pad').attributes('style')).toContain('translate: -34px 0px')
+    await stick.trigger('pointermove', { pointerId: 4, clientX: -60, clientY: 0 })
+    expect(head()).toBe(7)
+    expect(stick.find('.dou-code-keys__thumb').attributes('style')).toContain(
+      'translate(-26px, 0px)',
+    )
+    vi.advanceTimersByTime(40 * 3)
+    expect(head()).toBe(4)
+    await stick.trigger('pointerup', { pointerId: 4 })
+    vi.advanceTimersByTime(1000)
+    expect(head()).toBe(4)
+    expect(stick.find('.dou-code-keys__thumb').attributes('style')).toContain('translate(0px, 0px)')
+    expect(stick.classes()).not.toContain('is-held')
+    // From the keyboard, the arrow keys.
+    await stick.trigger('keydown', { key: 'ArrowRight' })
+    expect(head()).toBe(5)
     // A finger that slides off is scrolling the bar: nothing is typed.
     const key = wrapper.findAll('.dou-code-keys__key').find((k) => k.text() === ';')!
     await key.trigger('pointerdown', {

@@ -23,10 +23,8 @@ export interface CodeMessages {
   moveKeys: string
   /** The Tab key on that bar. */
   indent: string
-  cursorLeft: string
-  cursorRight: string
-  cursorUp: string
-  cursorDown: string
+  /** The stick at the end of the bar of keys, which moves the cursor. */
+  moveCursor: string
   undo: string
   redo: string
   error: string
@@ -89,10 +87,7 @@ export const zhCN: CodeMessages = {
   keys: '符号栏',
   moveKeys: '移动符号栏',
   indent: '缩进',
-  cursorLeft: '光标左移',
-  cursorRight: '光标右移',
-  cursorUp: '光标上移',
-  cursorDown: '光标下移',
+  moveCursor: '移动光标',
   undo: '撤销',
   redo: '重做',
   error: '错误',
@@ -138,10 +133,7 @@ export const zhTW: CodeMessages = {
   keys: '符號列',
   moveKeys: '移動符號列',
   indent: '縮排',
-  cursorLeft: '游標左移',
-  cursorRight: '游標右移',
-  cursorUp: '游標上移',
-  cursorDown: '游標下移',
+  moveCursor: '移動游標',
   undo: '復原',
   redo: '重做',
   error: '錯誤',
@@ -187,10 +179,7 @@ export const en: CodeMessages = {
   keys: 'Symbols',
   moveKeys: 'Move symbols',
   indent: 'Indent',
-  cursorLeft: 'Move left',
-  cursorRight: 'Move right',
-  cursorUp: 'Move up',
-  cursorDown: 'Move down',
+  moveCursor: 'Move cursor',
   undo: 'Undo',
   redo: 'Redo',
   error: 'Error',

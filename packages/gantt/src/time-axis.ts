@@ -20,6 +20,14 @@ const OVERSCAN_X = 320
 /** The widest a day gets when fitting, so short plans don't zoom to hours. */
 const FIT_MAX = 64
 const ZOOM_STEP = 1.5
+/**
+ * Room kept before the view, in screens and at least in px. Time can only be
+ * added there once a scroll is over, so it is enough for a run of fast swipes.
+ */
+const ROOM_BEFORE = 80
+const ROOM_BEFORE_MIN = 32_000
+/** Room kept after the view, in screens; time is added there as you scroll. */
+const ROOM_AFTER = 4
 
 function fingers(event: TouchEvent) {
   const [a, b] = [event.touches[0]!, event.touches[1]!]
@@ -86,18 +94,27 @@ export function useTimeAxis(o: TimeAxisOptions) {
     return { start, end: start + 30 * MINUTES_PER_DAY }
   })
 
-  /** Minutes added at either end by scrolling close to it. */
-  const grown = ref({ before: 0, after: 0 })
+  /** The furthest the view has gone either way, so the timeline keeps it. */
+  const reach = ref<{ start: number; end: number } | null>(null)
+
+  /** px of room kept before the view. */
+  const roomBefore = computed(() =>
+    Math.max(ROOM_BEFORE * (o.viewWidth.value || 800), ROOM_BEFORE_MIN),
+  )
 
   /** The span the timeline covers. */
   const extent = computed(() => {
     const fixed = o.range()?.map((text) => parseTime(text))
     if (fixed?.[0] && fixed[1])
       return { start: dayStart(fixed[0].at), end: dayStart(fixed[1].at) + MINUTES_PER_DAY }
-    const pad = Math.max((o.viewWidth.value || 800) / ppm.value, 7 * MINUTES_PER_DAY)
+    const width = o.viewWidth.value || 800
+    const before = roomBefore.value / ppm.value
+    const after = Math.max((ROOM_AFTER * width) / ppm.value, 7 * MINUTES_PER_DAY)
+    const start = Math.min(content.value.start, reach.value?.start ?? Infinity)
+    const end = Math.max(content.value.end, reach.value?.end ?? -Infinity)
     return {
-      start: dayStart(content.value.start - pad - grown.value.before),
-      end: dayStart(content.value.end + pad + grown.value.after) + MINUTES_PER_DAY,
+      start: dayStart(start - before),
+      end: dayStart(end + after) + MINUTES_PER_DAY,
     }
   })
   const origin = computed(() => extent.value.start)
@@ -130,38 +147,38 @@ export function useTimeAxis(o: TimeAxisOptions) {
     grow()
   }
 
+  /** Keeps time `at` on the timeline, adding room around it. */
+  function keep(at: number, until = at) {
+    const known = reach.value
+    const start = Math.min(known?.start ?? at, at)
+    const end = Math.max(known?.end ?? until, until)
+    if (known?.start !== start || known.end !== end) reach.value = { start, end }
+  }
+
   /**
-   * Adds time at the end that comes near. Time added before the start moves
-   * the content right, and the scroll position has to follow it; iOS drops
-   * that move while a touch scroll, its momentum or the bounce at the end
-   * goes on, and the next scroll event would then read the old position
-   * against the new start, jumping back further every time. So it waits
-   * until the scroll is over, and is skipped while the edge bounces.
+   * Adds time at the end the view comes near. After the end that is safe at
+   * any time. Before the start it moves the content right, and the scroll
+   * position has to follow it; iOS drops that move while a touch scroll or
+   * its momentum goes on, and the next scroll event would read the old
+   * position against the new start. So the room before is wide enough for a
+   * run of swipes, and is filled again once the scroll is over.
    */
   function grow() {
     const el = o.chart.value
     if (!el || o.range()) return
     const width = o.viewWidth.value
-    const view = width / ppm.value
     const left = scrollPositionOf(el).left
-    if (left + width > totalWidth.value - width / 2)
-      grown.value = { ...grown.value, after: grown.value.after + 2 * view }
-    // a touch scroll can't grow until it stops, so near the start it waits,
-    // then leaves more room, so the next swipe doesn't run into the start
-    else if (touch.active.value && left < 2 * width) touch.whenSettled(growAfterTouch)
-    else if (left < width / 2) {
-      // the bounce ends with one more scroll event, at the start
-      if (el.scrollLeft < 0) return
-      grown.value = { ...grown.value, before: grown.value.before + 2 * view }
-    }
+    if (left + width > totalWidth.value - ROOM_AFTER * width)
+      keep(viewStart.value, viewStart.value + ((ROOM_AFTER + 1) * width) / ppm.value)
+    if (touch.active.value) touch.whenSettled(growBefore)
+    else if (left < roomBefore.value / 2) growBefore()
   }
 
-  function growAfterTouch() {
+  function growBefore() {
     const el = o.chart.value
+    // an end bouncing back reports positions past it
     if (!el || o.range() || el.scrollLeft < 0) return
-    const width = o.viewWidth.value
-    if (scrollPositionOf(el).left >= 2 * width) return
-    grown.value = { ...grown.value, before: grown.value.before + (4 * width) / ppm.value }
+    if (scrollPositionOf(el).left < roomBefore.value - o.viewWidth.value) keep(viewStart.value)
   }
 
   function onTableScroll() {
@@ -192,6 +209,7 @@ export function useTimeAxis(o: TimeAxisOptions) {
     // start the view on a whole header cell, so its label isn't cut at the edge
     const target = at - offset / ppm.value
     viewStart.value = unitStart(level.value.bottom, target, o.weekStart.value, headerStep.value)
+    if (!o.range()) keep(viewStart.value, viewStart.value + o.viewWidth.value / ppm.value)
     const el = o.chart.value
     if (!el) return
     el.scrollLeft = Math.round((viewStart.value - origin.value) * ppm.value)
@@ -226,6 +244,11 @@ export function useTimeAxis(o: TimeAxisOptions) {
     const at = viewStart.value + anchor / ppm.value
     dayWidth.value = next
     viewStart.value = at - anchor / ppm.value
+    // what was scrolled past at the old zoom could be very wide at the new one
+    if (reach.value && !o.range()) {
+      reach.value = null
+      keep(viewStart.value, viewStart.value + o.viewWidth.value / ppm.value)
+    }
   }
 
   function onWheel(event: WheelEvent) {

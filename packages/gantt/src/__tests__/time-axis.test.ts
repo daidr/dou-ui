@@ -80,32 +80,54 @@ afterEach(() => {
 })
 
 describe('time axis on iOS', () => {
-  it('doesn’t jump back in time while the start bounces', async () => {
+  it('leaves room before the view for a run of swipes', async () => {
     vi.useFakeTimers()
     const { wrapper, axis, state, scroll, shownStart } = setup()
     await nextTick()
     const origin = axis.origin.value
-    // drag to the start and past it; writes are dropped meanwhile
+    const room = axis.scrollLeft.value
+    expect(room).toBeGreaterThanOrEqual(80 * 800 - 800)
+    // swipe back thirty screens; writes are dropped meanwhile
     touch('touchstart')
     state.dropWrites = true
-    for (const left of [200, 80, 10, 0, -30, -60, -40]) await scroll(left)
+    for (let left = room; left > room - 30 * 800; left -= 400) await scroll(left)
     touch('touchend')
-    for (const left of [-20, -5, 0]) await scroll(left)
-    // nothing grew while the start bounced, so nothing has to move
+    // the start never came near, and nothing moved under the finger
     expect(axis.origin.value).toBe(origin)
-    expect(shownStart()).toBe(origin)
-    // once the scroll is over, time is added before the start and the view stays put
+    expect(axis.scrollLeft.value).toBeGreaterThan(5 * 800)
+    const at = shownStart()
+    // once the scroll is over, the room is made up again and the view stays put
     state.dropWrites = false
     vi.advanceTimersByTime(200)
     await nextTick()
     expect(axis.origin.value).toBeLessThan(origin)
-    expect(shownStart()).toBeCloseTo(origin, 3)
-    // with room for the next swipe: four screens
-    expect(axis.scrollLeft.value).toBeGreaterThanOrEqual(4 * 800 - 1)
+    expect(shownStart()).toBeCloseTo(at, 3)
+    expect(axis.scrollLeft.value).toBeGreaterThanOrEqual(80 * 800 - 800)
+    vi.useRealTimers()
     wrapper.unmount()
   })
 
-  it('adds time before the start right away without a finger', async () => {
+  it('adds time after the end as you scroll, finger down or not', async () => {
+    const { wrapper, axis, state, scroll } = setup()
+    await nextTick()
+    const origin = axis.origin.value
+    touch('touchstart')
+    state.dropWrites = true
+    let left = axis.scrollLeft.value
+    const end = axis.totalWidth.value
+    // forty screens on, without ever reaching the end
+    for (let i = 0; i < 80; i++) {
+      left += 400
+      expect(left + 800).toBeLessThan(axis.totalWidth.value)
+      await scroll(left)
+    }
+    expect(axis.totalWidth.value).toBeGreaterThan(end)
+    expect(axis.origin.value).toBe(origin)
+    touch('touchend')
+    wrapper.unmount()
+  })
+
+  it('makes up the room before the view right away without a finger', async () => {
     const { wrapper, axis, scroll, shownStart } = setup()
     await nextTick()
     const origin = axis.origin.value

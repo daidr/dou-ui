@@ -1062,9 +1062,10 @@
     flex: none;
     align-items: center;
     justify-content: center;
-    width: 28px;
+    /* as far in from the left end as the stick is from the right */
+    width: 36px;
     margin: 0;
-    padding: 0 0 0 4px;
+    padding: 0 0 0 6px;
     border: 0;
     background: none;
     color: var(--dou-color-text-tertiary);
@@ -1072,8 +1073,8 @@
     touch-action: none;
     -webkit-tap-highlight-color: transparent;
     & > svg {
-      width: 16px;
-      height: 16px;
+      width: 18px;
+      height: 18px;
     }
     &:active {
       cursor: grabbing;

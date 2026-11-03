@@ -2912,9 +2912,16 @@ function onAnyScroll(event: Event) {
   }
   bumpViewport()
 }
-/** The bar of keys, on a touch screen while the editor takes input. */
+/** Whether the focus is on the bar of keys itself, reached by Escape then Tab: the bar stays while it is. */
+const keysFocused = ref(false)
+/** The bar of keys, on a touch screen while the editor takes input, or while the focus is on it. */
 const showKeys = computed(
-  () => !!props.keys && coarse.value && focused.value && !props.readonly && !props.disabled,
+  () =>
+    !!props.keys &&
+    coarse.value &&
+    (focused.value || keysFocused.value) &&
+    !props.readonly &&
+    !props.disabled,
 )
 const floatingOpen = computed(
   () =>
@@ -3382,7 +3389,16 @@ function onKeydown(event: KeyboardEvent) {
   }
   const leaving = tabLeaves && (name === 'tab' || name === 'shift+tab')
   tabLeaves = name === 'escape'
-  if (leaving) return
+  if (leaving) {
+    // Tab goes on to the bar of keys first, which sits elsewhere in the page.
+    const first =
+      name === 'tab' && !shownWidgets.value.length ? keysEl.value?.querySelector('button') : null
+    if (first) {
+      event.preventDefault()
+      first.focus()
+    }
+    return
+  }
   for (const command of keymap.value.get(name) ?? []) {
     if (command(target)) {
       event.preventDefault()
@@ -4188,15 +4204,81 @@ const keysStyle = computed(() => {
   const at = keysClient.value
   if (!at) return { visibility: 'hidden' as const, zIndex: keysZIndex.value }
   return {
-    transform: `translate(${Math.round(at.x + keysShift.value.x)}px, ${Math.round(at.y + keysShift.value.y)}px)`,
+    // Not rounded: the shift is read from the box as drawn, and rounding twice would be a pixel off.
+    transform: `translate(${at.x + keysShift.value.x}px, ${at.y + keysShift.value.y}px)`,
     width: `${keysWidth.value}px`,
     zIndex: keysZIndex.value,
   }
 })
 
 watch(showKeys, (shown) => {
-  if (shown && typeof window !== 'undefined' && !keysAt.value) placeKeys()
+  if (!shown) keysFocused.value = false
+  else if (typeof window !== 'undefined') settleKeys()
 })
+
+/**
+ * Brings the bar into the page in view: not moved yet, to its place below
+ * the editor; moved, only as far as it takes to be seen again.
+ */
+function settleKeys() {
+  if (!showKeys.value) return
+  if (keysMoved && keysAt.value) keysAt.value = clampKeys(keysAt.value)
+  else placeKeys()
+}
+
+/** How much of the bottom of the page in view the bar takes, when it sits there. */
+function keysRoom() {
+  const rect = showKeys.value && keysAt.value ? root.value?.getBoundingClientRect() : null
+  if (!rect || !keysAt.value) return 0
+  const view = visibleViewport()
+  const bottom = view.top + view.height
+  const top = rect.top + keysAt.value.y
+  return top + KEYS_HEIGHT >= bottom - KEYS_GAP - 1 ? bottom - top + KEYS_GAP : 0
+}
+
+const TABBABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]'
+
+/** Tab out of the bar goes on to what follows the editor; Shift+Tab, or Escape, back into it. */
+function onKeysKeydown(event: KeyboardEvent) {
+  const bar = keysEl.value
+  if (!bar) return
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    input.value?.focus()
+    return
+  }
+  if (event.key !== 'Tab') return
+  const inside = [...bar.querySelectorAll<HTMLElement>(TABBABLE)].filter((el) => el.tabIndex >= 0)
+  const here = inside.indexOf(document.activeElement as HTMLElement)
+  if (event.shiftKey && here <= 0) {
+    event.preventDefault()
+    input.value?.focus()
+  } else if (!event.shiftKey && here === inside.length - 1) {
+    event.preventDefault()
+    const from = document.activeElement as HTMLElement | null
+    for (const el of document.querySelectorAll<HTMLElement>(TABBABLE)) {
+      if (
+        el.tabIndex < 0 ||
+        bar.contains(el) ||
+        !root.value ||
+        root.value.contains(el) ||
+        !(root.value.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING)
+      ) {
+        continue
+      }
+      // Hidden ones take no focus: on to the next.
+      el.focus()
+      if (document.activeElement === el) return
+    }
+    from?.blur()
+  }
+}
+
+function onKeysFocusOut(event: FocusEvent) {
+  // On to another key of the bar, it stays.
+  if (!keysEl.value?.contains(event.relatedTarget as Node | null)) keysFocused.value = false
+}
 // After drawing, from the box as drawn: wherever the page scrolled, the bar's own box starts.
 watch([showKeys, viewportTick], () => readKeysShift(), { flush: 'post' })
 
@@ -4229,6 +4311,7 @@ function onKeysGripDown(event: PointerEvent) {
 function onKeysGripMove(event: PointerEvent) {
   const press = keysDrag
   if (!press || event.pointerId !== press.pointer) return
+  keysMoved = true
   keysAt.value = clampKeys({
     x: press.from.x + event.clientX - press.x,
     y: press.from.y + event.clientY - press.y,
@@ -4270,8 +4353,11 @@ function followViewport() {
   const room = lh / 2 + (handles.value.length ? HANDLE : 0)
   const rect = el.getBoundingClientRect()
   const view = visibleViewport()
+  // The bar of keys at the bottom of the view covers what is behind it.
+  const covered = keysRoom()
+  const bottom = view.top + view.height - covered
   const visibleTop = Math.max(rect.top, view.top)
-  const visibleBottom = Math.min(rect.bottom, view.top + view.height)
+  const visibleBottom = Math.min(rect.bottom, bottom)
   if (at.bottom + room > visibleBottom && visibleBottom - visibleTop >= lh * 3) {
     el.scrollTop += (at.bottom + room - visibleBottom) / ratio.value
     onScroll()
@@ -4281,9 +4367,13 @@ function followViewport() {
   }
   // Whatever the editor couldn't scroll, the page does.
   const after = coordsAtPos(mainRange(state.value.selection).head)
-  if (!after) return
-  const bottom = view.top + view.height
-  if (after.bottom + room > bottom) window.scrollBy(0, after.bottom + room - bottom)
+  if (!after || after.bottom + room <= bottom) return
+  const before = window.scrollY
+  window.scrollBy(0, after.bottom + room - bottom)
+  // The bar at the bottom of the view stays there as the page goes up under it.
+  if (covered && keysAt.value) {
+    keysAt.value = { x: keysAt.value.x, y: keysAt.value.y + window.scrollY - before }
+  }
 }
 
 /** How much of the window the keyboard took when last seen. */
@@ -4305,9 +4395,9 @@ function onViewportChange() {
   const grew = now > keyboardHeight + 1
   keyboardHeight = now
   if (!grew || fingerScrolling) return
+  // The bar first finds its place in view above the keyboard, so the cursor can keep clear of it.
+  settleKeys()
   followViewport()
-  // Not moved yet, the bar finds its place again, in view above the keyboard.
-  if (showKeys.value && !keysMoved) placeKeys()
 }
 
 /**
@@ -5419,11 +5509,16 @@ defineExpose<CodeEditorExpose>(api)
           ns.is('scrolling', boxScrolling),
         ]"
         :style="keysStyle"
+        @focusin="keysFocused = true"
+        @focusout="onKeysFocusOut"
+        @keydown="onKeysKeydown"
       >
         <button
           type="button"
           :class="ns.e('keys-grip')"
           :aria-label="messages.moveKeys"
+          :title="messages.moveKeys"
+          aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight"
           @pointerdown="onKeysGripDown"
           @keydown="onKeysGripKey"
           @mousedown.prevent

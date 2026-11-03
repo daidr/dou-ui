@@ -263,6 +263,20 @@ function keysPlace() {
   return { x: x!, y: y! }
 }
 
+/** A finger down on the bar's grip, at the window's top left corner. */
+function pressGrip(grip: HTMLElement, pointerId: number) {
+  grip.dispatchEvent(
+    new PointerEvent('pointerdown', {
+      pointerId,
+      pointerType: 'touch',
+      button: 0,
+      clientX: 0,
+      clientY: 0,
+      bubbles: true,
+    }),
+  )
+}
+
 describe('touch on a phone', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -306,11 +320,71 @@ describe('touch on a phone', () => {
     window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 2, clientX: 30, clientY: 60 }))
     await nextTick()
     expect(keysPlace()).toEqual({ x: before.x + 20, y: before.y + 50 })
+    // Moved by a finger, it stays put as the keyboard comes up again.
+    resize(800)
+    resize(400)
+    await nextTick()
+    expect(keysPlace()).toEqual({ x: before.x + 20, y: before.y + 50 })
     // And by the arrow keys, from the keyboard.
     grip.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }))
     await nextTick()
     expect(keysPlace()).toEqual({ x: before.x + 20, y: before.y + 42 })
+    // Moved again, it stays put too.
+    resize(800)
+    pressGrip(grip, 2)
+    window.dispatchEvent(
+      new PointerEvent('pointermove', { pointerId: 2, clientX: 0, clientY: 100 }),
+    )
+    window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 2, clientX: 0, clientY: 100 }))
+    await nextTick()
+    const dragged = keysPlace()
+    expect(dragged).toEqual({ x: before.x + 20, y: before.y + 142 })
+    resize(400)
+    await nextTick()
+    expect(keysPlace()).toEqual(dragged)
+    // Unless the keyboard would cover it: then it comes up just above, not back below the editor.
+    pressGrip(grip, 3)
+    window.dispatchEvent(
+      new PointerEvent('pointermove', { pointerId: 3, clientX: 0, clientY: 300 }),
+    )
+    window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 3, clientX: 0, clientY: 300 }))
+    await nextTick()
+    expect(keysPlace().y).toBe(400 - 44 - 8)
+    resize(200)
+    await nextTick()
+    expect(keysPlace()).toEqual({ x: dragged.x, y: 200 - 44 - 8 })
     rects.mockRestore()
+  })
+
+  it('reaches the bar of keys by Escape then Tab, keeps it while the focus is on it, and goes back by Escape', async () => {
+    stubCoarsePointer()
+    stubViewport(800)
+    const { tap, wrapper } = setup()
+    await nextTick()
+    await tap(at(6, 0))
+    await nextTick()
+    const textarea = wrapper.find('textarea').element
+    textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    const tab = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true })
+    textarea.dispatchEvent(tab)
+    expect(tab.defaultPrevented).toBe(true)
+    const grip = document.querySelector<HTMLElement>('.dou-code-editor__keys-grip')!
+    expect(document.activeElement).toBe(grip)
+    await nextTick()
+    expect(document.querySelector('.dou-code-editor__keys')).not.toBeNull()
+    expect(grip.getAttribute('aria-keyshortcuts')).toBe('ArrowUp ArrowDown ArrowLeft ArrowRight')
+    const stick = document.querySelector<HTMLElement>(
+      '.dou-code-editor__keys .dou-code-keys__stick',
+    )!
+    expect(stick.getAttribute('aria-keyshortcuts')).toBe('ArrowUp ArrowDown ArrowLeft ArrowRight')
+    // The stick moves the cursor from the keyboard and keeps the focus for the next arrow.
+    stick.focus()
+    stick.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+    await nextTick()
+    expect(document.activeElement).toBe(stick)
+    expect(document.querySelector('.dou-code-editor__keys')).not.toBeNull()
+    grip.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    expect(document.activeElement).toBe(textarea)
   })
 
   it('follows the keyboard as it comes up or grows, not while a finger scrolls the page and its bars resize the view', async () => {

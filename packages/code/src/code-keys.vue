@@ -198,15 +198,16 @@ function onStickKey(event: KeyboardEvent) {
   )[event.key as 'ArrowLeft']
   if (!lean) return
   event.preventDefault()
-  run(MOVES[lean])
+  // From the keyboard, the focus stays on the stick, for the next arrow.
+  run(MOVES[lean], false)
 }
 
-function run(command: CodeCommand) {
+function run(command: CodeCommand, focus = true) {
   const { editor } = props
   if (!editor) return
   editor.run(command)
   // A key pressed while the editor is away (beside it on a desktop) brings the cursor back into view.
-  editor.focus?.()
+  if (focus) editor.focus?.()
 }
 
 onBeforeUnmount(() => {
@@ -248,6 +249,7 @@ onBeforeUnmount(() => {
         :class="[ns.e('stick'), ns.is('held', held)]"
         :aria-label="messages.moveCursor"
         :title="messages.moveCursor"
+        aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight"
         @pointerdown="onStickDown"
         @pointermove="onStickMove"
         @pointerup="endStick"

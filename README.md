@@ -9,7 +9,7 @@
 
 设计取舍见 [设计原则](./docs/guide/philosophy.md)，视觉规范见 [视觉语言](./docs/guide/visual-language.md)，组件计划见 [路线图](./ROADMAP.md)。
 
-UI 设计与组件由内部组件库演化而来，代码由 Claude Code 与 Codex 编写。
+UI 设计与组件由个人项目的组件归纳演化而来，代码由 Claude Code 与 Codex 编写。
 
 > 仍处于早期阶段：`1.0.0` 之前，次版本号（`0.x.0`）的变化可能包含不兼容的改动，变化记录在 [更新日志](./CHANGELOG.md)。
 

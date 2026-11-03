@@ -9,8 +9,8 @@ const PREFIX = /['"`]\[(@?dou-ui[^\]\s'"`]*|Dou[A-Za-z]*)\]/g
 const SCOPE = /\bscope: ['"`](@?dou-ui[^'"`]*)['"`]/g
 // Chinese, Japanese or Korean text
 const CJK = /[\u3000-\u9fff\uac00-\ud7af\uff00-\uffef]/
-// Where a message for the developer starts: a thrown error or a console warning.
-const MESSAGE = /(?:console\.(?:warn|error)|throw new (\w*Error))\(\s*/g
+// Where a message for the developer starts: a new error (thrown, rejected or kept) or a console warning.
+const MESSAGE = /(?:console\.(?:warn|error)|\bnew (\w*Error))\(\s*/g
 /**
  * Errors whose text is shown to the people using the app (a formula or an
  * expression they typed), not to the developer, so they carry no package name.
@@ -67,7 +67,7 @@ describe('dev warning prefixes', () => {
           // Only literal messages: a variable or a call passes on text made elsewhere.
           if (!/^['"`]/.test(rest)) continue
           // `${prefix(…)}…` and `${PREFIX} …` put the name in front through a constant.
-          if (rest.startsWith(`[${name}]`, 1) || rest.startsWith('`${')) continue
+          if (rest.startsWith(`[${name}]`, 1) || /^`\$\{(?:PREFIX\}|prefix\()/.test(rest)) continue
           missing.push(`${relative(root, file)}:${lineOf(text, match.index)} 缺少 [${name}]`)
         }
       }

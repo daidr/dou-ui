@@ -172,7 +172,7 @@ export function useBuilderState(): BuilderState {
   const state = inject(builderKey, undefined)
   if (!state)
     throw new Error(
-      '[@dou-ui/form-builder] the parts of a form builder must be placed inside a DouFormBuilder',
+      '[@dou-ui/form-builder] the parts of a form builder must be placed inside <DouFormBuilder>',
     )
   return state
 }

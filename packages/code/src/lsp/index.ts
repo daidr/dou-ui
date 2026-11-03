@@ -206,7 +206,7 @@ export function fromLspPosition(doc: CodeText, position: LspPosition): number {
 }
 
 /** What waiting requests are rejected with when the connection ends. */
-const CLOSED = new Error('The connection to the language server ended')
+const CLOSED = new Error('[@dou-ui/code] the connection to the language server ended')
 
 const CLIENT_CAPABILITIES = {
   general: { positionEncodings: ['utf-16'] },

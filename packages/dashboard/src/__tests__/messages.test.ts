@@ -1,10 +1,11 @@
+import { fileURLToPath } from 'node:url'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { DashboardTransaction, useDashboardWidget } from '..'
 
 const PREFIX = '[@dou-ui/dashboard] '
-const root = join(dirname(new URL(import.meta.url).pathname), '..')
+const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 
 function sources(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {

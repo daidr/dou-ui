@@ -1,9 +1,10 @@
+import { fileURLToPath } from 'node:url'
 import { globSync, readFileSync } from 'node:fs'
 import { dirname, relative, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { createTheme, dark, flattenTokens, light } from './index'
 
-const here = dirname(new URL(import.meta.url).pathname)
+const here = dirname(fileURLToPath(import.meta.url))
 const packages = resolve(here, '../..')
 
 const schemeDark = (tokens: typeof light) => new Map(flattenTokens(tokens)).get('--dou-scheme-dark')

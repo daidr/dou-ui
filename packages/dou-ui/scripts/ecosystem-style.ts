@@ -11,6 +11,7 @@
  *   reaches, with the subpath's own `style.css` when it has one, else the
  *   package's.
  */
+import { fileURLToPath } from 'node:url'
 import { existsSync, readFileSync } from 'node:fs'
 import { mkdir } from 'node:fs/promises'
 import { reachableFiles, styleDirsFor } from './style-deps'
@@ -29,8 +30,8 @@ export function componentSubpaths(packageRoot: URL): string[] {
 
 async function bundleCss(entry: URL, outdir: URL) {
   const result = await Bun.build({
-    entrypoints: [entry.pathname],
-    outdir: outdir.pathname,
+    entrypoints: [fileURLToPath(entry)],
+    outdir: fileURLToPath(outdir),
     minify: true,
   })
   if (!result.success) {
@@ -42,7 +43,7 @@ async function bundleCss(entry: URL, outdir: URL) {
 /** The other packages built on `dou-ui` an entry imports (`@dou-ui/code`). */
 function packagesUsedBy(index: URL, self: string): string[] {
   const used = new Set<string>()
-  for (const file of reachableFiles(index.pathname)) {
+  for (const file of reachableFiles(fileURLToPath(index))) {
     for (const m of readFileSync(file, 'utf8').matchAll(/from\s+['"](@dou-ui\/[a-z-]+)['"/]/g)) {
       const name = m[1]!
       if (name !== self && !['@dou-ui/icons', '@dou-ui/theme'].includes(name)) used.add(name)
@@ -53,7 +54,7 @@ function packagesUsedBy(index: URL, self: string): string[] {
 
 async function writeEntry(target: URL, index: URL, css: string, self: string) {
   const lines = [
-    ...styleDirsFor(index.pathname).map((dir) => `import 'dou-ui/components/${dir}/style'`),
+    ...styleDirsFor(fileURLToPath(index)).map((dir) => `import 'dou-ui/components/${dir}/style'`),
     // Components of another package, e.g. the code input in a formula bar.
     ...packagesUsedBy(index, self).map((name) => `import '${name}/style'`),
     `import '${css}'`,

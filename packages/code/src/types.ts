@@ -91,10 +91,10 @@ export interface CodeEditorProps {
    */
   diagnostics?: CodeDiagnostic[]
   /**
-   * Where the completion list, hover text and parameter hints render.
-   * `false` (the default) keeps them inside the editor's frame; a selector
-   * or element puts them above the page, for an editor too small to hold
-   * them, such as `DouCodeInput`.
+   * Where the completion list, hover text, parameter hints and touch
+   * handles render: above the page, in this element or selector (by
+   * default the global config's, else `body`), so a short editor never cuts
+   * them off. `false` keeps them inside the editor's frame.
    */
   teleport?: string | HTMLElement | false
   autofocus?: boolean

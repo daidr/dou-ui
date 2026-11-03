@@ -28,6 +28,8 @@ function setup(initial = source) {
         h('div', [
           h(DouCodeEditor, {
             ref: editor,
+            // Measured boxes in the frame: the test page has no layout to place them above.
+            teleport: false,
             modelValue: code.value,
             'onUpdate:modelValue': (value: string) => (code.value = value),
             language: typescript,
@@ -75,6 +77,19 @@ describe('touch', () => {
     expect(menu()).toContain('全选')
     expect(menu()).not.toContain('复制')
     await tap(at(6, 0))
+    expect(menu()).toEqual([])
+  })
+
+  it('takes a tap on the caret handle over the next line as a tap on that line', async () => {
+    const { wrapper, tap, range, handles, menu } = setup()
+    await tap(at(6, 0))
+    expect(handles()).toEqual(['is-caret'])
+    const handle = wrapper.find('.dou-code-editor__handle.is-caret')
+    const below = at(4, 1)
+    await handle.trigger('pointerdown', { pointerType: 'touch', pointerId: 1, button: 0, ...below })
+    window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1, ...below }))
+    await nextTick()
+    expect(range()).toEqual({ anchor: 20, head: 20 })
     expect(menu()).toEqual([])
   })
 
@@ -176,6 +191,136 @@ describe('touch', () => {
     textarea.element.dispatchEvent(new FocusEvent('blur'))
     await nextTick()
     expect(menu()).toEqual([])
+  })
+})
+
+/** Makes the browser report a touch screen, as a phone does. */
+function stubCoarsePointer() {
+  vi.stubGlobal(
+    'matchMedia',
+    (query: string) =>
+      ({
+        matches: query.includes('coarse'),
+        media: query,
+        addEventListener() {},
+        removeEventListener() {},
+      }) as unknown as MediaQueryList,
+  )
+}
+
+/** Whether a finger moving on the page now is kept from scrolling it. */
+function move() {
+  const event = new Event('touchmove', { cancelable: true })
+  window.dispatchEvent(event)
+  return event.defaultPrevented
+}
+
+/** A long press on a word, which selects it, then the finger lifts. */
+async function selectWord(content: { trigger: (type: string, init?: object) => Promise<void> }) {
+  vi.useFakeTimers()
+  await content.trigger('pointerdown', {
+    pointerType: 'touch',
+    pointerId: 1,
+    button: 0,
+    ...at(7, 0),
+  })
+  vi.advanceTimersByTime(500)
+  vi.useRealTimers()
+  await nextTick()
+}
+
+describe('touch on a phone', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it("keeps only a caret in the textarea, so the system's own selection never shows; typing replaces the selection", async () => {
+    stubCoarsePointer()
+    const { wrapper, code, range } = setup()
+    await nextTick()
+    await selectWord(wrapper.find('.dou-code-editor__content'))
+    window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1 }))
+    await nextTick()
+    expect(range()).toEqual({ anchor: 6, head: 11 })
+    const textarea = wrapper.find('textarea').element
+    expect(textarea.selectionStart).toBe(textarea.selectionEnd)
+    expect(textarea.selectionEnd).toBe(11)
+    // A character typed at the caret takes the selection's place.
+    const value = textarea.value
+    textarea.value = `${value.slice(0, 11)}x${value.slice(11)}`
+    textarea.dispatchEvent(new Event('input'))
+    await nextTick()
+    expect(code.value.split('\n')[0]).toBe('const x = [')
+    expect(range()).toEqual({ anchor: 7, head: 7 })
+  })
+
+  it('deletes the selection on a backspace at the caret that stands for it', async () => {
+    stubCoarsePointer()
+    const { wrapper, code } = setup()
+    await nextTick()
+    await selectWord(wrapper.find('.dou-code-editor__content'))
+    window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1 }))
+    await nextTick()
+    const textarea = wrapper.find('textarea').element
+    const value = textarea.value
+    textarea.value = value.slice(0, 10) + value.slice(11)
+    textarea.dispatchEvent(new Event('input'))
+    await nextTick()
+    expect(code.value.split('\n')[0]).toBe('const  = [')
+  })
+
+  it('ends a drag whose finger lifted unheard, so the page scrolls again', async () => {
+    const { wrapper } = setup()
+    await nextTick()
+    await selectWord(wrapper.find('.dou-code-editor__content'))
+    expect(wrapper.find('.dou-code-editor__magnifier').exists()).toBe(true)
+    expect(move()).toBe(true)
+    // The pointerup never comes (Safari sent it to a removed line); the touch still ends.
+    window.dispatchEvent(new Event('touchend'))
+    await new Promise((resolve) => setTimeout(resolve))
+    await nextTick()
+    expect(move()).toBe(false)
+    expect(wrapper.find('.dou-code-editor__magnifier').exists()).toBe(false)
+  })
+
+  it('ends any press when the editor loses focus', async () => {
+    const { wrapper } = setup()
+    await nextTick()
+    await selectWord(wrapper.find('.dou-code-editor__content'))
+    wrapper.find('textarea').element.dispatchEvent(new FocusEvent('blur'))
+    const event = new Event('touchmove', { cancelable: true })
+    window.dispatchEvent(event)
+    expect(event.defaultPrevented).toBe(false)
+  })
+
+  it('draws the handles above the page by default, so a one-line box never cuts them off', async () => {
+    // A frame with room, for the handles to be in view.
+    const size = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(200)
+    const width = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(300)
+    const wrapper = mount(
+      defineComponent(() => () => h(DouCodeEditor, { modelValue: source, keys: false })),
+      { attachTo: document.body },
+    )
+    await nextTick()
+    const content = wrapper.find('.dou-code-editor__content')
+    await content.trigger('pointerdown', {
+      pointerType: 'touch',
+      pointerId: 1,
+      button: 0,
+      ...at(6, 0),
+    })
+    await content.trigger('pointerup', {
+      pointerType: 'touch',
+      pointerId: 1,
+      button: 0,
+      ...at(6, 0),
+    })
+    await nextTick()
+    const handle = document.querySelector('.dou-code-editor__handle')
+    expect(handle).not.toBeNull()
+    expect(wrapper.element.contains(handle)).toBe(false)
+    expect(handle!.closest('.dou-code-editor__floating.is-outside')).not.toBeNull()
+    wrapper.unmount()
+    size.mockRestore()
+    width.mockRestore()
   })
 })
 

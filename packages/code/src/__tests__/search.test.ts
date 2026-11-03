@@ -4,6 +4,7 @@ import { defineComponent, h, nextTick, ref } from 'vue'
 import { matchAfter, replacementFor, searchText } from '../core/search'
 import { CodeText } from '../core/text'
 import { DouCodeEditor, type CodeEditorExpose, type CodeSelection } from '../index'
+import { later } from '../../../../test/later'
 
 const ranges = (text: string, query: Parameters<typeof searchText>[1]) => {
   const doc = CodeText.of(text)
@@ -67,6 +68,7 @@ describe('searchText', () => {
 })
 
 async function keyOn(el: Element, key: string, init: KeyboardEventInit = {}) {
+  later()
   el.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init }))
   await nextTick()
 }

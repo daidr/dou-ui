@@ -4,7 +4,7 @@ import { defineComponent, h, nextTick, ref } from 'vue'
 import { defineGanttExtension, takeBaseline, useGantt } from '../index'
 import { DouGantt } from '../index'
 import type { GanttExpose, GanttMenuTarget, GanttTask } from '../index'
-import { later } from './later'
+import { later } from '../../../../test/later'
 import { bind, planRef } from './plan-ref'
 
 const sample = (): GanttTask[] => [

@@ -11,7 +11,7 @@ import {
   type SchedulerResource,
 } from '..'
 import type { SchedulerMenuTarget, SchedulerMove, SchedulerRange } from '../types'
-import { later } from '../../__tests__/later'
+import { later } from '../../../../../test/later'
 import { bind, planRef } from '../../__tests__/plan-ref'
 
 // happy-dom lays nothing out, so a scroller has no room to scroll; the timeline

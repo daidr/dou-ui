@@ -2,14 +2,17 @@ import { mount } from '@vue/test-utils'
 import { h, nextTick } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DouDropdown, DouDropdownButton, DouDropdownItem, DouDropdownSub } from '../../../index'
+import { later } from '../../../../../../test/later'
 
 afterEach(() => {
   document.body.innerHTML = ''
   vi.useRealTimers()
 })
 
-const key = (target: Element, name: string) =>
+const key = (target: Element, name: string) => {
+  later()
   target.dispatchEvent(new KeyboardEvent('keydown', { key: name, bubbles: true, cancelable: true }))
+}
 const menus = () => [...document.querySelectorAll<HTMLElement>('[role="menu"]')]
 const tick = async () => {
   await nextTick()

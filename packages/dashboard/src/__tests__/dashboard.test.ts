@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { DouDashboard, DouGridLayout, defineDashboardWidget, useDashboardWidget } from '..'
 import type { DashboardDocument, DashboardExpose } from '..'
+import { later } from '../../../../test/later'
 
 const Stat = defineComponent({
   setup() {
@@ -60,10 +61,12 @@ function setup(doc = start(), props: Record<string, unknown> = {}) {
   return { wrapper, model, api, onChange }
 }
 
-const key = (el: Element, k: string, init: KeyboardEventInit = {}) =>
+const key = (el: Element, k: string, init: KeyboardEventInit = {}) => {
+  later()
   el.dispatchEvent(
     new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true, ...init }),
   )
+}
 
 const flush = () => new Promise((resolve) => setTimeout(resolve))
 

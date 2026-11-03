@@ -65,6 +65,8 @@ app.use(DouChart).use(DouChartAxis).use(DouChartLine).use(DouChartBar)
 
 内置系列不够用时，可以用 `defineChartSeries` 定义自己的系列，见[自定义系列](./custom)。
 
+只想在表格、卡片或文字旁边显示一段走势，不需要坐标轴和交互时，用基础组件 [Sparkline 迷你图](/components/sparkline)；按天显示一年里的数值，用 [CalendarHeatmap 日历热力图](/components/calendar-heatmap)。这两个组件在 `dou-ui` 里，不需要安装图表包。
+
 ## 没有数据
 
 所有系列都没有数值时，图表不画坐标轴，只在中间显示“没有数据”。`empty` 插槽可以替换这部分内容。

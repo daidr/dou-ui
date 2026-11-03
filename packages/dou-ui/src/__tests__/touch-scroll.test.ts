@@ -203,6 +203,47 @@ describe('shiftScroll', () => {
     expect(top).toBe(880)
     wrapper.unmount()
   })
+
+  it('takes a move early in a touch, against the scroll, as held', async () => {
+    vi.useFakeTimers()
+    let touchScroll!: ReturnType<typeof useTouchScroll>
+    const wrapper = mount(
+      defineComponent({
+        setup() {
+          touchScroll = useTouchScroll()
+          return () => h('div')
+        },
+      }),
+      { attachTo: document.body },
+    )
+    const el = document.createElement('div')
+    document.body.append(el)
+    let top = 1030
+    Object.defineProperty(el, 'scrollTop', {
+      configurable: true,
+      get: () => top,
+      set: (value: number) => {
+        top = value
+      },
+    })
+    const scroll = () => el.dispatchEvent(new Event('scroll'))
+    touch('touchstart')
+    // the first event of this touch: no step yet
+    top = 1000
+    scroll()
+    // an item above grew; the move holds and fires its own event
+    touchScroll.shiftScroll(el, 19)
+    scroll()
+    // the finger goes on up
+    top = 989
+    scroll()
+    top = 959
+    scroll()
+    touch('touchend')
+    vi.advanceTimersByTime(500)
+    expect(top).toBe(959)
+    wrapper.unmount()
+  })
 })
 
 describe('loading earlier items at the top', () => {

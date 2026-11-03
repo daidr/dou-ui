@@ -37,19 +37,24 @@ function onTouchEnd(event: TouchEvent) {
   settleLater()
 }
 
-// A move written by `shiftScroll` during a touch scroll waits for the next
-// scroll event that isn't its own: carried on at the same step from where
-// the move took it, the move held; carried on from where it was before,
-// iOS dropped it.
+// A move written by `shiftScroll` during a touch scroll is checked against
+// the scroll events after it: going on at the same step from where the move
+// took it, the move held; from where it was before, iOS dropped it. Without
+// a step measured in this touch, it waits for two events and measures one.
+// Anything unclear counts as held: taking a held move for a dropped one
+// would move the content twice.
 interface Shift {
   /** Where it was before the first move, and where the moves took it. */
   from: number
   to: number
   delta: number
-  /** How far a scroll event moved it just before. */
-  step: number
+  /** How far one scroll event moves it, when known. */
+  step?: number
+  /** The first event after the move, while the step is being measured. */
+  first?: number
 }
-let steps = new WeakMap<Element, { top: number; step: number }>()
+/** Each scroller's last position, and its step once two events of this touch tell it. */
+let steps = new WeakMap<Element, { top: number; step?: number }>()
 const shifts = new Map<HTMLElement, Shift>()
 /** Moves iOS dropped, made once the touch scroll is over. */
 const lost = new Map<HTMLElement, number>()
@@ -59,20 +64,32 @@ function makeLost() {
   lost.clear()
 }
 
+function drop(el: HTMLElement, shift: Shift) {
+  lost.set(el, (lost.get(el) ?? 0) + shift.delta)
+  if (moving.value) waiting.add(makeLost)
+  else makeLost()
+}
+
+/** Whether `top`, a step after the move, is clearly where the move was dropped. */
+function wasDropped(shift: Shift, top: number, step: number) {
+  const near = Math.max(3, Math.abs(step) / 2)
+  const held = Math.abs(top - (shift.to + step))
+  const dropped = Math.abs(top - (shift.from + step))
+  return dropped <= near && held > near && dropped < held
+}
+
 /**
- * When the scroll is over, a move no later scroll event has told about
- * yet is told by where the scroller rests: nearer where the move took it,
- * it held. Steps start afresh with the next touch.
+ * When the scroll is over, a move still unchecked counts as dropped only
+ * when the scroller rests right where it was before it. Steps start afresh
+ * with the next touch.
  */
 function resolveShifts() {
   for (const [el, shift] of shifts) {
     const top = el.scrollTop
-    if (Math.abs(top - shift.from) < Math.abs(top - shift.to))
-      lost.set(el, (lost.get(el) ?? 0) + shift.delta)
+    if (Math.abs(top - shift.from) <= 1 && Math.abs(top - shift.to) > 1) drop(el, shift)
   }
   shifts.clear()
   steps = new WeakMap()
-  if (lost.size) waiting.add(makeLost)
 }
 
 /** Whether the scroll event is the one the move itself fired. */
@@ -80,14 +97,17 @@ function checkShift(el: HTMLElement, top: number) {
   const shift = shifts.get(el)
   if (!shift) return false
   if (Math.abs(top - shift.to) < 0.5) return true
-  shifts.delete(el)
-  const held = Math.abs(top - (shift.to + shift.step))
-  const dropped = Math.abs(top - (shift.from + shift.step))
-  if (dropped < held) {
-    lost.set(el, (lost.get(el) ?? 0) + shift.delta)
-    if (moving.value) waiting.add(makeLost)
-    else makeLost()
+  if (shift.step === undefined) {
+    if (shift.first === undefined) {
+      shift.first = top
+      return false
+    }
+    shifts.delete(el)
+    if (wasDropped(shift, shift.first, top - shift.first)) drop(el, shift)
+    return false
   }
+  shifts.delete(el)
+  if (wasDropped(shift, top, shift.step)) drop(el, shift)
   return false
 }
 
@@ -97,7 +117,7 @@ function onScroll(event: Event) {
   if (el instanceof HTMLElement && !checkShift(el, el.scrollTop)) {
     const top = el.scrollTop
     const last = steps.get(el)
-    steps.set(el, { top, step: last ? top - last.top : 0 })
+    steps.set(el, { top, step: last ? top - last.top : undefined })
   }
   if (moving.value && !touching) settleLater()
 }
@@ -108,7 +128,7 @@ function shiftScroll(el: HTMLElement, delta: number) {
   el.scrollTop = from + delta
   if (!moving.value) return
   const last = shifts.get(el)
-  const step = steps.get(el)?.step ?? 0
+  const step = steps.get(el)?.step
   shifts.set(el, {
     from: last ? last.from : from,
     to: from + delta,

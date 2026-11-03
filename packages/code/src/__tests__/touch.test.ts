@@ -234,6 +234,8 @@ function stubViewport(height: number) {
   const view = Object.assign(new EventTarget(), {
     offsetTop: 0,
     offsetLeft: 0,
+    pageTop: 0,
+    pageLeft: 0,
     width: 390,
     height,
     scale: 1,

@@ -107,6 +107,7 @@ Playwright 的 Chromium 复现不了 iOS Safari 的键盘、选区菜单和视�
 - [ ] 键盘上方的工具栏不要贴着键盘铺满整屏宽：新版 iOS 的键盘是悬浮的圆角玻璃面板，工具栏也要浮在键盘上方、留出间距、圆角、左右内缩（含 `safe-area-inset`）。
 - [ ] 只靠鼠标悬停才能看到的信息（问题说明、提示、悬停说明）在触屏上有对应的轻点入口，并在手机模拟里实际点出来、截图；点别处能收起。
 - [ ] 浮在页面上的把手、放大镜、工具条、提示，在**页面滚动时**要和文字一起移动。放在页面里（`position: absolute`），让浏览器自己带着它们滚动；不要固定在窗口上（`position: fixed`）再在 `scroll` 事件里重新算位置，iOS 的惯性滚动里事件总比画面慢，它们会落后、抖动。检查方法：选中一段后，在同一段脚本里先 `window.scrollBy(0, 60)` 再立刻量把手和选区（不等 `scroll` 事件），两者的位置必须一致。再把编辑器放进 `overflow: auto` 的容器、`position: fixed` 的容器和 `sticky` 的容器各试一次：固定容器里浮层也要固定，滚动容器、sticky 容器滚动时浮层要么同步，要么先隐藏、停下再出现，不能落后一拍。双指放大后不能被当成键盘弹出。
+- [ ] 不要把 `visualViewport.offsetTop` 直接和 `getBoundingClientRect` 的坐标相加：Chromium 的坐标相对布局视口，iOS Safari 的相对可视视口，加上去在 Safari 里会把滚动算两遍，浮层越滚越远。可视区域用 `vv.pageTop + document.documentElement.getBoundingClientRect().top` 换算（`@dou-ui/code` 的 `visibleViewport`）。检查方法：在 Chromium 里把 `visualViewport` 换成 `offsetTop`、`pageTop` 都等于 `scrollY` 的假对象，模拟键盘弹出后的 Safari，滚动页面，浮层和文字的距离不能变。`position: fixed` 的元素仍按 `offsetTop` 摆放。
 - [ ] 跟着键盘滚动的逻辑只在**键盘弹出或变高**时触发，不能在每次 `visualViewport` 的 `resize` 时触发：滚动页面时浏览器自己的工具栏伸缩也会触发 `resize`，这时把页面拉回光标会和手指抢，整页抽搐。检查方法：替换 `visualViewport`，聚焦后先缩小 400px（键盘弹出，应该跟随），再缩小 30px（工具栏变化，不能调用 `scrollBy`）。贴着键盘的工具栏（`fixed` 加 `visualViewport` 偏移）在页面滚动时要淡出，停下后再出现。
 - [ ] 浮层、把手、放大镜、工具条放在**最矮的容器**里试：单行输入框、只有两三行的编辑器、`overflow: hidden` 的卡片里都不被裁掉。默认浮在页面上（teleport），而不是限制在组件框内。
 
@@ -242,6 +243,7 @@ Playwright 的 Chromium 复现不了 iOS Safari 的键盘、选区菜单和视�
 | 2026-11-02 | 表单设计器里分步较多时步骤条超出卡片                               | 示例只有三步；收起标题的规则写在表单里且按 480px 断点，不按实际放不放得下                               | A“尺寸与对齐”                   |
 | 2026-11-02 | 设置面板里拖动选项时，副本里的输入框错位、超出卡片                 | 只在示例页的表单里拖过；副本离开设置面板后丢了收窄的列间距                                              | B“拖动、缩放、旋转时的实时反馈” |
 | 2026-11-03 | iPad 上有选区时滚动页面，把手和光标错开；有光标时滚动页面整页抽搐  | 浮层固定在窗口上靠 `scroll` 事件跟随，Chromium 里事件每帧都到所以看不出；键盘跟随对所有 `resize` 都触发 | B“手机键盘与系统文字交互”       |
+| 2026-11-03 | iOS Safari 上选区菜单随页面向下滚动成倍下移，离光标越来越远        | 把 `visualViewport.offsetTop` 加到相对可视视口的坐标上；Chromium 的坐标相对布局视口，模拟里一直对       | B“手机键盘与系统文字交互”       |
 
 ## 报告与结论
 

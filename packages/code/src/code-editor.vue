@@ -130,6 +130,7 @@ import {
   wrapLine,
 } from './view/layout'
 import { Measure } from './view/measure'
+import { visibleViewport } from './view/viewport'
 
 defineOptions({ name: 'DouCodeEditor' })
 
@@ -2965,11 +2966,7 @@ function frameInPage() {
  */
 function pageBox() {
   void viewportTick.value
-  const vv = window.visualViewport
-  const left = vv ? vv.offsetLeft : 0
-  const top = vv ? vv.offsetTop : 0
-  const width = vv ? vv.width : document.documentElement.clientWidth
-  const height = vv ? vv.height : document.documentElement.clientHeight
+  const { left, top, width, height } = visibleViewport()
   return {
     left,
     top,
@@ -4152,10 +4149,11 @@ function followViewport() {
   // Room below the cursor for its handle too.
   const room = lh / 2 + (handles.value.length ? HANDLE : 0)
   const rect = el.getBoundingClientRect()
-  const visibleTop = Math.max(rect.top, vv.offsetTop)
+  const view = visibleViewport()
+  const visibleTop = Math.max(rect.top, view.top)
   const visibleBottom = Math.min(
     rect.bottom,
-    vv.offsetTop + vv.height - (showKeys.value ? KEYS_SPACE : 0),
+    view.top + view.height - (showKeys.value ? KEYS_SPACE : 0),
   )
   if (at.bottom + room > visibleBottom && visibleBottom - visibleTop >= lh * 3) {
     el.scrollTop += (at.bottom + room - visibleBottom) / ratio.value
@@ -4167,7 +4165,7 @@ function followViewport() {
   // Whatever the editor couldn't scroll, the page does.
   const after = coordsAtPos(mainRange(state.value.selection).head)
   if (!after) return
-  const bottom = vv.offsetTop + vv.height - (showKeys.value ? KEYS_SPACE : 0)
+  const bottom = view.top + view.height - (showKeys.value ? KEYS_SPACE : 0)
   if (after.bottom + room > bottom) {
     ownScrollUntil = performance.now() + 200
     window.scrollBy(0, after.bottom + room - bottom)

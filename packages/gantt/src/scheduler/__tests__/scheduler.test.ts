@@ -14,9 +14,17 @@ import type { SchedulerMenuTarget, SchedulerMove, SchedulerRange } from '../type
 import { bind, planRef } from '../../__tests__/plan-ref'
 
 // happy-dom lays nothing out, so a scroller has no room to scroll; the timeline
-// gets the width a browser would give it, so a position written to it is read back
+// gets the width a browser would give it, so a position written to it is read back.
+// It gets a box on screen too: with none, every pointer is past its right edge,
+// and a drag would scroll the timeline on the next frame, whenever that comes
 const scrollWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollWidth')
+const rectOf = HTMLElement.prototype.getBoundingClientRect
 beforeAll(() => {
+  HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
+    return this.classList.contains('dou-gantt__chart')
+      ? new DOMRect(0, 0, 800, 400)
+      : rectOf.call(this)
+  }
   Object.defineProperty(HTMLElement.prototype, 'scrollWidth', {
     configurable: true,
     get(this: HTMLElement) {
@@ -25,6 +33,7 @@ beforeAll(() => {
   })
 })
 afterAll(() => {
+  HTMLElement.prototype.getBoundingClientRect = rectOf
   if (scrollWidth) Object.defineProperty(HTMLElement.prototype, 'scrollWidth', scrollWidth)
   else delete (HTMLElement.prototype as { scrollWidth?: number }).scrollWidth
 })

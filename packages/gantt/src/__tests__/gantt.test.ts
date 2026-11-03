@@ -4,6 +4,7 @@ import { defineComponent, h, nextTick, ref } from 'vue'
 import { defineGanttExtension, takeBaseline, useGantt } from '../index'
 import { DouGantt } from '../index'
 import type { GanttExpose, GanttMenuTarget, GanttTask } from '../index'
+import { later } from '../../../../test/later'
 import { bind, planRef } from './plan-ref'
 
 const sample = (): GanttTask[] => [
@@ -60,7 +61,8 @@ function setup(extra: Record<string, unknown> = {}) {
 }
 
 // happy-dom lays nothing out: the chart sits at 0 and a day is 40px wide
-const press = (el: Element, clientX: number) =>
+const press = (el: Element, clientX: number) => {
+  later()
   el.dispatchEvent(
     new PointerEvent('pointerdown', {
       button: 0,
@@ -70,17 +72,21 @@ const press = (el: Element, clientX: number) =>
       bubbles: true,
     }),
   )
+}
 const pointer = (type: string, clientX: number) =>
   window.dispatchEvent(new PointerEvent(type, { clientX, clientY: 10, pointerId: 1 }))
 
 // a pointer on a table row, at a height in px
-const at = (type: string, y: number, el: EventTarget = window) =>
+const at = (type: string, y: number, el: EventTarget = window) => {
+  later()
   el.dispatchEvent(
     new PointerEvent(type, { button: 0, clientX: 40, clientY: y, pointerId: 2, bubbles: true }),
   )
+}
 
 // each press in its own tick, as from a person: the bound v-model catches up in between
 const pressKey = async (el: Element, key: string, init: KeyboardEventInit = {}) => {
+  later()
   el.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, ...init }))
   await nextTick()
 }

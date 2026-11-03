@@ -52,6 +52,7 @@
   },
   "include": [
     "types",
+    "test",
     "scripts",
     "packages/*/src",
     "packages/*/scripts",

@@ -14,6 +14,7 @@ const waiting = new Set<() => void>()
 function settle() {
   if (touching) return
   moving.value = false
+  resolveShifts()
   const callbacks = [...waiting]
   waiting.clear()
   for (const callback of callbacks) callback()
@@ -48,7 +49,7 @@ interface Shift {
   /** How far a scroll event moved it just before. */
   step: number
 }
-const steps = new WeakMap<Element, { top: number; step: number }>()
+let steps = new WeakMap<Element, { top: number; step: number }>()
 const shifts = new Map<HTMLElement, Shift>()
 /** Moves iOS dropped, made once the touch scroll is over. */
 const lost = new Map<HTMLElement, number>()
@@ -56,6 +57,22 @@ const lost = new Map<HTMLElement, number>()
 function makeLost() {
   for (const [el, delta] of lost) if (el.isConnected) el.scrollTop += delta
   lost.clear()
+}
+
+/**
+ * When the scroll is over, a move no later scroll event has told about
+ * yet is told by where the scroller rests: nearer where the move took it,
+ * it held. Steps start afresh with the next touch.
+ */
+function resolveShifts() {
+  for (const [el, shift] of shifts) {
+    const top = el.scrollTop
+    if (Math.abs(top - shift.from) < Math.abs(top - shift.to))
+      lost.set(el, (lost.get(el) ?? 0) + shift.delta)
+  }
+  shifts.clear()
+  steps = new WeakMap()
+  if (lost.size) waiting.add(makeLost)
 }
 
 /** Whether the scroll event is the one the move itself fired. */
@@ -122,6 +139,7 @@ function uninstall() {
   waiting.clear()
   shifts.clear()
   lost.clear()
+  steps = new WeakMap()
 }
 
 export interface UseTouchScrollReturn {

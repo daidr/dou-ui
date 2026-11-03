@@ -161,6 +161,50 @@ function list() {
   position(el)
   return { wrapper, items, el }
 }
+describe('shiftScroll', () => {
+  it('settles a move still waiting for word when the touch scroll ends', async () => {
+    vi.useFakeTimers()
+    let touchScroll!: ReturnType<typeof useTouchScroll>
+    const wrapper = mount(
+      defineComponent({
+        setup() {
+          touchScroll = useTouchScroll()
+          return () => h('div')
+        },
+      }),
+      { attachTo: document.body },
+    )
+    const el = document.createElement('div')
+    document.body.append(el)
+    let top = 1000
+    Object.defineProperty(el, 'scrollTop', {
+      configurable: true,
+      get: () => top,
+      set: (value: number) => {
+        top = value
+      },
+    })
+    const scroll = () => el.dispatchEvent(new Event('scroll'))
+    touch('touchstart')
+    top = 990
+    scroll()
+    top = 980
+    scroll()
+    touch('touchend')
+    // the move holds and fires its own scroll event, and then nothing moves
+    touchScroll.shiftScroll(el, 200)
+    scroll()
+    vi.advanceTimersByTime(500)
+    expect(top).toBe(1180)
+    // much later, a quick scroll up by 300
+    top = 880
+    scroll()
+    vi.advanceTimersByTime(500)
+    expect(top).toBe(880)
+    wrapper.unmount()
+  })
+})
+
 describe('loading earlier items at the top', () => {
   it('keeps the first item in view when the list is at the very top', async () => {
     const { wrapper, items, el } = list()

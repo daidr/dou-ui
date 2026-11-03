@@ -1,6 +1,6 @@
 {
   "name": "@dou-ui/editor",
-  "version": "0.0.0",
+  "version": "0.1.0-alpha.0",
   "description": "DouUI 的块编辑器：基于 ProseMirror，文档由可拖动、可转换的块组成",
   "keywords": [
     "vue",

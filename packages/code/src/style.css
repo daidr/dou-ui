@@ -548,6 +548,17 @@
       height: 0;
       color: var(--dou-color-text);
       line-height: 20px;
+      transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
+      /* hidden at once while a box around the editor scrolls, back once it stops */
+      &.is-scrolling {
+        opacity: 0;
+        pointer-events: none;
+        transition: none;
+      }
+      /* the editor sits in a fixed box: the page scrolling moves neither */
+      &.is-fixed {
+        position: fixed;
+      }
     }
   }
 

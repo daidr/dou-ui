@@ -3834,8 +3834,18 @@ function onHandleUp(event: PointerEvent) {
   const press = handlePress
   if (!press || event.pointerId !== press.pointer) return
   endHandlePress()
+  if (press.kind !== 'caret') return
+  // The handle reaches over the next line: a tap there is for that line's text, as if the handle were not there.
+  const pos = posAtCoords({ x: event.clientX, y: event.clientY })
+  const line = doc.value.lineAt(pos).number
+  if (line !== doc.value.lineAt(mainRange(state.value.selection).head).number) {
+    select('char', pos, false)
+    menuOpen.value = false
+    showInfo(pos, false)
+    return focusInput()
+  }
   // A tap on the handle under the cursor opens the toolbar, or puts it away.
-  if (press.kind === 'caret') menuOpen.value = !menuOpen.value
+  menuOpen.value = !menuOpen.value
 }
 
 /** Room between the toolbar or magnifier and what they point at. */

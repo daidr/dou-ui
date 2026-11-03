@@ -80,6 +80,19 @@ describe('touch', () => {
     expect(menu()).toEqual([])
   })
 
+  it('takes a tap on the caret handle over the next line as a tap on that line', async () => {
+    const { wrapper, tap, range, handles, menu } = setup()
+    await tap(at(6, 0))
+    expect(handles()).toEqual(['is-caret'])
+    const handle = wrapper.find('.dou-code-editor__handle.is-caret')
+    const below = at(4, 1)
+    await handle.trigger('pointerdown', { pointerType: 'touch', pointerId: 1, button: 0, ...below })
+    window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1, ...below }))
+    await nextTick()
+    expect(range()).toEqual({ anchor: 20, head: 20 })
+    expect(menu()).toEqual([])
+  })
+
   it('selects a word on a long press and grows it word by word, then offers the toolbar', async () => {
     vi.useFakeTimers()
     const { wrapper, touch, range, handles, menu } = setup()

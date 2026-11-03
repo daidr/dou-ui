@@ -17,11 +17,20 @@
 ## 发一个版本
 
 1. 在 Actions 里运行「Prepare release」，填版本号。它会改好所有包的版本号、把 `.changes/` 汇总进 CHANGELOG.md，跑完检查和构建，然后开一个「release: vX.Y.Z」PR。
+
+   这个 PR 由工作流自己的 token 创建，GitHub 不会为它触发 CI、Changelog 检查和 Vercel 预览；检查和构建已经在「Prepare release」里跑过（文档站构建除外）。如果给 `main` 设了必需的状态检查，PR 会一直显示“等待状态检查”：可以用管理员权限绕过合并，或者在本地检出这个分支、推一个提交（比如修改 CHANGELOG.md 的措辞），由你推送的提交会正常触发检查。
+
 2. 看一遍 PR 里的更新日志，需要的话直接在 PR 里改 CHANGELOG.md，然后合并。
 3. 合并后「Release」工作流在 GitHub 托管的机器上构建、打包并演练发布，然后停在 `npm` 环境等待批准。在工作流页面点 Review deployments → Approve。
 4. 批准后它依次发布所有包、打 tag、创建 GitHub Release；正式版还会把 `stable` 移到这个提交。
 
-某个包发布失败时，修好问题后重新运行失败的 job 即可，已经发布的包会被跳过。npm 上的版本号发出去就不能再用；发错了只能再发一个新版本，并用 `npm deprecate` 标记错的那个。
+发布后它还会移动 dist-tag：正式版把落后的 `beta`、`alpha` 指到这个版本；某个包还没有正式版时，`latest` 跟着最新的预发布版本走（npm 只在包第一次发布时自动设置 `latest`）。移动失败不会让工作流变红，但运行的摘要页会出现“dist-tag 未移动”的警告，按里面列出的命令在本地手动运行即可，例如：
+
+```sh
+npm dist-tag add @dou-ui/sheet@0.2.0 beta
+```
+
+某个包发布失败时，修好问题后在原来那次运行里点 Re-run failed jobs，已经发布的包会被跳过。不要在 Actions 里点 Run workflow 重发：它用的是分支当前的提交，如果发版提交之后又合并了别的 PR，工作流会报“不是发版提交”并停止。npm 上的版本号发出去就不能再用；发错了只能再发一个新版本，并用 `npm deprecate` 标记错的那个。
 
 ## 维护旧版本
 
@@ -43,30 +52,30 @@ bun run changelog preview          # 看待发布的改动
 
 ## 一次性设置
 
-### 首次发布
-
-npm 上还没有这些包时无法配置可信发布，所以第一个版本在本地发布：
-
-1. 照常运行「Prepare release」并合并发版 PR。「Release」工作流停在等待批准时先不要批准。
-2. 在本地切到发版 PR 合并后的提交，`npm login`（账号开启 2FA），然后：
-
-   ```sh
-   bun install && bun run gen && bun run build
-   bun run release:pack
-   bun run release:publish   # 每个包会提示输入一次 2FA 验证码
-   ```
-
-3. 配置可信发布（需要 npm 11.15 或更新）：`bun run release:trust`。
-4. 回到工作流页面批准。所有包都已存在，会被跳过，工作流只打 tag、建 Release。这一个版本没有透明度证明，之后的版本都有。
-5. 在 npmjs.com 每个包的 Settings → Publishing access 选 Require two-factor authentication and disallow tokens。
+按下面的顺序做。`npm` 环境一定要在第一次运行「Release」之前建好：工作流引用了一个不存在的环境时，GitHub 会自动建出一个没有审批人的同名环境，发布就不再等待批准。
 
 ### GitHub
 
-- 仓库公开（npm 不为私有仓库生成透明度证明）。
-- Settings → Environments 新建 `npm`：Required reviewers 加上自己；Deployment branches and tags 只允许 `main` 与 `release/*`。
-- Settings → Actions → General → Workflow permissions：勾选 Allow GitHub Actions to create and approve pull requests。
-- Settings → Rules → Rulesets：保护 `v*` tag 与 `stable` 分支，禁止删除和强推，只允许 GitHub Actions 绕过。
-- 给仓库加一个「无需记录」标签，用于不需要改动说明的 PR。
+1. 仓库公开。npm 不为私有仓库生成透明度证明，`--provenance` 会让发布直接失败。
+2. Settings → Actions → General：
+   - Fork pull request workflows from outside collaborators 选 Require approval for all external contributors。工作流里自托管 runner 上的 job 本来就跳过 fork 的 PR，这一项是第二道保险。
+   - Workflow permissions 勾选 Allow GitHub Actions to create and approve pull requests，「Prepare release」要开 PR。
+3. Settings → Environments 新建 `npm`：Required reviewers 加上自己；Deployment branches and tags 只允许 `main` 与 `release/*`。
+4. Settings → Rules → Rulesets：保护 `v*` tag 与 `stable` 分支，禁止删除和强推，只允许 GitHub Actions 绕过。
+5. 新建标签「无需记录」，给不需要改动说明的 PR 用。
+
+### npm
+
+1. 在 npmjs.com 创建组织 `dou-ui`（公开包免费），`@dou-ui/*` 都发布在这个作用域下。账号开启 2FA。
+2. 首次发布前，npm 上还没有这些包，无法配置可信发布，所以首个版本用一个短期 token 发：
+   - 在 npmjs.com 创建 Granular Access Token：Packages and scopes 选 Read and write，范围包含 `dou-ui` 组织和 `dou-ui` 这个包名；有效期选最短（如 1 天）。
+   - 把它存成 `npm` 环境的 secret `NPM_TOKEN`（Settings → Environments → npm → Environment secrets）。
+   - 照常走「发一个版本」的流程。工作流仍在 GitHub 托管的机器上发布，并带透明度证明。
+3. 首个版本发布成功后：
+   - 本地运行 `bun run release:trust`（需要 npm 11.15 或更新），给所有包配置可信发布：仓库 `daidr/dou-ui`、工作流 `release.yml`、环境 `npm`。
+   - 在 npmjs.com 每个包的 Settings → Trusted publishing 里，给这条配置打开 Allow npm dist-tag（默认关闭，命令行暂时不能设置），发布后移动 dist-tag 要用到。没打开时工作流会给出警告和手动命令。
+   - 删除 `npm` 环境里的 `NPM_TOKEN`，并在 npmjs.com 撤销这个 token。之后的版本都用可信发布，不再需要 token。
+   - 每个包的 Settings → Publishing access 选 Require two-factor authentication and disallow tokens。
 
 ### Vercel 与 DNS
 

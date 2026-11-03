@@ -142,8 +142,8 @@ export interface ReleaseOutput {
 
 /**
  * Adds a version's section to the changelog. A prerelease lists the pending
- * fragments; a release lists everything since the last release, and folds the
- * sections of its own prereleases into a collapsed block below it.
+ * fragments; a release lists everything since the last release, replaces the
+ * sections of its own prereleases and links to them.
  */
 export function releaseChangelog(input: ReleaseInput): ReleaseOutput {
   const version = parseVersion(input.version)
@@ -162,12 +162,16 @@ export function releaseChangelog(input: ReleaseInput): ReleaseOutput {
       return v?.pre && `${v.major}.${v.minor}.${v.patch}` === base
     })
     if (folded.length) {
-      const inner = folded
-        .map((section) => section.text.trim().replace(/^(#{2,5}) /gm, '#$1 '))
-        .join('\n\n')
-      const first = folded.at(-1)!.version
-      const last = folded[0]!.version
-      notes += `\n\n<details>\n<summary>预发布版本（${first === last ? first : `${first} 至 ${last}`}）</summary>\n\n${inner}\n\n</details>`
+      // Their changes are already listed above; only point to each one.
+      const oldestFirst = sorted(folded, (a, b) =>
+        compareVersions(parseVersion(a.version)!, parseVersion(b.version)!),
+      )
+      const links = oldestFirst.map((section) => {
+        const date = /^## \S+ · (\S+)/.exec(section.text)?.[1]
+        const link = `[${section.version}](${input.ctx.repoUrl}/releases/tag/v${section.version})`
+        return date ? `${link}（${date}）` : link
+      })
+      notes += `\n\n这一版的预发布版本：${links.join('、')}。`
     }
   }
   notes = notes.trim() || '没有记录的改动。'

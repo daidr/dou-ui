@@ -71,7 +71,12 @@ switch (command) {
     if (existsSync(file)) fail(`.changes/${name}.md 已存在。`)
     const type = ask(`类型（${changeTypes.join(' / ')}）：`, values.type) as ChangeType
     if (!changeTypes.includes(type)) fail(`类型必须是 ${changeTypes.join('、')} 之一。`)
-    const packages = ask('涉及的包目录名，逗号分隔（如 sheet,editor，可留空）：', values.packages)
+    // Given on the command line without --packages: no package in particular.
+    const scripted = values.type !== undefined || values.body !== undefined
+    const packages = ask(
+      '涉及的包目录名，逗号分隔（如 sheet,editor，可留空）：',
+      values.packages ?? (scripted ? '' : undefined),
+    )
       .split(',')
       .map((item) => item.trim())
       .filter(Boolean)
@@ -97,13 +102,14 @@ switch (command) {
         problems.push('不要直接改 CHANGELOG.md：改动记在 .changes/ 里，发版时会自动汇总。')
       }
       const source = changed.filter(isPackageSource)
-      const added = changed.some(
-        (path) => /^\.changes\/[^/]+\.md$/.test(path) && !path.endsWith('README.md'),
-      )
+      const touched = new Set(source.map((path) => path.split('/')[1]))
+      const added = git('diff', '--name-only', '--diff-filter=AMR', `${values.base}...HEAD`)
+        .split('\n')
+        .some((path) => /^\.changes\/[^/]+\.md$/.test(path) && !path.endsWith('README.md'))
       if (source.length && !added && !skip && !release) {
         problems.push(
           [
-            `这个 PR 改了 ${source.length} 个包的源码文件（如 ${source[0]}），但没有在 .changes/ 里加改动说明。`,
+            `这个 PR 改了 ${touched.size} 个包的源码（${source.length} 个文件，如 ${source[0]}），但没有在 .changes/ 里加改动说明。`,
             '运行 bun run changelog add 添加一条；如果改动用户感觉不到（纯重构、测试），给 PR 加上「无需记录」标签。',
           ].join('\n'),
         )

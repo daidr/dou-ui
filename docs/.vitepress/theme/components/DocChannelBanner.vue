@@ -4,8 +4,11 @@ import { useDocs } from '../use-docs'
 
 const { path, release } = useDocs()
 
+// `from=next` lets the stable site explain a page it does not have yet.
 const stablePage = computed(() =>
-  release.value ? `${release.value.sites.stable}${path.value === '/' ? '/' : path.value}` : '',
+  release.value
+    ? `${release.value.sites.stable}${path.value === '/' ? '/' : path.value}?from=next`
+    : '',
 )
 </script>
 

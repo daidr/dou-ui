@@ -207,8 +207,10 @@ export default defineConfig({
       ? ([['meta', { name: 'robots', content: 'noindex, nofollow' }]] as const)
       : []),
   ],
-  // Every page names its release-docs address as the original.
+  // The release docs name their own address; the development docs are not
+  // indexed and may have pages the release does not, so they name none.
   transformHead({ pageData }) {
+    if (channel !== 'stable') return []
     const path = pageData.relativePath.replace(/(^|\/)index\.md$/, '$1').replace(/\.md$/, '')
     return [['link', { rel: 'canonical', href: `${sites.stable}/${path}` }]]
   },

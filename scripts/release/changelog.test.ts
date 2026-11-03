@@ -114,7 +114,7 @@ describe('releaseChangelog', () => {
     )
   })
 
-  it('gathers a release from its prereleases and folds their sections', () => {
+  it('gathers a release from its prereleases and links to them', () => {
     const before = [
       intro,
       '## 0.2.0-beta.0 · 2026-02-10\n\n### 修复\n\n- 修好了\n',
@@ -135,8 +135,11 @@ describe('releaseChangelog', () => {
     expect(notes).toContain(
       '### 新增\n\n- 新功能\n\n### 改进\n\n- 最后的改进\n\n### 修复\n\n- 修好了',
     )
-    expect(notes).toContain('<summary>预发布版本（0.2.0-alpha.0 至 0.2.0-beta.0）</summary>')
-    expect(notes).toContain('### 0.2.0-beta.0 · 2026-02-10\n\n#### 修复')
+    expect(notes).toContain(
+      `这一版的预发布版本：[0.2.0-alpha.0](${ctx.repoUrl}/releases/tag/v0.2.0-alpha.0)（2026-02-01）、[0.2.0-beta.0](${ctx.repoUrl}/releases/tag/v0.2.0-beta.0)（2026-02-10）。`,
+    )
+    // listed once, not repeated for each prerelease
+    expect(notes.match(/新功能/g)).toHaveLength(1)
     // the prerelease sections live only inside the release now
     expect(changelog.match(/^## /gm)).toHaveLength(2)
     expect(changelog.indexOf('## 0.2.0 · 2026-03-01')).toBeLessThan(changelog.indexOf('## 0.1.0'))

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { ContextMenuItem } from 'dou-ui'
 import { ChevronDownIcon } from '../icons'
 import { useDocs } from '../use-docs'
 
@@ -14,38 +13,34 @@ const go = (url: string) => {
   window.location.href = url
 }
 
-// The same page on the other site, when it exists there.
-const items = computed<ContextMenuItem[]>(() => {
-  const info = release.value
-  if (!info) return []
+/** The same page on the other site; see DocNotFound for pages it lacks. */
+const pageOn = (channel: 'stable' | 'next') => {
+  const info = release.value!
   const page = path.value === '/' ? '/' : path.value
-  return [
-    {
-      key: 'stable',
-      label: '正式版文档',
-      checked: info.channel === 'stable',
-      run: () => go(`${info.sites.stable}${page}`),
-    },
-    {
-      key: 'next',
-      label: '开发版文档',
-      checked: info.channel === 'next',
-      run: () => go(`${info.sites.next}${page}`),
-    },
-    { key: 'changelog', label: '更新日志', divided: true, run: () => go(info.changelog) },
-  ]
-})
+  return `${info.sites[channel]}${page}${channel === 'stable' ? '?from=next' : ''}`
+}
+
+const pick = (channel: unknown) => {
+  if (channel !== release.value?.channel) go(pageOn(channel as 'stable' | 'next'))
+}
 </script>
 
 <template>
   <span v-if="release" class="doc-version-menu">
-    <DouDropdown :items="items" placement="bottom-end">
+    <DouDropdown placement="bottom-end">
       <DouButton variant="ghost" size="sm" :aria-label="`文档版本：${label}`">
         {{ label }}
         <template #trailing
           ><DouIcon><ChevronDownIcon /></DouIcon
         ></template>
       </DouButton>
+      <template #menu>
+        <DouDropdownRadioGroup :model-value="release.channel" @update:model-value="pick">
+          <DouDropdownItem value="stable">正式版文档</DouDropdownItem>
+          <DouDropdownItem value="next">开发版文档</DouDropdownItem>
+        </DouDropdownRadioGroup>
+        <DouDropdownItem divided @click="go(release.changelog)">更新日志</DouDropdownItem>
+      </template>
     </DouDropdown>
   </span>
 </template>

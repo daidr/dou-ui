@@ -37,3 +37,6 @@ for (const pkg of readPackages(root)) {
   }
 }
 print('全部包已配置可信发布。')
+print(
+  '还需要在 npmjs.com 每个包的 Settings → Trusted publishing 里打开「Allow npm dist-tag」，发布后移动 latest / alpha / beta 标签要用到（npm 命令行暂时不能设置这一项）。',
+)

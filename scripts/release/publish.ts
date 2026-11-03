@@ -2,7 +2,7 @@
  * Publish the tarballs in `.release/` to npm, dependencies first. Versions
  * already on the registry are skipped, so a failed run can simply be re-run.
  *
- *   bun run release:publish            # from the release workflow (trusted publishing)
+ *   bun run release:publish            # from the release workflow, with provenance
  *   bun run release:publish --dry-run  # check everything, publish nothing
  *
  * In GitHub Actions it writes `tag` (the dist-tag used) and `version` to the
@@ -67,6 +67,9 @@ for (const entry of entries) {
   }
   const args = ['npm', 'publish', entry.file, '--tag', tag, '--access', 'public']
   if (dryRun) args.push('--dry-run')
+  // Fails outright rather than publishing without provenance, e.g. from a
+  // private repository or with a token outside GitHub Actions.
+  else if (process.env.GITHUB_ACTIONS) args.push('--provenance')
   print(`\n$ ${args.join(' ')}`)
   if (!run(args).ok) {
     failed++
@@ -79,23 +82,37 @@ if (failed) {
   process.exit(1)
 }
 
-// A release should not leave `@beta` or `@alpha` installing something older.
-if (tag === 'latest' && !dryRun) {
+/**
+ * Dist-tags to move after publishing, per package:
+ * - a release should not leave `@beta` or `@alpha` installing something older;
+ * - before a package's first release, npm keeps `latest` on whichever
+ *   prerelease came first, so a newer prerelease takes it over.
+ */
+function staleTags(tags: Record<string, string>): string[] {
+  const older = (name: string) => {
+    const current = parseVersion(tags[name] ?? '')
+    return !!current && compareVersions(current, parsed) < 0
+  }
+  if (tag === 'latest') return ['beta', 'alpha'].filter(older)
+  const latestOfPackage = parseVersion(tags.latest ?? '')
+  return latestOfPackage?.pre && older('latest') ? ['latest'] : []
+}
+
+const manual: string[] = []
+if (!dryRun) {
   for (const entry of entries) {
-    const tags = distTags(entry.name)
-    for (const channel of ['beta', 'alpha']) {
-      const current = parseVersion(tags[channel] ?? '')
-      if (!current || compareVersions(current, parsed) >= 0) continue
-      const moved = run(['npm', 'dist-tag', 'add', `${entry.name}@${version}`, channel], {
-        quiet: true,
-      })
-      if (!moved.ok) {
-        console.warn(
-          `未能把 ${entry.name} 的 ${channel} 指到 ${version}，可以稍后手动运行：npm dist-tag add ${entry.name}@${version} ${channel}`,
-        )
-      }
+    for (const channel of staleTags(distTags(entry.name))) {
+      const command = ['npm', 'dist-tag', 'add', `${entry.name}@${version}`, channel]
+      print(`$ ${command.join(' ')}`)
+      if (!run(command, { quiet: true }).ok) manual.push(command.join(' '))
     }
   }
+}
+if (manual.length) {
+  // The packages are out, so the run stays green; the annotation makes the
+  // leftover step visible on the run's summary page.
+  const message = `以下 dist-tag 没能移动，请在本地登录 npm 后手动运行：${manual.join('；')}`
+  print(process.env.GITHUB_ACTIONS ? `::warning title=dist-tag 未移动::${message}` : message)
 }
 
 if (process.env.GITHUB_OUTPUT) {

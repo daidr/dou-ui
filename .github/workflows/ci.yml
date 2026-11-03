@@ -11,6 +11,8 @@ concurrency:
 
 jobs:
   check:
+    # pull requests from forks never run on the self-hosted machine
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: [self-hosted, macOS, ARM64]
     steps:
       - uses: actions/checkout@v4
@@ -61,6 +63,8 @@ jobs:
           exit $status
 
   bench:
+    # pull requests from forks never run on the self-hosted machine
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: [self-hosted, macOS, ARM64]
     steps:
       - uses: actions/checkout@v4

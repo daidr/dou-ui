@@ -1,7 +1,9 @@
 # Publish a release once its "release: vX.Y.Z" pull request is merged.
 # Builds on a GitHub-hosted runner, waits for approval in the `npm`
-# environment, then publishes every package with npm trusted publishing
-# (provenance included), tags the commit and creates the GitHub release.
+# environment, then publishes every package with provenance, tags the commit
+# and creates the GitHub release. Publishing uses npm trusted publishing;
+# only the very first release, before the packages exist on npm, uses a
+# short-lived token stored as the environment's NPM_TOKEN secret.
 # A release on `latest` also moves the `stable` branch, which the docs at
 # ui.daidr.me deploy from.
 name: Release
@@ -10,7 +12,8 @@ on:
   push:
     branches: [main, 'release/**']
     paths: [packages/dou-ui/package.json]
-  # re-run the release of the current commit, e.g. after a failed publish
+  # Publishes the branch's current commit, which must be the release commit
+  # itself; after a failed publish, prefer re-running the failed jobs.
   workflow_dispatch:
 
 concurrency:
@@ -22,12 +25,16 @@ permissions:
 
 jobs:
   plan:
+    # only release branches publish, whatever triggered the run
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/')
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.plan.outputs.version }}
       release: ${{ steps.plan.outputs.release }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
       - id: plan
         run: |
           version=$(node -p "require('./packages/dou-ui/package.json').version")
@@ -37,6 +44,10 @@ jobs:
           elif git ls-remote --exit-code --tags origin "refs/tags/v$version" > /dev/null; then
             echo "v$version 已经发布过，跳过。"
             echo "release=false" >> "$GITHUB_OUTPUT"
+          elif ! git diff --name-only HEAD~1 HEAD | grep -qx packages/dou-ui/package.json; then
+            # Code merged after the release commit must not ship under its version.
+            echo "::error title=不是发版提交::当前提交 $(git rev-parse --short HEAD) 没有修改版本号，不是 v$version 的发版提交。请到发版提交触发的那次运行里重跑失败的 job，或者重新准备一个版本。"
+            exit 1
           else
             echo "release=true" >> "$GITHUB_OUTPUT"
           fi
@@ -76,6 +87,7 @@ jobs:
 
   publish:
     needs: [plan, build]
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/')
     runs-on: ubuntu-latest
     # the environment's required reviewer approves every publish
     environment: npm
@@ -106,6 +118,9 @@ jobs:
 
       - name: Publish to npm
         id: publish
+        env:
+          # empty once trusted publishing is configured; see RELEASING.md
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: bun run release:publish
 
       - name: Tag and create the GitHub release

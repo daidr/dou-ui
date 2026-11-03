@@ -208,6 +208,40 @@
     color: var(--dou-color-text-disabled);
   }
 
+  /*
+   * Compact: the row did not fit, so only the current step keeps its
+   * title; the others are read out but not shown, and the hairlines grow
+   * no shorter than their least. Should even that not fit, the row scrolls.
+   */
+  .dou-steps.is-compact {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+    /* room for the focus ring, which the scroll area would clip */
+    margin: -4px;
+    padding: 4px;
+
+    & .dou-steps__item:not(:last-child) {
+      flex: 1 0 auto;
+    }
+
+    & .dou-steps__item:not([aria-current]) .dou-steps__text {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+  }
+
+  /* the description under a folded step's title, in its tooltip */
+  .dou-steps__tip-description {
+    display: block;
+    opacity: 0.72;
+  }
+
   /* vertical: the line runs down from the marker, beside the text */
   .dou-steps--vertical {
     flex-direction: column;

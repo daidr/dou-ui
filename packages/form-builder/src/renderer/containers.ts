@@ -331,17 +331,14 @@ function itemKey(item: unknown) {
 
 /**
  * The copy of an item that follows the pointer. It sits on `body`, away
- * from the form whose width picks the columns and whose classes set the
- * layout, so it is wrapped in an element with the form's classes and every
- * cell keeps the columns it has now.
+ * from the form whose width picks the columns, whose classes set the layout
+ * and whose surroundings may change the gaps (the designer's settings panel
+ * narrows them), so it is wrapped in an element with the form's classes and
+ * every grid in it keeps the columns and gaps it has now, in pixels.
  */
 function listGhost(el: HTMLElement): HTMLElement {
   const clone = el.cloneNode(true) as HTMLElement
-  const cells = el.querySelectorAll<HTMLElement>('.dou-form-renderer__cell')
-  clone.querySelectorAll<HTMLElement>('.dou-form-renderer__cell').forEach((cell, index) => {
-    const source = cells[index]
-    if (source) cell.style.gridColumn = getComputedStyle(source).gridColumn
-  })
+  freezeGrids(el, clone)
   const form = el.closest<HTMLElement>('.dou-form')
   if (!form) return clone
   const wrapper = document.createElement('div')
@@ -350,6 +347,25 @@ function listGhost(el: HTMLElement): HTMLElement {
   wrapper.style.containerType = 'normal'
   wrapper.append(clone)
   return wrapper
+}
+
+/** Writes the computed grid tracks, gaps and cell placement of `source` onto its copy. */
+function freezeGrids(source: HTMLElement, copy: HTMLElement) {
+  const from = [source, ...source.querySelectorAll<HTMLElement>('*')]
+  const to = [copy, ...copy.querySelectorAll<HTMLElement>('*')]
+  from.forEach((element, index) => {
+    const target = to[index]
+    if (!target) return
+    const style = getComputedStyle(element)
+    if (style.display === 'grid' || style.display === 'inline-grid') {
+      target.style.gridTemplateColumns = style.gridTemplateColumns
+      target.style.columnGap = style.columnGap
+      target.style.rowGap = style.rowGap
+    }
+    if (element.classList.contains('dou-form-renderer__cell')) {
+      target.style.gridColumn = style.gridColumn
+    }
+  })
 }
 
 /** The rules of a list itself: its own, and its bounds on the number of items. */

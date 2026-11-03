@@ -6,7 +6,7 @@
 
 ## 基础用法
 
-默认插槽是触发元素，`content` 是提示文字。指向后稍等片刻出现，键盘聚焦时立即出现。
+默认插槽是触发元素，`content` 是提示文字。指向后稍等片刻出现，键盘聚焦时立即出现。同一时间只显示一个由悬停或聚焦打开的提示：键盘聚焦在一个按钮上时再用鼠标指向另一个，前一个提示会关闭。通过 `v-model:open` 从外部打开的提示（比如引导说明）不参与：不会关掉别的提示，也不会被别的提示关掉。
 
 <DocDemo src="tooltip/basic" />
 
@@ -46,19 +46,19 @@
 
 ### Props
 
-| 名称           | 说明                           | 类型                             | 默认值   |
-| -------------- | ------------------------------ | -------------------------------- | -------- |
-| `open`         | 是否显示，配合 `v-model:open`  | `boolean`                        | `false`  |
-| `content`      | 提示文字                       | `string`                         | —        |
-| `shortcut`     | 快捷键，显示在文字后面         | `string`                         | —        |
-| `placement`    | 首选的一侧                     | `Placement`                      | `'top'`  |
-| `disabled`     | 不再显示                       | `boolean`                        | `false`  |
-| `showDelay`    | 指向后多久显示，毫秒           | `number`                         | `200`    |
-| `hideDelay`    | 离开后多久隐藏，毫秒           | `number`                         | `100`    |
-| `offset`       | 与触发元素的间距，px           | `number`                         | `6`      |
-| `followCursor` | 跟随鼠标                       | `boolean`                        | `false`  |
-| `interactive`  | 鼠标可以移入提示               | `boolean`                        | `true`   |
-| `teleport`     | 渲染到哪里；`false` 为原地渲染 | `string \| HTMLElement \| false` | `'body'` |
+| 名称           | 说明                                                              | 类型                             | 默认值   |
+| -------------- | ----------------------------------------------------------------- | -------------------------------- | -------- |
+| `open`         | 是否显示，配合 `v-model:open`；从外部打开的提示不会被其他提示关掉 | `boolean`                        | `false`  |
+| `content`      | 提示文字                                                          | `string`                         | —        |
+| `shortcut`     | 快捷键，显示在文字后面                                            | `string`                         | —        |
+| `placement`    | 首选的一侧                                                        | `Placement`                      | `'top'`  |
+| `disabled`     | 不再显示                                                          | `boolean`                        | `false`  |
+| `showDelay`    | 指向后多久显示，毫秒                                              | `number`                         | `200`    |
+| `hideDelay`    | 离开后多久隐藏，毫秒                                              | `number`                         | `100`    |
+| `offset`       | 与触发元素的间距，px                                              | `number`                         | `6`      |
+| `followCursor` | 跟随鼠标                                                          | `boolean`                        | `false`  |
+| `interactive`  | 鼠标可以移入提示                                                  | `boolean`                        | `true`   |
+| `teleport`     | 渲染到哪里；`false` 为原地渲染                                    | `string \| HTMLElement \| false` | `'body'` |
 
 `Placement` 为 `'top' | 'right' | 'bottom' | 'left'`，可加 `-start` / `-end`。
 

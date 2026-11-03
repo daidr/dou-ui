@@ -353,18 +353,6 @@
     margin: 0;
   }
 
-  /* Narrow forms keep only the current step's title; the others are read out but not shown. */
-  @container dou-form-renderer (width < 480px) {
-    .dou-form-renderer__steps .dou-steps__item:not([aria-current]) .dou-steps__text {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      overflow: hidden;
-      clip-path: inset(50%);
-      white-space: nowrap;
-    }
-  }
-
   /* Below the first breakpoint there is no room beside the fields: labels go above. */
   @container dou-form-renderer (width < 480px) {
     .dou-form-renderer--horizontal .dou-form-item.is-fixed-label {

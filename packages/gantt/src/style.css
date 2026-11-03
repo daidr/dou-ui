@@ -436,8 +436,13 @@
        label on both axes at its trimmed box, even with overflow-x only */
     margin-block: -4px;
     padding: 4px 8px;
+    /* a cell cut short at the end of the range is narrower than its label */
+    box-sizing: border-box;
+    min-width: 0;
+    max-width: 100%;
     overflow-x: clip;
     text-overflow: ellipsis;
+    white-space: nowrap;
     text-box: trim-both cap alphabetic;
   }
 

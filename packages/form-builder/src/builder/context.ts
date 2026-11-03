@@ -163,7 +163,7 @@ export function useFormBuilder(): FormBuilderContext {
   const state = inject(builderKey, undefined)
   if (!state)
     throw new Error(
-      '[@dou-ui/form-builder] useFormBuilder() must be called inside a DouFormBuilder',
+      '[@dou-ui/form-builder] useFormBuilder() must be called inside <DouFormBuilder>',
     )
   return state
 }

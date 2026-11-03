@@ -347,6 +347,6 @@ export const CODE_EDITOR_KEY: InjectionKey<CodeExtensionContext> = Symbol('DouCo
 export function useCodeEditor(): CodeExtensionContext {
   const context = inject(CODE_EDITOR_KEY, null)
   if (!context)
-    throw new Error('[@dou-ui/code] useCodeEditor() must be called inside a DouCodeEditor')
+    throw new Error('[@dou-ui/code] useCodeEditor() must be called inside <DouCodeEditor>')
   return context
 }

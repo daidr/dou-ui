@@ -251,7 +251,8 @@ export function sheetToCSV(sheet: SheetData, options: SheetCSVWriteOptions = {})
     escapeFormulas = true,
   } = options
   const range = typeof options.range === 'string' ? parseRange(options.range) : options.range
-  if (options.range != null && !range) throw new RangeError(`"${options.range}" isn't a range`)
+  if (options.range != null && !range)
+    throw new RangeError(`[@dou-ui/sheet] "${options.range}" isn't a range`)
   const data = dataBounds(sheet)
   const b = range ? boundsOf(range) : data
   if (!b || !data) return bom ? '\ufeff' : ''

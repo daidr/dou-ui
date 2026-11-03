@@ -17,13 +17,14 @@ export interface PivotWorkerLike {
 const SLICE = 6
 
 const PREFIX = '[@dou-ui/pivot]'
+const CANNOT_START = 'the worker could not start'
 /** Why the worker can't sum up, with the package prefix in front of what the browser said. */
 const brokenMessage = (message: string | undefined) =>
   !message
-    ? `${PREFIX} worker 无法启动`
+    ? `${PREFIX} ${CANNOT_START}; check that the worker file loads (a 404, a CSP or cross-origin block, or a bundler that left it out), or use :worker="false" or createPivotWorker()`
     : message.startsWith(PREFIX)
       ? message
-      : `${PREFIX} worker 无法启动：${message}`
+      : `${PREFIX} ${CANNOT_START}: ${message}`
 
 const abortError = () => new DOMException('A newer config came in', 'AbortError')
 
@@ -183,7 +184,7 @@ export function createPivotWorker(worker: PivotWorkerLike | (() => PivotWorkerLi
         if (answer.type === 'skipped') throw abortError()
         await ship(source, answer, signal)
       }
-      throw new Error('[@dou-ui/pivot] worker 一直缺少字段')
+      throw new Error('[@dou-ui/pivot] the worker still lacks fields after they were sent')
     },
     dispose() {
       w?.terminate?.()

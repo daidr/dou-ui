@@ -214,7 +214,7 @@ describe('computePivot', () => {
     expect(ranged.get(0, 0)).toBeCloseTo(Math.max(...list) - Math.min(...list), 6)
     expect(() =>
       computePivot(source, { values: [{ field: 'amount', aggregate: 'nope' }] }),
-    ).toThrow('没有名为')
+    ).toThrow('there is no aggregate named')
   })
 
   it('gives the same totals however many combinations the groups make', () => {

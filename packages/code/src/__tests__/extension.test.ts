@@ -436,7 +436,7 @@ describe('extensions', () => {
       return () => null
     })
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    expect(() => mount(Lost)).toThrow('inside a DouCodeEditor')
+    expect(() => mount(Lost)).toThrow('inside <DouCodeEditor>')
     warn.mockRestore()
   })
 

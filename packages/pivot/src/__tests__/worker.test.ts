@@ -223,7 +223,7 @@ describe('when the worker cannot start', () => {
     fail!(new Event('error'))
     expect(await caught).toBeInstanceOf(Error)
     await expect(engine.compute(source, { rows: ['city'] })).rejects.toThrow(
-      '[@dou-ui/pivot] worker 无法启动',
+      '[@dou-ui/pivot] the worker could not start',
     )
   })
 

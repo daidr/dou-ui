@@ -52,11 +52,13 @@ export class ChangeSet {
     const changes: CodeChange[] = []
     for (const change of sorted) {
       if (change.from < 0 || change.to > length || change.from > change.to)
-        throw new RangeError(`Change ${change.from}–${change.to} is outside 0–${length}`)
+        throw new RangeError(
+          `[@dou-ui/code] change ${change.from}–${change.to} is outside 0–${length}`,
+        )
       const last = changes[changes.length - 1]
       if (last && change.from < last.to)
         throw new RangeError(
-          `Changes ${last.from}–${last.to} and ${change.from}–${change.to} overlap`,
+          `[@dou-ui/code] changes ${last.from}–${last.to} and ${change.from}–${change.to} overlap`,
         )
       // Normalize line breaks, so the text never holds a `\r`.
       if (change.insert.includes('\r')) change.insert = change.insert.replace(/\r\n?/g, '\n')
@@ -87,7 +89,9 @@ export class ChangeSet {
   /** Applies the changes to `text`, which must be the text they were made for. */
   apply(text: CodeText): CodeText {
     if (text.length !== this.length)
-      throw new RangeError(`Changes for a text of ${this.length} applied to one of ${text.length}`)
+      throw new RangeError(
+        `[@dou-ui/code] changes for a text of ${this.length} applied to one of ${text.length}`,
+      )
     // From the end, so earlier offsets stay right.
     for (let i = this.changes.length - 1; i >= 0; i--) {
       const change = this.changes[i]!
@@ -154,7 +158,7 @@ export class ChangeSet {
   compose(next: ChangeSet): ChangeSet {
     if (next.length !== this.newLength)
       throw new RangeError(
-        `Composing changes for ${next.length} after ones that make ${this.newLength}`,
+        `[@dou-ui/code] composing changes for ${next.length} after ones that make ${this.newLength}`,
       )
     const a = toOps(this)
     const b = toOps(next)
@@ -183,7 +187,7 @@ export class ChangeSet {
         opA = sizeA > n ? shrink(opA, n) : a[i++]
         opB = sizeB > n ? shrink(opB, n) : b[j++]
       } else {
-        throw new RangeError('Change sets of different lengths')
+        throw new RangeError('[@dou-ui/code] change sets of different lengths')
       }
     }
     return fromOps(out, this.length)

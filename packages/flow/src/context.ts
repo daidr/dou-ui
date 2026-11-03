@@ -370,7 +370,7 @@ export const flowEditorKey: InjectionKey<FlowEditorContext> = Symbol('dou-flow-e
 export function useFlowEditor() {
   const context = inject(flowEditorKey, null)
   if (!context)
-    throw new Error('[@dou-ui/flow] useFlowEditor() must be used inside <DouFlowEditor>')
+    throw new Error('[@dou-ui/flow] useFlowEditor() must be called inside <DouFlowEditor>')
   return context
 }
 

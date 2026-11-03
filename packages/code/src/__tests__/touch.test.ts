@@ -254,13 +254,62 @@ function layer() {
   return document.querySelector('.dou-code-editor__floating.is-outside')!
 }
 
-/** Whether the bar of keys above the page is faded out for a page scroll. */
-function keysScrolling() {
-  return document.querySelector('.dou-code-editor__keys')!.classList.contains('is-scrolling')
+/** Where the bar of keys is drawn, from its transform. */
+function keysPlace() {
+  const bar = document.querySelector<HTMLElement>('.dou-code-editor__keys')!
+  const [x, y] = bar.style.transform.match(/-?[\d.]+/g)!.map(Number)
+  return { x: x!, y: y! }
 }
 
 describe('touch on a phone', () => {
   afterEach(() => vi.unstubAllGlobals())
+
+  it('puts the bar of keys in the page, moved by its grip and not by the keyboard', async () => {
+    stubCoarsePointer()
+    const resize = stubViewport(800)
+    // The bar's box is where its transform puts it, as in a page with layout.
+    const box = HTMLElement.prototype.getBoundingClientRect
+    const rects = vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockImplementation(function (this: HTMLElement) {
+        if (!this.classList.contains('dou-code-editor__keys')) return box.call(this)
+        const [x = 0, y = 0] = (this.style.transform.match(/-?[\d.]+/g) ?? []).map(Number)
+        return DOMRect.fromRect({ x, y, width: 300, height: 44 })
+      })
+    const { tap } = setup()
+    await nextTick()
+    await tap(at(6, 0))
+    await nextTick()
+    await nextTick()
+    const grip = document.querySelector<HTMLElement>('.dou-code-editor__keys-grip')!
+    expect(grip.getAttribute('aria-label')).toBe('移动符号栏')
+    const before = keysPlace()
+    // The keyboard coming up leaves it where it is.
+    resize(400)
+    await nextTick()
+    expect(keysPlace()).toEqual(before)
+    grip.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        pointerId: 2,
+        pointerType: 'touch',
+        button: 0,
+        clientX: 10,
+        clientY: 10,
+        bubbles: true,
+      }),
+    )
+    window.dispatchEvent(
+      new PointerEvent('pointermove', { pointerId: 2, clientX: 30, clientY: 60 }),
+    )
+    window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 2, clientX: 30, clientY: 60 }))
+    await nextTick()
+    expect(keysPlace()).toEqual({ x: before.x + 20, y: before.y + 50 })
+    // And by the arrow keys, from the keyboard.
+    grip.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }))
+    await nextTick()
+    expect(keysPlace()).toEqual({ x: before.x + 20, y: before.y + 42 })
+    rects.mockRestore()
+  })
 
   it('follows the keyboard as it comes up or grows, not while a finger scrolls the page and its bars resize the view', async () => {
     stubCoarsePointer()
@@ -271,11 +320,11 @@ describe('touch on a phone', () => {
     await nextTick()
     await tap(at(6, 1))
     await nextTick()
-    resize(100)
+    resize(70)
     expect(scrollBy).toHaveBeenCalled()
     scrollBy.mockClear()
     // A row of candidates over the keyboard, a little taller.
-    resize(60)
+    resize(50)
     expect(scrollBy).toHaveBeenCalled()
     scrollBy.mockClear()
     // The browser's own bar grows back while a finger scrolls the page.
@@ -295,36 +344,6 @@ describe('touch on a phone', () => {
     await nextTick()
     resize(400, 2)
     expect(scrollBy).not.toHaveBeenCalled()
-  })
-
-  it("keeps the bar of keys in place for the editor's own scroll to the cursor", async () => {
-    stubCoarsePointer()
-    const resize = stubViewport(800)
-    vi.stubGlobal('scrollBy', () => window.dispatchEvent(new Event('scroll')))
-    const { tap } = setup()
-    await nextTick()
-    await tap(at(6, 1))
-    await nextTick()
-    resize(60)
-    await nextTick()
-    expect(keysScrolling()).toBe(false)
-  })
-
-  it('fades the bar of keys out while the page scrolls', async () => {
-    vi.useFakeTimers()
-    stubCoarsePointer()
-    stubViewport(400)
-    const { tap } = setup()
-    await nextTick()
-    await tap(at(6, 0))
-    await nextTick()
-    expect(keysScrolling()).toBe(false)
-    window.dispatchEvent(new Event('scroll'))
-    await nextTick()
-    expect(keysScrolling()).toBe(true)
-    vi.advanceTimersByTime(200)
-    await nextTick()
-    expect(keysScrolling()).toBe(false)
   })
 
   it("keeps only a caret in the textarea, so the system's own selection never shows; typing replaces the selection", async () => {

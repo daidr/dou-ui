@@ -17,8 +17,10 @@ export interface CodeMessages {
   selectAll: string
   /** Toolbar button of a language server (`@dou-ui/code/lsp`): go to where the name is defined. */
   goToDefinition: string
-  /** The bar of symbol keys above a phone's keyboard. */
+  /** The bar of symbol keys on a touch screen. */
   keys: string
+  /** The grip that moves the bar of symbol keys. */
+  moveKeys: string
   /** The Tab key on that bar. */
   indent: string
   cursorLeft: string
@@ -85,6 +87,7 @@ export const zhCN: CodeMessages = {
   selectAll: '全选',
   goToDefinition: '跳到定义',
   keys: '符号栏',
+  moveKeys: '移动符号栏',
   indent: '缩进',
   cursorLeft: '光标左移',
   cursorRight: '光标右移',
@@ -133,6 +136,7 @@ export const zhTW: CodeMessages = {
   selectAll: '全選',
   goToDefinition: '跳至定義',
   keys: '符號列',
+  moveKeys: '移動符號列',
   indent: '縮排',
   cursorLeft: '游標左移',
   cursorRight: '游標右移',
@@ -181,6 +185,7 @@ export const en: CodeMessages = {
   selectAll: 'Select all',
   goToDefinition: 'Go to definition',
   keys: 'Symbols',
+  moveKeys: 'Move symbols',
   indent: 'Indent',
   cursorLeft: 'Move left',
   cursorRight: 'Move right',

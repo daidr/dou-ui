@@ -39,7 +39,7 @@
 | `closeBrackets` | 输入括号和引号时补上另一半                                           | `boolean`                                | `true`                       |
 | `tabSize`       | 制表位宽度                                                           | `number`                                 | `2`                          |
 | `teleport`      | 补全列表、说明和触屏把手的渲染位置；`false` 时在输入框内，可能被裁掉 | `string \| HTMLElement \| false`         | 全局配置，否则 `body`        |
-| `keys`          | 触屏上键盘上方的符号栏                                               | `boolean \| (CodeKey \| string)[]`       | `false`                      |
+| `keys`          | 触屏上可拖动的符号栏                                                 | `boolean \| (CodeKey \| string)[]`       | `false`                      |
 | `messages`      | 改写界面上的文字                                                     | `Partial<CodeMessages>`                  | —                            |
 | `autofocus`     | 挂载后获得焦点                                                       | `boolean`                                | `false`                      |
 | `ariaLabel`     | 读屏读出的名称                                                       | `string`                                 | —                            |

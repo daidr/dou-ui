@@ -1000,35 +1000,41 @@
   }
 
   /*
-   * the bar of keys, floating a gap above the phone's keyboard and in from
-   * the screen's edges, like the system's own bars over it
+   * the bar of keys: a capsule in the page below the editor, scrolling with
+   * it, moved anywhere by the grip at its start
    */
   .dou-code-editor__keys {
-    position: fixed;
+    position: absolute;
     top: 0;
     left: 0;
     box-sizing: border-box;
-    padding: 0 max(8px, env(safe-area-inset-right)) 0 max(8px, env(safe-area-inset-left));
-    pointer-events: none;
+    display: flex;
+    height: 44px;
+    padding: 0 3px 0 0;
+    overflow: hidden;
+    border: 1px solid color-mix(in oklab, var(--dou-color-text) 10%, transparent);
+    border-radius: 22px;
+    background-color: color-mix(in oklab, var(--dou-color-bg-surface) 92%, transparent);
+    box-shadow: var(--dou-shadow-md);
+    -webkit-backdrop-filter: blur(20px) saturate(1.8);
+    backdrop-filter: blur(20px) saturate(1.8);
     transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
+    /* in a fixed box, the page scrolling moves neither */
+    &.is-fixed {
+      position: fixed;
+    }
+    /* hidden at once while a box around the editor scrolls, back once it stops */
     &.is-scrolling {
       opacity: 0;
-      & > .dou-code-keys {
-        pointer-events: none;
-      }
+      pointer-events: none;
+      transition: none;
     }
-    /* a capsule: the keys inside are rounded to match, 4px in */
     & > .dou-code-keys {
-      height: 44px;
-      padding: 0 3px;
-      overflow: hidden;
-      border: 1px solid color-mix(in oklab, var(--dou-color-text) 10%, transparent);
-      border-radius: 22px;
-      background-color: color-mix(in oklab, var(--dou-color-bg-surface) 92%, transparent);
-      box-shadow: var(--dou-shadow-md);
-      -webkit-backdrop-filter: blur(20px) saturate(1.8);
-      backdrop-filter: blur(20px) saturate(1.8);
-      pointer-events: auto;
+      flex: 1 1 auto;
+      min-width: 0;
+      height: 42px;
+      border-top: 0;
+      background-color: transparent;
       .dou-code-keys__scroll {
         padding: 0;
       }
@@ -1050,6 +1056,33 @@
       .dou-code-keys__key {
         border-radius: 18px;
       }
+    }
+  }
+  .dou-code-editor__keys-grip {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    margin: 0;
+    padding: 0 0 0 4px;
+    border: 0;
+    background: none;
+    color: var(--dou-color-text-tertiary);
+    cursor: grab;
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+    & > svg {
+      width: 16px;
+      height: 16px;
+    }
+    &:active {
+      cursor: grabbing;
+    }
+    &:focus-visible {
+      border-radius: 18px;
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: -4px;
     }
   }
 

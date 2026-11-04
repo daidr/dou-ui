@@ -6,6 +6,12 @@ export type MenuMode = 'vertical' | 'horizontal'
 export interface MenuItemOption {
   key: MenuKey
   label: string
+  /**
+   * A line under the label that says more about the item. It shows in an
+   * expanded vertical menu and in popups; the top row of a horizontal or
+   * collapsed menu keeps one line and only reads it to screen readers.
+   */
+  description?: string
   /** An icon component, shown before the label and alone when the menu is collapsed. */
   icon?: Component
   disabled?: boolean
@@ -60,6 +66,8 @@ export interface MenuEmits {
 export interface MenuSlots {
   /** Replaces the label of each item, e.g. to add a badge. */
   label?: (props: { item: MenuItemOption; selected: boolean }) => unknown
+  /** Replaces the description of each item that has one, e.g. to set part of it in bold. */
+  description?: (props: { item: MenuItemOption; selected: boolean }) => unknown
 }
 
 export interface MenuContext {
@@ -72,6 +80,7 @@ export interface MenuContext {
   choose: (item: MenuItemOption, fromPopup?: boolean) => void
   contextmenu: (item: MenuItemOption, event: MouseEvent) => void
   labelSlot: () => MenuSlots['label']
+  descriptionSlot: () => MenuSlots['description']
   subId: (key: MenuKey) => string
 }
 
@@ -102,7 +111,15 @@ export function pathTo(options: MenuOption[], key: MenuKey): MenuKey[] | undefin
 }
 
 export type FlatRow = { kind: 'item'; item: MenuItemOption } | { kind: 'divider' }
-export type FlatEntry = FlatRow | { kind: 'group'; label: string; rows: FlatRow[] }
+export type FlatEntry =
+  | FlatRow
+  | {
+      kind: 'group'
+      label: string
+      /** The submenu the group came from; a plain group has none. */
+      item?: MenuItemOption
+      rows: FlatRow[]
+    }
 
 /**
  * Lay a submenu out as one list for a popup: groups and deeper submenus
@@ -118,7 +135,13 @@ export function flatten(options: MenuOption[]): FlatEntry[] {
       const inner = flatten(option.children!)
       const rows = inner.filter((entry): entry is FlatRow => entry.kind !== 'group')
       // a group that only holds deeper ones gets no heading of its own
-      if (rows.length) entries.push({ kind: 'group', label: option.label, rows })
+      if (rows.length)
+        entries.push({
+          kind: 'group',
+          label: option.label,
+          ...(!isGroup(option) && { item: option }),
+          rows,
+        })
       entries.push(...inner.filter((entry) => entry.kind === 'group'))
     } else entries.push({ kind: 'item', item: option })
   }

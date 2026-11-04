@@ -90,9 +90,11 @@ export async function insertImages(
           const given = typeof done === 'string' ? done : done?.src
           if (typeof given !== 'string' || !given) {
             // a broken image would go in otherwise
-            console.warn(
-              `[@dou-ui/flow] upload returned no src for "${file.name}"; return a URL or { src, alt }`,
-            )
+            if (process.env.NODE_ENV !== 'production') {
+              console.warn(
+                `[@dou-ui/flow] upload returned no src for "${file.name}"; return a URL or { src, alt }`,
+              )
+            }
             throw new Error('[@dou-ui/flow] upload returned no src')
           }
           src = given

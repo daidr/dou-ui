@@ -30,9 +30,10 @@ const extensions = [
 const customExtensions = [
   flowKit(),
   whiteboardKit({
-    async upload() {
+    async upload(file) {
       await new Promise((resolve) => setTimeout(resolve, 600))
-      throw new Error('服务器暂时不可用')
+      if (failing.value) throw new Error('服务器暂时不可用')
+      return readAsDataUrl(file)
     },
     onUploadError(file, error) {
       toast.danger(`${file.name} 上传失败：${(error as Error).message}`, { placement: 'bottom' })
@@ -61,7 +62,7 @@ const doc = ref<FlowDocument>({
   <div class="board-upload">
     <div class="board-upload__switches">
       <label class="board-upload__toggle">
-        <DouSwitch v-model="failing" :disabled="custom" />
+        <DouSwitch v-model="failing" />
         模拟上传失败
       </label>
       <label class="board-upload__toggle">

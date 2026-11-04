@@ -104,7 +104,8 @@ import { toast } from 'dou-ui'
 whiteboardKit({
   upload,
   onUploadError(file, error) {
-    toast.danger(`${file.name} 上传失败：${(error as Error).message}`)
+    // 放在下方，不挡住白板的工具栏
+    toast.danger(`${file.name} 上传失败：${(error as Error).message}`, { placement: 'bottom' })
   },
 })
 ```

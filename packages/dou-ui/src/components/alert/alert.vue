@@ -38,13 +38,17 @@ function close(event: MouseEvent) {
     <span v-if="showIcon" :class="ns.e('icon')">
       <slot name="icon"><Icon /></slot>
     </span>
-    <div :class="ns.e('content')">
-      <div v-if="hasTitle" :class="ns.e('title')">
-        <slot name="title">{{ title }}</slot>
+    <!-- text and actions share a wrapping row: when the text would get
+         narrower than --dou-alert-text-min, the actions drop below it -->
+    <div :class="ns.e('body')">
+      <div :class="ns.e('content')">
+        <div v-if="hasTitle" :class="ns.e('title')">
+          <slot name="title">{{ title }}</slot>
+        </div>
+        <div v-if="slots.default" :class="ns.e('description')"><slot /></div>
       </div>
-      <div v-if="slots.default" :class="ns.e('description')"><slot /></div>
+      <div v-if="slots.action" :class="ns.e('action')"><slot name="action" /></div>
     </div>
-    <div v-if="slots.action" :class="ns.e('action')"><slot name="action" /></div>
     <button
       v-if="closable"
       type="button"

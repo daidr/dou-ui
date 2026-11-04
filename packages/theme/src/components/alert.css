@@ -11,6 +11,8 @@
     --dou-alert-bg: color-mix(in oklab, var(--dou-color-text) 3%, var(--dou-color-bg-surface));
     --dou-alert-border: var(--dou-color-border);
     --dou-alert-radius: calc(var(--dou-radius-control) + 2px);
+    /* the text never gets narrower than this beside the actions */
+    --dou-alert-text-min: 16em;
 
     display: flex;
     align-items: flex-start;
@@ -60,9 +62,26 @@
     }
   }
 
-  .dou-alert__content {
+  /*
+   * Text and actions sit on one wrapping row. The text asks for at least
+   * --dou-alert-text-min; when that and the actions don't fit side by side,
+   * the actions wrap onto their own line under the text, lined up with it.
+   * No breakpoint: it follows the alert's own width wherever it is placed.
+   */
+  .dou-alert__body {
+    display: flex;
     flex: 1 1 auto;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
     min-width: 0;
+  }
+
+  .dou-alert__content {
+    flex: 1 1 var(--dou-alert-text-min);
+    min-width: 0;
+    /* keep the first line level with the icon when the actions are taller */
+    align-self: flex-start;
   }
 
   .dou-alert__title {
@@ -76,10 +95,11 @@
 
   .dou-alert__action {
     display: flex;
-    flex-shrink: 0;
+    flex: 0 1 auto;
+    flex-wrap: wrap;
     align-items: center;
     gap: 8px;
-    align-self: center;
+    min-width: 0;
   }
 
   .dou-alert__close {

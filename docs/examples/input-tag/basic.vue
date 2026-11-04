@@ -1,7 +1,11 @@
 <script setup>
 import { ref } from 'vue'
 
-const keywords = ref(['设计系统', 'Vue', '上海市浦东新区世纪大道沿线商业综合体与办公楼宇招商'])
+const keywords = ref([
+  '设计系统',
+  'Vue',
+  '上海市浦东新区世纪大道沿线商业综合体、甲级写字楼与配套公寓的招商推广方案',
+])
 </script>
 
 <template>

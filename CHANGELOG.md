@@ -7,6 +7,78 @@ DouUI 的所有包（`dou-ui`、`@dou-ui/theme`、`@dou-ui/icons` 以及生态�
 
 这个文件由发版脚本生成：改动先以碎片文件记在 [`.changes/`](./.changes/README.md) 里，发布时汇总到这里。
 
+## 0.1.0-alpha.3 · 2026-11-04
+
+### 不兼容
+
+- **dou-ui、@dou-ui/theme、@dou-ui/flow、@dou-ui/form-builder**：Steps、NodeGraph 和流程编辑器默认节点的状态改用和聊天套件（ChatPlan、ChatToolCall、ChatConfirm）相同的词：`wait` → `pending`、`process` → `running`、`finish` → `done`，`error`、`blocked` 不变。迁移：
+
+  - Steps：`status` 属性和 `items[].status` 里的旧值换成新值，`status` 的默认值随之变为 `running`；`title` / `description` 插槽里对 `status` 的判断改用新值；样式类 `.is-wait` / `.is-process` / `.is-finish` 换成 `.is-pending` / `.is-running` / `.is-done`；自定义语言包的 `steps.wait` / `steps.process` / `steps.finish` 换成 `steps.pending` / `steps.running` / `steps.done`。
+  - NodeGraph：节点的 `status` 换成新值（不填时默认 `pending`）；DouNodeGraphLegend 自定义 `items` 里 `{ type: 'status', value }` 的 `value` 换成新值；样式类同上；CSS 变量 `--dou-node-graph-status-wait` / `-process` / `-finish` 换成 `-pending` / `-running` / `-done`；自定义语言包的 `nodeGraph.status.wait` / `process` / `finish` 换成 `pending` / `running` / `done`。
+  - 流程编辑器默认节点：`data.status` 换成新值；样式类同上；CSS 变量 `--dou-flow-editor-status-wait` / `-process` / `-finish` 换成 `-pending` / `-running` / `-done`；自定义语言包的 `status.wait` / `process` / `finish` 换成 `pending` / `running` / `done`。未开始的状态点读作「未开始」，不再是「等待」。 ([#294](https://github.com/daidr/dou-ui/pull/294))
+
+- **dou-ui、@dou-ui/theme**：聊天套件的状态名统一为和 ChatPlan 相同的一套：`pending` 未开始、`running` 进行中、`waiting` 等待别人（比如等用户确认）、`done` 已完成、`error` 出错。
+
+  **先检查这一处，类型检查发现不了**：ChatToolCall 的 `pending` 仍然合法，但含义从“等待确认”变成了“未开始”。请搜索 `DouChatToolCall` 和 `type: 'tool'` 里的 `'pending'`，等待用户允许的调用改为 `'waiting'`。开发环境下，`pending` 的调用带 `actions` 插槽时会警告一次。
+
+  | 组件                                              | 原来                    | 现在                         |
+  | ------------------------------------------------- | ----------------------- | ---------------------------- |
+  | ChatToolCall                                      | `pending`（等待确认）   | `waiting`                    |
+  | ChatToolCall                                      | `success`（也是默认值） | `done`（默认值）             |
+  | ChatToolCall                                      | —                       | 新增 `pending`，表示还没开始 |
+  | ChatConfirm                                       | `pending`（也是默认值） | `waiting`（默认值）          |
+  | ChatArtifact                                      | `generating`            | `running`                    |
+  | ChatAttachments                                   | `uploading`、`success`  | `running`、`done`            |
+  | ChatMessage 的 `tool`、`confirm`、`artifact` part | 同上对应组件            | 同上对应组件                 |
+  - 样式类：`.dou-chat-tool-call--pending`、`--success` 改为 `--waiting`、`--done`；`.dou-chat-confirm.is-pending` 改为 `.is-waiting`；附件的 `.is-uploading`、`.is-success` 改为 `.is-running`、`.is-done`。
+  - 语言包：`chat.toolSuccess` 改名为 `chat.toolDone`，新增 `chat.toolWaiting`，`chat.toolPending` 现在是“未开始”的文案。
+  - 数据来自接口 JSON 等不经过类型检查的地方时，开发环境遇到不认识的 `status` 会警告一次，旧名字会提示对应的新名字。ChatConfirm 遇到不认识的值时不再显示为“已拒绝”。 ([#296](https://github.com/daidr/dou-ui/pull/296))
+
+- **dou-ui、@dou-ui/theme**：Descriptions 原来把列表画成表格的 `bordered` 改为 `variant: 'plain' | 'table'`（默认 `'plain'`），`bordered` 现在和其他组件一样只表示外框：`table` 样式默认带外框，设为 `false` 时去掉外框，单元格之间的细线保留。迁移：把 `<DouDescriptions bordered>` 改成 `<DouDescriptions variant="table">`；对应的类名从 `is-bordered` 变为 `dou-descriptions--table`。新增 `--dou-descriptions-border` 调整外框颜色。 ([#301](https://github.com/daidr/dou-ui/pull/301))
+- **@dou-ui/theme**：`--dou-layout-main-padding` 和 `--dou-layout-padding-x` 的默认值改为声明在 `.dou-layout-main` 和 `.dou-layout-header` / `.dou-layout-footer` 上，和其他组件变量一样；原来设在 `:root` 或外层容器上的，要改到这些类上。 ([#301](https://github.com/daidr/dou-ui/pull/301))
+- **dou-ui、@dou-ui/theme**：Table 原来画列分隔线的 `bordered` 改名为 `columnDividers`，`bordered` 现在和其他组件一样表示外框（默认开）。迁移：把 `<DouTable bordered>` 改成 `<DouTable column-dividers>`；对应的类名从 `is-bordered` 变为 `is-column-dividers`。 ([#301](https://github.com/daidr/dou-ui/pull/301))
+- **dou-ui**：ChatSteps 表示“是否还在进行”的 `running` 属性改名为 `live`，与 ChatPlan、ChatToolCall 一致；`title` 插槽的参数 `running` 也改为 `live`，ChatMessage 的 `steps` 片段同样改用 `live` 字段。请把 `:running="…"`、`{ type: 'steps', running }` 和插槽里的 `running` 改为 `live`。为 `false` 时，`running` 的步骤现在会换成静止的灰色圆点。 ([#305](https://github.com/daidr/dou-ui/pull/305))
+- **@dou-ui/editor**：块编辑器的间距拆成两个：`--dou-editor-block-gap` 改为相邻两块之间的距离（原来是每块上下各留的距离，默认值从 `2px` 改为 `4px`，看起来不变；原来自定义了它的，把值乘以 2），新增 `--dou-editor-list-gap` 控制同一列表里相邻两项的距离，调大块间距时列表不再跟着变松。新增 `--dou-editor-reading-width` 限制正文宽度，编辑器更宽时正文居中、手柄显示在左侧边距里。代码块上下的距离也改为跟着块间距走。 ([#308](https://github.com/daidr/dou-ui/pull/308))
+
+### 新增
+
+- **dou-ui、@dou-ui/theme**：ChatPlan 新增 `collapsible`，设为 `false` 时是始终展开的纯面板，标题不能点击收起。 ([#293](https://github.com/daidr/dou-ui/pull/293))
+- **dou-ui、@dou-ui/theme**：ChatPlan 的步骤新增 `waiting` 状态，表示这一步停下来等用户确认或外部任务完成，以警示色图标显示。 ([#293](https://github.com/daidr/dou-ui/pull/293))
+- **dou-ui、@dou-ui/theme**：新增 Markdown 流式渲染组件 `DouMarkdown`：增量解析，已写完的块不再重新解析和渲染；写了一半的加粗、链接、表格、代码块直接以最终的样子显示；新内容逐步渐显，遵循减弱动态效果。每种元素都可以用同名插槽替换渲染，`:::名字` 写自定义块，`tip`、`warning` 等默认显示为 Alert。不解析 HTML，链接、图片和角标来源只允许安全协议，支持服务端渲染。同时导出 `parseMarkdown`、`createMarkdownParser` 和 `defaultSanitizeUrl`。
+
+  ChatMessage 新增 `markdown`，文字和思考过程片段用 Markdown 渲染，正文中的 `[1]` 显示为消息来源的角标；可以传入选项对象，Markdown 的插槽加 `markdown-` 前缀使用。`text` 插槽的参数新增 `sources`。
+
+  CodeBlock 新增 `streaming`，代码逐步到达时只高亮完整的行，新行逐行淡入；使用 `createCodeHighlighter` 时代码块的语法颜色现在能正确显示。 ([#297](https://github.com/daidr/dou-ui/pull/297))
+
+- **dou-ui、@dou-ui/theme**：新增 StatusDot 状态点：五种语气色、三档尺寸，`ripple` 开启涟漪，减少动效时变为静止的光晕；涟漪只用 CSS 动画，大量使用也不影响性能。Timeline 当前步骤的涟漪改用它实现。 ([#300](https://github.com/daidr/dou-ui/pull/300))
+- **dou-ui、@dou-ui/theme、@dou-ui/code、@dou-ui/flow、@dou-ui/gantt、@dou-ui/sheet、@dou-ui/pivot、@dou-ui/form-builder、@dou-ui/editor**：带外框的组件统一新增 `bordered`（默认 `true`），设为 `false` 时去掉边框和圆角，不留透明的 1px，聚焦时也不再画出边框，适合放进已经有边框的卡片或面板：FlowEditor、CodeEditor、CodeDiff、Gantt、Scheduler、Sheet、Pivot、FormBuilder、Table、CodeBlock、QRCode、CalendarView、LayoutFooter。边框颜色可以统一用 `--dou-<组件>-border` 调整，ColorPanel 新增 `--dou-color-panel-border`，LayoutHeader、LayoutAside、LayoutFooter 的分隔线分别新增 `--dou-layout-header-border`、`--dou-layout-aside-border`、`--dou-layout-footer-border`。 ([#301](https://github.com/daidr/dou-ui/pull/301))
+- **@dou-ui/theme**：写死的内边距改为 CSS 变量：`--dou-layout-aside-padding`（侧栏正文和底部，默认 8px，设在 `.dou-layout-aside` 和窄屏抽屉 `.dou-layout-aside-drawer` 上）、`--dou-color-panel-padding`、`--dou-qrcode-padding`、`--dou-result-padding`。 ([#301](https://github.com/daidr/dou-ui/pull/301))
+- **dou-ui**：Menu 新增 `itemContextmenu` 事件，参数是被右键的项和原生事件，配合 ContextMenu 可以知道右键点的是哪一项。 ([#303](https://github.com/daidr/dou-ui/pull/303))
+- **dou-ui**：ChatPlan、ChatToolCall 新增 `live` 开关，默认 `true`。这一轮结束或被停止时设为 `false`：`running` 的步骤或调用仍是当前这一项，但转圈换成静止的灰色圆点、去掉扫光，不用再逐个改写状态。ChatMessage 的 `plan`、`tool` 片段也可以带 `live`。 ([#305](https://github.com/daidr/dou-ui/pull/305))
+- **dou-ui、@dou-ui/theme**：ChatConfirm 和 ChatToolCall 新增 `withdrawn` 状态，表示用户回答之前助手已经不需要了，比如生成被停止或助手换了做法。ChatConfirm 收起为一行“已撤回”，图标和文字整体变淡，不再使用 `tone` 的颜色；ChatToolCall 显示“已撤回”。语言包新增 `chat.withdrawn` 和 `chat.toolWithdrawn`。
+
+  ChatConfirm 回答或撤回后，如果焦点原本在它的按钮上，会留在卡片上而不是丢到页面；结果行一直挂载，读屏软件能播报新的结果。 ([#306](https://github.com/daidr/dou-ui/pull/306))
+
+- **dou-ui、@dou-ui/theme**：Tabs 新增 `height`：设置后面板填满标签以外的空间并单独滚动，竖排时放不下的标签列也单独滚动、边缘渐隐。新增 `iconOnly` 和 TabPanel 的 `icon`，标签可以只显示图标，文字作为可读名称并在提示中显示。竖排时面板现在总是和标签列一样高。 ([#307](https://github.com/daidr/dou-ui/pull/307))
+- **dou-ui**：ContextMenu 新增 `v-model:target` 和 `beforeOpen`：每次右键开始时先清空 `target`，由项的事件重新记下；`beforeOpen` 返回 `false` 时不打开，比如右键分组标题、表头或空隙时，右键交还给浏览器或外层的 ContextMenu。触发区域里的元素已经处理了这次右键（调用过 `preventDefault()`）时也不再打开，嵌套的 ContextMenu 只打开里面那个。 ([#309](https://github.com/daidr/dou-ui/pull/309))
+- **dou-ui、@dou-ui/theme、@dou-ui/sheet、@dou-ui/form-builder**：菜单项新增 `description`，在文字下面显示一行说明：DropdownItem 的属性和插槽，以及 `ContextMenuItem`、`SheetMenuItem`、`FormBuilderMenuItem` 的字段。 ([#311](https://github.com/daidr/dou-ui/pull/311))
+- **dou-ui、@dou-ui/theme**：ProgressGroup 新增 `legendDirection`：设为 `vertical` 时图例每项占一行，名称在前、数量靠右对齐，名称过长时以省略号截断，悬停可以看到全名；数量过长时换行，不会超出容器。默认的 `horizontal` 与之前一样并排显示。 ([#313](https://github.com/daidr/dou-ui/pull/313))
+- **dou-ui、@dou-ui/theme**：Button 新增 `size="xs"`：高 24px，用于密集的行和工具栏里的次要操作，不用于主操作。在触屏上，`xs` 按钮和只有图标的按钮一样，可点击区域会扩展到约 40px。`xs` 是按钮独有的尺寸，表单和 FieldGroup 的 `size` 不会传成 `xs`。 ([#315](https://github.com/daidr/dou-ui/pull/315))
+- **dou-ui、@dou-ui/theme**：菜单项可以分组并加小标题：新增 `DouDropdownGroup`，`DouDropdownRadioGroup` 也能写 `label` 和 `divided`；用数据写菜单项时写成 `{ type: 'group', label, children }`。 ([#316](https://github.com/daidr/dou-ui/pull/316))
+
+### 改进
+
+- **@dou-ui/flow、dou-ui**：流程图整理后更工整：一条直链上的节点上下（或左右）对齐，跨好几层的长连线从各层节点的空隙里绕过去，不再压在节点上，同一对节点之间的几条长连线错开并排；彼此不相连的几组节点分开排列，输出多于输入的节点排到靠近下游的位置，连线交叉也更少。长连线经过的点存在连线新增的 `points` 里。只移动一端或改变一端的大小时清掉，两端一起移动或复制粘贴时跟着平移。NodeGraph 同样把不相连的几组节点分开排列，输出多于输入的节点后移，交叉更少。 ([#312](https://github.com/daidr/dou-ui/pull/312))
+
+### 修复
+
+- **dou-ui**：ChatSources 和 ChatCitation 只把 http(s)、mailto、tel 和相对地址渲染成链接，`javascript:`、`data:` 这类地址不再可以点击，开发环境下会警告一次。 ([#298](https://github.com/daidr/dou-ui/pull/298))
+- **dou-ui、@dou-ui/flow、@dou-ui/form-builder**：按需引入时，组件内部用到的其他组件也能读到 ConfigProvider `defaults` 里给它们的默认值，例如只引入 ChatMessage 时 `defaults.DouStreamText` 对消息里的文字同样生效；此前要先在别处引入过 StreamText 才有效。涉及 ChatMessage、Table、Pagination、ColorPicker、CommentThread、ContextMenu、白板的连接点、表单设计器的预览等所有嵌套使用其他组件的地方。 ([#299](https://github.com/daidr/dou-ui/pull/299))
+- **dou-ui、@dou-ui/theme**：很长的标签不再撑出 InputTag、Select / TreeSelect / Cascader 多选的输入框，也不再超出 Tag 自身的宽度：放不下的文字以省略号结尾，用鼠标悬停时显示完整内容。这几个输入框放在网格或横向弹性布局里时，长内容也不会把它们撑宽。 ([#302](https://github.com/daidr/dou-ui/pull/302))
+- **dou-ui**：Popover 的 `content` 插槽参数 `close` 与实例方法 `close()` 关闭时把焦点交还给触发元素；Popconfirm 点击取消或确定后同样如此。 ([#310](https://github.com/daidr/dou-ui/pull/310))
+- **dou-ui**：`DouTooltip` 套在 `DouPopover`、`DouDropdown`、`DouPopconfirm`、`DouContextMenu` 外面（或反过来）时，两层的属性与事件都落到同一个触发元素上，点击不再失效，也不再需要额外包一层 `<span>`。弹出层打开后提示自动收起。提示文字与触发元素的 `aria-label` 相同时不再设置 `aria-describedby`，读屏不会把同一句话读两遍。 ([#314](https://github.com/daidr/dou-ui/pull/314))
+- **dou-ui**：`trigger="hover"` 的 Dropdown、Popover 和 Menu 的弹出子菜单在手机上轻点打开后很快自己关上：轻点之后浏览器补发的鼠标事件被当成了指针离开。现在悬停只认鼠标，触屏和触控笔改为轻点打开、再点一下或点别处收起；触发元素是链接时，第一次轻点只打开弹出层。悬停的 Popover 也能用 `Enter` 打开，轻点或键盘打开时带上 `aria-expanded`。ChatCitation 的预览标题改为来源链接，键盘聚焦角标时会弹出预览。 ([#317](https://github.com/daidr/dou-ui/pull/317))
+
 ## 0.1.0-alpha.2 · 2026-11-04
 
 ### 不兼容

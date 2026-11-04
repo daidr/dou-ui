@@ -1,6 +1,8 @@
 ---
 type: 新增
 packages: [dou-ui, theme]
+pr: 297
+version: 0.1.0-alpha.3
 ---
 
 新增 Markdown 流式渲染组件 `DouMarkdown`：增量解析，已写完的块不再重新解析和渲染；写了一半的加粗、链接、表格、代码块直接以最终的样子显示；新内容逐步渐显，遵循减弱动态效果。每种元素都可以用同名插槽替换渲染，`:::名字` 写自定义块，`tip`、`warning` 等默认显示为 Alert。不解析 HTML，链接、图片和角标来源只允许安全协议，支持服务端渲染。同时导出 `parseMarkdown`、`createMarkdownParser` 和 `defaultSanitizeUrl`。

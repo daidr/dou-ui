@@ -58,6 +58,8 @@ app.use(DouUI, {
 
 <DocDemo src="code-block/chat" column />
 
+代码还在逐步到达时（比如模型正在输出），设置 `streaming`：只高亮已经完整的行，正在写的最后一行先按纯文本显示，每写完一行才重新高亮一次；新增的行逐行淡入。`highlight` 返回 Promise 时，等待结果期间已经高亮过的行保持原来的颜色。[Markdown](./markdown) 中没有闭合的代码块会自动这样显示。
+
 ## API
 
 ### Props
@@ -74,6 +76,7 @@ app.use(DouUI, {
 | `wrap`           | 长行自动换行                                     | `boolean`                                                   | `false`         |
 | `maxLines`       | 超过这么多行时折叠                               | `number`                                                    | —               |
 | `copyable`       | 显示复制按钮                                     | `boolean`                                                   | `true`          |
+| `streaming`      | 代码还在逐步到达，只高亮完整的行                 | `boolean`                                                   | `false`         |
 
 ### Slots
 

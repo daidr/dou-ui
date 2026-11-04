@@ -32,6 +32,12 @@ export interface CodeBlockProps {
   maxLines?: number
   /** Show a copy button. */
   copyable?: boolean
+  /**
+   * The code is still arriving. Only whole lines are highlighted, so the
+   * highlighter runs once a line rather than once a character, and new
+   * lines fade in.
+   */
+  streaming?: boolean
 }
 
 export interface CodeBlockSlots {

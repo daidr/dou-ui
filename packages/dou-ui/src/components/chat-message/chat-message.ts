@@ -9,6 +9,13 @@ import type { ChatPlanItem } from '../chat-plan/chat-plan'
 import type { ChatSource } from '../chat-sources/chat-sources'
 import type { ChatStep } from '../chat-steps/chat-steps'
 import type { ChatToolCallStatus } from '../chat-tool-call/chat-tool-call'
+import type { MarkdownProps, MarkdownSlots } from '../markdown/markdown'
+
+/** Options for the Markdown of text and reasoning parts. */
+export type ChatMessageMarkdown = Pick<
+  MarkdownProps,
+  'smooth' | 'speed' | 'caret' | 'linkTarget' | 'sanitizeUrl'
+>
 
 /** Who wrote the message. */
 export type ChatMessageSender = 'user' | 'assistant' | 'system'
@@ -103,6 +110,14 @@ export interface ChatMessageProps {
   parts?: (ChatMessagePart | ChatCustomPart)[]
   /** Shorthand for a message of one text part. */
   content?: string
+  /**
+   * Render text and reasoning parts as Markdown, streaming included. `[1]`
+   * in the text becomes a citation of the message's sources parts. An
+   * object turns it on with options for the Markdown component, such as
+   * `sanitizeUrl`. Set it for every message in the ConfigProvider's
+   * `defaults`.
+   */
+  markdown?: boolean | ChatMessageMarkdown
   /** No part has arrived yet: show the waiting dots, like ChatBubble's. */
   loading?: boolean
   /** Show a copy button among the actions, copying the text parts. */
@@ -127,16 +142,30 @@ export interface ChatMessageEmits {
 
 export interface ChatMessageSlots {
   /**
-   * Renders a text part, e.g. through a Markdown renderer. `text` is what
-   * has been revealed so far.
+   * Renders a text part by hand, in place of plain text or `markdown`.
+   * `text` is what has been revealed so far; `part.text` is all of it.
+   * `sources` are the message's sources, for citations.
    */
-  text?: (props: { part: ChatTextPart; text: string; index: number }) => unknown
+  text?: (props: {
+    part: ChatTextPart
+    text: string
+    index: number
+    sources: ChatSource[]
+  }) => unknown
   /** Renders parts of a type the message does not know. */
   part?: (props: { part: ChatCustomPart; index: number }) => unknown
   /** Buttons after the built-in actions, e.g. regenerate or feedback. */
   actions?: () => unknown
   /** Replaces all parts, for a message laid out by hand. */
   default?: () => unknown
+}
+
+/**
+ * The Markdown component's slots, with a `markdown-` prefix, for text
+ * rendered with `markdown`: `markdown-code`, `markdown-container-tip`, ...
+ */
+export type ChatMessageMarkdownSlots = {
+  [K in keyof MarkdownSlots as `markdown-${K & string}`]: MarkdownSlots[K]
 }
 
 /** The text of a message, for copying: its text parts, one paragraph each. */

@@ -1150,6 +1150,18 @@ const arts: Record<string, string | ((id: string) => string)> = {
     bar(84, 73, 14, 'b') +
     bar(102, 73, 10, 'm') +
     rect(118, 69, 6, 12, 'k', 1),
+  markdown:
+    bar(40, 18, 60, 'k', 6) +
+    lines(40, 36, [120, 96], 10) +
+    circle(43, 62, 2, 't') +
+    bar(50, 60, 64) +
+    circle(43, 72, 2, 't') +
+    bar(50, 70, 48) +
+    rect(40, 80, 120, 28, 'pm', 6) +
+    bar(50, 88, 56) +
+    bar(50, 97, 30) +
+    bar(84, 97, 14, 'b') +
+    rect(102, 94, 2, 10, 'k', 1),
   'chat-steps': group(
     'translate(10 0)',
     bar(40, 22, 72, 't') +

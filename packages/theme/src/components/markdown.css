@@ -1,0 +1,291 @@
+/*
+ * Markdown
+ *
+ * Rendered Markdown sized for conversation: body text takes the
+ * surrounding font size and blocks are spaced in em; headings stay on the
+ * type scale, h1 and h2 one step up, the rest at body size and told apart
+ * by weight, so a reply reads like a message rather than a page. Text is
+ * ink, quotes one step softer; quotes, rules and tables are hairlines,
+ * inline code a faint tint. `:::` blocks with a known name are Alerts.
+ *
+ * New content fades in: text a step at a time (`__fresh`), whole blocks
+ * such as code, tables and rules when they first show (`__enter`). Both
+ * play once on insertion and take the slow motion token, so reduced motion
+ * shortens or removes them with every other animation.
+ */
+@layer dou.components {
+  .dou-markdown {
+    --dou-markdown-gap: 0.75em;
+    --dou-markdown-fade: var(--dou-motion-duration-slow);
+
+    min-width: 0;
+    color: var(--dou-color-text);
+    line-height: 1.7;
+    overflow-wrap: anywhere;
+
+    & > :first-child,
+    & > * > :first-child {
+      margin-top: 0;
+    }
+
+    & > :last-child,
+    & > * > :last-child {
+      margin-bottom: 0;
+    }
+
+    &
+      :where(
+        p,
+        ul,
+        ol,
+        blockquote,
+        .dou-markdown__table,
+        .dou-markdown__code,
+        .dou-markdown__custom,
+        .dou-markdown__callout,
+        .dou-markdown__container,
+        hr,
+        img
+      ) {
+      margin: var(--dou-markdown-gap) 0;
+    }
+
+    & :where(h1, h2, h3, h4, h5, h6) {
+      margin: 1.25em 0 0.5em;
+      color: var(--dou-color-text);
+      font-weight: var(--dou-font-weight-bold);
+      line-height: 1.45;
+    }
+
+    & :where(h1, h2) {
+      font-size: var(--dou-font-size-lg);
+    }
+    & :where(h3, h4, h5, h6) {
+      font-size: var(--dou-font-size-md);
+    }
+
+    & :where(strong) {
+      font-weight: var(--dou-font-weight-bold);
+    }
+
+    & :where(del) {
+      color: var(--dou-color-text-tertiary);
+    }
+
+    & :where(a, .dou-markdown__link) {
+      color: inherit;
+      text-decoration-line: underline;
+      text-decoration-color: color-mix(in oklab, currentColor 32%, transparent);
+      text-decoration-thickness: 1px;
+      text-underline-offset: 0.25em;
+      transition: text-decoration-color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+    }
+
+    & :where(a:hover) {
+      text-decoration-color: currentColor;
+    }
+
+    & :where(a:focus-visible) {
+      border-radius: 2px;
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 2px;
+    }
+
+    & :where(ul, ol) {
+      padding-left: 1.5em;
+    }
+
+    & :where(ul) {
+      list-style: disc;
+    }
+
+    & :where(ul ul) {
+      list-style: circle;
+    }
+
+    & :where(ol) {
+      list-style: decimal;
+    }
+
+    & :where(li + li) {
+      margin-top: 0.25em;
+    }
+
+    & :where(li > ul, li > ol) {
+      margin: 0.25em 0;
+    }
+
+    & :where(li > p) {
+      margin: 0.5em 0;
+    }
+
+    & :where(li)::marker {
+      color: var(--dou-color-text-tertiary);
+    }
+
+    & :where(blockquote) {
+      padding-left: 1em;
+      border-left: 2px solid var(--dou-color-border-strong);
+      color: var(--dou-color-text-secondary);
+    }
+
+    & :where(code:not(.dou-code-block__code)) {
+      padding: 0.125em 0.375em;
+      border-radius: 4px;
+      background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+      font-family: var(--dou-font-family-mono);
+      font-size: var(--dou-font-size-sm);
+    }
+
+    & :where(hr) {
+      height: 0;
+      margin: 1.5em 0;
+      border: 0;
+      border-top: 1px solid var(--dou-color-border);
+    }
+
+    & :where(img) {
+      display: block;
+      max-width: 100%;
+      height: auto;
+      border-radius: var(--dou-radius-control);
+    }
+  }
+
+  .dou-markdown__table {
+    max-width: 100%;
+    overflow-x: auto;
+
+    & table {
+      min-width: 100%;
+      border-collapse: collapse;
+      font-size: var(--dou-font-size-sm);
+      line-height: 1.6;
+    }
+
+    & th,
+    & td {
+      padding: 0.5em 0.875em;
+      border-bottom: 1px solid var(--dou-color-border-subtle);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    & th {
+      border-bottom-color: var(--dou-color-border);
+      font-weight: var(--dou-font-weight-medium);
+      white-space: nowrap;
+    }
+
+    & tbody tr:last-child td {
+      border-bottom: 0;
+    }
+  }
+
+  /* blocks inside a container keep the spacing between them, not around them */
+  .dou-markdown__callout .dou-alert__description,
+  .dou-markdown__container {
+    & > :first-child {
+      margin-top: 0;
+    }
+    & > :last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  .dou-markdown__container-title {
+    font-weight: var(--dou-font-weight-bold);
+  }
+
+  .dou-markdown__task-list {
+    padding-left: 0.25em;
+    list-style: none;
+  }
+
+  /* a task among plain items keeps the box where the bullet would be */
+  .dou-markdown__task-item {
+    list-style: none;
+
+    & > .dou-markdown__task {
+      margin-inline-start: -1.375em;
+      margin-inline-end: calc(1.375em - 14px);
+    }
+  }
+
+  .dou-markdown__task-list > .dou-markdown__task-item > .dou-markdown__task {
+    margin-inline: 0 0.5em;
+  }
+
+  .dou-markdown__task {
+    position: relative;
+    display: inline-flex;
+    width: 14px;
+    height: 14px;
+    margin-inline-end: 0.5em;
+    vertical-align: -2px;
+  }
+
+  .dou-markdown__checkbox {
+    box-sizing: border-box;
+    width: 14px;
+    height: 14px;
+    margin: 0;
+    border: 1px solid var(--dou-color-border-strong);
+    border-radius: 4px;
+    background-color: var(--dou-color-bg-surface);
+    appearance: none;
+
+    &:checked {
+      border-color: var(--dou-color-text);
+      background-color: var(--dou-color-text);
+    }
+  }
+
+  .dou-markdown__check {
+    position: absolute;
+    inset: 1px;
+    width: 12px;
+    height: 12px;
+    color: var(--dou-color-bg-surface);
+    pointer-events: none;
+  }
+
+  .dou-markdown__caret {
+    display: inline-block;
+    width: 2px;
+    height: 1.1em;
+    margin-left: 2px;
+    border-radius: 1px;
+    background-color: currentColor;
+    vertical-align: -0.2em;
+    /* blinks like a text caret, not on a motion token */
+    animation: dou-markdown-blink 1s steps(1) var(--dou-motion-loop-count);
+  }
+
+  .dou-markdown__fresh,
+  .dou-markdown__enter {
+    animation: dou-markdown-fade var(--dou-markdown-fade) var(--dou-motion-easing) both;
+  }
+
+  .dou-markdown__item-enter::marker {
+    animation: dou-markdown-marker var(--dou-markdown-fade) var(--dou-motion-easing) both;
+  }
+
+  @keyframes dou-markdown-fade {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @keyframes dou-markdown-marker {
+    from {
+      color: transparent;
+    }
+  }
+
+  @keyframes dou-markdown-blink {
+    50% {
+      opacity: 0;
+    }
+  }
+}

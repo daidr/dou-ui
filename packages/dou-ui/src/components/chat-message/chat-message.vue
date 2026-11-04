@@ -14,6 +14,8 @@ import { DouChatSteps } from '../chat-steps'
 import { DouChatToolCall } from '../chat-tool-call'
 import { useLocale } from '../config-provider/use-config'
 import { DouCopyButton } from '../copy-button'
+import { DouMarkdown } from '../markdown'
+import type { ChatSource } from '../chat-sources/chat-sources'
 import { DouStreamText } from '../stream-text'
 import { DouTooltip } from '../tooltip'
 import { messageText } from './chat-message'
@@ -23,6 +25,7 @@ import type {
   ChatCustomPart,
   ChatMessageEmits,
   ChatMessagePart,
+  ChatMessageMarkdownSlots,
   ChatMessageProps,
   ChatMessageSlots,
 } from './chat-message'
@@ -34,11 +37,12 @@ const props = withDefaults(defineProps<ChatMessageProps>(), {
   loading: false,
   copyable: true,
   editable: false,
+  markdown: false,
   versions: 1,
   version: undefined,
 })
 const emit = defineEmits<ChatMessageEmits>()
-const slots = defineSlots<ChatMessageSlots>()
+const slots = defineSlots<ChatMessageSlots & ChatMessageMarkdownSlots>()
 
 const ns = useNamespace('chat-message')
 const { t } = useLocale()
@@ -48,6 +52,18 @@ type AnyPart = ChatMessagePart | ChatCustomPart
 const parts = computed<AnyPart[]>(
   () => props.parts ?? (props.content === undefined ? [] : [{ type: 'text', text: props.content }]),
 )
+const markdownOptions = computed(() =>
+  typeof props.markdown === 'object' ? props.markdown : undefined,
+)
+// `markdown-code` here is the Markdown component's `code`
+const PREFIX = 'markdown-'
+const markdownSlots = () =>
+  Object.keys(slots)
+    .filter((name) => name.startsWith(PREFIX))
+    .map((name) => ({
+      name: name as keyof ChatMessageMarkdownSlots,
+      inner: name.slice(PREFIX.length),
+    }))
 const isUser = computed(() => props.sender === 'user')
 // the person's attachments sit above their bubble, not inside it
 const files = computed(() => (isUser.value ? parts.value.filter((p) => p.type === 'files') : []))
@@ -55,6 +71,18 @@ const body = computed(() =>
   isUser.value ? parts.value.filter((p) => p.type !== 'files') : parts.value,
 )
 const text = computed(() => messageText(parts.value as { type: string; text?: unknown }[]))
+// Every source of the message, numbered in order, for `[1]` in Markdown
+// text. The same array while the sources stay the same, so text that
+// streams in does not redraw the whole reply.
+let lastSources: ChatSource[] = []
+const sources = computed(() => {
+  const next = parts.value.flatMap((part) =>
+    part.type === 'sources' ? ((part as { items?: ChatSource[] }).items ?? []) : [],
+  )
+  if (next.length === lastSources.length && next.every((s, i) => s === lastSources[i]))
+    return lastSources
+  return (lastSources = next)
+})
 
 const busy = computed(
   () =>
@@ -177,14 +205,32 @@ const rest = (part: AnyPart) => {
     <div v-else-if="body.length || loading || slots.default" :class="ns.e('content')">
       <slot>
         <template v-for="(part, index) in body" :key="index">
+          <DouMarkdown
+            v-if="part.type === 'text' && markdown && !slots.text"
+            v-bind="markdownOptions"
+            :class="ns.e('text')"
+            :content="asText(part).text"
+            :streaming="!!asText(part).streaming"
+            :sources="sources.length ? sources : undefined"
+          >
+            <template v-for="slot in markdownSlots()" :key="slot.name" #[slot.inner]="scope">
+              <slot :name="slot.name" v-bind="scope" />
+            </template>
+          </DouMarkdown>
           <DouStreamText
-            v-if="part.type === 'text'"
+            v-else-if="part.type === 'text'"
             :class="ns.e('text')"
             :content="asText(part).text"
             :streaming="!!asText(part).streaming"
           >
             <template v-if="slots.text" #default="{ text: shown }">
-              <slot name="text" :part="asText(part)" :text="shown" :index="index" />
+              <slot
+                name="text"
+                :part="asText(part)"
+                :text="shown"
+                :index="index"
+                :sources="sources"
+              />
             </template>
           </DouStreamText>
           <DouChatReasoning
@@ -192,7 +238,19 @@ const rest = (part: AnyPart) => {
             :thinking="!!asReasoning(part).thinking"
             :duration="asReasoning(part).duration"
           >
+            <DouMarkdown
+              v-if="markdown"
+              v-bind="markdownOptions"
+              :content="asReasoning(part).text"
+              :streaming="!!asReasoning(part).thinking"
+              :caret="false"
+            >
+              <template v-for="slot in markdownSlots()" :key="slot.name" #[slot.inner]="scope">
+                <slot :name="slot.name" v-bind="scope" />
+              </template>
+            </DouMarkdown>
             <DouStreamText
+              v-else
               :content="asReasoning(part).text"
               :streaming="!!asReasoning(part).thinking"
               :caret="false"

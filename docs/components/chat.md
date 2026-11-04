@@ -26,6 +26,7 @@
 | [ChatList](./chat-list)                  | 消息的滚动容器，新内容到达时自动滚动到底部         |
 | [ChatInput](./chat-input)                | 输入框，`/` 命令、`@` 引用、生成中可停止或继续输入 |
 | [StreamText](./stream-text)              | 平滑显示逐步到达的文字                             |
+| [Markdown](./markdown)                   | 渲染 Markdown，支持流式输出                        |
 | [ChatSteps](./chat-steps)                | 折叠为一行的执行步骤                               |
 | [ChatPlan](./chat-plan)                  | 任务计划清单                                       |
 | [ChatReasoning](./chat-reasoning)        | 可折叠的思考过程                                   |

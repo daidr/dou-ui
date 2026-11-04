@@ -2,7 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
-import DouSwitch from '../switch/switch.vue'
+import { DouSwitch } from '../switch'
 import { useColorMode } from './use-color-mode'
 import type { ColorModeSwitchProps, ColorModeSwitchSlots } from './color-mode'
 

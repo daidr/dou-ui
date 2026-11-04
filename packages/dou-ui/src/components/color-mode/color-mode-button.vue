@@ -2,7 +2,7 @@
 import { MoonIcon, SunIcon } from '@dou-ui/icons'
 import { onMounted, ref } from 'vue'
 import { useNamespace } from '../../utils/namespace'
-import DouButton from '../button/button.vue'
+import { DouButton } from '../button'
 import { useLocale } from '../config-provider/use-config'
 import { useColorMode } from './use-color-mode'
 import type { ColorModeButtonProps } from './color-mode'

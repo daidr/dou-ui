@@ -2,9 +2,9 @@
 import { ChevronDownIcon } from '@dou-ui/icons'
 import { computed } from 'vue'
 import { useNamespace } from '../../utils/namespace'
-import DouButton from '../button/button.vue'
+import { DouButton } from '../button'
 import { useLocale } from '../config-provider/use-config'
-import DouFieldGroup from '../field-group/field-group.vue'
+import { DouFieldGroup } from '../field-group'
 import Dropdown from './dropdown.vue'
 import type { DropdownButtonProps, DropdownButtonSlots, DropdownValue } from './dropdown'
 

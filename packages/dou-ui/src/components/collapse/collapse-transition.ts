@@ -1,4 +1,5 @@
 import { Transition, defineComponent, h } from 'vue'
+import { withInstall } from '../../utils/install'
 
 const reset = (el: Element) => {
   const style = (el as HTMLElement).style
@@ -11,7 +12,7 @@ const reset = (el: Element) => {
  * every disclosure (collapse items, menu submenus) so they move alike, and
  * exported as `DouCollapseTransition` for content of your own.
  */
-export const CollapseTransition = defineComponent({
+const CollapseTransition = defineComponent({
   name: 'DouCollapseTransition',
   setup:
     (_, { slots }) =>
@@ -46,3 +47,6 @@ export const CollapseTransition = defineComponent({
         slots,
       ),
 })
+
+// 在这里包装而不是在 index 里：别的组件直接从这个模块取，按需引入时也能读到默认值
+export const DouCollapseTransition = withInstall(CollapseTransition)

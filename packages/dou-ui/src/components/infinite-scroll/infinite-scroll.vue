@@ -2,7 +2,7 @@
 import { onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
-import DouSpinner from '../spinner/spinner.vue'
+import { DouSpinner } from '../spinner'
 import type {
   InfiniteScrollExpose,
   InfiniteScrollProps,

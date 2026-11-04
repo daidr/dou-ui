@@ -1,6 +1,8 @@
 ---
 type: 不兼容
 packages: [dou-ui, theme, flow, form-builder]
+pr: 294
+version: 0.1.0-alpha.3
 ---
 
 Steps、NodeGraph 和流程编辑器默认节点的状态改用和聊天套件（ChatPlan、ChatToolCall、ChatConfirm）相同的词：`wait` → `pending`、`process` → `running`、`finish` → `done`，`error`、`blocked` 不变。迁移：

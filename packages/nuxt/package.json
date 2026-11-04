@@ -1,6 +1,6 @@
 {
   "name": "@dou-ui/nuxt",
-  "version": "0.1.0-alpha.2",
+  "version": "0.1.0-alpha.3",
   "description": "DouUI 的 Nuxt 模块：组件、指令与函数自动导入，样式与配色模式开箱即用，支持服务端渲染",
   "keywords": [
     "vue",

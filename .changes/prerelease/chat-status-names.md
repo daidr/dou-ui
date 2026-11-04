@@ -1,6 +1,8 @@
 ---
 type: 不兼容
 packages: [dou-ui, theme]
+pr: 296
+version: 0.1.0-alpha.3
 ---
 
 聊天套件的状态名统一为和 ChatPlan 相同的一套：`pending` 未开始、`running` 进行中、`waiting` 等待别人（比如等用户确认）、`done` 已完成、`error` 出错。

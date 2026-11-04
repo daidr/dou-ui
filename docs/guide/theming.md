@@ -27,12 +27,12 @@ Token 名称表示**用途**，例如 `color.primary`、`color.bg.surface`、`ra
 - `DEFAULT`（`--dou-color-primary`）：实心按钮等填充的颜色。
 - `on`（`--dou-color-primary-on`）：显示在填充色上的文字。
 - `text`（`--dou-color-primary-text`）：当作文字使用，比如浅色按钮与标签、链接、语气文字。
-- `soft`（`--dou-color-primary-soft`）：淡色底，比如状态胶囊、被标记的行的背景。
+- `soft`（`--dou-color-primary-soft`）：浅色底，比如状态胶囊、被标记的行的背景。
 
 亮色主题里 `text` 基本等于 `DEFAULT`；暗色主题里同一个颜色无法既衬托白字、又在深色页面上作为文字清晰可读，所以 `text` 更亮一些。
 `soft` 是把 `DEFAULT` 以 7% 混进 `bg.surface` 得到的颜色，亮色和暗色主题各有一套，和 soft 按钮、标签的底色一致。文字对比度都按 WCAG AA（正文 4.5:1）取值，`text` 和正文在 `soft` 上同样满足。
 
-自己的组件需要淡色底时直接用 `soft`，不用再手动混色：
+自己的组件需要浅色底时直接用 `soft`，不用再手动混色：
 
 ```css
 .task-status--waiting {
@@ -128,7 +128,7 @@ const css = themeToCss(brand, '[data-dou-theme="brand"]')
 - `DEFAULT`：按钮等实心填充的颜色，尽量保持传入的颜色。
 - `on`：填充色上的文字，从白色和深色中选择对比度足够的一个。
 - `text`：在页面上当作文字使用的颜色。
-- `soft`：淡色底，`DEFAULT` 以 7% 混进表面色。
+- `soft`：浅色底，`DEFAULT` 以 7% 混进表面色。
 
 如果传入的颜色在某套主题里对比度不足，会在 OKLCH 里只调整明度，直到所有文字对比度（包括 `text` 在 `soft` 上）都不低于 4.5:1，色相保持不变。焦点环的颜色由 `primary` 推出，对页面的对比度不低于 3:1。
 

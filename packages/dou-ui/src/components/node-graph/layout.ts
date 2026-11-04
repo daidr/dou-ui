@@ -290,7 +290,8 @@ function untangle(layers: Item[][]) {
  * How many nodes a fan needs before the long edges beyond its outermost
  * nodes are left out of it. With `straight`, a single node already lines
  * up on its own; otherwise a node fanning out to one node and some long
- * edges sits in the middle of all of them.
+ * edges sits in the middle of all of them. `Infinity` keeps every long
+ * edge in its fan.
  */
 const fanNodes = (straight: boolean) => (straight ? 1 : 2)
 
@@ -302,7 +303,7 @@ const fanNodes = (straight: boolean) => (straight ? 1 : 2)
  * half a node further out. Each is the index of its first and last item;
  * a run broken by an item outside the fan is left alone.
  */
-function fans(layer: Item[], straight: boolean) {
+function fans(layer: Item[], outer: number) {
   const index = new Map(layer.map((item, i) => [item, i]))
   const seen = new Set<Item>()
   const runs: [number, number][] = []
@@ -315,7 +316,7 @@ function fans(layer: Item[], straight: boolean) {
         if (at.length < 2) continue
         if (Math.max(...at) - Math.min(...at) + 1 !== at.length) continue
         const nodes = at.filter((i) => layer[i]!.edge < 0)
-        const ends = nodes.length >= fanNodes(straight) ? nodes : at
+        const ends = nodes.length >= outer ? nodes : at
         const first = Math.min(...ends)
         const last = Math.max(...ends)
         if (last > first) runs.push([first, last])
@@ -328,12 +329,7 @@ function fans(layer: Item[], straight: boolean) {
 /**
  * The least distance between neighbouring items of a layer, in grid steps.
  */
-function spacing(
-  layer: Item[],
-  gap: (a: Item, b: Item) => number,
-  grid: number,
-  straight: boolean,
-) {
+function spacing(layer: Item[], gap: (a: Item, b: Item) => number, grid: number, outer: number) {
   const steps: number[] = []
   for (let i = 1; i < layer.length; i++) {
     const a = layer[i - 1]!
@@ -351,7 +347,7 @@ function spacing(
   // of pitches. So its hub sits on the grid right in the middle and the
   // curves pair up even when one node is larger or an edge passes through;
   // only the gaps beside a larger node grow.
-  const runs = fans(layer, straight)
+  const runs = fans(layer, outer)
   for (let changed = runs.length > 0, pass = 0; changed && pass < 8; pass++) {
     changed = false
     for (const [first, last] of runs) {
@@ -378,9 +374,9 @@ function place(
   targets: number[],
   gap: (a: Item, b: Item) => number,
   grid: number,
-  straight: boolean,
+  outer: number,
 ) {
-  const steps = spacing(layer, gap, grid, straight)
+  const steps = spacing(layer, gap, grid, outer)
   const offsets: number[] = [0]
   steps.forEach((n, i) => offsets.push(offsets[i]! + n))
   const blocks: { sum: number; count: number }[] = []
@@ -434,19 +430,30 @@ function components(layers: Item[][]) {
 }
 
 /**
- * What a node lines up with on one side: its fan, from the first node
- * there to the last, long edges between them included and those beyond
- * left out, as `fans` has it. With `straight`, that is the one node there
- * when it has just one besides long edges, so a chain of nodes stays
+ * What a node lines up with on one side. With `straight`, the one node
+ * there when it has just one besides long edges, so a chain of nodes stays
  * straight and the long edges bend around it instead.
  */
 function lineUp(item: Item, neighbours: Item[], straight: boolean) {
-  if (item.edge >= 0) return neighbours
-  const ys = neighbours.filter((n) => n.edge < 0).map((n) => n.y)
-  if (ys.length < fanNodes(straight)) return neighbours
+  if (!straight || item.edge >= 0) return neighbours
+  const nodes = neighbours.filter((n) => n.edge < 0)
+  return nodes.length === 1 ? nodes : neighbours
+}
+
+/**
+ * What a node is centred on at the end: its fan as `fans` has it, from the
+ * first node there to the last, long edges between them included and those
+ * beyond left out. While relaxing it still feels those outer long edges, so
+ * they pull it and it pulls them back instead of pushing them away.
+ */
+function fanOf(item: Item, neighbours: Item[], straight: boolean, outer: number) {
+  const line = lineUp(item, neighbours, straight)
+  if (item.edge >= 0) return line
+  const ys = line.filter((n) => n.edge < 0).map((n) => n.y)
+  if (ys.length < outer) return line
   const lo = Math.min(...ys)
   const hi = Math.max(...ys)
-  return neighbours.filter((n) => n.y >= lo && n.y <= hi)
+  return line.filter((n) => n.y >= lo && n.y <= hi)
 }
 
 function mean(values: number[], fallback: number) {
@@ -504,10 +511,8 @@ export function layoutGraph(
 
   const gap = (a: Item, b: Item) => (a.edge >= 0 && b.edge >= 0 ? edgeGap : laneGap)
 
-  /** Orders and places the columns of one part of the graph. */
-  const arrange = (part: Item[][]) => {
-    const ordered = untangle(part)
-
+  /** Places the ordered columns of one part of the graph. */
+  const arrange = (ordered: Item[][], outer: number) => {
     // Start each column stacked around the middle, then relax.
     for (const layer of ordered)
       place(
@@ -515,7 +520,7 @@ export function layoutGraph(
         layer.map(() => 0),
         gap,
         grid,
-        straightChains,
+        outer,
       )
     const relax = (layer: Item[], neighbours: (item: Item) => Item[]) =>
       place(
@@ -528,7 +533,7 @@ export function layoutGraph(
         ),
         gap,
         grid,
-        straightChains,
+        outer,
       )
     for (let pass = 0; pass < 4; pass++) {
       for (const layer of ordered.slice(1)) relax(layer, (item) => item.preds)
@@ -546,10 +551,10 @@ export function layoutGraph(
       (i === 0 || y - layer[i - 1]!.y >= steps[i - 1]! * grid) &&
       (i === layer.length - 1 || layer[i + 1]!.y - y >= steps[i]! * grid)
     const centre = (layer: Item[], side: (item: Item) => Item[]) => {
-      const steps = spacing(layer, gap, grid, straightChains)
+      const steps = spacing(layer, gap, grid, outer)
       let moved = false
       layer.forEach((item, i) => {
-        const ys = lineUp(item, side(item), straightChains).map((n) => n.y)
+        const ys = fanOf(item, side(item), straightChains, outer).map((n) => n.y)
         // oxlint-disable-next-line unicorn/no-array-sort -- sorts a copy
         ys.sort((a, b) => a - b)
         if (!ys.length) return
@@ -582,16 +587,34 @@ export function layoutGraph(
   // across the flow, the largest first, apart by twice the lane gap.
   const ordered: Item[][] = layers.map(() => [])
   let next = -Infinity
-  for (const part of components(layers)) {
-    const arranged = arrange(part)
+  const extent = (part: Item[][]) => {
     let lo = Infinity
     let hi = -Infinity
-    for (const layer of arranged) {
+    for (const layer of part) {
       for (const item of layer) {
         lo = Math.min(lo, item.y - item.anchor)
         hi = Math.max(hi, item.y - item.anchor + item.height)
       }
     }
+    return { lo, hi }
+  }
+  for (const part of components(layers)) {
+    const arranged = untangle(part)
+    // Long edges beyond a fan's outer nodes run close past them instead
+    // of mirroring a node on the far side. Leaving them out of the fans
+    // changes how everything settles, though, and once in a while lets
+    // a chain drift away; then the part is laid out keeping them in, and
+    // whichever is narrower wins.
+    arrange(arranged, fanNodes(straightChains))
+    if (arranged.some((layer) => layer.some((item) => item.edge >= 0))) {
+      const all = arranged.flat()
+      const close = all.map((item) => item.y)
+      const a = extent(arranged)
+      arrange(arranged, Infinity)
+      const b = extent(arranged)
+      if (a.hi - a.lo <= b.hi - b.lo) all.forEach((item, i) => (item.y = close[i]!))
+    }
+    const { lo, hi } = extent(arranged)
     const shift = Number.isFinite(next) ? Math.ceil((next - lo) / grid) * grid : 0
     arranged.forEach((layer, c) => {
       for (const item of layer) item.y += shift

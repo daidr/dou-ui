@@ -124,7 +124,7 @@
 
 用 [ContextMenu](./context-menu) 包住表格，用 `v-model:target` 绑定一个变量，在 `rowContextmenu` 事件里记下是哪一行，再在右键菜单的 `select` 里处理。
 
-表头、空状态、展开行的内容和合计行不触发 `rowContextmenu`，在这些位置右键时 `target` 是空的，可以在 `beforeOpen` 里不打开，写法见 [ContextMenu](./context-menu#针对某一项)。下面的示例右键表头试试。
+表头、空状态、展开行的内容和合计行不触发 `rowContextmenu`，在这些位置右键时 `target` 是空的，让 `beforeOpen` 返回 `false` 就不打开，写法见 [ContextMenu](./context-menu#针对某一项)。下面的示例右键表头试试。
 
 <DocDemo src="table/context-menu" column />
 

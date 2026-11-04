@@ -41,7 +41,7 @@
 
 用 [ContextMenu](./context-menu) 包住菜单，在 `itemContextmenu` 事件里记下是哪一项，再在右键菜单的 `select` 里处理。事件的参数是该项的 `MenuItemOption` 和原生事件。右键和聚焦时按菜单键都会触发；在 ContextMenu 的触发区域里，触摸屏上长按也会触发。子菜单的开关、禁用的项也一样。
 
-分组标题、分隔线和项之间的空隙不是任何一项，右键那里不会触发 `itemContextmenu`。用 `v-model:target` 记下项时，ContextMenu 每次右键先把它清空，在 `beforeOpen` 里没有项就不打开，写法见 [ContextMenu](./context-menu#针对某一项)。下面的示例右键「设置」分组标题试试。
+分组标题、分隔线和项之间的空隙不是任何一项，右键那里不会触发 `itemContextmenu`。用 `v-model:target` 记下项时，ContextMenu 每次右键先把它清空，没有项时让 `beforeOpen` 返回 `false` 就不打开，写法见 [ContextMenu](./context-menu#针对某一项)。下面的示例右键「设置」分组标题试试。
 
 <DocDemo src="menu/context-menu" column />
 

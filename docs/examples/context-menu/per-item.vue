@@ -9,7 +9,7 @@ const target = ref()
 <template>
   <DouContextMenu
     v-model:target="target"
-    @before-open="(event) => target || event.preventDefault()"
+    :before-open="() => !!target"
     @select="(value) => (last = `${value}「${target}」`)"
   >
     <ul

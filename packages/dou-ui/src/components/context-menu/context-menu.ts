@@ -37,6 +37,14 @@ export interface ContextMenuProps {
    * menu only ever clears it, so keep it in a ref that can be `undefined`.
    */
   target?: unknown
+  /**
+   * Called before the menu opens by right click, long press or the menu key,
+   * after the events inside the trigger; `false` keeps it closed and leaves
+   * the right click to the browser, or to a menu around this one;
+   * `event.preventDefault()` keeps it closed with no menu at all. So does
+   * `preventDefault()` in an event inside the trigger.
+   */
+  beforeOpen?: (event: MouseEvent) => boolean | void
   /** Leave the browser's own menu in place. */
   disabled?: boolean
   /** Close the menu once an item is chosen. */
@@ -53,12 +61,6 @@ export interface ContextMenuProps {
 export interface ContextMenuEmits {
   'update:open': [open: boolean]
   'update:target': [target: undefined]
-  /**
-   * Sent before the menu opens by right click, long press or the menu key,
-   * after the events inside the trigger; `event.preventDefault()` keeps it
-   * closed, as does calling it in one of those events.
-   */
-  beforeOpen: [event: MouseEvent]
   /** An item was chosen. */
   select: [value: DropdownValue | undefined]
 }

@@ -321,7 +321,7 @@ watch(narrow, (value) => {
         </div>
       </div>
 
-      <DouContextMenu v-model:target="target" @before-open="onAreaMenu" @select="onMenu">
+      <DouContextMenu v-model:target="target" :before-open="onAreaMenu" @select="onMenu">
         <div class="content" @keydown="onKeydown">
           <DouTable
             v-if="view === 'list'"

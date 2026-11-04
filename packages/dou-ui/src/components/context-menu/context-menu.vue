@@ -37,7 +37,6 @@ const open = defineModel<boolean>('open', { default: false })
 const emit = defineEmits<{
   select: [value: DropdownValue | undefined]
   'update:target': [target: undefined]
-  beforeOpen: [event: MouseEvent]
 }>()
 const slots = defineSlots<ContextMenuSlots>()
 useItemsWarning('ContextMenu', () => !!props.items && !!slots.menu)
@@ -119,9 +118,10 @@ onBeforeUnmount(() => document.removeEventListener('contextmenu', onDocumentCont
 function onContextmenu(event: MouseEvent) {
   if (props.disabled) return
   if (!press?.fired) cancelPress()
-  // Something inside handled this right click already, or the app said no.
-  if (!event.defaultPrevented) emit('beforeOpen', event)
+  // Something inside handled this right click already, or the app said no:
+  // `false` leaves it to the browser or an outer menu, `preventDefault()` to no one.
   if (event.defaultPrevented) return
+  if (props.beforeOpen?.(event) === false || event.defaultPrevented) return
   event.preventDefault()
   // A menu opened from the keyboard has no pointer position: open it at
   // the bottom left of the focused element instead.

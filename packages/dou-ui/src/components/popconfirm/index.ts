@@ -1,7 +1,8 @@
 import { withInstall } from '../../utils/install'
+import { forwardsTrigger } from '../../utils/only-child'
 import Popconfirm from './popconfirm.vue'
 
-export const DouPopconfirm = withInstall(Popconfirm)
+export const DouPopconfirm = forwardsTrigger(withInstall(Popconfirm))
 export default DouPopconfirm
 
 export type * from './popconfirm'

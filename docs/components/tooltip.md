@@ -24,6 +24,12 @@
 
 <DocDemo src="tooltip/shortcut" />
 
+## 弹出层的触发按钮
+
+图标按钮常常既要提示文字，点开又是弹出层或菜单。把 `DouTooltip` 直接套在 `DouPopover`、`DouDropdown`、`DouPopconfirm` 或 `DouContextMenu` 外面即可，不需要额外包一层元素：两者的属性与事件都会落在同一个按钮上，悬停或聚焦显示提示，点击、`Enter` 或轻触打开弹出层。弹出层打开后提示随即收起，免得盖在面板上；面板关闭后，下次悬停或聚焦时再出现。两层的顺序可以互换。
+
+<DocDemo src="tooltip/overlay" />
+
 ## 自定义内容
 
 `content` 插槽可以放更丰富的内容，例如标题加说明。
@@ -40,7 +46,7 @@
 
 ## 键盘与读屏
 
-提示带有 `role="tooltip"`，显示期间触发元素的 `aria-describedby` 指向它，读屏会在读完触发元素后读出提示。`Esc` 关闭提示且不移动焦点。指针可以移到提示上而不让它消失。
+提示带有 `role="tooltip"`，显示期间触发元素的 `aria-describedby` 指向它，读屏会在读完触发元素后读出提示。提示文字与触发元素的名称（`aria-label`、`aria-labelledby` 或其中的文字）相同时不再指向它，免得同一句话读两遍；所以只有图标的按钮照常写 `aria-label`，提示写同样的文字即可。快捷键由 `aria-keyshortcuts` 读出，不算在提示文字里。`Esc` 关闭提示且不移动焦点。指针可以移到提示上而不让它消失。
 
 ## API
 

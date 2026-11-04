@@ -1,4 +1,5 @@
 import { withInstall } from '../../utils/install'
+import { forwardsTrigger } from '../../utils/only-child'
 import Dropdown from './dropdown.vue'
 import DropdownButton from './dropdown-button.vue'
 import type DropdownItem from './dropdown-item.vue'
@@ -6,7 +7,7 @@ import type DropdownRadioGroup from './dropdown-radio-group.vue'
 import { DouDropdownItem, DouDropdownRadioGroup } from './item-components'
 import DropdownSub from './dropdown-sub.vue'
 
-export const DouDropdown = withInstall(Dropdown)
+export const DouDropdown = forwardsTrigger(withInstall(Dropdown))
 export const DouDropdownSub = withInstall(DropdownSub)
 export const DouDropdownButton = withInstall(DropdownButton)
 export { DouDropdownItem, DouDropdownRadioGroup }

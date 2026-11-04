@@ -1,5 +1,5 @@
 import { Comment, Fragment, Text, cloneVNode, defineComponent, h } from 'vue'
-import type { ComponentPublicInstance, HTMLAttributes, VNode } from 'vue'
+import type { Component, ComponentPublicInstance, HTMLAttributes, VNode } from 'vue'
 import type { WithAttributes } from './install'
 
 function firstElement(nodes: VNode[]): VNode | null {
@@ -19,6 +19,43 @@ function firstElement(nodes: VNode[]): VNode | null {
   return null
 }
 
+/*
+ * Components whose default slot is their trigger (a tooltip, a popover, a
+ * menu). Nested inside one another, each would hand its listeners to the
+ * outer component, which keeps them for its own panel. So when the child
+ * is one of these, the attributes go on to its slot instead and reach the
+ * element both of them anchor to.
+ */
+const triggerHosts = new WeakSet<object>()
+
+/** Marks a component whose default slot is its trigger, rendered through `OnlyChild`. */
+export function forwardsTrigger<T extends Component>(component: T): T {
+  triggerHosts.add(component)
+  return component
+}
+
+// PatchFlags.DYNAMIC_SLOTS: the replaced slot differs on every render
+const DYNAMIC_SLOTS = 1 << 10
+
+function passToTrigger(host: VNode, attrs: Record<string, unknown>): VNode {
+  const slots = host.children as Record<string, unknown> | null
+  const inner = slots?.default
+  if (typeof inner !== 'function') return host
+  // without `_` and `$stable` the slots are taken as new on every render
+  const { _: _compiled, $stable: _stable, ...rest } = slots!
+  const passed = cloneVNode(host)
+  passed.children = {
+    ...rest,
+    default: (...args: unknown[]) => [
+      h(OnlyChildComponent, attrs, {
+        default: () => (inner as (...a: unknown[]) => VNode[])(...args),
+      }),
+    ],
+  }
+  if (passed.patchFlag >= 0) passed.patchFlag |= DYNAMIC_SLOTS
+  return passed
+}
+
 /**
  * Render the first element of the default slot, with the attributes and
  * listeners given to this component merged onto it. Lets a floating
@@ -31,6 +68,7 @@ const OnlyChildComponent = defineComponent({
     return () => {
       const child = firstElement(slots.default?.() ?? [])
       if (!child) return null
+      if (triggerHosts.has(child.type as object)) return passToTrigger(child, { ...attrs })
       // ids that describe the element are a list: the element's own stay with the ones given
       const own = child.props?.['aria-describedby'] as string | undefined
       const given = attrs['aria-describedby'] as string | undefined

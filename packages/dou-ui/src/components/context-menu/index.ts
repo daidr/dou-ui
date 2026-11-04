@@ -1,7 +1,8 @@
 import { withInstall } from '../../utils/install'
+import { forwardsTrigger } from '../../utils/only-child'
 import ContextMenu from './context-menu.vue'
 
-export const DouContextMenu = withInstall(ContextMenu)
+export const DouContextMenu = forwardsTrigger(withInstall(ContextMenu))
 export default DouContextMenu
 
 export type * from './context-menu'

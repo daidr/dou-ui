@@ -203,4 +203,31 @@ describe('DouTooltip', () => {
     expect(panel.closest('[data-v-app]')).toBeNull()
     wrapper.unmount()
   })
+
+  it('does not describe a trigger whose name already says the same', async () => {
+    const wrapper = mount(
+      {
+        render: () => [
+          h(DouTooltip, { content: '设置', shortcut: 'mod+,' }, () =>
+            h('button', { id: 'same', 'aria-label': '设置' }, 'x'),
+          ),
+          h(DouTooltip, { content: '打开设置面板' }, () =>
+            h('button', { id: 'more', 'aria-label': '设置' }, 'x'),
+          ),
+        ],
+      },
+      { attachTo: document.body },
+    )
+    const same = wrapper.get('#same')
+    await same.trigger('focusin')
+    expect(tooltip()).not.toBeNull()
+    expect(same.attributes('aria-describedby')).toBeUndefined()
+    expect(same.attributes('aria-keyshortcuts')).toBeTruthy()
+
+    const more = wrapper.get('#more')
+    await more.trigger('focusin')
+    const shown = document.querySelectorAll<HTMLElement>('[role="tooltip"]')
+    expect(more.attributes('aria-describedby')).toBe(shown[shown.length - 1]!.id)
+    wrapper.unmount()
+  })
 })

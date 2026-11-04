@@ -204,6 +204,7 @@ describe('DouMenu', () => {
           {
             key: 'settings',
             label: '设置',
+            description: '项目的权限和集成',
             children: [{ key: 'members', label: '成员', description: '戴兜和另外 3 人' }],
           },
         ],
@@ -282,7 +283,59 @@ describe('DouMenu', () => {
       expect(nameAndDescription(find('项目列表'))).toEqual(['项目列表', '按更新时间排列'])
       expect(nameAndDescription(find('成员'))).toEqual(['成员', '戴兜和另外 3 人'])
       expect(find('没有说明').getAttribute('aria-describedby')).toBeNull()
+      // a deeper submenu turns into a heading, too small for it: its group reads it
+      const group = menu.querySelector('[role="group"]')!
+      expect(nameAndDescription(group)).toEqual(['设置', '项目的权限和集成'])
+      expect(group.querySelector('.dou-dropdown__group-label')!.textContent!.trim()).toBe('设置')
       wrapper.unmount()
+    })
+
+    it('takes the label and description slots inline and in popups', async () => {
+      const slots = {
+        label: (scope: { item: MenuItemOption; selected: boolean }) =>
+          h('i', `${scope.item.label}${scope.selected ? '·当前' : ''}`),
+        description: (scope: { item: MenuItemOption }) => h('b', `【${scope.item.description}】`),
+      }
+      const inline = mount(DouMenu, {
+        props: { items: described, expanded: ['projects'], modelValue: 'list' },
+        slots,
+        attachTo: document.body,
+      })
+      const list = inline
+        .findAll('[data-dou-menu-item]')
+        .find((row) => row.find('.dou-menu__label').text() === '项目列表·当前')!
+      expect(list.get('.dou-menu__description b').text()).toBe('【按更新时间排列】')
+      // items without a description stay without one
+      expect(inline.findAll('.dou-menu__description')).toHaveLength(5)
+      inline.unmount()
+
+      const collapsed = mount(DouMenu, {
+        props: { items: described, collapsed: true, modelValue: 'list' },
+        slots,
+        attachTo: document.body,
+      })
+      expect(nameAndDescription(collapsed.get('[aria-label="首页"]').element)).toEqual([
+        '首页',
+        '【本周的待办和动态】',
+      ])
+      await collapsed.get('[aria-label="项目"]').trigger('keydown', { key: 'ArrowDown' })
+      await nextTick()
+      const menu = document.querySelector('[role="menu"]')!
+      const rows = [...menu.querySelectorAll('[role="menuitem"]')]
+      expect(rows.map((row) => row.querySelector('.dou-dropdown__label')?.textContent)).toEqual([
+        '项目列表·当前',
+        '没有说明',
+        '成员',
+      ])
+      expect(rows[0]!.querySelector('.dou-dropdown__description b')?.textContent).toBe(
+        '【按更新时间排列】',
+      )
+      expect(rows[1]!.querySelector('.dou-dropdown__description')).toBeNull()
+      expect(nameAndDescription(menu.querySelector('[role="group"]')!)).toEqual([
+        '设置',
+        '【项目的权限和集成】',
+      ])
+      collapsed.unmount()
     })
   })
 

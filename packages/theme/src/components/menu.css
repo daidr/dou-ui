@@ -17,9 +17,10 @@
     --dou-menu-indent: calc(var(--dou-menu-icon-size) + var(--dou-menu-gap));
     --dou-menu-hover-bg: color-mix(in oklab, var(--dou-color-text) 4%, transparent);
     --dou-menu-selected-bg: color-mix(in oklab, var(--dou-color-text) 7%, transparent);
-    /* rows with a description: the title line and the gap to the description */
+    /* rows with a description: the title line, the gap to the description, the narrowest text column */
     --dou-menu-title-height: 16px;
     --dou-menu-description-gap: 6px;
+    --dou-menu-description-width: 200px;
 
     min-width: 0;
     color: var(--dou-color-text-secondary);
@@ -150,14 +151,16 @@
     gap: var(--dou-menu-description-gap, 6px);
     min-width: 0;
 
-    /* the trimmed title sits in the middle of the title line */
+    /* a flex row, so its trim does not apply: the line is as high as the icon and centers the text */
     & > .dou-menu__label {
-      padding-block: calc((var(--dou-menu-title-height, 16px) - 1cap) / 2);
+      height: var(--dou-menu-title-height, 16px);
     }
   }
 
   .dou-menu__description {
+    /* takes the width the menu gives it; a menu without a width of its own grows to this much for it */
     contain: inline-size;
+    contain-intrinsic-inline-size: var(--dou-menu-description-width, 200px);
     color: var(--dou-color-text-tertiary);
     font-size: var(--dou-font-size-sm);
     font-weight: var(--dou-font-weight-regular);

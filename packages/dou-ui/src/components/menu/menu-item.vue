@@ -51,6 +51,9 @@ const describedBy = computed(
 const Label: FunctionalComponent = () =>
   (menu.labelSlot()?.({ item: props.item, selected: selected.value }) as VNode[] | undefined) ??
   props.item.label
+const Description: FunctionalComponent = () =>
+  (menu.descriptionSlot()?.({ item: props.item, selected: selected.value }) as
+    VNode[] | undefined) ?? props.item.description
 
 function onClick(event: MouseEvent) {
   if (props.item.disabled) {
@@ -93,13 +96,11 @@ function onClick(event: MouseEvent) {
     </span>
     <span v-if="shown" :class="ns.e('text')"
       ><span :id="`${id}-label`" :class="ns.e('label')"><Label /></span
-      ><span :id="`${id}-description`" :class="ns.e('description')">{{
-        item.description
-      }}</span></span
-    >
+      ><span :id="`${id}-description`" :class="ns.e('description')"><Description /></span
+    ></span>
     <span v-else-if="!iconOnly" :id="`${id}-label`" :class="ns.e('label')"><Label /></span>
     <!-- a hidden element still describes the item -->
-    <span v-if="described && !shown" :id="`${id}-description`" hidden>{{ item.description }}</span>
+    <span v-if="described && !shown" :id="`${id}-description`" hidden><Description /></span>
     <ChevronDownIcon
       v-if="kind !== 'leaf' && !iconOnly"
       :class="[ns.e('arrow'), ns.is('open', expanded)]"

@@ -28,13 +28,13 @@
 
 项上写 `description`，名称下面多一行说明，适合设置页这类只看名称分不清每一项管什么的侧边栏。说明比名称小一号、颜色更浅，放不下时换行，不会把菜单撑宽；图标和子菜单的箭头仍和名称对齐。
 
-说明只在展开的竖向菜单和弹出的子菜单里显示，写法、样式与 [Dropdown 的带说明的菜单项](./dropdown#带说明的菜单项) 一致。折叠后的图标列和水平菜单的顶层只有一行高，不显示说明，读屏仍会读出。
+说明只在展开的竖向菜单和弹出的子菜单里显示，写法、样式与 [Dropdown 的带说明的菜单项](./dropdown#带说明的菜单项) 一致。折叠后的图标列和水平菜单的顶层只有一行高，不显示说明，读屏仍会读出。弹出层里更深一层的子菜单会摊平成小标题，同样只读出、不显示说明。
 
 <DocDemo src="menu/description" />
 
 ## 自定义标签
 
-`label` 插槽替换每一项的文字，比如加上计数，参数为 `{ item, selected }`。
+`label` 插槽替换每一项的文字，比如加上计数，参数为 `{ item, selected }`。`description` 插槽同样替换每一项的说明，比如把其中的数字加粗，只作用于写了 `description` 的项。两个插槽在弹出的子菜单里也生效。
 
 ```vue
 <DouMenu v-model="current" :items="items">
@@ -122,16 +122,18 @@ function onItemContextmenu(item: MenuItemOption, event: MouseEvent) {
 
 ### Slots
 
-| 名称    | 说明                                          |
-| ------- | --------------------------------------------- |
-| `label` | 替换每一项的文字，参数为 `{ item, selected }` |
+| 名称          | 说明                                                           |
+| ------------- | -------------------------------------------------------------- |
+| `label`       | 替换每一项的文字，参数为 `{ item, selected }`                  |
+| `description` | 替换写了 `description` 的项的说明，参数为 `{ item, selected }` |
 
 ### CSS 变量
 
-| 变量                         | 说明                             |
-| ---------------------------- | -------------------------------- |
-| `--dou-menu-item-height`     | 行高                             |
-| `--dou-menu-indent`          | 每一级的缩进                     |
-| `--dou-menu-selected-bg`     | 当前项的底色                     |
-| `--dou-menu-title-height`    | 带说明的项里名称那一行的高度     |
-| `--dou-menu-description-gap` | 带说明的项里名称与说明之间的间距 |
+| 变量                           | 说明                             |
+| ------------------------------ | -------------------------------- |
+| `--dou-menu-item-height`       | 行高                             |
+| `--dou-menu-indent`            | 每一级的缩进                     |
+| `--dou-menu-selected-bg`       | 当前项的底色                     |
+| `--dou-menu-title-height`      | 带说明的项里名称那一行的高度     |
+| `--dou-menu-description-gap`   | 带说明的项里名称与说明之间的间距 |
+| `--dou-menu-description-width` | 菜单不设宽度时，为说明留出的宽度 |

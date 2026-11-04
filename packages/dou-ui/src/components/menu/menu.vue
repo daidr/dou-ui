@@ -83,6 +83,7 @@ provide(menuKey, {
     if (item !== more.value) emit('itemContextmenu', item, event)
   },
   labelSlot: () => slots.label,
+  descriptionSlot: () => slots.description,
   subId: (key) => `${id}-sub-${String(key).replace(/\s+/g, '-')}`,
 })
 

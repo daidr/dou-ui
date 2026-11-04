@@ -16,6 +16,7 @@ function answer(text) {
     <DouSegmentedControl
       v-model="width"
       :options="[
+        { value: '200px', label: '200px' },
         { value: '300px', label: '300px' },
         { value: '460px', label: '460px' },
         { value: '100%', label: '100%' },

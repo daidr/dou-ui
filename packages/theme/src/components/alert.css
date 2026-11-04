@@ -74,16 +74,15 @@
     display: flex;
     flex: 1 1 auto;
     flex-wrap: wrap;
-    align-items: center;
-    gap: 8px 12px;
+    align-items: flex-start;
+    /* 8px between text and wrapped actions, after the actions' lift below */
+    gap: calc(8px + (var(--dou-control-height-sm) - 1.5em) / 2) 12px;
     min-width: 0;
   }
 
   .dou-alert__content {
     flex: 1 1 var(--dou-alert-text-min, 16em);
     min-width: 0;
-    /* keep the first line level with the icon when the actions are taller */
-    align-self: flex-start;
   }
 
   .dou-alert__title {
@@ -95,6 +94,11 @@
     margin-top: 2px;
   }
 
+  /*
+   * Each row of actions is a small control tall and lifted so its center
+   * sits on the center of the text's first line, like the icon and the
+   * close button. Shorter things (a text link) center in that row too.
+   */
   .dou-alert__action {
     display: flex;
     flex: 0 1 auto;
@@ -102,6 +106,8 @@
     align-items: center;
     gap: 8px;
     min-width: 0;
+    min-height: var(--dou-control-height-sm);
+    margin-top: calc((1.5em - var(--dou-control-height-sm)) / 2);
   }
 
   .dou-alert__close {

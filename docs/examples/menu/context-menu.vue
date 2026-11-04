@@ -29,18 +29,21 @@ const last = ref('无')
 </script>
 
 <template>
-  <DouContextMenu @select="(value) => (last = `${value}「${target?.label}」`)">
+  <DouContextMenu
+    v-model:target="target"
+    @before-open="(event) => target || event.preventDefault()"
+    @select="(value) => (last = `${value}「${target.label}」`)"
+  >
     <DouMenu
       v-model="current"
       :items="items"
       style="width: 220px"
-      @contextmenu.capture="target = null"
       @item-contextmenu="(item) => (target = item)"
     />
     <template #menu>
-      <DouDropdownItem value="在新标签页打开" :disabled="!target">在新标签页打开</DouDropdownItem>
-      <DouDropdownItem value="复制链接" :disabled="!target">复制链接</DouDropdownItem>
-      <DouDropdownItem value="固定到顶部" :disabled="!target">固定到顶部</DouDropdownItem>
+      <DouDropdownItem value="在新标签页打开">在新标签页打开</DouDropdownItem>
+      <DouDropdownItem value="复制链接">复制链接</DouDropdownItem>
+      <DouDropdownItem value="固定到顶部">固定到顶部</DouDropdownItem>
     </template>
   </DouContextMenu>
   <DouText variant="tertiary" size="sm">最近的操作：{{ last }}</DouText>

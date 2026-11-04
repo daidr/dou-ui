@@ -41,7 +41,7 @@
 
 用 [ContextMenu](./context-menu) 包住菜单，在 `itemContextmenu` 事件里记下是哪一项，再在右键菜单的 `select` 里处理。事件的参数是该项的 `MenuItemOption` 和原生事件。右键和聚焦时按菜单键都会触发；在 ContextMenu 的触发区域里，触摸屏上长按也会触发。子菜单的开关、禁用的项也一样。
 
-分组标题、分隔线和项之间的空隙不是任何一项，右键那里不会触发 `itemContextmenu`，但右键菜单照样打开。所以每次右键先在捕获阶段清空，再由 `itemContextmenu` 记下，没有项时把菜单项禁用，否则操作会落到上一次右键的项上。下面的示例右键「设置」分组标题试试。
+分组标题、分隔线和项之间的空隙不是任何一项，右键那里不会触发 `itemContextmenu`。用 `v-model:target` 记下项时，ContextMenu 每次右键先把它清空，在 `beforeOpen` 里没有项就不打开，写法见 [ContextMenu](./context-menu#针对某一项)。下面的示例右键「设置」分组标题试试。
 
 <DocDemo src="menu/context-menu" column />
 
@@ -50,20 +50,15 @@
 折叠或水平时，子菜单弹出在 `body` 下，不在 ContextMenu 的触发区域里，右键其中的项不会打开外面的菜单，但同样触发 `itemContextmenu`，可以在事件里从脚本打开。用菜单键触发时有的浏览器给出的坐标是 `(0, 0)`，这时改用该项的位置：
 
 ```vue
-<DouContextMenu ref="contextMenu" @select="onSelect">
-  <DouMenu
-    :items="items"
-    collapsed
-    @contextmenu.capture="target = null"
-    @item-contextmenu="onItemContextmenu"
-  />
+<DouContextMenu ref="contextMenu" v-model:target="target" @select="onSelect">
+  <DouMenu :items="items" collapsed @item-contextmenu="onItemContextmenu" />
   <template #menu>…</template>
 </DouContextMenu>
 ```
 
 ```ts
 const contextMenu = useTemplateRef('contextMenu')
-const target = ref<MenuItemOption | null>(null)
+const target = ref<MenuItemOption>()
 
 function onItemContextmenu(item: MenuItemOption, event: MouseEvent) {
   target.value = item

@@ -4,7 +4,7 @@
  * Small dots strung on a hairline. The dot is the only place a tone
  * shows; the time sits above the content in the tertiary gray with
  * tabular figures. Something still under way gets a hollow dot and a
- * dashed line leading to it; the current step keeps a solid dot with a
+ * dashed line leading to it; the current step is a StatusDot with its
  * slow ripple spreading from it.
  */
 @layer dou.components {
@@ -108,28 +108,14 @@
     --dou-timeline-dot: var(--dou-color-text);
   }
 
+  /* the current step: a StatusDot with its ripple, sized and colored by the timeline */
   .dou-timeline__item.is-active > .dou-timeline__rail > .dou-timeline__dot {
-    position: relative;
+    display: flex;
+    background: none;
 
-    &::after {
-      position: absolute;
-      inset: 0;
-      border-radius: inherit;
-      background-color: var(--dou-timeline-dot);
-      content: '';
-      animation: dou-timeline-ripple var(--dou-motion-loop-sweep) var(--dou-motion-easing-enter)
-        var(--dou-motion-loop-count);
-    }
-  }
-
-  @keyframes dou-timeline-ripple {
-    from {
-      opacity: 0.4;
-      transform: scale(1);
-    }
-    to {
-      opacity: 0;
-      transform: scale(2.6);
+    & > .dou-status-dot {
+      --dou-status-dot-size: var(--dou-timeline-dot-size);
+      --dou-status-dot-color: var(--dou-timeline-dot);
     }
   }
 
@@ -156,24 +142,6 @@
     flex-direction: column;
     gap: 2px;
     min-width: 0;
-  }
-
-  /* reduced or no motion: a still halo instead of the ripple */
-  @media (prefers-reduced-motion: reduce) {
-    :root:not([data-dou-motion])
-      .dou-timeline__item.is-active
-      > .dou-timeline__rail
-      > .dou-timeline__dot::after {
-      opacity: 0.2;
-      transform: scale(1.8);
-    }
-  }
-  :is([data-dou-motion='reduce'], [data-dou-motion='none'])
-    .dou-timeline__item.is-active
-    > .dou-timeline__rail
-    > .dou-timeline__dot::after {
-    opacity: 0.2;
-    transform: scale(1.8);
   }
 
   .dou-timeline__time {

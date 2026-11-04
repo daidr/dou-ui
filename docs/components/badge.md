@@ -10,7 +10,7 @@
 
 ## 圆点
 
-`dot` 只表示“有新东西”，不关心数量。
+`dot` 只表示“有新东西”，不关心数量。要表示在线、运行中这类状态，用 [StatusDot 状态点](/components/status-dot)。
 
 <DocDemo src="badge/dot" />
 

@@ -1,0 +1,101 @@
+/*
+ * StatusDot
+ *
+ * A small round dot that tells a state at a glance: online, running,
+ * failed. Gray when neutral, so idle rows stay quiet; a tone is for
+ * states that mean something. Something live can carry a slow ripple
+ * spreading from the dot.
+ *
+ * The ripple is a pseudo-element that only animates `transform` and
+ * `opacity`, so the browser runs it off the main thread and a page full
+ * of dots costs no script and no layout. With reduced motion it stops and
+ * settles into a still halo.
+ */
+@layer dou.components {
+  .dou-status-dot {
+    --dou-status-dot-size: 8px;
+    --dou-status-dot-gap: 8px;
+    --dou-status-dot-color: var(--dou-color-text-tertiary);
+
+    display: inline-flex;
+    align-items: center;
+    gap: var(--dou-status-dot-gap);
+    min-width: 0;
+    max-width: 100%;
+    vertical-align: middle;
+  }
+
+  .dou-status-dot--sm {
+    --dou-status-dot-size: 6px;
+    --dou-status-dot-gap: 6px;
+  }
+  .dou-status-dot--lg {
+    --dou-status-dot-size: 10px;
+  }
+
+  .dou-status-dot--primary {
+    --dou-status-dot-color: var(--dou-color-primary);
+  }
+  .dou-status-dot--success {
+    --dou-status-dot-color: var(--dou-color-success);
+  }
+  .dou-status-dot--warning {
+    --dou-status-dot-color: var(--dou-color-warning);
+  }
+  .dou-status-dot--danger {
+    --dou-status-dot-color: var(--dou-color-danger);
+  }
+
+  .dou-status-dot__dot {
+    position: relative;
+    flex-shrink: 0;
+    width: var(--dou-status-dot-size);
+    height: var(--dou-status-dot-size);
+    border-radius: var(--dou-radius-full);
+    background-color: var(--dou-status-dot-color);
+
+    .dou-status-dot.is-ripple > &::after {
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background-color: inherit;
+      content: '';
+      pointer-events: none;
+      animation: dou-status-dot-ripple var(--dou-motion-loop-sweep) var(--dou-motion-easing-enter)
+        var(--dou-motion-loop-count);
+    }
+  }
+
+  @keyframes dou-status-dot-ripple {
+    from {
+      opacity: 0.4;
+      transform: scale(1);
+    }
+    to {
+      opacity: 0;
+      transform: scale(2.6);
+    }
+  }
+
+  /* reduced or no motion: a still halo instead of the ripple */
+  @media (prefers-reduced-motion: reduce) {
+    :root:not([data-dou-motion]) .dou-status-dot.is-ripple > .dou-status-dot__dot::after {
+      opacity: 0.2;
+      transform: scale(1.8);
+    }
+  }
+  :is([data-dou-motion='reduce'], [data-dou-motion='none'])
+    .dou-status-dot.is-ripple
+    > .dou-status-dot__dot::after {
+    opacity: 0.2;
+    transform: scale(1.8);
+  }
+
+  .dou-status-dot__label {
+    min-width: 0;
+    overflow-x: clip;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-box: trim-both cap alphabetic;
+  }
+}

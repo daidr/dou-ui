@@ -441,6 +441,7 @@ export default defineConfig({
             { text: 'User 用户', link: '/components/user' },
             { text: 'CommentThread 评论讨论', link: '/components/comment-thread' },
             { text: 'Badge 徽标', link: '/components/badge' },
+            { text: 'StatusDot 状态点', link: '/components/status-dot' },
             { text: 'Tag 标签', link: '/components/tag' },
             { text: 'Kbd 键盘按键', link: '/components/kbd' },
             { text: 'Empty 空状态', link: '/components/empty' },

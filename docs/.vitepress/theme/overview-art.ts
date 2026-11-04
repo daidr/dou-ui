@@ -750,6 +750,18 @@ const arts: Record<string, string | ((id: string) => string)> = {
     text(87, 41, '3', 'tx on-tone small') +
     avatar(132, 60, 24, 'm') +
     circle(149, 43, 5, 'r ring2'),
+  'status-dot':
+    rect(36, 26, 128, 68, 'p', 10) +
+    circle(54, 43, 8, 'gs') +
+    circle(54, 43, 4, 'g') +
+    bar(68, 41, 52, 'k') +
+    bar(132, 41, 18, 't') +
+    circle(54, 60, 4, 'g') +
+    bar(68, 58, 64, 'k') +
+    bar(140, 58, 10, 't') +
+    circle(54, 77, 4, 't') +
+    bar(68, 75, 44, 's') +
+    bar(132, 75, 18, 't'),
   tag:
     rect(34, 40, 40, 20, 'm', 5) +
     bar(42, 48, 24, 't') +

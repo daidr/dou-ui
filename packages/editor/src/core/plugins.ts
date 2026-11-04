@@ -42,6 +42,54 @@ export function idPlugin(): Plugin {
   })
 }
 
+const isList = (block: PMNode | null) => !!block?.firstChild?.type.spec.continues
+
+/**
+ * Blocks that continue like a list (`continues` in their spec) get
+ * `is-list`, so the stylesheet can space list items apart by the list gap
+ * instead of the block gap. The first and last block of a run of them also
+ * get `is-list-start` / `is-list-end`, where the block gap comes back. A
+ * nested run under a list item carries on its parent's run.
+ */
+function listDecorations(doc: PMNode): DecorationSet {
+  const decorations: Decoration[] = []
+  const visit = (container: PMNode, start: number, inList: boolean) => {
+    const last = container.childCount - 1
+    container.forEach((block, offset, index) => {
+      const pos = start + offset
+      const list = isList(block)
+      if (list) {
+        const classes = ['is-list']
+        if (!(index > 0 ? isList(container.child(index - 1)) : inList))
+          classes.push('is-list-start')
+        if (!(index < last ? isList(container.child(index + 1)) : inList))
+          classes.push('is-list-end')
+        decorations.push(Decoration.node(pos, pos + block.nodeSize, { class: classes.join(' ') }))
+      }
+      if (block.childCount > 1)
+        visit(block.child(1), pos + 1 + block.firstChild!.nodeSize + 1, list)
+    })
+  }
+  visit(doc, 0, false)
+  return DecorationSet.create(doc, decorations)
+}
+
+/** Marks list-like blocks and the ends of their runs, for spacing. */
+export function listPlugin(): Plugin {
+  return new Plugin<DecorationSet>({
+    key: new PluginKey('dou-editor-lists'),
+    state: {
+      init: (_config, state) => listDecorations(state.doc),
+      apply: (tr, value) => (tr.docChanged ? listDecorations(tr.doc) : value),
+    },
+    props: {
+      decorations(state) {
+        return this.getState(state)
+      },
+    },
+  })
+}
+
 /** Numbered items count up within each run of consecutive numbered siblings. */
 function numberDecorations(doc: PMNode): DecorationSet {
   const decorations: Decoration[] = []

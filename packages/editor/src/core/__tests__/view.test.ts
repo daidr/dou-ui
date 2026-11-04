@@ -258,3 +258,49 @@ describe('paste', () => {
     ])
   })
 })
+
+const classesOf = (target: EditorView) =>
+  Object.fromEntries(
+    [...target.dom.querySelectorAll<HTMLElement>('.dou-editor__block')].map((block) => [
+      block.dataset.blockId,
+      ['is-list', 'is-list-start', 'is-list-end'].filter((name) => block.classList.contains(name)),
+    ]),
+  )
+
+describe('list spacing', () => {
+  it('marks list items and the ends of their runs, nested items carrying on the run', () => {
+    const target = mount([
+      p('intro'),
+      { id: 'a', type: 'bulletItem', content: 'a' },
+      {
+        id: 'b',
+        type: 'numberedItem',
+        content: 'b',
+        children: [
+          { id: 'b1', type: 'checkItem', content: 'b1' },
+          { id: 'b2', type: 'bulletItem', content: 'b2' },
+        ],
+      },
+      { id: 'c', type: 'paragraph', content: 'c', children: [{ id: 'c1', type: 'bulletItem' }] },
+    ])
+    expect(classesOf(target)).toEqual({
+      intro: [],
+      a: ['is-list', 'is-list-start'],
+      b: ['is-list', 'is-list-end'],
+      b1: ['is-list'],
+      b2: ['is-list'],
+      c: [],
+      c1: ['is-list', 'is-list-start', 'is-list-end'],
+    })
+  })
+
+  it('follows changes to the document', () => {
+    const target = mount([p('a'), { id: 'b', type: 'bulletItem', content: 'b' }])
+    cursorAt(target, 'a')
+    type(target, '- ')
+    expect(classesOf(target)).toEqual({
+      a: ['is-list', 'is-list-start'],
+      b: ['is-list', 'is-list-end'],
+    })
+  })
+})

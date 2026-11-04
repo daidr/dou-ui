@@ -9,7 +9,7 @@ import type { ResolvedEditorExtensions } from './extension'
 import { editorInputRules } from './input-rules'
 import { editorKeymap, type KeymapOptions } from './keymap'
 import { blocksToDoc, docToBlocks, type Block, type PartialBlock } from './model'
-import { idPlugin, placeholderPlugin, type PlaceholderOptions } from './plugins'
+import { idPlugin, listPlugin, placeholderPlugin, type PlaceholderOptions } from './plugins'
 import { preparePastePlugin } from './prepare'
 
 export interface CreateEditorOptions {
@@ -86,6 +86,7 @@ export function createPlugins(options: Omit<CreateEditorOptions, 'element'>): Pl
     ...(builtInHistory ? [history()] : []),
     preparePastePlugin(kit),
     idPlugin(),
+    listPlugin(),
     placeholderPlugin(options.placeholder),
   ]
 }

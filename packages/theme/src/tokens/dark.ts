@@ -8,11 +8,11 @@ import { light } from './light'
 export const dark = defineTheme(light, {
   scheme: { dark: '1' },
   color: {
-    neutral: { DEFAULT: '#ededed', on: '#0a0a0a', text: '#ededed' },
-    primary: { DEFAULT: '#4c66cb', on: '#ffffff', text: '#768ad7' },
-    success: { DEFAULT: '#2f8060', on: '#ffffff', text: '#42a87d' },
-    warning: { DEFAULT: '#c18a3c', on: '#1a1206', text: '#c99852' },
-    danger: { DEFAULT: '#c5453e', on: '#ffffff', text: '#d4746f' },
+    neutral: { DEFAULT: '#ededed', on: '#0a0a0a', text: '#ededed', soft: '#1d1d1d' },
+    primary: { DEFAULT: '#4c66cb', on: '#ffffff', text: '#768ad7', soft: '#15171c' },
+    success: { DEFAULT: '#2f8060', on: '#ffffff', text: '#42a87d', soft: '#141816' },
+    warning: { DEFAULT: '#c18a3c', on: '#1a1206', text: '#c99852', soft: '#1b1815' },
+    danger: { DEFAULT: '#c5453e', on: '#ffffff', text: '#d4746f', soft: '#1c1514' },
     bg: {
       canvas: '#0a0a0a',
       surface: '#111111',

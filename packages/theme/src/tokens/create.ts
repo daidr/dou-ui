@@ -22,12 +22,17 @@ export interface CreateThemeOptions {
 const TEXT_CONTRAST = 4.5
 /** Minimum contrast for the focus ring against the page (WCAG non-text). */
 const FOCUS_CONTRAST = 3
+/** How much of a tone goes into its `soft` tint over the surface. */
+const SOFT_AMOUNT = 0.07
 
 /**
  * Build a light and a dark theme from a few brand colors.
  *
  * Each color becomes a full tone: the color itself, the text color that
- * reads on it, and a version that reads as text on the page. Lightness is
+ * reads on it, a version that reads as text on the page, and a faint tint
+ * for faint backgrounds. Tones that are not given keep their values, except
+ * that a soft tint computed for another surface is mixed again over the
+ * base theme's surface (a soft tint written by hand stays as it is). Lightness is
  * adjusted in OKLCH until every pair reaches 4.5:1, so the hue stays
  * recognizable while text stays legible. The focus ring follows `primary`.
  *
@@ -47,9 +52,10 @@ export function createTheme(
 
 function themeFor(base: ThemeTokens, colors: ThemeColors): ThemeTokens {
   const color: Partial<ThemeTokens['color']> = {}
-  for (const name of ['primary', 'success', 'warning', 'danger'] as const) {
-    const value = colors[name]
+  for (const name of ['neutral', 'primary', 'success', 'warning', 'danger'] as const) {
+    const value = name === 'neutral' ? undefined : colors[name]
     if (value) color[name] = createTone(value, base)
+    else color[name] = retint(base.color[name], base)
   }
   if (colors.primary) color.focus = focusColor(colors.primary, base)
   return defineTheme(base, { color })
@@ -80,11 +86,48 @@ export function createTone(value: string, base: ThemeTokens = lightBase): ToneTo
     on = pickOn(fromOklch(fill), white, ink)!
   }
 
-  // As text: move away from the page until it reads on every surface.
-  const reads = (rgb: Rgb) => surfaces.every((surface) => contrast(rgb, surface) >= TEXT_CONTRAST)
-  const text = reads(fromOklch(fill)) ? fill : adjust(fill, isDark ? 1 : -1, reads)
+  const DEFAULT = toHex(fromOklch(fill))
+  const soft = softTint(DEFAULT, base)
 
-  return { DEFAULT: toHex(fromOklch(fill)), on: toHex(on), text: toHex(fromOklch(text)) }
+  const text = readableText(toHex(fromOklch(fill)), soft, base)
+
+  return { DEFAULT, on: toHex(on), text, soft }
+}
+
+/**
+ * A tone that was not given keeps its colors. Only a soft tint that was
+ * computed for another surface (the built-in themes', when the base changed
+ * its surface) is mixed again over the base's surface; a tint written by
+ * hand stays. The text moves only if it no longer reads on the new tint.
+ */
+function retint(tone: ToneTokens, base: ThemeTokens): ToneTokens {
+  const computed = [lightBase, darkBase, base].some(
+    (theme) => tone.soft === softTint(tone.DEFAULT, theme),
+  )
+  if (!computed) return tone
+  const soft = softTint(tone.DEFAULT, base)
+  if (soft === tone.soft) return tone
+  return { ...tone, soft, text: readableText(tone.text, soft, base) }
+}
+
+function softTint(color: string, base: ThemeTokens): string {
+  return mixColors(color, base.color.bg.surface, SOFT_AMOUNT)
+}
+
+/**
+ * The color as text: kept when it reads on every page surface and on the
+ * tone's own soft tint, otherwise moved away from the page until it does.
+ */
+function readableText(color: string, soft: string, base: ThemeTokens): string {
+  const backgrounds = [base.color.bg.canvas, base.color.bg.surface, base.color.bg.muted, soft].map(
+    parseColor,
+  )
+  const isDark = luminance(backgrounds[1]!) < 0.18
+  const reads = (rgb: Rgb) =>
+    backgrounds.every((surface) => contrast(rgb, surface) >= TEXT_CONTRAST)
+  const rgb = parseColor(color)
+  if (reads(rgb)) return color
+  return toHex(fromOklch(adjust(toOklch(rgb), isDark ? 1 : -1, reads)))
 }
 
 /** A softer version of the primary color that still stands out from the page. */

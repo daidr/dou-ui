@@ -15,6 +15,7 @@ const vars = computed(() =>
   ),
 )
 const tone = computed(() => (isDark.value ? themes.value.dark : themes.value.light).color.primary)
+const keys = ['DEFAULT', 'on', 'text', 'soft'] as const
 const checked = ref(true)
 </script>
 
@@ -23,7 +24,11 @@ const checked = ref(true)
     <DouSpace>
       <DouColorPicker v-model="brand" />
       <DouText variant="secondary" mono>
-        DEFAULT {{ tone.DEFAULT }} · on {{ tone.on }} · text {{ tone.text }}
+        <template v-for="(key, i) in keys" :key="key">
+          <template v-if="i">· </template>
+          <span style="white-space: nowrap">{{ key }} {{ tone[key] }}</span>
+          {{ ' ' }}
+        </template>
       </DouText>
     </DouSpace>
     <div :style="vars" style="display: grid; gap: 12px">
@@ -36,6 +41,16 @@ const checked = ref(true)
         <DouSwitch v-model="checked" />
         <DouCheckbox v-model="checked">同步到团队</DouCheckbox>
       </DouSpace>
+      <div
+        style="
+          padding: var(--dou-space-sm) var(--dou-space-md);
+          border-radius: var(--dou-radius-control);
+          background: var(--dou-color-primary-soft);
+          color: var(--dou-color-primary-text);
+        "
+      >
+        等你确认：上海门店的周报
+      </div>
       <DouProgress :value="64" tone="primary" show-value />
     </div>
   </div>

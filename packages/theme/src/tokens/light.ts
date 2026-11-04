@@ -11,11 +11,11 @@ import type { ThemeTokens } from './types'
 export const light: ThemeTokens = {
   scheme: { dark: '0' },
   color: {
-    neutral: { DEFAULT: '#171717', on: '#ffffff', text: '#171717' },
-    primary: { DEFAULT: '#3f56b5', on: '#ffffff', text: '#3f56b5' },
-    success: { DEFAULT: '#2e7d5b', on: '#ffffff', text: '#2c7756' },
-    warning: { DEFAULT: '#92651d', on: '#ffffff', text: '#8b5f1c' },
-    danger: { DEFAULT: '#b2423e', on: '#ffffff', text: '#b2423e' },
+    neutral: { DEFAULT: '#171717', on: '#ffffff', text: '#171717', soft: '#ececec' },
+    primary: { DEFAULT: '#3f56b5', on: '#ffffff', text: '#3f56b5', soft: '#f0f3fb' },
+    success: { DEFAULT: '#2e7d5b', on: '#ffffff', text: '#2c7756', soft: '#f0f6f3' },
+    warning: { DEFAULT: '#92651d', on: '#ffffff', text: '#8b5f1c', soft: '#f7f4ef' },
+    danger: { DEFAULT: '#b2423e', on: '#ffffff', text: '#b2423e', soft: '#fbf2f1' },
     bg: {
       canvas: '#fafafa',
       surface: '#ffffff',

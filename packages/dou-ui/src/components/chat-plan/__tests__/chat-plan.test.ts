@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { DouChatPlan } from '../../../index'
 
 const items = [
@@ -29,6 +29,7 @@ describe('DouChatPlan', () => {
     expect(wrapper.emitted('update:open')).toEqual([[false]])
   })
   it('renders a plain panel when not collapsible', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const wrapper = mount(DouChatPlan, {
       props: { items, collapsible: false, open: false },
     })
@@ -47,5 +48,19 @@ describe('DouChatPlan', () => {
     )
     await header.trigger('click')
     expect(wrapper.emitted('update:open')).toBeUndefined()
+    warn.mockRestore()
+  })
+  it('warns once that open is ignored on a plain panel', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const quiet = mount(DouChatPlan, { props: { items, collapsible: false } })
+    expect(warn).not.toHaveBeenCalled()
+    quiet.unmount()
+    const wrapper = mount(DouChatPlan, { props: { items, collapsible: false, open: true } })
+    await wrapper.setProps({ open: false })
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn).toHaveBeenCalledWith(
+      '[dou-ui] DouChatPlan: `open` is ignored when `collapsible` is false.',
+    )
+    warn.mockRestore()
   })
 })

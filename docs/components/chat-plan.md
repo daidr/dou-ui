@@ -16,7 +16,7 @@
 
 ## 纯面板
 
-设置 `collapsible` 为 `false` 后，标题只用来显示，点击不会收起，步骤始终可见，`open` 也不再起作用。适合放在侧栏或任务详情里，常驻显示当前进度。
+将 `collapsible` 设为 `false` 后，标题不能点击，步骤始终展开，`open` 不再生效。适合放在侧栏或任务详情里，常驻显示当前进度。
 
 <DocDemo src="chat-plan/panel" column />
 
@@ -28,7 +28,7 @@
 | ------------- | ------------------------------------------------------------------ | ---------------- | ---------- |
 | `items`       | 步骤                                                               | `ChatPlanItem[]` | `[]`       |
 | `title`       | 标题                                                               | `string`         | `任务计划` |
-| `collapsible` | 能否点击标题收起，关掉后是始终展开的纯面板                         | `boolean`        | `true`     |
+| `collapsible` | 是否可以点击标题收起，为 `false` 时始终展开                        | `boolean`        | `true`     |
 | `open`        | 是否展开，配合 `v-model:open`；`collapsible` 为 `false` 时不起作用 | `boolean`        | `true`     |
 
 ### ChatPlanItem

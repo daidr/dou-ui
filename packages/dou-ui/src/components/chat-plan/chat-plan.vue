@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { AlertCircleIcon, CheckIcon, ChevronDownIcon, ListChecksIcon } from '@dou-ui/icons'
-import { computed, ref, useId } from 'vue'
+import { computed, ref, useId, watchEffect } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { CollapseTransition } from '../collapse/collapse-transition'
 import { useLocale } from '../config-provider/use-config'
@@ -29,6 +29,17 @@ function toggle() {
   emit('update:open', inner.value)
 }
 
+// Say once, while developing, that `open` does nothing on a plain panel.
+// The app's bundler replaces this, as for Vue's own warnings.
+if (process.env.NODE_ENV !== 'production') {
+  let warned = false
+  watchEffect(() => {
+    if (warned || props.collapsible || props.open === undefined) return
+    warned = true
+    console.warn('[dou-ui] DouChatPlan: `open` is ignored when `collapsible` is false.')
+  })
+}
+
 const finished = computed(
   () => props.items.filter((item) => item.status === 'done' || item.status === 'skipped').length,
 )
@@ -44,25 +55,20 @@ const running = computed(() => props.items.some((item) => item.status === 'runni
       ns.is('running', running),
     ]"
   >
-    <button
-      v-if="collapsible"
+    <component
+      :is="collapsible ? 'button' : 'div'"
       :id="`${id}-header`"
-      type="button"
       :class="ns.e('header')"
-      :aria-expanded="open"
-      :aria-controls="`${id}-panel`"
-      @click="toggle"
+      :type="collapsible ? 'button' : undefined"
+      :aria-expanded="collapsible ? open : undefined"
+      :aria-controls="collapsible ? `${id}-panel` : undefined"
+      @click="collapsible && toggle()"
     >
       <ListChecksIcon :class="ns.e('icon')" />
       <span :class="ns.e('title')">{{ title ?? t('chat.plan') }}</span>
       <span :class="ns.e('count')">{{ finished }} / {{ items.length }}</span>
-      <ChevronDownIcon :class="ns.e('arrow')" />
-    </button>
-    <div v-else :id="`${id}-header`" :class="ns.e('header')">
-      <ListChecksIcon :class="ns.e('icon')" />
-      <span :class="ns.e('title')">{{ title ?? t('chat.plan') }}</span>
-      <span :class="ns.e('count')">{{ finished }} / {{ items.length }}</span>
-    </div>
+      <ChevronDownIcon v-if="collapsible" :class="ns.e('arrow')" />
+    </component>
     <CollapseTransition>
       <div
         v-show="open"

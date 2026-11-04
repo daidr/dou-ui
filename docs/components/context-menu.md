@@ -26,7 +26,17 @@
 <DouContextMenu v-model:target="target" @before-open="(e) => target || e.preventDefault()">
 ```
 
-没有项时也可以照常打开，换一组菜单项，比如空白处的“新建”。
+没有项时也可以照常打开，在 `menu` 插槽里按 `target` 换一组菜单项，比如空白处的“新建”，完整的例子见[文件管理](../blocks/files)区块：
+
+```vue
+<template #menu>
+  <template v-if="target">
+    <DouDropdownItem value="rename">重命名</DouDropdownItem>
+    <DouDropdownItem value="delete" tone="danger">删除</DouDropdownItem>
+  </template>
+  <DouDropdownItem v-else value="folder">新建文件夹</DouDropdownItem>
+</template>
+```
 
 项由组件渲染时，用组件给出的事件代替，如 [Menu](./menu#右键菜单) 的 `itemContextmenu`、[Table](./table#右键菜单) 的 `rowContextmenu`，参数里带有该项的数据和原生事件。在这些事件里调用原生事件的 `preventDefault()` 同样不打开，可以让个别项没有菜单。触发区域里的元素已经处理了这次右键时（调用过 `preventDefault()`），菜单也不打开，所以两个 ContextMenu 嵌套时只打开里面那个。
 

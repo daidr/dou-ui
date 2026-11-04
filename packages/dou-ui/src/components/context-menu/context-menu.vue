@@ -5,7 +5,6 @@ import {
   onBeforeUnmount,
   onMounted,
   onScopeDispose,
-  onUpdated,
   provide,
   ref,
   useId,
@@ -106,25 +105,16 @@ function dismiss() {
 }
 
 // A new right click starts with no target; the events inside set it.
-// Listened to directly so it runs before them however the trigger renders.
-function onContextmenuCapture() {
+// Listened to on the document so it runs before them, whatever element the
+// trigger renders now.
+function onDocumentContextmenu(event: MouseEvent) {
   if (props.disabled) return
-  emit('update:target', undefined)
-}
-let captured: Element | null = null
-function bindCapture() {
   const el = trigger()
-  if (el === captured) return
-  captured?.removeEventListener('contextmenu', onContextmenuCapture, true)
-  el?.addEventListener('contextmenu', onContextmenuCapture, true)
-  captured = el
+  if (el && event.target instanceof Node && el.contains(event.target))
+    emit('update:target', undefined)
 }
-onMounted(bindCapture)
-onUpdated(bindCapture)
-onBeforeUnmount(() => {
-  captured?.removeEventListener('contextmenu', onContextmenuCapture, true)
-  captured = null
-})
+onMounted(() => document.addEventListener('contextmenu', onDocumentContextmenu, true))
+onBeforeUnmount(() => document.removeEventListener('contextmenu', onDocumentContextmenu, true))
 
 function onContextmenu(event: MouseEvent) {
   if (props.disabled) return

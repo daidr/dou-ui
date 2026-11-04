@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { h, nextTick } from 'vue'
+import { defineComponent, h, nextTick, ref } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DouContextMenu, DouDropdownItem } from '../../../index'
 
@@ -296,6 +296,40 @@ describe('DouContextMenu', () => {
     rightClick(wrapper.get('#list').element)
     expect(seen).toEqual([undefined, undefined])
     expect(current).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('still clears the target after the trigger swaps its root element', async () => {
+    const seen: unknown[] = []
+    const Swap = defineComponent({
+      props: { grid: Boolean },
+      setup: (props) => () =>
+        props.grid ? h('div', { id: 'grid' }, '网格') : h('ul', { id: 'list' }, '列表'),
+    })
+    const grid = ref(false)
+    const wrapper = mount(
+      defineComponent({
+        setup: () => () =>
+          h(
+            DouContextMenu,
+            { target: 'stale', 'onUpdate:target': (value: unknown) => seen.push(value) },
+            {
+              default: () => h(Swap, { grid: grid.value }),
+              menu: () => h(DouDropdownItem, { value: 'open' }, () => '打开'),
+            },
+          ),
+      }),
+      { attachTo: document.body },
+    )
+    rightClick(wrapper.get('#list').element)
+    expect(seen).toEqual([undefined])
+    grid.value = true
+    await nextTick()
+    rightClick(wrapper.get('#grid').element)
+    expect(seen).toEqual([undefined, undefined])
+    // a right click elsewhere on the page leaves it alone
+    rightClick(document.body)
+    expect(seen).toHaveLength(2)
     wrapper.unmount()
   })
 

@@ -210,7 +210,8 @@ function updateOverflow() {
   if (vertical.value) {
     // a column only overflows with a fixed `height`; there it fades but has no arrows
     const max = list.scrollHeight - list.clientHeight
-    const top = Math.max(0, list.scrollTop)
+    // kept in range while the column bounces
+    const top = scrollPositionOf(list).top
     overflow.value = { start: top > 1, end: top < max - 1 }
     return
   }

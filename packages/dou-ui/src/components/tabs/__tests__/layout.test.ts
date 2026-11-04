@@ -119,6 +119,20 @@ describe('DouTabs icons', () => {
     wrapper.unmount()
   })
 
+  it('with iconOnly, keeps the close button of a closable tab', async () => {
+    const wrapper = mount(DouTabs, {
+      props: { iconOnly: true, closable: true },
+      slots: { default: () => panels() },
+    })
+    await nextTick()
+    const tab = wrapper.get('[role="tab"]')
+    // the theme widens a closable icon tab for the button
+    expect(tab.classes()).toEqual(expect.arrayContaining(['is-icon-alone', 'is-closable']))
+    expect(tab.find('.dou-tabs__close').exists()).toBe(true)
+    await tab.trigger('keydown', { key: 'Delete' })
+    expect(wrapper.emitted('remove')).toEqual([['profile']])
+  })
+
   it('keeps the text of a panel without an icon, and warns', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const wrapper = mount(DouTabs, {

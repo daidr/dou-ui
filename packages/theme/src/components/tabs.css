@@ -107,11 +107,17 @@
     }
   }
 
-  /* an icon alone: a square tab, its label in a tooltip */
-  .dou-tabs .dou-tabs__tab.is-icon-alone {
+  /* an icon alone: a square tab, its label in a tooltip; one that closes widens for the button */
+  .dou-tabs.is-icon-only .dou-tabs__tab.is-icon-alone {
     justify-content: center;
     width: var(--dou-tabs-height);
     padding: 0;
+
+    &.is-closable {
+      width: auto;
+      min-width: var(--dou-tabs-height);
+      padding-inline: 8px;
+    }
   }
 
   .dou-tabs__label {

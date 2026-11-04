@@ -3,7 +3,7 @@ import { computed, onBeforeUnmount, onMounted, onUpdated, ref, useTemplateRef, w
 import { useResizeObserver } from '../../composables/use-element-size'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
-import DouTooltip from '../tooltip/tooltip.vue'
+import { DouTooltip } from '../tooltip'
 import type { FunctionalComponent } from 'vue'
 import type { EllipsisExpose, EllipsisProps, EllipsisSlots } from './ellipsis'
 

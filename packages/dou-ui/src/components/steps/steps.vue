@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { CheckIcon, CloseIcon } from '@dou-ui/icons'
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import DouTooltip from '../tooltip/tooltip.vue'
+import { DouTooltip } from '../tooltip'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import type { StepItem, StepStatus, StepsProps, StepsSlots } from './steps'

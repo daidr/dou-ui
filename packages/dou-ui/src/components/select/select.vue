@@ -9,7 +9,7 @@ import { shouldVirtualize } from '../../utils/virtual'
 import { OnlyChild } from '../../utils/only-child'
 import { useLocale } from '../config-provider/use-config'
 import { useFormDisabled, useFormItem, useFormReadonly, useFormSize } from '../form/use-form-item'
-import DouSpinner from '../spinner/spinner.vue'
+import { DouSpinner } from '../spinner'
 import { DouTag } from '../tag'
 import type {
   SelectExpose,

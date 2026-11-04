@@ -4,7 +4,7 @@ import { computed } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { checkedUrl, opensNewTab } from '../../utils/safe-url'
 import { useLocale } from '../config-provider/use-config'
-import DouPopover from '../popover/popover.vue'
+import { DouPopover } from '../popover'
 import { sourceSite } from './chat-sources'
 import type { ChatCitationProps } from './chat-sources'
 

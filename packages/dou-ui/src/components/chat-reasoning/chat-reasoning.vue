@@ -2,9 +2,9 @@
 import { ChevronDownIcon, SparklesIcon } from '@dou-ui/icons'
 import { computed, ref, useId, watch } from 'vue'
 import { useNamespace } from '../../utils/namespace'
-import { CollapseTransition } from '../collapse/collapse-transition'
+import { DouCollapseTransition as CollapseTransition } from '../collapse/collapse-transition'
 import { useLocale } from '../config-provider/use-config'
-import DouShimmer from '../shimmer/shimmer.vue'
+import { DouShimmer } from '../shimmer'
 import { formatDuration } from './format'
 import type { ChatReasoningEmits, ChatReasoningProps, ChatReasoningSlots } from './chat-reasoning'
 

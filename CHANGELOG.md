@@ -7,6 +7,26 @@ DouUI 的所有包（`dou-ui`、`@dou-ui/theme`、`@dou-ui/icons` 以及生态�
 
 这个文件由发版脚本生成：改动先以碎片文件记在 [`.changes/`](./.changes/README.md) 里，发布时汇总到这里。
 
+## 0.1.0-alpha.2 · 2026-11-04
+
+### 不兼容
+
+- **@dou-ui/theme**：`ToneTokens` 新增必填的 `soft`，手写完整 `ThemeTokens` 的主题要给每种语气补上：值用 `mixColors(DEFAULT, bg.surface, 0.07)` 算出，或者整组改用 `createTone(color, base)` 生成。用 `defineTheme` 在内置主题上覆盖的主题不受影响。 ([#289](https://github.com/daidr/dou-ui/pull/289))
+
+### 新增
+
+- **@dou-ui/theme**：每种语气色新增浅色底 `soft`（`--dou-color-primary-soft`、`--dou-color-warning-soft` 等），亮色和暗色主题各一套，等于语气色以 7% 混进表面色，和 soft 按钮、标签的底色一致，语气文字和正文在上面都不低于 4.5:1。`createTheme` / `createTone` 会一并生成。 ([#289](https://github.com/daidr/dou-ui/pull/289))
+
+### 改进
+
+- **dou-ui、@dou-ui/theme**：Alert 的 `action` 插槽放多个按钮时不再挤压正文：正文旁边放不下时，操作区换到正文下方，按钮之间也可以换行。新增 `--dou-alert-text-min` 控制正文至少保留的宽度。 ([#288](https://github.com/daidr/dou-ui/pull/288))
+- **@dou-ui/flow**：白板图片上传失败时在屏幕下方显示错误提示，不再只有读屏能听到；新增 `onUploadError(file, error)` 选项，可以改用自己的方式提示。`upload` 没有返回 `src` 时也算失败，不再插入坏图。 ([#291](https://github.com/daidr/dou-ui/pull/291))
+
+### 修复
+
+- **@dou-ui/dashboard**：`deriveLayout` 推算较窄断点的布局时，同一行里原本一样宽的格子保持一样宽：例如 12 列里四个 3 列宽的格子在 6 列时排成两行、每行两个，不再变成 2/1/2/1；折不了行时留出空列。 ([#290](https://github.com/daidr/dou-ui/pull/290))
+- **@dou-ui/flow、@dou-ui/dashboard**：`@dou-ui/flow/style` 和 `@dou-ui/dashboard/style` 也带上子路径（如 `@dou-ui/flow/whiteboard`、`@dou-ui/dashboard/widgets`）用到的组件样式，按需引入时白板的错误提示、仪表盘的小组件不再缺样式。 ([#291](https://github.com/daidr/dou-ui/pull/291))
+
 ## 0.1.0-alpha.1 · 2026-11-03
 
 ### 改进

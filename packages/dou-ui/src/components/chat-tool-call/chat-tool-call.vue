@@ -10,7 +10,7 @@ import {
 import { computed, ref, useId, watchEffect } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useStatusCheck, devWarn } from '../../utils/status-check'
-import { CollapseTransition } from '../collapse/collapse-transition'
+import { DouCollapseTransition as CollapseTransition } from '../collapse/collapse-transition'
 import { useLocale } from '../config-provider/use-config'
 import { DouSpinner } from '../spinner'
 import { formatToolValue } from './chat-tool-call'

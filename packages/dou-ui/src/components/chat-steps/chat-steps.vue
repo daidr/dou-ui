@@ -2,7 +2,7 @@
 import { AlertCircleIcon, ChevronDownIcon } from '@dou-ui/icons'
 import { computed, ref, useId } from 'vue'
 import { useNamespace } from '../../utils/namespace'
-import { CollapseTransition } from '../collapse/collapse-transition'
+import { DouCollapseTransition as CollapseTransition } from '../collapse/collapse-transition'
 import { useLocale } from '../config-provider/use-config'
 import { DouShimmer } from '../shimmer'
 import { DouSpinner } from '../spinner'

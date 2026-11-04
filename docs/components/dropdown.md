@@ -30,7 +30,7 @@
 
 ## 触发方式与宽度
 
-`trigger="hover"` 指向即打开，`trigger="manual"` 只由 `v-model:open` 打开。不论哪种方式，点击菜单以外的地方或按 `Esc` 都会关闭菜单。`sameWidth` 让菜单至少与触发元素一样宽。选中后默认关闭，`:hide-on-select="false"` 可以保持打开。
+`trigger="hover"` 指向即打开（触屏和触控笔上改为轻点打开、再点一下收起），`trigger="manual"` 只由 `v-model:open` 打开。不论哪种方式，点击菜单以外的地方或按 `Esc` 都会关闭菜单。`sameWidth` 让菜单至少与触发元素一样宽。选中后默认关闭，`:hide-on-select="false"` 可以保持打开。
 
 <DocDemo src="dropdown/trigger-width" />
 

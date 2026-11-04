@@ -136,6 +136,105 @@ describe('DouDropdown', () => {
     }
   })
 
+  it('opens a hover menu on a tap and keeps it open after the finger lifts', async () => {
+    vi.useFakeTimers()
+    const wrapper = withModel({ trigger: 'hover' })
+    const trigger = wrapper.get('#trigger')
+    // a tap: touch pointer events, then the mouse events phones send after it
+    await trigger.trigger('pointerenter', { pointerType: 'touch' })
+    await trigger.trigger('pointerdown', { pointerType: 'touch' })
+    await trigger.trigger('pointerleave', { pointerType: 'touch' })
+    await trigger.trigger('mouseenter')
+    await trigger.trigger('click', { detail: 1 })
+    expect(wrapper.props('open')).toBe(true)
+    await trigger.trigger('mouseleave')
+    vi.advanceTimersByTime(500)
+    await nextTick()
+    expect(wrapper.props('open')).toBe(true)
+    // the same trigger tapped again closes it
+    await trigger.trigger('pointerdown', { pointerType: 'touch' })
+    await trigger.trigger('click', { detail: 1 })
+    expect(wrapper.props('open')).toBe(false)
+    // and a press outside closes what a tap opened
+    await trigger.trigger('pointerdown', { pointerType: 'touch' })
+    await trigger.trigger('click', { detail: 1 })
+    expect(wrapper.props('open')).toBe(true)
+    document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+    await nextTick()
+    expect(wrapper.props('open')).toBe(false)
+    wrapper.unmount()
+    vi.useRealTimers()
+  })
+
+  it('opens a hover menu on a pen tap, the same as a finger', async () => {
+    vi.useFakeTimers()
+    const wrapper = withModel({ trigger: 'hover' })
+    const trigger = wrapper.get('#trigger')
+    // a pen that cannot hover enters and leaves with the press
+    await trigger.trigger('pointerenter', { pointerType: 'pen' })
+    await trigger.trigger('pointerdown', { pointerType: 'pen' })
+    await trigger.trigger('pointerleave', { pointerType: 'pen' })
+    await trigger.trigger('click', { detail: 1 })
+    vi.advanceTimersByTime(500)
+    await nextTick()
+    expect(wrapper.props('open')).toBe(true)
+    wrapper.unmount()
+    vi.useRealTimers()
+  })
+
+  it('forgets a press that scrolled the page instead of tapping', async () => {
+    const wrapper = withModel({ trigger: 'hover' })
+    const trigger = wrapper.get('#trigger')
+    await trigger.trigger('pointerdown', { pointerType: 'touch' })
+    await trigger.trigger('pointercancel', { pointerType: 'touch' })
+    // Enter from the keyboard afterwards opens the menu at its first item
+    await trigger.trigger('click', { detail: 0 })
+    await nextTick()
+    expect(wrapper.props('open')).toBe(true)
+    await nextTick()
+    expect(document.activeElement).toBe(firstItem())
+    wrapper.unmount()
+  })
+
+  it('opens on a click with no press before it, as screen readers send', async () => {
+    const wrapper = withModel({ trigger: 'hover' })
+    await wrapper.get('#trigger').trigger('click', { detail: 1 })
+    expect(wrapper.props('open')).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('leaves the default of a tap alone when the trigger is not a link', async () => {
+    const wrapper = withModel({ trigger: 'hover' })
+    const trigger = wrapper.get('#trigger')
+    await trigger.trigger('pointerdown', { pointerType: 'touch' })
+    const click = new MouseEvent('click', { detail: 1, bubbles: true, cancelable: true })
+    trigger.element.dispatchEvent(click)
+    await nextTick()
+    expect(wrapper.props('open')).toBe(true)
+    expect(click.defaultPrevented).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('still opens and closes a hover menu with the mouse', async () => {
+    vi.useFakeTimers()
+    const wrapper = withModel({ trigger: 'hover' })
+    const trigger = wrapper.get('#trigger')
+    await trigger.trigger('pointerenter', { pointerType: 'mouse' })
+    vi.advanceTimersByTime(100)
+    await nextTick()
+    expect(wrapper.props('open')).toBe(true)
+    // a click with the mouse leaves the hover menu as it is
+    await trigger.trigger('pointerdown', { pointerType: 'mouse' })
+    await trigger.trigger('click', { detail: 1 })
+    expect(wrapper.props('open')).toBe(true)
+    await trigger.trigger('pointerleave', { pointerType: 'mouse' })
+    vi.advanceTimersByTime(150)
+    await nextTick()
+    expect(wrapper.props('open')).toBe(false)
+    wrapper.unmount()
+    vi.useRealTimers()
+  })
+
   it('closes on Escape and gives focus back to the trigger', async () => {
     const wrapper = withModel({ open: true })
     await nextTick()

@@ -26,7 +26,7 @@ describe('DouTooltip', () => {
     await wrapper.get('#a').trigger('focusin')
     expect(first!.emitted('update:open')?.at(-1)).toEqual([true])
 
-    await wrapper.get('#b').trigger('mouseenter')
+    await wrapper.get('#b').trigger('pointerenter', { pointerType: 'mouse' })
     vi.advanceTimersByTime(200)
     await nextTick()
     expect(second!.emitted('update:open')?.at(-1)).toEqual([true])
@@ -59,7 +59,7 @@ describe('DouTooltip', () => {
     expect([a.value, b.value]).toEqual([true, true])
 
     // hovering another tooltip does not close them, and they do not close it
-    await wrapper.get('#c').trigger('mouseenter')
+    await wrapper.get('#c').trigger('pointerenter', { pointerType: 'mouse' })
     vi.advanceTimersByTime(200)
     await nextTick()
     expect([a.value, b.value]).toEqual([true, true])
@@ -76,7 +76,7 @@ describe('DouTooltip', () => {
     const button = wrapper.get('button')
     expect(tooltip()).toBeNull()
 
-    await button.trigger('mouseenter')
+    await button.trigger('pointerenter', { pointerType: 'mouse' })
     vi.advanceTimersByTime(199)
     await nextTick()
     expect(tooltip()).toBeNull()
@@ -85,7 +85,7 @@ describe('DouTooltip', () => {
     expect(tooltip()?.textContent).toBe('复制链接')
     expect(button.attributes('aria-describedby')).toBe(tooltip()?.id)
 
-    await button.trigger('mouseleave')
+    await button.trigger('pointerleave', { pointerType: 'mouse' })
     vi.advanceTimersByTime(100)
     await nextTick()
     expect(tooltip()?.style.display).toBe('none')
@@ -133,6 +133,7 @@ describe('DouTooltip', () => {
     const button = wrapper.get('button')
     await button.trigger('pointerenter', { pointerType: 'touch' })
     await button.trigger('pointerdown', { pointerType: 'touch' })
+    await button.trigger('pointerleave', { pointerType: 'touch' })
     await button.trigger('mouseenter')
     await button.trigger('focusin')
     vi.advanceTimersByTime(300)

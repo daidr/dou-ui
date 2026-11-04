@@ -4,6 +4,7 @@ import { computed, inject, nextTick, ref, useId, watch } from 'vue'
 import { usePopup } from '../../composables/use-popup'
 import { useNamespace } from '../../utils/namespace'
 import { OnlyChild } from '../../utils/only-child'
+import { hasHover } from '../../utils/pointer'
 import { dropdownKey } from './dropdown'
 import type { DropdownSubProps, DropdownSubSlots } from './dropdown'
 import { menuItems, useMenuKeys } from './menu-keys'
@@ -53,14 +54,14 @@ function back() {
 }
 
 // The pointer opens it after a short rest on the item, and leaving both
-// the item and the submenu closes it. A finger has no hover: a tap opens
+// the item and the submenu closes it. A finger or a pen has no hover: a tap opens
 // it, and the finger lifting is not leaving.
 function onEnter(event: PointerEvent) {
-  if (props.disabled || event.pointerType === 'touch') return
+  if (props.disabled || !hasHover(event.pointerType)) return
   popup.show(100)
 }
 function onLeave(event: PointerEvent) {
-  if (event.pointerType !== 'touch') popup.hide(150)
+  if (hasHover(event.pointerType)) popup.hide(150)
 }
 
 function onPointermove(event: PointerEvent) {
@@ -100,12 +101,12 @@ function onPanelKeydown(event: KeyboardEvent) {
 }
 
 function onPanelEnter(event: PointerEvent) {
-  if (event.pointerType === 'touch') return
+  if (!hasHover(event.pointerType)) return
   popup.show()
   dropdown?.hold()
 }
 function onPanelLeave(event: PointerEvent) {
-  if (event.pointerType === 'touch') return
+  if (!hasHover(event.pointerType)) return
   onLeave(event)
   dropdown?.release()
 }

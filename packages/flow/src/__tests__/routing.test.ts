@@ -125,13 +125,16 @@ describe('tidy routes', () => {
   })
 
   it.each([
-    ['in the middle of every node', 80],
-    ['nearer the side of the last node', 60],
+    ['in the middle of every node', 80, 80],
+    ['nearer the side of the last node', 80, 60],
+    // Zoomed views measure ports between pixels; rounded apart, these put the
+    // last node a whole grid step off the edge.
+    ['between pixels', 71.5, 59.5],
   ])(
     'runs a long edge straight from port to port with ports %s, off the grid lines',
-    async (_, last) => {
-      // Ports 80px into the 160px wide nodes, or `last` into `d`, top and bottom.
-      const portAt = (id: string) => (id === 'd' ? last : 80)
+    async (_, first, last) => {
+      // Ports `first` into the 160px wide nodes, or `last` into `d`, top and bottom.
+      const portAt = (id: string) => (id === 'd' ? last : first)
       const rect = Object.getOwnPropertyDescriptor(Element.prototype, 'getBoundingClientRect')!
       Object.defineProperty(Element.prototype, 'getBoundingClientRect', {
         configurable: true,
@@ -157,7 +160,7 @@ describe('tidy routes', () => {
             edge('ad', 'a', 'd'),
           ],
         },
-        // 80 and 60 both sit between the lines of a 24px grid.
+        // The ports all sit between the lines of a 24px grid.
         { grid: 24 },
       )
       await ticks()
@@ -166,8 +169,11 @@ describe('tidy routes', () => {
       const at = (id: string) => doc.value.nodes.find((n) => n.id === id)!.x + portAt(id)
       const long = doc.value.edges.find((e) => e.id === 'ad')!
       expect(long.points).toHaveLength(2)
-      expect(at('d')).toBe(at('a'))
-      for (const p of long.points!) expect(p.x).toBe(at('a'))
+      // A port between pixels is at most half a pixel off the line.
+      const line = long.points![0]!.x
+      expect(Math.abs(at('a') - line)).toBeLessThanOrEqual(0.5)
+      expect(Math.abs(at('d') - line)).toBeLessThanOrEqual(0.5)
+      for (const p of long.points!) expect(p.x).toBe(line)
     },
   )
 

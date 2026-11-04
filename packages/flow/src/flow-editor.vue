@@ -968,6 +968,8 @@ function tidy(ids?: string[]) {
           offset = vertical ? port.x : port.y
           break
         }
+      // Rounded once, so the layout and the snapping below agree to the pixel.
+      offset = Math.round(offset)
       anchors.set(node.id, offset)
       return { id: node.id, width, height, anchor: offset }
     }),
@@ -995,7 +997,7 @@ function tidy(ids?: string[]) {
     // Across the flow the port snaps, not the corner, so ports on one line
     // stay on one line even when the nodes are of different sizes, and the
     // points of a long edge between them, snapped too, are on it as well.
-    const offset = Math.round(anchors.get(node.id) ?? 0)
+    const offset = anchors.get(node.id) ?? 0
     const to = vertical
       ? { x: origin.x + snap(placed.x + offset) - offset, y: origin.y + snap(placed.y) }
       : { x: origin.x + snap(placed.x), y: origin.y + snap(placed.y + offset) - offset }

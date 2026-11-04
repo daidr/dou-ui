@@ -1,5 +1,5 @@
 <script setup>
-import { CubeIcon, DashboardIcon, FileTextIcon } from '@dou-ui/icons'
+import { CubeIcon, DashboardIcon, FileTextIcon, GlobeIcon, UsersIcon } from '@dou-ui/icons'
 import { ref } from 'vue'
 
 const items = [
@@ -14,6 +14,14 @@ const items = [
     ],
   },
   { key: 'logs', label: '日志', icon: FileTextIcon },
+  {
+    type: 'group',
+    label: '设置',
+    children: [
+      { key: 'domains', label: '域名', icon: GlobeIcon },
+      { key: 'members', label: '成员', icon: UsersIcon },
+    ],
+  },
 ]
 const current = ref('overview')
 const target = ref()
@@ -26,12 +34,13 @@ const last = ref('无')
       v-model="current"
       :items="items"
       style="width: 220px"
+      @contextmenu.capture="target = null"
       @item-contextmenu="(item) => (target = item)"
     />
     <template #menu>
-      <DouDropdownItem value="在新标签页打开">在新标签页打开</DouDropdownItem>
-      <DouDropdownItem value="复制链接">复制链接</DouDropdownItem>
-      <DouDropdownItem value="固定到顶部">固定到顶部</DouDropdownItem>
+      <DouDropdownItem value="在新标签页打开" :disabled="!target">在新标签页打开</DouDropdownItem>
+      <DouDropdownItem value="复制链接" :disabled="!target">复制链接</DouDropdownItem>
+      <DouDropdownItem value="固定到顶部" :disabled="!target">固定到顶部</DouDropdownItem>
     </template>
   </DouContextMenu>
   <DouText variant="tertiary" size="sm">最近的操作：{{ last }}</DouText>

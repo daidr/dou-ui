@@ -18,7 +18,7 @@
 
 <DocDemo src="context-menu/per-item" column />
 
-项由组件渲染时，用组件给出的事件代替，如 [Menu](./menu#右键菜单) 的 `itemContextmenu`、[Table](./table) 的 `rowContextmenu`，参数里直接就是那一项的数据。
+项由组件渲染时，用组件给出的事件代替，如 [Menu](./menu#右键菜单) 的 `itemContextmenu`、[Table](./table) 的 `rowContextmenu`，参数里带有该项的数据。
 
 ## 从脚本打开
 

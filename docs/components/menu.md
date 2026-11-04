@@ -39,11 +39,45 @@
 
 ## 右键菜单
 
-用 [ContextMenu](./context-menu) 包住菜单，在 `itemContextmenu` 事件里记下是哪一项，再在右键菜单的 `select` 里处理。事件的参数是该项的 `MenuItemOption` 和原生事件；右键、触摸屏上长按、聚焦时按菜单键都会触发，子菜单的开关、禁用的项也一样。
+用 [ContextMenu](./context-menu) 包住菜单，在 `itemContextmenu` 事件里记下是哪一项，再在右键菜单的 `select` 里处理。事件的参数是该项的 `MenuItemOption` 和原生事件。右键和聚焦时按菜单键都会触发；在 ContextMenu 的触发区域里，触摸屏上长按也会触发。子菜单的开关、禁用的项也一样。
+
+分组标题、分隔线和项之间的空隙不是任何一项，右键那里不会触发 `itemContextmenu`，但右键菜单照样打开。所以每次右键先在捕获阶段清空，再由 `itemContextmenu` 记下，没有项时把菜单项禁用，否则操作会落到上一次右键的项上。下面的示例右键「设置」分组标题试试。
 
 <DocDemo src="menu/context-menu" column />
 
-折叠或水平时弹出的子菜单渲染在 `body` 下，不在 ContextMenu 的触发区域里，右键其中的项不会打开外面的菜单，但同样触发 `itemContextmenu`；需要时在事件里调用 ContextMenu 的 `open(event.clientX, event.clientY)` 并阻止浏览器自带的菜单。
+### 弹出的子菜单
+
+折叠或水平时，子菜单弹出在 `body` 下，不在 ContextMenu 的触发区域里，右键其中的项不会打开外面的菜单，但同样触发 `itemContextmenu`，可以在事件里从脚本打开。用菜单键触发时有的浏览器给出的坐标是 `(0, 0)`，这时改用该项的位置：
+
+```vue
+<DouContextMenu ref="contextMenu" @select="onSelect">
+  <DouMenu
+    :items="items"
+    collapsed
+    @contextmenu.capture="target = null"
+    @item-contextmenu="onItemContextmenu"
+  />
+  <template #menu>…</template>
+</DouContextMenu>
+```
+
+```ts
+const contextMenu = useTemplateRef('contextMenu')
+const target = ref<MenuItemOption | null>(null)
+
+function onItemContextmenu(item: MenuItemOption, event: MouseEvent) {
+  target.value = item
+  event.preventDefault()
+  const { clientX: x, clientY: y } = event
+  if (x || y) contextMenu.value?.open(x, y)
+  else {
+    const box = (event.currentTarget as HTMLElement).getBoundingClientRect()
+    contextMenu.value?.open(box.left, box.bottom)
+  }
+}
+```
+
+在 iOS 上长按弹出层里的项不会触发 `itemContextmenu`：系统不发出 `contextmenu`，而长按的模拟只在 ContextMenu 的触发区域里生效。
 
 ## 键盘与读屏
 

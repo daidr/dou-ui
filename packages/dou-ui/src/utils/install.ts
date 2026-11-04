@@ -68,6 +68,11 @@ type PropOption = {
  * given. Each prop's default becomes a factory that looks up the
  * configured value first; Vue runs default factories inside the
  * component, so `inject` sees the nearest provider.
+ *
+ * 这一步发生在包装组件的模块里，按需引入时打包器只留下用到的模块。所以组件内部渲染
+ * 别的组件时，要引入包装过的那个（`import { DouSpinner } from '../spinner'`），
+ * 不要直接引入 `.vue`，否则单独用外层组件时里面那个读不到默认值。
+ * `utils/__tests__/nested-defaults.test.ts` 检查整个仓库都这样做。
  */
 function readConfiguredDefaults(component: Component) {
   const { name, props } = component as { name?: string; props?: Record<string, PropOption | null> }

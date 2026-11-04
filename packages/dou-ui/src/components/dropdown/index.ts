@@ -1,15 +1,15 @@
 import { withInstall } from '../../utils/install'
 import Dropdown from './dropdown.vue'
 import DropdownButton from './dropdown-button.vue'
-import DropdownItem from './dropdown-item.vue'
-import DropdownRadioGroup from './dropdown-radio-group.vue'
+import type DropdownItem from './dropdown-item.vue'
+import type DropdownRadioGroup from './dropdown-radio-group.vue'
+import { DouDropdownItem, DouDropdownRadioGroup } from './item-components'
 import DropdownSub from './dropdown-sub.vue'
 
 export const DouDropdown = withInstall(Dropdown)
-export const DouDropdownItem = withInstall(DropdownItem)
 export const DouDropdownSub = withInstall(DropdownSub)
-export const DouDropdownRadioGroup = withInstall(DropdownRadioGroup)
 export const DouDropdownButton = withInstall(DropdownButton)
+export { DouDropdownItem, DouDropdownRadioGroup }
 export default DouDropdown
 
 export { dropdownHostKey, dropdownKey } from './dropdown'

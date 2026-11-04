@@ -3,8 +3,7 @@ import { computed } from 'vue'
 import { useCoarsePointer } from '../../utils/media'
 import type { ContextMenuItem } from '../context-menu/context-menu'
 import { DouIcon } from '../icon'
-import DouDropdownItem from './dropdown-item.vue'
-import DouDropdownRadioGroup from './dropdown-radio-group.vue'
+import { DouDropdownItem, DouDropdownRadioGroup } from './item-components'
 
 defineOptions({ name: 'DouDropdownItems' })
 

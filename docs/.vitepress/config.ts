@@ -491,6 +491,7 @@ export default defineConfig({
             { text: 'ChatList 消息列表', link: '/components/chat-list' },
             { text: 'ChatInput 对话输入框', link: '/components/chat-input' },
             { text: 'StreamText 流式文字', link: '/components/stream-text' },
+            { text: 'Markdown 流式渲染', link: '/components/markdown' },
             { text: 'ChatSteps 执行步骤', link: '/components/chat-steps' },
             { text: 'ChatPlan 任务计划', link: '/components/chat-plan' },
             { text: 'ChatReasoning 思考过程', link: '/components/chat-reasoning' },

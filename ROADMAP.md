@@ -318,6 +318,9 @@ Popconfirm 直接建在 Popover 上，Result 与 Empty 共用一套图标画法�
 | ChatSuggestions 提示建议    | ✅   | 胶囊与卡片两种样式                                                                                |
 | ChatAttachments 附件列表    | ✅   | 图片缩略图、按类型的文件图标、上传进度与失败状态                                                  |
 | Shimmer 微光文字            | ✅   | 扫光状态文字，减弱动态效果时静止                                                                  |
+| Markdown 流式渲染           | 🚧   | 增量解析、写了一半的语法按最终样子显示、渐显；按类型替换渲染，`:::` 自定义块（#297）              |
+| ChatMessage `markdown`      | 🚧   | 文字与思考过程片段按 Markdown 渲染，`[1]` 显示为来源角标，`markdown-*` 插槽透传（#297）           |
+| CodeBlock `streaming`       | 🚧   | 流式时只高亮完整的行，异步高亮返回前保留已高亮的行（#297）                                        |
 
 ## 第 19 批 · 暂缓组件与基础能力 ✅
 

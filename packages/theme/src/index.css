@@ -119,6 +119,7 @@
 @import './components/find-replace.css';
 @import './components/shimmer.css';
 @import './components/stream-text.css';
+@import './components/markdown.css';
 @import './components/chat-bubble.css';
 @import './components/chat-list.css';
 @import './components/chat-input.css';

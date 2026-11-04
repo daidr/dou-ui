@@ -48,6 +48,8 @@ const locale: Locale = {
 
 嵌套的配置按组件合并：内层只写 `{ DouButton: { tone: 'danger' } }` 时，外层设置的 `variant` 仍然生效。默认属性在组件创建时读取，之后修改配置不影响已经渲染的组件。
 
+默认属性也作用于其他组件内部用到的同一组件：`DouEmpty` 的默认值同样用在表格的空状态，`DouSpinner` 的默认值也会改变表格、选择器里的加载图标。
+
 ```ts
 app.use(DouUI, {
   defaults: {

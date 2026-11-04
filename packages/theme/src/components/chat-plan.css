@@ -2,8 +2,10 @@
  * ChatPlan
  *
  * The steps a model means to take, as a framed checklist. The header
- * counts what is finished; the running step shimmers, finished ones are
- * ticked and step back in color.
+ * counts what is finished; the running step shimmers, a waiting one holds
+ * still in the warning color, finished ones are ticked and step back in
+ * color. Without `collapsible` the header is plain text and the list
+ * always shows.
  */
 @layer dou.components {
   .dou-chat-plan {
@@ -29,9 +31,12 @@
     color: inherit;
     font: inherit;
     text-align: left;
-    cursor: pointer;
 
-    &:hover {
+    .dou-chat-plan.is-collapsible & {
+      cursor: pointer;
+    }
+
+    .dou-chat-plan.is-collapsible &:hover {
       background-color: color-mix(in oklab, var(--dou-color-text) 3%, transparent);
     }
 
@@ -99,6 +104,10 @@
       color: var(--dou-color-success-text);
     }
 
+    .dou-chat-plan__item.is-waiting & {
+      color: var(--dou-color-warning-text);
+    }
+
     .dou-chat-plan__item.is-error & {
       color: var(--dou-color-danger-text);
     }
@@ -128,7 +137,8 @@
       text-decoration: line-through;
     }
 
-    .dou-chat-plan__item.is-running & {
+    .dou-chat-plan__item.is-running &,
+    .dou-chat-plan__item.is-waiting & {
       font-weight: var(--dou-font-weight-medium);
     }
   }

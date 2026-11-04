@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { DouChatPlan } from '../../../index'
 
 const items = [
@@ -27,5 +27,50 @@ describe('DouChatPlan', () => {
     await header.trigger('click')
     expect(header.attributes('aria-expanded')).toBe('false')
     expect(wrapper.emitted('update:open')).toEqual([[false]])
+  })
+  it('renders a plain panel when not collapsible', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const wrapper = mount(DouChatPlan, {
+      props: { items, collapsible: false, open: false },
+    })
+    expect(wrapper.classes()).toContain('is-open')
+    expect(wrapper.classes()).not.toContain('is-collapsible')
+    const header = wrapper.get('.dou-chat-plan__header')
+    expect(header.element.tagName).toBe('DIV')
+    expect(header.attributes('aria-expanded')).toBeUndefined()
+    expect(wrapper.find('.dou-chat-plan__arrow').exists()).toBe(false)
+    expect(wrapper.get('.dou-chat-plan__count').text()).toBe('2 / 4')
+    expect(wrapper.get('.dou-chat-plan__panel').attributes('style') ?? '').not.toContain(
+      'display: none',
+    )
+    expect(wrapper.get('.dou-chat-plan__panel').attributes('aria-labelledby')).toBe(
+      header.attributes('id'),
+    )
+    await header.trigger('click')
+    expect(wrapper.emitted('update:open')).toBeUndefined()
+    warn.mockRestore()
+  })
+  it('warns once that open is ignored on a plain panel', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const quiet = mount(DouChatPlan, { props: { items, collapsible: false } })
+    expect(warn).not.toHaveBeenCalled()
+    quiet.unmount()
+    const wrapper = mount(DouChatPlan, { props: { items, collapsible: false, open: true } })
+    await wrapper.setProps({ open: false })
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn).toHaveBeenCalledWith(
+      '[dou-ui] DouChatPlan: `open` is ignored when `collapsible` is false.',
+    )
+    warn.mockRestore()
+  })
+  it('marks a waiting step without counting it as finished', () => {
+    const wrapper = mount(DouChatPlan, {
+      props: { items: [{ label: '确认上线', status: 'waiting' }, { label: '发布' }] },
+    })
+    const row = wrapper.get('.dou-chat-plan__item')
+    expect(row.classes()).toContain('is-waiting')
+    expect(row.find('.dou-shimmer.is-active').exists()).toBe(false)
+    expect(row.get('.dou-chat-plan__mark svg').attributes('aria-label')).toBe('等待中')
+    expect(wrapper.get('.dou-chat-plan__count').text()).toBe('0 / 2')
   })
 })

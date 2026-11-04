@@ -462,6 +462,7 @@ export const en: Locale = {
     uploadError: 'Upload failed',
     plan: 'Plan',
     stepRunning: 'In progress',
+    stepWaiting: 'Waiting',
     stepDone: 'Done',
     stepError: 'Failed',
     working: 'Working',

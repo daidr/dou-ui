@@ -462,6 +462,7 @@ export const zhCN: Locale = {
     uploadError: '上传失败',
     plan: '任务计划',
     stepRunning: '进行中',
+    stepWaiting: '等待中',
     stepDone: '已完成',
     stepError: '出错',
     working: '正在处理',

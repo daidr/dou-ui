@@ -44,6 +44,7 @@ export interface ChatPlanPart {
   type: 'plan'
   items: ChatPlanItem[]
   title?: string
+  collapsible?: boolean
 }
 export interface ChatSourcesPart {
   type: 'sources'

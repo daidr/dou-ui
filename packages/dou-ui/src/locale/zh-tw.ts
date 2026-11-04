@@ -462,6 +462,7 @@ export const zhTW: Locale = {
     uploadError: '上傳失敗',
     plan: '任務計畫',
     stepRunning: '進行中',
+    stepWaiting: '等待中',
     stepDone: '已完成',
     stepError: '出錯',
     working: '正在處理',

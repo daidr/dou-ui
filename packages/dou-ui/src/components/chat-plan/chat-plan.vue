@@ -1,6 +1,12 @@
 <script setup lang="ts">
-import { AlertCircleIcon, CheckIcon, ChevronDownIcon, ListChecksIcon } from '@dou-ui/icons'
-import { computed, ref, useId } from 'vue'
+import {
+  AlertCircleIcon,
+  CheckIcon,
+  ChevronDownIcon,
+  ClockPauseIcon,
+  ListChecksIcon,
+} from '@dou-ui/icons'
+import { computed, ref, useId, watchEffect } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { CollapseTransition } from '../collapse/collapse-transition'
 import { useLocale } from '../config-provider/use-config'
@@ -12,6 +18,7 @@ defineOptions({ name: 'DouChatPlan' })
 
 const props = withDefaults(defineProps<ChatPlanProps>(), {
   items: () => [],
+  collapsible: true,
   open: undefined,
 })
 const emit = defineEmits<ChatPlanEmits>()
@@ -22,10 +29,21 @@ const { t } = useLocale()
 const id = useId()
 
 const inner = ref(true)
-const open = computed(() => props.open ?? inner.value)
+const open = computed(() => !props.collapsible || (props.open ?? inner.value))
 function toggle() {
   inner.value = !open.value
   emit('update:open', inner.value)
+}
+
+// Say once, while developing, that `open` does nothing on a plain panel.
+// The app's bundler replaces this, as for Vue's own warnings.
+if (process.env.NODE_ENV !== 'production') {
+  let warned = false
+  watchEffect(() => {
+    if (warned || props.collapsible || props.open === undefined) return
+    warned = true
+    console.warn('[dou-ui] DouChatPlan: `open` is ignored when `collapsible` is false.')
+  })
 }
 
 const finished = computed(
@@ -35,27 +53,35 @@ const running = computed(() => props.items.some((item) => item.status === 'runni
 </script>
 
 <template>
-  <div :class="[ns.b(), ns.is('open', open), ns.is('running', running)]">
-    <button
-      :id="`${id}-trigger`"
-      type="button"
+  <div
+    :class="[
+      ns.b(),
+      ns.is('collapsible', collapsible),
+      ns.is('open', open),
+      ns.is('running', running),
+    ]"
+  >
+    <component
+      :is="collapsible ? 'button' : 'div'"
+      :id="`${id}-header`"
       :class="ns.e('header')"
-      :aria-expanded="open"
-      :aria-controls="`${id}-panel`"
-      @click="toggle"
+      :type="collapsible ? 'button' : undefined"
+      :aria-expanded="collapsible ? open : undefined"
+      :aria-controls="collapsible ? `${id}-panel` : undefined"
+      @click="collapsible && toggle()"
     >
       <ListChecksIcon :class="ns.e('icon')" />
       <span :class="ns.e('title')">{{ title ?? t('chat.plan') }}</span>
       <span :class="ns.e('count')">{{ finished }} / {{ items.length }}</span>
-      <ChevronDownIcon :class="ns.e('arrow')" />
-    </button>
+      <ChevronDownIcon v-if="collapsible" :class="ns.e('arrow')" />
+    </component>
     <CollapseTransition>
       <div
         v-show="open"
         :id="`${id}-panel`"
         role="region"
         :class="ns.e('panel')"
-        :aria-labelledby="`${id}-trigger`"
+        :aria-labelledby="`${id}-header`"
       >
         <ol :class="ns.e('list')">
           <li
@@ -68,6 +94,10 @@ const running = computed(() => props.items.some((item) => item.status === 'runni
                 v-if="item.status === 'running'"
                 size="sm"
                 :label="t('chat.stepRunning')"
+              />
+              <ClockPauseIcon
+                v-else-if="item.status === 'waiting'"
+                :label="t('chat.stepWaiting')"
               />
               <CheckIcon v-else-if="item.status === 'done'" :label="t('chat.stepDone')" />
               <AlertCircleIcon v-else-if="item.status === 'error'" :label="t('chat.stepError')" />

@@ -1,4 +1,8 @@
-export type ChatPlanItemStatus = 'pending' | 'running' | 'done' | 'skipped' | 'error'
+/**
+ * `waiting` is a step paused on someone else, such as a confirmation from
+ * the user or an outside job, as opposed to `pending`, which hasn't started.
+ */
+export type ChatPlanItemStatus = 'pending' | 'running' | 'waiting' | 'done' | 'skipped' | 'error'
 
 export interface ChatPlanItem {
   /** Unique within the plan. Defaults to the position. */
@@ -14,7 +18,9 @@ export interface ChatPlanProps {
   items?: ChatPlanItem[]
   /** Defaults to the locale's "Plan". */
   title?: string
-  /** Expanded or not. Bound with `v-model:open`; open by default. */
+  /** Let the header fold the list away. Off gives a plain panel that always shows the steps. */
+  collapsible?: boolean
+  /** Expanded or not. Bound with `v-model:open`; open by default. Ignored when not `collapsible`. */
   open?: boolean
 }
 

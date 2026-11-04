@@ -40,6 +40,13 @@ describe('DouChatMessage', () => {
     expect(wrapper.get('.dou-chat-message__code').text()).toBe('to: 戴兜')
   })
 
+  it('passes collapsible through to a plan part', () => {
+    const wrapper = mount(DouChatMessage, {
+      props: { parts: [{ type: 'plan', items: [{ label: '查天气' }], collapsible: false }] },
+    })
+    expect(wrapper.get('.dou-chat-plan__header').element.tagName).toBe('DIV')
+  })
+
   it('forwards confirmations and artifacts', async () => {
     const confirm = { type: 'confirm' as const, id: 1, title: '删除？' }
     const artifact = { type: 'artifact' as const, id: 'a', title: '计划.md' }

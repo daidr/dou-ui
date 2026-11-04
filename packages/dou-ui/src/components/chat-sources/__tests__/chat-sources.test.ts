@@ -48,6 +48,22 @@ describe('DouChatSources', () => {
     warn.mockRestore()
   })
 
+  it('opens web links in a new tab but not mailto or tel', () => {
+    const wrapper = mount(DouChatSources, {
+      props: {
+        items: [
+          { title: '邮件', url: 'mailto:daidr@daidr.me' },
+          { title: '网页', url: '/a' },
+        ],
+      },
+    })
+    const links = wrapper.findAll('.dou-chat-sources__link')
+    expect(links[0]!.attributes('href')).toBe('mailto:daidr@daidr.me')
+    expect(links[0]!.attributes('target')).toBeUndefined()
+    expect(links[0]!.attributes('rel')).toBeUndefined()
+    expect(links[1]!.attributes('target')).toBe('_blank')
+  })
+
   it('names the site', () => {
     expect(sourceSite({ url: 'not a url' })).toBe('')
     expect(sourceSite({ site: 'x', url: 'https://y.com' })).toBe('x')
@@ -79,6 +95,15 @@ describe('DouChatCitation', () => {
     expect(tag.attributes('tabindex')).toBe('0')
     expect(warn.mock.calls[0]![0]).toContain('[dou-ui] DouChatCitation:')
     warn.mockRestore()
+  })
+
+  it('does not open tel links in a new tab', () => {
+    const wrapper = mount(DouChatCitation, {
+      props: { index: 1, source: { title: '电话', url: 'tel:+8621000000' } },
+    })
+    const tag = wrapper.get('.dou-chat-citation')
+    expect(tag.attributes('href')).toBe('tel:+8621000000')
+    expect(tag.attributes('target')).toBeUndefined()
   })
 
   it('is a plain number without a source', () => {

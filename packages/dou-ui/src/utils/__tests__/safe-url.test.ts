@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { checkedUrl, safeUrl } from '../safe-url'
+import { checkedUrl, opensNewTab, safeUrl } from '../safe-url'
 
 describe('safeUrl', () => {
   it('keeps safe addresses', () => {
@@ -15,6 +15,8 @@ describe('safeUrl', () => {
       '?q=a:b',
       '#a:b',
       'page.html',
+      '2024:年报.html',
+      '第1章:概述.html',
     ]) {
       expect(safeUrl(url)).toBe(url)
     }
@@ -39,6 +41,15 @@ describe('safeUrl', () => {
   it('treats empty as no address', () => {
     expect(safeUrl(undefined)).toBeUndefined()
     expect(safeUrl('')).toBeUndefined()
+  })
+})
+
+describe('opensNewTab', () => {
+  it('is false only for mailto and tel', () => {
+    expect(opensNewTab('https://a.com')).toBe(true)
+    expect(opensNewTab('/a')).toBe(true)
+    expect(opensNewTab('MAILTO:a@b.com')).toBe(false)
+    expect(opensNewTab(' tel:+8621000000')).toBe(false)
   })
 })
 

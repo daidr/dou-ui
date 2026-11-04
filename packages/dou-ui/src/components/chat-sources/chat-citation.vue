@@ -2,7 +2,7 @@
 import { GlobeIcon } from '@dou-ui/icons'
 import { computed } from 'vue'
 import { useNamespace } from '../../utils/namespace'
-import { checkedUrl } from '../../utils/safe-url'
+import { checkedUrl, opensNewTab } from '../../utils/safe-url'
 import { useLocale } from '../config-provider/use-config'
 import DouPopover from '../popover/popover.vue'
 import { sourceSite } from './chat-sources'
@@ -16,6 +16,7 @@ const ns = useNamespace('chat-citation')
 const { t } = useLocale()
 // unsafe addresses such as `javascript:` are shown without a link
 const href = computed(() => checkedUrl('DouChatCitation', props.source?.url))
+const newTab = computed(() => !!href.value && opensNewTab(href.value))
 const site = computed(() => (props.source ? sourceSite(props.source) : ''))
 const label = computed(() =>
   props.source
@@ -37,8 +38,8 @@ const label = computed(() =>
       :is="href ? 'a' : 'span'"
       :class="ns.b()"
       :href="href"
-      :target="href ? '_blank' : undefined"
-      :rel="href ? 'noopener noreferrer' : undefined"
+      :target="newTab ? '_blank' : undefined"
+      :rel="newTab ? 'noopener noreferrer' : undefined"
       :tabindex="href ? undefined : 0"
       :aria-label="label"
       >{{ index }}</component

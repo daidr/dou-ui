@@ -2,7 +2,7 @@
 import { GlobeIcon } from '@dou-ui/icons'
 import { computed, ref } from 'vue'
 import { useNamespace } from '../../utils/namespace'
-import { checkedUrl } from '../../utils/safe-url'
+import { checkedUrl, opensNewTab } from '../../utils/safe-url'
 import { useLocale } from '../config-provider/use-config'
 import { sourceSite } from './chat-sources'
 import type { ChatSourcesProps, ChatSourcesSlots } from './chat-sources'
@@ -36,8 +36,8 @@ const hrefs = computed(() =>
           :is="hrefs[index] ? 'a' : 'span'"
           :class="ns.e('link')"
           :href="hrefs[index]"
-          :target="hrefs[index] ? '_blank' : undefined"
-          :rel="hrefs[index] ? 'noopener noreferrer' : undefined"
+          :target="hrefs[index] && opensNewTab(hrefs[index]) ? '_blank' : undefined"
+          :rel="hrefs[index] && opensNewTab(hrefs[index]) ? 'noopener noreferrer' : undefined"
           :title="source.title"
         >
           <slot name="item" :source="source" :index="index">

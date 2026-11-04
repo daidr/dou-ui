@@ -1,3 +1,9 @@
+/**
+ * Whether a pointer of this type can hover. Fingers and pens touch down
+ * where they act, and the enter and leave they send come with the press.
+ */
+export const hasHover = (pointerType: string) => pointerType !== 'touch' && pointerType !== 'pen'
+
 /** A press that may turn into a drag; see `holdPointer`. */
 export interface PointerHold {
   /** The drag has started: the touch stops scrolling and `root` captures the pointer. */

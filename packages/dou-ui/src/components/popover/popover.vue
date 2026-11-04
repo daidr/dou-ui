@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, useId, useSlots } from 'vue'
+import { computed, mergeProps, useId, useSlots } from 'vue'
 import { getTabbable } from '../../composables/use-focus-trap'
 import { usePopup } from '../../composables/use-popup'
 import { useNamespace } from '../../utils/namespace'
@@ -64,13 +64,27 @@ function onPanelKeydown(event: KeyboardEvent) {
   }
 }
 
-const triggerProps = computed(() => ({
-  ...popup.triggerListeners.value,
-  onKeydown: onTriggerKeydown,
-  'aria-haspopup': 'dialog' as const,
-  'aria-expanded': props.trigger === 'hover' ? undefined : open.value,
-  'aria-controls': rendered.value ? id : undefined,
-}))
+// Hover has no keyboard of its own: Enter or Space on the trigger (a click
+// with `detail` 0) opens and closes a hover card too, so a screen reader
+// can reach it. A link trigger keeps Enter for following the link.
+function onTriggerClick(event: MouseEvent) {
+  if (props.trigger !== 'hover' || event.detail !== 0 || props.disabled) return
+  if ((event.currentTarget as Element | null)?.matches('a[href]')) return
+  if (open.value) return popup.hide()
+  popup.tapped.value = true
+  popup.show()
+}
+
+const triggerProps = computed(() =>
+  mergeProps(popup.triggerListeners.value, {
+    onKeydown: onTriggerKeydown,
+    onClick: onTriggerClick,
+    'aria-haspopup': 'dialog' as const,
+    // a hover card a tap or the keyboard opened stays, like a dialog
+    'aria-expanded': props.trigger === 'hover' && !popup.tapped.value ? undefined : open.value,
+    'aria-controls': rendered.value ? id : undefined,
+  }),
+)
 
 const panelClasses = computed(() => [ns.b(), 'dou-floating', ns.is('titled', hasTitle.value)])
 const width = computed(() =>

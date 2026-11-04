@@ -5,6 +5,7 @@ import type { VirtualElement } from '../../composables/use-floating'
 import { usePopup } from '../../composables/use-popup'
 import { useNamespace } from '../../utils/namespace'
 import { OnlyChild } from '../../utils/only-child'
+import { hasHover } from '../../utils/pointer'
 import { DouKbd } from '../kbd'
 import type { TooltipProps, TooltipSlots } from './tooltip'
 import { claimTooltip, releaseTooltip } from './only-one'
@@ -59,7 +60,7 @@ const cursor: VirtualElement = {
   getBoundingClientRect: () => new DOMRect(pointer.value?.x ?? 0, pointer.value?.y ?? 0, 0, 0),
 }
 function onPointermove(event: PointerEvent) {
-  if (!props.followCursor || event.pointerType === 'touch') return
+  if (!props.followCursor || !hasHover(event.pointerType)) return
   pointer.value = { x: event.clientX, y: event.clientY }
   update()
 }
@@ -104,12 +105,12 @@ const leave = (handler?: (event: Event) => void) =>
   handler &&
   ((event: Event) => {
     // the finger lifting is not leaving: the focus from the tap is still to come
-    if ((event as PointerEvent).pointerType !== 'touch') touch = false
+    if (hasHover((event as PointerEvent).pointerType ?? 'mouse')) touch = false
     handler(event)
     if (!open.value) byTrigger = false
   })
 function onPointerType(event: PointerEvent) {
-  touch = event.pointerType === 'touch'
+  touch = !hasHover(event.pointerType)
 }
 const enter = (handler?: (event: Event) => void) => (event: Event) => {
   onPointerType(event as PointerEvent)

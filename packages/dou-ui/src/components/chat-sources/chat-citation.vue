@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { GlobeIcon } from '@dou-ui/icons'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { checkedUrl, opensNewTab } from '../../utils/safe-url'
 import { useLocale } from '../config-provider/use-config'
@@ -23,6 +23,29 @@ const label = computed(() =>
     ? t('chat.citation', { index: props.index, title: props.source.title })
     : String(props.index),
 )
+
+/*
+ * Hover shows the card; a tap opens it first, and the title in it is the
+ * link (a second tap on the number follows it too). Focus from the
+ * keyboard shows the card, and it goes when focus leaves for somewhere
+ * other than the card.
+ */
+const open = ref(false)
+let byFocus = false
+function onFocus(event: FocusEvent) {
+  if (open.value || !(event.target as Element).matches(':focus-visible')) return
+  byFocus = true
+  open.value = true
+}
+function onOpen(value: boolean) {
+  if (!value) byFocus = false
+}
+function onBlur(event: FocusEvent) {
+  const to = event.relatedTarget as Element | null
+  if (!byFocus || to?.closest(`.${ns.e('popover')}`)) return
+  byFocus = false
+  open.value = false
+}
 </script>
 
 <template>
@@ -33,6 +56,8 @@ const label = computed(() =>
     :width="300"
     :show-delay="150"
     :class="ns.e('popover')"
+    v-model:open="open"
+    @update:open="onOpen"
   >
     <component
       :is="href ? 'a' : 'span'"
@@ -42,6 +67,8 @@ const label = computed(() =>
       :rel="newTab ? 'noopener noreferrer' : undefined"
       :tabindex="href ? undefined : 0"
       :aria-label="label"
+      @focus="onFocus"
+      @blur="onBlur"
       >{{ index }}</component
     >
     <template #content>
@@ -50,7 +77,16 @@ const label = computed(() =>
         <GlobeIcon v-else :class="ns.e('favicon')" />
         {{ site }}
       </span>
-      <span :class="ns.e('title')">{{ source.title }}</span>
+      <a
+        v-if="href"
+        :class="[ns.e('title'), ns.e('link')]"
+        :href="href"
+        :target="newTab ? '_blank' : undefined"
+        :rel="newTab ? 'noopener noreferrer' : undefined"
+        @blur="onBlur"
+        >{{ source.title }}</a
+      >
+      <span v-else :class="ns.e('title')">{{ source.title }}</span>
       <span v-if="source.description" :class="ns.e('description')">{{ source.description }}</span>
     </template>
   </DouPopover>

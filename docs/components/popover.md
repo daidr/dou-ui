@@ -16,7 +16,7 @@
 
 ## 触发方式
 
-`trigger` 为 `hover` 时指向即打开，指针可以从触发元素移到卡片上；触屏没有悬停，改为轻点打开、再点一下或点别处收起；`manual` 完全交给 `v-model:open`。
+`trigger` 为 `hover` 时指向即打开，指针可以从触发元素移到卡片上；触屏和触控笔没有悬停，改为轻点打开、再点一下或点别处收起，`Enter` 也能打开；`manual` 完全交给 `v-model:open`。
 
 <DocDemo src="popover/trigger" />
 

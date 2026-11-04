@@ -327,15 +327,10 @@ function scaled(row: readonly GridItem[], factor: number): Span[] {
  * most `most`. Items are packed left to right without the gaps between
  * them, each line holding the same number of source columns at most, the
  * fullest line filling the grid. At least one line holds two items or
- * more, so items never end up one per line. With `floor`, widths are
- * rounded down when no number of lines keeps them equal otherwise.
+ * more, so items never end up one per line. Widths are rounded down,
+ * leaving columns empty, when no number of lines keeps them equal otherwise.
  */
-function wrapped(
-  row: readonly GridItem[],
-  to: number,
-  most: number,
-  floor: boolean,
-): Span[] | undefined {
+function wrapped(row: readonly GridItem[], to: number, most: number): Span[] | undefined {
   const total = row.reduce((sum, item) => sum + item.w, 0)
   const pack = (size: number) => {
     const lines: GridItem[][] = []
@@ -359,7 +354,7 @@ function wrapped(
   }
   const counts = [...options.keys()]
   counts.sort((a, b) => a - b)
-  for (const down of floor ? [false, true] : [false])
+  for (const down of [false, true])
     for (const count of counts) {
       const { lines, size } = options.get(count)!
       const factor = to / size
@@ -381,33 +376,59 @@ function wrapped(
 }
 
 /**
+ * The row kept on one line, items that share a width given the same
+ * number of columns: rounded to the nearest when they fit, otherwise
+ * rounded down. Items that touched still touch, so the columns left empty
+ * gather at the end; items with a gap between them stay near where they
+ * were, moved left only as far as it takes to fit.
+ */
+function oneLine(row: readonly GridItem[], scale: number, to: number): Span[] | undefined {
+  const shared = new Map<number, number>()
+  for (const item of row) shared.set(item.w, (shared.get(item.w) ?? 0) + 1)
+  for (const round of [Math.round, Math.floor]) {
+    const spans: Span[] = []
+    for (const item of row) {
+      const prev = spans[spans.length - 1]
+      // items that touched still touch, so empty columns gather at the end
+      const x = !prev
+        ? Math.round(item.x * scale)
+        : prev.item.x + prev.item.w === item.x
+          ? prev.x + prev.w
+          : Math.max(Math.round(item.x * scale), prev.x + prev.w)
+      const w = (shared.get(item.w)! > 1 ? round : Math.round)(item.w * scale)
+      spans.push({ item, x, w, line: 0, factor: scale })
+    }
+    let end = to
+    for (let i = spans.length - 1; i >= 0; i--) {
+      const span = spans[i]!
+      span.x = Math.min(span.x, end - span.w)
+      end = span.x
+    }
+    if (end >= 0 && fair(spans, to)) return spans
+  }
+  return undefined
+}
+
+/**
  * One row (items sharing a `y`, left to right) on `to` columns, keeping
  * equally wide items equally wide. In order of preference: scaled as is;
- * wrapped onto two lines; kept on one line with the widths of items that
- * share one rounded down, leaving columns empty; wrapped onto more lines,
- * when rounding down would leave them no column. Rows only wrap when the
- * grid gets narrower and the row is a band of its own (all its items
- * equally tall, nothing else reaching into it). Rounded as before when
- * none of that works.
+ * wrapped onto two lines; kept on one line; wrapped onto more lines. The
+ * widths are rounded to the nearest column when that keeps them equal and
+ * rounded down otherwise, leaving columns empty. Rows
+ * only wrap when the grid gets narrower and the row is a band of its own
+ * (all its items equally tall, nothing else reaching into it). Rounded as
+ * before when none of that works.
  */
 function scaleRow(row: readonly GridItem[], band: boolean, from: number, to: number): Span[] {
   const scale = to / from
   const spans = scaled(row, scale)
   if (fair(spans, to)) return spans
   const wraps = band && to < from
-  const two = wraps ? wrapped(row, to, 2, false) : undefined
+  const two = wraps ? wrapped(row, to, 2) : undefined
   if (two) return two
-  const shared = new Map<number, number>()
-  for (const item of row) shared.set(item.w, (shared.get(item.w) ?? 0) + 1)
-  const floored: Span[] = []
-  for (const item of row) {
-    const prev = floored[floored.length - 1]
-    const x = Math.max(Math.round(item.x * scale), prev ? prev.x + prev.w : 0)
-    const w = shared.get(item.w)! > 1 ? Math.floor(item.w * scale) : Math.round(item.w * scale)
-    floored.push({ item, x, w, line: 0, factor: scale })
-  }
-  if (fair(floored, to)) return floored
-  const more = wraps ? wrapped(row, to, row.length, true) : undefined
+  const one = oneLine(row, scale, to)
+  if (one) return one
+  const more = wraps ? wrapped(row, to, row.length) : undefined
   return more ?? spans.map((span) => ({ ...span, w: Math.max(1, span.w) }))
 }
 

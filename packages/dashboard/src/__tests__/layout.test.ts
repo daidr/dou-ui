@@ -324,36 +324,67 @@ describe('deriveLayout', () => {
     })
   })
 
+  it('rounds the widths of a wrapped row down when they would differ', () => {
+    // 3.5 columns each on 7
+    expect(byId(deriveLayout(inRow([3, 3, 3, 3]), 12, { columns: 7 }))).toEqual({
+      a: [0, 0, 3, 1],
+      b: [3, 0, 3, 1],
+      c: [0, 1, 3, 1],
+      d: [3, 1, 3, 1],
+    })
+    expect(byId(deriveLayout(inRow([4, 4, 4]), 12, { columns: 5 }))).toEqual({
+      a: [0, 0, 2, 1],
+      b: [2, 0, 2, 1],
+      c: [0, 1, 2, 1],
+    })
+    expect(byId(deriveLayout(inRow([3, 3, 3, 3]), 12, { columns: 5 }))).toEqual({
+      a: [0, 0, 2, 1],
+      b: [2, 0, 2, 1],
+      c: [0, 1, 2, 1],
+      d: [2, 1, 2, 1],
+    })
+    expect(byId(deriveLayout(inRow([2, 2, 2, 2, 2, 2]), 12, { columns: 4 }))).toEqual({
+      a: [0, 0, 1, 1],
+      b: [1, 0, 1, 1],
+      c: [2, 0, 1, 1],
+      d: [0, 1, 1, 1],
+      e: [1, 1, 1, 1],
+      f: [2, 1, 1, 1],
+    })
+  })
+
   it('leaves columns empty instead of putting items one per line', () => {
     expect(byId(deriveLayout(inRow([6, 6]), 12, { columns: 5 }))).toEqual({
       a: [0, 0, 2, 1],
-      b: [3, 0, 2, 1],
+      b: [2, 0, 2, 1],
     })
-    expect(byId(deriveLayout(inRow([3, 3, 3, 3]), 12, { columns: 5 }))).toEqual({
-      a: [0, 0, 1, 1],
-      b: [1, 0, 1, 1],
-      c: [3, 0, 1, 1],
-      d: [4, 0, 1, 1],
-    })
+    // the nearest width fits once the second item moves left
     const apart = [
       { id: 'a', x: 0, y: 0, w: 3, h: 1 },
       { id: 'b', x: 9, y: 0, w: 3, h: 1 },
     ]
     expect(byId(deriveLayout(apart, 12, { columns: 6 }))).toEqual({
-      a: [0, 0, 1, 1],
-      b: [5, 0, 1, 1],
+      a: [0, 0, 2, 1],
+      b: [4, 0, 2, 1],
     })
   })
 
   it('wraps onto more lines when items would get no column', () => {
-    expect(byId(deriveLayout(inRow([2, 2, 2, 2, 2, 2]), 12, { columns: 4 }))).toEqual({
-      a: [0, 0, 2, 1],
-      b: [2, 0, 2, 1],
-      c: [0, 1, 2, 1],
-      d: [2, 1, 2, 1],
-      e: [0, 2, 2, 1],
-      f: [2, 2, 2, 1],
-    })
+    const out = deriveLayout(inRow(Array.from({ length: 12 }, () => 1)), 12, { columns: 5 })
+    expect(out.map((item) => [item.x, item.y, item.w])).toEqual([
+      [0, 0, 1],
+      [1, 0, 1],
+      [2, 0, 1],
+      [3, 0, 1],
+      [0, 1, 1],
+      [1, 1, 1],
+      [2, 1, 1],
+      [3, 1, 1],
+      [0, 2, 1],
+      [1, 2, 1],
+      [2, 2, 1],
+      [3, 2, 1],
+    ])
   })
 
   it('leaves rows of unequal items side by side', () => {
@@ -374,9 +405,9 @@ describe('deriveLayout', () => {
     const out = byId(deriveLayout(tall, 12, { columns: 6 }))
     expect(out).toEqual({
       a: [0, 0, 1, 4],
-      b: [2, 0, 1, 1],
-      c: [3, 0, 1, 1],
-      d: [5, 0, 1, 1],
+      b: [1, 0, 1, 1],
+      c: [2, 0, 1, 1],
+      d: [3, 0, 1, 1],
       e: [2, 1, 4, 3],
     })
     const side = [
@@ -388,7 +419,7 @@ describe('deriveLayout', () => {
     expect(byId(deriveLayout(side, 12, { columns: 6 }))).toEqual({
       t: [0, 0, 3, 4],
       a: [3, 0, 1, 1],
-      b: [5, 0, 1, 1],
+      b: [4, 0, 1, 1],
       q: [3, 1, 3, 3],
     })
   })
@@ -407,9 +438,9 @@ describe('deriveLayout', () => {
   it("doesn't wrap when the grid gets wider", () => {
     expect(byId(deriveLayout(inRow([1, 1, 1, 1]), 4, { columns: 6 }))).toEqual({
       a: [0, 0, 1, 1],
-      b: [2, 0, 1, 1],
-      c: [3, 0, 1, 1],
-      d: [5, 0, 1, 1],
+      b: [1, 0, 1, 1],
+      c: [2, 0, 1, 1],
+      d: [3, 0, 1, 1],
     })
   })
 

@@ -16,7 +16,9 @@
 
 ## 竖排图例
 
-`legend-direction="vertical"` 让图例每项占一行，名称在前，数量靠右对齐，适合放在卡片或侧栏这类较窄的地方，便于上下对照各项的数量。名称太长时以省略号结尾。默认的 `horizontal` 让各项并排，放不下时换行。
+设置 `legend-direction="vertical"` 后，图例每项占一行：名称在前，数量靠右对齐，方便上下对照。适合卡片、侧栏这类较窄的位置。名称过长时以省略号截断，悬停可以看到全名。默认值 `horizontal` 让各项并排，放不下时换行。只在开启 `legend` 时生效。
+
+用 `legend` 插槽时，插槽内容的第一部分在左、最后一部分靠右。
 
 <DocDemo src="progress-group/vertical" column />
 

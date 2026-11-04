@@ -68,17 +68,34 @@
   .dou-progress-group__legend--vertical .dou-progress-group__legend-item {
     display: flex;
   }
+  /* a legend slot's first and last pieces take the two ends of the row, too */
+  .dou-progress-group__legend--vertical .dou-progress-group__legend-text {
+    flex: 1;
+    justify-content: space-between;
+    min-width: 0;
+  }
   .dou-progress-group__legend--vertical .dou-progress-group__label {
     flex: 1;
     min-width: 0;
-    overflow: hidden;
+    overflow-x: clip;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  /* an amount too long for the row wraps rather than running out of it, and
+     leaves the name at least two fifths of the row */
   .dou-progress-group__legend--vertical .dou-progress-group__value {
-    flex-shrink: 0;
+    min-width: 0;
+    max-width: 60%;
     margin-inline-start: auto;
+    text-align: end;
+    overflow-wrap: anywhere;
     padding-inline-start: 12px;
+  }
+
+  .dou-progress-group__legend-text {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
   }
 
   .dou-progress-group__dot {

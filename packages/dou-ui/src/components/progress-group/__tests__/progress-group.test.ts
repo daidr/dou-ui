@@ -53,6 +53,23 @@ describe('DouProgressGroup', () => {
     )
   })
 
+  it('wraps legend text, slotted or not, and titles only a label cut short', () => {
+    const wrapper = mount(DouProgressGroup, {
+      props: { items, legend: true, legendDirection: 'vertical' },
+      slots: {
+        legend: ({ item, text }: { item: { label?: string }; text: string }) =>
+          `${item.label}:${text}`,
+      },
+    })
+    expect(wrapper.findAll('.dou-progress-group__legend-text').map((item) => item.text())).toEqual([
+      '图片:30%',
+      '视频:50%',
+      '文档:20%',
+    ])
+    const plain = mount(DouProgressGroup, { props: { items, legend: true } })
+    expect(plain.get('.dou-progress-group__label').attributes('title')).toBeUndefined()
+  })
+
   it('skips empty parts in the bar', () => {
     const wrapper = mount(DouProgressGroup, { props: { items: [{ value: 0 }, { value: 4 }] } })
     expect(wrapper.findAll('[role="meter"]')).toHaveLength(1)

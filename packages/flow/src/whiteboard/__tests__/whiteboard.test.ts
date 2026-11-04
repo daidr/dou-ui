@@ -1,7 +1,14 @@
 import { mount } from '@vue/test-utils'
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
-import { connectorEdge, whiteboardKit, type WhiteboardTool } from '..'
+import { toast } from 'dou-ui'
+import {
+  connectorEdge,
+  insertImages,
+  whiteboardKit,
+  type WhiteboardTool,
+  type WhiteboardUploadErrorHandler,
+} from '..'
 import { turn } from '../../core/geometry'
 import { fitInk, inkHit, inkOutline, strokeNode, unpack } from '../ink'
 import { resizeBox, snapAngle } from '../transform'
@@ -1149,6 +1156,51 @@ describe('layers', () => {
   })
 })
 
+const dropFailing = async (names: string[], kit: Parameters<typeof whiteboardKit>[0] = {}) => {
+  const flow = ref<FlowDocument>({ version: 1, nodes: [], edges: [] })
+  const wrapper = mount(
+    defineComponent(
+      () => () =>
+        h(DouFlowEditor, {
+          modelValue: flow.value,
+          'onUpdate:modelValue': (value: FlowDocument) => (flow.value = value),
+          extensions: [
+            flowKit(),
+            whiteboardKit({
+              upload: (file) =>
+                file.name.startsWith('ok')
+                  ? '/ok.png'
+                  : Promise.reject(new Error(`offline: ${file.name}`)),
+              ...kit,
+            }),
+          ],
+        }),
+    ),
+    { attachTo: document.body },
+  )
+  mounted.push(wrapper)
+  await ticks()
+  const root = wrapper.find('.dou-flow-editor')
+  const drop = new Event('drop', { bubbles: true, cancelable: true })
+  Object.defineProperty(drop, 'dataTransfer', {
+    value: {
+      files: names.map((name) => new File(['x'], name, { type: 'image/png' })),
+      types: ['Files'],
+    },
+  })
+  root.element.dispatchEvent(drop)
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  await ticks()
+  return { flow, root }
+}
+// the toast's own rendering is tested with the toast; here, what is shown
+const toasts = () =>
+  vi.mocked(toast.danger).mock.calls.map(([message, options]) => {
+    // at the bottom, clear of the board's toolbar
+    expect(options).toEqual({ placement: 'bottom' })
+    return message
+  })
+
 describe('images', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -1251,35 +1303,115 @@ describe('images', () => {
     expect(flow.value.nodes[0]!.data).toEqual({ src: '/poster.png', alt: '上海展览海报' })
   })
 
-  it('says so when an upload fails', async () => {
-    const flow = ref<FlowDocument>({ version: 1, nodes: [], edges: [] })
+  beforeEach(() => {
+    vi.spyOn(toast, 'danger').mockImplementation(() => ({
+      id: 0,
+      close: () => {},
+      update: () => {},
+    }))
+  })
+  afterEach(() => vi.restoreAllMocks())
+
+  it('shows a danger toast when an upload fails', async () => {
+    const { flow } = await dropFailing(['a.png'])
+    expect(flow.value.nodes).toHaveLength(0)
+    expect(toasts()).toEqual(['a.png 没能添加'])
+  })
+
+  it('shows one toast for all the images of a drop that failed', async () => {
+    vi.stubGlobal(
+      'Image',
+      class extends EventTarget {
+        naturalWidth = 640
+        naturalHeight = 480
+        set src(_: string) {
+          queueMicrotask(() => this.dispatchEvent(new Event('load')))
+        }
+      },
+    )
+    const { flow } = await dropFailing(['a.png', 'ok.png', 'b.png'])
+    expect(flow.value.nodes).toHaveLength(1)
+    expect(toasts()).toEqual(['2 张图片没能添加'])
+  })
+
+  it('hands failed uploads to onUploadError instead of the toast', async () => {
+    const onUploadError = vi.fn<WhiteboardUploadErrorHandler>()
+    const { root } = await dropFailing(['a.png', 'b.png'], { onUploadError })
+    expect(toasts()).toEqual([])
+    expect(onUploadError).toHaveBeenCalledTimes(2)
+    const [file, error] = onUploadError.mock.calls[0]!
+    expect((error as Error).message).toBe('offline: a.png')
+    expect((file as File).name).toBe('a.png')
+    // the app tells the user, screen readers included
+    expect(root.find('[aria-live]').text()).not.toContain('没能添加')
+  })
+
+  it('keeps adding the other images when onUploadError throws', async () => {
+    vi.stubGlobal(
+      'Image',
+      class extends EventTarget {
+        naturalWidth = 640
+        naturalHeight = 480
+        set src(_: string) {
+          queueMicrotask(() => this.dispatchEvent(new Event('load')))
+        }
+      },
+    )
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const thrown = new Error('broken handler')
+    const { flow } = await dropFailing(['a.png', 'ok-1.png', 'ok-2.png'], {
+      onUploadError: () => {
+        throw thrown
+      },
+    })
+    expect(flow.value.nodes).toHaveLength(2)
+    expect(logged).toHaveBeenCalledWith('[@dou-ui/flow] onUploadError threw', thrown)
+  })
+
+  it('treats an upload without a src as failed', async () => {
+    const warned = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { flow } = await dropFailing(['a.png'], {
+      upload: () => ({}) as unknown as string,
+    })
+    expect(flow.value.nodes).toHaveLength(0)
+    expect(toasts()).toEqual(['a.png 没能添加'])
+    expect(warned.mock.calls[0]![0]).toMatch(
+      /^\[@dou-ui\/flow\] upload returned no src for "a.png"/,
+    )
+  })
+
+  it('lets insertImages take its own onUploadError', async () => {
+    const kitError = vi.fn<WhiteboardUploadErrorHandler>()
+    const ownError = vi.fn<WhiteboardUploadErrorHandler>()
+    let context!: FlowEditorContext
+    const grab = defineFlowExtension({
+      name: 'grab',
+      layers: {
+        above: [
+          defineComponent(() => {
+            context = useFlowEditor()
+            return () => null
+          }),
+        ],
+      },
+    })
     const wrapper = mount(
       defineComponent(
         () => () =>
           h(DouFlowEditor, {
-            modelValue: flow.value,
-            'onUpdate:modelValue': (value: FlowDocument) => (flow.value = value),
-            extensions: [
-              flowKit(),
-              whiteboardKit({
-                upload: () => Promise.reject(new Error('offline')),
-              }),
-            ],
+            modelValue: { version: 1, nodes: [], edges: [] },
+            extensions: [flowKit(), whiteboardKit({ onUploadError: kitError }), grab],
           }),
       ),
       { attachTo: document.body },
     )
     mounted.push(wrapper)
     await ticks()
-    const root = wrapper.find('.dou-flow-editor')
-    const drop = new Event('drop', { bubbles: true, cancelable: true })
-    Object.defineProperty(drop, 'dataTransfer', {
-      value: { files: [new File(['x'], 'a.png', { type: 'image/png' })], types: ['Files'] },
+    await insertImages(context, [new File(['x'], 'a.png', { type: 'image/png' })], {
+      upload: () => Promise.reject(new Error('offline')),
+      onUploadError: ownError,
     })
-    root.element.dispatchEvent(drop)
-    await new Promise((resolve) => setTimeout(resolve, 0))
-    await ticks()
-    expect(flow.value.nodes).toHaveLength(0)
-    expect(root.find('[aria-live]').text()).toBe('a.png 没能添加')
+    expect(ownError).toHaveBeenCalledTimes(1)
+    expect(kitError).not.toHaveBeenCalled()
   })
 })

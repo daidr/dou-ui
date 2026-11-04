@@ -10,7 +10,12 @@ export {
 export { imageKey, whiteboardKeys } from './model'
 export { insertImages, pickImages } from './image'
 export type { WhiteboardKitOptions } from './kit'
-export type { WhiteboardImageOptions, WhiteboardUpload, WhiteboardUploaded } from './image'
+export type {
+  WhiteboardImageOptions,
+  WhiteboardUpload,
+  WhiteboardUploaded,
+  WhiteboardUploadErrorHandler,
+} from './image'
 export type {
   WhiteboardImageData,
   WhiteboardInkData,

@@ -1,7 +1,9 @@
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { styleDeps, styleDirsFor, stylesheetOrder } from '../../scripts/style-deps'
+import { mainStyleEntries } from '../../scripts/ecosystem-style'
 
 const deps = styleDeps()
 const theme = (name: string) =>
@@ -62,6 +64,13 @@ describe('style entries of the packages built on dou-ui', () => {
     expect([...sheetsOf('form-builder', 'renderer/index.ts')]).toEqual(
       expect.arrayContaining(['input', 'select', 'date-picker', 'upload', 'switch', 'rate']),
     )
+  })
+
+  it('cover the subpaths without a style entry of their own', () => {
+    const flow = pathToFileURL(`${resolve(import.meta.dirname, '../../../flow')}/`)
+    const sheets = new Set(styleDirsFor(mainStyleEntries(flow)).flatMap((dir) => deps.get(dir)!))
+    // The whiteboard's upload error toast and its toolbar's tooltips.
+    expect([...sheets]).toEqual(expect.arrayContaining(['toast', 'tooltip']))
   })
 
   it('bring only what a subpath entry reaches', () => {

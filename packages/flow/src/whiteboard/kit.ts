@@ -22,7 +22,13 @@ import {
   type WhiteboardTool,
   whiteboardKeys,
 } from './model'
-import { imageFiles, insertImages, pickImages, type WhiteboardUpload } from './image'
+import {
+  imageFiles,
+  insertImages,
+  pickImages,
+  type WhiteboardUpload,
+  type WhiteboardUploadErrorHandler,
+} from './image'
 import { connectorEdge, connectorToolbar } from './connector'
 import { drawBoardNode } from './draw'
 import { drawInk, erase } from './pen'
@@ -147,6 +153,12 @@ export interface WhiteboardKitOptions {
    * images are kept in the document as data URLs.
    */
   upload?: WhiteboardUpload
+  /**
+   * Called for each image whose `upload` failed, with the file and the
+   * error; the app then tells the user, screen readers included. Without
+   * it, a danger toast at the bottom says which images were not added.
+   */
+  onUploadError?: WhiteboardUploadErrorHandler
 }
 
 /**
@@ -166,6 +178,7 @@ export function whiteboardKit(options: WhiteboardKitOptions = {}): FlowExtension
     setup(ctx) {
       const state = boardState(ctx)
       state.upload = options.upload
+      state.onUploadError = options.onUploadError
       const stops: (() => void)[] = []
       if (options.tool) {
         const outer = options.tool

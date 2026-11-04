@@ -75,6 +75,22 @@ describe('dev warning prefixes', () => {
     expect(missing).toEqual([])
   })
 
+  it('open every console warning with a message, not a bare value', () => {
+    // console.error(error) alone says neither which package nor what failed
+    const bare: string[] = []
+    for (const { files } of packages) {
+      for (const file of files) {
+        const text = readFileSync(file, 'utf8')
+        for (const match of text.matchAll(/console\.(?:warn|error)\(\s*/g)) {
+          const rest = text.slice(match.index + match[0].length)
+          if (!/^['"`]/.test(rest) && !/^(?:PREFIX|prefix\()/.test(rest))
+            bare.push(`${relative(root, file)}:${lineOf(text, match.index)}`)
+        }
+      }
+    }
+    expect(bare).toEqual([])
+  })
+
   it('are written in English, like the rest of the packages', () => {
     const chinese: string[] = []
     for (const { files } of packages) {

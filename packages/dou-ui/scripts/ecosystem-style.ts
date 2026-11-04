@@ -5,7 +5,9 @@
  * - `dist/style.css`: the package's own styles, bundled and minified.
  * - `dist/style.js`: `@dou-ui/<name>/style`, which imports the style entries
  *   of the `dou-ui` components the package uses and then `style.css`, so
- *   the package can be styled on its own without the full stylesheet.
+ *   the package can be styled on its own without the full stylesheet. It
+ *   covers the subpaths without a style entry of their own too
+ *   (`@dou-ui/flow/whiteboard`, which shows a toast).
  * - `dist/<subpath>/style.js` for each subpath that exports components
  *   (`@dou-ui/form-builder/renderer/style`): the same for what that entry
  *   reaches, with the subpath's own `style.css` when it has one, else the
@@ -28,6 +30,26 @@ export function componentSubpaths(packageRoot: URL): string[] {
     })
 }
 
+/**
+ * What `dist/style.js` covers: `src/index.ts` and the index of every other
+ * JS subpath (`whiteboard`, `collaboration`) that has no style entry itself,
+ * `src/index.ts` first.
+ */
+export function mainStyleEntries(packageRoot: URL): string[] {
+  const { exports = {} } = JSON.parse(readFileSync(new URL('package.json', packageRoot), 'utf8'))
+  const own = new Set(componentSubpaths(packageRoot))
+  const subpaths = Object.keys(exports)
+    .filter((key) => /^\.\/[a-z-]+$/.test(key) && !['./style', './style.css'].includes(key))
+    .map((key) => key.slice(2))
+    .filter((subpath) => !own.has(subpath))
+  return [
+    new URL('src/index.ts', packageRoot),
+    ...subpaths.map((subpath) => new URL(`src/${subpath}/index.ts`, packageRoot)),
+  ]
+    .filter((url) => existsSync(url))
+    .map((url) => fileURLToPath(url))
+}
+
 async function bundleCss(entry: URL, outdir: URL) {
   const result = await Bun.build({
     entrypoints: [fileURLToPath(entry)],
@@ -41,9 +63,9 @@ async function bundleCss(entry: URL, outdir: URL) {
 }
 
 /** The other packages built on `dou-ui` an entry imports (`@dou-ui/code`). */
-function packagesUsedBy(index: URL, self: string): string[] {
+function packagesUsedBy(entries: string[], self: string): string[] {
   const used = new Set<string>()
-  for (const file of reachableFiles(fileURLToPath(index))) {
+  for (const file of new Set(entries.flatMap((entry) => reachableFiles(entry)))) {
     for (const m of readFileSync(file, 'utf8').matchAll(/from\s+['"](@dou-ui\/[a-z-]+)['"/]/g)) {
       const name = m[1]!
       if (name !== self && !['@dou-ui/icons', '@dou-ui/theme'].includes(name)) used.add(name)
@@ -52,11 +74,13 @@ function packagesUsedBy(index: URL, self: string): string[] {
   return [...used].toSorted()
 }
 
-async function writeEntry(target: URL, index: URL, css: string, self: string) {
+async function writeEntry(target: URL, entries: string[], css: string, self: string) {
   const lines = [
-    ...styleDirsFor(fileURLToPath(index)).map((dir) => `import 'dou-ui/components/${dir}/style'`),
+    ...styleDirsFor(entries).map((dir) => `import 'dou-ui/components/${dir}/style'`),
     // Components of another package, e.g. the code input in a formula bar.
-    ...packagesUsedBy(index, self).map((name) => `import '${name}/style'`),
+    // Only from the first entry: a subpath may adapt an optional package
+    // (`@dou-ui/editor/code`) the user need not install.
+    ...packagesUsedBy(entries.slice(0, 1), self).map((name) => `import '${name}/style'`),
     `import '${css}'`,
     '',
   ]
@@ -71,7 +95,7 @@ export async function buildPackageStyle(packageRoot: URL) {
   await bundleCss(new URL('src/style.css', packageRoot), new URL('dist', packageRoot))
   await writeEntry(
     new URL('dist/style.js', packageRoot),
-    new URL('src/index.ts', packageRoot),
+    mainStyleEntries(packageRoot),
     './style.css',
     name,
   )
@@ -80,7 +104,7 @@ export async function buildPackageStyle(packageRoot: URL) {
     if (existsSync(ownCss)) await bundleCss(ownCss, new URL(`dist/${subpath}`, packageRoot))
     await writeEntry(
       new URL(`dist/${subpath}/style.js`, packageRoot),
-      new URL(`src/${subpath}/index.ts`, packageRoot),
+      [fileURLToPath(new URL(`src/${subpath}/index.ts`, packageRoot))],
       existsSync(ownCss) ? './style.css' : '../style.css',
       name,
     )

@@ -1,7 +1,7 @@
 import { ref, shallowRef, type Ref, type ShallowRef } from 'vue'
 import type { FlowEditorContext } from '../context'
 import type { Point, Rect } from '../core/model'
-import type { WhiteboardUpload } from './image'
+import type { WhiteboardUpload, WhiteboardUploadErrorHandler } from './image'
 import type { InkPoint } from './ink'
 import type { WhiteboardShapeTool, WhiteboardTool } from './model'
 
@@ -31,6 +31,8 @@ export interface WhiteboardState {
   uploading: Ref<number>
   /** The kit's `upload` option. */
   upload?: WhiteboardUpload
+  /** The kit's `onUploadError` option. */
+  onUploadError?: WhiteboardUploadErrorHandler
 }
 
 const states = new WeakMap<FlowEditorContext, WhiteboardState>()

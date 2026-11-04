@@ -25,6 +25,7 @@
     --dou-dropdown-title-height: 16px;
     --dou-dropdown-description-gap: 6px;
     --dou-dropdown-description-width: 200px;
+    --dou-dropdown-group-label-height: 28px;
 
     min-width: 160px;
     /* never wider than the screen: a long label ends in an ellipsis instead */
@@ -173,16 +174,22 @@
     }
   }
 
-  /* plain rows in a menu that has marks start at the same column as the marked labels */
+  /*
+   * Plain rows and group headings in a menu that has marks start at the
+   * same column as the marked labels.
+   */
   .dou-dropdown:has(
-      > .dou-dropdown__item > .dou-dropdown__indicator,
-      > [role='group'] > .dou-dropdown__item > .dou-dropdown__indicator
-    )
-    > .dou-dropdown__item:not(:has(> .dou-dropdown__indicator)) {
-    padding-inline-start: calc(
-      var(--dou-dropdown-item-padding-x, 8px) + var(--dou-dropdown-indicator-size, 16px) +
-        var(--dou-dropdown-indicator-pull, -2px) + var(--dou-dropdown-item-gap, 8px)
-    );
+    > .dou-dropdown__item > .dou-dropdown__indicator,
+    > .dou-dropdown__group > .dou-dropdown__item > .dou-dropdown__indicator
+  ) {
+    & > .dou-dropdown__item:not(:has(> .dou-dropdown__indicator)),
+    & > .dou-dropdown__group > .dou-dropdown__item:not(:has(> .dou-dropdown__indicator)),
+    & > .dou-dropdown__group > .dou-dropdown__group-label {
+      padding-inline-start: calc(
+        var(--dou-dropdown-item-padding-x, 8px) + var(--dou-dropdown-indicator-size, 16px) +
+          var(--dou-dropdown-indicator-pull, -2px) + var(--dou-dropdown-item-gap, 8px)
+      );
+    }
   }
 
   .dou-dropdown__item.is-checked > .dou-dropdown__indicator--radio::before {
@@ -191,6 +198,34 @@
     height: 6px;
     border-radius: 50%;
     background-color: currentColor;
+  }
+
+  /*
+   * A group's heading: quieter and smaller than the rows, never highlighted
+   * or chosen. It keeps its height on touch screens, where only rows grow.
+   */
+  .dou-dropdown__group-label {
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    height: var(--dou-dropdown-group-label-height, 28px);
+    padding: 0 var(--dou-dropdown-item-padding-x, 8px);
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    font-weight: var(--dou-font-weight-medium);
+    line-height: 1;
+    white-space: nowrap;
+    cursor: default;
+    user-select: none;
+
+    /* the text in a box of its own: trimmed to the glyphs and centered, ending in an ellipsis */
+    & > .dou-dropdown__group-text {
+      min-width: 0;
+      /* clip inline only: glyphs overflow the trimmed line box vertically */
+      overflow-x: clip;
+      text-overflow: ellipsis;
+      text-box: trim-both cap alphabetic;
+    }
   }
 
   .dou-dropdown__separator {

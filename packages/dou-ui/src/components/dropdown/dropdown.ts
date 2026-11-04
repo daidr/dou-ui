@@ -1,7 +1,7 @@
 import type { InjectionKey } from 'vue'
 import type { Placement } from '../../composables/use-floating'
 import type { Size, Tone } from '../../utils/types'
-import type { ContextMenuItem } from '../context-menu/context-menu'
+import type { ContextMenuEntry } from '../context-menu/context-menu'
 
 export type DropdownPlacement = Placement
 export type DropdownTrigger = 'click' | 'hover' | 'manual'
@@ -31,7 +31,7 @@ export interface DropdownProps {
    * The items as data, in place of the `menu` slot; a chosen item's `run`
    * is called. Ignored when the `menu` slot is given.
    */
-  items?: ContextMenuItem[]
+  items?: ContextMenuEntry[]
 }
 
 export interface DropdownEmits {
@@ -43,7 +43,7 @@ export interface DropdownEmits {
 export interface DropdownSlots {
   /** The trigger. Its first element receives the listeners and ARIA attributes. */
   default?: () => unknown
-  /** The items, `DouDropdownItem`s. */
+  /** The items: `DouDropdownItem`, `DouDropdownSub`, `DouDropdownGroup` and `DouDropdownRadioGroup`. */
   menu?: () => unknown
 }
 
@@ -96,7 +96,21 @@ export interface DropdownItemSlots {
   description?: () => unknown
 }
 
-export interface DropdownRadioGroupProps {
+export interface DropdownGroupProps {
+  /** The heading above the items; the `label` slot replaces it. */
+  label?: string
+  /** Draw a separator above the group. */
+  divided?: boolean
+}
+
+export interface DropdownGroupSlots {
+  /** The group's items. */
+  default?: () => unknown
+  /** The heading, in place of `label`. */
+  label?: () => unknown
+}
+
+export interface DropdownRadioGroupProps extends DropdownGroupProps {
   /** The value of the chosen item, bound with `v-model`. */
   modelValue?: DropdownValue
 }
@@ -108,6 +122,8 @@ export interface DropdownRadioGroupEmits {
 export interface DropdownRadioGroupSlots {
   /** `DouDropdownItem`s with a `value`; the one matching `v-model` shows a dot. */
   default?: () => unknown
+  /** The heading, in place of `label`. */
+  label?: () => unknown
 }
 
 export interface DropdownRadioGroupContext {
@@ -129,7 +145,7 @@ export interface DropdownSubProps {
 }
 
 export interface DropdownSubSlots {
-  /** The submenu's items: `DouDropdownItem`s and more `DouDropdownSub`s. */
+  /** The submenu's items: `DouDropdownItem`, `DouDropdownSub`, `DouDropdownGroup` and `DouDropdownRadioGroup`. */
   default?: () => unknown
   /** The item's text. */
   title?: () => unknown
@@ -167,7 +183,7 @@ export interface DropdownButtonSlots {
   default?: () => unknown
   /** Before the label, usually an icon. */
   leading?: () => unknown
-  /** The items, `DouDropdownItem`s. */
+  /** The items: `DouDropdownItem`, `DouDropdownSub`, `DouDropdownGroup` and `DouDropdownRadioGroup`. */
   menu?: () => unknown
 }
 

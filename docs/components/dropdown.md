@@ -48,6 +48,14 @@
 
 几项可以同时打开、各自开关时用勾选项，标记是勾；一组里只能选中一项时用单选项，标记是圆点。比如“冻结首行”和“冻结首列”可以同时生效，用勾选项；数字格式只能是其中一种，用单选项。标记显示在每行开头的同一列里，同一个菜单里不带标记的普通项会和它们的文字对齐。
 
+## 分组
+
+几项属于同一类时，用 `DouDropdownGroup` 包住它们，`label` 是这一组的小标题，比如“排序方式”“显示”。`DouDropdownRadioGroup` 本身也是一组，同样可以写 `label`。小标题比菜单项小一号、颜色更浅，不能选中，键盘移动和按字母跳转都会跳过它；读屏软件把它读作这一组的名称。小标题需要图标这类内容时用 `label` 插槽。
+
+<DocDemo src="dropdown/group" />
+
+组与组之间要分开时，在后一组上写 `divided`，分隔线画在小标题上方。只有一组时不必写小标题，触发按钮已经说明了菜单是什么。`DouDropdownSub` 的子菜单里同样可以分组。
+
 ## 分裂按钮
 
 `DouDropdownButton` 把主操作和更多操作并排放在一起：左半边是普通按钮，点击触发 `click`；右半边是箭头，展开 `menu` 插槽里的菜单，选中时触发 `select`。`variant`、`tone`、`size` 同时作用于两半，`loading` 只作用于左半边。
@@ -56,14 +64,23 @@
 
 ## 用数据写菜单项
 
-菜单项在代码里生成时，可以不写 `menu` 插槽，直接传 `items`，写法和 [ContextMenu 的菜单项](./context-menu#用数据写菜单项) 相同：选中时调用这一项的 `run`，`select` 同样会触发。每一项都写了 `checked` 时，菜单是单选。同时写了 `menu` 插槽时显示插槽，`items` 不起作用。
+菜单项在代码里生成时，可以不写 `menu` 插槽，直接传 `items`，写法和 [ContextMenu 的菜单项](./context-menu#用数据写菜单项) 相同：选中时调用这一项的 `run`，`select` 同样会触发。`{ type: 'group', label, children }` 是一组带小标题的菜单项。每一项都写了 `checked` 时，菜单是单选；一组里每一项都写了 `checked` 时，这一组是单选。有分组时，组外写了 `checked` 的项都是勾选项，要单选就把这几项放进一组；没有子项的组不显示。同时写了 `menu` 插槽时显示插槽，`items` 不起作用。
 
 ```vue
 <script setup lang="ts">
-import type { ContextMenuItem } from 'dou-ui'
+import type { ContextMenuEntry } from 'dou-ui'
 
-const items: ContextMenuItem[] = [
+const items: ContextMenuEntry[] = [
   { key: 'rename', label: '重命名', run: rename },
+  {
+    type: 'group',
+    label: '移动到',
+    divided: true,
+    children: [
+      { key: 'top', label: '顶部', run: toTop },
+      { key: 'bottom', label: '底部', run: toBottom },
+    ],
+  },
   { key: 'delete', label: '删除', tone: 'danger', divided: true, run: remove },
 ]
 </script>
@@ -79,7 +96,7 @@ const items: ContextMenuItem[] = [
 
 ## 键盘与读屏
 
-菜单带有 `role="menu"`，每一项是 `role="menuitem"`。触发元素带 `aria-haspopup="menu"`、`aria-expanded` 与 `aria-controls`。
+菜单带有 `role="menu"`，每一项是 `role="menuitem"`。分组是 `role="group"`，以小标题为名称（`aria-labelledby`）。触发元素带 `aria-haspopup="menu"`、`aria-expanded` 与 `aria-controls`。
 
 | 按键              | 作用                                                                |
 | ----------------- | ------------------------------------------------------------------- |
@@ -108,7 +125,7 @@ const items: ContextMenuItem[] = [
 | `hideDelay`    | `hover` 时离开后多久关闭，毫秒                                | `number`                         | `150`            |
 | `offset`       | 与触发元素的间距，px                                          | `number`                         | `6`              |
 | `teleport`     | 渲染到哪里；`false` 为原地渲染                                | `string \| HTMLElement \| false` | `'body'`         |
-| `items`        | 用数据写的菜单项，代替 `menu` 插槽，见[上文](#用数据写菜单项) | `ContextMenuItem[]`              | —                |
+| `items`        | 用数据写的菜单项，代替 `menu` 插槽，见[上文](#用数据写菜单项) | `ContextMenuEntry[]`             | —                |
 
 ### Dropdown Events
 
@@ -144,6 +161,30 @@ const items: ContextMenuItem[] = [
 | `prefix`      | 文字前，如图标                          |
 | `suffix`      | 行尾，如快捷键                          |
 | `description` | 文字下面的说明，代替 `description` 属性 |
+
+### DropdownGroup Props
+
+| 名称      | 说明             | 类型      | 默认值  |
+| --------- | ---------------- | --------- | ------- |
+| `label`   | 小标题           | `string`  | —       |
+| `divided` | 上方画一条分隔线 | `boolean` | `false` |
+
+### DropdownGroup Slots
+
+| 名称      | 说明                      |
+| --------- | ------------------------- |
+| `default` | 这一组的菜单项            |
+| `label`   | 小标题，代替 `label` 属性 |
+
+### DropdownRadioGroup Props
+
+| 名称         | 说明                             | 类型               | 默认值  |
+| ------------ | -------------------------------- | ------------------ | ------- |
+| `modelValue` | 选中项的 `value`，配合 `v-model` | `string \| number` | —       |
+| `label`      | 小标题                           | `string`           | —       |
+| `divided`    | 上方画一条分隔线                 | `boolean`          | `false` |
+
+DropdownRadioGroup 的插槽与 DropdownGroup 相同。
 
 ### DropdownSub Props
 
@@ -194,16 +235,17 @@ const items: ContextMenuItem[] = [
 
 ### CSS 变量
 
-| 变量                               | 说明                                                     |
-| ---------------------------------- | -------------------------------------------------------- |
-| `--dou-dropdown-bg`                | 菜单底色                                                 |
-| `--dou-dropdown-inset`             | 菜单内边距                                               |
-| `--dou-dropdown-item-height`       | 行高                                                     |
-| `--dou-dropdown-item-radius`       | 行圆角                                                   |
-| `--dou-dropdown-item-active-bg`    | 高亮行底色                                               |
-| `--dou-dropdown-item-padding-x`    | 行左右内边距                                             |
-| `--dou-dropdown-item-gap`          | 行内图标、文字之间的间距                                 |
-| `--dou-dropdown-indicator-size`    | 勾、圆点那一列的宽度                                     |
-| `--dou-dropdown-title-height`      | 带说明的行里，文字那一行的高度，图标和快捷键与它居中对齐 |
-| `--dou-dropdown-description-gap`   | 文字与说明之间的间距                                     |
-| `--dou-dropdown-description-width` | 带说明的行里，文字列的最小宽度                           |
+| 变量                                | 说明                                                     |
+| ----------------------------------- | -------------------------------------------------------- |
+| `--dou-dropdown-bg`                 | 菜单底色                                                 |
+| `--dou-dropdown-inset`              | 菜单内边距                                               |
+| `--dou-dropdown-item-height`        | 行高                                                     |
+| `--dou-dropdown-item-radius`        | 行圆角                                                   |
+| `--dou-dropdown-item-active-bg`     | 高亮行底色                                               |
+| `--dou-dropdown-item-padding-x`     | 行左右内边距                                             |
+| `--dou-dropdown-item-gap`           | 行内图标、文字之间的间距                                 |
+| `--dou-dropdown-indicator-size`     | 勾、圆点那一列的宽度                                     |
+| `--dou-dropdown-title-height`       | 带说明的行里，文字那一行的高度，图标和快捷键与它居中对齐 |
+| `--dou-dropdown-description-gap`    | 文字与说明之间的间距                                     |
+| `--dou-dropdown-description-width`  | 带说明的行里，文字列的最小宽度                           |
+| `--dou-dropdown-group-label-height` | 分组小标题的高度                                         |

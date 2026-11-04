@@ -101,24 +101,37 @@ export function pathTo(options: MenuOption[], key: MenuKey): MenuKey[] | undefin
   return undefined
 }
 
-export type FlatEntry =
-  { kind: 'item'; item: MenuItemOption } | { kind: 'label'; label: string } | { kind: 'divider' }
+export type FlatRow = { kind: 'item'; item: MenuItemOption } | { kind: 'divider' }
+export type FlatEntry = FlatRow | { kind: 'group'; label: string; rows: FlatRow[] }
 
 /**
  * Lay a submenu out as one list for a popup: groups and deeper submenus
- * become labelled sections.
+ * become titled groups, one level deep. On every level the loose items
+ * come first, in order, and the groups after them, so every item sits
+ * under the heading it belongs to, or under none.
  */
 export function flatten(options: MenuOption[]): FlatEntry[] {
   const entries: FlatEntry[] = []
   for (const option of options) {
     if (isDivider(option)) entries.push({ kind: 'divider' })
-    else if (isGroup(option)) {
-      entries.push({ kind: 'label', label: option.label })
-      entries.push(...flatten(option.children))
-    } else if (option.children?.length) {
-      entries.push({ kind: 'label', label: option.label })
-      entries.push(...flatten(option.children))
+    else if (isGroup(option) || option.children?.length) {
+      const inner = flatten(option.children!)
+      const rows = inner.filter((entry): entry is FlatRow => entry.kind !== 'group')
+      // a group that only holds deeper ones gets no heading of its own
+      if (rows.length) entries.push({ kind: 'group', label: option.label, rows })
+      entries.push(...inner.filter((entry) => entry.kind === 'group'))
     } else entries.push({ kind: 'item', item: option })
   }
-  return entries
+  // loose items first at every level, the root of the popup too: one after a group would look like it is in it
+  const rows = trimDividers(entries.filter((entry): entry is FlatRow => entry.kind !== 'group'))
+  return [...rows, ...entries.filter((entry) => entry.kind === 'group')]
+}
+
+/** Without separators at the ends or two in a row, which moving groups out can leave. */
+function trimDividers(rows: FlatRow[]): FlatRow[] {
+  return rows.filter(
+    (row, index) =>
+      row.kind !== 'divider' ||
+      (index > 0 && index < rows.length - 1 && rows[index + 1]!.kind !== 'divider'),
+  )
 }

@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { CheckIcon } from '@dou-ui/icons'
-import { computed, inject } from 'vue'
+import { computed, h, inject } from 'vue'
+import type { FunctionalComponent } from 'vue'
 import { useNamespace } from '../../utils/namespace'
-import { DouDropdown, DouDropdownItem } from '../dropdown'
+import { DouDropdown, DouDropdownGroup, DouDropdownItem } from '../dropdown'
 import { flatten, menuKey } from './menu'
 import type { MenuItemOption, MenuKey } from './menu'
 import MenuItem from './menu-item.vue'
@@ -22,10 +23,30 @@ const byKey = computed(
   () =>
     new Map(
       entries.value.flatMap((entry) =>
-        entry.kind === 'item' ? [[entry.item.key, entry.item]] : [],
+        (entry.kind === 'group' ? entry.rows : [entry]).flatMap((row) =>
+          row.kind === 'item' ? [[row.item.key, row.item] as const] : [],
+        ),
       ),
     ),
 )
+
+/** One item of the popup; the current one shows a check at the end. */
+const MenuPopupItem: FunctionalComponent<{ item: MenuItemOption }> = ({ item }) =>
+  h(
+    DouDropdownItem,
+    {
+      value: item.key,
+      disabled: item.disabled,
+      onContextmenu: (event: MouseEvent) => menu.contextmenu(item, event),
+    },
+    {
+      prefix: item.icon ? () => h(item.icon!) : undefined,
+      default: () => item.label,
+      suffix:
+        menu.selected.value === item.key ? () => h(CheckIcon, { class: ns.e('check') }) : undefined,
+    },
+  )
+MenuPopupItem.props = ['item']
 
 function onSelect(key: MenuKey | undefined) {
   const item = key === undefined ? undefined : byKey.value.get(key)
@@ -45,23 +66,13 @@ function onSelect(key: MenuKey | undefined) {
     <template #menu>
       <template v-for="(entry, index) in entries" :key="index">
         <div v-if="entry.kind === 'divider'" role="separator" class="dou-dropdown__separator" />
-        <div v-else-if="entry.kind === 'label'" :class="ns.e('popup-label')" role="presentation">
-          {{ entry.label }}
-        </div>
-        <DouDropdownItem
-          v-else
-          :value="entry.item.key"
-          :disabled="entry.item.disabled"
-          @contextmenu="menu.contextmenu(entry.item, $event)"
-        >
-          <template v-if="entry.item.icon" #prefix>
-            <component :is="entry.item.icon" />
+        <DouDropdownGroup v-else-if="entry.kind === 'group'" :label="entry.label">
+          <template v-for="(row, at) in entry.rows" :key="at">
+            <div v-if="row.kind === 'divider'" role="separator" class="dou-dropdown__separator" />
+            <MenuPopupItem v-else :item="row.item" />
           </template>
-          {{ entry.item.label }}
-          <template v-if="menu.selected.value === entry.item.key" #suffix>
-            <CheckIcon :class="ns.e('check')" />
-          </template>
-        </DouDropdownItem>
+        </DouDropdownGroup>
+        <MenuPopupItem v-else :item="entry.item" />
       </template>
     </template>
   </DouDropdown>

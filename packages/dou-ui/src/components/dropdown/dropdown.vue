@@ -9,6 +9,7 @@ import type { DropdownExpose, DropdownProps, DropdownSlots, DropdownValue } from
 import { useTeleport } from '../../utils/teleport'
 import DropdownItems from './dropdown-items.vue'
 import { useItemsWarning } from './items-warning'
+import { findMenuItem } from './menu-entries'
 
 defineOptions({ name: 'DouDropdown', inheritAttrs: false })
 
@@ -99,7 +100,7 @@ function onMenuKeydown(event: KeyboardEvent) {
 
 provide(dropdownKey, {
   select(value) {
-    props.items?.find((item) => item.key === value)?.run?.()
+    findMenuItem(props.items, value)?.run?.()
     emit('select', value)
     if (!props.hideOnSelect) return
     // Focus may be in a submenu, outside the panel: it goes back to the trigger too.

@@ -46,7 +46,7 @@
 
 ### 显示时机
 
-`actions-visible` 决定操作何时显示：`'always'` 始终显示，`'hover'` 在鼠标悬停或焦点在消息内时显示，`actions` 插槽追加的按钮也一样。不设置时，用户消息为 `'hover'`，其余消息为 `'always'`。想让整个对话统一，在 [ConfigProvider](./config-provider) 的 `defaults` 里设置一次：
+`actions-visible` 决定操作何时显示：`'always'` 始终显示，`'hover'` 在鼠标悬停或焦点在消息内时显示，`actions` 插槽追加的按钮也一样。不设置时，用户消息为 `'hover'`，其余消息为 `'always'`。想让整个对话统一，在插件选项或 [ConfigProvider](./config-provider) 的 `defaults` 里设置一次：
 
 ```ts
 app.use(DouUI, {

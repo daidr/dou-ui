@@ -100,17 +100,51 @@ export class FlowTransaction {
     return this.stopped?.reason
   }
 
+  // Indexes built when first needed, so moving every node of a large
+  // document stays linear; adding or removing drops the ones it changes.
+  private index: { nodes?: Map<string, number>; edges?: Map<string, number> } = {}
+  private incident?: Map<string, string[]>
+  private was?: { nodes: Map<string, FlowNode>; edges: Map<string, FlowEdge> }
+
+  private nodeIndex(id: string) {
+    this.index.nodes ??= new Map(this.nodes.map((node, i) => [node.id, i]))
+    return this.index.nodes.get(id) ?? -1
+  }
+
+  private edgeIndex(id: string) {
+    this.index.edges ??= new Map(this.edges.map((edge, i) => [edge.id, i]))
+    return this.index.edges.get(id) ?? -1
+  }
+
+  /** The document as it was before this transaction. */
+  private get original() {
+    this.was ??= {
+      nodes: new Map(this.before.nodes.map((node) => [node.id, node])),
+      edges: new Map(this.before.edges.map((edge) => [edge.id, edge])),
+    }
+    return this.was
+  }
+
   getNode(id: string) {
-    return this.nodes.find((node) => node.id === id)
+    return this.nodes[this.nodeIndex(id)]
   }
 
   getEdge(id: string) {
-    return this.edges.find((edge) => edge.id === id)
+    return this.edges[this.edgeIndex(id)]
   }
 
   /** Edges that start or end at a node. */
   edgesOf(id: string) {
-    return this.edges.filter((edge) => edge.source.node === id || edge.target.node === id)
+    if (!this.incident) {
+      this.incident = new Map()
+      for (const edge of this.edges)
+        for (const end of new Set([edge.source.node, edge.target.node])) {
+          const list = this.incident.get(end)
+          if (list) list.push(edge.id)
+          else this.incident.set(end, [edge.id])
+        }
+    }
+    return (this.incident.get(id) ?? []).flatMap((e) => this.getEdge(e) ?? [])
   }
 
   setMeta(meta: FlowTransactionMeta) {
@@ -164,7 +198,7 @@ export class FlowTransaction {
   private carryPoints(id: string, drop: boolean) {
     const shift = this.shiftOf(id)
     for (const edge of this.edgesOf(id)) {
-      const before = this.before.edges.find((e) => e.id === edge.id)
+      const before = this.original.edges.get(edge.id)
       const other = this.shiftOf(edge.source.node === id ? edge.target.node : edge.source.node)
       const together = !drop && shift && other && other.x === shift.x && other.y === shift.y
       if (before?.points && together)
@@ -178,7 +212,7 @@ export class FlowTransaction {
   /** How far a node has moved in this transaction so far. */
   private shiftOf(id: string) {
     const now = this.getNode(id)
-    const was = this.before.nodes.find((n) => n.id === id)
+    const was = this.original.nodes.get(id)
     return now && was ? { x: now.x - was.x, y: now.y - was.y } : undefined
   }
 
@@ -218,17 +252,19 @@ export class FlowTransaction {
         const list = this.writable('nodes') as FlowNode[]
         const index = clampIndex(step.index, list.length)
         list.splice(index, 0, step.node)
+        this.index.nodes = undefined
         return { type: 'removeNode', id: step.node.id }
       }
       case 'removeNode': {
-        const index = this.nodes.findIndex((node) => node.id === step.id)
+        const index = this.nodeIndex(step.id)
         if (index < 0) return null
         const list = this.writable('nodes') as FlowNode[]
         const [node] = list.splice(index, 1)
+        this.index.nodes = undefined
         return { type: 'addNode', node: node!, index }
       }
       case 'updateNode': {
-        const index = this.nodes.findIndex((node) => node.id === step.id)
+        const index = this.nodeIndex(step.id)
         if (index < 0) return null
         const node = this.nodes[index]!
         const keys = Object.keys(step.patch) as (keyof FlowNode)[]
@@ -241,23 +277,26 @@ export class FlowTransaction {
         if (this.getEdge(step.edge.id)) return null
         const list = this.writable('edges') as FlowEdge[]
         list.splice(clampIndex(step.index, list.length), 0, step.edge)
+        this.index.edges = this.incident = undefined
         return { type: 'removeEdge', id: step.edge.id }
       }
       case 'removeEdge': {
-        const index = this.edges.findIndex((edge) => edge.id === step.id)
+        const index = this.edgeIndex(step.id)
         if (index < 0) return null
         const list = this.writable('edges') as FlowEdge[]
         const [edge] = list.splice(index, 1)
+        this.index.edges = this.incident = undefined
         return { type: 'addEdge', edge: edge!, index }
       }
       case 'updateEdge': {
-        const index = this.edges.findIndex((edge) => edge.id === step.id)
+        const index = this.edgeIndex(step.id)
         if (index < 0) return null
         const edge = this.edges[index]!
         const keys = Object.keys(step.patch) as (keyof FlowEdge)[]
         if (keys.every((key) => sameValue(edge[key], step.patch[key]))) return null
         const list = this.writable('edges') as FlowEdge[]
         list[index] = patched(edge, step.patch)
+        if ('source' in step.patch || 'target' in step.patch) this.incident = undefined
         return { type: 'updateEdge', id: step.id, patch: previous(edge, step.patch) }
       }
     }

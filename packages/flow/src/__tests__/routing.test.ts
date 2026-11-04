@@ -289,3 +289,35 @@ describe('edge types through points', () => {
     expect(route.path).toContain('L100 200')
   })
 })
+
+// 2000 nodes in a column, each edge with two points: moving every node in
+// one transaction (dragging all, or tidy) looks each node and edge up once.
+const column = (n: number): FlowDocument => ({
+  version: 1,
+  nodes: Array.from({ length: n }, (_, i) => node(`n${i}`, 0, i * 100)),
+  edges: Array.from({ length: n - 1 }, (_, i) => ({
+    ...edge(`e${i}`, `n${i}`, `n${i + 1}`),
+    points: [
+      { x: 80, y: i * 100 + 40 },
+      { x: 80, y: i * 100 + 60 },
+    ],
+  })),
+})
+
+describe('moving a large graph', () => {
+  it('stays linear in one transaction', () => {
+    const initial = column(2000)
+    const start = performance.now()
+    const tr = new FlowTransaction(initial)
+    for (const n of initial.nodes) tr.moveNode(n.id, n.x + 40, n.y + 20)
+    const after = tr.doc
+    const took = performance.now() - start
+    // Every edge kept its points, carried with both ends.
+    expect(after.edges[1000]?.points).toEqual([
+      { x: 120, y: 100_060 },
+      { x: 120, y: 100_080 },
+    ])
+    // About 15ms here; scanning the document per move took over half a second.
+    expect(took).toBeLessThan(200)
+  })
+})

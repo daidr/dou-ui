@@ -7,8 +7,9 @@ import {
   ClockPauseIcon,
   WrenchIcon,
 } from '@dou-ui/icons'
-import { computed, ref, useId } from 'vue'
+import { computed, ref, useId, watchEffect } from 'vue'
 import { useNamespace } from '../../utils/namespace'
+import { useStatusCheck } from '../../utils/status-check'
 import { CollapseTransition } from '../collapse/collapse-transition'
 import { useLocale } from '../config-provider/use-config'
 import DouSpinner from '../spinner/spinner.vue'
@@ -38,6 +39,28 @@ function toggle() {
 const hasInput = computed(() => !!slots.input || props.input !== undefined)
 const hasOutput = computed(() => !!slots.output || props.output !== undefined)
 const expandable = computed(() => hasInput.value || hasOutput.value || !!slots.default)
+
+useStatusCheck(
+  'DouChatToolCall',
+  () => [props.status],
+  ['pending', 'running', 'waiting', 'done', 'error'],
+  {
+    success: 'done',
+  },
+)
+
+// `pending` used to mean waiting for approval; with allow buttons it almost
+// certainly still does, which types can't catch.
+if (process.env.NODE_ENV !== 'production') {
+  let warned = false
+  watchEffect(() => {
+    if (warned || props.status !== 'pending' || !slots.actions) return
+    warned = true
+    console.warn(
+      '[dou-ui] DouChatToolCall: `pending` now means not started; use `waiting` for a call that waits for approval.',
+    )
+  })
+}
 
 const statusText = computed(
   () =>

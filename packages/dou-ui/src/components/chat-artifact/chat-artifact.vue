@@ -12,6 +12,7 @@ import {
 import type { Component } from 'vue'
 import { computed } from 'vue'
 import { useNamespace } from '../../utils/namespace'
+import { useStatusCheck } from '../../utils/status-check'
 import { useLocale } from '../config-provider/use-config'
 import DouShimmer from '../shimmer/shimmer.vue'
 import type {
@@ -33,6 +34,10 @@ const slots = defineSlots<ChatArtifactSlots>()
 
 const ns = useNamespace('chat-artifact')
 const { t } = useLocale()
+
+useStatusCheck('DouChatArtifact', () => [props.status], ['running', 'done', 'error'], {
+  generating: 'running',
+})
 
 const icons: Record<ChatArtifactKind, Component> = {
   document: FileTextIcon,

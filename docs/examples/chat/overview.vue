@@ -63,7 +63,7 @@ const messages = ref([
           { label: '查看周六天气', status: 'done' },
           { label: '对比上次路线', status: 'done' },
           { label: '整理行程', status: 'done' },
-          { label: '通知同行的人', status: 'pending' },
+          { label: '通知同行的人', status: 'waiting' },
         ],
       },
       {
@@ -119,7 +119,7 @@ function renderText(value) {
 function onConfirm(part, decision) {
   part.status = decision === 'deny' ? 'denied' : 'approved'
   const todo = messages.value[1].parts.find((p) => p.type === 'plan')
-  if (todo && decision !== 'deny') todo.items[3].status = 'done'
+  if (todo) todo.items[3].status = decision === 'deny' ? 'skipped' : 'done'
 }
 
 function later(fn, ms) {

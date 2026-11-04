@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { DouChatToolCall } from '../../../index'
 import { formatToolValue } from '../chat-tool-call'
 
@@ -54,5 +54,19 @@ describe('DouChatToolCall', () => {
     expect(formatToolValue('a')).toBe('a')
     expect(formatToolValue([1])).toBe('[\n  1\n]')
     expect(formatToolValue(undefined)).toBe('undefined')
+  })
+
+  it('warns about a pending call that offers allow buttons, and about old names', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    mount(DouChatToolCall, {
+      props: { name: 'delete_file', status: 'pending' },
+      slots: { actions: () => '允许' },
+    })
+    mount(DouChatToolCall, { props: { name: 'read_file', status: 'success' as never } })
+    expect(warn.mock.calls.map((c) => c[0])).toEqual([
+      '[dou-ui] DouChatToolCall: `pending` now means not started; use `waiting` for a call that waits for approval.',
+      '[dou-ui] DouChatToolCall: unknown status `success`, expected one of `pending`, `running`, `waiting`, `done`, `error`. Use `done`.',
+    ])
+    warn.mockRestore()
   })
 })

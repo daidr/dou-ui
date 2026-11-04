@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { DouChatConfirm } from '../../../index'
 
 describe('DouChatConfirm', () => {
@@ -23,5 +23,17 @@ describe('DouChatConfirm', () => {
     const wrapper = mount(DouChatConfirm, { props: { title: '删除文件？', status: 'denied' } })
     expect(wrapper.find('.dou-chat-confirm__actions').exists()).toBe(false)
     expect(wrapper.get('.dou-chat-confirm__result').text()).toBe('已拒绝')
+  })
+
+  it('shows no outcome for a status it does not know, and warns', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const wrapper = mount(DouChatConfirm, {
+      props: { title: '删除文件？', status: 'pending' as never },
+    })
+    expect(wrapper.find('.dou-chat-confirm__result').exists()).toBe(false)
+    expect(warn).toHaveBeenCalledWith(
+      '[dou-ui] DouChatConfirm: unknown status `pending`, expected one of `waiting`, `approved`, `denied`. Use `waiting`.',
+    )
+    warn.mockRestore()
   })
 })

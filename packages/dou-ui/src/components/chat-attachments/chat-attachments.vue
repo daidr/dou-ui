@@ -12,6 +12,7 @@ import {
 } from '@dou-ui/icons'
 import type { Component } from 'vue'
 import { useNamespace } from '../../utils/namespace'
+import { useStatusCheck } from '../../utils/status-check'
 import { useLocale } from '../config-provider/use-config'
 import { formatFileSize } from '../upload/upload'
 import { attachmentKind, fileExtension } from './chat-attachments'
@@ -45,6 +46,13 @@ const icons: Record<ChatAttachmentKind, Component> = {
   text: FileTextIcon,
   file: FileIcon,
 }
+
+useStatusCheck(
+  'DouChatAttachments',
+  () => (props.modelValue ?? []).map((file) => file.status),
+  ['running', 'done', 'error'],
+  { uploading: 'running', success: 'done' },
+)
 
 const isThumb = (file: ChatAttachment) => !!file.url && attachmentKind(file) === 'image'
 

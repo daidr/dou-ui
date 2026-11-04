@@ -12,6 +12,24 @@
 
 `status` 为 `running` 时底部显示进度，`percent` 是 0 到 100 的进度；`error` 时边框和说明变成危险色。上传本身由你完成，比如配合 [Upload](./upload) 的 `request` 或自己的请求代码，再更新这两个字段。这里的状态名和聊天套件的其他组件一致，和 Upload 不同：Upload 的 `uploading`、`success` 在这里写作 `running`、`done`。
 
+从 Upload 的文件列表转换时，按下面对应状态即可，`ready` 不传 `status`：
+
+```ts
+const statusOf = { uploading: 'running', success: 'done', error: 'error' } as const
+
+const attachments = computed(() =>
+  files.value.map(({ uid, name, size, type, url, status, percent }) => ({
+    uid,
+    name,
+    size,
+    type,
+    url,
+    percent,
+    status: status === 'ready' ? undefined : statusOf[status],
+  })),
+)
+```
+
 <DocDemo src="chat-attachments/status" />
 
 ## 已发送的附件

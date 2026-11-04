@@ -167,12 +167,9 @@ function onItemMenu(item) {
   target.value = item
   if (!selected.value.includes(item.id)) selected.value = [item.id]
 }
-// 在空白处按右键时没有目标
-function onAreaMenu(event) {
-  if (!event.target.closest('tbody tr, .tile')) {
-    target.value = null
-    selected.value = []
-  }
+// 每次右键先清空，按在某一项上时由该项记下；表头、空状态和空白处都没有目标
+function onAreaMenu() {
+  if (!target.value) selected.value = []
 }
 function onMenu(value) {
   const item = target.value
@@ -325,7 +322,12 @@ watch(narrow, (value) => {
       </div>
 
       <DouContextMenu @select="onMenu">
-        <div class="content" @contextmenu="onAreaMenu" @keydown="onKeydown">
+        <div
+          class="content"
+          @contextmenu.capture="target = null"
+          @contextmenu="onAreaMenu"
+          @keydown="onKeydown"
+        >
           <DouTable
             v-if="view === 'list'"
             v-model:selected="selected"

@@ -7,4 +7,5 @@
   />
   <DouChatConfirm title="发送邮件给戴兜？" status="approved" />
   <DouChatConfirm title="清空回收站？" status="denied" />
+  <DouChatConfirm tone="warning" title="覆盖上海项目的配置？" status="withdrawn" />
 </template>

@@ -1,7 +1,11 @@
 /** `danger` also paints the allow button, for actions that delete or send. */
 export type ChatConfirmTone = 'neutral' | 'warning' | 'danger'
-/** `waiting` means the same as in ChatPlan: paused until the person answers. */
-export type ChatConfirmStatus = 'waiting' | 'approved' | 'denied'
+/**
+ * `waiting` means the same as in ChatPlan: paused until the person answers.
+ * `withdrawn` means the assistant no longer needs an answer, e.g. the run
+ * was stopped or the plan changed before the person replied.
+ */
+export type ChatConfirmStatus = 'waiting' | 'approved' | 'denied' | 'withdrawn'
 /** What the person chose: once, every time from now on, or not at all. */
 export type ChatConfirmDecision = 'approve' | 'always' | 'deny'
 
@@ -10,7 +14,7 @@ export interface ChatConfirmProps {
   title?: string
   /** What will happen, in a sentence. */
   description?: string
-  /** `waiting` asks; the others show the outcome in one quiet line. */
+  /** `waiting` asks; the others show how it ended in one quiet line. */
   status?: ChatConfirmStatus
   /** Offer "Always allow" next to "Allow". */
   allowAlways?: boolean

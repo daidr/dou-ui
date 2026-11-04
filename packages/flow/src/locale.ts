@@ -134,6 +134,8 @@ export interface FlowMessages {
     ink: string
     /** `{name}` is the file's name. */
     imageFailed: string
+    /** `{count}` images in one drop or pick could not be added. */
+    imagesFailed: string
     /** `{count}` strokes were erased. */
     erased: string
     rotate: string
@@ -253,6 +255,7 @@ const zhCN: FlowMessages = {
     image: '图片',
     ink: '笔迹',
     imageFailed: '{name} 没能添加',
+    imagesFailed: '{count} 张图片没能添加',
     erased: '已擦除 {count} 条笔迹',
     rotate: '顺时针旋转 90°',
     unrotate: '取消旋转',
@@ -367,6 +370,7 @@ const zhTW: FlowMessages = {
     image: '圖片',
     ink: '筆跡',
     imageFailed: '{name} 未能新增',
+    imagesFailed: '{count} 張圖片未能新增',
     erased: '已擦除 {count} 條筆跡',
     rotate: '順時針旋轉 90°',
     unrotate: '取消旋轉',
@@ -481,6 +485,7 @@ const en: FlowMessages = {
     image: 'Image',
     ink: 'Stroke',
     imageFailed: '{name} could not be added',
+    imagesFailed: '{count} images could not be added',
     erased: 'Erased {count} strokes',
     rotate: 'Rotate 90° clockwise',
     unrotate: 'Reset rotation',

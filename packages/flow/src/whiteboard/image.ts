@@ -1,3 +1,4 @@
+import { toast } from 'dou-ui'
 import type { FlowEditorContext } from '../context'
 import type { Point } from '../core/model'
 import { format } from '../locale'
@@ -13,11 +14,19 @@ export type WhiteboardUpload = (file: File) => WhiteboardUploaded | Promise<Whit
 /** An image's address, or its address and description. */
 export type WhiteboardUploaded = string | { src: string; alt?: string }
 
+/**
+ * Called for each image whose upload threw or rejected, with what it threw
+ * and the file. Giving it replaces the built-in error toast.
+ */
+export type WhiteboardUploadError = (error: unknown, file: File) => void
+
 export interface WhiteboardImageOptions {
   /** Where the images go, in canvas units; the middle of the view by default. */
   at?: Point
   /** Overrides the kit's `upload` option for these images. */
   upload?: WhiteboardUpload
+  /** Overrides the kit's `onUploadError` option for these images. */
+  onUploadError?: WhiteboardUploadError
 }
 
 /** Without an upload, images are kept in the document as data URLs. */
@@ -60,6 +69,7 @@ export async function insertImages(
 ) {
   const state = boardState(ctx)
   const upload = options.upload ?? state.upload ?? readAsDataUrl
+  const onUploadError = options.onUploadError ?? state.onUploadError
   const at = options.at
   const t = ctx.messages.value.board
   const root = ctx.root.value
@@ -68,6 +78,7 @@ export async function insertImages(
   const centre = at ?? ctx.toCanvas({ x: box.left + box.width / 2, y: box.top + box.height / 2 })
   state.uploading.value += files.length
   const ids: string[] = []
+  const failed: File[] = []
   try {
     await Promise.all(
       files.map(async (file, i) => {
@@ -80,8 +91,13 @@ export async function insertImages(
             src = done.src
             if (done.alt !== undefined) alt = done.alt
           }
-        } catch {
-          ctx.announce(format(t.imageFailed, { name: file.name }))
+        } catch (error) {
+          failed.push(file)
+          if (onUploadError) {
+            // the app shows it its own way; screen readers still hear it
+            ctx.announce(format(t.imageFailed, { name: file.name }))
+            onUploadError(error, file)
+          }
           return
         }
         const size = (await naturalSize(src)) ?? { width: MAX_SIDE, height: MAX_SIDE * 0.75 }
@@ -97,6 +113,14 @@ export async function insertImages(
     )
   } finally {
     state.uploading.value -= files.length
+  }
+  // one toast for the whole drop; it is an alert, so screen readers hear it too
+  if (failed.length && !onUploadError) {
+    toast.danger(
+      failed.length === 1
+        ? format(t.imageFailed, { name: failed[0]!.name })
+        : format(t.imagesFailed, { count: failed.length }),
+    )
   }
   if (ids.length > 1) ctx.selection.value = { nodes: ids, edges: [] }
 }

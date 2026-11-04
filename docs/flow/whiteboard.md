@@ -90,7 +90,18 @@ const extensions = [
 ]
 ```
 
-`upload` 也可以返回 `{ src, alt }`，给图片写说明文字，供读屏使用；只返回地址时，说明文字是去掉扩展名的文件名。之后要修改，用 `transact` 更新节点的 `data.alt`。上传失败的图片不会加进来，读屏会提示。
+`upload` 也可以返回 `{ src, alt }`，给图片写说明文字，供读屏使用；只返回地址时，说明文字是去掉扩展名的文件名。之后要修改，用 `transact` 更新节点的 `data.alt`。
+
+`upload` 抛出错误或返回被拒绝的 Promise 时，这张图片不会加进来，屏幕上方会弹出一条错误提示，说明哪张图片没能添加；一次拖入或选择的多张图片都失败时，只提示一次。想用自己的方式提示，例如显示服务器返回的原因，传入 `onUploadError`，它会收到错误和对应的文件，传了就不再显示默认提示：
+
+```ts
+whiteboardKit({
+  upload,
+  onUploadError(error, file) {
+    toast.danger(`${file.name} 上传失败：${(error as Error).message}`)
+  },
+})
+```
 
 ## 旋转
 
@@ -195,11 +206,12 @@ const board: FlowDocument = {
 
 ### whiteboardKit 选项
 
-| 名称      | 说明                                                                      | 类型                                                                | 默认值        |
-| --------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------- | ------------- |
-| `tool`    | 当前工具，和自己的工具栏共享；不传时由内部管理                            | `Ref<WhiteboardTool>`                                               | —             |
-| `toolbar` | 是否显示内置工具栏                                                        | `boolean`                                                           | `true`        |
-| `upload`  | 把图片文件变成要保存的地址，例如上传后返回 URL；也可以返回 `{ src, alt }` | `(file: File) => WhiteboardUploaded \| Promise<WhiteboardUploaded>` | 存为 data URL |
+| 名称            | 说明                                                                      | 类型                                                                | 默认值        |
+| --------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------- | ------------- |
+| `tool`          | 当前工具，和自己的工具栏共享；不传时由内部管理                            | `Ref<WhiteboardTool>`                                               | —             |
+| `toolbar`       | 是否显示内置工具栏                                                        | `boolean`                                                           | `true`        |
+| `upload`        | 把图片文件变成要保存的地址，例如上传后返回 URL；也可以返回 `{ src, alt }` | `(file: File) => WhiteboardUploaded \| Promise<WhiteboardUploaded>` | 存为 data URL |
+| `onUploadError` | 每张上传失败的图片调用一次；传了就不再显示默认的错误提示                  | `(error: unknown, file: File) => void`                              | 显示错误提示  |
 
 ```ts
 type WhiteboardUploaded = string | { src: string; alt?: string }
@@ -223,10 +235,11 @@ type WhiteboardTool =
 
 ### WhiteboardImageOptions
 
-| 名称     | 说明                   | 类型                                                                | 默认值                      |
-| -------- | ---------------------- | ------------------------------------------------------------------- | --------------------------- |
-| `at`     | 图片放在哪里，画布坐标 | `{ x: number; y: number }`                                          | 视野中间                    |
-| `upload` | 这次插入用的上传函数   | `(file: File) => WhiteboardUploaded \| Promise<WhiteboardUploaded>` | `whiteboardKit` 的 `upload` |
+| 名称            | 说明                         | 类型                                                                | 默认值                             |
+| --------------- | ---------------------------- | ------------------------------------------------------------------- | ---------------------------------- |
+| `at`            | 图片放在哪里，画布坐标       | `{ x: number; y: number }`                                          | 视野中间                           |
+| `upload`        | 这次插入用的上传函数         | `(file: File) => WhiteboardUploaded \| Promise<WhiteboardUploaded>` | `whiteboardKit` 的 `upload`        |
+| `onUploadError` | 这次插入的图片上传失败时调用 | `(error: unknown, file: File) => void`                              | `whiteboardKit` 的 `onUploadError` |
 
 ### CSS 变量
 

@@ -55,4 +55,17 @@ describe('DouTag', () => {
     await label.trigger('pointerenter')
     expect(label.attributes('title')).toBeUndefined()
   })
+
+  it('keeps a title given to the tag instead of the automatic one', async () => {
+    const wrapper = mount(DouTag, {
+      attrs: { title: '收货地址' },
+      slots: { default: '上海市浦东新区世纪大道 100 号环球金融中心 52 层' },
+    })
+    const label = wrapper.get('.dou-tag__label')
+    Object.defineProperty(label.element, 'scrollWidth', { configurable: true, get: () => 360 })
+    Object.defineProperty(label.element, 'clientWidth', { configurable: true, get: () => 120 })
+    await label.trigger('pointerenter')
+    expect(label.attributes('title')).toBeUndefined()
+    expect(wrapper.attributes('title')).toBe('收货地址')
+  })
 })

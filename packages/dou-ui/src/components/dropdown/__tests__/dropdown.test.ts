@@ -184,4 +184,88 @@ describe('DouDropdown', () => {
     warn.mockRestore()
     both.unmount()
   })
+
+  it('names an item by its label and describes it with its description', async () => {
+    const wrapper = mount(DouDropdown, {
+      props: {
+        open: false,
+        'onUpdate:open': (value: boolean) => wrapper.setProps({ open: value }),
+      },
+      slots: {
+        default: () => h('button', { id: 'trigger' }, '共享'),
+        menu: () => [
+          h(DouDropdownItem, { value: 'plain' }, () => '复制'),
+          h(
+            DouDropdownItem,
+            { value: 'team', description: '上海办公室的成员都能查看', shortcut: 'mod+t' },
+            () => '团队成员',
+          ),
+          h(
+            DouDropdownItem,
+            { value: 'link' },
+            { default: () => '知道链接的人', description: () => h('b', '不用登录') },
+          ),
+        ],
+      },
+      attachTo: document.body,
+    })
+    await wrapper.get('#trigger').trigger('click')
+    const [plain, team, link] = items()
+    // no description, no change
+    expect(plain!.hasAttribute('aria-labelledby')).toBe(false)
+    expect(plain!.hasAttribute('aria-describedby')).toBe(false)
+    expect(plain!.querySelector('.dou-dropdown__description')).toBeNull()
+    for (const [item, label, description] of [
+      [team!, '团队成员', '上海办公室的成员都能查看'],
+      [link!, '知道链接的人', '不用登录'],
+    ] as const) {
+      expect(item.classList).toContain('is-described')
+      const name = document.getElementById(item.getAttribute('aria-labelledby')!)
+      const desc = document.getElementById(item.getAttribute('aria-describedby')!)
+      expect(name?.textContent?.trim()).toBe(label)
+      expect(desc?.textContent?.trim()).toBe(description)
+    }
+    expect(team!.getAttribute('aria-keyshortcuts')).toBe('Control+T')
+    wrapper.unmount()
+  })
+
+  it('jumps by the label alone, not the description', async () => {
+    const wrapper = mount(DouDropdown, {
+      props: {
+        open: false,
+        'onUpdate:open': (value: boolean) => wrapper.setProps({ open: value }),
+      },
+      slots: {
+        default: () => h('button', { id: 'trigger' }, '更多'),
+        menu: () => [
+          h(DouDropdownItem, { value: 'a', description: 'beta 版本' }, () => 'alpha'),
+          h(DouDropdownItem, { value: 'b' }, () => 'beta'),
+        ],
+      },
+      attachTo: document.body,
+    })
+    await wrapper.get('#trigger').trigger('click')
+    const menu = document.querySelector<HTMLElement>('[role="menu"]')!
+    menu.focus()
+    key(menu, 'b')
+    expect(document.activeElement).toBe(items()[1])
+    wrapper.unmount()
+  })
+
+  it('passes the description of items given as data', async () => {
+    const wrapper = mount(DouDropdown, {
+      props: {
+        open: false,
+        'onUpdate:open': (value: boolean) => wrapper.setProps({ open: value }),
+        items: [{ key: 'delete', label: '删除', description: '30 天后彻底删除' }],
+      },
+      slots: { default: () => h('button', { id: 'trigger' }, '更多') },
+      attachTo: document.body,
+    })
+    await wrapper.get('#trigger').trigger('click')
+    expect(items()[0]!.querySelector('.dou-dropdown__description')?.textContent).toBe(
+      '30 天后彻底删除',
+    )
+    wrapper.unmount()
+  })
 })

@@ -21,6 +21,10 @@
     --dou-dropdown-indicator-size: 16px;
     --dou-dropdown-indicator-pull: -2px;
     --dou-dropdown-item-active-bg: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+    /* rows with a description: the title line, the gap to the description, the narrowest text column */
+    --dou-dropdown-title-height: 16px;
+    --dou-dropdown-description-gap: 6px;
+    --dou-dropdown-description-width: 200px;
 
     min-width: 160px;
     max-height: min(var(--dou-floating-available, 100vh), 400px);
@@ -77,6 +81,58 @@
     overflow-x: clip;
     text-overflow: ellipsis;
     text-box: trim-both cap alphabetic;
+  }
+
+  /*
+   * A row with a description grows to two lines or more. The icon, the mark
+   * and the shortcut stay on the title line; the description wraps below in
+   * a quieter, smaller type, as wide as the menu, never widening it alone.
+   */
+  .dou-dropdown__item.is-described {
+    align-items: flex-start;
+    height: auto;
+    min-height: var(--dou-dropdown-item-height);
+    padding-block: calc(
+      (var(--dou-dropdown-item-height) - var(--dou-dropdown-title-height, 16px)) / 2
+    );
+
+    & > .dou-dropdown__prefix,
+    & > .dou-dropdown__suffix,
+    & > .dou-dropdown__indicator {
+      height: var(--dou-dropdown-title-height, 16px);
+    }
+  }
+
+  .dou-dropdown__text {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: var(--dou-dropdown-description-gap, 6px);
+    min-width: var(--dou-dropdown-description-width, 200px);
+
+    /* the trimmed title sits in the middle of the title line */
+    & > .dou-dropdown__label {
+      padding-block: calc((var(--dou-dropdown-title-height, 16px) - 1cap) / 2);
+    }
+  }
+
+  .dou-dropdown__description {
+    /* takes the width the title and the menu give it, adds none of its own */
+    contain: inline-size;
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-sm);
+    line-height: 1.5;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-box: trim-both cap alphabetic;
+
+    .dou-dropdown--danger:not(.is-disabled) > .dou-dropdown__text > & {
+      color: color-mix(in oklab, currentColor 80%, transparent);
+    }
+
+    .dou-dropdown__item.is-disabled > .dou-dropdown__text > & {
+      color: inherit;
+    }
   }
 
   .dou-dropdown__prefix,

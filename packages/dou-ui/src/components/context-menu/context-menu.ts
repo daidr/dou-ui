@@ -10,6 +10,8 @@ export interface ContextMenuItem {
   /** Unique within the menu; also what `select` reports. */
   key: string
   label: string
+  /** A line under the label that says more about the item. */
+  description?: string
   icon?: Component
   /** A key to show after the label, written as in `useHotkey`; only shown. */
   shortcut?: string

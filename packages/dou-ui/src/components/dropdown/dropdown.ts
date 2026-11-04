@@ -73,6 +73,12 @@ export interface DropdownItemProps {
    * shown: bind the key yourself.
    */
   shortcut?: string
+  /**
+   * A line under the label that says more about the item; the `description`
+   * slot replaces it. Screen readers read it after the label, and typing
+   * still jumps by the label.
+   */
+  description?: string
 }
 
 export interface DropdownItemEmits {
@@ -86,6 +92,8 @@ export interface DropdownItemSlots {
   prefix?: () => unknown
   /** After the label, e.g. a shortcut. */
   suffix?: () => unknown
+  /** The line under the label, in place of `description`. */
+  description?: () => unknown
 }
 
 export interface DropdownRadioGroupProps {

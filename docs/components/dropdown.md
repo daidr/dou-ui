@@ -20,6 +20,14 @@
 
 <DocDemo src="dropdown/icon-shortcut" />
 
+## 带说明的菜单项
+
+只看名字不容易分清几项的区别时，用 `description` 在名字下面加一行说明，比如几种可见范围、会删掉什么数据。说明比名字小一号、颜色更浅，可以换行，不会单独把菜单撑宽；名字仍是一行，放不下时以省略号结尾。图标、勾选标记和快捷键都和名字对齐。说明需要加粗、链接这类格式时用 `description` 插槽。
+
+<DocDemo src="dropdown/description" column />
+
+说明只是补充，名字本身要能说清这一项做什么。说明写一句就够，太长的说明会让菜单难以扫读；一个菜单里也不必每一项都写。读屏软件把名字读作这一项的名称，再读说明；按字母跳转时也只匹配名字。用数据写菜单项时同样可以写 `description`。
+
 ## 触发方式与宽度
 
 `trigger="hover"` 指向即打开，`trigger="manual"` 只由 `v-model:open` 打开。不论哪种方式，点击菜单以外的地方或按 `Esc` 都会关闭菜单。`sameWidth` 让菜单至少与触发元素一样宽。选中后默认关闭，`:hide-on-select="false"` 可以保持打开。
@@ -118,22 +126,24 @@ const items: ContextMenuItem[] = [
 
 ### DropdownItem Props
 
-| 名称       | 说明                                               | 类型                    | 默认值      |
-| ---------- | -------------------------------------------------- | ----------------------- | ----------- |
-| `value`    | 传给 `select` 的值                                 | `string \| number`      | —           |
-| `disabled` | 禁用                                               | `boolean`               | `false`     |
-| `tone`     | `danger` 用于破坏性操作                            | `'neutral' \| 'danger'` | `'neutral'` |
-| `divided`  | 上方画一条分隔线                                   | `boolean`               | `false`     |
-| `checked`  | 勾选状态，配合 `v-model:checked`，设置后成为勾选项 | `boolean`               | —           |
-| `shortcut` | 在右侧显示的快捷键，如 `'mod+s'`，只负责显示       | `string`                | —           |
+| 名称          | 说明                                               | 类型                    | 默认值      |
+| ------------- | -------------------------------------------------- | ----------------------- | ----------- |
+| `value`       | 传给 `select` 的值                                 | `string \| number`      | —           |
+| `disabled`    | 禁用                                               | `boolean`               | `false`     |
+| `tone`        | `danger` 用于破坏性操作                            | `'neutral' \| 'danger'` | `'neutral'` |
+| `divided`     | 上方画一条分隔线                                   | `boolean`               | `false`     |
+| `checked`     | 勾选状态，配合 `v-model:checked`，设置后成为勾选项 | `boolean`               | —           |
+| `shortcut`    | 在右侧显示的快捷键，如 `'mod+s'`，只负责显示       | `string`                | —           |
+| `description` | 名字下面的说明，见[上文](#带说明的菜单项)          | `string`                | —           |
 
 ### DropdownItem Slots
 
-| 名称      | 说明           |
-| --------- | -------------- |
-| `default` | 文字           |
-| `prefix`  | 文字前，如图标 |
-| `suffix`  | 行尾，如快捷键 |
+| 名称          | 说明                                    |
+| ------------- | --------------------------------------- |
+| `default`     | 文字                                    |
+| `prefix`      | 文字前，如图标                          |
+| `suffix`      | 行尾，如快捷键                          |
+| `description` | 名字下面的说明，代替 `description` 属性 |
 
 ### DropdownSub Props
 

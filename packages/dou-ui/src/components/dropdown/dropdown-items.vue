@@ -29,6 +29,7 @@ const picked = computed(() => props.items.find((item) => item.checked)?.key)
       :tone="item.tone"
       :divided="item.divided"
       :shortcut="coarse ? undefined : item.shortcut"
+      :description="item.description"
     >
       <template v-if="item.icon" #prefix>
         <DouIcon><component :is="item.icon" /></DouIcon>
@@ -46,6 +47,7 @@ const picked = computed(() => props.items.find((item) => item.checked)?.key)
       :divided="item.divided"
       :checked="item.checked"
       :shortcut="coarse ? undefined : item.shortcut"
+      :description="item.description"
     >
       <template v-if="item.icon" #prefix>
         <DouIcon><component :is="item.icon" /></DouIcon>

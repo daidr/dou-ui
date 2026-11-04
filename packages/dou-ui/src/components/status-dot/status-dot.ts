@@ -4,7 +4,7 @@ export type StatusDotTone = Tone
 export type StatusDotSize = Size
 
 export interface StatusDotProps {
-  /** What the state means. `neutral` is a quiet gray, for offline or idle. */
+  /** What the state means. `neutral` is gray, for offline or idle. */
   tone?: StatusDotTone
   /** The dot's diameter: 6, 8 or 10px. */
   size?: StatusDotSize

@@ -21,6 +21,7 @@
     align-items: center;
     gap: var(--dou-status-dot-gap);
     min-width: 0;
+    max-width: 100%;
     vertical-align: middle;
   }
 
@@ -92,8 +93,9 @@
 
   .dou-status-dot__label {
     min-width: 0;
-    overflow: hidden;
+    overflow-x: clip;
     text-overflow: ellipsis;
     white-space: nowrap;
+    text-box: trim-both cap alphabetic;
   }
 }

@@ -8,6 +8,7 @@ const states: Record<StatusDotTone, string> = {
   warning: '负载偏高',
   danger: '宕机',
 }
+const legend: StatusDotTone[] = ['success', 'warning', 'danger', 'neutral']
 
 // 虚构的 96 个节点：大多正常，少数负载偏高或宕机
 const nodes = Array.from({ length: 96 }, (_, index) => {
@@ -26,23 +27,38 @@ const nodes = Array.from({ length: 96 }, (_, index) => {
 
 <template>
   <div class="rack">
-    <DouStatusDot
-      v-for="node in nodes"
-      :key="node.name"
-      :tone="node.tone"
-      :ripple="node.tone === 'danger' || node.tone === 'warning'"
-      :label="node.label"
-      :title="node.label"
-    />
+    <DouTooltip v-for="node in nodes" :key="node.name" :content="node.label">
+      <DouStatusDot
+        :tone="node.tone"
+        :ripple="node.tone === 'danger' || node.tone === 'warning'"
+        :label="node.label"
+      />
+    </DouTooltip>
+  </div>
+  <div class="legend">
+    <DouStatusDot v-for="tone in legend" :key="tone" :tone="tone" size="sm">
+      {{ states[tone] }}
+    </DouStatusDot>
   </div>
 </template>
 
 <style scoped>
 .rack {
   display: grid;
-  grid-template-columns: repeat(16, 20px);
+  grid-template-columns: repeat(auto-fill, 20px);
   gap: 8px;
   justify-items: center;
   align-items: center;
+  width: 100%;
+  max-width: 440px;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  width: 100%;
+  color: var(--dou-color-text-secondary);
+  font-size: var(--dou-font-size-sm);
 }
 </style>

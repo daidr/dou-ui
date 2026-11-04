@@ -320,4 +320,19 @@ describe('moving a large graph', () => {
     // About 15ms here; scanning the document per move took over half a second.
     expect(took).toBeLessThan(200)
   })
+
+  it('removes half of it in one transaction', () => {
+    const initial = column(2000)
+    const start = performance.now()
+    const tr = new FlowTransaction(initial)
+    for (const n of initial.nodes.slice(0, 1000)) tr.removeNode(n.id)
+    const after = tr.doc
+    const took = performance.now() - start
+    expect(after.nodes).toHaveLength(1000)
+    expect(after.edges).toHaveLength(999)
+    expect(tr.getNode('n1500')).toBe(after.nodes[500])
+    expect(tr.edgesOf('n1000').map((e) => e.id)).toEqual(['e1000'])
+    // About 60ms here; rebuilding the indexes on every removal took two seconds.
+    expect(took).toBeLessThan(400)
+  })
 })

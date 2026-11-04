@@ -11,7 +11,12 @@ import { EditIcon, RefreshIcon, TrashIcon } from '@dou-ui/icons'
         <DouButton size="xs" variant="ghost" aria-label="编辑"><EditIcon /></DouButton>
       </DouTooltip>
       <DouTooltip content="删除">
-        <DouButton size="xs" variant="ghost" tone="danger" aria-label="删除"
+        <DouButton
+          class="demo-row__danger"
+          size="xs"
+          variant="ghost"
+          tone="danger"
+          aria-label="删除"
           ><TrashIcon
         /></DouButton>
       </DouTooltip>
@@ -42,6 +47,10 @@ import { EditIcon, RefreshIcon, TrashIcon } from '@dou-ui/icons'
   padding: 0 6px 0 8px;
   border-bottom: 1px solid var(--dou-color-border);
   font-size: var(--dou-font-size-sm);
+}
+.demo-row__danger {
+  /* 与前一个按钮相隔 16px，触屏扩展区域不重叠 */
+  margin-left: 8px;
 }
 .demo-row__text {
   flex: 1;

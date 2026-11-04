@@ -16,9 +16,11 @@
 
 一个菜单可以服务整个列表：在列表项的 `contextmenu` 事件里记下是哪一项，再在 `select` 里处理。
 
+列表的内边距、项之间的空隙也在触发区域里，右键那里菜单照样打开，却没有按在任何一项上。所以每次右键先在捕获阶段清空，再由项的事件记下，没有项时把菜单项禁用，否则操作会落到上一次右键的项上。下面的示例右键列表边缘试试。
+
 <DocDemo src="context-menu/per-item" column />
 
-项由组件渲染时，用组件给出的事件代替，如 [Menu](./menu#右键菜单) 的 `itemContextmenu`、[Table](./table) 的 `rowContextmenu`，参数里带有该项的数据。
+项由组件渲染时，用组件给出的事件代替，如 [Menu](./menu#右键菜单) 的 `itemContextmenu`、[Table](./table#右键菜单) 的 `rowContextmenu`，参数里带有该项的数据，清空的写法相同。
 
 ## 从脚本打开
 

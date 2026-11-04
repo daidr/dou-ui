@@ -225,6 +225,15 @@ describe('DouTable rows', () => {
     expect((wrapper.emitted('rowContextmenu')![0] as [Row, number])[1]).toBe(1)
   })
 
+  it('reports no row for context menus outside the data rows', async () => {
+    const wrapper = mount(Table, { props: { data, columns } })
+    await wrapper.get('thead th').trigger('contextmenu')
+    expect(wrapper.emitted('rowContextmenu')).toBeUndefined()
+    await wrapper.setProps({ data: [] })
+    await wrapper.get('tbody td').trigger('contextmenu')
+    expect(wrapper.emitted('rowContextmenu')).toBeUndefined()
+  })
+
   it('loads the children of a tree row the first time it opens', async () => {
     let resolve!: (rows: Row[]) => void
     const load = () => new Promise<Row[]>((done) => (resolve = done))

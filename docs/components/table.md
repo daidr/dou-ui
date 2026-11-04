@@ -120,6 +120,14 @@
 
 <DocDemo src="table/current-row" column />
 
+## 右键菜单
+
+用 [ContextMenu](./context-menu) 包住表格，在 `rowContextmenu` 事件里记下是哪一行，再在右键菜单的 `select` 里处理。
+
+表头、空状态、展开行和合计行都不是数据行，右键那里不会触发 `rowContextmenu`，但右键菜单照样打开。所以每次右键先在捕获阶段清空，再由 `rowContextmenu` 记下，没有行时把菜单项禁用，否则操作会落到上一次右键的行上。下面的示例右键表头试试。
+
+<DocDemo src="table/context-menu" column />
+
 ## 树形懒加载
 
 子行要从接口取时，在行上标 `hasChildren: true`，并给表格一个 `load(row)`，返回子行的 Promise。第一次展开时调用，期间按钮变成加载圈；取回的子行会缓存，之后再展开不再调用。失败时触发 `loadError`，行保持收起，可以再点一次重试。属性名可用 `hasChildrenKey` 修改。

@@ -995,10 +995,10 @@ function tidy(ids?: string[]) {
     // Across the flow the port snaps, not the corner, so ports on one line
     // stay on one line even when the nodes are of different sizes, and the
     // points of a long edge between them, snapped too, are on it as well.
-    const anchor = Math.round(anchors.get(node.id) ?? 0)
+    const offset = Math.round(anchors.get(node.id) ?? 0)
     const to = vertical
-      ? { x: origin.x + snap(placed.x + anchor) - anchor, y: origin.y + snap(placed.y) }
-      : { x: origin.x + snap(placed.x), y: origin.y + snap(placed.y + anchor) - anchor }
+      ? { x: origin.x + snap(placed.x + offset) - offset, y: origin.y + snap(placed.y) }
+      : { x: origin.x + snap(placed.x), y: origin.y + snap(placed.y + offset) - offset }
     if (to.x !== node.x || to.y !== node.y) moved.set(node.id, to)
   }
   // Edges spanning several ranks run between the nodes in their way.

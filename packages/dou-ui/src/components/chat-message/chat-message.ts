@@ -20,6 +20,9 @@ export type ChatMessageMarkdown = Pick<
 /** Who wrote the message. */
 export type ChatMessageSender = 'user' | 'assistant' | 'system'
 
+/** When the actions under a message show. */
+export type ChatMessageActions = 'always' | 'hover'
+
 export interface ChatTextPart {
   type: 'text'
   text: string
@@ -122,6 +125,13 @@ export interface ChatMessageProps {
   markdown?: boolean | ChatMessageMarkdown
   /** No part has arrived yet: show the waiting dots, like ChatBubble's. */
   loading?: boolean
+  /**
+   * When the actions show: `'always'`, or `'hover'` while the pointer is
+   * over the message or focus is inside. Devices without hover always show
+   * them. Defaults to `'hover'` for the person's messages and `'always'`
+   * for the rest.
+   */
+  actions?: ChatMessageActions
   /** Show a copy button among the actions, copying the text parts. */
   copyable?: boolean
   /** Offer an edit button on the person's own messages; saving emits `edit`. */

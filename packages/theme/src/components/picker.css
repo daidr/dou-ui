@@ -27,6 +27,8 @@
     gap: var(--dou-picker-gap);
     box-sizing: border-box;
     width: 100%;
+    /* inside a grid or flex row, a long tag or value shrinks to an ellipsis instead of widening the field */
+    min-width: 0;
     height: var(--dou-picker-height);
     padding: 0 var(--dou-picker-padding-x);
     border: 1px solid var(--dou-picker-border);

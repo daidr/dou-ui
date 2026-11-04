@@ -24,6 +24,12 @@
 
 <DocDemo src="tag/removable" />
 
+## 长文本
+
+标签最宽不超过所在的容器，放不下的文字以省略号结尾，鼠标悬停时显示完整内容。[InputTag](./input-tag)、[Select](./select) 多选等用标签展示已选值的组件也是如此，长标签不会撑宽输入框。
+
+<DocDemo src="tag/long" />
+
 ## API
 
 ### Props

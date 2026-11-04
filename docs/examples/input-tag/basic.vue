@@ -1,7 +1,11 @@
 <script setup>
 import { ref } from 'vue'
 
-const keywords = ref(['设计系统', 'Vue'])
+const keywords = ref([
+  '设计系统',
+  'Vue',
+  '一个很长的关键词，放不下时以省略号结尾，悬停可以看到完整内容',
+])
 </script>
 
 <template>

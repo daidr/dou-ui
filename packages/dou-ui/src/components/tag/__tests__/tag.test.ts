@@ -34,4 +34,25 @@ describe('DouTag', () => {
     const wrapper = mount(DouTag, { slots: { leading: '●', default: '运行中' } })
     expect(wrapper.find('.dou-tag__icon').text()).toBe('●')
   })
+
+  it('shows the whole label on hover only when the ellipsis cuts it', async () => {
+    const text = '上海市浦东新区世纪大道 100 号环球金融中心 52 层'
+    const wrapper = mount(DouTag, { slots: { default: text } })
+    const label = wrapper.get('.dou-tag__label')
+    const sizes = { scrollWidth: 120, clientWidth: 120 }
+    for (const key of ['scrollWidth', 'clientWidth'] as const) {
+      Object.defineProperty(label.element, key, { configurable: true, get: () => sizes[key] })
+    }
+
+    await label.trigger('pointerenter')
+    expect(label.attributes('title')).toBeUndefined()
+
+    sizes.scrollWidth = 360
+    await label.trigger('pointerenter')
+    expect(label.attributes('title')).toBe(text)
+
+    sizes.scrollWidth = 120
+    await label.trigger('pointerenter')
+    expect(label.attributes('title')).toBeUndefined()
+  })
 })

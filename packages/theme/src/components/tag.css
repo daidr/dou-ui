@@ -101,6 +101,8 @@
   }
 
   .dou-tag__label {
+    /* a flex item, so it may shrink below its text and let the ellipsis show */
+    min-width: 0;
     /*
      * Center on the cap height instead of the font's ascent and descent,
      * which vary by platform and by the fallback font that draws CJK text.

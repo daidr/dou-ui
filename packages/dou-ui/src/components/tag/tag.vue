@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { CloseIcon } from '@dou-ui/icons'
-import { computed } from 'vue'
+import { computed, ref, useTemplateRef } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import { useFormSize } from '../form/use-form-item'
@@ -21,6 +21,17 @@ const ns = useNamespace('tag')
 const { t } = useLocale()
 const size = useFormSize(() => props.size)
 
+// A label cut short by the ellipsis shows the whole text on hover. Measured
+// only when the pointer arrives, so a page of tags costs nothing until then.
+const labelRef = useTemplateRef<HTMLElement>('label')
+const labelTitle = ref<string>()
+function onLabelEnter() {
+  const el = labelRef.value
+  if (!el) return
+  labelTitle.value =
+    el.scrollWidth > el.clientWidth ? el.textContent?.trim() || undefined : undefined
+}
+
 const classes = computed(() => [
   ns.b(),
   ns.m(props.variant),
@@ -35,7 +46,9 @@ const classes = computed(() => [
     <span v-if="slots.leading" :class="ns.e('icon')">
       <slot name="leading" />
     </span>
-    <span :class="ns.e('label')"><slot /></span>
+    <span ref="label" :class="ns.e('label')" :title="labelTitle" @pointerenter="onLabelEnter">
+      <slot />
+    </span>
     <button
       v-if="closable"
       type="button"

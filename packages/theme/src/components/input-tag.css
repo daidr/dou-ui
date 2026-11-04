@@ -32,6 +32,8 @@
     gap: var(--dou-input-tag-gap);
     box-sizing: border-box;
     width: 100%;
+    /* inside a grid or flex row, a long tag or value shrinks to an ellipsis instead of widening the field */
+    min-width: 0;
     min-height: var(--dou-input-tag-height);
     padding: 0 var(--dou-input-tag-padding-x);
     border: 1px solid var(--dou-input-tag-border);

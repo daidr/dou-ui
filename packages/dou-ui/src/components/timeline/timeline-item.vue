@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useNamespace } from '../../utils/namespace'
-import DouStatusDot from '../status-dot/status-dot.vue'
+import { DouStatusDot } from '../status-dot'
 import type { TimelineItemProps, TimelineItemSlots } from './timeline'
 
 defineOptions({ name: 'DouTimelineItem' })

@@ -56,12 +56,14 @@ describe('DouChatToolCall', () => {
     expect(formatToolValue(undefined)).toBe('undefined')
   })
 
-  it('warns about a pending call that offers allow buttons, and about old names', () => {
+  it('warns once per page about pending calls that offer allow buttons, and about old names', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    mount(DouChatToolCall, {
-      props: { name: 'delete_file', status: 'pending' },
-      slots: { actions: () => '允许' },
-    })
+    for (let i = 0; i < 2; i++) {
+      mount(DouChatToolCall, {
+        props: { name: 'delete_file', status: 'pending' },
+        slots: { actions: () => '允许' },
+      })
+    }
     mount(DouChatToolCall, { props: { name: 'read_file', status: 'success' as never } })
     expect(warn.mock.calls.map((c) => c[0])).toEqual([
       '[dou-ui] DouChatToolCall: `pending` now means not started; use `waiting` for a call that waits for approval.',

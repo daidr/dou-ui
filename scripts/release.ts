@@ -84,6 +84,14 @@ if (lock.exitCode !== 0) {
   fail(`更新 bun.lock 失败，各包版本号已改回 ${current}：\n${lock.stderr.toString()}`)
 }
 await Bun.write(changelogFile, changelog)
+// Fragments can hold lists, tables and several paragraphs; let the formatter
+// settle the blank lines around them so `bun fmt --check` passes in CI.
+const fmt = Bun.spawnSync(['bun', 'fmt', 'CHANGELOG.md'], {
+  cwd: root,
+  stdout: 'ignore',
+  stderr: 'pipe',
+})
+if (fmt.exitCode !== 0) fail(`格式化 CHANGELOG.md 失败：\n${fmt.stderr.toString()}`)
 if (isPre) {
   markPrereleased(pending, version)
 } else {

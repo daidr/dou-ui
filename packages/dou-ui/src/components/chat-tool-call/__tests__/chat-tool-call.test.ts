@@ -50,6 +50,15 @@ describe('DouChatToolCall', () => {
     expect(wrapper.get('.dou-chat-tool-call__status').text()).toBe('未开始')
   })
 
+  it('holds a running call still when not live', async () => {
+    const wrapper = mount(DouChatToolCall, { props: { name: 'search_web', status: 'running' } })
+    expect(wrapper.find('.dou-spinner').exists()).toBe(true)
+    await wrapper.setProps({ live: false })
+    expect(wrapper.find('.dou-spinner').exists()).toBe(false)
+    expect(wrapper.get('.dou-status-dot').classes()).toContain('dou-status-dot--neutral')
+    expect(wrapper.get('.dou-chat-tool-call__status').text()).toBe('运行中')
+  })
+
   it('shows a call taken back before it ran', () => {
     const wrapper = mount(DouChatToolCall, { props: { name: 'send_email', status: 'withdrawn' } })
     expect(wrapper.classes()).toContain('dou-chat-tool-call--withdrawn')

@@ -162,12 +162,12 @@ async function remove(list) {
 }
 
 /* 右键菜单：记下按在了哪一项上 */
-const target = ref(null)
+const target = ref()
 function onItemMenu(item) {
   target.value = item
   if (!selected.value.includes(item.id)) selected.value = [item.id]
 }
-// 每次右键先清空，按在某一项上时由该项记下；表头、空状态和空白处都没有目标
+// 右键在表头、空状态或空白处时没有目标，菜单改为新建和上传，并取消选择
 function onAreaMenu() {
   if (!target.value) selected.value = []
 }
@@ -321,13 +321,8 @@ watch(narrow, (value) => {
         </div>
       </div>
 
-      <DouContextMenu @select="onMenu">
-        <div
-          class="content"
-          @contextmenu.capture="target = null"
-          @contextmenu="onAreaMenu"
-          @keydown="onKeydown"
-        >
+      <DouContextMenu v-model:target="target" :before-open="onAreaMenu" @select="onMenu">
+        <div class="content" @keydown="onKeydown">
           <DouTable
             v-if="view === 'list'"
             v-model:selected="selected"

@@ -22,6 +22,12 @@ export interface ChatPlanProps {
   collapsible?: boolean
   /** Expanded or not. Bound with `v-model:open`; open by default. Ignored when not `collapsible`. */
   open?: boolean
+  /**
+   * The run is going on now. Off once the turn has ended or been stopped: a
+   * `running` step stays the current one but holds still, a solid dot in
+   * place of the spinner and no shimmer, so the steps needn't be rewritten.
+   */
+  live?: boolean
 }
 
 export interface ChatPlanEmits {
@@ -31,4 +37,12 @@ export interface ChatPlanEmits {
 export interface ChatPlanSlots {
   /** Replaces the label and description of each item. */
   item?: (props: { item: ChatPlanItem; index: number }) => unknown
+}
+
+/**
+ * Whether the plan shows a step running: one is `running` and the run hasn't
+ * stopped. ChatMessage reads the same for `aria-busy`.
+ */
+export function planRunning(items: readonly ChatPlanItem[] | undefined, live = true): boolean {
+  return live && !!items?.some((item) => item.status === 'running')
 }

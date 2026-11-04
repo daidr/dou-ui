@@ -698,6 +698,8 @@ export interface Locale {
     working: string
     /** Summary of `{count}` finished steps. */
     stepsDone: string
+    /** Summary of `{count}` steps when some didn't finish, e.g. a stopped run. */
+    stepsTotal: string
     /** Names the list of sources. */
     sources: string
     /** Names a citation, with `{index}` and `{title}`. */

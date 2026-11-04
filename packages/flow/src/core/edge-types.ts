@@ -73,10 +73,55 @@ export function bezierPath(from: Point, fromSide: PortSide, to: Point, toSide: P
   return `M${fmt(from)}C${fmt(c1)} ${fmt(c2)} ${fmt(to)}`
 }
 
+/** The point halfway along a run of points: a middle one, or between the two middle ones. */
+function middle(points: Point[]): Point {
+  const a = points[Math.floor((points.length - 1) / 2)]!
+  const b = points[Math.ceil((points.length - 1) / 2)]!
+  return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
+}
+
+/**
+ * The side a run between two points leaves the first by and the side it
+ * enters the second by, along the axis the flow runs in: the one the
+ * source's port faces.
+ */
+function sides(a: Point, b: Point, vertical: boolean): [PortSide, PortSide] {
+  if (vertical) return b.y >= a.y ? ['bottom', 'top'] : ['top', 'bottom']
+  return b.x >= a.x ? ['right', 'left'] : ['left', 'right']
+}
+
+/**
+ * A curve through the points an edge runs through, as tidying lays them:
+ * straight along a rank, curving across the gaps between ranks.
+ */
+function bezierThrough(source: EdgeAnchor, target: EdgeAnchor, points: Point[]): EdgeRoute {
+  const vertical = isVertical(source.side)
+  const all: EdgeAnchor[] = [source, ...points.map((p) => ({ ...p, side: source.side })), target]
+  let path = `M${fmt(source)}`
+  for (let i = 1; i < all.length; i++) {
+    const a = all[i - 1]!
+    const b = all[i]!
+    const level = vertical ? Math.abs(a.x - b.x) < 0.5 : Math.abs(a.y - b.y) < 0.5
+    if (level && i > 1 && i < all.length - 1) {
+      path += `L${fmt(b)}`
+      continue
+    }
+    const [out, into] = sides(a, b, vertical)
+    const [c1, c2] = bezierControls(
+      { ...a, side: i === 1 ? source.side : out },
+      { ...b, side: i === all.length - 1 ? target.side : into },
+      0,
+    )
+    path += `C${fmt(c1)} ${fmt(c2)} ${fmt(b)}`
+  }
+  return { path, label: middle(points) }
+}
+
 /** The default: a smooth curve out of and into the ports' sides. */
 export const bezierEdge = defineEdgeType({
   type: 'bezier',
-  route(source, target) {
+  route(source, target, edge) {
+    if (edge?.points?.length) return bezierThrough(source, target, edge.points)
     const [c1, c2] = bezierControls(source, target)
     return {
       path: `M${fmt(source)}C${fmt(c1)} ${fmt(c2)} ${fmt(target)}`,
@@ -91,10 +136,16 @@ export const bezierEdge = defineEdgeType({
 
 export const straightEdge = defineEdgeType({
   type: 'straight',
-  route: (source, target) => ({
-    path: `M${fmt(source)}L${fmt(target)}`,
-    label: { x: (source.x + target.x) / 2, y: (source.y + target.y) / 2 },
-  }),
+  route: (source, target, edge) =>
+    edge?.points?.length
+      ? {
+          path: `M${[source, ...edge.points, target].map(fmt).join('L')}`,
+          label: middle(edge.points),
+        }
+      : {
+          path: `M${fmt(source)}L${fmt(target)}`,
+          label: { x: (source.x + target.x) / 2, y: (source.y + target.y) / 2 },
+        },
 })
 
 /** How far a step edge runs out of a port before its first turn. */
@@ -151,6 +202,7 @@ interface StepData extends FlowData {
 export const stepEdge = defineEdgeType<StepData>({
   type: 'step',
   route(source, target, edge) {
+    if (edge?.points?.length) return stepThrough(source, target, edge.points)
     // Work as if the ports faced left and right, then turn the result back.
     const turned = isVertical(source.side) && isVertical(target.side)
     const s = turned ? { ...flip(source), side: flipSide[source.side] } : source
@@ -200,3 +252,25 @@ export const stepEdge = defineEdgeType<StepData>({
     return { path: rounded(points.map(back)), label: back(label), handle }
   },
 })
+
+/**
+ * Right angles through the points an edge runs through: along each rank,
+ * across each gap between ranks halfway through it.
+ */
+function stepThrough(source: EdgeAnchor, target: EdgeAnchor, points: Point[]): EdgeRoute {
+  const vertical = isVertical(source.side)
+  const all = [source, ...points, target]
+  const out: Point[] = [source]
+  for (let i = 1; i < all.length; i++) {
+    const a = all[i - 1]!
+    const b = all[i]!
+    if (vertical) {
+      const y = (a.y + b.y) / 2
+      out.push({ x: a.x, y }, { x: b.x, y }, b)
+    } else {
+      const x = (a.x + b.x) / 2
+      out.push({ x, y: a.y }, { x, y: b.y }, b)
+    }
+  }
+  return { path: rounded(out), label: middle(points) }
+}

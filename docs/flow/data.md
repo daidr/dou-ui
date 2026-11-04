@@ -47,6 +47,8 @@ interface FlowEdge {
   type?: string
   label?: string
   animated?: boolean
+  /** 途经的点，整理时写入，见连线 */
+  points?: { x: number; y: number }[]
   data?: Record<string, unknown>
 }
 ```

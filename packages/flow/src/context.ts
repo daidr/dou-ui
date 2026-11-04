@@ -61,6 +61,12 @@ export interface FlowEditorProps {
   /** The type of edges without `type`, new ones included. `bezier` by default. */
   edgeType?: string
   /**
+   * Several edges at a port that has its side of the node to itself are
+   * spread out along that side, in the order of where they go, so they
+   * don't all meet in one point. `true` by default.
+   */
+  spreadEdges?: boolean
+  /**
    * Below this zoom nodes are drawn as plain boxes with their names, which
    * keeps a large flow quick; see the `simple` slot. `0` never does. `0.4` by default.
    */

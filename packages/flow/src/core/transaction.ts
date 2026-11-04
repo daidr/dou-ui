@@ -141,7 +141,12 @@ export class FlowTransaction {
     return this.step({ type: 'updateNode', id, patch })
   }
 
+  /** Moves a node; edges at it drop the points they ran through, which no longer fit. */
   moveNode(id: string, x: number, y: number) {
+    const node = this.getNode(id)
+    if (node && node.x === x && node.y === y) return this
+    for (const edge of this.edgesOf(id))
+      if (edge.points) this.updateEdge(edge.id, { points: undefined })
     return this.updateNode(id, { x, y })
   }
 

@@ -123,6 +123,7 @@ const props = withDefaults(defineProps<FlowEditorProps>(), {
   searchable: true,
   panOnScroll: true,
   edgeType: undefined,
+  spreadEdges: true,
   simpleZoom: 0.4,
   bordered: true,
 })
@@ -536,13 +537,62 @@ function removeStaleEdges() {
 /** How far an edge may bulge past its ends, in canvas px. */
 const EDGE_REACH = 80
 
+/** How far apart edges spread along a side of a node sit, and how far from its corners they stay, in canvas px. */
+const SPREAD_GAP = 20
+const SPREAD_INSET = 12
+
+/**
+ * Spreads the edges at each port that has its side of the node to itself
+ * along that side, centred on the port and in the order of where their
+ * other ends (or the first points they run through) lie, so they leave
+ * side by side without crossing.
+ */
+function spread(
+  ends: { edge: FlowEdge; node: FlowNode; port?: string; at: EdgeAnchor; other: Point }[],
+) {
+  const groups = new Map<string, typeof ends>()
+  for (const end of ends) {
+    const key = `${end.node.id}\u0000${end.port ?? ''}\u0000${end.at.side}`
+    const group = groups.get(key)
+    if (group) group.push(end)
+    else groups.set(key, [end])
+  }
+  for (const group of groups.values()) {
+    if (group.length < 2) continue
+    const { node, at } = group[0]!
+    const m = metrics.get(node.id)
+    if (!m) continue
+    let alone = true
+    for (const [id, port] of m.ports)
+      if (id !== group[0]!.port && port.side === at.side) alone = false
+    if (!alone) continue
+    const across = at.side === 'top' || at.side === 'bottom' ? 'x' : 'y'
+    const start = node[across] + SPREAD_INSET
+    const end = node[across] + (across === 'x' ? m.width : m.height) - SPREAD_INSET
+    if (end <= start) continue
+    const step = Math.min(SPREAD_GAP, (end - start) / (group.length - 1))
+    // oxlint-disable-next-line unicorn/no-array-sort -- sorts the group in place
+    group.sort((a, b) => a.other[across] - b.other[across] || a.edge.id.localeCompare(b.edge.id))
+    const first = Math.min(
+      Math.max(at[across] - (step * (group.length - 1)) / 2, start),
+      end - step * (group.length - 1),
+    )
+    group.forEach((item, i) => (item.at[across] = first + step * i))
+  }
+}
+
 /** Every edge's route and the box around it; independent of the view, so panning skips it. */
 const edgeRoutes = computed(() => {
   const out: { edge: FlowEdge; route: EdgeRoute; box: Rect; style?: CSSProperties }[] = []
   // Read once: adding or removing edges is tracked, single edges are replaced whole.
   const edges = doc.value.edges
   void edges.length
-  for (const edge of toRaw(edges)) {
+  const ends: Parameters<typeof spread>[0] = []
+  const shown: { edge: FlowEdge; a: EdgeAnchor; b: EdgeAnchor }[] = []
+  // While tidying animates, the points edges will run through don't fit yet.
+  const tweening = tween.value !== null
+  for (let edge of toRaw(edges)) {
+    if (tweening && edge.points) edge = { ...edge, points: undefined }
     const from = edgeEnd(edge.source)
     const to = edgeEnd(edge.target)
     // Both ends folded into the same container.
@@ -553,15 +603,33 @@ const edgeRoutes = computed(() => {
     const a = anchor(source, from.port, 'source')
     const b = anchor(target, to.port, 'target')
     if (!a || !b) continue
+    shown.push({ edge, a, b })
+    if (!props.spreadEdges) continue
+    const points = edge.points?.length ? edge.points : undefined
+    ends.push(
+      { edge, node: source, port: from.port, at: a, other: points?.[0] ?? b },
+      { edge, node: target, port: to.port, at: b, other: points?.at(-1) ?? a },
+    )
+  }
+  spread(ends)
+  for (const { edge, a, b } of shown) {
+    const xs = [a.x, b.x]
+    const ys = [a.y, b.y]
+    for (const p of edge.points ?? []) {
+      xs.push(p.x)
+      ys.push(p.y)
+    }
+    const x = Math.min(...xs)
+    const y = Math.min(...ys)
     out.push({
       edge,
       route: edgeTypeOf(edge.type).route(a, b, edge),
-      // Both ends, with room for the curve.
+      // Both ends and every point between, with room for the curve.
       box: {
-        x: Math.min(a.x, b.x) - EDGE_REACH,
-        y: Math.min(a.y, b.y) - EDGE_REACH,
-        width: Math.abs(a.x - b.x) + EDGE_REACH * 2,
-        height: Math.abs(a.y - b.y) + EDGE_REACH * 2,
+        x: x - EDGE_REACH,
+        y: y - EDGE_REACH,
+        width: Math.max(...xs) - x + EDGE_REACH * 2,
+        height: Math.max(...ys) - y + EDGE_REACH * 2,
       },
       style: edgeStyle(edge),
     })
@@ -967,6 +1035,7 @@ function tidy(ids?: string[]) {
       laneGap: gap.row,
       equalWidth: false,
       grid: props.grid || 8,
+      straightChains: true,
     },
   )
   const snap = (v: number) => (props.grid ? Math.round(v / props.grid) * props.grid : Math.round(v))
@@ -979,7 +1048,25 @@ function tidy(ids?: string[]) {
     const to = { x: origin.x + snap(placed.x), y: origin.y + snap(placed.y) }
     if (to.x !== node.x || to.y !== node.y) moved.set(node.id, to)
   }
-  if (!moved.size) return
+  // Edges spanning several ranks run between the nodes in their way.
+  const through = new Map(layout.edges.map((e) => [`${e.from}\u0000${e.to}`, e.points]))
+  const locked = new Set(nodes.filter((node) => node.locked).map((node) => node.id))
+  const routes = new Map<string, Point[] | undefined>()
+  for (const edge of doc.value.edges) {
+    const a = edge.source.node
+    const b = edge.target.node
+    if (!blocks.has(a) || !blocks.has(b)) continue
+    const points =
+      locked.has(a) || locked.has(b)
+        ? undefined
+        : through.get(`${a}\u0000${b}`)?.map((p) => ({
+            x: origin.x + snap(p.x),
+            y: origin.y + snap(p.y),
+          }))
+    const next = points?.length ? points : undefined
+    if (JSON.stringify(next) !== JSON.stringify(edge.points)) routes.set(edge.id, next)
+  }
+  if (!moved.size && !routes.size) return
   const count = moved.size
   // What is inside a moved container moves the same way.
   for (const { id } of nodes) {
@@ -995,6 +1082,7 @@ function tidy(ids?: string[]) {
   }
   transact((tr) => {
     for (const [id, to] of moved) tr.moveNode(id, to.x, to.y)
+    for (const [id, points] of routes) tr.updateEdge(id, { points })
   })
   announce(format(messages.value.tidied, { count }))
   animateTidy(from, moved)

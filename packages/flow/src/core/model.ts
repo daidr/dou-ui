@@ -47,6 +47,12 @@ export interface FlowEdge<Data extends FlowData = FlowData> {
   label?: string
   /** Dashes run along the edge in its direction, e.g. while data flows through it. */
   animated?: boolean
+  /**
+   * Points on the canvas the edge runs through on its way, in order. Tidying
+   * sets them on an edge that spans several ranks, so it passes between
+   * the nodes in its way; moving either end clears them.
+   */
+  points?: Point[]
   data?: Data
 }
 

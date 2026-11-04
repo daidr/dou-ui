@@ -16,10 +16,8 @@ for (const dir of (await readdir(components, { withFileTypes: true })).filter((e
 )) {
   const index = Bun.file(new URL(`${dir.name}/index.ts`, components))
   if (!(await index.exists())) continue
-  for (const match of (await index.text()).matchAll(
-    /^export const (Dou[A-Za-z]+) = withInstall/gm,
-  )) {
-    componentDirs[match[1]!] = dir.name
+  for (const component of exportedComponents(await index.text())) {
+    componentDirs[component] = dir.name
   }
 }
 
@@ -59,12 +57,30 @@ for (const dir of (await readdir(packagesDir, { withFileTypes: true })).filter((
   }
 }
 
+/**
+ * The components a module wraps with `withInstall` and exports, and those it
+ * passes on with `export { DouXxx }` from a module of its own (a component
+ * other components render is wrapped apart from the entry, see `dropdown/item-components.ts`).
+ */
+function exportedComponents(code: string): string[] {
+  const names = [...code.matchAll(/^export const (Dou[A-Za-z]+) = withInstall/gm)].map((m) => m[1]!)
+  for (const m of code.matchAll(/^export \{([^}]*)\}/gm)) {
+    names.push(
+      ...m[1]!
+        .split(',')
+        .map((name) => name.trim())
+        .filter((name) => /^Dou[A-Z]/.test(name)),
+    )
+  }
+  return names
+}
+
 /** The components an entry exports, following `export * from './dir'`. */
 async function componentsOf(index: URL): Promise<string[]> {
   const file = Bun.file(index)
   if (!(await file.exists())) return []
   const code = await file.text()
-  const names = [...code.matchAll(/^export const (Dou[A-Za-z]+) = withInstall/gm)].map((m) => m[1]!)
+  const names = exportedComponents(code)
   for (const m of code.matchAll(/^export \* from '(\.[^']+)'/gm)) {
     names.push(...(await componentsOf(new URL(`${m[1]}/index.ts`, index))))
   }

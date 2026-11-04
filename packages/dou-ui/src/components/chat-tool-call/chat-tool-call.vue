@@ -12,7 +12,7 @@ import { useNamespace } from '../../utils/namespace'
 import { useStatusCheck, devWarn } from '../../utils/status-check'
 import { CollapseTransition } from '../collapse/collapse-transition'
 import { useLocale } from '../config-provider/use-config'
-import DouSpinner from '../spinner/spinner.vue'
+import { DouSpinner } from '../spinner'
 import { formatToolValue } from './chat-tool-call'
 import type { ChatToolCallEmits, ChatToolCallProps, ChatToolCallSlots } from './chat-tool-call'
 

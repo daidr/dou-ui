@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useNamespace } from '../../utils/namespace'
-import DouAvatar from '../avatar/avatar.vue'
+import { DouAvatar } from '../avatar'
 import type { UserProps, UserSlots } from './user'
 
 defineOptions({ name: 'DouUser' })

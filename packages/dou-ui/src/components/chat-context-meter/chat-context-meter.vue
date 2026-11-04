@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
-import DouTooltip from '../tooltip/tooltip.vue'
+import { DouTooltip } from '../tooltip'
 import { compactNumber } from './chat-context-meter'
 import type { ChatContextMeterProps } from './chat-context-meter'
 

@@ -3,7 +3,7 @@ import { GlobeIcon } from '@dou-ui/icons'
 import { computed } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
-import DouPopover from '../popover/popover.vue'
+import { DouPopover } from '../popover'
 import { sourceSite } from './chat-sources'
 import type { ChatCitationProps } from './chat-sources'
 

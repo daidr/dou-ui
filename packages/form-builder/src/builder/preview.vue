@@ -3,7 +3,7 @@ import { computed, reactive, shallowRef, watch } from 'vue'
 import { DouButton, DouSegmentedControl } from 'dou-ui'
 import type { FormModel } from 'dou-ui'
 import { CheckCircleIcon, MonitorIcon, SmartphoneIcon, TabletIcon } from '@dou-ui/icons'
-import FormRenderer from '../renderer/form-renderer.vue'
+import { DouFormRenderer as FormRenderer } from '../renderer'
 import { useBuilderState } from './context'
 
 /**

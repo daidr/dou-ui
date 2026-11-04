@@ -2,10 +2,10 @@
 import { RefreshIcon, RotateCcwIcon, RotateCwIcon, ZoomInIcon, ZoomOutIcon } from '@dou-ui/icons'
 import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { useNamespace } from '../../utils/namespace'
-import DouButton from '../button/button.vue'
+import { DouButton } from '../button'
 import { useLocale } from '../config-provider/use-config'
-import DouSlider from '../slider/slider.vue'
-import DouSpinner from '../spinner/spinner.vue'
+import { DouSlider } from '../slider'
+import { DouSpinner } from '../spinner'
 import type {
   ImageCropperArea,
   ImageCropperBlobOptions,

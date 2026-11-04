@@ -4,8 +4,8 @@ import { computed, ref, useId } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { CollapseTransition } from '../collapse/collapse-transition'
 import { useLocale } from '../config-provider/use-config'
-import DouShimmer from '../shimmer/shimmer.vue'
-import DouSpinner from '../spinner/spinner.vue'
+import { DouShimmer } from '../shimmer'
+import { DouSpinner } from '../spinner'
 import type { ChatStepsEmits, ChatStepsProps, ChatStepsSlots } from './chat-steps'
 
 defineOptions({ name: 'DouChatSteps' })

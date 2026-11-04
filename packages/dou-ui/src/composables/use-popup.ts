@@ -149,7 +149,7 @@ export function usePopup(options: UsePopupOptions) {
           if ((event as MouseEvent).detail === 0 || from?.hover) return
           if (from ? from.wasOpen : open.value) return hide()
           // a link opens the panel first; the next tap follows it
-          event.preventDefault()
+          if ((event.currentTarget as Element | null)?.closest('a[href]')) event.preventDefault()
           // before showing: a `v-model:open` only takes the new value later
           tapped.value = !toValue(options.disabled)
           show()

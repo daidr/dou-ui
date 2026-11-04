@@ -203,6 +203,18 @@ describe('DouDropdown', () => {
     wrapper.unmount()
   })
 
+  it('leaves the default of a tap alone when the trigger is not a link', async () => {
+    const wrapper = withModel({ trigger: 'hover' })
+    const trigger = wrapper.get('#trigger')
+    await trigger.trigger('pointerdown', { pointerType: 'touch' })
+    const click = new MouseEvent('click', { detail: 1, bubbles: true, cancelable: true })
+    trigger.element.dispatchEvent(click)
+    await nextTick()
+    expect(wrapper.props('open')).toBe(true)
+    expect(click.defaultPrevented).toBe(false)
+    wrapper.unmount()
+  })
+
   it('still opens and closes a hover menu with the mouse', async () => {
     vi.useFakeTimers()
     const wrapper = withModel({ trigger: 'hover' })

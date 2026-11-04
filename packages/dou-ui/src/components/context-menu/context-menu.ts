@@ -10,6 +10,8 @@ export interface ContextMenuItem {
   /** Unique within the menu; also what `select` reports. */
   key: string
   label: string
+  /** A line under the label that says more about the item. */
+  description?: string
   icon?: Component
   /** A key to show after the label, written as in `useHotkey`; only shown. */
   shortcut?: string
@@ -18,13 +20,29 @@ export interface ContextMenuItem {
   /** Draw a separator above the item. */
   divided?: boolean
   /**
-   * Shows a check mark on the option in use. When every item of a menu has
-   * it, the menu is one choice and its items are read as radio items.
+   * Shows a check mark on the option in use. When every item of a menu, or
+   * of a group, has it, they are one choice and are read as radio items.
    */
   checked?: boolean
   /** Called when the item is chosen; leave it out to handle `select` instead. */
   run?: () => void
 }
+
+/**
+ * A titled section of a menu written as data, as `DouDropdownGroup` is in
+ * the `menu` slot. Its items' keys are unique within the whole menu.
+ */
+export interface ContextMenuGroup {
+  type: 'group'
+  /** The heading above the items. */
+  label: string
+  children: ContextMenuItem[]
+  /** Draw a separator above the group. */
+  divided?: boolean
+}
+
+/** One entry of a menu's `items`: an item or a group of them. */
+export type ContextMenuEntry = ContextMenuItem | ContextMenuGroup
 
 export interface ContextMenuProps {
   /** Whether the menu is open, bound with `v-model:open`. */
@@ -55,7 +73,7 @@ export interface ContextMenuProps {
    * The items as data, in place of the `menu` slot; a chosen item's `run`
    * is called. Ignored when the `menu` slot is given.
    */
-  items?: ContextMenuItem[]
+  items?: ContextMenuEntry[]
 }
 
 export interface ContextMenuEmits {
@@ -68,7 +86,7 @@ export interface ContextMenuEmits {
 export interface ContextMenuSlots {
   /** The area that opens the menu. Its first element receives the listener. */
   default?: () => unknown
-  /** The items, `DouDropdownItem`s. */
+  /** The items: `DouDropdownItem`, `DouDropdownSub`, `DouDropdownGroup` and `DouDropdownRadioGroup`. */
   menu?: () => unknown
 }
 

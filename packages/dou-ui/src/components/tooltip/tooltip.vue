@@ -5,6 +5,7 @@ import type { VirtualElement } from '../../composables/use-floating'
 import { usePopup } from '../../composables/use-popup'
 import { useNamespace } from '../../utils/namespace'
 import { OnlyChild } from '../../utils/only-child'
+import { hasHover } from '../../utils/pointer'
 import { DouKbd } from '../kbd'
 import type { TooltipProps, TooltipSlots } from './tooltip'
 import { claimTooltip, releaseTooltip } from './only-one'
@@ -43,6 +44,8 @@ const {
 } = usePopup({
   open,
   trigger: ['hover', 'focus'],
+  // touch gets no tip, see below
+  tap: false,
   disabled: () => props.disabled,
   placement: () => props.placement,
   // keep clear of the pointer itself when following it
@@ -58,7 +61,7 @@ const cursor: VirtualElement = {
   getBoundingClientRect: () => new DOMRect(pointer.value?.x ?? 0, pointer.value?.y ?? 0, 0, 0),
 }
 function onPointermove(event: PointerEvent) {
-  if (!props.followCursor || event.pointerType === 'touch') return
+  if (!props.followCursor || !hasHover(event.pointerType)) return
   pointer.value = { x: event.clientX, y: event.clientY }
   update()
 }
@@ -156,21 +159,26 @@ const interactive = computed(() => props.interactive && !props.followCursor)
 
 const apple = useApplePlatform()
 
-// A tap also sends mouseenter and focus, and phones send no mouseleave
-// until the next tap elsewhere, so the tip would stay up over the page.
-// Touch gets no tip, the same as a native title.
+// A tap also brings focus, and phones move it away only with the next tap
+// elsewhere, so the tip would stay up over the page. Touch gets no tip, the
+// same as a native title (hover already leaves touch out).
 let touch = false
 const notTouch = (handler?: (event: Event) => void) =>
   handler && ((event: Event) => touch || handler(event))
 const leave = (handler?: (event: Event) => void) =>
   handler &&
   ((event: Event) => {
-    touch = false
+    // the finger lifting is not leaving: the focus from the tap is still to come
+    if (hasHover((event as PointerEvent).pointerType ?? 'mouse')) touch = false
     handler(event)
     if (!open.value) byTrigger = false
   })
 function onPointerType(event: PointerEvent) {
-  touch = event.pointerType === 'touch'
+  touch = !hasHover(event.pointerType)
+}
+const enter = (handler?: (event: Event) => void) => (event: Event) => {
+  onPointerType(event as PointerEvent)
+  handler?.(event)
 }
 
 // Focus that comes with a press shows no tip: the pointer is already there
@@ -187,11 +195,10 @@ const focusin = (handler?: (event: Event) => void) =>
 
 const triggerProps = computed(() => ({
   ...triggerListeners.value,
-  onMouseenter: notTouch(fromTrigger(triggerListeners.value.onMouseenter)),
+  onPointerenter: enter(fromTrigger(triggerListeners.value.onPointerenter)),
   onFocusin: notTouch(focusin(fromTrigger(triggerListeners.value.onFocusin))),
-  onMouseleave: leave(triggerListeners.value.onMouseleave),
+  onPointerleave: leave(triggerListeners.value.onPointerleave),
   onFocusout: leave(triggerListeners.value.onFocusout),
-  onPointerenter: onPointerType,
   onPointerdown,
   onPointermove,
   'aria-describedby': open.value && describes.value ? id : undefined,

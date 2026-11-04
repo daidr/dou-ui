@@ -2,7 +2,11 @@ import type { Size, Tone } from '../../utils/types'
 
 export type ButtonVariant = 'solid' | 'soft' | 'outline' | 'ghost'
 export type ButtonTone = Tone
-export type ButtonSize = Size
+/**
+ * `xs` is a button-only size for secondary actions in dense rows and
+ * toolbars; other controls stop at `sm`.
+ */
+export type ButtonSize = 'xs' | Size
 
 export interface ButtonProps {
   /** How much visual weight the button carries. */

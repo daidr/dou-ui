@@ -50,7 +50,7 @@ NodeGraph 只用来展示。需要拖动节点、连线编辑时，用[流程编
 
 悬停节点时，它的上下游链路保持原样，其余部分变淡。`highlight="selected"` 改为高亮选中节点的链路，`none` 关闭高亮。
 
-`detail` 插槽的内容会在悬停时以弹出层显示。也可以监听 `nodeEnter` 和 `nodeLeave`，参数里有节点数据和节点元素，用来自己控制弹出层。
+`detail` 插槽的内容会在悬停时以弹出层显示；触屏上轻点节点会选中它并弹出详情，再点一下收起。也可以监听 `nodeEnter` 和 `nodeLeave`，参数里有节点数据和节点元素，用来自己控制弹出层。
 
 <DocDemo src="node-graph/selection" column />
 
@@ -152,19 +152,19 @@ NodeGraph 只用来展示。需要拖动节点、连线编辑时，用[流程编
 
 ### Slots
 
-| 名称          | 说明               | 参数                 |
-| ------------- | ------------------ | -------------------- |
-| `node`        | 节点的全部内容     | `GraphNodeSlotProps` |
-| `status`      | 状态点             | `GraphNodeSlotProps` |
-| `icon`        | 图标               | `GraphNodeSlotProps` |
-| `label`       | 标题               | `GraphNodeSlotProps` |
-| `extra`       | 附加信息           | `GraphNodeSlotProps` |
-| `description` | 卡片的第二行       | `GraphNodeSlotProps` |
-| `corner`      | 右上角             | `GraphNodeSlotProps` |
-| `detail`      | 悬停时弹出的内容   | `GraphNodeSlotProps` |
-| `toolbar`     | 工具栏里的其他按钮 | —                    |
-| `legend`      | 图例弹出层的内容   | —                    |
-| `empty`       | 没有节点时显示     | —                    |
+| 名称          | 说明                   | 参数                 |
+| ------------- | ---------------------- | -------------------- |
+| `node`        | 节点的全部内容         | `GraphNodeSlotProps` |
+| `status`      | 状态点                 | `GraphNodeSlotProps` |
+| `icon`        | 图标                   | `GraphNodeSlotProps` |
+| `label`       | 标题                   | `GraphNodeSlotProps` |
+| `extra`       | 附加信息               | `GraphNodeSlotProps` |
+| `description` | 卡片的第二行           | `GraphNodeSlotProps` |
+| `corner`      | 右上角                 | `GraphNodeSlotProps` |
+| `detail`      | 悬停或轻点时弹出的内容 | `GraphNodeSlotProps` |
+| `toolbar`     | 工具栏里的其他按钮     | —                    |
+| `legend`      | 图例弹出层的内容       | —                    |
+| `empty`       | 没有节点时显示         | —                    |
 
 ### Exposes
 

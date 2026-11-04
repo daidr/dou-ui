@@ -162,6 +162,22 @@
     font-weight: var(--dou-font-weight-medium);
   }
 
+  .dou-chat-citation__link {
+    border-radius: 2px;
+    text-decoration: underline;
+    text-decoration-color: var(--dou-color-border-strong);
+    text-underline-offset: 3px;
+
+    &:hover {
+      text-decoration-color: currentcolor;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 1px;
+    }
+  }
+
   .dou-chat-citation__description {
     display: -webkit-box;
     overflow: hidden;

@@ -1,4 +1,5 @@
 import { mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import { DouChatCitation, DouChatSources } from '../../../index'
 import { sourceSite } from '../chat-sources'
@@ -109,5 +110,28 @@ describe('DouChatCitation', () => {
   it('is a plain number without a source', () => {
     const wrapper = mount(DouChatCitation, { props: { index: 1 } })
     expect(wrapper.text()).toBe('1')
+  })
+
+  it('opens the preview on the first tap instead of leaving, with the title as the link', async () => {
+    const wrapper = mount(DouChatCitation, {
+      props: { index: 2, source: items[0] },
+      attachTo: document.body,
+    })
+    const tag = wrapper.get('.dou-chat-citation')
+    await tag.trigger('pointerdown', { pointerType: 'touch' })
+    const first = new MouseEvent('click', { detail: 1, bubbles: true, cancelable: true })
+    tag.element.dispatchEvent(first)
+    await nextTick()
+    expect(first.defaultPrevented).toBe(true)
+    const title = document.querySelector<HTMLAnchorElement>('.dou-chat-citation__link')
+    expect(title?.getAttribute('href')).toBe(items[0]!.url)
+    expect(title?.textContent).toBe(items[0]!.title)
+    // the second tap follows the link
+    await tag.trigger('pointerdown', { pointerType: 'touch' })
+    const second = new MouseEvent('click', { detail: 1, bubbles: true, cancelable: true })
+    tag.element.dispatchEvent(second)
+    expect(second.defaultPrevented).toBe(false)
+    wrapper.unmount()
+    document.body.innerHTML = ''
   })
 })

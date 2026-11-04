@@ -45,3 +45,9 @@ export function firstLine(content: HTMLElement): { top: number; height: number }
   const height = Number.isFinite(lineHeight) ? Math.min(lineHeight, rect.height) : rect.height
   return { top: rect.top + (height < rect.height ? padding : 0), height }
 }
+
+/** The right edge of the editor's text column: the surface less its padding (a reading width). */
+export function columnRight(surface: HTMLElement): number {
+  const padding = Number.parseFloat(getComputedStyle(surface).paddingRight) || 0
+  return surface.getBoundingClientRect().right - padding
+}

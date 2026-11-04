@@ -3,7 +3,10 @@
  *
  * A document reads like a page, not a form: no box around it, text at
  * reading size with generous leading. Blocks stack with a few pixels
- * between them and nest by indenting. The handle sits in the gutter on
+ * between them, items of a list with their own (usually tighter) gap, and
+ * nest by indenting. A reading width keeps lines short on wide screens: the
+ * text column centers, and the handle's gutter hangs in the margin when it
+ * fits. The handle sits in the gutter on
  * the left of the hovered block; on touch screens, a narrower gutter holds
  * only the grip, next to the block with the cursor. Selected blocks take a faint tint, the
  * same in light and dark; the drop line during a drag is the focus color.
@@ -15,7 +18,11 @@
     /* room on the left for the handle of top-level blocks */
     --dou-editor-gutter: 56px;
     --dou-editor-indent: 24px;
-    --dou-editor-block-gap: 2px;
+    /* distance between two blocks, and between two items of a list */
+    --dou-editor-block-gap: 4px;
+    --dou-editor-list-gap: 4px;
+    /* the widest the text column gets; centered when the editor is wider */
+    --dou-editor-reading-width: none;
     --dou-editor-selected: color-mix(
       in oklab,
       var(--dou-color-focus) calc(12% + 10% * var(--dou-scheme-dark)),
@@ -73,6 +80,27 @@
     white-space: nowrap;
   }
 
+  /*
+   * the reading width: free room becomes padding on both sides, the start
+   * side first giving up what the gutter already takes. The padding is part
+   * of the surface, so a click beside the text still lands in it. With no
+   * reading width (none), the calc is invalid and the padding stays 0.
+   */
+  .dou-editor__mount > .dou-editor__surface,
+  .dou-editor__search {
+    padding-inline-start: max(
+      0px,
+      (100% - var(--dou-editor-reading-width) - var(--dou-editor-gutter)) / 2
+    );
+    padding-inline-end: max(
+      0px,
+      min(
+        100% - var(--dou-editor-reading-width),
+        (100% - var(--dou-editor-reading-width) + var(--dou-editor-gutter)) / 2
+      )
+    );
+  }
+
   .dou-editor__surface {
     min-height: calc(var(--dou-editor-line-height) * 1em);
     outline: none;
@@ -95,10 +123,53 @@
   .dou-editor__content {
     position: relative;
     margin: 0;
-    padding-block: var(--dou-editor-block-gap);
+    padding-block: calc(var(--dou-editor-block-gap) / 2);
     font-size: 1em;
     font-weight: inherit;
     line-height: var(--dou-editor-line-height);
+  }
+
+  /*
+   * list items: the list gap between items; the block gap returns around a
+   * run of them, on its first item and after its last (after any nested
+   * items, on their group). The difference is padding when the list gap is
+   * the smaller one, and a negative margin when it is the larger, so a
+   * heading's own margin after a list adds to it instead of swallowing it.
+   * Two negative margins overlap instead of adding up: between two lists,
+   * the second takes it all. At the very start and end of the document
+   * there is no neighbour to keep apart, so no margin there.
+   * --dou-editor-list-top is where an item's first line starts, for markers.
+   */
+  .dou-editor__block > .dou-editor__content.is-list {
+    --dou-editor-list-top: calc(var(--dou-editor-list-gap) / 2);
+    padding-block: var(--dou-editor-list-top) calc(var(--dou-editor-list-gap) / 2);
+  }
+
+  .dou-editor__block > .dou-editor__content.is-list-start {
+    --dou-editor-list-top: calc(max(var(--dou-editor-block-gap), var(--dou-editor-list-gap)) / 2);
+    margin-top: min(0px, (var(--dou-editor-block-gap) - var(--dou-editor-list-gap)) / 2);
+  }
+
+  .dou-editor__block > .dou-editor__content.is-list-start.is-list-after {
+    margin-top: min(0px, var(--dou-editor-block-gap) - var(--dou-editor-list-gap));
+  }
+
+  .dou-editor__block > .dou-editor__content.is-list-end {
+    padding-bottom: calc(max(var(--dou-editor-block-gap), var(--dou-editor-list-gap)) / 2);
+    margin-bottom: min(0px, (var(--dou-editor-block-gap) - var(--dou-editor-list-gap)) / 2);
+  }
+
+  .dou-editor__group.is-list-end {
+    padding-bottom: max(0px, (var(--dou-editor-block-gap) - var(--dou-editor-list-gap)) / 2);
+    margin-bottom: min(0px, (var(--dou-editor-block-gap) - var(--dou-editor-list-gap)) / 2);
+  }
+
+  .dou-editor__surface > .dou-editor__block:first-child > .dou-editor__content.is-list-start {
+    margin-top: 0;
+  }
+
+  .dou-editor__surface > .dou-editor__block:last-child > .is-list-end {
+    margin-bottom: 0;
   }
 
   .dou-editor__content--heading {
@@ -137,7 +208,7 @@
 
   .dou-editor__content--bulletItem::before {
     content: '';
-    top: calc(var(--dou-editor-block-gap) + var(--dou-editor-line-height) * 0.5em - 3px);
+    top: calc(var(--dou-editor-list-top) + var(--dou-editor-line-height) * 0.5em - 3px);
     inset-inline-start: 7px;
     width: 6px;
     height: 6px;
@@ -155,7 +226,7 @@
 
   .dou-editor__content--numberedItem::before {
     content: attr(data-index) '.';
-    top: var(--dou-editor-block-gap);
+    top: var(--dou-editor-list-top);
     padding-inline-end: 6px;
     box-sizing: border-box;
     color: var(--dou-color-text-secondary);
@@ -257,7 +328,8 @@
 
   .dou-editor__content--codeBlock {
     --dou-editor-line-height: 1.7;
-    margin-block: 4px;
+    /* its padding is inside the frame: the block gap goes outside, plus a little room */
+    margin-block: calc(var(--dou-editor-block-gap) / 2 + 2px);
     padding: 12px 16px;
     overflow-x: auto;
     border: 1px solid var(--dou-color-border);
@@ -623,12 +695,16 @@
   .dou-editor__content.is-empty::after {
     content: attr(data-placeholder);
     position: absolute;
-    top: var(--dou-editor-block-gap);
+    top: calc(var(--dou-editor-block-gap) / 2);
     inset-inline-start: 0;
     color: var(--dou-color-text-tertiary);
     pointer-events: none;
     user-select: none;
     white-space: nowrap;
+  }
+
+  .dou-editor__content.is-list.is-empty::after {
+    top: var(--dou-editor-list-top);
   }
 
   .dou-editor__content--bulletItem.is-empty::after,

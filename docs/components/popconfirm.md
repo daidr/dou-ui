@@ -18,6 +18,16 @@
 
 `tone` 可选 `warning`（默认）、`danger` 和 `neutral`，只影响图标的颜色，以及 `danger` 时的确认按钮。`icon` 插槽可以换掉图标。
 
+## 只需告知时
+
+Popconfirm 用来确认是否继续一个操作，所以始终有取消和确认两个按钮，不能隐藏取消。如果只是告诉用户一件事，例如点击“撤销发布”时，这次发布已经超过可撤销的期限，请改用 [Popover](./popover)，在 `content` 插槽里放一个“知道了”按钮：
+
+<DocDemo src="popconfirm/notice" />
+
+Popover 打开时焦点留在触发元素上。示例在打开后把焦点移到“知道了”，并用 `aria-describedby` 指向说明文字，这样读屏会读出整段提示；“知道了”和 `Esc` 关闭后，焦点回到触发元素。
+
+需要打断用户、等用户看完再继续的提示，使用 [`dialog.alert()`](./dialog#函数式调用)；操作完成后才需要告知的结果，使用 [Toast](./toast)。
+
 ## 键盘与读屏
 
 浮层是 `role="alertdialog"`，以问题作为名称。`Esc` 或点击外部关闭（等同于取消，但不触发 `cancel` 事件），焦点回到触发元素；`Tab` 在两个按钮之间移动，沿用 Popover 的约定。

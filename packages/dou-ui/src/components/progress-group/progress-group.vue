@@ -11,6 +11,7 @@ const props = withDefaults(defineProps<ProgressGroupProps>(), {
   items: () => [],
   size: 'md',
   legend: false,
+  legendDirection: 'horizontal',
   tooltip: true,
 })
 defineSlots<ProgressGroupSlots>()
@@ -43,6 +44,13 @@ const colorStyle = (part: { item: ProgressGroupItem; tone?: Tone }) => ({
       ? 'var(--dou-progress-group-neutral)'
       : `var(--dou-color-${part.tone})`),
 })
+// A name cut short by the ellipsis shows in full on hover, measured only when
+// the pointer arrives, the way Tag does it.
+function onLabelEnter(event: PointerEvent) {
+  const el = event.currentTarget as HTMLElement
+  if (el.scrollWidth > el.clientWidth) el.title = el.textContent?.trim() ?? ''
+  else el.removeAttribute('title')
+}
 const name = (item: ProgressGroupItem, text: string) =>
   item.label ? `${item.label} ${text}` : text
 </script>
@@ -70,13 +78,17 @@ const name = (item: ProgressGroupItem, text: string) =>
         </DouTooltip>
       </template>
     </div>
-    <ul v-if="legend" :class="ns.e('legend')">
+    <ul v-if="legend" :class="[ns.e('legend'), `${ns.e('legend')}--${legendDirection}`]">
       <li v-for="part in parts" :key="part.index" :class="ns.e('legend-item')">
         <span :class="ns.e('dot')" :style="colorStyle(part)" aria-hidden="true" />
-        <slot name="legend" :item="part.item" :percent="part.percent" :text="part.text">
-          <span v-if="part.item.label" :class="ns.e('label')">{{ part.item.label }}</span>
-          <span :class="ns.e('value')">{{ part.text }}</span>
-        </slot>
+        <span :class="ns.e('legend-text')">
+          <slot name="legend" :item="part.item" :percent="part.percent" :text="part.text">
+            <span v-if="part.item.label" :class="ns.e('label')" @pointerenter="onLabelEnter">{{
+              part.item.label
+            }}</span>
+            <span :class="ns.e('value')">{{ part.text }}</span>
+          </slot>
+        </span>
       </li>
     </ul>
   </div>

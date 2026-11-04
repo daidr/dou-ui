@@ -10,6 +10,7 @@ import {
 import { computed, inject, nextTick, shallowRef, watch } from 'vue'
 import { commentRange, type CommentRange } from '../core/comments'
 import { editorKey } from '../editor'
+import { columnRight } from '../dom'
 
 /*
  * The thread a piece of text is about, beside that text: opened by a
@@ -40,11 +41,11 @@ const anchor: VirtualElement = {
     if (!current || !at) return new DOMRect()
     const start = current.coordsAtPos(at.from, 1)
     const end = current.coordsAtPos(at.to, -1)
-    // text over several lines: from its start to the editor's right edge
+    // text over several lines: from its start to the text column's right edge
     const right =
       Math.abs(start.top - end.top) < 4
         ? end.right
-        : Math.max(start.left + 1, current.dom.getBoundingClientRect().right)
+        : Math.max(start.left + 1, columnRight(current.dom))
     return new DOMRect(
       start.left,
       start.top,

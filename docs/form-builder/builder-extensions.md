@@ -21,7 +21,7 @@ wide: true
 | `fields`          | 字段类型，和 `fields` 属性一样出现在字段面板里                                                                                                          |
 | `keymap`          | 画布或结构树有焦点时的快捷键，写法同 `useHotkey`；先于内置快捷键，返回 `false` 时交给后面处理                                                           |
 | `toolbar`         | 工具栏按钮：`key`、`label`、`icon`、`run`，以及 `disabled`、`pressed`、`shortcut`（显示在提示里，并作为 `aria-keyshortcuts`；按键本身用 `keymap` 绑定） |
-| `menu`            | 选中节点的菜单项，排在内置的移动、复制、放进分组、删除之后；`shortcut` 显示在菜单项末尾                                                                 |
+| `menu`            | 选中节点的菜单项，排在内置的移动、复制、放进分组、删除之后；`shortcut` 显示在菜单项末尾，`description` 显示在文字下面                                   |
 | `inspector`       | 属性面板里追加的部分：`title` 和 `component`，没有选中节点时参数是 `undefined`                                                                          |
 | `transaction`     | 每次修改提交前调用，可以往事务里追加步骤，它们和原来的修改是同一步撤销；撤销和重做不经过这里                                                            |
 | `setup`           | 设计器挂载后调用，返回的函数在卸载时调用                                                                                                                |

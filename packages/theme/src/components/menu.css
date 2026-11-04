@@ -231,15 +231,6 @@
     }
   }
 
-  /* inside a popup */
-  .dou-menu__popup-label {
-    padding: 8px 8px 4px;
-    color: var(--dou-color-text-tertiary);
-    font-size: var(--dou-font-size-sm);
-    line-height: 1;
-    user-select: none;
-  }
-
   .dou-menu__check {
     width: 1em;
     height: 1em;

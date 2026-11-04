@@ -29,6 +29,7 @@ import {
   watch,
 } from 'vue'
 import { isCurrent } from '../catalog'
+import { columnRight } from '../dom'
 import { labelOf, type BlockOption } from '../core/extension'
 import { getBlockSelection } from '../core/block-selection'
 import { blockAround } from '../core/blocks'
@@ -93,9 +94,7 @@ const anchor: VirtualElement = {
     // a selection over several lines: centre on the first one
     const sameLine = Math.abs(start.top - end.top) < 4
     const left = sameLine ? start.left : start.left
-    const right = sameLine
-      ? end.right
-      : Math.max(start.left + 1, current.dom.getBoundingClientRect().right)
+    const right = sameLine ? end.right : Math.max(start.left + 1, columnRight(current.dom))
     return new DOMRect(left, start.top, Math.max(1, right - left), start.bottom - start.top)
   },
 }

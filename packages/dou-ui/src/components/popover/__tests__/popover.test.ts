@@ -76,6 +76,27 @@ describe('DouPopover', () => {
     wrapper.unmount()
   })
 
+  it('returns focus to the trigger when the content closes it', async () => {
+    const wrapper = withModel({ open: true })
+    await nextTick()
+    const inside = document.getElementById('inside')!
+    inside.focus()
+    inside.click()
+    await nextTick()
+    expect(wrapper.props('open')).toBe(false)
+    expect(document.activeElement?.id).toBe('trigger')
+
+    // closing from outside the panel leaves focus where it is
+    await wrapper.setProps({ open: true })
+    const other = document.body.appendChild(document.createElement('button'))
+    other.focus()
+    ;(wrapper.vm as unknown as { close: () => void }).close()
+    await nextTick()
+    expect(wrapper.props('open')).toBe(false)
+    expect(document.activeElement).toBe(other)
+    wrapper.unmount()
+  })
+
   it('steps into the panel with Tab from the trigger', async () => {
     const wrapper = withModel({ open: true })
     await nextTick()
@@ -83,6 +104,27 @@ describe('DouPopover', () => {
     wrapper.get('#trigger').element.dispatchEvent(tab)
     expect(tab.defaultPrevented).toBe(true)
     expect(document.activeElement?.id).toBe('inside')
+    wrapper.unmount()
+  })
+
+  it('opens a hover card on a tap or Enter and marks it expanded then', async () => {
+    const wrapper = withModel({ trigger: 'hover' })
+    const trigger = wrapper.get('#trigger')
+    expect(trigger.attributes('aria-expanded')).toBeUndefined()
+    await trigger.trigger('pointerdown', { pointerType: 'touch' })
+    await trigger.trigger('click', { detail: 1 })
+    expect(wrapper.props('open')).toBe(true)
+    expect(trigger.attributes('aria-expanded')).toBe('true')
+    await trigger.trigger('pointerdown', { pointerType: 'touch' })
+    await trigger.trigger('click', { detail: 1 })
+    expect(wrapper.props('open')).toBe(false)
+    // Enter or Space
+    await trigger.trigger('click', { detail: 0 })
+    expect(wrapper.props('open')).toBe(true)
+    expect(trigger.attributes('aria-expanded')).toBe('true')
+    document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+    await nextTick()
+    expect(wrapper.props('open')).toBe(false)
     wrapper.unmount()
   })
 })

@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { h, nextTick } from 'vue'
+import { h, nextTick, ref } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DouDropdown, DouDropdownItem, DouDropdownRadioGroup } from '../../../index'
 
@@ -8,6 +8,7 @@ afterEach(() => {
 })
 
 const items = () => [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')]
+const firstItem = () => items()[0]!
 const key = (target: Element, name: string) =>
   target.dispatchEvent(new KeyboardEvent('keydown', { key: name, bubbles: true, cancelable: true }))
 
@@ -135,6 +136,105 @@ describe('DouDropdown', () => {
     }
   })
 
+  it('opens a hover menu on a tap and keeps it open after the finger lifts', async () => {
+    vi.useFakeTimers()
+    const wrapper = withModel({ trigger: 'hover' })
+    const trigger = wrapper.get('#trigger')
+    // a tap: touch pointer events, then the mouse events phones send after it
+    await trigger.trigger('pointerenter', { pointerType: 'touch' })
+    await trigger.trigger('pointerdown', { pointerType: 'touch' })
+    await trigger.trigger('pointerleave', { pointerType: 'touch' })
+    await trigger.trigger('mouseenter')
+    await trigger.trigger('click', { detail: 1 })
+    expect(wrapper.props('open')).toBe(true)
+    await trigger.trigger('mouseleave')
+    vi.advanceTimersByTime(500)
+    await nextTick()
+    expect(wrapper.props('open')).toBe(true)
+    // the same trigger tapped again closes it
+    await trigger.trigger('pointerdown', { pointerType: 'touch' })
+    await trigger.trigger('click', { detail: 1 })
+    expect(wrapper.props('open')).toBe(false)
+    // and a press outside closes what a tap opened
+    await trigger.trigger('pointerdown', { pointerType: 'touch' })
+    await trigger.trigger('click', { detail: 1 })
+    expect(wrapper.props('open')).toBe(true)
+    document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+    await nextTick()
+    expect(wrapper.props('open')).toBe(false)
+    wrapper.unmount()
+    vi.useRealTimers()
+  })
+
+  it('opens a hover menu on a pen tap, the same as a finger', async () => {
+    vi.useFakeTimers()
+    const wrapper = withModel({ trigger: 'hover' })
+    const trigger = wrapper.get('#trigger')
+    // a pen that cannot hover enters and leaves with the press
+    await trigger.trigger('pointerenter', { pointerType: 'pen' })
+    await trigger.trigger('pointerdown', { pointerType: 'pen' })
+    await trigger.trigger('pointerleave', { pointerType: 'pen' })
+    await trigger.trigger('click', { detail: 1 })
+    vi.advanceTimersByTime(500)
+    await nextTick()
+    expect(wrapper.props('open')).toBe(true)
+    wrapper.unmount()
+    vi.useRealTimers()
+  })
+
+  it('forgets a press that scrolled the page instead of tapping', async () => {
+    const wrapper = withModel({ trigger: 'hover' })
+    const trigger = wrapper.get('#trigger')
+    await trigger.trigger('pointerdown', { pointerType: 'touch' })
+    await trigger.trigger('pointercancel', { pointerType: 'touch' })
+    // Enter from the keyboard afterwards opens the menu at its first item
+    await trigger.trigger('click', { detail: 0 })
+    await nextTick()
+    expect(wrapper.props('open')).toBe(true)
+    await nextTick()
+    expect(document.activeElement).toBe(firstItem())
+    wrapper.unmount()
+  })
+
+  it('opens on a click with no press before it, as screen readers send', async () => {
+    const wrapper = withModel({ trigger: 'hover' })
+    await wrapper.get('#trigger').trigger('click', { detail: 1 })
+    expect(wrapper.props('open')).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('leaves the default of a tap alone when the trigger is not a link', async () => {
+    const wrapper = withModel({ trigger: 'hover' })
+    const trigger = wrapper.get('#trigger')
+    await trigger.trigger('pointerdown', { pointerType: 'touch' })
+    const click = new MouseEvent('click', { detail: 1, bubbles: true, cancelable: true })
+    trigger.element.dispatchEvent(click)
+    await nextTick()
+    expect(wrapper.props('open')).toBe(true)
+    expect(click.defaultPrevented).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('still opens and closes a hover menu with the mouse', async () => {
+    vi.useFakeTimers()
+    const wrapper = withModel({ trigger: 'hover' })
+    const trigger = wrapper.get('#trigger')
+    await trigger.trigger('pointerenter', { pointerType: 'mouse' })
+    vi.advanceTimersByTime(100)
+    await nextTick()
+    expect(wrapper.props('open')).toBe(true)
+    // a click with the mouse leaves the hover menu as it is
+    await trigger.trigger('pointerdown', { pointerType: 'mouse' })
+    await trigger.trigger('click', { detail: 1 })
+    expect(wrapper.props('open')).toBe(true)
+    await trigger.trigger('pointerleave', { pointerType: 'mouse' })
+    vi.advanceTimersByTime(150)
+    await nextTick()
+    expect(wrapper.props('open')).toBe(false)
+    wrapper.unmount()
+    vi.useRealTimers()
+  })
+
   it('closes on Escape and gives focus back to the trigger', async () => {
     const wrapper = withModel({ open: true })
     await nextTick()
@@ -183,5 +283,122 @@ describe('DouDropdown', () => {
     expect(String(warn.mock.calls[0]![0])).toContain('`items` is ignored')
     warn.mockRestore()
     both.unmount()
+  })
+
+  it('names an item by its label and describes it with its description', async () => {
+    const wrapper = mount(DouDropdown, {
+      props: {
+        open: false,
+        'onUpdate:open': (value: boolean) => wrapper.setProps({ open: value }),
+      },
+      slots: {
+        default: () => h('button', { id: 'trigger' }, '共享'),
+        menu: () => [
+          h(DouDropdownItem, { value: 'plain' }, () => '复制'),
+          h(
+            DouDropdownItem,
+            { value: 'team', description: '上海办公室的成员都能查看', shortcut: 'mod+t' },
+            () => '团队成员',
+          ),
+          h(
+            DouDropdownItem,
+            { value: 'link' },
+            { default: () => '知道链接的人', description: () => h('b', '不用登录') },
+          ),
+        ],
+      },
+      attachTo: document.body,
+    })
+    await wrapper.get('#trigger').trigger('click')
+    const [plain, team, link] = items()
+    // no description, no change
+    expect(plain!.hasAttribute('aria-labelledby')).toBe(false)
+    expect(plain!.hasAttribute('aria-describedby')).toBe(false)
+    expect(plain!.querySelector('.dou-dropdown__description')).toBeNull()
+    for (const [item, label, description] of [
+      [team!, '团队成员', '上海办公室的成员都能查看'],
+      [link!, '知道链接的人', '不用登录'],
+    ] as const) {
+      expect(item.classList).toContain('is-described')
+      const name = document.getElementById(item.getAttribute('aria-labelledby')!)
+      const desc = document.getElementById(item.getAttribute('aria-describedby')!)
+      expect(name?.textContent?.trim()).toBe(label)
+      expect(desc?.textContent?.trim()).toBe(description)
+    }
+    expect(team!.getAttribute('aria-keyshortcuts')).toBe('Control+T')
+    wrapper.unmount()
+  })
+
+  it('jumps by the label alone, not the description', async () => {
+    const wrapper = mount(DouDropdown, {
+      props: {
+        open: false,
+        'onUpdate:open': (value: boolean) => wrapper.setProps({ open: value }),
+      },
+      slots: {
+        default: () => h('button', { id: 'trigger' }, '更多'),
+        menu: () => [
+          h(DouDropdownItem, { value: 'a', description: 'beta 版本' }, () => 'alpha'),
+          h(DouDropdownItem, { value: 'b' }, () => 'beta'),
+        ],
+      },
+      attachTo: document.body,
+    })
+    await wrapper.get('#trigger').trigger('click')
+    const menu = document.querySelector<HTMLElement>('[role="menu"]')!
+    menu.focus()
+    key(menu, 'b')
+    expect(document.activeElement).toBe(items()[1])
+    wrapper.unmount()
+  })
+
+  it('passes the description of items given as data', async () => {
+    const wrapper = mount(DouDropdown, {
+      props: {
+        open: false,
+        'onUpdate:open': (value: boolean) => wrapper.setProps({ open: value }),
+        items: [{ key: 'delete', label: '删除', description: '30 天后彻底删除' }],
+      },
+      slots: { default: () => h('button', { id: 'trigger' }, '更多') },
+      attachTo: document.body,
+    })
+    await wrapper.get('#trigger').trigger('click')
+    expect(items()[0]!.querySelector('.dou-dropdown__description')?.textContent).toBe(
+      '30 天后彻底删除',
+    )
+    wrapper.unmount()
+  })
+
+  it('follows a description slot that comes and goes', async () => {
+    const shown = ref(false)
+    const wrapper = mount(DouDropdown, {
+      props: { open: true },
+      slots: {
+        default: () => h('button', '更多'),
+        menu: () =>
+          h(
+            DouDropdownItem,
+            { value: 'team' },
+            shown.value
+              ? { default: () => '团队成员', description: () => '上海办公室的成员' }
+              : { default: () => '团队成员' },
+          ),
+      },
+      attachTo: document.body,
+    })
+    await nextTick()
+    expect(firstItem().classList).not.toContain('is-described')
+    shown.value = true
+    await nextTick()
+    expect(firstItem().classList).toContain('is-described')
+    expect(
+      document.getElementById(firstItem().getAttribute('aria-describedby')!)?.textContent,
+    ).toBe('上海办公室的成员')
+    shown.value = false
+    await nextTick()
+    expect(firstItem().classList).not.toContain('is-described')
+    expect(firstItem().hasAttribute('aria-describedby')).toBe(false)
+    expect(firstItem().querySelector('.dou-dropdown__description')).toBeNull()
+    wrapper.unmount()
   })
 })

@@ -11,6 +11,9 @@ export interface ProgressGroupItem {
   color?: string
 }
 
+/** How the legend lays out its entries. */
+export type ProgressGroupLegendDirection = 'horizontal' | 'vertical'
+
 export interface ProgressGroupProps {
   items?: ProgressGroupItem[]
   /** What the whole bar stands for. Defaults to the sum of the values, so the parts fill it. */
@@ -19,6 +22,11 @@ export interface ProgressGroupProps {
   size?: Size
   /** List the parts under the bar. */
   legend?: boolean
+  /**
+   * How the legend lays out its entries: side by side, wrapping as they need
+   * (`horizontal`), or one per row with the amount at the end (`vertical`).
+   */
+  legendDirection?: ProgressGroupLegendDirection
   /** Show each part's label and amount in a tooltip on hover. */
   tooltip?: boolean
   /** How an amount is written in the legend and tooltip. Defaults to a percentage of `max`. */

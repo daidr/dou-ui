@@ -24,7 +24,6 @@ afterEach(() => {
 
 async function hover(el: Element) {
   el.dispatchEvent(new PointerEvent('pointerenter', { pointerType: 'mouse' }))
-  el.dispatchEvent(new MouseEvent('mouseenter'))
   vi.advanceTimersByTime(200)
   await nextTick()
 }
@@ -135,7 +134,7 @@ describe('a tooltip around another overlay trigger', () => {
     )
     const button = wrapper.get('#t').element as HTMLElement
     button.dispatchEvent(new PointerEvent('pointerdown', { pointerType: 'touch', bubbles: true }))
-    button.dispatchEvent(new MouseEvent('mouseenter'))
+    button.dispatchEvent(new PointerEvent('pointerenter', { pointerType: 'touch' }))
     button.dispatchEvent(new FocusEvent('focusin', { bubbles: true }))
     button.click()
     vi.advanceTimersByTime(300)

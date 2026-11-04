@@ -51,8 +51,9 @@ export function useMenuKeys(menu: () => HTMLElement | null | undefined, onTab: (
     typedTimer = setTimeout(() => (typed = ''), 500)
     const ordered = [...list.slice(index + 1), ...list.slice(0, index + 1)]
     const repeat = typed.length > 1 && [...typed].every((char) => char === typed[0])
+    // by the label alone: not the description under it or the shortcut after it
     const match = ordered.find((item) =>
-      item.textContent
+      (item.querySelector('.dou-dropdown__label') ?? item).textContent
         ?.trim()
         .toLowerCase()
         .startsWith(repeat ? typed[0]! : typed),

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { CheckIcon } from '@dou-ui/icons'
-import { computed, inject } from 'vue'
+import { computed, inject, useId } from 'vue'
 import { ariaHotkey, formatHotkey, useApplePlatform } from '../../composables/use-hotkey'
 import { useNamespace } from '../../utils/namespace'
 import { dropdownKey, dropdownRadioGroupKey } from './dropdown'
@@ -21,6 +21,11 @@ const ns = useNamespace('dropdown')
 const dropdown = inject(dropdownKey, null)
 const radioGroup = inject(dropdownRadioGroupKey, null)
 const apple = useApplePlatform()
+const id = `dou-dropdown-item-${useId()}`
+
+// With a description the label alone names the item, and the description describes it.
+// Read while rendering: slots are not reactive, a computed would miss one added later.
+const described = () => !!(slots.description || props.description)
 
 const kind = computed(() =>
   radioGroup && props.value !== undefined
@@ -46,12 +51,13 @@ const ariaShortcut = computed(() =>
   props.shortcut ? ariaHotkey(props.shortcut, apple.value) : undefined,
 )
 
-const classes = computed(() => [
+const classes = () => [
   ns.e('item'),
   ns.m(props.tone),
   ns.is('disabled', props.disabled),
   ns.is('checked', isChecked.value),
-])
+  ns.is('described', described()),
+]
 
 function onClick(event: MouseEvent) {
   if (props.disabled) return
@@ -78,10 +84,12 @@ function onPointerleave(event: PointerEvent) {
     v-bind="$attrs"
     :role="role"
     tabindex="-1"
-    :class="classes"
+    :class="classes()"
     :aria-checked="kind ? isChecked : undefined"
     :aria-disabled="disabled || undefined"
     :aria-keyshortcuts="ariaShortcut"
+    :aria-labelledby="described() ? `${id}-label` : undefined"
+    :aria-describedby="described() ? `${id}-description` : undefined"
     @click="onClick"
     @pointermove="onPointermove"
     @pointerleave="onPointerleave"
@@ -93,7 +101,13 @@ function onPointerleave(event: PointerEvent) {
       ><CheckIcon v-if="kind === 'checkbox' && isChecked"
     /></span>
     <span v-if="slots.prefix" :class="ns.e('prefix')"><slot name="prefix" /></span>
-    <span :class="ns.e('label')"><slot /></span>
+    <span v-if="described()" :class="ns.e('text')"
+      ><span :id="`${id}-label`" :class="ns.e('label')"><slot /></span
+      ><span :id="`${id}-description`" :class="ns.e('description')"
+        ><slot name="description">{{ description }}</slot></span
+      ></span
+    >
+    <span v-else :class="ns.e('label')"><slot /></span>
     <span
       v-if="slots.suffix || shortcut"
       :class="[ns.e('suffix'), !slots.suffix && ns.e('shortcut')]"

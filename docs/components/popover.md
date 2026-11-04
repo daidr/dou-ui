@@ -10,13 +10,13 @@
 
 ## 放入操作
 
-`content` 插槽替换卡片内容，插槽参数里的 `close` 用来关闭卡片。也可以用 `v-model:open` 自己控制。
+`content` 插槽替换卡片内容，插槽参数里的 `close` 用来关闭卡片；焦点在卡片内时，关闭后回到触发元素。也可以用 `v-model:open` 自己控制。
 
 <DocDemo src="popover/action" />
 
 ## 触发方式
 
-`trigger` 为 `hover` 时指向即打开，指针可以从触发元素移到卡片上；`manual` 完全交给 `v-model:open`。
+`trigger` 为 `hover` 时指向即打开，指针可以从触发元素移到卡片上；触屏和触控笔没有悬停，改为轻点打开、再点一下或点别处收起，键盘上按 `Enter` 或空格也能打开（触发元素是链接时，`Enter` 照常打开链接）；`manual` 完全交给 `v-model:open`。
 
 <DocDemo src="popover/trigger" />
 

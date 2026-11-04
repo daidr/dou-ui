@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { provide } from 'vue'
 import { dropdownRadioGroupKey } from './dropdown'
-import type { DropdownRadioGroupSlots, DropdownValue } from './dropdown'
+import type { DropdownGroupProps, DropdownRadioGroupSlots, DropdownValue } from './dropdown'
+import DropdownGroup from './dropdown-group.vue'
 
-defineOptions({ name: 'DouDropdownRadioGroup' })
+defineOptions({ name: 'DouDropdownRadioGroup', inheritAttrs: false })
 
+withDefaults(defineProps<DropdownGroupProps>(), { divided: false })
 const model = defineModel<DropdownValue>()
-defineSlots<DropdownRadioGroupSlots>()
+const slots = defineSlots<DropdownRadioGroupSlots>()
 
 provide(dropdownRadioGroupKey, {
   value: () => model.value,
@@ -15,5 +17,8 @@ provide(dropdownRadioGroupKey, {
 </script>
 
 <template>
-  <div role="group"><slot /></div>
+  <DropdownGroup v-bind="$attrs" :label="label" :divided="divided">
+    <template v-if="slots.label" #label><slot name="label" /></template>
+    <slot />
+  </DropdownGroup>
 </template>

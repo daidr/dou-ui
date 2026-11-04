@@ -2,6 +2,7 @@ import { computed, nextTick, onScopeDispose, ref, toValue, watch } from 'vue'
 import type { CSSProperties, ComponentPublicInstance, MaybeRefOrGetter, Ref } from 'vue'
 import { useZIndex } from '../components/config-provider/use-config'
 import { onlyChildElement } from '../utils/only-child'
+import { hasHover } from '../utils/pointer'
 import { useFloating } from './use-floating'
 import type { Placement, VirtualElement } from './use-floating'
 import { useLayer } from './use-layer'
@@ -21,11 +22,25 @@ export interface UsePopupOptions {
   showDelay?: MaybeRefOrGetter<number>
   /** Delay before closing once the pointer leaves, in ms. */
   hideDelay?: MaybeRefOrGetter<number>
-  /** Close on a press outside. Defaults to on for `click` and `focus` triggers. */
+  /**
+   * Close on a press outside. Defaults to on for `click` and `focus` triggers,
+   * and for a `hover` panel a tap opened.
+   */
   closeOnOutside?: MaybeRefOrGetter<boolean>
+  /**
+   * A finger or a pen has no hover: a tap on the trigger of a `hover` panel
+   * without the `click` trigger opens and closes it instead, and a link
+   * there is followed only once the panel is open. Defaults to on.
+   */
+  tap?: MaybeRefOrGetter<boolean>
   /** What the panel is placed next to, when not the trigger itself (e.g. the pointer). */
   anchor?: () => Element | VirtualElement | null | undefined
 }
+
+// Hover listens to pointer events and leaves fingers and pens out: a tap
+// also sends mouseenter, and the mouseleave that may follow at any time
+// (or only with the next tap elsewhere) would close what the tap opened.
+const hoverable = (event: Event) => hasHover((event as PointerEvent).pointerType)
 
 /**
  * The shared behavior of panels anchored to a trigger: opening on hover,
@@ -93,6 +108,13 @@ export function usePopup(options: UsePopupOptions) {
     sameWidth: options.sameWidth,
   })
 
+  // The press the next click comes from, and whether the panel was open
+  // then: focus from the same tap may open it before the click arrives.
+  let press: { hover: boolean; wasOpen: boolean } | null = null
+  /** The panel was opened by a tap, and stays until tapped away. */
+  const tapped = ref(false)
+  watch(open, (value) => value || (tapped.value = false))
+
   useLayer({
     open,
     elements: () => [reference(), panelRef.value],
@@ -100,7 +122,7 @@ export function usePopup(options: UsePopupOptions) {
     onOutside: () => {
       const close =
         toValue(options.closeOnOutside) ??
-        (triggers.value.has('click') || triggers.value.has('focus'))
+        (triggers.value.has('click') || triggers.value.has('focus') || tapped.value)
       if (close) hide()
     },
   })
@@ -111,8 +133,28 @@ export function usePopup(options: UsePopupOptions) {
   const triggerListeners = computed(() => {
     const on: Record<string, (event: Event) => void> = {}
     if (triggers.value.has('hover')) {
-      on.onMouseenter = () => show(showDelay())
-      on.onMouseleave = () => hide(hideDelay())
+      on.onPointerenter = (event) => hoverable(event) && show(showDelay())
+      on.onPointerleave = (event) => hoverable(event) && hide(hideDelay())
+      if (!triggers.value.has('click') && (toValue(options.tap) ?? true)) {
+        on.onPointerdown = (event) => {
+          press = { hover: hoverable(event), wasOpen: open.value }
+        }
+        // a finger that scrolls the page instead sends no click
+        on.onPointercancel = () => (press = null)
+        on.onClick = (event) => {
+          const from = press
+          press = null
+          // the keyboard is left to the component, and the mouse has hover;
+          // a click with no press before it comes from assistive technology
+          if ((event as MouseEvent).detail === 0 || from?.hover) return
+          if (from ? from.wasOpen : open.value) return hide()
+          // a link opens the panel first; the next tap follows it
+          if ((event.currentTarget as Element | null)?.closest('a[href]')) event.preventDefault()
+          // before showing: a `v-model:open` only takes the new value later
+          tapped.value = !toValue(options.disabled)
+          show()
+        }
+      }
     }
     if (triggers.value.has('focus')) {
       on.onFocusin = () => show()
@@ -132,8 +174,8 @@ export function usePopup(options: UsePopupOptions) {
   const panelListeners = computed(() => {
     if (!triggers.value.has('hover')) return {}
     return {
-      onMouseenter: clear,
-      onMouseleave: () => hide(hideDelay()),
+      onPointerenter: (event: Event) => hoverable(event) && clear(),
+      onPointerleave: (event: Event) => hoverable(event) && hide(hideDelay()),
     }
   })
 
@@ -152,6 +194,7 @@ export function usePopup(options: UsePopupOptions) {
     panelStyle,
     triggerListeners,
     panelListeners,
+    tapped,
     show,
     hide,
     dismiss,

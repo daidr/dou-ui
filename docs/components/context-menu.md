@@ -64,17 +64,20 @@ const items: ContextMenuItem[] = [
 ]
 ```
 
-| 名称       | 说明                                                       | 类型               |
-| ---------- | ---------------------------------------------------------- | ------------------ |
-| `key`      | 菜单里唯一，也是 `select` 的参数                           | `string`           |
-| `label`    | 文字                                                       | `string`           |
-| `icon`     | 图标                                                       | `Component`        |
-| `shortcut` | 显示在右侧的快捷键，写法和 `useHotkey` 一样；只用于显示    | `string`           |
-| `disabled` | 禁用                                                       | `boolean`          |
-| `tone`     | 色调，`'danger'` 表示危险操作                              | `DropdownItemTone` |
-| `divided`  | 上方画一条分隔线                                           | `boolean`          |
-| `checked`  | 显示勾选标记，比如当前选中的选项；每一项都写了时菜单是单选 | `boolean`          |
-| `run`      | 选中时调用；不写时在 `select` 里处理                       | `() => void`       |
+| 名称          | 说明                                                                     | 类型               |
+| ------------- | ------------------------------------------------------------------------ | ------------------ |
+| `key`         | 菜单里唯一，也是 `select` 的参数                                         | `string`           |
+| `label`       | 文字                                                                     | `string`           |
+| `description` | 文字下面的说明，见 [Dropdown](./dropdown#带说明的菜单项)                 | `string`           |
+| `icon`        | 图标                                                                     | `Component`        |
+| `shortcut`    | 显示在右侧的快捷键，写法和 `useHotkey` 一样；只用于显示                  | `string`           |
+| `disabled`    | 禁用                                                                     | `boolean`          |
+| `tone`        | 色调，`'danger'` 表示危险操作                                            | `DropdownItemTone` |
+| `divided`     | 上方画一条分隔线                                                         | `boolean`          |
+| `checked`     | 显示勾选标记，比如当前选中的选项；菜单或一组里每一项都写了时，它们是单选 | `boolean`          |
+| `run`         | 选中时调用；不写时在 `select` 里处理                                     | `() => void`       |
+
+几项要归在一个小标题下时，写成一组 `{ type: 'group', label: '对齐', children: [...] }`，见 [Dropdown 的分组](./dropdown#分组)。一组可以写 `divided`；组里的 `key` 在整个菜单里也要唯一。`items` 的类型是 `ContextMenuEntry[]`，即菜单项或分组。
 
 触屏上不显示 `shortcut`。
 
@@ -92,7 +95,7 @@ const items: ContextMenuItem[] = [
 | `disabled`          | 保留浏览器自带的菜单                                                                                             | `boolean`                                | `false`  |
 | `hideOnSelect`      | 选中后关闭                                                                                                       | `boolean`                                | `true`   |
 | `teleport`          | 渲染到哪里，`false` 原地渲染                                                                                     | `string \| HTMLElement \| false`         | `'body'` |
-| `items`             | 用数据写的菜单项，代替 `menu` 插槽，见[上文](#用数据写菜单项)                                                    | `ContextMenuItem[]`                      | —        |
+| `items`             | 用数据写的菜单项，代替 `menu` 插槽，见[上文](#用数据写菜单项)                                                    | `ContextMenuEntry[]`                     | —        |
 
 ### ContextMenu Events
 

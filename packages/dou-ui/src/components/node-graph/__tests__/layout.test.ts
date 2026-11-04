@@ -278,6 +278,39 @@ describe('layoutGraph', () => {
     expect(layout.width).toBe(436)
   })
 
+  it('keeps a long edge at least a lane gap from the nodes beside it', () => {
+    const layout = layoutGraph(
+      [
+        { id: 'n0', width: 272, height: 32 },
+        { id: 'n1', width: 160, height: 32 },
+        { id: 'n2', width: 160, height: 40 },
+        { id: 'n3', width: 272, height: 64 },
+        { id: 'n4', width: 160, height: 64 },
+      ],
+      [
+        { from: 'n0', to: 'n2' },
+        { from: 'n0', to: 'n4' },
+        { from: 'n1', to: 'n3' },
+        { from: 'n1', to: 'n4' },
+        { from: 'n2', to: 'n4' },
+      ],
+      {
+        direction: 'vertical',
+        rankGap: 56,
+        laneGap: 40,
+        equalWidth: false,
+        grid: 24,
+        straightChains: true,
+      },
+    )
+    const long = layout.edges.find((e) => e.from === 'n0' && e.to === 'n4')!
+    const x = long.points[0]!.x
+    for (const id of layout.ranks[1]!) {
+      const n = layout.nodes.get(id)!
+      expect(Math.max(n.x - x, x - n.x - n.width)).toBeGreaterThanOrEqual(40)
+    }
+  })
+
   it('keeps a long edge where it is when moving it to the middle would add crossings', () => {
     const top = [0, 1, 2, 3, 4, 5].map((i) => item(`t${i}`))
     const [v, w, long] = [item('v'), item('w'), item('long', 0)]

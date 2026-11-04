@@ -110,6 +110,8 @@ interface Item {
   succs: Item[]
   /** The row the item lines up on. */
   y: number
+  /** A long edge `centreLongEdges` moved into the middle of a fan. */
+  centred?: boolean
 }
 
 /** Topological order plus the edges that had to be dropped to get one. */
@@ -331,7 +333,10 @@ export function centreLongEdges(layers: Item[][]) {
         // one fed from either side of the edge's source can cross it more
         // often once the edge moves past it. Then the run stays as it was.
         if (now > count) layer.splice(start, end - start, ...run)
-        else count = now
+        else {
+          count = now
+          for (const item of edges) item.centred = true
+        }
       }
       start = end
     }
@@ -422,10 +427,10 @@ function spacing(layer: Item[], gap: (a: Item, b: Item) => number, grid: number,
     let from = -1
     layer.forEach((item, to) => {
       if (item.edge >= 0) return
-      if (from >= 0 && to > from + 1) {
+      const inner = layer.slice(from + 1, to)
+      if (from >= 0 && inner.length && inner.every((n) => n.centred)) {
         const a = layer[from]!
         const b = item
-        const inner = layer.slice(from + 1, to)
         let between = 0
         for (let k = 1; k < inner.length; k++) between += gap(inner[k - 1]!, inner[k]!)
         const side = Math.max(
@@ -433,12 +438,16 @@ function spacing(layer: Item[], gap: (a: Item, b: Item) => number, grid: number,
           gap(inner.at(-1)!, b) + b.anchor,
         )
         const now = steps.slice(from, to).reduce((sum, n) => sum + n, 0)
-        const total = Math.min(now, Math.ceil((2 * side + between) / grid - 1e-6))
+        const total = Math.ceil((2 * side + between) / grid - 1e-6)
         const lead = Math.floor((total * grid - between) / 2)
-        steps[from] = lead / grid
-        for (let k = 1; k < inner.length; k++)
-          steps[from + k] = gap(inner[k - 1]!, inner[k]!) / grid
-        steps[to - 1] = total - (lead + between) / grid
+        // Only where centring fits in no more room than before; otherwise
+        // (nodes of different sizes, say) the steps stay as they are.
+        if (total <= now && lead >= a.height - a.anchor + gap(a, inner[0]!)) {
+          steps[from] = lead / grid
+          for (let k = 1; k < inner.length; k++)
+            steps[from + k] = gap(inner[k - 1]!, inner[k]!) / grid
+          steps[to - 1] = total - (lead + between) / grid
+        }
       }
       from = to
     })

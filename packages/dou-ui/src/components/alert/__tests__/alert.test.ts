@@ -21,6 +21,15 @@ describe('DouAlert', () => {
     expect(wrapper.find('.dou-alert__action a').exists()).toBe(true)
   })
 
+  it('keeps text and actions in one wrapping body', () => {
+    const wrapper = mount(DouAlert, {
+      slots: { default: '正文', action: '<button>一</button><button>二</button>' },
+    })
+    const body = wrapper.get('.dou-alert__body')
+    expect(body.find('.dou-alert__content').exists()).toBe(true)
+    expect(body.findAll('.dou-alert__action button')).toHaveLength(2)
+  })
+
   it('can hide its icon', () => {
     const wrapper = mount(DouAlert, { props: { showIcon: false }, slots: { default: '提示' } })
     expect(wrapper.find('.dou-alert__icon').exists()).toBe(false)

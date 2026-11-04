@@ -60,8 +60,44 @@
     }
   }
 
-  .dou-alert__content {
+  /*
+   * Text and actions sit on one wrapping row. The text asks for at least
+   * --dou-alert-text-min; when that and the actions don't fit side by side,
+   * the actions wrap onto their own line under the text, lined up with it.
+   * No breakpoint: it follows the alert's own width wherever it is placed.
+   * The width is reserved even for short text: flex wrapping can't take
+   * min(max-content, limit) as a basis without calc-size(), so narrow places
+   * lower the variable instead. It isn't declared on .dou-alert, so a value
+   * set on an ancestor (a sidebar, a card) reaches every alert inside.
+   */
+  .dou-alert__body {
+    /*
+     * The height of a row of actions: one text line for links, or the
+     * tallest button inside. Rows center on the text's first line.
+     */
+    --dou-alert-action-height: 1.5em;
+
+    display: flex;
     flex: 1 1 auto;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    /* 8px between the text and wrapped actions, after the lift below */
+    gap: calc(8px + (var(--dou-alert-action-height) - 1.5em) / 2) 12px;
+    min-width: 0;
+
+    &:has(> .dou-alert__action .dou-button--sm) {
+      --dou-alert-action-height: var(--dou-control-height-sm);
+    }
+    &:has(> .dou-alert__action .dou-button--md) {
+      --dou-alert-action-height: var(--dou-control-height-md);
+    }
+    &:has(> .dou-alert__action .dou-button--lg) {
+      --dou-alert-action-height: var(--dou-control-height-lg);
+    }
+  }
+
+  .dou-alert__content {
+    flex: 1 1 var(--dou-alert-text-min, 16em);
     min-width: 0;
   }
 
@@ -74,12 +110,20 @@
     margin-top: 2px;
   }
 
+  /*
+   * Each row of actions is one action-height tall and the whole block lifts
+   * by half the extra height, so the first row centers on the first line of
+   * text, like the icon and the close button, whatever the button size.
+   */
   .dou-alert__action {
     display: flex;
-    flex-shrink: 0;
+    flex: 0 1 auto;
+    flex-wrap: wrap;
     align-items: center;
     gap: 8px;
-    align-self: center;
+    min-width: 0;
+    min-height: var(--dou-alert-action-height);
+    margin-top: calc((1.5em - var(--dou-alert-action-height)) / 2);
   }
 
   .dou-alert__close {

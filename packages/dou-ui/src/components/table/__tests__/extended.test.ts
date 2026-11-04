@@ -226,8 +226,19 @@ describe('DouTable rows', () => {
   })
 
   it('reports no row for context menus outside the data rows', async () => {
-    const wrapper = mount(Table, { props: { data, columns } })
+    const wrapper = mount(Table, {
+      props: {
+        data,
+        columns,
+        expandable: true,
+        expanded: [1],
+        summary: () => ({ name: '合计' }),
+      },
+      slots: { expand: '<p class="detail">详情</p>' },
+    })
     await wrapper.get('thead th').trigger('contextmenu')
+    await wrapper.get('.detail').trigger('contextmenu')
+    await wrapper.get('tfoot td').trigger('contextmenu')
     expect(wrapper.emitted('rowContextmenu')).toBeUndefined()
     await wrapper.setProps({ data: [] })
     await wrapper.get('tbody td').trigger('contextmenu')

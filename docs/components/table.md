@@ -124,7 +124,7 @@
 
 用 [ContextMenu](./context-menu) 包住表格，在 `rowContextmenu` 事件里记下是哪一行，再在右键菜单的 `select` 里处理。
 
-表头、空状态、展开行和合计行都不是数据行，右键那里不会触发 `rowContextmenu`，但右键菜单照样打开。所以每次右键先在捕获阶段清空，再由 `rowContextmenu` 记下，没有行时把菜单项禁用，否则操作会落到上一次右键的行上。下面的示例右键表头试试。
+表头、空状态、展开行的内容和合计行不触发 `rowContextmenu`，在这些位置右键时同样要清空记下的行，写法见 [ContextMenu](./context-menu#针对某一项)。在下面的示例中，先右键某一行，再右键表头，菜单项会变为禁用。
 
 <DocDemo src="table/context-menu" column />
 

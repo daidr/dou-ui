@@ -85,13 +85,13 @@
     gap: calc(8px + (var(--dou-alert-action-height) - 1.5em) / 2) 12px;
     min-width: 0;
 
-    &:has(> .dou-alert__action > .dou-button--sm) {
+    &:has(> .dou-alert__action .dou-button--sm) {
       --dou-alert-action-height: var(--dou-control-height-sm);
     }
-    &:has(> .dou-alert__action > .dou-button--md) {
+    &:has(> .dou-alert__action .dou-button--md) {
       --dou-alert-action-height: var(--dou-control-height-md);
     }
-    &:has(> .dou-alert__action > .dou-button--lg) {
+    &:has(> .dou-alert__action .dou-button--lg) {
       --dou-alert-action-height: var(--dou-control-height-lg);
     }
   }

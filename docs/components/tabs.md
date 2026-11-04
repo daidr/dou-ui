@@ -10,7 +10,7 @@
 
 ## 自定义标签与额外内容
 
-面板的 `label` 插槽替换标签文字，比如加上图标或计数，插槽参数为 `{ selected }`。`DouTabs` 的 `extra` 插槽放在标签行的末尾。
+面板的 `icon` 接收一个图标组件，显示在标签文字前面。`label` 插槽替换标签文字，比如加上计数，插槽参数为 `{ selected }`。`DouTabs` 的 `extra` 插槽放在标签行的末尾。
 
 <DocDemo src="tabs/custom-label" column />
 
@@ -30,9 +30,25 @@
 
 ## 竖排
 
-`placement="start"` 把标签竖排在面板左侧，`"end"` 放在右侧。指示线移到标签列的边上，方向键改为 `↑` `↓`。
+`placement="start"` 把标签竖排在面板左侧，`"end"` 放在右侧。指示线移到标签列的边上，方向键改为 `↑` `↓`。面板总是和标签列一样高，内容再短也一直延伸到底。
 
 <DocDemo src="tabs/vertical" column />
+
+## 固定高度
+
+设置 `height` 后标签页占据固定的高度（数字为 px，`'100%'` 撑满父元素）：面板填满标签以外的空间，内容超出时在面板里单独滚动；竖排的标签放不下时，标签列也单独滚动，有更多标签的一端渐隐，选中的标签总会滚进可见范围。
+
+不设 `height` 时标签页随内容伸展，面板不是滚动区域，内容里的吸顶元素仍然跟随页面滚动。
+
+<DocDemo src="tabs/fixed-height" column />
+
+## 只显示图标
+
+`icon-only` 让每个标签只显示面板的 `icon`，适合窄的侧栏。标签文字成为标签的可读名称（`aria-label`），悬停或聚焦时显示在提示里：竖排时在标签列旁边，横排时在标签上方。每个面板都要写 `icon` 和 `label` 属性：`label` 插槽在这个模式下不显示，也不能当作名称，缺了 `label` 时名称会变成 `value`，开发时会在控制台提醒。没有 `icon` 的面板仍然显示完整文字（而不是只显示首字），这样标签依然认得出来，遗漏也一眼可见，开发时同样会提醒。可关闭的纯图标标签会加宽，给关闭按钮留出位置。
+
+触屏上轻点不会显示提示（和其他纯图标按钮一样），名称只提供给读屏。以触屏为主的界面建议保留文字，或者在面板里重复标题。
+
+<DocDemo src="tabs/icon-only" column />
 
 ## 离开前确认
 
@@ -60,6 +76,8 @@
 | `size`        | 尺寸，默认取表单或全局配置           | `'sm' \| 'md' \| 'lg'`                           | `'md'`         |
 | `activation`  | 方向键移到标签时立即选中，还是等确认 | `'auto' \| 'manual'`                             | `'auto'`       |
 | `placement`   | 标签的位置                           | `'top' \| 'start' \| 'end'`                      | `'top'`        |
+| `height`      | 固定高度，数字为 px；面板在其中滚动  | `number \| string`                               | —              |
+| `iconOnly`    | 标签只显示面板的图标                 | `boolean`                                        | `false`        |
 | `closable`    | 每个标签显示关闭按钮                 | `boolean`                                        | `false`        |
 | `addable`     | 标签行末尾显示新增按钮               | `boolean`                                        | `false`        |
 | `beforeLeave` | 切换前调用，返回 `false` 时不切换    | `(next, current) => boolean \| Promise<boolean>` | —              |
@@ -86,16 +104,17 @@
 | ---------- | ------------------------------------- | ------------------ | ------- |
 | `value`    | 面板的值                              | `string \| number` | —       |
 | `label`    | 标签文字                              | `string`           | `value` |
+| `icon`     | 标签文字前的图标组件                  | `Component`        | —       |
 | `disabled` | 禁用                                  | `boolean`          | `false` |
 | `closable` | 显示关闭按钮，覆盖 Tabs 的 `closable` | `boolean`          | —       |
 | `eager`    | 一开始就渲染内容，不等第一次显示      | `boolean`          | `false` |
 
 ### TabPanel Slots
 
-| 名称      | 说明                                |
-| --------- | ----------------------------------- |
-| `default` | 面板内容                            |
-| `label`   | 替换标签文字，参数为 `{ selected }` |
+| 名称      | 说明                                                     |
+| --------- | -------------------------------------------------------- |
+| `default` | 面板内容                                                 |
+| `label`   | 替换标签文字，参数为 `{ selected }`；`iconOnly` 时不显示 |
 
 ### CSS 变量
 
@@ -103,4 +122,5 @@
 | ---------------------- | -------------- |
 | `--dou-tabs-height`    | 标签高度       |
 | `--dou-tabs-padding-x` | 标签水平内边距 |
+| `--dou-tabs-icon-size` | 图标尺寸       |
 | `--dou-tabs-indicator` | 下划线颜色     |

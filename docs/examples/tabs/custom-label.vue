@@ -1,5 +1,6 @@
 <script setup>
 import { ref } from 'vue'
+import { UsersIcon } from '@dou-ui/icons'
 
 const tab2 = ref('deployments')
 </script>
@@ -14,7 +15,7 @@ const tab2 = ref('deployments')
       <template #label>告警 <DouBadge :value="2" tone="danger" /></template>
       2 条未处理的告警。
     </DouTabPanel>
-    <DouTabPanel value="members" label="成员">3 位成员。</DouTabPanel>
+    <DouTabPanel value="members" label="成员" :icon="UsersIcon">3 位成员。</DouTabPanel>
     <template #extra>
       <DouButton size="sm" variant="outline">新建部署</DouButton>
     </template>

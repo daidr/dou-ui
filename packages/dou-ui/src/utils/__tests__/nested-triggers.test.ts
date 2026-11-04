@@ -3,6 +3,8 @@ import { defineComponent, h, nextTick, ref } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   DouButton,
+  DouCollapse,
+  DouCollapseItem,
   DouDropdown,
   DouDropdownButton,
   DouPopconfirm,
@@ -237,5 +239,24 @@ describe('a tooltip around another overlay trigger', () => {
     expect(warn.mock.calls.some(([m]) => String(m).includes('got none'))).toBe(false)
     fine.unmount()
     warn.mockRestore()
+  })
+
+  it('still shows over a trigger that holds something expanded but no open popup', async () => {
+    const wrapper = mount(
+      () =>
+        h(DouTooltip, { content: '区域说明' }, () =>
+          h('div', { id: 'area', tabindex: 0 }, [
+            h(DouCollapse, { modelValue: ['a'] }, () =>
+              h(DouCollapseItem, { value: 'a', title: '甲' }, () => '内容'),
+            ),
+          ]),
+        ),
+      { attachTo: document.body },
+    )
+    const area = wrapper.get('#area').element as HTMLElement
+    expect(area.querySelector('[aria-expanded="true"]')).not.toBeNull()
+    await hover(area)
+    expect(visible(tooltip())).toBe(true)
+    wrapper.unmount()
   })
 })

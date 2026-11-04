@@ -88,13 +88,12 @@ onBeforeUnmount(() => releaseTooltip(close))
  * button that opens it (the arrow of a DouDropdownButton). It comes back
  * when the pointer comes in again, or with the next focus.
  */
+// Only a control that opens a popup counts: a tree item or a collapse
+// header inside the trigger is expanded too, and must not hide the tip.
+const popupOpen = '[aria-haspopup]:not([aria-haspopup="false"])[aria-expanded="true"]'
 const expanded = () => {
   const element = reference()
-  if (!element) return false
-  return (
-    element.getAttribute('aria-expanded') === 'true' ||
-    !!element.querySelector('[aria-expanded="true"]')
-  )
+  return !!element && (element.matches(popupOpen) || !!element.querySelector(popupOpen))
 }
 let watching: MutationObserver | undefined
 watch(open, (value) => {

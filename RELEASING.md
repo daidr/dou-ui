@@ -16,7 +16,7 @@
 
 ## 发一个版本
 
-1. 在 Actions 里运行「Prepare release」，填版本号。它会改好所有包的版本号、把 `.changes/` 汇总进 CHANGELOG.md，跑完检查和构建，然后开一个「release: vX.Y.Z」PR。
+1. 在 Actions 里运行「Prepare release」，填版本号。它会改好所有包的版本号（连同 bun.lock）、把 `.changes/` 汇总进 CHANGELOG.md，跑完检查和构建，然后开一个「release: vX.Y.Z」PR。
 
    这个 PR 由 github-actions[bot] 创建，GitHub 会把它当作外部贡献者，PR 页面上要先点一次 Approve and run workflows。CI 对 `release-pr/` 分支会跳过检查和基准测试（「Prepare release」已经在同一份代码上跑过检查和构建），被跳过的 job 在必需检查里算通过；Changelog 检查照常运行，对发版 PR 自动放行。
 
@@ -44,7 +44,7 @@ npm dist-tag add @dou-ui/sheet@0.2.0 beta
 ## 本地命令
 
 ```sh
-bun run release <版本号>          # 发版 PR 里做的事：改版本号、汇总更新日志
+bun run release <版本号>          # 发版 PR 里做的事：改版本号（连同 bun.lock）、汇总更新日志
 bun run release:pack               # 构建后打包并检查 tarball（写到 .release/）
 bun run release:publish --dry-run  # 演练发布
 bun run changelog preview          # 看待发布的改动

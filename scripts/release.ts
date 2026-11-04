@@ -1,11 +1,11 @@
 /**
- * Prepare a release: check the version, bump every published package to it
- * and turn the changelog fragments into its section of CHANGELOG.md. The
- * release workflow publishes once this change is merged.
+ * Prepare a release: check the version, bump every published package (and
+ * bun.lock) to it and turn the changelog fragments into its section of
+ * CHANGELOG.md. The release workflow publishes once this change is merged.
  *
  *   bun run release 0.1.0-alpha.0
  */
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { releaseChangelog } from './release/changelog'
 import {
@@ -61,11 +61,27 @@ const { changelog, notes } = releaseChangelog({
   ctx,
 })
 
+// Kept so a failed lockfile update can put everything back.
+const originals = new Map<string, string>()
+const lockPath = join(root, 'bun.lock')
+originals.set(lockPath, readFileSync(lockPath, 'utf8'))
 for (const pkg of packages) {
-  const file = Bun.file(join(pkg.path, 'package.json'))
-  const manifest = await file.json()
+  const path = join(pkg.path, 'package.json')
+  const text = readFileSync(path, 'utf8')
+  originals.set(path, text)
+  const manifest = JSON.parse(text)
   manifest.version = version
-  await Bun.write(file, `${JSON.stringify(manifest, null, 2)}\n`)
+  writeFileSync(path, `${JSON.stringify(manifest, null, 2)}\n`)
+}
+// bun.lock records each workspace package's version; keep it in step.
+const lock = Bun.spawnSync(['bun', 'install', '--lockfile-only'], {
+  cwd: root,
+  stdout: 'ignore',
+  stderr: 'pipe',
+})
+if (lock.exitCode !== 0) {
+  for (const [path, text] of originals) writeFileSync(path, text)
+  fail(`更新 bun.lock 失败，各包版本号已改回 ${current}：\n${lock.stderr.toString()}`)
 }
 await Bun.write(changelogFile, changelog)
 if (isPre) {

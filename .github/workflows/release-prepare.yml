@@ -54,7 +54,7 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git switch -c "release-pr/v$VERSION"
-          git add -A packages CHANGELOG.md .changes
+          git add -A packages bun.lock CHANGELOG.md .changes
           git commit -m "release: v$VERSION"
           git push origin "release-pr/v$VERSION"
 

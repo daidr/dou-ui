@@ -40,6 +40,19 @@ describe('DouProgressGroup', () => {
     ])
   })
 
+  it('lays the legend out side by side or one entry per row', () => {
+    const wrapper = mount(DouProgressGroup, { props: { items, legend: true } })
+    expect(wrapper.get('.dou-progress-group__legend').classes()).toContain(
+      'dou-progress-group__legend--horizontal',
+    )
+    const vertical = mount(DouProgressGroup, {
+      props: { items, legend: true, legendDirection: 'vertical' },
+    })
+    expect(vertical.get('.dou-progress-group__legend').classes()).toContain(
+      'dou-progress-group__legend--vertical',
+    )
+  })
+
   it('skips empty parts in the bar', () => {
     const wrapper = mount(DouProgressGroup, { props: { items: [{ value: 0 }, { value: 4 }] } })
     expect(wrapper.findAll('[role="meter"]')).toHaveLength(1)

@@ -59,7 +59,30 @@
     gap: 6px;
   }
 
+  /* one entry per row: the name takes the room, the amounts line up at the end */
+  .dou-progress-group__legend--vertical {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+  .dou-progress-group__legend--vertical .dou-progress-group__legend-item {
+    display: flex;
+  }
+  .dou-progress-group__legend--vertical .dou-progress-group__label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .dou-progress-group__legend--vertical .dou-progress-group__value {
+    flex-shrink: 0;
+    margin-inline-start: auto;
+    padding-inline-start: 12px;
+  }
+
   .dou-progress-group__dot {
+    flex-shrink: 0;
     width: 8px;
     height: 8px;
     border-radius: 2px;

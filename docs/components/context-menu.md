@@ -18,7 +18,7 @@
 
 每次右键开始时，ContextMenu 先把 `target` 清空，再轮到里面的事件，所以右键在列表的内边距、分组标题这类不对应任何一项的地方时，`target` 是空的，不会留着上一次右键的项。`target` 只会被清空成 `undefined`，变量写成 `ref()` 即可。
 
-打开前会调用 `beforeOpen`，参数是这次右键的原生事件，返回 `false` 就不打开。这时右键交还给浏览器，显示浏览器自带的菜单；外面还套着一个 ContextMenu 时由外面那个打开。想什么菜单都不出现，在函数里调用 `event.preventDefault()`。下面的示例在没有项时不打开，右键列表边缘试试：
+打开前会调用 `beforeOpen`，参数是这次右键的原生事件，返回 `false` 就不打开。这时右键交还给浏览器，显示浏览器自带的菜单；外面还套着一个 ContextMenu 时由外面那个打开。想什么菜单都不出现，在函数里调用 `event.preventDefault()`。右键时要当场决定开不开，`beforeOpen` 不能返回 Promise，开发时会在控制台提示。下面的示例在没有项时不打开，右键列表边缘试试：
 
 <DocDemo src="context-menu/per-item" column />
 
@@ -84,15 +84,15 @@ const items: ContextMenuItem[] = [
 
 ### ContextMenu Props
 
-| 名称                | 说明                                                                                             | 类型                                     | 默认值   |
-| ------------------- | ------------------------------------------------------------------------------------------------ | ---------------------------------------- | -------- |
-| `open`（v-model）   | 是否打开                                                                                         | `boolean`                                | `false`  |
-| `target`（v-model） | 菜单针对的对象，每次右键开始时清空，见[上文](#针对某一项)                                        | `unknown`                                | —        |
-| `beforeOpen`        | 右键、长按或菜单键打开前调用，在触发区域里的事件之后；返回 `false` 不打开，见[上文](#针对某一项) | `(event: MouseEvent) => boolean \| void` | —        |
-| `disabled`          | 保留浏览器自带的菜单                                                                             | `boolean`                                | `false`  |
-| `hideOnSelect`      | 选中后关闭                                                                                       | `boolean`                                | `true`   |
-| `teleport`          | 渲染到哪里，`false` 原地渲染                                                                     | `string \| HTMLElement \| false`         | `'body'` |
-| `items`             | 用数据写的菜单项，代替 `menu` 插槽，见[上文](#用数据写菜单项)                                    | `ContextMenuItem[]`                      | —        |
+| 名称                | 说明                                                                                                             | 类型                                     | 默认值   |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------- | ---------------------------------------- | -------- |
+| `open`（v-model）   | 是否打开                                                                                                         | `boolean`                                | `false`  |
+| `target`（v-model） | 菜单针对的对象，每次右键开始时清空，见[上文](#针对某一项)                                                        | `unknown`                                | —        |
+| `beforeOpen`        | 右键、长按或菜单键打开前调用，在触发区域里的事件之后；返回 `false` 不打开，不支持 Promise，见[上文](#针对某一项) | `(event: MouseEvent) => boolean \| void` | —        |
+| `disabled`          | 保留浏览器自带的菜单                                                                                             | `boolean`                                | `false`  |
+| `hideOnSelect`      | 选中后关闭                                                                                                       | `boolean`                                | `true`   |
+| `teleport`          | 渲染到哪里，`false` 原地渲染                                                                                     | `string \| HTMLElement \| false`         | `'body'` |
+| `items`             | 用数据写的菜单项，代替 `menu` 插槽，见[上文](#用数据写菜单项)                                                    | `ContextMenuItem[]`                      | —        |
 
 ### ContextMenu Events
 

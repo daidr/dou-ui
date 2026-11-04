@@ -24,6 +24,7 @@ import type { ContextMenuExpose, ContextMenuProps, ContextMenuSlots } from './co
 import DropdownItems from '../dropdown/dropdown-items.vue'
 import { useItemsWarning } from '../dropdown/items-warning'
 import { useTeleport } from '../../utils/teleport'
+import { devWarn } from '../../utils/status-check'
 
 defineOptions({ name: 'DouContextMenu', inheritAttrs: false })
 
@@ -121,7 +122,15 @@ function onContextmenu(event: MouseEvent) {
   // Something inside handled this right click already, or the app said no:
   // `false` leaves it to the browser or an outer menu, `preventDefault()` to no one.
   if (event.defaultPrevented) return
-  if (props.beforeOpen?.(event) === false || event.defaultPrevented) return
+  const allowed = props.beforeOpen?.(event)
+  if (
+    process.env.NODE_ENV !== 'production' &&
+    typeof (allowed as unknown as PromiseLike<unknown> | undefined)?.then === 'function'
+  )
+    devWarn(
+      '[dou-ui] DouContextMenu: `beforeOpen` must decide on the spot (return true or false); a Promise is ignored and the menu opens.',
+    )
+  if (allowed === false || event.defaultPrevented) return
   event.preventDefault()
   // A menu opened from the keyboard has no pointer position: open it at
   // the bottom left of the focused element instead.

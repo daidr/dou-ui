@@ -360,6 +360,21 @@ describe('DouContextMenu', () => {
     wrapper.unmount()
   })
 
+  it('warns once in development when beforeOpen returns a Promise', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const beforeOpen = (() => Promise.resolve(false)) as unknown as () => boolean
+    const wrapper = make({ beforeOpen })
+    rightClick(wrapper.get('#area').element)
+    await nextTick()
+    // the Promise is not waited for: the menu opens
+    expect(wrapper.emitted('update:open')).toEqual([[true]])
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('`beforeOpen` must decide on the spot'),
+    )
+    warn.mockRestore()
+    wrapper.unmount()
+  })
+
   it('leaves the right click to the outer menu when the inner beforeOpen returns false', async () => {
     const wrapper = mount(DouContextMenu, {
       slots: {

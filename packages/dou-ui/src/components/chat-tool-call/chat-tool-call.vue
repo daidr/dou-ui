@@ -9,7 +9,7 @@ import {
 } from '@dou-ui/icons'
 import { computed, ref, useId, watchEffect } from 'vue'
 import { useNamespace } from '../../utils/namespace'
-import { useStatusCheck, warnOnce } from '../../utils/status-check'
+import { useStatusCheck, devWarn } from '../../utils/status-check'
 import { CollapseTransition } from '../collapse/collapse-transition'
 import { useLocale } from '../config-provider/use-config'
 import DouSpinner from '../spinner/spinner.vue'
@@ -54,8 +54,7 @@ useStatusCheck(
 if (process.env.NODE_ENV !== 'production') {
   watchEffect(() => {
     if (props.status !== 'pending' || !slots.actions) return
-    warnOnce(
-      'DouChatToolCall:pending-actions',
+    devWarn(
       '[dou-ui] DouChatToolCall: `pending` now means not started; use `waiting` for a call that waits for approval.',
     )
   })

@@ -3,10 +3,10 @@ import { watchEffect } from 'vue'
 // one warning per component and value for the whole page, so a long list doesn't flood the console
 const warned = new Set<string>()
 
-/** Warn once per page for `key`. Call only while developing. */
-export function warnOnce(key: string, message: string) {
-  if (warned.has(key)) return
-  warned.add(key)
+/** Warn once per page with this message. Call only while developing. */
+export function devWarn(message: string) {
+  if (warned.has(message)) return
+  warned.add(message)
   console.warn(message)
 }
 
@@ -27,8 +27,7 @@ export function useStatusCheck(
     for (const status of statuses()) {
       if (status === undefined || known.includes(status)) continue
       const hint = renamed[status] ? ` Use \`${renamed[status]}\`.` : ''
-      warnOnce(
-        `${component}:${status}`,
+      devWarn(
         `[dou-ui] ${component}: unknown status \`${status}\`, expected one of ${known.map((k) => `\`${k}\``).join(', ')}.${hint}`,
       )
     }

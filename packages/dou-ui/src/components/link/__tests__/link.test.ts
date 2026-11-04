@@ -67,4 +67,26 @@ describe('DouLink', () => {
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('[dou-ui] DouLink'))
     warn.mockRestore()
   })
+
+  it('warns when the button form sits inside another button', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const host = document.createElement('button')
+    document.body.append(host)
+    const wrapper = mount(DouLink, { slots: { default: '展开' }, attachTo: host })
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('inside another button'))
+    wrapper.unmount()
+    host.remove()
+    warn.mockRestore()
+  })
+
+  it('does not warn about nesting when it has an href', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const host = document.createElement('button')
+    document.body.append(host)
+    const wrapper = mount(DouLink, { props: { href: '/a' }, attachTo: host })
+    expect(warn).not.toHaveBeenCalled()
+    wrapper.unmount()
+    host.remove()
+    warn.mockRestore()
+  })
 })

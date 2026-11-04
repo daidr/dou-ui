@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ArrowUpRightIcon } from '@dou-ui/icons'
-import { computed, watchEffect } from 'vue'
+import { computed, onMounted, useTemplateRef, watchEffect } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { devWarn } from '../../utils/status-check'
 import type { LinkEmits, LinkProps, LinkSlots } from './link'
@@ -27,6 +27,17 @@ if (process.env.NODE_ENV !== 'production')
     if (props.external && !props.href)
       devWarn(
         '[dou-ui] DouLink: `external` opens `href` in a new tab; without an `href` the link is a button and `external` does nothing.',
+      )
+  })
+
+// A button inside a button is invalid: the parser splits them apart and
+// server-rendered markup no longer matches on hydration.
+const root = useTemplateRef<HTMLElement>('root')
+if (process.env.NODE_ENV !== 'production')
+  onMounted(() => {
+    if (isButton.value && root.value?.parentElement?.closest('button'))
+      devWarn(
+        '[dou-ui] DouLink: without an `href` the link is a button, and it sits inside another button. Pass an `href`, or move it out of the clickable element.',
       )
   })
 
@@ -58,7 +69,13 @@ function onClick(event: MouseEvent) {
 </script>
 
 <template>
-  <component :is="isButton ? 'button' : 'a'" :class="classes" v-bind="attrs" @click="onClick">
+  <component
+    :is="isButton ? 'button' : 'a'"
+    ref="root"
+    :class="classes"
+    v-bind="attrs"
+    @click="onClick"
+  >
     <span v-if="slots.leading" :class="ns.e('icon')">
       <slot name="leading" />
     </span>

@@ -5,8 +5,11 @@ const archived = ref(true)
 </script>
 
 <template>
-  <DouText v-if="archived">
-    已将 3 条通知归档。<DouLink tone="primary" @click="archived = false">撤销</DouLink>
+  <!-- one link whose words change, so focus stays on it after Enter or Space -->
+  <DouText>
+    <span aria-live="polite">{{ archived ? '已将 3 条通知归档。' : '通知已放回收件箱。' }}</span>
+    <DouLink :tone="archived ? 'primary' : 'neutral'" @click="archived = !archived">
+      {{ archived ? '撤销' : '重新归档' }}
+    </DouLink>
   </DouText>
-  <DouText v-else> 通知已放回收件箱。<DouLink @click="archived = true">重新归档</DouLink> </DouText>
 </template>

@@ -13,12 +13,22 @@
     display: inline-flex;
     align-items: baseline;
     gap: 0.25em;
-    /* A link without an address is a <button>: drop the button chrome. */
+    /*
+     * A link without an address is a <button>: drop the button chrome and take
+     * the text settings of the surrounding text, as an <a> does. `font` does
+     * not cover spacing, case or rendering, which buttons reset.
+     */
+    appearance: none;
     margin: 0;
     padding: 0;
     border: 0;
     background: none;
     font: inherit;
+    letter-spacing: inherit;
+    word-spacing: inherit;
+    text-transform: inherit;
+    text-shadow: inherit;
+    text-rendering: inherit;
     text-align: inherit;
     color: var(--dou-link-tone);
     font-weight: var(--dou-font-weight-medium);

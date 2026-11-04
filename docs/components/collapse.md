@@ -65,3 +65,18 @@
 | `--dou-collapse-padding-x`        | 水平内边距         |
 | `--dou-collapse-header-padding-y` | 标题行的垂直内边距 |
 | `--dou-collapse-border`           | 分隔线与边框颜色   |
+| `--dou-collapse-indent`           | 面板内容的缩进     |
+
+面板内容默认和标题文字对齐，缩进等于箭头宽度加上箭头与标题的间距。想让内容从箭头下方开始，或者缩进得更深，给组件加一个类名，在这个类名上覆盖变量（变量声明在 `.dou-collapse` 元素上，写在外层容器上不会生效）：
+
+```vue
+<DouCollapse class="faq">…</DouCollapse>
+```
+
+```css
+.faq {
+  --dou-collapse-indent: 0px;
+}
+```
+
+缩进加在水平内边距之后，`bordered` 时内容离描边的距离是 `--dou-collapse-padding-x` 加上缩进。

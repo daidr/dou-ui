@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from 'vue'
 
-const status = ref('pending')
+const status = ref('waiting')
 const always = ref(false)
 
 function decide(decision) {
@@ -20,9 +20,9 @@ function decide(decision) {
   >
     <pre class="code">bun install</pre>
   </DouChatConfirm>
-  <div v-if="status !== 'pending'">
+  <div v-if="status !== 'waiting'">
     <DouText size="sm" variant="tertiary">{{ always ? '以后不再询问。' : '' }}</DouText>
-    <DouButton size="sm" variant="ghost" @click="status = 'pending'">重置</DouButton>
+    <DouButton size="sm" variant="ghost" @click="status = 'waiting'">重置</DouButton>
   </div>
 </template>
 

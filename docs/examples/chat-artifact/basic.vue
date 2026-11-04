@@ -24,6 +24,6 @@ const active = ref('plan')
       <DouButton variant="ghost" size="sm" aria-label="下载"><DownloadIcon /></DouButton>
     </template>
   </DouChatArtifact>
-  <DouChatArtifact kind="image" title="路线图.png" status="generating" />
+  <DouChatArtifact kind="image" title="路线图.png" status="running" />
   <DouChatArtifact kind="web" title="活动报名页" status="error" />
 </template>

@@ -4,7 +4,7 @@
 
 ## 基础用法
 
-`name` 是工具名，用等宽字体显示；也可以用 `title` 换成一句更好读的说明。`status` 有四种：`pending` 等待确认、`running` 运行中、`success` 已完成、`error` 失败。
+`name` 是工具名，用等宽字体显示；也可以用 `title` 换成一句更好读的说明。`status` 有五种，含义和 [ChatPlan](./chat-plan) 一致：`pending` 未开始、`running` 运行中、`waiting` 等待中、`done` 已完成、`error` 失败。`waiting` 表示调用停下来等别人，比如等用户允许，与尚未开始的 `pending` 不同。
 
 传了 `input` 或 `output` 时，点击标题可以展开查看。对象会格式化成 JSON，字符串原样显示。
 
@@ -12,22 +12,22 @@
 
 ## 等待确认
 
-有些操作需要用户同意后才能执行。`actions` 插槽显示在卡片底部，不需要展开就能看到，可以放允许和拒绝按钮。
+有些操作需要用户同意后才能执行，这时把 `status` 设为 `waiting`。`actions` 插槽显示在卡片底部，不需要展开就能看到，可以放允许和拒绝按钮。
 
-<DocDemo src="chat-tool-call/pending" column />
+<DocDemo src="chat-tool-call/waiting" column />
 
 ## API
 
 ### Props
 
-| 名称     | 说明                          | 类型                                             | 默认值      |
-| -------- | ----------------------------- | ------------------------------------------------ | ----------- |
-| `name`   | 工具名                        | `string`                                         | —           |
-| `title`  | 代替工具名显示的说明          | `string`                                         | —           |
-| `status` | 状态                          | `'pending' \| 'running' \| 'success' \| 'error'` | `'success'` |
-| `input`  | 调用参数                      | `unknown`                                        | —           |
-| `output` | 返回结果或错误信息            | `unknown`                                        | —           |
-| `open`   | 是否展开，配合 `v-model:open` | `boolean`                                        | —           |
+| 名称     | 说明                          | 类型                                                       | 默认值   |
+| -------- | ----------------------------- | ---------------------------------------------------------- | -------- |
+| `name`   | 工具名                        | `string`                                                   | —        |
+| `title`  | 代替工具名显示的说明          | `string`                                                   | —        |
+| `status` | 状态                          | `'pending' \| 'running' \| 'waiting' \| 'done' \| 'error'` | `'done'` |
+| `input`  | 调用参数                      | `unknown`                                                  | —        |
+| `output` | 返回结果或错误信息            | `unknown`                                                  | —        |
+| `open`   | 是否展开，配合 `v-model:open` | `boolean`                                                  | —        |
 
 ### Events
 

@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { DouChatAttachments } from '../../../index'
 import { attachmentKind, fileExtension } from '../chat-attachments'
 import type { ChatAttachment } from '../chat-attachments'
@@ -7,7 +7,7 @@ import type { ChatAttachment } from '../chat-attachments'
 const files: ChatAttachment[] = [
   { uid: '1', name: '周报.pdf', size: 2048 },
   { uid: '2', name: '截图.png', type: 'image/png', url: 'shot.png' },
-  { uid: '3', name: '数据.csv', status: 'uploading', percent: 40 },
+  { uid: '3', name: '数据.csv', status: 'running', percent: 40 },
   { uid: '4', name: '草稿.md', status: 'error' },
 ]
 
@@ -45,5 +45,20 @@ describe('DouChatAttachments', () => {
     expect(attachmentKind({ name: 'a.unknown', type: 'text/x-foo' })).toBe('text')
     expect(attachmentKind({ name: 'noext' })).toBe('file')
     expect(fileExtension('.env')).toBe('')
+  })
+
+  it('warns once about an old status name', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    mount(DouChatAttachments, {
+      props: {
+        modelValue: [
+          { uid: 'a', name: 'a.txt', status: 'uploading' as never },
+          { uid: 'b', name: 'b.txt', status: 'uploading' as never },
+        ],
+      },
+    })
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn.mock.calls[0]![0]).toContain('Use `running`.')
+    warn.mockRestore()
   })
 })

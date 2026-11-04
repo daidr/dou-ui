@@ -63,7 +63,7 @@ const messages = ref([
           { label: '查看周六天气', status: 'done' },
           { label: '对比上次路线', status: 'done' },
           { label: '整理行程', status: 'done' },
-          { label: '通知同行的人', status: 'pending' },
+          { label: '通知同行的人', status: 'waiting' },
         ],
       },
       {
@@ -83,7 +83,7 @@ const messages = ref([
         title: '发送邮件给 2 位同行的人？',
         description: '收件人：戴兜、骑行小组',
         detail: '主题：周六骑行\n周六上午九点，龙美术馆门口集合，全程约 16 公里。',
-        status: 'pending',
+        status: 'waiting',
         allowAlways: true,
       },
     ],
@@ -119,7 +119,7 @@ function renderText(value) {
 function onConfirm(part, decision) {
   part.status = decision === 'deny' ? 'denied' : 'approved'
   const todo = messages.value[1].parts.find((p) => p.type === 'plan')
-  if (todo && decision !== 'deny') todo.items[3].status = 'done'
+  if (todo) todo.items[3].status = decision === 'deny' ? 'skipped' : 'done'
 }
 
 function later(fn, ms) {

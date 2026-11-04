@@ -149,9 +149,9 @@ export const en: Locale = {
   nodeGraph: {
     label: 'Node graph',
     status: {
-      wait: 'Not started',
-      process: 'In progress',
-      finish: 'Completed',
+      pending: 'Not started',
+      running: 'In progress',
+      done: 'Completed',
       error: 'Failed',
       blocked: 'Waiting on dependencies',
     },

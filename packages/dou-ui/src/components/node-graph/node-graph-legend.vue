@@ -12,7 +12,7 @@ const props = defineProps<NodeGraphLegendProps>()
 const ns = useNamespace('node-graph-legend')
 const { t } = useLocale()
 
-const statuses: GraphNodeStatus[] = ['wait', 'process', 'finish', 'blocked', 'error']
+const statuses: GraphNodeStatus[] = ['pending', 'running', 'done', 'blocked', 'error']
 
 const list = computed<NodeGraphLegendItem[]>(() => {
   if (props.items) return props.items
@@ -25,7 +25,7 @@ const list = computed<NodeGraphLegendItem[]>(() => {
     items.push({ type: 'kind', value: 'milestone', label: t('nodeGraph.kind.milestone') })
   }
   for (const status of statuses) {
-    if (used((n) => (n.status ?? 'wait') === status))
+    if (used((n) => (n.status ?? 'pending') === status))
       items.push({ type: 'status', value: status, label: t(`nodeGraph.status.${status}`) })
   }
   if (used((n) => !!n.incomplete))
@@ -44,7 +44,7 @@ const list = computed<NodeGraphLegendItem[]>(() => {
         <span :class="ns.e('swatch')" aria-hidden="true">
           <span
             v-if="item.type === 'kind' && item.value === 'milestone'"
-            class="dou-node-graph__milestone is-wait"
+            class="dou-node-graph__milestone is-pending"
           >
             <FlagIcon />
           </span>

@@ -76,13 +76,13 @@ interface FlowPortSpec {
 
 没有写 `type` 的节点用默认节点渲染，它读取 `data` 里的这些字段：
 
-| 字段                 | 说明                                   | 类型                                         |
-| -------------------- | -------------------------------------- | -------------------------------------------- |
-| `label`              | 标题                                   | `string`                                     |
-| `description`        | 标题下的说明                           | `string`                                     |
-| `icon`               | 标题前的图标，建议用 `markRaw` 包一层  | `Component`                                  |
-| `status`             | 右上角的状态点                         | `'wait' \| 'process' \| 'finish' \| 'error'` |
-| `inputs` / `outputs` | 端口，每个端口一行，输入在左、输出在右 | `{ id, label?, dataType?, max? }[]`          |
+| 字段                 | 说明                                   | 类型                                          |
+| -------------------- | -------------------------------------- | --------------------------------------------- |
+| `label`              | 标题                                   | `string`                                      |
+| `description`        | 标题下的说明                           | `string`                                      |
+| `icon`               | 标题前的图标，建议用 `markRaw` 包一层  | `Component`                                   |
+| `status`             | 右上角的状态点                         | `'pending' \| 'running' \| 'done' \| 'error'` |
+| `inputs` / `outputs` | 端口，每个端口一行，输入在左、输出在右 | `{ id, label?, dataType?, max? }[]`           |
 
 只有一个输入和一个输出且都没有名字时，端口放在标题这一行。
 
@@ -94,7 +94,7 @@ interface FlowPortSpec {
 editor.value?.transact((tr) => {
   tr.addNode({ id: 'c', x: 600, y: 0, data: { label: '发布' } })
   tr.addEdge({ id: 'e2', source: { node: 'b' }, target: { node: 'c' } })
-  tr.updateData('a', { status: 'finish' })
+  tr.updateData('a', { status: 'done' })
 })
 ```
 

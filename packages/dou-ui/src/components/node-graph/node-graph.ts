@@ -2,7 +2,7 @@ import type { Component } from 'vue'
 import type { Size, Tone } from '../../utils/types'
 
 /** `blocked` is in progress while something it depends on is not finished. */
-export type GraphNodeStatus = 'wait' | 'process' | 'finish' | 'error' | 'blocked'
+export type GraphNodeStatus = 'pending' | 'running' | 'done' | 'error' | 'blocked'
 /** A `milestone` shows a flag in place of the status dot. */
 export type GraphNodeKind = 'task' | 'milestone'
 export type GraphNodeShape = 'pill' | 'card'

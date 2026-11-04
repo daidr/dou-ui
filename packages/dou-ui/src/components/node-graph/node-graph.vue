@@ -79,11 +79,11 @@ const succs = computed(() => {
 })
 
 function statusOf(node: GraphNode): GraphNodeStatus {
-  const status = node.status ?? 'wait'
-  if (props.autoBlocked && status === 'process') {
+  const status = node.status ?? 'pending'
+  if (props.autoBlocked && status === 'running') {
     const waiting = preds.value
       .get(node.id)
-      ?.some((id) => (byId.value.get(id)?.status ?? 'wait') !== 'finish')
+      ?.some((id) => (byId.value.get(id)?.status ?? 'pending') !== 'done')
     if (waiting) return 'blocked'
   }
   return status

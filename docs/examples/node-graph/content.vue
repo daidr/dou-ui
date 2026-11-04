@@ -10,15 +10,15 @@ import {
 } from '@dou-ui/icons'
 
 const nodes = [
-  { id: 'orders', label: '拉取订单', icon: DatabaseIcon, extra: '1.2 GB', status: 'finish' },
-  { id: 'logs', label: '拉取埋点日志', icon: DownloadIcon, extra: '860 MB', status: 'finish' },
-  { id: 'clean', label: '清洗去重', icon: FilterIcon, extra: '12 分钟', status: 'finish' },
+  { id: 'orders', label: '拉取订单', icon: DatabaseIcon, extra: '1.2 GB', status: 'done' },
+  { id: 'logs', label: '拉取埋点日志', icon: DownloadIcon, extra: '860 MB', status: 'done' },
+  { id: 'clean', label: '清洗去重', icon: FilterIcon, extra: '12 分钟', status: 'done' },
   {
     id: 'region',
     label: '按地区汇总',
     icon: PieChartIcon,
     extra: '4 分钟',
-    status: 'process',
+    status: 'running',
     progress: 70,
   },
   {
@@ -26,7 +26,7 @@ const nodes = [
     label: '按品类汇总',
     icon: BarChartIcon,
     extra: '9 分钟',
-    status: 'process',
+    status: 'running',
     progress: 35,
   },
   { id: 'report', label: '生成日报', icon: FileTextIcon },

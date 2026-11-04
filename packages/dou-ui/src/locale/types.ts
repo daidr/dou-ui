@@ -246,9 +246,9 @@ export interface Locale {
     /** Names the graph when nothing else labels it. */
     label: string
     status: {
-      wait: string
-      process: string
-      finish: string
+      pending: string
+      running: string
+      done: string
       error: string
       /** In progress while something it depends on is not finished. */
       blocked: string

@@ -11,9 +11,9 @@
   .dou-node-graph,
   .dou-node-graph-legend {
     --dou-node-graph-node-bg: var(--dou-color-bg-surface);
-    --dou-node-graph-status-wait: var(--dou-color-text-disabled);
-    --dou-node-graph-status-process: var(--dou-color-warning);
-    --dou-node-graph-status-finish: var(--dou-color-success);
+    --dou-node-graph-status-pending: var(--dou-color-text-disabled);
+    --dou-node-graph-status-running: var(--dou-color-warning);
+    --dou-node-graph-status-done: var(--dou-color-success);
     --dou-node-graph-status-error: var(--dou-color-danger);
     --dou-node-graph-status-blocked: var(--dou-color-warning);
     --dou-node-graph-marker: var(--dou-color-danger);
@@ -184,7 +184,7 @@
     white-space: nowrap;
   }
 
-  .dou-node-graph__node.is-wait .dou-node-graph__label {
+  .dou-node-graph__node.is-pending .dou-node-graph__label {
     color: var(--dou-color-text-tertiary);
   }
 
@@ -257,7 +257,7 @@
 
   /* status */
   .dou-node-graph__dot {
-    --dou-node-graph-status: var(--dou-node-graph-status-wait);
+    --dou-node-graph-status: var(--dou-node-graph-status-pending);
     flex-shrink: 0;
     box-sizing: border-box;
     width: 8px;
@@ -272,7 +272,7 @@
   }
 
   .dou-node-graph__milestone {
-    --dou-node-graph-status: var(--dou-node-graph-status-wait);
+    --dou-node-graph-status: var(--dou-node-graph-status-pending);
     display: inline-flex;
     flex-shrink: 0;
     align-items: center;
@@ -290,7 +290,7 @@
       stroke-width: 2.5px;
     }
 
-    &.is-wait {
+    &.is-pending {
       background-color: var(--dou-color-text-tertiary);
     }
     &.is-blocked {
@@ -301,11 +301,11 @@
   }
 
   :is(.dou-node-graph__dot, .dou-node-graph__milestone) {
-    &.is-process {
-      --dou-node-graph-status: var(--dou-node-graph-status-process);
+    &.is-running {
+      --dou-node-graph-status: var(--dou-node-graph-status-running);
     }
-    &.is-finish {
-      --dou-node-graph-status: var(--dou-node-graph-status-finish);
+    &.is-done {
+      --dou-node-graph-status: var(--dou-node-graph-status-done);
     }
     &.is-error {
       --dou-node-graph-status: var(--dou-node-graph-status-error);

@@ -149,9 +149,9 @@ export const zhTW: Locale = {
   nodeGraph: {
     label: '節點圖',
     status: {
-      wait: '未開始',
-      process: '進行中',
-      finish: '已完成',
+      pending: '未開始',
+      running: '進行中',
+      done: '已完成',
       error: '出錯',
       blocked: '依賴項未完成',
     },

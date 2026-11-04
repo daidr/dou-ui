@@ -88,12 +88,12 @@ const summary = computed(() =>
   background-color: var(--dou-color-text-tertiary);
 }
 
-.step-node__status.is-process {
+.step-node__status.is-running {
   background-color: var(--dou-color-primary);
   animation: step-pulse 1s ease-in-out infinite;
 }
 
-.step-node__status.is-finish {
+.step-node__status.is-done {
   background-color: var(--dou-color-success);
 }
 
@@ -108,7 +108,7 @@ const summary = computed(() =>
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .step-node__status.is-process {
+  .step-node__status.is-running {
     animation: none;
   }
 }

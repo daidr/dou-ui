@@ -149,9 +149,9 @@ export const zhCN: Locale = {
   nodeGraph: {
     label: '节点图',
     status: {
-      wait: '未开始',
-      process: '进行中',
-      finish: '已完成',
+      pending: '未开始',
+      running: '进行中',
+      done: '已完成',
       error: '出错',
       blocked: '依赖项未完成',
     },

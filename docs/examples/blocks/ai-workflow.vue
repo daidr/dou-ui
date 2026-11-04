@@ -151,9 +151,9 @@ async function run() {
   for (const node of doc.value.nodes) setStatus(node.id, undefined)
   let current: string | undefined = 'start'
   while (current) {
-    setStatus(current, 'process')
+    setStatus(current, 'running')
     await new Promise((resolve) => setTimeout(resolve, 600))
-    setStatus(current, 'finish')
+    setStatus(current, 'done')
     const from: string = current
     const exit = doc.value.edges.find(
       (e) => e.source.node === from && (e.source.port === 'out' || e.source.port === 'no'),

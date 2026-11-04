@@ -12,7 +12,7 @@ export interface DefaultNodeData {
   label?: string
   description?: string
   icon?: Component
-  status?: 'wait' | 'process' | 'finish' | 'error'
+  status?: 'pending' | 'running' | 'done' | 'error'
   inputs?: Omit<FlowPortSpec, 'kind'>[]
   outputs?: Omit<FlowPortSpec, 'kind'>[]
 }

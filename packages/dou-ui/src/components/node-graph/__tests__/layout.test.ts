@@ -19,6 +19,17 @@ const fan = (widths: number[]) => {
   return { layout, xs, gaps: xs.slice(1).map((x, i) => x - xs[i]!), parent: centre('p') }
 }
 
+const chainWithLongEdge = (straightChains: boolean) =>
+  layoutGraph(
+    [size('a'), size('b'), size('c')],
+    [
+      { from: 'a', to: 'b' },
+      { from: 'b', to: 'c' },
+      { from: 'a', to: 'c' },
+    ],
+    { ...options, direction: 'vertical', straightChains },
+  )
+
 describe('layoutGraph', () => {
   it('puts each node one column after its furthest predecessor', () => {
     const { order, edges } = acyclic(
@@ -309,6 +320,70 @@ describe('layoutGraph', () => {
       const row = (id: string) => layout.nodes.get(id)!.y + 16
       expect(row('a') - row('b')).toBe(row('c') - row('a'))
     }
+  })
+
+  it('moves a node that feeds more than it is fed down to where it is needed', () => {
+    const edges = [
+      { from: 's', to: 'm' },
+      { from: 'm', to: 't' },
+      { from: 'm', to: 'u' },
+      { from: 's', to: 'p' },
+      { from: 'p', to: 'q' },
+      { from: 'q', to: 't' },
+      { from: 'q', to: 'u' },
+    ]
+    const { order, edges: kept } = acyclic(['s', 'm', 'p', 'q', 't', 'u'], edges)
+    expect(rank(order, kept).get('m')).toBe(2)
+  })
+
+  it('lays parts that are not joined out side by side, the largest first', () => {
+    const layout = layoutGraph(
+      [size('x'), size('a'), size('y'), size('b'), size('c')],
+      [
+        { from: 'a', to: 'b' },
+        { from: 'b', to: 'c' },
+        { from: 'x', to: 'y' },
+      ],
+      options,
+    )
+    const top = (id: string) => layout.nodes.get(id)!.y
+    const bottom = (id: string) => top(id) + layout.nodes.get(id)!.height
+    // The chain a → b → c comes first; x → y below it, never between.
+    expect(top('x')).toBeGreaterThanOrEqual(bottom('a') + options.laneGap * 2)
+    expect(top('y')).toBe(top('x'))
+    expect(layout.ranks[0]).toEqual(['a', 'x'])
+  })
+
+  it('gives the points a long edge runs through', () => {
+    const layout = layoutGraph(
+      [size('a'), size('b'), size('c')],
+      [
+        { from: 'a', to: 'b' },
+        { from: 'b', to: 'c' },
+        { from: 'a', to: 'c' },
+      ],
+      { ...options, direction: 'vertical' },
+    )
+    const long = layout.edges.find((e) => e.from === 'a' && e.to === 'c')!
+    const b = layout.nodes.get('b')!
+    expect(long.points).toHaveLength(2)
+    expect(long.points[0]!.y).toBe(b.y)
+    expect(long.points[1]!.y).toBe(b.y + b.height)
+    expect(long.points[0]!.x).toBe(long.points[1]!.x)
+    expect(layout.edges.find((e) => e.to === 'b')!.points).toEqual([])
+  })
+
+  it('keeps chains straight with straightChains, long edges bending around them', () => {
+    const centre = (layout: ReturnType<typeof chainWithLongEdge>, id: string) => {
+      const n = layout.nodes.get(id)!
+      return n.x + n.width / 2
+    }
+    const straight = chainWithLongEdge(true)
+    expect(centre(straight, 'a')).toBe(centre(straight, 'b'))
+    expect(centre(straight, 'c')).toBe(centre(straight, 'b'))
+    // Off, the ends sit between the chain and the long edge.
+    const centred = chainWithLongEdge(false)
+    expect(centre(centred, 'c')).not.toBe(centre(centred, 'b'))
   })
 
   it('handles an empty graph', () => {

@@ -53,6 +53,13 @@ export interface LayoutOptions {
    * Defaults to half the pitch of a 32px node, `(laneGap + 32) / 2`.
    */
   grid?: number
+  /**
+   * A node joined on one side to a single node besides long edges lines up
+   * with that node, so chains run straight and the long edges bend around
+   * them. Off, it sits in the middle of all its edges, which keeps every
+   * merge symmetric.
+   */
+  straightChains?: boolean
 }
 
 export interface PlacedNode {
@@ -73,6 +80,12 @@ export interface PlacedEdge {
    * (bottom to top when vertical).
    */
   path: string
+  /**
+   * Where an edge spanning several ranks runs through the ranks between
+   * its ends: the point where it enters each and the one where it leaves
+   * it, in order. Empty for an edge between neighbouring ranks.
+   */
+  points: { x: number; y: number }[]
 }
 
 export interface GraphLayout {
@@ -152,11 +165,12 @@ export function rank(order: string[], edges: LayoutEdge[]) {
   for (const id of order) {
     column.set(id, Math.max(-1, ...preds.get(id)!.map((p) => column.get(p)!)) + 1)
   }
-  // A source feeding only later columns waits until it is needed.
+  // A node feeding more than it is fed waits until it is needed: moving
+  // it down shortens more edges than it stretches. Sources go first.
   for (let i = order.length - 1; i >= 0; i--) {
     const id = order[i]!
     const next = succs.get(id)!
-    if (preds.get(id)!.length || !next.length) continue
+    if (!next.length || preds.get(id)!.length >= next.length) continue
     column.set(id, Math.min(...next.map((s) => column.get(s)!)) - 1)
   }
   return column
@@ -202,11 +216,55 @@ function sortByBarycenter(
   return keyed.map((k) => k.item)
 }
 
+/** Crossings between the edges of `u` and of `v` when `u` sits before `v`, on one side. */
+function pairCrossings(u: Item[], v: Item[], position: Map<Item, number>) {
+  let count = 0
+  for (const a of u) {
+    const i = position.get(a)
+    if (i === undefined) continue
+    for (const b of v) {
+      const j = position.get(b)
+      if (j !== undefined && i > j) count++
+    }
+  }
+  return count
+}
+
+/**
+ * Swap neighbours in a column while that leaves fewer crossings with the
+ * columns on both sides: sorting by the mean misses what a single swap
+ * fixes, e.g. two nodes whose neighbours share a mean.
+ */
+function transpose(layers: Item[][]) {
+  const position = new Map<Item, number>()
+  for (const layer of layers) layer.forEach((item, i) => position.set(item, i))
+  for (let pass = 0, improved = true; improved && pass < 8; pass++) {
+    improved = false
+    for (const layer of layers) {
+      for (let i = 0; i < layer.length - 1; i++) {
+        const u = layer[i]!
+        const v = layer[i + 1]!
+        const before =
+          pairCrossings(u.preds, v.preds, position) + pairCrossings(u.succs, v.succs, position)
+        const after =
+          pairCrossings(v.preds, u.preds, position) + pairCrossings(v.succs, u.succs, position)
+        if (after >= before) continue
+        layer[i] = v
+        layer[i + 1] = u
+        position.set(v, i)
+        position.set(u, i + 1)
+        improved = true
+      }
+    }
+  }
+}
+
 function untangle(layers: Item[][]) {
   let best = layers.map((layer) => [...layer])
+  transpose(best)
   let bestCount = totalCrossings(best)
   let current = best.map((layer) => [...layer])
-  for (let pass = 0; pass < 8 && bestCount > 0; pass++) {
+  for (let pass = 0; pass < 12 && bestCount > 0; pass++) {
     const down = pass % 2 === 0
     const indices = Array.from(current, (_, i) => (down ? i : current.length - 1 - i))
     for (const i of indices.slice(1)) {
@@ -218,6 +276,7 @@ function untangle(layers: Item[][]) {
         position,
       )
     }
+    transpose(current)
     const count = totalCrossings(current)
     if (count < bestCount) {
       bestCount = count
@@ -318,6 +377,49 @@ function place(layer: Item[], targets: number[], gap: (a: Item, b: Item) => numb
   }
 }
 
+/**
+ * The parts of the graph not joined to each other, each as its columns,
+ * the part with the most nodes first.
+ */
+function components(layers: Item[][]) {
+  const part = new Map<Item, number>()
+  const sizes: number[] = []
+  for (const layer of layers) {
+    for (const start of layer) {
+      if (part.has(start)) continue
+      const id = sizes.length
+      sizes.push(0)
+      const stack = [start]
+      part.set(start, id)
+      while (stack.length) {
+        const item = stack.pop()!
+        if (item.edge < 0) sizes[id]!++
+        for (const n of [...item.preds, ...item.succs]) {
+          if (part.has(n)) continue
+          part.set(n, id)
+          stack.push(n)
+        }
+      }
+    }
+  }
+  const order = sizes.map((_, i) => i)
+  // oxlint-disable-next-line unicorn/no-array-sort -- sorts a fresh array
+  order.sort((a, b) => sizes[b]! - sizes[a]! || a - b)
+  return order.map((id) => layers.map((layer) => layer.filter((item) => part.get(item) === id)))
+}
+
+/**
+ * What a node lines up with on one side. With `straight`, the one node
+ * there when it has just one besides long edges, so a chain of nodes stays straight and the
+ * long edges bend around it instead. A fan of two or more nodes keeps its
+ * long edges, so they share its symmetry.
+ */
+function lineUp(item: Item, neighbours: Item[], straight: boolean) {
+  if (!straight || item.edge >= 0) return neighbours
+  const nodes = neighbours.filter((n) => n.edge < 0)
+  return nodes.length === 1 ? nodes : neighbours
+}
+
 function mean(values: number[], fallback: number) {
   return values.length ? values.reduce((a, b) => a + b, 0) / values.length : fallback
 }
@@ -327,7 +429,7 @@ export function layoutGraph(
   edges: LayoutEdge[],
   options: LayoutOptions,
 ): GraphLayout {
-  const { rankGap, laneGap, edgeGap = 8, equalWidth = true } = options
+  const { rankGap, laneGap, edgeGap = 8, equalWidth = true, straightChains = false } = options
   const vertical = options.direction === 'vertical'
   const grid = options.grid ?? (laneGap + 32) / 2
   // Below, `width` runs along the flow and `height` across it.
@@ -371,70 +473,100 @@ export function layoutGraph(
     return chain
   })
 
-  const ordered = untangle(layers)
   const gap = (a: Item, b: Item) => (a.edge >= 0 && b.edge >= 0 ? edgeGap : laneGap)
 
-  // Start each column stacked around the middle, then relax.
-  for (const layer of ordered)
-    place(
-      layer,
-      layer.map(() => 0),
-      gap,
-      grid,
-    )
-  const relax = (layer: Item[], neighbours: (item: Item) => Item[]) =>
-    place(
-      layer,
-      layer.map((item) =>
-        mean(
-          neighbours(item).map((n) => n.y),
-          item.y,
-        ),
-      ),
-      gap,
-      grid,
-    )
-  for (let pass = 0; pass < 4; pass++) {
-    for (const layer of ordered.slice(1)) relax(layer, (item) => item.preds)
-    for (let i = ordered.length - 2; i >= 0; i--) relax(ordered[i]!, (item) => item.succs)
-  }
-  for (const layer of ordered) relax(layer, (item) => [...item.preds, ...item.succs])
+  /** Orders and places the columns of one part of the graph. */
+  const arrange = (part: Item[][]) => {
+    const ordered = untangle(part)
 
-  // The grid can leave a node half a step off the middle of its fan, when
-  // the two ends are an odd number of steps apart. Put it right in the
-  // middle where it fits: from the bottom up a node follows what it feeds,
-  // then from the top down one fed by more than it feeds follows those.
-  // Neighbours stay at least as far apart as placing them asked for, so
-  // the gaps in a fan keep mirroring each other.
-  const fits = (layer: Item[], steps: number[], i: number, y: number) =>
-    (i === 0 || y - layer[i - 1]!.y >= steps[i - 1]! * grid) &&
-    (i === layer.length - 1 || layer[i + 1]!.y - y >= steps[i]! * grid)
-  const centre = (layer: Item[], side: (item: Item) => Item[]) => {
-    const steps = spacing(layer, gap, grid)
-    let moved = false
-    layer.forEach((item, i) => {
-      const ys = side(item).map((n) => n.y)
-      // oxlint-disable-next-line unicorn/no-array-sort -- sorts a copy
-      ys.sort((a, b) => a - b)
-      if (!ys.length) return
-      // Only to the middle of a mirror image, never to some uneven mean.
-      const y = (ys[0]! + ys.at(-1)!) / 2
-      if (ys.some((v, k) => v + ys[ys.length - 1 - k]! !== 2 * y)) return
-      if (y === item.y || !Number.isInteger(y) || !fits(layer, steps, i, y)) return
-      item.y = y
-      moved = true
-    })
-    return moved
+    // Start each column stacked around the middle, then relax.
+    for (const layer of ordered)
+      place(
+        layer,
+        layer.map(() => 0),
+        gap,
+        grid,
+      )
+    const relax = (layer: Item[], neighbours: (item: Item) => Item[]) =>
+      place(
+        layer,
+        layer.map((item) =>
+          mean(
+            lineUp(item, neighbours(item), straightChains).map((n) => n.y),
+            item.y,
+          ),
+        ),
+        gap,
+        grid,
+      )
+    for (let pass = 0; pass < 4; pass++) {
+      for (const layer of ordered.slice(1)) relax(layer, (item) => item.preds)
+      for (let i = ordered.length - 2; i >= 0; i--) relax(ordered[i]!, (item) => item.succs)
+    }
+    for (const layer of ordered) relax(layer, (item) => [...item.preds, ...item.succs])
+
+    // The grid can leave a node half a step off the middle of its fan, when
+    // the two ends are an odd number of steps apart. Put it right in the
+    // middle where it fits: from the bottom up a node follows what it feeds,
+    // then from the top down one fed by more than it feeds follows those.
+    // Neighbours stay at least as far apart as placing them asked for, so
+    // the gaps in a fan keep mirroring each other.
+    const fits = (layer: Item[], steps: number[], i: number, y: number) =>
+      (i === 0 || y - layer[i - 1]!.y >= steps[i - 1]! * grid) &&
+      (i === layer.length - 1 || layer[i + 1]!.y - y >= steps[i]! * grid)
+    const centre = (layer: Item[], side: (item: Item) => Item[]) => {
+      const steps = spacing(layer, gap, grid)
+      let moved = false
+      layer.forEach((item, i) => {
+        const ys = lineUp(item, side(item), straightChains).map((n) => n.y)
+        // oxlint-disable-next-line unicorn/no-array-sort -- sorts a copy
+        ys.sort((a, b) => a - b)
+        if (!ys.length) return
+        // Only to the middle of a mirror image, never to some uneven mean.
+        const y = (ys[0]! + ys.at(-1)!) / 2
+        if (ys.some((v, k) => v + ys[ys.length - 1 - k]! !== 2 * y)) return
+        if (y === item.y || !Number.isInteger(y) || !fits(layer, steps, i, y)) return
+        item.y = y
+        moved = true
+      })
+      return moved
+    }
+    for (let pass = 0, moved = true; moved && pass < 4; pass++) {
+      moved = false
+      for (let c = ordered.length - 2; c >= 0; c--)
+        moved =
+          centre(ordered[c]!, (item) =>
+            item.succs.length >= item.preds.length ? item.succs : [],
+          ) || moved
+      for (const layer of ordered.slice(1))
+        moved =
+          centre(layer, (item) => (item.preds.length > item.succs.length ? item.preds : [])) ||
+          moved
+    }
+    return ordered
   }
-  for (let pass = 0, moved = true; moved && pass < 4; pass++) {
-    moved = false
-    for (let c = ordered.length - 2; c >= 0; c--)
-      moved =
-        centre(ordered[c]!, (item) => (item.succs.length >= item.preds.length ? item.succs : [])) ||
-        moved
-    for (const layer of ordered.slice(1))
-      moved =
-        centre(layer, (item) => (item.preds.length > item.succs.length ? item.preds : [])) || moved
+
+  // Parts of the graph not joined to the rest are laid out on their own,
+  // so they never wedge between the nodes of another, then side by side
+  // across the flow, the largest first, apart by twice the lane gap.
+  const ordered: Item[][] = layers.map(() => [])
+  let next = -Infinity
+  for (const part of components(layers)) {
+    const arranged = arrange(part)
+    let lo = Infinity
+    let hi = -Infinity
+    for (const layer of arranged) {
+      for (const item of layer) {
+        lo = Math.min(lo, item.y - item.anchor)
+        hi = Math.max(hi, item.y - item.anchor + item.height)
+      }
+    }
+    const shift = Number.isFinite(next) ? Math.ceil((next - lo) / grid) * grid : 0
+    arranged.forEach((layer, c) => {
+      for (const item of layer) item.y += shift
+      ordered[c]!.push(...layer)
+    })
+    next = hi + shift + laneGap * 2
   }
 
   // Columns.
@@ -504,7 +636,8 @@ export function layoutGraph(
         path += `C${at(x1 + mid, y1)} ${at(x2 - mid, y2)} ${at(x2, y2)}`
       }
     }
-    return { from: edge.from, to: edge.to, path }
+    const through = points.slice(1, -1).map(([x, y]) => (vertical ? { x: y, y: x } : { x, y }))
+    return { from: edge.from, to: edge.to, path, points: through }
   })
 
   let length = widths.length ? left.at(-1)! + widths.at(-1)! : 0

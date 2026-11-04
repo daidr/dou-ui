@@ -14,6 +14,12 @@
 
 <DocDemo src="chat-plan/status" column />
 
+## 运行开关
+
+`running` 表示这一步是当前在做的，`live` 表示这一轮是否还在运行。这一轮回答结束或被用户停止后，把 `live` 设为 `false`：`running` 的步骤仍然是当前这一步，转圈换成同色的静止圆点，名字不再有扫光效果，标题和计数不变。这样不需要把每个 `running` 的步骤逐个改成别的状态，下一轮继续时再设回 `true` 即可。
+
+<DocDemo src="chat-plan/live" column />
+
 ## 纯面板
 
 将 `collapsible` 设为 `false` 后，标题不能点击，步骤始终展开，`open` 不再生效。适合放在侧栏或任务详情里，常驻显示当前进度。
@@ -30,6 +36,7 @@
 | `title`       | 标题                                                               | `string`         | `任务计划` |
 | `collapsible` | 是否可以点击标题收起，为 `false` 时始终展开                        | `boolean`        | `true`     |
 | `open`        | 是否展开，配合 `v-model:open`；`collapsible` 为 `false` 时不起作用 | `boolean`        | `true`     |
+| `live`        | 是否正在运行，为 `false` 时 `running` 的步骤静止显示               | `boolean`        | `true`     |
 
 ### ChatPlanItem
 

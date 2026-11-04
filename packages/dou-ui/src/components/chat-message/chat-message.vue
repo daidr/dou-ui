@@ -8,9 +8,11 @@ import { DouChatArtifact } from '../chat-artifact'
 import { DouChatAttachments } from '../chat-attachments'
 import { DouChatConfirm } from '../chat-confirm'
 import { DouChatPlan } from '../chat-plan'
+import { planRunning, type ChatPlanItem } from '../chat-plan/chat-plan'
 import { DouChatReasoning } from '../chat-reasoning'
 import { DouChatSources } from '../chat-sources'
 import { DouChatSteps } from '../chat-steps'
+import { stepsLive, type ChatStep } from '../chat-steps/chat-steps'
 import { DouChatToolCall } from '../chat-tool-call'
 import { useLocale } from '../config-provider/use-config'
 import { DouCopyButton } from '../copy-button'
@@ -90,8 +92,12 @@ const busy = computed(
     parts.value.some((part) => {
       const p = part as Record<string, unknown>
       // an artifact can keep being made after the reply ends, so it doesn't hold the actions back
-      const working = p.status === 'running' && p.type !== 'artifact'
-      return !!p.streaming || !!p.thinking || !!p.running || working
+      const working = p.status === 'running' && p.type !== 'artifact' && p.live !== false
+      // busy exactly when steps or a plan show themselves running
+      const live = p.live as boolean | undefined
+      const steps = p.type === 'steps' && stepsLive(p.items as ChatStep[] | undefined, live)
+      const plan = p.type === 'plan' && planRunning(p.items as ChatPlanItem[] | undefined, live)
+      return !!p.streaming || !!p.thinking || steps || plan || working
     }),
 )
 

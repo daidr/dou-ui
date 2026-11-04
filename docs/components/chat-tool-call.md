@@ -10,9 +10,15 @@
 
 <DocDemo src="chat-tool-call/basic" column />
 
+## 运行开关
+
+这一轮结束或被停止时，把 `live` 设为 `false`：`running` 的调用把转圈换成同色的静止圆点，状态文字不变。含义和 [ChatPlan](./chat-plan#运行开关) 一致。
+
+<DocDemo src="chat-tool-call/live" column />
+
 ## 等待确认
 
-有些操作需要用户同意后才能执行，这时把 `status` 设为 `waiting`。`actions` 插槽显示在卡片底部，不需要展开就能看到，可以放允许和拒绝按钮。用户还没回答，助手就不再需要执行这个调用时（比如用户停止了生成），把 `status` 设为 `withdrawn`，表示它没有执行过。已经开始执行、中途被停止的调用不属于撤回，保持原来的状态即可。
+有些操作需要用户同意后才能执行，这时把 `status` 设为 `waiting`。`actions` 插槽显示在卡片底部，不需要展开就能看到，可以放允许和拒绝按钮。用户还没回答，助手就不再需要执行这个调用时（比如用户停止了生成），把 `status` 设为 `withdrawn`，表示它没有执行过。已经开始执行、中途被停止的调用不属于撤回，保持原来的状态即可，参见[运行开关](#运行开关)。
 
 <DocDemo src="chat-tool-call/waiting" column />
 
@@ -20,14 +26,15 @@
 
 ### Props
 
-| 名称     | 说明                          | 类型                                                                      | 默认值   |
-| -------- | ----------------------------- | ------------------------------------------------------------------------- | -------- |
-| `name`   | 工具名                        | `string`                                                                  | —        |
-| `title`  | 代替工具名显示的说明          | `string`                                                                  | —        |
-| `status` | 状态                          | `'pending' \| 'running' \| 'waiting' \| 'done' \| 'error' \| 'withdrawn'` | `'done'` |
-| `input`  | 调用参数                      | `unknown`                                                                 | —        |
-| `output` | 返回结果或错误信息            | `unknown`                                                                 | —        |
-| `open`   | 是否展开，配合 `v-model:open` | `boolean`                                                                 | —        |
+| 名称     | 说明                                           | 类型                                                                      | 默认值   |
+| -------- | ---------------------------------------------- | ------------------------------------------------------------------------- | -------- |
+| `name`   | 工具名                                         | `string`                                                                  | —        |
+| `title`  | 代替工具名显示的说明                           | `string`                                                                  | —        |
+| `status` | 状态                                           | `'pending' \| 'running' \| 'waiting' \| 'done' \| 'error' \| 'withdrawn'` | `'done'` |
+| `input`  | 调用参数                                       | `unknown`                                                                 | —        |
+| `output` | 返回结果或错误信息                             | `unknown`                                                                 | —        |
+| `open`   | 是否展开，配合 `v-model:open`                  | `boolean`                                                                 | —        |
+| `live`   | 是否正在运行，为 `false` 时 `running` 静止显示 | `boolean`                                                                 | `true`   |
 
 ### Events
 

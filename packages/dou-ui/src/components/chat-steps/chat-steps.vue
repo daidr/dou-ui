@@ -6,13 +6,15 @@ import { DouCollapseTransition as CollapseTransition } from '../collapse/collaps
 import { useLocale } from '../config-provider/use-config'
 import { DouShimmer } from '../shimmer'
 import { DouSpinner } from '../spinner'
+import { DouStatusDot } from '../status-dot'
+import { stepsLive } from './chat-steps'
 import type { ChatStepsEmits, ChatStepsProps, ChatStepsSlots } from './chat-steps'
 
 defineOptions({ name: 'DouChatSteps' })
 
 const props = withDefaults(defineProps<ChatStepsProps>(), {
   items: () => [],
-  running: undefined,
+  live: undefined,
   open: undefined,
 })
 const emit = defineEmits<ChatStepsEmits>()
@@ -36,16 +38,19 @@ const current = computed(() => {
   }
   return undefined
 })
-const running = computed(() => props.running ?? !!current.value)
+const live = computed(() => stepsLive(props.items, props.live))
 const summary = computed(() => {
   if (props.title) return props.title
-  if (running.value) return current.value?.label ?? t('chat.working')
-  return t('chat.stepsDone', { count: props.items.length })
+  if (live.value) return current.value?.label ?? t('chat.working')
+  // a stopped run with steps left unfinished doesn't read as done
+  const count = props.items.length
+  const finished = props.items.every((step) => (step.status ?? 'done') === 'done')
+  return t(finished ? 'chat.stepsDone' : 'chat.stepsTotal', { count })
 })
 </script>
 
 <template>
-  <div :class="[ns.b(), ns.is('open', open), ns.is('running', running)]">
+  <div :class="[ns.b(), ns.is('open', open), ns.is('running', live)]">
     <button
       :id="`${id}-trigger`"
       type="button"
@@ -55,8 +60,8 @@ const summary = computed(() => {
       @click="toggle"
     >
       <span :class="ns.e('title')">
-        <slot name="title" :running="running" :count="items.length">
-          <DouShimmer :active="running">{{ summary }}</DouShimmer>
+        <slot name="title" :live="live" :count="items.length">
+          <DouShimmer :active="live">{{ summary }}</DouShimmer>
         </slot>
       </span>
       <ChevronDownIcon :class="ns.e('arrow')" />
@@ -76,11 +81,10 @@ const summary = computed(() => {
             :class="[ns.e('step'), ns.is(step.status ?? 'done')]"
           >
             <span :class="ns.e('mark')">
-              <DouSpinner
-                v-if="step.status === 'running'"
-                size="sm"
-                :label="t('chat.stepRunning')"
-              />
+              <template v-if="step.status === 'running'">
+                <DouSpinner v-if="live" size="sm" :label="t('chat.stepRunning')" />
+                <DouStatusDot v-else :label="t('chat.stepRunning')" />
+              </template>
               <AlertCircleIcon v-else-if="step.status === 'error'" :label="t('chat.stepError')" />
               <component :is="step.icon" v-else-if="step.icon" />
               <span v-else :class="ns.e('dot')" />

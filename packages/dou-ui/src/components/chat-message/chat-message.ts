@@ -40,11 +40,12 @@ export interface ChatToolPart {
   status?: ChatToolCallStatus
   input?: unknown
   output?: unknown
+  live?: boolean
 }
 export interface ChatStepsPart {
   type: 'steps'
   items: ChatStep[]
-  running?: boolean
+  live?: boolean
   title?: string
 }
 export interface ChatPlanPart {
@@ -52,6 +53,7 @@ export interface ChatPlanPart {
   items: ChatPlanItem[]
   title?: string
   collapsible?: boolean
+  live?: boolean
 }
 export interface ChatSourcesPart {
   type: 'sources'

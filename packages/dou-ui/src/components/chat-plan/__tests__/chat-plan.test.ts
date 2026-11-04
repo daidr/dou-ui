@@ -28,6 +28,22 @@ describe('DouChatPlan', () => {
     expect(header.attributes('aria-expanded')).toBe('false')
     expect(wrapper.emitted('update:open')).toEqual([[false]])
   })
+  it('holds a running step still when not live', async () => {
+    const wrapper = mount(DouChatPlan, { props: { items } })
+    const row = () => wrapper.findAll('.dou-chat-plan__item')[1]!
+    expect(row().find('.dou-spinner').exists()).toBe(true)
+    expect(wrapper.classes()).toContain('is-running')
+    await wrapper.setProps({ live: false })
+    expect(row().classes()).toContain('is-running')
+    expect(row().find('.dou-spinner').exists()).toBe(false)
+    const dot = row().get('.dou-status-dot')
+    expect(dot.classes()).toContain('dou-status-dot--primary')
+    expect(dot.classes()).not.toContain('is-ripple')
+    expect(dot.attributes('aria-label')).toBe('进行中')
+    expect(row().find('.dou-shimmer.is-active').exists()).toBe(false)
+    expect(wrapper.classes()).not.toContain('is-running')
+    expect(wrapper.get('.dou-chat-plan__count').text()).toBe('2 / 4')
+  })
   it('renders a plain panel when not collapsible', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const wrapper = mount(DouChatPlan, {

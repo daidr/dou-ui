@@ -67,6 +67,30 @@ describe('DouChatMessage', () => {
     expect(wrapper.find('.dou-chat-message__actions .dou-copy-button').exists()).toBe(true)
   })
 
+  it('is busy while steps are live or a live call runs', async () => {
+    const wrapper = mount(DouChatMessage, {
+      props: { parts: [{ type: 'steps', items: [], live: true }] },
+    })
+    expect(wrapper.attributes('aria-busy')).toBe('true')
+    await wrapper.setProps({
+      parts: [
+        { type: 'tool', name: 'search_web', status: 'running' },
+        { type: 'plan', items: [{ label: '查天气', status: 'running' }], live: true },
+      ],
+    })
+    expect(wrapper.attributes('aria-busy')).toBe('true')
+    await wrapper.setProps({
+      parts: [
+        { type: 'text', text: '停下了' },
+        { type: 'tool', name: 'search_web', status: 'running', live: false },
+        { type: 'steps', items: [{ label: '读取网页', status: 'running' }], live: false },
+        { type: 'plan', items: [{ label: '查天气', status: 'running' }], live: false },
+      ],
+    })
+    expect(wrapper.attributes('aria-busy')).toBeUndefined()
+    expect(wrapper.find('.dou-chat-message__actions .dou-copy-button').exists()).toBe(true)
+  })
+
   it('keeps the actions while only an artifact is still being made', () => {
     const wrapper = mount(DouChatMessage, {
       props: {

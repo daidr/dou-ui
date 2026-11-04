@@ -22,6 +22,12 @@ export interface ChatPlanProps {
   collapsible?: boolean
   /** Expanded or not. Bound with `v-model:open`; open by default. Ignored when not `collapsible`. */
   open?: boolean
+  /**
+   * The run is going on now. Off once the turn has ended or been stopped: a
+   * `running` step stays the current one but holds still, a solid dot in
+   * place of the spinner and no shimmer, so the steps needn't be rewritten.
+   */
+  live?: boolean
 }
 
 export interface ChatPlanEmits {

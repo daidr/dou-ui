@@ -16,6 +16,11 @@ export interface ChatToolCallProps {
   output?: unknown
   /** Expanded or not. Bound with `v-model:open`. */
   open?: boolean
+  /**
+   * The run is going on now. Off once the turn has ended or been stopped: a
+   * `running` call holds still, a solid dot in place of the spinner.
+   */
+  live?: boolean
 }
 
 export interface ChatToolCallEmits {

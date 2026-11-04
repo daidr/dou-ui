@@ -12,6 +12,7 @@ import { DouCollapseTransition as CollapseTransition } from '../collapse/collaps
 import { useLocale } from '../config-provider/use-config'
 import { DouShimmer } from '../shimmer'
 import { DouSpinner } from '../spinner'
+import { DouStatusDot } from '../status-dot'
 import type { ChatPlanEmits, ChatPlanProps, ChatPlanSlots } from './chat-plan'
 
 defineOptions({ name: 'DouChatPlan' })
@@ -20,6 +21,7 @@ const props = withDefaults(defineProps<ChatPlanProps>(), {
   items: () => [],
   collapsible: true,
   open: undefined,
+  live: true,
 })
 const emit = defineEmits<ChatPlanEmits>()
 defineSlots<ChatPlanSlots>()
@@ -49,7 +51,8 @@ if (process.env.NODE_ENV !== 'production') {
 const finished = computed(
   () => props.items.filter((item) => item.status === 'done' || item.status === 'skipped').length,
 )
-const running = computed(() => props.items.some((item) => item.status === 'running'))
+// `live` false: the run has stopped, so a running step holds still
+const running = computed(() => props.live && props.items.some((item) => item.status === 'running'))
 </script>
 
 <template>
@@ -90,11 +93,10 @@ const running = computed(() => props.items.some((item) => item.status === 'runni
             :class="[ns.e('item'), ns.is(item.status ?? 'pending')]"
           >
             <span :class="ns.e('mark')">
-              <DouSpinner
-                v-if="item.status === 'running'"
-                size="sm"
-                :label="t('chat.stepRunning')"
-              />
+              <template v-if="item.status === 'running'">
+                <DouSpinner v-if="live" size="sm" :label="t('chat.stepRunning')" />
+                <DouStatusDot v-else tone="primary" :label="t('chat.stepRunning')" />
+              </template>
               <ClockPauseIcon
                 v-else-if="item.status === 'waiting'"
                 :label="t('chat.stepWaiting')"
@@ -106,7 +108,9 @@ const running = computed(() => props.items.some((item) => item.status === 'runni
             <span :class="ns.e('text')">
               <slot name="item" :item="item" :index="index">
                 <span :class="ns.e('label')">
-                  <DouShimmer :active="item.status === 'running'">{{ item.label }}</DouShimmer>
+                  <DouShimmer :active="live && item.status === 'running'">{{
+                    item.label
+                  }}</DouShimmer>
                 </span>
                 <span v-if="item.description" :class="ns.e('description')">
                   {{ item.description }}

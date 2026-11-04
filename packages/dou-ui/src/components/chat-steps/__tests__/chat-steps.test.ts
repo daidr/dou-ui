@@ -24,6 +24,20 @@ describe('DouChatSteps', () => {
     expect(wrapper.findAll('.dou-chat-steps__step')).toHaveLength(2)
   })
 
+  it('follows `live` over the steps', async () => {
+    const wrapper = mount(DouChatSteps, {
+      props: { open: true, live: false, items: [{ label: '读取网页', status: 'running' }] },
+    })
+    expect(wrapper.get('.dou-chat-steps__header').text()).toBe('已完成 1 个步骤')
+    expect(wrapper.classes()).not.toContain('is-running')
+    expect(wrapper.find('.dou-spinner').exists()).toBe(false)
+    expect(wrapper.get('.dou-status-dot').classes()).toContain('dou-status-dot--primary')
+
+    await wrapper.setProps({ live: true, items: [{ label: '读取网页' }] })
+    expect(wrapper.get('.dou-chat-steps__header').text()).toBe('正在处理')
+    expect(wrapper.find('.dou-shimmer.is-active').exists()).toBe(true)
+  })
+
   it('shows the detail and the detail slot', () => {
     const wrapper = mount(DouChatSteps, {
       props: { open: true, items: [{ label: '搜索网页', detail: '上海 骑行' }] },

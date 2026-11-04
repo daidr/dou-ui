@@ -16,9 +16,9 @@
 | ----------- | ------------------------------------- | ----------------------------------------------------------------------- |
 | `text`      | [StreamText](./stream-text)           | `text`、`streaming`                                                     |
 | `reasoning` | [ChatReasoning](./chat-reasoning)     | `text`、`thinking`、`duration`                                          |
-| `tool`      | [ChatToolCall](./chat-tool-call)      | `name`、`title`、`status`、`input`、`output`                            |
-| `steps`     | [ChatSteps](./chat-steps)             | `items`、`running`、`title`                                             |
-| `plan`      | [ChatPlan](./chat-plan)               | `items`、`title`、`collapsible`                                         |
+| `tool`      | [ChatToolCall](./chat-tool-call)      | `name`、`title`、`status`、`input`、`output`、`live`                    |
+| `steps`     | [ChatSteps](./chat-steps)             | `items`、`live`、`title`                                                |
+| `plan`      | [ChatPlan](./chat-plan)               | `items`、`title`、`collapsible`、`live`                                 |
 | `sources`   | [ChatSources](./chat-sources)         | `items`                                                                 |
 | `files`     | [ChatAttachments](./chat-attachments) | `files`                                                                 |
 | `artifact`  | [ChatArtifact](./chat-artifact)       | `id`、`title`、`kind`、`description`、`status`、`active`                |
@@ -28,7 +28,7 @@
 
 ## 生成中
 
-`loading` 表示还没有收到任何内容，显示三个跳动的圆点。有片段正在输出（`streaming`、`thinking`、`running` 或工具状态为 `running`）时，消息带 `aria-busy`，并且暂时不显示底部操作。
+`loading` 表示还没有收到任何内容，显示三个跳动的圆点。有片段正在输出（`streaming`、`thinking`、执行步骤的 `live` 为 `true`，或工具状态为 `running` 且 `live` 不为 `false`）时，消息带 `aria-busy`，并且暂时不显示底部操作。
 
 <DocDemo src="chat-message/loading" column />
 

@@ -178,7 +178,8 @@ function stop() {
   reply.loading = false
   for (const part of reply.parts) {
     if (part.streaming) part.streaming = false
-    for (const step of part.items ?? []) if (step.status === 'running') step.status = 'done'
+    // the run stopped: running steps keep their place but hold still
+    if (part.type === 'steps') part.live = false
   }
   loading.value = false
 }

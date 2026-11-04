@@ -13,6 +13,7 @@ import { useStatusCheck, devWarn } from '../../utils/status-check'
 import { DouCollapseTransition as CollapseTransition } from '../collapse/collapse-transition'
 import { useLocale } from '../config-provider/use-config'
 import { DouSpinner } from '../spinner'
+import { DouStatusDot } from '../status-dot'
 import { formatToolValue } from './chat-tool-call'
 import type { ChatToolCallEmits, ChatToolCallProps, ChatToolCallSlots } from './chat-tool-call'
 
@@ -21,6 +22,7 @@ defineOptions({ name: 'DouChatToolCall' })
 const props = withDefaults(defineProps<ChatToolCallProps>(), {
   status: 'done',
   open: undefined,
+  live: true,
 })
 const emit = defineEmits<ChatToolCallEmits>()
 const slots = defineSlots<ChatToolCallSlots>()
@@ -93,7 +95,10 @@ const statusText = computed(
         </slot>
       </span>
       <span :class="ns.e('status')">
-        <DouSpinner v-if="status === 'running'" size="sm" aria-hidden="true" />
+        <template v-if="status === 'running'">
+          <DouSpinner v-if="live" size="sm" aria-hidden="true" />
+          <DouStatusDot v-else tone="primary" />
+        </template>
         <ClockIcon v-else-if="status === 'pending'" aria-hidden="true" />
         <ClockPauseIcon v-else-if="status === 'waiting'" aria-hidden="true" />
         <CheckCircleIcon v-else-if="status === 'done'" aria-hidden="true" />

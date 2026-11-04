@@ -10,6 +10,8 @@
 
 <DocDemo src="chat-tool-call/basic" column />
 
+这一轮结束或被停止时，可以把 `live` 设为 `false`，`running` 的调用把转圈换成静止的主色圆点，含义和 [ChatPlan](./chat-plan#运行开关) 一致。
+
 ## 等待确认
 
 有些操作需要用户同意后才能执行，这时把 `status` 设为 `waiting`。`actions` 插槽显示在卡片底部，不需要展开就能看到，可以放允许和拒绝按钮。
@@ -20,14 +22,15 @@
 
 ### Props
 
-| 名称     | 说明                          | 类型                                                       | 默认值   |
-| -------- | ----------------------------- | ---------------------------------------------------------- | -------- |
-| `name`   | 工具名                        | `string`                                                   | —        |
-| `title`  | 代替工具名显示的说明          | `string`                                                   | —        |
-| `status` | 状态                          | `'pending' \| 'running' \| 'waiting' \| 'done' \| 'error'` | `'done'` |
-| `input`  | 调用参数                      | `unknown`                                                  | —        |
-| `output` | 返回结果或错误信息            | `unknown`                                                  | —        |
-| `open`   | 是否展开，配合 `v-model:open` | `boolean`                                                  | —        |
+| 名称     | 说明                                           | 类型                                                       | 默认值   |
+| -------- | ---------------------------------------------- | ---------------------------------------------------------- | -------- |
+| `name`   | 工具名                                         | `string`                                                   | —        |
+| `title`  | 代替工具名显示的说明                           | `string`                                                   | —        |
+| `status` | 状态                                           | `'pending' \| 'running' \| 'waiting' \| 'done' \| 'error'` | `'done'` |
+| `input`  | 调用参数                                       | `unknown`                                                  | —        |
+| `output` | 返回结果或错误信息                             | `unknown`                                                  | —        |
+| `open`   | 是否展开，配合 `v-model:open`                  | `boolean`                                                  | —        |
+| `live`   | 是否正在运行，为 `false` 时 `running` 静止显示 | `boolean`                                                  | `true`   |
 
 ### Events
 

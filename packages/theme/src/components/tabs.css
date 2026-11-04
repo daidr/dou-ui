@@ -11,6 +11,7 @@
     --dou-tabs-padding-x: 10px;
     --dou-tabs-font-size: var(--dou-font-size-md);
     --dou-tabs-gap: 4px;
+    --dou-tabs-icon-size: 16px;
     --dou-tabs-indicator: var(--dou-color-text);
 
     display: flex;
@@ -25,6 +26,7 @@
     --dou-tabs-padding-x: 8px;
     --dou-tabs-font-size: var(--dou-font-size-sm);
     --dou-tabs-gap: 2px;
+    --dou-tabs-icon-size: 14px;
   }
   .dou-tabs--lg {
     --dou-tabs-height: var(--dou-control-height-lg);
@@ -93,6 +95,23 @@
       color: var(--dou-color-text-disabled);
       cursor: not-allowed;
     }
+  }
+
+  .dou-tabs__icon {
+    flex-shrink: 0;
+    width: var(--dou-tabs-icon-size);
+    height: var(--dou-tabs-icon-size);
+
+    & + .dou-tabs__label {
+      margin-inline-start: 6px;
+    }
+  }
+
+  /* an icon alone: a square tab, its label in a tooltip */
+  .dou-tabs .dou-tabs__tab.is-icon-alone {
+    justify-content: center;
+    width: var(--dou-tabs-height);
+    padding: 0;
   }
 
   .dou-tabs__label {
@@ -276,7 +295,8 @@
   /* beside the panels: a column of tabs on a vertical hairline, the indicator on its edge */
   .dou-tabs.is-vertical {
     flex-direction: row;
-    align-items: flex-start;
+    /* the panel runs the full height beside the column, however short its content */
+    align-items: stretch;
 
     & > .dou-tabs__header {
       flex-direction: column;
@@ -354,5 +374,73 @@
 
   .dou-tabs.is-settled.is-vertical .dou-tabs__indicator {
     transition-property: transform, height;
+  }
+
+  /*
+   * A fixed height: the panel fills what the tabs leave and scrolls on its
+   * own, as does a column of tabs that does not fit. The panel keeps 4px
+   * clear on its open sides, so the focus rings of its content are not cut.
+   */
+  .dou-tabs.is-fixed {
+    min-height: 0;
+
+    & > .dou-tabs__header {
+      flex-shrink: 0;
+    }
+
+    & > .dou-tabs__panel {
+      flex: 1 1 auto;
+      box-sizing: border-box;
+      min-height: 0;
+      padding-bottom: 4px;
+      overflow: auto;
+      overscroll-behavior: contain;
+    }
+
+    &:not(.is-vertical) > .dou-tabs__panel {
+      /* the content stays in line with the edge of the tabs */
+      margin-inline-start: -4px;
+      padding-inline: 4px;
+    }
+
+    &.is-vertical {
+      & > .dou-tabs__header {
+        min-height: 0;
+      }
+
+      & .dou-tabs__list {
+        flex: 0 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        scrollbar-width: none;
+
+        &.is-fade-start {
+          mask-image: linear-gradient(to bottom, transparent, #000 var(--dou-tabs-fade));
+        }
+
+        &.is-fade-end {
+          mask-image: linear-gradient(to top, transparent, #000 var(--dou-tabs-fade));
+        }
+
+        &.is-fade-start.is-fade-end {
+          mask-image: linear-gradient(
+            to bottom,
+            transparent,
+            #000 var(--dou-tabs-fade),
+            #000 calc(100% - var(--dou-tabs-fade)),
+            transparent
+          );
+        }
+      }
+
+      & > .dou-tabs__panel {
+        padding-inline-end: 4px;
+      }
+    }
+
+    &.is-placement-end > .dou-tabs__panel {
+      padding-inline: 4px 20px;
+    }
   }
 }

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   computed,
+  h,
   nextTick,
   onBeforeUnmount,
   onMounted,
@@ -17,6 +18,7 @@ import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, PlusIcon } from '@dou-ui/
 import { useReducedMotion } from '../../composables/use-motion'
 import { useNamespace } from '../../utils/namespace'
 import { scrollPositionOf } from '../../utils/scroll'
+import { devWarn } from '../../utils/status-check'
 import { useLocale } from '../config-provider/use-config'
 import { useFormSize } from '../form/use-form-item'
 import { DouTooltip } from '../tooltip'
@@ -31,6 +33,7 @@ const props = withDefaults(defineProps<TabsProps>(), {
   placement: 'top',
   closable: false,
   addable: false,
+  iconOnly: false,
 })
 const model = defineModel<TabsValue>()
 const emit = defineEmits<{ change: [value: TabsValue]; remove: [value: TabsValue]; add: [] }>()
@@ -110,10 +113,29 @@ function tabElement(entry: TabPanelEntry) {
 const TabLabel: FunctionalComponent<{ entry: TabPanelEntry; selected: boolean }> = ({
   entry,
   selected: isSelected,
-}) =>
-  (entry.slots.label?.({ selected: isSelected }) as VNode[] | undefined) ??
-  entry.props.label ??
-  String(entry.props.value)
+}) => (entry.slots.label?.({ selected: isSelected }) as VNode[] | undefined) ?? labelText(entry)
+
+const labelText = (entry: TabPanelEntry) => entry.props.label ?? String(entry.props.value)
+
+/** With `iconOnly`, whether the tab shows its icon alone; without an icon it keeps its text. */
+function iconAlone(entry: TabPanelEntry) {
+  if (!props.iconOnly) return false
+  if (entry.props.icon) return true
+  if (process.env.NODE_ENV !== 'production')
+    devWarn(
+      `[dou-ui] DouTabs: \`iconOnly\` needs an \`icon\` on each DouTabPanel; "${labelText(entry)}" keeps its text.`,
+    )
+  return false
+}
+
+// With `iconOnly`, the label shows in a tooltip: beside a column, above a row.
+const tipPlacement = computed(() =>
+  props.placement === 'start' ? 'right' : props.placement === 'end' ? 'left' : 'top',
+)
+const TabTip: FunctionalComponent<{ entry: TabPanelEntry }> = ({ entry }, { slots: tip }) =>
+  iconAlone(entry)
+    ? h(DouTooltip, { content: labelText(entry), placement: tipPlacement.value }, tip)
+    : tip.default?.()
 
 function onKeydown(event: KeyboardEvent, entry: TabPanelEntry) {
   const enabled = panels.value.filter((panel) => !panel.props.disabled)
@@ -181,8 +203,15 @@ const reduced = useReducedMotion()
 
 function updateOverflow() {
   const list = listRef.value
-  if (!list || vertical.value) {
+  if (!list) {
     overflow.value = { start: false, end: false }
+    return
+  }
+  if (vertical.value) {
+    // a column only overflows with a fixed `height`; there it fades but has no arrows
+    const max = list.scrollHeight - list.clientHeight
+    const top = Math.max(0, list.scrollTop)
+    overflow.value = { start: top > 1, end: top < max - 1 }
     return
   }
   const max = list.scrollWidth - list.clientWidth
@@ -196,9 +225,20 @@ function reveal(smooth: boolean) {
   const list = listRef.value
   const entry = panels.value.find((panel) => panel.props.value === selected.value)
   const tab = entry && tabElement(entry)
-  if (!list || !tab || vertical.value) return
+  if (!list || !tab) return
   // leave room for the faded edge, so the tab is not under it
   const margin = 32
+  if (vertical.value) {
+    const top = tab.offsetTop - margin
+    const bottom = tab.offsetTop + tab.offsetHeight + margin - list.clientHeight
+    const target = top < list.scrollTop ? top : bottom > list.scrollTop ? bottom : null
+    if (target === null) return
+    list.scrollTo({
+      top: Math.max(0, target),
+      behavior: smooth && !reduced.value ? 'smooth' : 'auto',
+    })
+    return
+  }
   const left = tab.offsetLeft - margin
   const right = tab.offsetLeft + tab.offsetWidth + margin - list.clientWidth
   const target = left < list.scrollLeft ? left : right > list.scrollLeft ? right : null
@@ -233,12 +273,22 @@ onMounted(() => {
   }
 })
 onBeforeUnmount(() => observer?.disconnect())
-watch([selected, panels, size, () => props.placement], () =>
-  nextTick(() => {
-    measure()
-    updateOverflow()
-    reveal(settled.value)
-  }),
+watch(
+  [selected, panels, size, () => props.placement, () => props.iconOnly, () => props.height],
+  () =>
+    nextTick(() => {
+      measure()
+      updateOverflow()
+      reveal(settled.value)
+    }),
+)
+
+const rootStyle = computed(() =>
+  props.height === undefined
+    ? undefined
+    : {
+        height: typeof props.height === 'number' ? `${props.height}px` : props.height,
+      },
 )
 
 const indicatorStyle = computed(() => {
@@ -258,11 +308,14 @@ const indicatorStyle = computed(() => {
       ns.is('settled', settled),
       ns.is('vertical', vertical),
       vertical && ns.is(`placement-${placement}`, true),
+      ns.is('fixed', height !== undefined),
+      ns.is('icon-only', iconOnly),
     ]"
+    :style="rootStyle"
   >
     <div :class="ns.e('header')">
       <button
-        v-if="overflow.start || overflow.end"
+        v-if="!vertical && (overflow.start || overflow.end)"
         type="button"
         tabindex="-1"
         :class="[ns.e('scroll'), ns.is('start', true)]"
@@ -283,41 +336,57 @@ const indicatorStyle = computed(() => {
         :aria-orientation="vertical ? 'vertical' : 'horizontal'"
         @scroll.passive="updateOverflow"
       >
-        <button
-          v-for="entry in panels"
-          :id="tabId(entry.props.value)"
-          :key="entry.uid"
-          :ref="(el) => setTabElement(entry.uid, el)"
-          type="button"
-          role="tab"
-          :class="[
-            ns.e('tab'),
-            ns.is('selected', entry.props.value === selected),
-            ns.is('disabled', !!entry.props.disabled),
-            ns.is('closable', isClosable(entry)),
-          ]"
-          :aria-selected="entry.props.value === selected"
-          :aria-controls="panelId(entry.props.value)"
-          :aria-disabled="entry.props.disabled || undefined"
-          :tabindex="entry.props.value === selected ? 0 : -1"
-          :aria-keyshortcuts="isClosable(entry) ? 'Delete' : undefined"
-          @click="select(entry)"
-          @keydown="onKeydown($event, entry)"
-        >
-          <span :class="ns.e('label')">
-            <TabLabel :entry="entry" :selected="entry.props.value === selected" />
-          </span>
-          <!-- not a button of its own: a tab cannot hold one; `Delete` closes it from the keyboard -->
-          <DouTooltip v-if="isClosable(entry)" :content="t('tabs.close')" shortcut="delete">
-            <span :class="ns.e('close')" aria-hidden="true" @click.stop="remove(entry)">
-              <CloseIcon />
-            </span>
-          </DouTooltip>
-        </button>
+        <template v-for="entry in panels" :key="entry.uid">
+          <TabTip :entry="entry">
+            <button
+              :id="tabId(entry.props.value)"
+              :ref="(el) => setTabElement(entry.uid, el)"
+              type="button"
+              role="tab"
+              :class="[
+                ns.e('tab'),
+                ns.is('selected', entry.props.value === selected),
+                ns.is('disabled', !!entry.props.disabled),
+                ns.is('closable', isClosable(entry)),
+                ns.is('icon-alone', iconAlone(entry)),
+              ]"
+              :aria-selected="entry.props.value === selected"
+              :aria-controls="panelId(entry.props.value)"
+              :aria-label="iconAlone(entry) ? labelText(entry) : undefined"
+              :aria-disabled="entry.props.disabled || undefined"
+              :tabindex="entry.props.value === selected ? 0 : -1"
+              :aria-keyshortcuts="isClosable(entry) ? 'Delete' : undefined"
+              @click="select(entry)"
+              @keydown="onKeydown($event, entry)"
+            >
+              <component
+                :is="entry.props.icon"
+                v-if="entry.props.icon"
+                :class="ns.e('icon')"
+                aria-hidden="true"
+              />
+              <span v-if="!iconAlone(entry)" :class="ns.e('label')">
+                <TabLabel :entry="entry" :selected="entry.props.value === selected" />
+              </span>
+              <!-- not a button of its own: a tab cannot hold one; `Delete` closes it from the keyboard.
+               An icon alone already has the label's tooltip, so the close button goes without. -->
+              <DouTooltip
+                v-if="isClosable(entry)"
+                :content="t('tabs.close')"
+                shortcut="delete"
+                :disabled="iconAlone(entry)"
+              >
+                <span :class="ns.e('close')" aria-hidden="true" @click.stop="remove(entry)">
+                  <CloseIcon />
+                </span>
+              </DouTooltip>
+            </button>
+          </TabTip>
+        </template>
         <span :class="ns.e('indicator')" :style="indicatorStyle" aria-hidden="true" />
       </div>
       <button
-        v-if="overflow.start || overflow.end"
+        v-if="!vertical && (overflow.start || overflow.end)"
         type="button"
         tabindex="-1"
         :class="[ns.e('scroll'), ns.is('end', true)]"

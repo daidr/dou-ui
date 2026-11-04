@@ -1,4 +1,4 @@
-import type { InjectionKey, Ref } from 'vue'
+import type { Component, InjectionKey, Ref } from 'vue'
 import type { Size } from '../../utils/types'
 
 export type TabsValue = string | number
@@ -17,6 +17,17 @@ export interface TabsProps {
    */
   activation?: TabsActivation
   placement?: TabsPlacement
+  /**
+   * A fixed height, numbers in px; `'100%'` fills the parent. The panels
+   * fill it and scroll on their own, and so does a column of tabs that
+   * does not fit. Left unset, the tabs grow with their content.
+   */
+  height?: number | string
+  /**
+   * Show each tab as its panel's `icon` alone. The label becomes the tab's
+   * accessible name and shows in a tooltip on hover and focus.
+   */
+  iconOnly?: boolean
   /** Give every tab a close button that emits `remove`. A panel's own `closable` wins. */
   closable?: boolean
   /** Put a button after the tabs that emits `add`. */
@@ -47,8 +58,10 @@ export interface TabsSlots {
 
 export interface TabPanelProps {
   value: TabsValue
-  /** The text of the tab. */
+  /** The text of the tab. With `iconOnly`, its accessible name and tooltip. */
   label?: string
+  /** An icon component, shown before the label, and alone with the tabs' `iconOnly`. */
+  icon?: Component
   disabled?: boolean
   /** Show a close button on this tab, overriding the tabs' `closable`. */
   closable?: boolean
@@ -62,7 +75,7 @@ export interface TabPanelProps {
 
 export interface TabPanelSlots {
   default?: () => unknown
-  /** Replaces the text of the tab, e.g. to add an icon or a count. */
+  /** Replaces the text of the tab, e.g. to add a count. Not shown with the tabs' `iconOnly`. */
   label?: (props: { selected: boolean }) => unknown
 }
 

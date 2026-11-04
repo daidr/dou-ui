@@ -16,7 +16,8 @@ export type WhiteboardUploaded = string | { src: string; alt?: string }
 
 /**
  * Called for each image whose upload threw or rejected, with what it threw
- * and the file. Giving it replaces the built-in error toast.
+ * and the file. Giving it replaces the built-in error toast, and the app
+ * then tells the user, screen readers included, in its own way.
  */
 export type WhiteboardUploadError = (error: unknown, file: File) => void
 
@@ -93,10 +94,11 @@ export async function insertImages(
           }
         } catch (error) {
           failed.push(file)
-          if (onUploadError) {
-            // the app shows it its own way; screen readers still hear it
-            ctx.announce(format(t.imageFailed, { name: file.name }))
-            onUploadError(error, file)
+          try {
+            onUploadError?.(error, file)
+          } catch (thrown) {
+            // the other images still go in
+            console.error(thrown)
           }
           return
         }
@@ -114,12 +116,14 @@ export async function insertImages(
   } finally {
     state.uploading.value -= files.length
   }
-  // one toast for the whole drop; it is an alert, so screen readers hear it too
+  // one toast for the whole drop; it is an alert, so screen readers hear it
+  // too. At the bottom, so it never covers the board's toolbar for a retry.
   if (failed.length && !onUploadError) {
     toast.danger(
       failed.length === 1
         ? format(t.imageFailed, { name: failed[0]!.name })
         : format(t.imagesFailed, { count: failed.length }),
+      { placement: 'bottom' },
     )
   }
   if (ids.length > 1) ctx.selection.value = { nodes: ids, edges: [] }

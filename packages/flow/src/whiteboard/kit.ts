@@ -155,7 +155,8 @@ export interface WhiteboardKitOptions {
   upload?: WhiteboardUpload
   /**
    * Called for each image whose `upload` failed, with the error and the
-   * file. Without it, a danger toast says which images were not added.
+   * file; the app then tells the user, screen readers included. Without
+   * it, a danger toast at the bottom says which images were not added.
    */
   onUploadError?: WhiteboardUploadError
 }

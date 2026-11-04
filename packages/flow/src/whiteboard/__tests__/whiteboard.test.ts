@@ -1194,7 +1194,12 @@ const dropFailing = async (names: string[], kit: Parameters<typeof whiteboardKit
   return { flow, root }
 }
 // the toast's own rendering is tested with the toast; here, what is shown
-const toasts = () => vi.mocked(toast.danger).mock.calls.map(([message]) => message)
+const toasts = () =>
+  vi.mocked(toast.danger).mock.calls.map(([message, options]) => {
+    // at the bottom, clear of the board's toolbar
+    expect(options).toEqual({ placement: 'bottom' })
+    return message
+  })
 
 describe('images', () => {
   afterEach(() => vi.unstubAllGlobals())
@@ -1337,7 +1342,30 @@ describe('images', () => {
     const [error, file] = onUploadError.mock.calls[0]!
     expect((error as Error).message).toBe('offline: a.png')
     expect((file as File).name).toBe('a.png')
-    expect(root.find('[aria-live]').text()).toContain('没能添加')
+    // the app tells the user, screen readers included
+    expect(root.find('[aria-live]').text()).not.toContain('没能添加')
+  })
+
+  it('keeps adding the other images when onUploadError throws', async () => {
+    vi.stubGlobal(
+      'Image',
+      class extends EventTarget {
+        naturalWidth = 640
+        naturalHeight = 480
+        set src(_: string) {
+          queueMicrotask(() => this.dispatchEvent(new Event('load')))
+        }
+      },
+    )
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const thrown = new Error('broken handler')
+    const { flow } = await dropFailing(['a.png', 'ok-1.png', 'ok-2.png'], {
+      onUploadError: () => {
+        throw thrown
+      },
+    })
+    expect(flow.value.nodes).toHaveLength(2)
+    expect(logged).toHaveBeenCalledWith(thrown)
   })
 
   it('lets insertImages take its own onUploadError', async () => {

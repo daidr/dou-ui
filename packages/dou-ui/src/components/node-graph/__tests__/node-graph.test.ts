@@ -6,9 +6,9 @@ import { DouNodeGraph, DouNodeGraphLegend } from '../../../index'
 import type { GraphEdge, GraphNode } from '../node-graph'
 
 const nodes: GraphNode[] = [
-  { id: 'a', label: '需求', status: 'finish' },
-  { id: 'b', label: '设计', status: 'process' },
-  { id: 'c', label: '开发', status: 'process', progress: 40 },
+  { id: 'a', label: '需求', status: 'done' },
+  { id: 'b', label: '设计', status: 'running' },
+  { id: 'c', label: '开发', status: 'running', progress: 40 },
   { id: 'd', label: '上线', kind: 'milestone', incomplete: true },
   { id: 'e', label: '旁支', disabled: true },
 ]
@@ -27,7 +27,7 @@ describe('DouNodeGraph', () => {
     const wrapper = mount(DouNodeGraph, { props: { nodes, edges } })
     expect(wrapper.findAll('.dou-node-graph__node')).toHaveLength(5)
     expect(wrapper.findAll('.dou-node-graph__edge')).toHaveLength(4)
-    expect(find(wrapper, '需求').classes()).toContain('is-finish')
+    expect(find(wrapper, '需求').classes()).toContain('is-done')
     expect(find(wrapper, '上线').classes()).toContain('is-milestone')
     expect(find(wrapper, '上线').find('.dou-node-graph__marker').exists()).toBe(true)
     expect(
@@ -77,11 +77,11 @@ describe('DouNodeGraph', () => {
     const wrapper = mount(DouNodeGraph, {
       props: { nodes, edges: [...edges, { from: 'b', to: 'c' }] },
     })
-    expect(find(wrapper, '开发').classes()).toContain('is-process')
+    expect(find(wrapper, '开发').classes()).toContain('is-running')
     await wrapper.setProps({ autoBlocked: true })
     // 设计 is still in progress
     expect(find(wrapper, '开发').classes()).toContain('is-blocked')
-    expect(find(wrapper, '设计').classes()).toContain('is-process')
+    expect(find(wrapper, '设计').classes()).toContain('is-running')
   })
 
   it('selects one node, or several, but not a disabled one', async () => {

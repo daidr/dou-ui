@@ -14,7 +14,7 @@ NodeGraph 只用来展示。需要拖动节点、连线编辑时，用[流程编
 
 ## 状态与类型
 
-`status` 有五种：`wait` 未开始、`process` 进行中、`finish` 已完成、`error` 出错、`blocked` 依赖项未完成。未开始的节点标题会变淡。
+`status` 有五种：`pending` 未开始、`running` 进行中、`done` 已完成、`error` 出错、`blocked` 依赖项未完成。未开始的节点标题会变淡。
 
 `kind: 'milestone'` 把状态点换成旗帜，表示里程碑。`incomplete` 在节点右端加一个标记，表示还有未完成的子任务。
 
@@ -120,7 +120,7 @@ NodeGraph 只用来展示。需要拖动节点、连线编辑时，用[流程编
 | `id`              | 唯一标识                   | `string`                                                       |
 | `label`           | 标题                       | `string`                                                       |
 | `kind`            | 类型                       | `'task' \| 'milestone'`                                        |
-| `status`          | 状态，默认 `wait`          | `'wait' \| 'process' \| 'finish' \| 'error' \| 'blocked'`      |
+| `status`          | 状态，默认 `pending`       | `'pending' \| 'running' \| 'done' \| 'error' \| 'blocked'`     |
 | `icon`            | 标题前的图标               | `Component`                                                    |
 | `extra`           | 标题后的附加信息           | `string \| number`                                             |
 | `description`     | 第二行说明，节点会变成卡片 | `string`                                                       |

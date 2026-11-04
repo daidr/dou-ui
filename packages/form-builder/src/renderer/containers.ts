@@ -285,7 +285,7 @@ export function stepsView(
       h(DouSteps, {
         items,
         current: index,
-        status: failed.value ? 'error' : 'process',
+        status: failed.value ? 'error' : 'running',
         clickable: true,
         'onUpdate:current': (at: number) => {
           if (at <= reached.value) go(at)

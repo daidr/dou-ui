@@ -61,7 +61,7 @@ function restart() {
       :direction="screen.sm ? 'horizontal' : 'vertical'"
       v-model:current="current"
       :items="items"
-      :status="done ? 'finish' : undefined"
+      :status="done ? 'done' : undefined"
       :clickable="!done"
     />
 

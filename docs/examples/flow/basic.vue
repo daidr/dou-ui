@@ -20,7 +20,7 @@ const doc = ref({
       data: {
         label: '检索笔记',
         icon: markRaw(DatabaseSearchIcon),
-        status: 'finish',
+        status: 'done',
         description: '在读书笔记里查找相关段落',
         inputs: [{ id: 'query', label: '问题' }],
         outputs: [{ id: 'docs', label: '笔记片段' }],
@@ -33,7 +33,7 @@ const doc = ref({
       data: {
         label: '生成回答',
         icon: markRaw(SparkleIcon),
-        status: 'process',
+        status: 'running',
         inputs: [
           { id: 'question', label: '问题' },
           { id: 'context', label: '参考资料' },

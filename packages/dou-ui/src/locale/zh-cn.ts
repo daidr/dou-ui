@@ -141,17 +141,17 @@ export const zhCN: Locale = {
     empty: '没有匹配的结果',
   },
   steps: {
-    finish: '已完成',
-    process: '进行中',
-    wait: '未开始',
+    done: '已完成',
+    running: '进行中',
+    pending: '未开始',
     error: '出错',
   },
   nodeGraph: {
     label: '节点图',
     status: {
-      wait: '未开始',
-      process: '进行中',
-      finish: '已完成',
+      pending: '未开始',
+      running: '进行中',
+      done: '已完成',
       error: '出错',
       blocked: '依赖项未完成',
     },

@@ -30,8 +30,8 @@ describe('DouSteps', () => {
     const wrapper = mount(DouSteps, { props: { items, current: 1 } })
     const steps = wrapper.findAll('li')
     expect(
-      steps.map((step) => step.classes().find((c) => /^is-(wait|process|finish|error)$/.test(c))),
-    ).toEqual(['is-finish', 'is-process', 'is-wait', 'is-wait'])
+      steps.map((step) => step.classes().find((c) => /^is-(pending|running|done|error)$/.test(c))),
+    ).toEqual(['is-done', 'is-running', 'is-pending', 'is-pending'])
     expect(steps[1]!.attributes('aria-current')).toBe('step')
     expect(steps[0]!.attributes('aria-current')).toBeUndefined()
     expect(wrapper.findAll('.dou-steps__line')).toHaveLength(3)

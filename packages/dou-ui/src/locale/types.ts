@@ -234,11 +234,11 @@ export interface Locale {
   }
   steps: {
     /** Read after the title of a step that is done. */
-    finish: string
+    done: string
     /** Read after the title of the current step. */
-    process: string
+    running: string
     /** Read after the title of a step not reached yet. */
-    wait: string
+    pending: string
     /** Read after the title of a step that failed. */
     error: string
   }
@@ -246,9 +246,9 @@ export interface Locale {
     /** Names the graph when nothing else labels it. */
     label: string
     status: {
-      wait: string
-      process: string
-      finish: string
+      pending: string
+      running: string
+      done: string
       error: string
       /** In progress while something it depends on is not finished. */
       blocked: string

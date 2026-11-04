@@ -141,17 +141,17 @@ export const zhTW: Locale = {
     empty: '沒有符合的結果',
   },
   steps: {
-    finish: '已完成',
-    process: '進行中',
-    wait: '未開始',
+    done: '已完成',
+    running: '進行中',
+    pending: '未開始',
     error: '出錯',
   },
   nodeGraph: {
     label: '節點圖',
     status: {
-      wait: '未開始',
-      process: '進行中',
-      finish: '已完成',
+      pending: '未開始',
+      running: '進行中',
+      done: '已完成',
       error: '出錯',
       blocked: '依賴項未完成',
     },

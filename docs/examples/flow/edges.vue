@@ -27,7 +27,7 @@ const doc = ref<FlowDocument>({
       data: {
         label: '识别文字',
         icon: markRaw(TextSearchIcon),
-        status: 'process',
+        status: 'running',
         inputs: [{ id: 'in' }],
         outputs: [
           { id: 'clear', label: '清晰' },

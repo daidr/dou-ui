@@ -159,12 +159,12 @@
     background-color: var(--dou-steps-line);
   }
 
-  .dou-steps__item.is-finish .dou-steps__line {
+  .dou-steps__item.is-done .dou-steps__line {
     background-color: var(--dou-steps-line-done);
   }
 
   /* finished: outlined check */
-  .dou-steps__item.is-finish {
+  .dou-steps__item.is-done {
     & .dou-steps__marker {
       border-color: var(--dou-steps-line-done);
       color: var(--dou-color-text);
@@ -175,7 +175,7 @@
   }
 
   /* current: the one solid marker */
-  .dou-steps__item.is-process {
+  .dou-steps__item.is-running {
     & .dou-steps__marker {
       border-color: color-mix(in oklab, var(--dou-color-neutral) 80%, var(--dou-color-edge));
       background-color: var(--dou-color-neutral);

@@ -7,11 +7,11 @@ const directions = [
   { value: 'horizontal', label: '从左到右' },
 ]
 const nodes = [
-  { id: 'pull', label: '拉取代码', status: 'finish' },
-  { id: 'install', label: '安装依赖', status: 'finish' },
-  { id: 'test', label: '单元测试', status: 'process' },
-  { id: 'types', label: '类型检查', status: 'finish' },
-  { id: 'build', label: '构建', status: 'process', extra: '3 分钟' },
+  { id: 'pull', label: '拉取代码', status: 'done' },
+  { id: 'install', label: '安装依赖', status: 'done' },
+  { id: 'test', label: '单元测试', status: 'running' },
+  { id: 'types', label: '类型检查', status: 'done' },
+  { id: 'build', label: '构建', status: 'running', extra: '3 分钟' },
   { id: 'image', label: '打包镜像' },
   { id: 'sh', label: '部署上海' },
   { id: 'bj', label: '部署北京' },

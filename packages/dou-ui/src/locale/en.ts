@@ -141,17 +141,17 @@ export const en: Locale = {
     empty: 'No results',
   },
   steps: {
-    finish: 'completed',
-    process: 'current',
-    wait: 'not started',
+    done: 'completed',
+    running: 'current',
+    pending: 'not started',
     error: 'failed',
   },
   nodeGraph: {
     label: 'Node graph',
     status: {
-      wait: 'Not started',
-      process: 'In progress',
-      finish: 'Completed',
+      pending: 'Not started',
+      running: 'In progress',
+      done: 'Completed',
       error: 'Failed',
       blocked: 'Waiting on dependencies',
     },

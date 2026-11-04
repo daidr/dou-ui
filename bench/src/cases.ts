@@ -1666,7 +1666,7 @@ function flowEditor(n: number, zoom = 1) {
     })
 }
 
-const statuses = ['finish', 'finish', 'process', 'wait', 'wait', 'error'] as const
+const statuses = ['done', 'done', 'running', 'pending', 'pending', 'error'] as const
 
 function nodeGraphData(n: number) {
   const perColumn = 20

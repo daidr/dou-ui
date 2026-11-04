@@ -21,17 +21,17 @@ const nodes = [
     id: 'review',
     label: '需求评审',
     icon: ClipboardCheckIcon,
-    status: 'finish',
+    status: 'done',
     description: '12 条需求已排期',
   },
-  { id: 'design', label: '交互设计', icon: PaletteIcon, extra: '24 页', status: 'finish' },
-  { id: 'api', label: '接口开发', icon: ServerIcon, extra: '3 天', status: 'finish' },
+  { id: 'design', label: '交互设计', icon: PaletteIcon, extra: '24 页', status: 'done' },
+  { id: 'api', label: '接口开发', icon: ServerIcon, extra: '3 天', status: 'done' },
   {
     id: 'ios',
     label: 'iOS 开发',
     icon: SmartphoneIcon,
     extra: '18/20',
-    status: 'process',
+    status: 'running',
     progress: 90,
   },
   {
@@ -39,17 +39,17 @@ const nodes = [
     label: 'Android 开发',
     icon: SmartphoneIcon,
     extra: '13/20',
-    status: 'process',
+    status: 'running',
     progress: 65,
   },
   {
     id: 'copy',
     label: '文案翻译',
     icon: FileTextIcon,
-    status: 'process',
+    status: 'running',
     incomplete: true,
   },
-  { id: 'integrate', label: '前后端联调', icon: GitMergeIcon, status: 'process' },
+  { id: 'integrate', label: '前后端联调', icon: GitMergeIcon, status: 'running' },
   {
     id: 'test',
     label: '回归测试',
@@ -63,11 +63,11 @@ const nodes = [
     id: 'security',
     label: '安全审计',
     icon: ShieldCheckIcon,
-    status: 'finish',
+    status: 'done',
     description: '无高危问题',
     descriptionTone: 'success',
   },
-  { id: 'assets', label: '商店素材', icon: LayersIcon, status: 'wait', comments: 2 },
+  { id: 'assets', label: '商店素材', icon: LayersIcon, status: 'pending', comments: 2 },
   { id: 'store', label: '提交商店审核', icon: StoreIcon },
   { id: 'gray', label: '灰度 10%', icon: RouteIcon },
   { id: 'launch', label: '全量上线', icon: RocketIcon, kind: 'milestone' },
@@ -120,13 +120,13 @@ const owners = {
   launch: '戴兜',
 }
 const statusText = {
-  wait: '未开始',
-  process: '进行中',
-  finish: '已完成',
+  pending: '未开始',
+  running: '进行中',
+  done: '已完成',
   error: '出错',
   blocked: '依赖项未完成',
 }
-const statusTone = { finish: 'success', process: 'primary', error: 'danger', blocked: 'warning' }
+const statusTone = { done: 'success', running: 'primary', error: 'danger', blocked: 'warning' }
 
 const selected = ref(['test'])
 const hovered = ref(null)

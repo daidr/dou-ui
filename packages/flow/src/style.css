@@ -18,9 +18,9 @@
     --dou-flow-editor-selected: var(--dou-color-primary);
     --dou-flow-editor-guide: var(--dou-color-primary);
     --dou-flow-editor-port: var(--dou-color-text-tertiary);
-    --dou-flow-editor-status-wait: var(--dou-color-text-disabled);
-    --dou-flow-editor-status-process: var(--dou-color-warning);
-    --dou-flow-editor-status-finish: var(--dou-color-success);
+    --dou-flow-editor-status-pending: var(--dou-color-text-disabled);
+    --dou-flow-editor-status-running: var(--dou-color-warning);
+    --dou-flow-editor-status-done: var(--dou-color-success);
     --dou-flow-editor-status-error: var(--dou-color-danger);
 
     position: relative;
@@ -823,13 +823,13 @@
     width: 8px;
     height: 8px;
     border-radius: var(--dou-radius-full);
-    background-color: var(--dou-flow-editor-status-wait);
+    background-color: var(--dou-flow-editor-status-pending);
 
-    &.is-process {
-      background-color: var(--dou-flow-editor-status-process);
+    &.is-running {
+      background-color: var(--dou-flow-editor-status-running);
     }
-    &.is-finish {
-      background-color: var(--dou-flow-editor-status-finish);
+    &.is-done {
+      background-color: var(--dou-flow-editor-status-done);
     }
     &.is-error {
       background-color: var(--dou-flow-editor-status-error);

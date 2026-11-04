@@ -40,7 +40,7 @@
 </DouLayout>
 ```
 
-主区的内边距来自 CSS 变量 `--dou-layout-main-padding`（默认 24px），顶栏与页脚的左右内边距来自 `--dou-layout-padding-x`（默认 20px）。侧栏正文和底部的内边距来自 `--dou-layout-aside-padding`（默认 8px）。侧栏里放一棵贴边的树或菜单时，可以把它设为 0：
+内边距来自三个 CSS 变量：主区是 `--dou-layout-main-padding`（默认 24px），顶栏与页脚的左右内边距是 `--dou-layout-padding-x`（默认 20px），侧栏正文和底部是 `--dou-layout-aside-padding`（默认 8px）。和其他组件变量一样，默认值写在各自的元素上，覆盖时要设在 `.dou-layout-main`、`.dou-layout-header` / `.dou-layout-footer`、`.dou-layout-aside` 这些类上，设在 `:root` 上不会生效。侧栏里放一棵贴边的树或菜单时，可以把侧栏的内边距设为 0：
 
 ```css
 .dou-layout-aside,

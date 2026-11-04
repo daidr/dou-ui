@@ -24,12 +24,13 @@
 
   .dou-layout-header,
   .dou-layout-footer {
+    --dou-layout-padding-x: 20px;
     display: flex;
     flex-shrink: 0;
     align-items: center;
     gap: var(--dou-space-md);
     box-sizing: border-box;
-    padding: 0 var(--dou-layout-padding-x, 20px);
+    padding: 0 var(--dou-layout-padding-x);
     background-color: var(--dou-color-bg-canvas);
   }
 
@@ -182,9 +183,10 @@
   }
 
   .dou-layout-main {
+    --dou-layout-main-padding: 24px;
     flex: 1 1 auto;
     box-sizing: border-box;
     min-width: 0;
-    padding: var(--dou-layout-main-padding, 24px);
+    padding: var(--dou-layout-main-padding);
   }
 }

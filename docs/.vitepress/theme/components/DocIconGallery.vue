@@ -127,7 +127,7 @@ function svgSource() {
         <div class="icon-detail__sizes">
           <component :is="iconOf(active)" v-for="n in [16, 24, 32, 48]" :key="n" :size="n" />
         </div>
-        <DouDescriptions :columns="1" layout="horizontal" label-width="72px" bordered>
+        <DouDescriptions :columns="1" layout="horizontal" label-width="72px" variant="table">
           <DouDescriptionsItem label="名称">{{ active.name }}</DouDescriptionsItem>
           <DouDescriptionsItem label="标签">{{ active.label }}</DouDescriptionsItem>
           <DouDescriptionsItem label="分类">

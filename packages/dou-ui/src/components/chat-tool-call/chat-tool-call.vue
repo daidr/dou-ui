@@ -4,10 +4,12 @@ import {
   CheckCircleIcon,
   ChevronDownIcon,
   ClockIcon,
+  ClockPauseIcon,
   WrenchIcon,
 } from '@dou-ui/icons'
-import { computed, ref, useId } from 'vue'
+import { computed, ref, useId, watchEffect } from 'vue'
 import { useNamespace } from '../../utils/namespace'
+import { useStatusCheck, devWarn } from '../../utils/status-check'
 import { CollapseTransition } from '../collapse/collapse-transition'
 import { useLocale } from '../config-provider/use-config'
 import DouSpinner from '../spinner/spinner.vue'
@@ -17,7 +19,7 @@ import type { ChatToolCallEmits, ChatToolCallProps, ChatToolCallSlots } from './
 defineOptions({ name: 'DouChatToolCall' })
 
 const props = withDefaults(defineProps<ChatToolCallProps>(), {
-  status: 'success',
+  status: 'done',
   open: undefined,
 })
 const emit = defineEmits<ChatToolCallEmits>()
@@ -38,12 +40,33 @@ const hasInput = computed(() => !!slots.input || props.input !== undefined)
 const hasOutput = computed(() => !!slots.output || props.output !== undefined)
 const expandable = computed(() => hasInput.value || hasOutput.value || !!slots.default)
 
+useStatusCheck(
+  'DouChatToolCall',
+  () => [props.status],
+  ['pending', 'running', 'waiting', 'done', 'error'],
+  {
+    success: 'done',
+  },
+)
+
+// `pending` used to mean waiting for approval; with allow buttons it almost
+// certainly still does, which types can't catch.
+if (process.env.NODE_ENV !== 'production') {
+  watchEffect(() => {
+    if (props.status !== 'pending' || !slots.actions) return
+    devWarn(
+      '[dou-ui] DouChatToolCall: `pending` now means not started; use `waiting` for a call that waits for approval.',
+    )
+  })
+}
+
 const statusText = computed(
   () =>
     ({
       pending: t('chat.toolPending'),
       running: t('chat.toolRunning'),
-      success: t('chat.toolSuccess'),
+      waiting: t('chat.toolWaiting'),
+      done: t('chat.toolDone'),
       error: t('chat.toolError'),
     })[props.status],
 )
@@ -72,7 +95,8 @@ const statusText = computed(
       <span :class="ns.e('status')">
         <DouSpinner v-if="status === 'running'" size="sm" aria-hidden="true" />
         <ClockIcon v-else-if="status === 'pending'" aria-hidden="true" />
-        <CheckCircleIcon v-else-if="status === 'success'" aria-hidden="true" />
+        <ClockPauseIcon v-else-if="status === 'waiting'" aria-hidden="true" />
+        <CheckCircleIcon v-else-if="status === 'done'" aria-hidden="true" />
         <AlertCircleIcon v-else aria-hidden="true" />
         <span :class="ns.e('status-text')">{{ statusText }}</span>
       </span>

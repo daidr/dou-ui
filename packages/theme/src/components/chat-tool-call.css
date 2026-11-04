@@ -18,10 +18,10 @@
     line-height: 20px;
   }
 
-  .dou-chat-tool-call--pending {
+  .dou-chat-tool-call--waiting {
     --dou-chat-tool-call-status: var(--dou-color-warning-text);
   }
-  .dou-chat-tool-call--success {
+  .dou-chat-tool-call--done {
     --dou-chat-tool-call-status: var(--dou-color-success-text);
   }
   .dou-chat-tool-call--error {

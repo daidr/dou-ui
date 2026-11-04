@@ -15,7 +15,7 @@
     font-size: var(--dou-font-size-sm);
     line-height: 20px;
 
-    &.is-pending {
+    &.is-waiting {
       border-color: var(--dou-color-border-strong);
       box-shadow: var(--dou-shadow-sm);
     }
@@ -76,7 +76,7 @@
   .dou-chat-confirm__detail {
     padding: 0 12px 12px 38px;
 
-    .dou-chat-confirm:not(.is-pending) & {
+    .dou-chat-confirm:not(.is-waiting) & {
       display: none;
     }
   }

@@ -24,7 +24,7 @@
 | ------------- | --------------------------------------- | ------------------------------------- | ----------- |
 | `title`       | 要确认的事                              | `string`                              | —           |
 | `description` | 补充说明                                | `string`                              | —           |
-| `status`      | 状态                                    | `'pending' \| 'approved' \| 'denied'` | `'pending'` |
+| `status`      | 状态，`waiting` 表示等待用户回答        | `'waiting' \| 'approved' \| 'denied'` | `'waiting'` |
 | `allowAlways` | 显示“总是允许”按钮                      | `boolean`                             | `false`     |
 | `tone`        | 图标颜色；`danger` 时允许按钮也是危险色 | `'neutral' \| 'warning' \| 'danger'`  | `'neutral'` |
 | `approveText` | 允许按钮的文字                          | `string`                              | `允许`      |

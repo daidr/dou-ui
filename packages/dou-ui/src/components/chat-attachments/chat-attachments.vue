@@ -12,6 +12,7 @@ import {
 } from '@dou-ui/icons'
 import type { Component } from 'vue'
 import { useNamespace } from '../../utils/namespace'
+import { useStatusCheck } from '../../utils/status-check'
 import { useLocale } from '../config-provider/use-config'
 import { formatFileSize } from '../upload/upload'
 import { attachmentKind, fileExtension } from './chat-attachments'
@@ -46,10 +47,17 @@ const icons: Record<ChatAttachmentKind, Component> = {
   file: FileIcon,
 }
 
+useStatusCheck(
+  'DouChatAttachments',
+  () => (props.modelValue ?? []).map((file) => file.status),
+  ['running', 'done', 'error'],
+  { uploading: 'running', success: 'done' },
+)
+
 const isThumb = (file: ChatAttachment) => !!file.url && attachmentKind(file) === 'image'
 
 function detail(file: ChatAttachment) {
-  if (file.status === 'uploading') return `${t('chat.uploading')} ${Math.round(file.percent ?? 0)}%`
+  if (file.status === 'running') return `${t('chat.uploading')} ${Math.round(file.percent ?? 0)}%`
   if (file.status === 'error') return t('chat.uploadError')
   return [fileExtension(file.name), file.size === undefined ? '' : formatFileSize(file.size)]
     .filter(Boolean)
@@ -91,7 +99,7 @@ function remove(file: ChatAttachment) {
             </span>
           </template>
           <span
-            v-if="file.status === 'uploading'"
+            v-if="file.status === 'running'"
             :class="ns.e('progress')"
             role="progressbar"
             :aria-label="file.name"

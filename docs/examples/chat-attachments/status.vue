@@ -2,7 +2,7 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 
 const files = ref([
-  { uid: '1', name: '会议录音.m4a', size: 18_400_000, status: 'uploading', percent: 0 },
+  { uid: '1', name: '会议录音.m4a', size: 18_400_000, status: 'running', percent: 0 },
   { uid: '2', name: '原始数据.zip', size: 52_000_000, status: 'error' },
 ])
 

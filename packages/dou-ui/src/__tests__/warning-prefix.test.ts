@@ -9,8 +9,11 @@ const PREFIX = /['"`]\[(@?dou-ui[^\]\s'"`]*|Dou[A-Za-z]*)\]/g
 const SCOPE = /\bscope: ['"`](@?dou-ui[^'"`]*)['"`]/g
 // Chinese, Japanese or Korean text
 const CJK = /[\u3000-\u9fff\uac00-\ud7af\uff00-\uffef]/
-// Where a message for the developer starts: a new error (thrown, rejected or kept) or a console warning.
-const MESSAGE = /(?:console\.(?:warn|error)|\bnew (\w*Error))\(\s*/g
+// Where a message for the developer starts: a new error (thrown, rejected or kept), a console warning,
+// or `devWarn`, which hands its message to the console.
+const MESSAGE = /(?:console\.(?:warn|error)|(?<!function )\bdevWarn|\bnew (\w*Error))\(\s*/g
+// `devWarn` passes on the message it was given, which the checks above already read.
+const FORWARD = { file: 'dou-ui/src/utils/status-check.ts', arg: 'message)' }
 /**
  * Errors whose text is shown to the people using the app (a formula or an
  * expression they typed), not to the developer, so they carry no package name.
@@ -81,8 +84,11 @@ describe('dev warning prefixes', () => {
     for (const { files } of packages) {
       for (const file of files) {
         const text = readFileSync(file, 'utf8')
-        for (const match of text.matchAll(/console\.(?:warn|error)\(\s*/g)) {
+        for (const match of text.matchAll(
+          /(?:console\.(?:warn|error)|(?<!function )\bdevWarn)\(\s*/g,
+        )) {
           const rest = text.slice(match.index + match[0].length)
+          if (relative(root, file) === FORWARD.file && rest.startsWith(FORWARD.arg)) continue
           if (!/^['"`]/.test(rest) && !/^(?:PREFIX|prefix\()/.test(rest))
             bare.push(`${relative(root, file)}:${lineOf(text, match.index)}`)
         }

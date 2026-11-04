@@ -5,6 +5,7 @@
     :output="{ weather: '多云', high: 24, low: 18, wind: '东北风 2 级' }"
   />
   <DouChatToolCall title="正在搜索：上海 滨江 骑行路线" status="running" />
+  <DouChatToolCall name="read_file" status="pending" :input="{ path: 'notes/上次骑行记录.gpx' }" />
   <DouChatToolCall
     name="read_file"
     status="error"

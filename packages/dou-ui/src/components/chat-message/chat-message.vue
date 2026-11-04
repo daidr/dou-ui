@@ -89,7 +89,9 @@ const busy = computed(
     props.loading ||
     parts.value.some((part) => {
       const p = part as Record<string, unknown>
-      return !!p.streaming || !!p.thinking || !!p.running || p.status === 'running'
+      // an artifact can keep being made after the reply ends, so it doesn't hold the actions back
+      const working = p.status === 'running' && p.type !== 'artifact'
+      return !!p.streaming || !!p.thinking || !!p.running || working
     }),
 )
 

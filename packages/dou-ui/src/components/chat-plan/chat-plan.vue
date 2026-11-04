@@ -12,6 +12,7 @@ defineOptions({ name: 'DouChatPlan' })
 
 const props = withDefaults(defineProps<ChatPlanProps>(), {
   items: () => [],
+  collapsible: true,
   open: undefined,
 })
 const emit = defineEmits<ChatPlanEmits>()
@@ -22,7 +23,7 @@ const { t } = useLocale()
 const id = useId()
 
 const inner = ref(true)
-const open = computed(() => props.open ?? inner.value)
+const open = computed(() => !props.collapsible || (props.open ?? inner.value))
 function toggle() {
   inner.value = !open.value
   emit('update:open', inner.value)
@@ -35,9 +36,17 @@ const running = computed(() => props.items.some((item) => item.status === 'runni
 </script>
 
 <template>
-  <div :class="[ns.b(), ns.is('open', open), ns.is('running', running)]">
+  <div
+    :class="[
+      ns.b(),
+      ns.is('collapsible', collapsible),
+      ns.is('open', open),
+      ns.is('running', running),
+    ]"
+  >
     <button
-      :id="`${id}-trigger`"
+      v-if="collapsible"
+      :id="`${id}-header`"
       type="button"
       :class="ns.e('header')"
       :aria-expanded="open"
@@ -49,13 +58,18 @@ const running = computed(() => props.items.some((item) => item.status === 'runni
       <span :class="ns.e('count')">{{ finished }} / {{ items.length }}</span>
       <ChevronDownIcon :class="ns.e('arrow')" />
     </button>
+    <div v-else :id="`${id}-header`" :class="ns.e('header')">
+      <ListChecksIcon :class="ns.e('icon')" />
+      <span :class="ns.e('title')">{{ title ?? t('chat.plan') }}</span>
+      <span :class="ns.e('count')">{{ finished }} / {{ items.length }}</span>
+    </div>
     <CollapseTransition>
       <div
         v-show="open"
         :id="`${id}-panel`"
         role="region"
         :class="ns.e('panel')"
-        :aria-labelledby="`${id}-trigger`"
+        :aria-labelledby="`${id}-header`"
       >
         <ol :class="ns.e('list')">
           <li

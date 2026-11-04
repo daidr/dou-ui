@@ -3,7 +3,8 @@
  *
  * The steps a model means to take, as a framed checklist. The header
  * counts what is finished; the running step shimmers, finished ones are
- * ticked and step back in color.
+ * ticked and step back in color. Without `collapsible` the header is
+ * plain text and the list always shows.
  */
 @layer dou.components {
   .dou-chat-plan {
@@ -29,9 +30,12 @@
     color: inherit;
     font: inherit;
     text-align: left;
-    cursor: pointer;
 
-    &:hover {
+    .dou-chat-plan.is-collapsible & {
+      cursor: pointer;
+    }
+
+    .dou-chat-plan.is-collapsible &:hover {
       background-color: color-mix(in oklab, var(--dou-color-text) 3%, transparent);
     }
 

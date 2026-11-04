@@ -28,4 +28,24 @@ describe('DouChatPlan', () => {
     expect(header.attributes('aria-expanded')).toBe('false')
     expect(wrapper.emitted('update:open')).toEqual([[false]])
   })
+  it('renders a plain panel when not collapsible', async () => {
+    const wrapper = mount(DouChatPlan, {
+      props: { items, collapsible: false, open: false },
+    })
+    expect(wrapper.classes()).toContain('is-open')
+    expect(wrapper.classes()).not.toContain('is-collapsible')
+    const header = wrapper.get('.dou-chat-plan__header')
+    expect(header.element.tagName).toBe('DIV')
+    expect(header.attributes('aria-expanded')).toBeUndefined()
+    expect(wrapper.find('.dou-chat-plan__arrow').exists()).toBe(false)
+    expect(wrapper.get('.dou-chat-plan__count').text()).toBe('2 / 4')
+    expect(wrapper.get('.dou-chat-plan__panel').attributes('style') ?? '').not.toContain(
+      'display: none',
+    )
+    expect(wrapper.get('.dou-chat-plan__panel').attributes('aria-labelledby')).toBe(
+      header.attributes('id'),
+    )
+    await header.trigger('click')
+    expect(wrapper.emitted('update:open')).toBeUndefined()
+  })
 })

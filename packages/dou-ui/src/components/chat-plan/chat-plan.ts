@@ -14,7 +14,9 @@ export interface ChatPlanProps {
   items?: ChatPlanItem[]
   /** Defaults to the locale's "Plan". */
   title?: string
-  /** Expanded or not. Bound with `v-model:open`; open by default. */
+  /** Let the header fold the list away. Off gives a plain panel that always shows the steps. */
+  collapsible?: boolean
+  /** Expanded or not. Bound with `v-model:open`; open by default. Ignored when not `collapsible`. */
   open?: boolean
 }
 

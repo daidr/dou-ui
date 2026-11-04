@@ -56,4 +56,29 @@ describe('flatten', () => {
     ]
     expect(outline(flatten(options))).toEqual(['高级[缓存]'])
   })
+  it('puts loose items before groups at the top level too', () => {
+    const options: MenuOption[] = [
+      { key: 'general', label: '常规' },
+      {
+        key: 'advanced',
+        label: '高级',
+        children: [
+          { key: 'cache', label: '缓存' },
+          { key: 'logs', label: '日志' },
+        ],
+      },
+      { key: 'about', label: '关于' },
+      { type: 'group', label: '人员', children: [{ key: 'members', label: '成员' }] },
+      { type: 'divider' },
+      { key: 'billing', label: '账单' },
+    ]
+    expect(outline(flatten(options))).toEqual([
+      '常规',
+      '关于',
+      '|',
+      '账单',
+      '高级[缓存,日志]',
+      '人员[成员]',
+    ])
+  })
 })

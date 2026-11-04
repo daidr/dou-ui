@@ -106,9 +106,9 @@ export type FlatEntry = FlatRow | { kind: 'group'; label: string; rows: FlatRow[
 
 /**
  * Lay a submenu out as one list for a popup: groups and deeper submenus
- * become titled groups, one level deep. A group's own items come first,
- * in order, and its deeper groups after them, so every item sits under
- * the heading it belongs to.
+ * become titled groups, one level deep. On every level the loose items
+ * come first, in order, and the groups after them, so every item sits
+ * under the heading it belongs to, or under none.
  */
 export function flatten(options: MenuOption[]): FlatEntry[] {
   const entries: FlatEntry[] = []
@@ -116,13 +116,15 @@ export function flatten(options: MenuOption[]): FlatEntry[] {
     if (isDivider(option)) entries.push({ kind: 'divider' })
     else if (isGroup(option) || option.children?.length) {
       const inner = flatten(option.children!)
-      const rows = trimDividers(inner.filter((entry): entry is FlatRow => entry.kind !== 'group'))
+      const rows = inner.filter((entry): entry is FlatRow => entry.kind !== 'group')
       // a group that only holds deeper ones gets no heading of its own
       if (rows.length) entries.push({ kind: 'group', label: option.label, rows })
       entries.push(...inner.filter((entry) => entry.kind === 'group'))
     } else entries.push({ kind: 'item', item: option })
   }
-  return entries
+  // loose items first at every level, the root of the popup too: one after a group would look like it is in it
+  const rows = trimDividers(entries.filter((entry): entry is FlatRow => entry.kind !== 'group'))
+  return [...rows, ...entries.filter((entry) => entry.kind === 'group')]
 }
 
 /** Without separators at the ends or two in a row, which moving groups out can leave. */

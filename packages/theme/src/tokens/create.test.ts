@@ -25,9 +25,10 @@ describe('createTheme', () => {
       for (const theme of [themes.light, themes.dark]) {
         const { primary, bg, focus } = theme.color
         expect(contrastRatio(primary.on, primary.DEFAULT)).toBeGreaterThanOrEqual(4.5)
-        for (const surface of [bg.canvas, bg.surface, bg.muted]) {
+        for (const surface of [bg.canvas, bg.surface, bg.muted, primary.soft]) {
           expect(contrastRatio(primary.text, surface)).toBeGreaterThanOrEqual(4.5)
         }
+        expect(primary.soft).toBe(mixColors(primary.DEFAULT, bg.surface, 0.07))
         expect(contrastRatio(focus, bg.canvas)).toBeGreaterThanOrEqual(3)
       }
     }
@@ -35,7 +36,7 @@ describe('createTheme', () => {
 
   it('keeps the seed color when it already works', () => {
     const { light: theme } = createTheme({ primary: '#3f56b5' })
-    expect(theme.color.primary).toEqual({ DEFAULT: '#3f56b5', on: '#ffffff', text: '#3f56b5' })
+    expect(theme.color.primary).toEqual(light.color.primary)
   })
 
   it('lightens the text tone on dark backgrounds', () => {
@@ -53,6 +54,18 @@ describe('createTheme', () => {
     expect(themes.light.color.danger.DEFAULT).toBe('#e11d48')
   })
 
+  it('tints soft tones over the base surface', () => {
+    const base = {
+      ...light,
+      color: { ...light.color, bg: { ...light.color.bg, surface: '#f7f5ef' } },
+    }
+    const theme = createTheme({ primary: '#7c3aed' }, { light: base }).light
+    for (const name of ['neutral', 'primary', 'success', 'warning', 'danger'] as const) {
+      const tone = theme.color[name]
+      expect(tone.soft).toBe(mixColors(tone.DEFAULT, '#f7f5ef', 0.07))
+    }
+  })
+
   it('starts from a custom base', () => {
     const base = { ...light, radius: { ...light.radius, control: '999px' } }
     expect(createTheme({ primary: '#7c3aed' }, { light: base }).light.radius.control).toBe('999px')
@@ -62,6 +75,30 @@ describe('createTheme', () => {
     expect(parseColor('#fff')).toEqual([1, 1, 1])
     expect(parseColor('rgb(255 0 0)')).toEqual([1, 0, 0])
     expect(() => parseColor('red')).toThrow('unsupported color')
+  })
+})
+
+describe('soft tones', () => {
+  const tones = ['neutral', 'primary', 'success', 'warning', 'danger'] as const
+
+  it('are the tone mixed 7% into the surface in both built-in themes', () => {
+    for (const theme of [light, dark]) {
+      for (const name of tones) {
+        const tone = theme.color[name]
+        expect(tone.soft).toBe(mixColors(tone.DEFAULT, theme.color.bg.surface, 0.07))
+      }
+    }
+  })
+
+  it('keep toned text and body text readable on them', () => {
+    for (const theme of [light, dark]) {
+      for (const name of tones) {
+        const tone = theme.color[name]
+        expect(contrastRatio(tone.text, tone.soft)).toBeGreaterThanOrEqual(4.5)
+        expect(contrastRatio(theme.color.text.DEFAULT, tone.soft)).toBeGreaterThanOrEqual(4.5)
+        expect(contrastRatio(theme.color.text.secondary, tone.soft)).toBeGreaterThanOrEqual(4.5)
+      }
+    }
   })
 })
 

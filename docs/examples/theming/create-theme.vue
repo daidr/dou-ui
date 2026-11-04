@@ -23,7 +23,7 @@ const checked = ref(true)
     <DouSpace>
       <DouColorPicker v-model="brand" />
       <DouText variant="secondary" mono>
-        DEFAULT {{ tone.DEFAULT }} · on {{ tone.on }} · text {{ tone.text }}
+        DEFAULT {{ tone.DEFAULT }} · on {{ tone.on }} · text {{ tone.text }} · soft {{ tone.soft }}
       </DouText>
     </DouSpace>
     <div :style="vars" style="display: grid; gap: 12px">
@@ -36,6 +36,16 @@ const checked = ref(true)
         <DouSwitch v-model="checked" />
         <DouCheckbox v-model="checked">同步到团队</DouCheckbox>
       </DouSpace>
+      <div
+        style="
+          padding: 8px 12px;
+          border-radius: var(--dou-radius-control);
+          background: var(--dou-color-primary-soft);
+          color: var(--dou-color-primary-text);
+        "
+      >
+        等你确认：上海门店的周报
+      </div>
       <DouProgress :value="64" tone="primary" show-value />
     </div>
   </div>

@@ -177,7 +177,7 @@ export interface ThemeTokens {
   }
 }
 
-/** A tone is a single color plus the color that reads on top of it. */
+/** A tone is a single color plus the colors that go with it. */
 export interface ToneTokens {
   DEFAULT: string
   /** Foreground (text / icon) color used on a solid `DEFAULT` background. */
@@ -189,6 +189,14 @@ export interface ToneTokens {
    * as text on a dark page.
    */
   text: string
+  /**
+   * A faint tint of the tone over the surface: the fill of soft buttons and
+   * tags, and the background of anything that should carry the tone
+   * quietly, such as a status pill or a highlighted row. Computed as
+   * `color-mix(in oklab, DEFAULT 7%, bg.surface)`; `text` and the body
+   * text color both read on it at 4.5:1 or more.
+   */
+  soft: string
 }
 
 /** Eight series colors, `--dou-color-chart-1` to `--dou-color-chart-8`. */

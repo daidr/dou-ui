@@ -1,5 +1,15 @@
 <script setup lang="ts">
-import { computed, nextTick, onScopeDispose, provide, ref, useId, watch } from 'vue'
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  onScopeDispose,
+  provide,
+  ref,
+  useId,
+  watch,
+} from 'vue'
 import type { ComponentPublicInstance } from 'vue'
 import { useFloating } from '../../composables/use-floating'
 import { useLayer } from '../../composables/use-layer'
@@ -14,6 +24,7 @@ import type { ContextMenuExpose, ContextMenuProps, ContextMenuSlots } from './co
 import DropdownItems from '../dropdown/dropdown-items.vue'
 import { useItemsWarning } from '../dropdown/items-warning'
 import { useTeleport } from '../../utils/teleport'
+import { devWarn } from '../../utils/status-check'
 
 defineOptions({ name: 'DouContextMenu', inheritAttrs: false })
 
@@ -24,7 +35,10 @@ const props = withDefaults(defineProps<ContextMenuProps>(), {
 })
 const teleportTarget = useTeleport(() => props.teleport)
 const open = defineModel<boolean>('open', { default: false })
-const emit = defineEmits<{ select: [value: DropdownValue | undefined] }>()
+const emit = defineEmits<{
+  select: [value: DropdownValue | undefined]
+  'update:target': [target: undefined]
+}>()
 const slots = defineSlots<ContextMenuSlots>()
 useItemsWarning('ContextMenu', () => !!props.items && !!slots.menu)
 
@@ -32,9 +46,9 @@ const ns = useNamespace('context-menu')
 const dropdown = useNamespace('dropdown')
 const id = `dou-context-menu-${useId()}`
 
-const targetRef = ref<ComponentPublicInstance | null>(null)
+const triggerRef = ref<ComponentPublicInstance | null>(null)
 const panelRef = ref<HTMLElement | null>(null)
-const target = () => onlyChildElement(targetRef.value)
+const trigger = () => onlyChildElement(triggerRef.value)
 
 // The menu hangs off a zero-size box at the point that opened it, or off
 // the box it was given, e.g. a button's, so that flipping keeps it clear.
@@ -52,7 +66,7 @@ const floating = useFloating(() => anchor, panelRef, {
 const rendered = ref(open.value)
 const zIndex = ref<number>()
 const { next } = useZIndex()
-const { theme, sync } = useThemeScope(target)
+const { theme, sync } = useThemeScope(trigger)
 
 // Where focus was before the menu opened, to hand it back on Escape.
 let restore: HTMLElement | null = null
@@ -87,17 +101,41 @@ function dismiss() {
   const active = document.activeElement as HTMLElement | null
   const back = !!(panelRef.value?.contains(active) || active?.closest('.dou-dropdown--sub'))
   hide()
-  if (back) (restore ?? (target() as HTMLElement | null))?.focus()
+  if (back) (restore ?? (trigger() as HTMLElement | null))?.focus()
 }
+
+// A new right click starts with no target; the events inside set it.
+// Listened to on the document so it runs before them, whatever element the
+// trigger renders now.
+function onDocumentContextmenu(event: MouseEvent) {
+  if (props.disabled) return
+  const el = trigger()
+  if (el && event.target instanceof Node && el.contains(event.target))
+    emit('update:target', undefined)
+}
+onMounted(() => document.addEventListener('contextmenu', onDocumentContextmenu, true))
+onBeforeUnmount(() => document.removeEventListener('contextmenu', onDocumentContextmenu, true))
 
 function onContextmenu(event: MouseEvent) {
   if (props.disabled) return
-  event.preventDefault()
   if (!press?.fired) cancelPress()
+  // Something inside handled this right click already, or the app said no:
+  // `false` leaves it to the browser or an outer menu, `preventDefault()` to no one.
+  if (event.defaultPrevented) return
+  const allowed = props.beforeOpen?.(event)
+  if (
+    process.env.NODE_ENV !== 'production' &&
+    typeof (allowed as unknown as PromiseLike<unknown> | undefined)?.then === 'function'
+  )
+    devWarn(
+      '[dou-ui] DouContextMenu: `beforeOpen` must decide on the spot (return true or false); a Promise is ignored and the menu opens.',
+    )
+  if (allowed === false || event.defaultPrevented) return
+  event.preventDefault()
   // A menu opened from the keyboard has no pointer position: open it at
   // the bottom left of the focused element instead.
   if (event.button === -1 || (event.clientX === 0 && event.clientY === 0)) {
-    const source = event.target instanceof Element ? event.target : target()
+    const source = event.target instanceof Element ? event.target : trigger()
     const box = source?.getBoundingClientRect()
     show(box?.left ?? 0, box?.bottom ?? 0)
     return
@@ -241,7 +279,7 @@ defineExpose<ContextMenuExpose>({ open: show, close: hide })
 </script>
 
 <template>
-  <OnlyChild ref="targetRef" @contextmenu="onContextmenu" @pointerdown="onPointerdown">
+  <OnlyChild ref="triggerRef" @contextmenu="onContextmenu" @pointerdown="onPointerdown">
     <slot />
   </OnlyChild>
   <Teleport v-if="rendered" :to="teleportTarget.to" :disabled="teleportTarget.disabled">

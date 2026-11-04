@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { h, nextTick } from 'vue'
+import { defineComponent, h, nextTick, ref } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DouContextMenu, DouDropdownItem } from '../../../index'
 
@@ -42,6 +42,12 @@ const rightClick = (target: Element, x = 120, y = 80) => {
   target.dispatchEvent(event)
   return event
 }
+
+/**
+ * Vue skips a listener attached in the same millisecond as the first Vue
+ * listener an event reached, so tests that need two of them wait a little.
+ */
+const settle = () => new Promise((resolve) => setTimeout(resolve, 5))
 
 const touch = (type: string, target: EventTarget, x = 60, y = 40) =>
   target.dispatchEvent(
@@ -265,6 +271,189 @@ describe('DouContextMenu', () => {
     await nextTick()
     const radios = menu()!.querySelectorAll('[role="menuitemradio"]')
     expect([...radios].map((item) => item.getAttribute('aria-checked'))).toEqual(['true', 'false'])
+    wrapper.unmount()
+  })
+
+  it('clears the target at the start of every right click, before the events inside', async () => {
+    const seen: unknown[] = []
+    let current: unknown = 'stale'
+    const wrapper = mount(DouContextMenu, {
+      props: {
+        target: current,
+        'onUpdate:target': (value: unknown) => {
+          current = value
+          seen.push(value)
+        },
+      },
+      slots: {
+        default: () =>
+          h('ul', { id: 'list' }, [
+            h('li', { id: 'item', onContextmenu: () => (current = 'item') }, '设计稿.fig'),
+          ]),
+        menu: () => h(DouDropdownItem, { value: 'open' }, () => '打开'),
+      },
+      attachTo: document.body,
+    })
+    await settle()
+    rightClick(wrapper.get('#item').element)
+    expect(seen).toEqual([undefined])
+    expect(current).toBe('item')
+    rightClick(wrapper.get('#list').element)
+    expect(seen).toEqual([undefined, undefined])
+    expect(current).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('still clears the target after the trigger swaps its root element', async () => {
+    const seen: unknown[] = []
+    const Swap = defineComponent({
+      props: { grid: Boolean },
+      setup: (props) => () =>
+        props.grid ? h('div', { id: 'grid' }, '网格') : h('ul', { id: 'list' }, '列表'),
+    })
+    const grid = ref(false)
+    const wrapper = mount(
+      defineComponent({
+        setup: () => () =>
+          h(
+            DouContextMenu,
+            { target: 'stale', 'onUpdate:target': (value: unknown) => seen.push(value) },
+            {
+              default: () => h(Swap, { grid: grid.value }),
+              menu: () => h(DouDropdownItem, { value: 'open' }, () => '打开'),
+            },
+          ),
+      }),
+      { attachTo: document.body },
+    )
+    rightClick(wrapper.get('#list').element)
+    expect(seen).toEqual([undefined])
+    grid.value = true
+    await nextTick()
+    rightClick(wrapper.get('#grid').element)
+    expect(seen).toEqual([undefined, undefined])
+    // a right click elsewhere on the page leaves it alone
+    rightClick(document.body)
+    expect(seen).toHaveLength(2)
+    wrapper.unmount()
+  })
+
+  it('stays closed when beforeOpen returns false, leaving the right click to the browser', async () => {
+    const beforeOpen = vi.fn<(event: MouseEvent) => boolean | void>(() => false)
+    const wrapper = make({ beforeOpen })
+    const event = rightClick(wrapper.get('#area').element)
+    await nextTick()
+    expect(beforeOpen).toHaveBeenCalledWith(event)
+    expect(event.defaultPrevented).toBe(false)
+    expect(wrapper.emitted('update:open')).toBeUndefined()
+    // preventDefault() keeps it closed and the browser menu away
+    beforeOpen.mockImplementation((e) => e.preventDefault())
+    const prevented = rightClick(wrapper.get('#area').element)
+    await nextTick()
+    expect(prevented.defaultPrevented).toBe(true)
+    expect(wrapper.emitted('update:open')).toBeUndefined()
+    // otherwise it opens
+    beforeOpen.mockImplementation(() => {})
+    rightClick(wrapper.get('#area').element)
+    await nextTick()
+    expect(wrapper.emitted('update:open')).toEqual([[true]])
+    wrapper.unmount()
+  })
+
+  it('warns once in development when beforeOpen returns a Promise', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const beforeOpen = (() => Promise.resolve(false)) as unknown as () => boolean
+    const wrapper = make({ beforeOpen })
+    rightClick(wrapper.get('#area').element)
+    await nextTick()
+    // the Promise is not waited for: the menu opens
+    expect(wrapper.emitted('update:open')).toEqual([[true]])
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('`beforeOpen` must decide on the spot'),
+    )
+    warn.mockRestore()
+    wrapper.unmount()
+  })
+
+  it('leaves the right click to the outer menu when the inner beforeOpen returns false', async () => {
+    const wrapper = mount(DouContextMenu, {
+      slots: {
+        default: () =>
+          h('div', { id: 'outer' }, [
+            h(
+              DouContextMenu,
+              { beforeOpen: () => false },
+              {
+                default: () => h('div', { id: 'inner' }, '内层'),
+                menu: () => h(DouDropdownItem, { value: 'b' }, () => '内层菜单'),
+              },
+            ),
+          ]),
+        menu: () => h(DouDropdownItem, { value: 'a' }, () => '外层菜单'),
+      },
+      attachTo: document.body,
+    })
+    await settle()
+    rightClick(wrapper.get('#inner').element)
+    await nextTick()
+    const shown = [...document.querySelectorAll<HTMLElement>('.dou-context-menu')].filter(
+      (el) => el.style.display !== 'none',
+    )
+    expect(shown.map((el) => el.textContent?.trim())).toEqual(['外层菜单'])
+    wrapper.unmount()
+  })
+
+  it('stays closed when an event inside the trigger already prevented it', async () => {
+    const beforeOpen = vi.fn<(event: MouseEvent) => void>()
+    const wrapper = mount(DouContextMenu, {
+      props: { beforeOpen },
+      slots: {
+        default: () =>
+          h('div', { id: 'area' }, [
+            h('span', { id: 'locked', onContextmenu: (e: MouseEvent) => e.preventDefault() }),
+          ]),
+        menu: () => h(DouDropdownItem, { value: 'open' }, () => '打开'),
+      },
+      attachTo: document.body,
+    })
+    await settle()
+    rightClick(wrapper.get('#locked').element)
+    await nextTick()
+    expect(beforeOpen).not.toHaveBeenCalled()
+    expect(wrapper.emitted('update:open')).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('opens only the inner menu when two are nested', async () => {
+    const wrapper = mount(DouContextMenu, {
+      slots: {
+        default: () =>
+          h('div', { id: 'outer' }, [
+            h(DouContextMenu, null, {
+              default: () => h('div', { id: 'inner' }, '内层'),
+              menu: () => h(DouDropdownItem, { value: 'b' }, () => '内层菜单'),
+            }),
+          ]),
+        menu: () => h(DouDropdownItem, { value: 'a' }, () => '外层菜单'),
+      },
+      attachTo: document.body,
+    })
+    await settle()
+    rightClick(wrapper.get('#inner').element)
+    await nextTick()
+    const shown = [...document.querySelectorAll<HTMLElement>('.dou-context-menu')].filter(
+      (el) => el.style.display !== 'none',
+    )
+    expect(shown.map((el) => el.textContent?.trim())).toEqual(['内层菜单'])
+    wrapper.unmount()
+  })
+
+  it('calls nothing and clears nothing when disabled', async () => {
+    const beforeOpen = vi.fn<(event: MouseEvent) => void>()
+    const wrapper = make({ disabled: true, target: 'a', beforeOpen })
+    rightClick(wrapper.get('#area').element)
+    expect(beforeOpen).not.toHaveBeenCalled()
+    expect(wrapper.emitted('update:target')).toBeUndefined()
     wrapper.unmount()
   })
 })

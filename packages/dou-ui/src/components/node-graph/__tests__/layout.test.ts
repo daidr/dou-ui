@@ -132,7 +132,7 @@ describe('layoutGraph', () => {
     expect(x('b')).toBe((x('b1') + x('b2')) / 2)
   })
 
-  it('keeps a fan with a long edge through it symmetric top to bottom', () => {
+  it('centres a fan on its nodes, a long edge beside it running just past the nearest one', () => {
     const layout = layoutGraph(
       [size('a'), size('b', 112), size('c'), size('d')],
       [
@@ -144,18 +144,47 @@ describe('layoutGraph', () => {
       ],
       { ...options, direction: 'vertical', equalWidth: false, grid: 26 },
     )
-    // where each edge out of `a` reaches the next rank
-    const ends = layout.edges
-      .filter((e) => e.from === 'a')
-      .map((e) => {
-        const [, x, command, rest] = /^M([-\d.]+) [-\d.]+([CV])([^A-Z]*)/.exec(e.path)!
-        return command === 'V' ? Number(x) : Number(rest!.trim().split(/\s+/)[4])
-      })
-      .toSorted((p, q) => p - q)
-    const a = layout.nodes.get('a')!
-    expect(ends).toHaveLength(3)
-    expect(ends[1]! - ends[0]!).toBe(ends[2]! - ends[1]!)
-    expect(a.x + a.width / 2).toBe(ends[1])
+    const centre = (id: string) => {
+      const n = layout.nodes.get(id)!
+      return n.x + n.width / 2
+    }
+    const [b, c] = layout.ranks[1]!.map((id) => layout.nodes.get(id)!)
+    expect(centre('a')).toBe((centre(b!.id) + centre(c!.id)) / 2)
+    expect(centre('d')).toBe(centre('a'))
+    // The long edge passes a lane gap, rounded up to the grid, beside the
+    // nearest node, not as far out as a node mirroring the one on the far side.
+    const [point] = layout.edges.find((e) => e.from === 'a' && e.to === 'd')!.points
+    const near = point!.x < b!.x ? b!.x - point!.x : point!.x - (c!.x + c!.width)
+    expect(near).toBeGreaterThanOrEqual(options.laneGap)
+    expect(near).toBeLessThan(options.laneGap + 26)
+    expect(layout.width).toBe(Math.max(point!.x, c!.x + c!.width) - Math.min(point!.x, b!.x))
+  })
+
+  it('keeps a long edge past a wide fan close, so the layout stays narrow', () => {
+    for (const straightChains of [false, true]) {
+      const layout = layoutGraph(
+        ['a', 'b', 'c', 'd'].map((id) => ({ id, width: 272, height: 64 })),
+        [
+          { from: 'a', to: 'b' },
+          { from: 'a', to: 'c' },
+          { from: 'b', to: 'd' },
+          { from: 'c', to: 'd' },
+          { from: 'a', to: 'd' },
+        ],
+        {
+          direction: 'vertical',
+          rankGap: 56,
+          laneGap: 40,
+          equalWidth: false,
+          grid: 8,
+          straightChains,
+        },
+      )
+      // Two nodes a whole even number of grid steps apart (312 rounds up to
+      // 320), then the long edge a lane gap further out. Mirroring the far
+      // node used to put it half a node further, 776 wide.
+      expect(layout.width).toBe(320 + 272 + 40)
+    }
   })
 
   it('widens only the gaps beside a long node, mirrored', () => {

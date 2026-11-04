@@ -287,18 +287,22 @@ function untangle(layers: Item[][]) {
 }
 
 /**
- * Move the items of one column as close to their targets as possible,
- * keeping their order and the gaps between them, with every anchor on
- * the row grid. With `s` the offset of each item from the first, in grid
- * steps, `y - s` must not decrease: isotonic regression, solved by
- * pooling adjacent violators, then rounded to whole steps.
+ * How many nodes a fan needs before the long edges beyond its outermost
+ * nodes are left out of it. With `straight`, a single node already lines
+ * up on its own; otherwise a node fanning out to one node and some long
+ * edges sits in the middle of all of them.
  */
+const fanNodes = (straight: boolean) => (straight ? 1 : 2)
+
 /**
  * Runs of items in a layer fed by one node, or feeding one: the fans,
- * edges passing through included. Each is the index of its first and last
- * item; a run broken by an item outside the fan is left alone.
+ * edges passing through between its nodes included. A long edge beyond
+ * the outermost nodes is not part of it: it bends away just past the
+ * nearest node, instead of mirroring a node on the far side and running
+ * half a node further out. Each is the index of its first and last item;
+ * a run broken by an item outside the fan is left alone.
  */
-function fans(layer: Item[]) {
+function fans(layer: Item[], straight: boolean) {
   const index = new Map(layer.map((item, i) => [item, i]))
   const seen = new Set<Item>()
   const runs: [number, number][] = []
@@ -309,9 +313,12 @@ function fans(layer: Item[]) {
       for (const side of [hub.succs, hub.preds]) {
         const at = side.flatMap((n) => (index.has(n) ? [index.get(n)!] : []))
         if (at.length < 2) continue
-        const first = Math.min(...at)
-        const last = Math.max(...at)
-        if (last - first + 1 === at.length) runs.push([first, last])
+        if (Math.max(...at) - Math.min(...at) + 1 !== at.length) continue
+        const nodes = at.filter((i) => layer[i]!.edge < 0)
+        const ends = nodes.length >= fanNodes(straight) ? nodes : at
+        const first = Math.min(...ends)
+        const last = Math.max(...ends)
+        if (last > first) runs.push([first, last])
       }
     }
   }
@@ -321,7 +328,12 @@ function fans(layer: Item[]) {
 /**
  * The least distance between neighbouring items of a layer, in grid steps.
  */
-function spacing(layer: Item[], gap: (a: Item, b: Item) => number, grid: number) {
+function spacing(
+  layer: Item[],
+  gap: (a: Item, b: Item) => number,
+  grid: number,
+  straight: boolean,
+) {
   const steps: number[] = []
   for (let i = 1; i < layer.length; i++) {
     const a = layer[i - 1]!
@@ -339,7 +351,7 @@ function spacing(layer: Item[], gap: (a: Item, b: Item) => number, grid: number)
   // of pitches. So its hub sits on the grid right in the middle and the
   // curves pair up even when one node is larger or an edge passes through;
   // only the gaps beside a larger node grow.
-  const runs = fans(layer)
+  const runs = fans(layer, straight)
   for (let changed = runs.length > 0, pass = 0; changed && pass < 8; pass++) {
     changed = false
     for (const [first, last] of runs) {
@@ -354,8 +366,21 @@ function spacing(layer: Item[], gap: (a: Item, b: Item) => number, grid: number)
   return steps
 }
 
-function place(layer: Item[], targets: number[], gap: (a: Item, b: Item) => number, grid: number) {
-  const steps = spacing(layer, gap, grid)
+/**
+ * Move the items of one column as close to their targets as possible,
+ * keeping their order and the gaps between them, with every anchor on
+ * the row grid. With `s` the offset of each item from the first, in grid
+ * steps, `y - s` must not decrease: isotonic regression, solved by
+ * pooling adjacent violators, then rounded to whole steps.
+ */
+function place(
+  layer: Item[],
+  targets: number[],
+  gap: (a: Item, b: Item) => number,
+  grid: number,
+  straight: boolean,
+) {
+  const steps = spacing(layer, gap, grid, straight)
   const offsets: number[] = [0]
   steps.forEach((n, i) => offsets.push(offsets[i]! + n))
   const blocks: { sum: number; count: number }[] = []
@@ -409,15 +434,19 @@ function components(layers: Item[][]) {
 }
 
 /**
- * What a node lines up with on one side. With `straight`, the one node
- * there when it has just one besides long edges, so a chain of nodes stays straight and the
- * long edges bend around it instead. A fan of two or more nodes keeps its
- * long edges, so they share its symmetry.
+ * What a node lines up with on one side: its fan, from the first node
+ * there to the last, long edges between them included and those beyond
+ * left out, as `fans` has it. With `straight`, that is the one node there
+ * when it has just one besides long edges, so a chain of nodes stays
+ * straight and the long edges bend around it instead.
  */
 function lineUp(item: Item, neighbours: Item[], straight: boolean) {
-  if (!straight || item.edge >= 0) return neighbours
-  const nodes = neighbours.filter((n) => n.edge < 0)
-  return nodes.length === 1 ? nodes : neighbours
+  if (item.edge >= 0) return neighbours
+  const ys = neighbours.filter((n) => n.edge < 0).map((n) => n.y)
+  if (ys.length < fanNodes(straight)) return neighbours
+  const lo = Math.min(...ys)
+  const hi = Math.max(...ys)
+  return neighbours.filter((n) => n.y >= lo && n.y <= hi)
 }
 
 function mean(values: number[], fallback: number) {
@@ -486,6 +515,7 @@ export function layoutGraph(
         layer.map(() => 0),
         gap,
         grid,
+        straightChains,
       )
     const relax = (layer: Item[], neighbours: (item: Item) => Item[]) =>
       place(
@@ -498,6 +528,7 @@ export function layoutGraph(
         ),
         gap,
         grid,
+        straightChains,
       )
     for (let pass = 0; pass < 4; pass++) {
       for (const layer of ordered.slice(1)) relax(layer, (item) => item.preds)
@@ -515,7 +546,7 @@ export function layoutGraph(
       (i === 0 || y - layer[i - 1]!.y >= steps[i - 1]! * grid) &&
       (i === layer.length - 1 || layer[i + 1]!.y - y >= steps[i]! * grid)
     const centre = (layer: Item[], side: (item: Item) => Item[]) => {
-      const steps = spacing(layer, gap, grid)
+      const steps = spacing(layer, gap, grid, straightChains)
       let moved = false
       layer.forEach((item, i) => {
         const ys = lineUp(item, side(item), straightChains).map((n) => n.y)

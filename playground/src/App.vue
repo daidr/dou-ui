@@ -3,7 +3,7 @@ import { computed, onMounted, reactive, ref, useTemplateRef, watchEffect } from 
 import { CubeIcon, DashboardIcon, FileTextIcon, GlobeIcon, UsersIcon } from '@dou-ui/icons'
 import { en, toast } from 'dou-ui'
 import type {
-  ButtonSize,
+  InputSize,
   ButtonTone,
   ButtonVariant,
   FormInstance,
@@ -120,7 +120,7 @@ const picked = ref([2, 3, 7])
 
 const variants: ButtonVariant[] = ['solid', 'soft', 'outline', 'ghost']
 const tones: ButtonTone[] = ['neutral', 'primary', 'success', 'warning', 'danger']
-const sizes: ButtonSize[] = ['sm', 'md', 'lg']
+const sizes: InputSize[] = ['sm', 'md', 'lg']
 
 const tagVariants: TagVariant[] = ['soft', 'outline', 'solid']
 

@@ -542,9 +542,13 @@ const edgeRoutes = computed(() => {
   // Read once: adding or removing edges is tracked, single edges are replaced whole.
   const edges = doc.value.edges
   void edges.length
-  for (const edge of toRaw(edges)) {
+  const tweening = tween.value !== null
+  for (let edge of toRaw(edges)) {
     const from = edgeEnd(edge.source)
     const to = edgeEnd(edge.target)
+    // The points don't fit while tidying animates, nor when a folded container stands in for an end.
+    if (edge.points && (tweening || from !== edge.source || to !== edge.target))
+      edge = { ...edge, points: undefined }
     // Both ends folded into the same container.
     if (from.node === to.node && (from !== edge.source || to !== edge.target)) continue
     const source = nodeById.value.get(from.node)
@@ -553,15 +557,23 @@ const edgeRoutes = computed(() => {
     const a = anchor(source, from.port, 'source')
     const b = anchor(target, to.port, 'target')
     if (!a || !b) continue
+    const xs = [a.x, b.x]
+    const ys = [a.y, b.y]
+    for (const p of edge.points ?? []) {
+      xs.push(p.x)
+      ys.push(p.y)
+    }
+    const x = Math.min(...xs)
+    const y = Math.min(...ys)
     out.push({
       edge,
       route: edgeTypeOf(edge.type).route(a, b, edge),
-      // Both ends, with room for the curve.
+      // Both ends and every point between, with room for the curve.
       box: {
-        x: Math.min(a.x, b.x) - EDGE_REACH,
-        y: Math.min(a.y, b.y) - EDGE_REACH,
-        width: Math.abs(a.x - b.x) + EDGE_REACH * 2,
-        height: Math.abs(a.y - b.y) + EDGE_REACH * 2,
+        x: x - EDGE_REACH,
+        y: y - EDGE_REACH,
+        width: Math.max(...xs) - x + EDGE_REACH * 2,
+        height: Math.max(...ys) - y + EDGE_REACH * 2,
       },
       style: edgeStyle(edge),
     })
@@ -967,6 +979,7 @@ function tidy(ids?: string[]) {
       laneGap: gap.row,
       equalWidth: false,
       grid: props.grid || 8,
+      straightChains: true,
     },
   )
   const snap = (v: number) => (props.grid ? Math.round(v / props.grid) * props.grid : Math.round(v))
@@ -979,7 +992,38 @@ function tidy(ids?: string[]) {
     const to = { x: origin.x + snap(placed.x), y: origin.y + snap(placed.y) }
     if (to.x !== node.x || to.y !== node.y) moved.set(node.id, to)
   }
-  if (!moved.size) return
+  // Edges spanning several ranks run between the nodes in their way.
+  const through = new Map(layout.edges.map((e) => [`${e.from}\u0000${e.to}`, e.points]))
+  const locked = new Set(nodes.filter((node) => node.locked).map((node) => node.id))
+  const routes = new Map<string, Point[] | undefined>()
+  // Several long edges between the same two nodes, e.g. from different ports, run side by side.
+  const pairs = new Map<string, FlowEdge[]>()
+  for (const edge of doc.value.edges) {
+    const a = edge.source.node
+    const b = edge.target.node
+    if (!blocks.has(a) || !blocks.has(b)) continue
+    const key = `${a}\u0000${b}`
+    pairs.set(key, [...(pairs.get(key) ?? []), edge])
+  }
+  for (const [key, group] of pairs) {
+    const [a, b] = key.split('\u0000') as [string, string]
+    const points = locked.has(a) || locked.has(b) ? undefined : through.get(key)
+    group.forEach((edge, i) => {
+      const off = (i - (group.length - 1) / 2) * (props.grid || 8)
+      const next = points?.length
+        ? points.map((p) => ({
+            x: origin.x + snap(p.x) + (vertical ? off : 0),
+            y: origin.y + snap(p.y) + (vertical ? 0 : off),
+          }))
+        : undefined
+      routes.set(edge.id, next)
+    })
+  }
+  const rerouted = doc.value.edges.some(
+    (edge) =>
+      routes.has(edge.id) && JSON.stringify(routes.get(edge.id)) !== JSON.stringify(edge.points),
+  )
+  if (!moved.size && !rerouted) return
   const count = moved.size
   // What is inside a moved container moves the same way.
   for (const { id } of nodes) {
@@ -995,6 +1039,10 @@ function tidy(ids?: string[]) {
   }
   transact((tr) => {
     for (const [id, to] of moved) tr.moveNode(id, to.x, to.y)
+    // After the moves, which carry points along with edges whose ends moved together.
+    for (const [id, points] of routes)
+      if (JSON.stringify(points) !== JSON.stringify(tr.getEdge(id)?.points))
+        tr.updateEdge(id, { points })
   })
   announce(format(messages.value.tidied, { count }))
   animateTidy(from, moved)
@@ -2113,6 +2161,7 @@ function paste(data: FlowDocument, at?: Point | null) {
       if (!source || !target) continue
       tr.addEdge({
         ...edge,
+        points: edge.points?.map((p) => ({ x: p.x + shift.x, y: p.y + shift.y })),
         id: createId('e'),
         source: { ...edge.source, node: source },
         target: { ...edge.target, node: target },

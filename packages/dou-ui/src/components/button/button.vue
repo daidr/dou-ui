@@ -19,7 +19,9 @@ const slots = defineSlots<ButtonSlots>()
 
 const ns = useNamespace('button')
 
-const size = useFormSize(() => props.size)
+// xs exists only on buttons, so a form or field group never sets it
+const formSize = useFormSize(() => (props.size === 'xs' ? undefined : props.size))
+const size = computed(() => (props.size === 'xs' ? 'xs' : formSize.value))
 const disabled = useFormDisabled(() => props.disabled)
 const inert = computed(() => disabled.value || props.loading)
 

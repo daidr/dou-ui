@@ -193,6 +193,17 @@
   }
 
   /* sizes */
+  /*
+   * xs is the button's own size for secondary actions in dense rows and
+   * toolbars. Other controls stop at sm, so it has no control token.
+   */
+  .dou-button--xs {
+    --dou-button-height: 24px;
+    --dou-button-padding-x: 8px;
+    --dou-button-padding-icon: 6px;
+    --dou-button-gap: var(--dou-control-gap-sm);
+    --dou-button-font-size: var(--dou-font-size-sm);
+  }
   .dou-button--sm {
     --dou-button-height: var(--dou-control-height-sm);
     --dou-button-padding-x: var(--dou-control-padding-x-sm);
@@ -226,9 +237,13 @@
     padding-inline: 0;
   }
 
-  /* on touch screens, small icon buttons take taps from about 40px around their centre */
+  /*
+   * On touch screens, icon buttons and xs buttons take taps from at least
+   * 40px around their centre. A side already longer than 40px is left alone.
+   */
   @media (pointer: coarse) {
-    .dou-button.is-icon-only::after {
+    .dou-button.is-icon-only::after,
+    .dou-button--xs::after {
       position: absolute;
       inset: min(0px, calc(50% - 20px));
       content: '';

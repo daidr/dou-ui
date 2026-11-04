@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import { createApp, h } from 'vue'
-import DouUI, { DouButton } from '../../../index'
+import DouUI, { DouButton, DouFieldGroup } from '../../../index'
 
 describe('DouButton', () => {
   it('renders the default slot', () => {
@@ -104,6 +104,19 @@ describe('DouButton', () => {
       'is-icon-only',
     )
     expect(mount(DouButton, { slots: { default: 'Save' } }).classes()).not.toContain('is-icon-only')
+  })
+
+  it('takes xs only from its own prop', () => {
+    expect(mount(DouButton, { props: { size: 'xs' } }).classes()).toContain('dou-button--xs')
+    const grouped = mount(DouFieldGroup, {
+      props: { size: 'sm' },
+      slots: {
+        default: () => [h(DouButton, { size: 'xs' }, () => 'A'), h(DouButton, null, () => 'B')],
+      },
+    })
+    const [own, inherited] = grouped.findAllComponents(DouButton)
+    expect(own!.classes()).toContain('dou-button--xs')
+    expect(inherited!.classes()).toContain('dou-button--sm')
   })
 
   it('can be installed globally', () => {

@@ -18,6 +18,8 @@
 
 <DocDemo src="context-menu/per-item" column />
 
+项由组件渲染时，用组件给出的事件代替，如 [Menu](./menu#右键菜单) 的 `itemContextmenu`、[Table](./table) 的 `rowContextmenu`，参数里直接就是那一项的数据。
+
 ## 从脚本打开
 
 通过 ref 调用 `open(x, y)` 在视口中的某一点打开，`close()` 关闭。菜单由按钮打开时，传入按钮的位置和大小 `open(x, y, box)`：菜单开在按钮下方，放不下时翻到上方，不会盖住按钮。`v-model:open` 可以读写打开状态，`disabled` 时保留浏览器自带的菜单。

@@ -1,8 +1,8 @@
 import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
-import { DouMenu } from '../../../index'
-import type { MenuKey, MenuOption } from '../../../index'
+import { DouContextMenu, DouDropdownItem, DouMenu } from '../../../index'
+import type { MenuItemOption, MenuKey, MenuOption } from '../../../index'
 
 const Icon = defineComponent({ render: () => h('svg', { class: 'icon' }) })
 
@@ -152,5 +152,77 @@ describe('DouMenu', () => {
     expect(item(wrapper, '项目').classes()).toContain('is-active')
     // groups flatten into the row
     expect(item(wrapper, '个人资料').exists()).toBe(true)
+  })
+
+  it('tells which item was right-clicked', async () => {
+    const pressed: [MenuKey, string][] = []
+    const wrapper = mount(DouMenu, {
+      props: {
+        items,
+        onItemContextmenu: (option: MenuItemOption, event: MouseEvent) =>
+          pressed.push([option.key, event.type]),
+      },
+      attachTo: document.body,
+    })
+    await item(wrapper, '首页').trigger('contextmenu')
+    await item(wrapper, '项目').trigger('contextmenu')
+    await item(wrapper, '归档').trigger('contextmenu')
+    expect(pressed).toEqual([
+      ['home', 'contextmenu'],
+      ['projects', 'contextmenu'],
+      ['archive', 'contextmenu'],
+    ])
+    wrapper.unmount()
+  })
+
+  it('tells which popup item was right-clicked', async () => {
+    const pressed: MenuKey[] = []
+    const wrapper = mount(DouMenu, {
+      props: {
+        items,
+        collapsed: true,
+        onItemContextmenu: (option: MenuItemOption) => pressed.push(option.key),
+      },
+      attachTo: document.body,
+    })
+    await wrapper.get('[aria-label="项目"]').trigger('keydown', { key: 'ArrowDown' })
+    await nextTick()
+    const menu = document.querySelector('[role="menu"]')!
+    ;[...menu.querySelectorAll<HTMLElement>('[role="menuitem"]')]
+      .find((el) => el.textContent?.trim() === '成员')!
+      .dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }))
+    expect(pressed).toEqual(['members'])
+    wrapper.unmount()
+  })
+
+  it('works inside DouContextMenu', async () => {
+    let target: MenuItemOption | undefined
+    const chosen: string[] = []
+    const wrapper = mount(
+      defineComponent({
+        setup: () => () =>
+          h(
+            DouContextMenu,
+            {
+              teleport: false,
+              onSelect: (value: unknown) => chosen.push(`${String(value)}:${target?.key}`),
+            },
+            {
+              default: () =>
+                h(DouMenu, {
+                  items,
+                  onItemContextmenu: (option: MenuItemOption) => (target = option),
+                }),
+              menu: () => h(DouDropdownItem, { value: 'pin' }, () => '置顶'),
+            },
+          ),
+      }),
+      { attachTo: document.body },
+    )
+    await item(wrapper, '个人资料').trigger('contextmenu', { clientX: 20, clientY: 20 })
+    await nextTick()
+    await wrapper.get('[role="menuitem"]').trigger('click')
+    expect(chosen).toEqual(['pin:profile'])
+    wrapper.unmount()
   })
 })

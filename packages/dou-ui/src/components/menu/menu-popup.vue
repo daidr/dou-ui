@@ -48,7 +48,12 @@ function onSelect(key: MenuKey | undefined) {
         <div v-else-if="entry.kind === 'label'" :class="ns.e('popup-label')" role="presentation">
           {{ entry.label }}
         </div>
-        <DouDropdownItem v-else :value="entry.item.key" :disabled="entry.item.disabled">
+        <DouDropdownItem
+          v-else
+          :value="entry.item.key"
+          :disabled="entry.item.disabled"
+          @contextmenu="menu.contextmenu(entry.item, $event)"
+        >
           <template v-if="entry.item.icon" #prefix>
             <component :is="entry.item.icon" />
           </template>

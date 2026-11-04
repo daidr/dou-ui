@@ -37,6 +37,14 @@
 </DouMenu>
 ```
 
+## 右键菜单
+
+用 [ContextMenu](./context-menu) 包住菜单，在 `itemContextmenu` 事件里记下是哪一项，再在右键菜单的 `select` 里处理。事件的参数是该项的 `MenuItemOption` 和原生事件；右键、触摸屏上长按、聚焦时按菜单键都会触发，子菜单的开关、禁用的项也一样。
+
+<DocDemo src="menu/context-menu" column />
+
+折叠或水平时弹出的子菜单渲染在 `body` 下，不在 ContextMenu 的触发区域里，右键其中的项不会打开外面的菜单，但同样触发 `itemContextmenu`；需要时在事件里调用 ContextMenu 的 `open(event.clientX, event.clientY)` 并阻止浏览器自带的菜单。
+
 ## 键盘与读屏
 
 菜单渲染为 `<nav>` 里的列表，属于网站导航而不是应用菜单，所以不使用 `menu` 角色；需要时给它加 `aria-label`。当前项带 `aria-current="page"`，子菜单的开关是带 `aria-expanded` 与 `aria-controls` 的按钮，分组是带名称（`aria-label`）的子列表，分隔线只是装饰，对读屏隐藏。
@@ -73,6 +81,7 @@
 | `update:modelValue` | 当前项变化             | `(key: string \| number)`                       |
 | `update:expanded`   | 展开的子菜单变化       | `(keys: (string \| number)[])`                  |
 | `select`            | 选中了一个没有子项的项 | `(key: string \| number, item: MenuItemOption)` |
+| `itemContextmenu`   | 在一项上打开右键菜单   | `(item: MenuItemOption, event: MouseEvent)`     |
 
 ### Slots
 

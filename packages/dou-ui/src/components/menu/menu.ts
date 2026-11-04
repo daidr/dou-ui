@@ -49,6 +49,12 @@ export interface MenuEmits {
   'update:expanded': [keys: MenuKey[]]
   /** An item without children was chosen. */
   select: [key: MenuKey, item: MenuItemOption]
+  /**
+   * An item was right-clicked, long-pressed, or got the menu key, including
+   * submenus, disabled items and the items of popups. Wrap the menu in
+   * `DouContextMenu` and note the item here to act on it in `select`.
+   */
+  itemContextmenu: [item: MenuItemOption, event: MouseEvent]
 }
 
 export interface MenuSlots {
@@ -64,6 +70,7 @@ export interface MenuContext {
   toggle: (item: MenuItemOption) => void
   /** Make the item current. Items in a popup follow their `href` from script. */
   choose: (item: MenuItemOption, fromPopup?: boolean) => void
+  contextmenu: (item: MenuItemOption, event: MouseEvent) => void
   labelSlot: () => MenuSlots['label']
   subId: (key: MenuKey) => string
 }

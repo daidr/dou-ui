@@ -43,6 +43,11 @@ const smallGraph = (spec: string, straightChains: boolean) => {
   )
 }
 
+const middle = (layout: ReturnType<typeof layoutGraph>, id: string) => {
+  const n = layout.nodes.get(id)!
+  return n.x + n.width / 2
+}
+
 describe('layoutGraph', () => {
   it('puts each node one column after its furthest predecessor', () => {
     const { order, edges } = acyclic(
@@ -145,45 +150,34 @@ describe('layoutGraph', () => {
     expect(x('b')).toBe((x('b1') + x('b2')) / 2)
   })
 
-  it('centres a fan on its nodes, a long edge beside it running just past the nearest one', () => {
-    const layout = layoutGraph(
-      [size('a'), size('b', 112), size('c'), size('d')],
-      [
-        { from: 'a', to: 'b' },
-        { from: 'a', to: 'c' },
-        { from: 'b', to: 'd' },
-        { from: 'c', to: 'd' },
-        { from: 'a', to: 'd' },
-      ],
-      { ...options, direction: 'vertical', equalWidth: false, grid: 26 },
-    )
-    const centre = (id: string) => {
-      const n = layout.nodes.get(id)!
-      return n.x + n.width / 2
-    }
-    const [b, c] = layout.ranks[1]!.map((id) => layout.nodes.get(id)!)
-    expect(centre('a')).toBe((centre(b!.id) + centre(c!.id)) / 2)
-    expect(centre('d')).toBe(centre('a'))
-    // The long edge passes a lane gap, rounded up to the grid, beside the
-    // nearest node, not as far out as a node mirroring the one on the far side.
-    const [point] = layout.edges.find((e) => e.from === 'a' && e.to === 'd')!.points
-    const near = point!.x < b!.x ? b!.x - point!.x : point!.x - (c!.x + c!.width)
-    expect(near).toBeGreaterThanOrEqual(options.laneGap)
-    expect(near).toBeLessThan(options.laneGap + 26)
-    expect(layout.width).toBe(Math.max(point!.x, c!.x + c!.width) - Math.min(point!.x, b!.x))
-  })
+  it('runs a long edge straight down the middle of a fan into the node it merges into', () => {
+    const edges = [
+      { from: 'a', to: 'b' },
+      { from: 'a', to: 'c' },
+      { from: 'b', to: 'd' },
+      { from: 'c', to: 'd' },
+      { from: 'a', to: 'd' },
+    ]
+    const small = layoutGraph([size('a'), size('b', 112), size('c'), size('d')], edges, {
+      ...options,
+      direction: 'vertical',
+      equalWidth: false,
+      grid: 26,
+    })
+    const long = small.edges.find((e) => e.from === 'a' && e.to === 'd')!
+    const [b, c] = small.ranks[1]!.map((id) => small.nodes.get(id)!)
+    expect(long.points[0]!.x).toBeGreaterThan(b!.x + b!.width)
+    expect(long.points[0]!.x).toBeLessThan(c!.x)
+    expect(long.path).not.toMatch(/C/)
+    expect(middle(small, 'a')).toBe(long.points[0]!.x)
+    expect(middle(small, 'd')).toBe(long.points[0]!.x)
 
-  it('keeps a long edge past a wide fan close, so the layout stays narrow', () => {
+    // With wide nodes it is narrower too: two nodes and two lane gaps, not
+    // 776 with the long edge mirroring a node on the far side.
     for (const straightChains of [false, true]) {
-      const layout = layoutGraph(
+      const wide = layoutGraph(
         ['a', 'b', 'c', 'd'].map((id) => ({ id, width: 272, height: 64 })),
-        [
-          { from: 'a', to: 'b' },
-          { from: 'a', to: 'c' },
-          { from: 'b', to: 'd' },
-          { from: 'c', to: 'd' },
-          { from: 'a', to: 'd' },
-        ],
+        edges,
         {
           direction: 'vertical',
           rankGap: 56,
@@ -193,10 +187,8 @@ describe('layoutGraph', () => {
           straightChains,
         },
       )
-      // Two nodes a whole even number of grid steps apart (312 rounds up to
-      // 320), then the long edge a lane gap further out. Mirroring the far
-      // node used to put it half a node further, 776 wide.
-      expect(layout.width).toBe(320 + 272 + 40)
+      expect(wide.width).toBe(272 * 2 + 40 * 2)
+      expect(wide.edges.find((e) => e.from === 'a' && e.to === 'd')!.path).not.toMatch(/C/)
     }
   })
 
@@ -274,6 +266,41 @@ describe('layoutGraph', () => {
       },
     )
     expect(layout.width).toBeLessThanOrEqual(904)
+
+    // Leaving long edges out of the fans lets this one settle 1204 wide; laid
+    // out keeping them in, as before, it is 964, and the narrower wins.
+    const drifting = layoutGraph(
+      [
+        { id: 'n0', width: 120, height: 64 },
+        { id: 'n1', width: 160, height: 40 },
+        { id: 'n2', width: 272, height: 64 },
+        { id: 'n3', width: 160, height: 40 },
+        { id: 'n4', width: 120, height: 32 },
+        { id: 'n6', width: 272, height: 40 },
+        { id: 'n7', width: 120, height: 40 },
+        { id: 'n8', width: 120, height: 32 },
+      ],
+      [
+        { from: 'n0', to: 'n2' },
+        { from: 'n0', to: 'n3' },
+        { from: 'n1', to: 'n6' },
+        { from: 'n1', to: 'n7' },
+        { from: 'n2', to: 'n4' },
+        { from: 'n2', to: 'n8' },
+        { from: 'n3', to: 'n8' },
+        { from: 'n4', to: 'n8' },
+        { from: 'n6', to: 'n8' },
+      ],
+      {
+        direction: 'vertical',
+        rankGap: 56,
+        laneGap: 40,
+        equalWidth: false,
+        grid: 8,
+        straightChains: true,
+      },
+    )
+    expect(drifting.width).toBeLessThanOrEqual(964)
   })
 
   it('widens only the gaps beside a long node, mirrored', () => {

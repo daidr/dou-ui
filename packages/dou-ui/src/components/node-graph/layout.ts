@@ -286,12 +286,55 @@ function untangle(layers: Item[][]) {
   return best
 }
 
+const indexOf = (layer: Item[] | undefined) => new Map(layer?.map((item, i) => [item, i]))
+
+/**
+ * A long edge that could run on either side of a fan, or between its
+ * nodes, at no cost in crossings, goes down the middle: next to items
+ * joined to the same places, the long edges move to the middle of the
+ * nodes. A fan around a long edge to the node its nodes merge into then
+ * lets that edge run straight through, instead of around the outside.
+ */
+function centreLongEdges(layers: Item[][]) {
+  const result = layers.map((layer) => [...layer])
+  let count = totalCrossings(result)
+  result.forEach((layer, c) => {
+    const before = indexOf(result[c - 1])
+    const after = indexOf(result[c + 1])
+    const key = (item: Item) =>
+      `${mean(
+        item.preds.map((n) => before.get(n) ?? 0),
+        -1,
+      )}:${mean(
+        item.succs.map((n) => after.get(n) ?? 0),
+        -1,
+      )}`
+    for (let start = 0; start < layer.length;) {
+      let end = start + 1
+      while (end < layer.length && key(layer[end]!) === key(layer[start]!)) end++
+      const run = layer.slice(start, end)
+      const nodes = run.filter((item) => item.edge < 0)
+      const edges = run.filter((item) => item.edge >= 0)
+      if (edges.length && nodes.length >= 2) {
+        const half = Math.floor(nodes.length / 2)
+        const middle = [...nodes.slice(0, half), ...edges, ...nodes.slice(half)]
+        const kept = layer.slice(start, end)
+        layer.splice(start, end - start, ...middle)
+        const now = totalCrossings(result)
+        if (now > count) layer.splice(start, end - start, ...kept)
+        else count = now
+      }
+      start = end
+    }
+  })
+  return result
+}
+
 /**
  * How many nodes a fan needs before the long edges beyond its outermost
  * nodes are left out of it. With `straight`, a single node already lines
  * up on its own; otherwise a node fanning out to one node and some long
- * edges sits in the middle of all of them. `Infinity` keeps every long
- * edge in its fan.
+ * edges sits in the middle of all of them.
  */
 const fanNodes = (straight: boolean) => (straight ? 1 : 2)
 
@@ -301,7 +344,9 @@ const fanNodes = (straight: boolean) => (straight ? 1 : 2)
  * the outermost nodes is not part of it: it bends away just past the
  * nearest node, instead of mirroring a node on the far side and running
  * half a node further out. Each is the index of its first and last item;
- * a run broken by an item outside the fan is left alone.
+ * a run broken by an item outside the fan is left alone. `outer` is the
+ * number of nodes from which those long edges are left out, as `fanNodes`
+ * gives it; `Infinity` keeps every long edge in its fan.
  */
 function fans(layer: Item[], outer: number) {
   const index = new Map(layer.map((item, i) => [item, i]))
@@ -599,21 +644,24 @@ export function layoutGraph(
     return { lo, hi }
   }
   for (const part of components(layers)) {
-    const arranged = untangle(part)
-    // Long edges beyond a fan's outer nodes run close past them instead
-    // of mirroring a node on the far side. Leaving them out of the fans
-    // changes how everything settles, though, and once in a while lets
-    // a chain drift away; then the part is laid out keeping them in, and
-    // whichever is narrower wins.
-    arrange(arranged, fanNodes(straightChains))
-    if (arranged.some((layer) => layer.some((item) => item.edge >= 0))) {
+    const untangled = untangle(part)
+    let arranged = untangled
+    // Long edges run down the middle of a fan where that costs nothing,
+    // and beyond a fan's outer nodes run close past them instead of
+    // mirroring a node on the far side. Both change how everything
+    // settles, though, and once in a while let a chain drift away; so the
+    // part is also laid out as before, and whichever is narrower wins.
+    if (untangled.some((layer) => layer.some((item) => item.edge >= 0))) {
+      arranged = centreLongEdges(untangled)
+      arrange(arranged, fanNodes(straightChains))
       const all = arranged.flat()
       const close = all.map((item) => item.y)
       const a = extent(arranged)
-      arrange(arranged, Infinity)
-      const b = extent(arranged)
+      arrange(untangled, Infinity)
+      const b = extent(untangled)
       if (a.hi - a.lo <= b.hi - b.lo) all.forEach((item, i) => (item.y = close[i]!))
-    }
+      else arranged = untangled
+    } else arrange(arranged, fanNodes(straightChains))
     const { lo, hi } = extent(arranged)
     const shift = Number.isFinite(next) ? Math.ceil((next - lo) / grid) * grid : 0
     arranged.forEach((layer, c) => {

@@ -17,6 +17,7 @@ import { formNodePlaces } from './core/transaction'
 export interface NodeMenuEntry {
   key: string
   label: string
+  description?: string
   icon?: Component
   run: () => void
   disabled?: boolean
@@ -113,6 +114,7 @@ export function menuItems(entries: readonly NodeMenuEntry[]): VNode[] {
         tone: entry.tone ?? 'neutral',
         divided: entry.divided,
         shortcut: entry.shortcut,
+        description: entry.description,
         onClick: entry.run,
       },
       { prefix: entry.icon ? () => h(entry.icon!) : undefined, default: () => entry.label },

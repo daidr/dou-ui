@@ -35,6 +35,8 @@ export interface FormBuilderToolbarItem {
 export interface FormBuilderMenuItem {
   key: string
   label: string
+  /** A line under the label that says more about the item. */
+  description?: string
   icon?: Component
   run: () => void
   disabled?: boolean

@@ -202,6 +202,8 @@ export interface SheetMenuItem {
   command?: string
   /** Needed unless it has a `command`. */
   label?: string
+  /** A line under the label that says more about the item. */
+  description?: string
   icon?: Component
   /** The shortcut shown beside it, such as `mod+c`; hidden on touch screens. */
   shortcut?: string

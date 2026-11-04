@@ -120,18 +120,19 @@ const sheet = {
 
 `menu` 属性、扩展的 `contextMenu` 和工具栏按钮的 `children` 都用这种菜单项。
 
-| 属性       | 说明                                                                           | 类型                    |
-| ---------- | ------------------------------------------------------------------------------ | ----------------------- |
-| `key`      | 在菜单里唯一                                                                   | `string`                |
-| `command`  | 运行的[命令](./commands)；名称、图标、快捷键和能否运行都取自命令，除非这里另写 | `string`                |
-| `label`    | 显示的文字，没有 `command` 时必填                                              | `string`                |
-| `icon`     | 图标                                                                           | `Component`             |
-| `shortcut` | 显示在旁边的快捷键，如 `mod+c`；触屏上不显示                                   | `string`                |
-| `tone`     | 颜色，`danger` 用于删除之类的操作                                              | `'neutral' \| 'danger'` |
-| `divided`  | 上方加一条分隔线                                                               | `boolean`               |
-| `disabled` | 是否禁用                                                                       | `boolean`               |
-| `children` | 子菜单的项；有子菜单的项没有 `run`                                             | `SheetMenuItem[]`       |
-| `run`      | 点击时运行                                                                     | `() => void`            |
+| 属性          | 说明                                                                           | 类型                    |
+| ------------- | ------------------------------------------------------------------------------ | ----------------------- |
+| `key`         | 在菜单里唯一                                                                   | `string`                |
+| `command`     | 运行的[命令](./commands)；名称、图标、快捷键和能否运行都取自命令，除非这里另写 | `string`                |
+| `label`       | 显示的文字，没有 `command` 时必填                                              | `string`                |
+| `description` | 文字下面的说明，见 [Dropdown](../components/dropdown#带说明的菜单项)           | `string`                |
+| `icon`        | 图标                                                                           | `Component`             |
+| `shortcut`    | 显示在旁边的快捷键，如 `mod+c`；触屏上不显示                                   | `string`                |
+| `tone`        | 颜色，`danger` 用于删除之类的操作                                              | `'neutral' \| 'danger'` |
+| `divided`     | 上方加一条分隔线                                                               | `boolean`               |
+| `disabled`    | 是否禁用                                                                       | `boolean`               |
+| `children`    | 子菜单的项；有子菜单的项没有 `run`                                             | `SheetMenuItem[]`       |
+| `run`         | 点击时运行                                                                     | `() => void`            |
 
 ### SheetMenuContext
 

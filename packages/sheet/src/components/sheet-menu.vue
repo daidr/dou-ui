@@ -45,6 +45,7 @@ defineExpose({
             :tone="child.tone"
             :divided="child.divided"
             :shortcut="coarse ? undefined : child.shortcut"
+            :description="child.description"
           >
             <template v-if="child.icon" #prefix>
               <DouIcon><component :is="child.icon" /></DouIcon>
@@ -59,6 +60,7 @@ defineExpose({
           :tone="item.tone"
           :divided="item.divided"
           :shortcut="coarse ? undefined : item.shortcut"
+          :description="item.description"
         >
           <template v-if="item.icon" #prefix>
             <DouIcon><component :is="item.icon" /></DouIcon>

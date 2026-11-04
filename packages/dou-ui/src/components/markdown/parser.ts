@@ -18,6 +18,10 @@ class RefLookup extends Map<string, Ref> {
 // labels a leaf or row looked up without finding a definition
 const missesOf = new WeakMap<object, string[]>()
 
+/** Whether a label that `node` looked for without finding is defined now. */
+const resolvable = (node: object, refs: RefLookup) =>
+  missesOf.get(node)?.some((label) => Map.prototype.has.call(refs, label)) ?? false
+
 /** Labels the blocks used without a definition, so a later one can fix them. */
 function collectMisses(node: Converted, into: Set<string>) {
   for (const label of missesOf.get(node) ?? []) into.add(label)
@@ -94,7 +98,7 @@ function convertLeaf(n: BNode, ctx: Context, lines: SourceLine[] = n.lines): Mar
   const last = lines[lines.length - 1]
   const end = n.kind === 'heading' || !last ? n.end : last.at + last.text.length
   const prev = ctx.prev.get(key)
-  if (prev && prev.end === end && partialOf.get(prev) === partial) {
+  if (prev && prev.end === end && partialOf.get(prev) === partial && !resolvable(prev, ctx.refs)) {
     if (prev.type === 'paragraph' || (prev.type === 'heading' && prev.level === n.level))
       return remember(ctx, key, prev)
   }
@@ -185,7 +189,12 @@ function convertRow(
   const key = `row:${line.line}`
   const end = line.at + line.text.length
   const prev = ctx.prev.get(key)
-  if (prev?.type === 'row' && prev.end === end && partialOf.get(prev) === partial)
+  if (
+    prev?.type === 'row' &&
+    prev.end === end &&
+    partialOf.get(prev) === partial &&
+    !resolvable(prev, ctx.refs)
+  )
     return remember(ctx, key, prev)
   const cells = splitRow(line.text)
   const misses = ctx.refs.misses.length
@@ -231,7 +240,7 @@ function convert(n: BNode, ctx: Context): MarkdownBlock | null {
       })
     }
     case 'hr':
-      if (prev?.type === 'hr') return remember(ctx, key, prev)
+      if (prev?.type === 'hr' && prev.end === n.end) return remember(ctx, key, prev)
       return remember(ctx, key, { type: 'hr', start: n.start, end: n.end })
     case 'blockquote': {
       const children = convertAll(n.children, ctx)

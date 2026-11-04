@@ -288,7 +288,10 @@ class BlockParser {
     }
     this.tip = parent
     if (parent === this.doc) {
-      if (!this.ending && this.line.complete) {
+      // An indented list marker counts as one only inside the list it closes,
+      // so parsing again from this line would read it differently.
+      const listIndented = this.indented && this.lastMatched.kind === 'list'
+      if (!this.ending && this.line.complete && !listIndented) {
         this.stable = this.doc.children.length
         this.resume = this.closeResume ?? this.line.start
         this.stableLabels.push(...this.pendingLabels)

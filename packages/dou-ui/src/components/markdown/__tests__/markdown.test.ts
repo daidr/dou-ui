@@ -284,6 +284,20 @@ describe('DouMarkdown custom rendering', () => {
     expect(wrapper.find('.dou-markdown__container[data-name="steps"]').text()).toBe('第一步')
   })
 
+  it('treats names like `constructor` as plain containers', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const wrapper = mount(DouMarkdown, {
+      props: {
+        content: ':::constructor\n甲\n:::\n\n:::toString\n乙\n:::\n\n```constructor\nx\n```',
+      },
+    })
+    expect(wrapper.findComponent(DouAlert).exists()).toBe(false)
+    expect(wrapper.findAll('.dou-markdown__container').map((c) => c.text())).toEqual(['甲', '乙'])
+    expect(wrapper.findComponent(DouCodeBlock).props('code')).toBe('x')
+    expect(warn).not.toHaveBeenCalled()
+    warn.mockRestore()
+  })
+
   it('takes a container by name before the general slot', () => {
     const wrapper = mount(DouMarkdown, {
       props: { content: ':::tip 贴士\n带伞\n:::\n\n:::other\n别的\n:::', streaming: true },

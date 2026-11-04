@@ -365,6 +365,13 @@ describe('streaming matches a full parse', () => {
     '参考 [文档][doc] 和 [b]。\n\n> 引用 [doc]\n\n- 项 [b]\n\n[doc]: https://ui.daidr.me "标题"\n[b]: /b',
     ':::tip 小贴士\n- 一\n- 二\n\n::::note\n嵌套\n::::\n:::\n\n| a | b |\n| - | - |\n| 1 | [x] |\n\n[x]: https://x.com',
     '# 标题\n\n```ts\nconst a = 1\n```\n\n1. 一\n   - 子项 **粗\n2. 二\n\n---\n\n末尾 `code` ~~删~~',
+    // definitions inside a container at the end
+    '参考 [文档][doc]\n- [doc]: https://x.com',
+    '参考 [文档][doc]\n> [doc]: https://x.com',
+    '- 参考 [文档][doc]\n- [doc]: https://x.com',
+    '| a |\n| - |\n| [doc] |\n\n> [doc]: /d',
+    '- \n\n    1. \n`',
+    '1. ---\t',
   ]
   it('at every prefix, and once final', () => {
     for (const doc of docs) {

@@ -53,7 +53,7 @@ app.use(DouUI, {
 
 ## 自定义块
 
-`:::名字` 开始一个自定义块，`:::` 结束，名字后面的文字是标题，块里可以写任意 Markdown。`tip`、`info`、`note`、`warning`、`danger` 默认显示为对应语气的 [Alert](./alert)；其他名字交给 `container-名字` 插槽，没有插槽时只显示内容。
+`:::名字` 开始一个自定义块，`:::` 结束，名字后面的文字是标题，块里可以写任意 Markdown。`tip`、`info`、`note`、`warning`、`danger` 默认显示为对应语气的 [Alert](./alert)；其他名字交给 `container-名字` 插槽，没有插槽时显示标题和内容，不加样式。
 
 <DocDemo src="markdown/container" column />
 

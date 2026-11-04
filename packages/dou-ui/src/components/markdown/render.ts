@@ -65,7 +65,7 @@ type AnySlot = (props: Record<string, unknown>) => unknown
 /** The slot for a kind of node, the more specific name first. */
 function slotOf(ctx: MarkdownRenderContext, ...names: string[]): AnySlot | undefined {
   const slots = ctx.slots as Record<string, AnySlot | undefined>
-  for (const name of names) if (slots[name]) return slots[name]
+  for (const name of names) if (Object.hasOwn(slots, name) && slots[name]) return slots[name]
   return undefined
 }
 
@@ -377,17 +377,17 @@ function renderRow(
 }
 
 /** Tones of the containers drawn as an Alert when no slot takes them. */
-const CALLOUTS: Record<string, Tone> = {
-  note: 'neutral',
-  info: 'primary',
-  tip: 'success',
-  warning: 'warning',
-  danger: 'danger',
-}
+const CALLOUTS = new Map<string, Tone>([
+  ['note', 'neutral'],
+  ['info', 'primary'],
+  ['tip', 'success'],
+  ['warning', 'warning'],
+  ['danger', 'danger'],
+])
 
 function renderContainer(ctx: MarkdownRenderContext, node: MarkdownContainer, tick: number) {
   const entering = enter(ctx, node.start)
-  const tone = CALLOUTS[node.name]
+  const tone = CALLOUTS.get(node.name)
   if (tone)
     return h(
       DouAlert,

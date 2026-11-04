@@ -12,6 +12,8 @@
     --dou-collapse-header-padding-y: 12px;
     --dou-collapse-arrow-size: 16px;
     --dou-collapse-gap: 8px;
+    /* content starts under the title text, past the chevron */
+    --dou-collapse-indent: calc(var(--dou-collapse-arrow-size) + var(--dou-collapse-gap));
     --dou-collapse-border: var(--dou-color-border);
 
     display: flex;
@@ -113,8 +115,9 @@
   }
 
   .dou-collapse__content {
-    padding: 0 var(--dou-collapse-padding-x) 16px
-      calc(var(--dou-collapse-padding-x) + var(--dou-collapse-arrow-size) + var(--dou-collapse-gap));
+    padding: 0 var(--dou-collapse-padding-x) 16px;
+    /* kept apart so an invalid indent only drops the indent */
+    padding-inline-start: calc(var(--dou-collapse-padding-x) + var(--dou-collapse-indent));
     color: var(--dou-color-text-secondary);
   }
 

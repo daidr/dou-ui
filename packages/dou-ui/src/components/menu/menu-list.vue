@@ -30,7 +30,7 @@ const menu = inject(menuKey)!
       </ul>
     </li>
     <li v-else-if="option.children?.length" :class="ns.e('entry')">
-      <MenuItem :item="option" :level="level" kind="submenu" />
+      <MenuItem :item="option" :level="level" kind="submenu" stacked />
       <CollapseTransition>
         <ul
           v-show="menu.isExpanded(option.key)"
@@ -42,7 +42,7 @@ const menu = inject(menuKey)!
       </CollapseTransition>
     </li>
     <li v-else :class="ns.e('entry')">
-      <MenuItem :item="option" :level="level" />
+      <MenuItem :item="option" :level="level" stacked />
     </li>
   </template>
 </template>

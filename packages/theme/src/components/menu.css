@@ -17,6 +17,10 @@
     --dou-menu-indent: calc(var(--dou-menu-icon-size) + var(--dou-menu-gap));
     --dou-menu-hover-bg: color-mix(in oklab, var(--dou-color-text) 4%, transparent);
     --dou-menu-selected-bg: color-mix(in oklab, var(--dou-color-text) 7%, transparent);
+    /* rows with a description: the title line, the gap to the description, the narrowest text column */
+    --dou-menu-title-height: 16px;
+    --dou-menu-description-gap: 6px;
+    --dou-menu-description-width: 200px;
 
     min-width: 0;
     color: var(--dou-color-text-secondary);
@@ -118,6 +122,56 @@
     overflow-x: clip;
     text-overflow: ellipsis;
     text-box: trim-both cap alphabetic;
+  }
+
+  /*
+   * A row with a description grows to two lines or more, like a menu item
+   * with one. The icon and the arrow stay on the title line; the description
+   * wraps below in a quieter, smaller type and never widens the menu.
+   */
+  .dou-menu__item.is-described {
+    align-items: flex-start;
+    height: auto;
+    min-height: var(--dou-menu-item-height);
+    padding-block: calc((var(--dou-menu-item-height) - var(--dou-menu-title-height, 16px)) / 2);
+
+    & > .dou-menu__arrow {
+      margin-block: calc((var(--dou-menu-title-height, 16px) - 1em) / 2);
+    }
+
+    & > .dou-menu__icon {
+      margin-block: calc((var(--dou-menu-title-height, 16px) - var(--dou-menu-icon-size)) / 2);
+    }
+  }
+
+  .dou-menu__text {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: var(--dou-menu-description-gap, 6px);
+    min-width: 0;
+
+    /* a flex row, so its trim does not apply: the line is as high as the icon and centers the text */
+    & > .dou-menu__label {
+      height: var(--dou-menu-title-height, 16px);
+    }
+  }
+
+  .dou-menu__description {
+    /* takes the width the menu gives it; a menu without a width of its own grows to this much for it */
+    contain: inline-size;
+    contain-intrinsic-inline-size: var(--dou-menu-description-width, 200px);
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    font-weight: var(--dou-font-weight-regular);
+    line-height: 1.5;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-box: trim-both cap alphabetic;
+
+    .dou-menu__item.is-disabled & {
+      color: inherit;
+    }
   }
 
   .dou-menu__arrow {

@@ -136,6 +136,56 @@ describe('DouDropdown', () => {
     }
   })
 
+  it('opens a hover menu on a tap and keeps it open after the finger lifts', async () => {
+    vi.useFakeTimers()
+    const wrapper = withModel({ trigger: 'hover' })
+    const trigger = wrapper.get('#trigger')
+    // a tap: touch pointer events, then the mouse events phones send after it
+    await trigger.trigger('pointerenter', { pointerType: 'touch' })
+    await trigger.trigger('pointerdown', { pointerType: 'touch' })
+    await trigger.trigger('pointerleave', { pointerType: 'touch' })
+    await trigger.trigger('mouseenter')
+    await trigger.trigger('click')
+    expect(wrapper.props('open')).toBe(true)
+    await trigger.trigger('mouseleave')
+    vi.advanceTimersByTime(500)
+    await nextTick()
+    expect(wrapper.props('open')).toBe(true)
+    // the same trigger tapped again closes it
+    await trigger.trigger('pointerdown', { pointerType: 'touch' })
+    await trigger.trigger('click')
+    expect(wrapper.props('open')).toBe(false)
+    // and a press outside closes what a tap opened
+    await trigger.trigger('pointerdown', { pointerType: 'touch' })
+    await trigger.trigger('click')
+    expect(wrapper.props('open')).toBe(true)
+    document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+    await nextTick()
+    expect(wrapper.props('open')).toBe(false)
+    wrapper.unmount()
+    vi.useRealTimers()
+  })
+
+  it('still opens and closes a hover menu with the mouse', async () => {
+    vi.useFakeTimers()
+    const wrapper = withModel({ trigger: 'hover' })
+    const trigger = wrapper.get('#trigger')
+    await trigger.trigger('pointerenter', { pointerType: 'mouse' })
+    vi.advanceTimersByTime(100)
+    await nextTick()
+    expect(wrapper.props('open')).toBe(true)
+    // a click with the mouse leaves the hover menu as it is
+    await trigger.trigger('pointerdown', { pointerType: 'mouse' })
+    await trigger.trigger('click')
+    expect(wrapper.props('open')).toBe(true)
+    await trigger.trigger('pointerleave', { pointerType: 'mouse' })
+    vi.advanceTimersByTime(150)
+    await nextTick()
+    expect(wrapper.props('open')).toBe(false)
+    wrapper.unmount()
+    vi.useRealTimers()
+  })
+
   it('closes on Escape and gives focus back to the trigger', async () => {
     const wrapper = withModel({ open: true })
     await nextTick()

@@ -21,11 +21,24 @@ export interface UsePopupOptions {
   showDelay?: MaybeRefOrGetter<number>
   /** Delay before closing once the pointer leaves, in ms. */
   hideDelay?: MaybeRefOrGetter<number>
-  /** Close on a press outside. Defaults to on for `click` and `focus` triggers. */
+  /**
+   * Close on a press outside. Defaults to on for `click` and `focus` triggers,
+   * and for a `hover` panel a tap opened.
+   */
   closeOnOutside?: MaybeRefOrGetter<boolean>
+  /**
+   * A finger has no hover: a tap on the trigger of a `hover` panel without
+   * the `click` trigger opens and closes it instead. Defaults to on.
+   */
+  tap?: MaybeRefOrGetter<boolean>
   /** What the panel is placed next to, when not the trigger itself (e.g. the pointer). */
   anchor?: () => Element | VirtualElement | null | undefined
 }
+
+// Hover listens to pointer events and leaves touch out: a tap also sends
+// mouseenter, and the mouseleave that may come at any time after it (or
+// only with the next tap elsewhere) would close what the tap opened.
+const hoverable = (event: Event) => (event as PointerEvent).pointerType !== 'touch'
 
 /**
  * The shared behavior of panels anchored to a trigger: opening on hover,
@@ -93,6 +106,12 @@ export function usePopup(options: UsePopupOptions) {
     sameWidth: options.sameWidth,
   })
 
+  // whether the panel was open when the finger came down: focus from the
+  // same tap may open it before the click arrives
+  let tapFrom: boolean | null = null
+  let tapped = false
+  watch(open, (value) => value || (tapped = false))
+
   useLayer({
     open,
     elements: () => [reference(), panelRef.value],
@@ -100,7 +119,7 @@ export function usePopup(options: UsePopupOptions) {
     onOutside: () => {
       const close =
         toValue(options.closeOnOutside) ??
-        (triggers.value.has('click') || triggers.value.has('focus'))
+        (triggers.value.has('click') || triggers.value.has('focus') || tapped)
       if (close) hide()
     },
   })
@@ -111,8 +130,21 @@ export function usePopup(options: UsePopupOptions) {
   const triggerListeners = computed(() => {
     const on: Record<string, (event: Event) => void> = {}
     if (triggers.value.has('hover')) {
-      on.onMouseenter = () => show(showDelay())
-      on.onMouseleave = () => hide(hideDelay())
+      on.onPointerenter = (event) => hoverable(event) && show(showDelay())
+      on.onPointerleave = (event) => hoverable(event) && hide(hideDelay())
+      if (!triggers.value.has('click') && (toValue(options.tap) ?? true)) {
+        on.onPointerdown = (event) => {
+          tapFrom = hoverable(event) ? null : open.value
+        }
+        on.onClick = () => {
+          const wasOpen = tapFrom
+          tapFrom = null
+          if (wasOpen === null) return
+          if (wasOpen) return hide()
+          show()
+          tapped = open.value
+        }
+      }
     }
     if (triggers.value.has('focus')) {
       on.onFocusin = () => show()
@@ -132,8 +164,8 @@ export function usePopup(options: UsePopupOptions) {
   const panelListeners = computed(() => {
     if (!triggers.value.has('hover')) return {}
     return {
-      onMouseenter: clear,
-      onMouseleave: () => hide(hideDelay()),
+      onPointerenter: (event: Event) => hoverable(event) && clear(),
+      onPointerleave: (event: Event) => hoverable(event) && hide(hideDelay()),
     }
   })
 

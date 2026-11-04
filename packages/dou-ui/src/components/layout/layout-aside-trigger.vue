@@ -2,7 +2,7 @@
 import { MenuIcon } from '@dou-ui/icons'
 import { inject } from 'vue'
 import { useNamespace } from '../../utils/namespace'
-import DouButton from '../button/button.vue'
+import { DouButton } from '../button'
 import { useLocale } from '../config-provider/use-config'
 import { layoutKey } from './layout'
 import type { LayoutAsideTriggerProps } from './layout'

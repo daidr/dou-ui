@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ImageOffIcon } from '@dou-ui/icons'
 import { computed, nextTick, ref, toRef, useTemplateRef, watch } from 'vue'
-import DouFlowPort from '../components/flow-port.vue'
+import { DouFlowPort } from '../components/port'
 import { useFlowEditor } from '../context'
 import type { NodeViewProps } from '../core/node-types'
 import type { Tone } from 'dou-ui'

@@ -16,7 +16,7 @@ import { useLayer } from '../../composables/use-layer'
 import { useThemeScope } from '../../composables/use-theme-scope'
 import { useNamespace } from '../../utils/namespace'
 import { useTeleport } from '../../utils/teleport'
-import DouButton from '../button/button.vue'
+import { DouButton } from '../button'
 import { useLocale, useZIndex } from '../config-provider/use-config'
 import type { TourEmits, TourExpose, TourProps, TourSlots, TourTarget } from './tour'
 

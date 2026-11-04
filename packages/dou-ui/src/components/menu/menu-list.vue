@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { inject } from 'vue'
 import { useNamespace } from '../../utils/namespace'
-import { CollapseTransition } from '../collapse/collapse-transition'
+import { DouCollapseTransition as CollapseTransition } from '../collapse/collapse-transition'
 import { isDivider, isGroup, menuKey } from './menu'
 import type { MenuOption } from './menu'
 import MenuItem from './menu-item.vue'

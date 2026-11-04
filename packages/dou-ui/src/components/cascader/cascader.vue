@@ -16,7 +16,7 @@ import { shouldVirtualize, visibleWindow } from '../../utils/virtual'
 import { OnlyChild } from '../../utils/only-child'
 import { useLocale } from '../config-provider/use-config'
 import { useFormDisabled, useFormItem, useFormReadonly, useFormSize } from '../form/use-form-item'
-import DouCheckbox from '../checkbox/checkbox.vue'
+import { DouCheckbox } from '../checkbox'
 import { DouSpinner } from '../spinner'
 import { DouTag } from '../tag'
 import type {

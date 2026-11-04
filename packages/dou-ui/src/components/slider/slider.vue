@@ -6,7 +6,7 @@ import { useLocale } from '../config-provider/use-config'
 import { formItemKey } from '../form/form'
 import type { FormItemContext } from '../form/form'
 import { useFormDisabled, useFormItem, useFormReadonly, useFormSize } from '../form/use-form-item'
-import DouInputNumber from '../input-number/input-number.vue'
+import { DouInputNumber } from '../input-number'
 import type { SliderExpose, SliderProps, SliderValue } from './slider'
 
 defineOptions({ name: 'DouSlider', inheritAttrs: false })

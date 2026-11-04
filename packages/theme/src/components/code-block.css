@@ -153,7 +153,8 @@
       content: '\200b';
     }
 
-    & span {
+    /* shiki's colors; tokens of `createCodeHighlighter` keep the theme's syntax colors */
+    & span:not([class^='dou-syntax-']) {
       color: var(--shiki-light, inherit);
       color: color-mix(
         in oklab,
@@ -206,6 +207,17 @@
     &:focus-visible {
       outline: 2px solid var(--dou-color-focus);
       outline-offset: -2px;
+    }
+  }
+
+  /* while the code streams in, each new line fades in as it arrives */
+  .dou-code-block.is-streaming .dou-code-block__row {
+    animation: dou-code-block-line var(--dou-motion-duration-slow) var(--dou-motion-easing) both;
+  }
+
+  @keyframes dou-code-block-line {
+    from {
+      opacity: 0;
     }
   }
 }

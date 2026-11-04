@@ -3,7 +3,7 @@ import { computed, nextTick, onMounted, ref, useId, useTemplateRef } from 'vue'
 import { useCoarsePointer } from '../../utils/media'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
-import DouVirtualList from '../virtual-list/virtual-list.vue'
+import { DouVirtualList } from '../virtual-list'
 import type { VirtualListExpose } from '../virtual-list/virtual-list'
 
 // The pages an ellipsis stands for, as a list to jump to. Long gaps (page

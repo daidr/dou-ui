@@ -14,7 +14,7 @@ import { computed } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useStatusCheck } from '../../utils/status-check'
 import { useLocale } from '../config-provider/use-config'
-import DouShimmer from '../shimmer/shimmer.vue'
+import { DouShimmer } from '../shimmer'
 import type {
   ChatArtifactEmits,
   ChatArtifactKind,

@@ -3,7 +3,7 @@ import { ChevronRightIcon } from '@dou-ui/icons'
 import { computed, inject, ref, useId, watch } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { collapseKey } from './collapse'
-import { CollapseTransition } from './collapse-transition'
+import { DouCollapseTransition as CollapseTransition } from './collapse-transition'
 import type { CollapseItemProps, CollapseItemSlots } from './collapse'
 
 defineOptions({ name: 'DouCollapseItem' })

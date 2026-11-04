@@ -33,6 +33,12 @@ export interface CodeBlockProps {
   /** Show a copy button. */
   copyable?: boolean
   /**
+   * The code is still arriving. Only whole lines are highlighted, so the
+   * highlighter runs once a line rather than once a character, and new
+   * lines fade in.
+   */
+  streaming?: boolean
+  /**
    * The hairline frame and rounded corners. Off, the block takes no border
    * at all, for a card or panel that already has an edge. On by default.
    */

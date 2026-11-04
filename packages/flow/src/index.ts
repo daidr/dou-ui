@@ -2,12 +2,12 @@ import { withInstall } from 'dou-ui'
 import FlowEditor from './flow-editor.vue'
 import FlowControls from './components/flow-controls.vue'
 import FlowMinimap from './components/flow-minimap.vue'
-import FlowPortComponent from './components/flow-port.vue'
+import { DouFlowPort } from './components/port'
 
 export const DouFlowEditor = withInstall(FlowEditor)
 export const DouFlowControls = withInstall(FlowControls)
 export const DouFlowMinimap = withInstall(FlowMinimap)
-export const DouFlowPort = withInstall(FlowPortComponent)
+export { DouFlowPort }
 export default DouFlowEditor
 
 export { useFlowEditor } from './context'

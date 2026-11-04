@@ -15,6 +15,7 @@ const props = withDefaults(defineProps<CodeBlockProps>(), {
   startLine: 1,
   wrap: false,
   copyable: true,
+  streaming: false,
   bordered: true,
 })
 const slots = defineSlots<CodeBlockSlots>()
@@ -38,18 +39,39 @@ const code = computed(() => props.code.replace(/\n$/, ''))
 /*
  * Plain lines until the highlighter answers. A synchronous highlighter
  * answers during setup, so server-rendered markup is already highlighted;
- * an async one fills in after. Only the latest call may land.
+ * an async one fills in after. Only the latest call may land. While the
+ * next answer is on its way, lines that were highlighted before and have
+ * not changed keep their colors.
  */
 const lines = shallowRef<string[]>(plainLines(code.value))
 let run = 0
+// what the last answer covered, and its lines
+let landed: { source: string; lines: string[] } | undefined
 watchEffect(() => {
   const current = ++run
-  const source = code.value
   const highlight = highlighter.value
-  lines.value = plainLines(source)
-  if (!highlight) return
+  const raw = props.code
+  // while streaming, the line still being written stays plain
+  const cut = props.streaming ? raw.lastIndexOf('\n') + 1 : raw.length
+  const source = raw.slice(0, cut).replace(/\n$/, '')
+  const tail = props.streaming ? raw.slice(cut) : ''
+  const after = tail ? plainLines(tail) : []
+  if (!highlight || !source) {
+    lines.value = plainLines(code.value)
+    return
+  }
+  if (landed?.source === source) {
+    lines.value = after.length ? [...landed.lines, ...after] : landed.lines
+    return
+  }
+  const kept = landed && source.startsWith(`${landed.source}\n`) ? landed : undefined
+  lines.value = kept
+    ? [...kept.lines, ...plainLines(source.slice(kept.source.length + 1)), ...after]
+    : [...plainLines(source), ...after]
   const apply = (html: string) => {
-    if (current === run) lines.value = htmlLines(html)
+    if (current !== run) return
+    landed = { source, lines: htmlLines(html) }
+    lines.value = after.length ? [...landed.lines, ...after] : landed.lines
   }
   try {
     const result = highlight(source, props.lang)
@@ -81,6 +103,7 @@ const classes = computed(() => [
   ns.is('numbered', props.lineNumbers),
   ns.is('folded', folded.value),
   ns.is('headless', !hasHeader.value),
+  ns.is('streaming', props.streaming),
   ns.is('bordered', props.bordered),
 ])
 </script>

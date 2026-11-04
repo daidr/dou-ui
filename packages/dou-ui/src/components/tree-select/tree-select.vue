@@ -9,7 +9,7 @@ import { OnlyChild } from '../../utils/only-child'
 import { useLocale } from '../config-provider/use-config'
 import { useFormDisabled, useFormItem, useFormReadonly, useFormSize } from '../form/use-form-item'
 import { DouTag } from '../tag'
-import DouTreeComponent from '../tree/tree.vue'
+import { DouTree as DouTreeComponent } from '../tree'
 import type { WithAttributes } from '../../utils/install'
 import type { TreeExpose, TreeKey, TreeNodeData } from '../tree/tree'
 import type {

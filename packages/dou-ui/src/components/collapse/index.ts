@@ -1,11 +1,11 @@
 import { withInstall } from '../../utils/install'
 import Collapse from './collapse.vue'
 import CollapseItem from './collapse-item.vue'
-import { CollapseTransition } from './collapse-transition'
+import { DouCollapseTransition } from './collapse-transition'
 
 export const DouCollapse = withInstall(Collapse)
 export const DouCollapseItem = withInstall(CollapseItem)
-export const DouCollapseTransition = withInstall(CollapseTransition)
+export { DouCollapseTransition }
 export default DouCollapse
 
 export type * from './collapse'

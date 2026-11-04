@@ -141,9 +141,9 @@ export const en: Locale = {
     empty: 'No results',
   },
   steps: {
-    finish: 'completed',
-    process: 'current',
-    wait: 'not started',
+    done: 'completed',
+    running: 'current',
+    pending: 'not started',
     error: 'failed',
   },
   nodeGraph: {

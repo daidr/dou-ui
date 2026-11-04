@@ -10,7 +10,7 @@ defineOptions({ name: 'DouSteps' })
 
 const props = withDefaults(defineProps<StepsProps>(), {
   items: () => [],
-  status: 'process',
+  status: 'running',
   direction: 'horizontal',
   size: 'md',
   clickable: false,
@@ -24,9 +24,9 @@ const { t } = useLocale()
 
 function statusOf(item: StepItem, index: number): StepStatus {
   if (item.status) return item.status
-  if (index < current.value) return 'finish'
+  if (index < current.value) return 'done'
   if (index === current.value) return props.status
-  return 'wait'
+  return 'pending'
 }
 
 /*
@@ -196,7 +196,7 @@ function go(item: StepItem, index: number) {
         >
           <span :class="ns.e('marker')" aria-hidden="true">
             <component :is="item.icon" v-if="item.icon" :class="ns.e('icon')" />
-            <CheckIcon v-else-if="statusOf(item, index) === 'finish'" :stroke-width="1.75" />
+            <CheckIcon v-else-if="statusOf(item, index) === 'done'" :stroke-width="1.75" />
             <CloseIcon v-else-if="statusOf(item, index) === 'error'" :stroke-width="1.75" />
             <span v-else :class="ns.e('number')">{{ index + 1 }}</span>
           </span>

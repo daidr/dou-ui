@@ -40,14 +40,14 @@
 
 ### Props
 
-| 名称        | 说明                      | 类型                                         | 默认值         |
-| ----------- | ------------------------- | -------------------------------------------- | -------------- |
-| `items`     | 步骤                      | `StepItem[]`                                 | `[]`           |
-| `current`   | 当前步骤的下标，从 0 开始 | `number`                                     | `0`            |
-| `status`    | 当前步骤的状态            | `'wait' \| 'process' \| 'finish' \| 'error'` | `'process'`    |
-| `direction` | 方向                      | `'horizontal' \| 'vertical'`                 | `'horizontal'` |
-| `size`      | 尺寸                      | `'sm' \| 'md'`                               | `'md'`         |
-| `clickable` | 点击跳到对应步骤          | `boolean`                                    | `false`        |
+| 名称        | 说明                      | 类型                                          | 默认值         |
+| ----------- | ------------------------- | --------------------------------------------- | -------------- |
+| `items`     | 步骤                      | `StepItem[]`                                  | `[]`           |
+| `current`   | 当前步骤的下标，从 0 开始 | `number`                                      | `0`            |
+| `status`    | 当前步骤的状态            | `'pending' \| 'running' \| 'done' \| 'error'` | `'running'`    |
+| `direction` | 方向                      | `'horizontal' \| 'vertical'`                  | `'horizontal'` |
+| `size`      | 尺寸                      | `'sm' \| 'md'`                                | `'md'`         |
+| `clickable` | 点击跳到对应步骤          | `boolean`                                     | `false`        |
 
 ### StepItem
 

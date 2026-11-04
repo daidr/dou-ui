@@ -1,6 +1,6 @@
 import type { Component } from 'vue'
 
-export type StepStatus = 'wait' | 'process' | 'finish' | 'error'
+export type StepStatus = 'pending' | 'running' | 'done' | 'error'
 export type StepsDirection = 'horizontal' | 'vertical'
 export type StepsSize = 'sm' | 'md'
 

@@ -141,9 +141,9 @@ export const zhTW: Locale = {
     empty: '沒有符合的結果',
   },
   steps: {
-    finish: '已完成',
-    process: '進行中',
-    wait: '未開始',
+    done: '已完成',
+    running: '進行中',
+    pending: '未開始',
     error: '出錯',
   },
   nodeGraph: {

@@ -63,4 +63,14 @@ describe('DouChatPlan', () => {
     )
     warn.mockRestore()
   })
+  it('marks a waiting step without counting it as finished', () => {
+    const wrapper = mount(DouChatPlan, {
+      props: { items: [{ label: '确认上线', status: 'waiting' }, { label: '发布' }] },
+    })
+    const row = wrapper.get('.dou-chat-plan__item')
+    expect(row.classes()).toContain('is-waiting')
+    expect(row.find('.dou-shimmer.is-active').exists()).toBe(false)
+    expect(row.get('.dou-chat-plan__mark svg').attributes('aria-label')).toBe('等待中')
+    expect(wrapper.get('.dou-chat-plan__count').text()).toBe('0 / 2')
+  })
 })

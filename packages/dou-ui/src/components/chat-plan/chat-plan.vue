@@ -1,5 +1,11 @@
 <script setup lang="ts">
-import { AlertCircleIcon, CheckIcon, ChevronDownIcon, ListChecksIcon } from '@dou-ui/icons'
+import {
+  AlertCircleIcon,
+  CheckIcon,
+  ChevronDownIcon,
+  ClockPauseIcon,
+  ListChecksIcon,
+} from '@dou-ui/icons'
 import { computed, ref, useId, watchEffect } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { CollapseTransition } from '../collapse/collapse-transition'
@@ -88,6 +94,10 @@ const running = computed(() => props.items.some((item) => item.status === 'runni
                 v-if="item.status === 'running'"
                 size="sm"
                 :label="t('chat.stepRunning')"
+              />
+              <ClockPauseIcon
+                v-else-if="item.status === 'waiting'"
+                :label="t('chat.stepWaiting')"
               />
               <CheckIcon v-else-if="item.status === 'done'" :label="t('chat.stepDone')" />
               <AlertCircleIcon v-else-if="item.status === 'error'" :label="t('chat.stepError')" />

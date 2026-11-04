@@ -2,7 +2,8 @@
  * ChatPlan
  *
  * The steps a model means to take, as a framed checklist. The header
- * counts what is finished; the running step shimmers, finished ones are
+ * counts what is finished; the running step shimmers, a waiting one holds
+ * still in the warning color, finished ones are
  * ticked and step back in color. Without `collapsible` the header is
  * plain text and the list always shows.
  */
@@ -103,6 +104,10 @@
       color: var(--dou-color-success-text);
     }
 
+    .dou-chat-plan__item.is-waiting & {
+      color: var(--dou-color-warning-text);
+    }
+
     .dou-chat-plan__item.is-error & {
       color: var(--dou-color-danger-text);
     }
@@ -132,7 +137,8 @@
       text-decoration: line-through;
     }
 
-    .dou-chat-plan__item.is-running & {
+    .dou-chat-plan__item.is-running &,
+    .dou-chat-plan__item.is-waiting & {
       font-weight: var(--dou-font-weight-medium);
     }
   }

@@ -685,6 +685,8 @@ export interface Locale {
     /** Heads a task plan. */
     plan: string
     stepRunning: string
+    /** A step paused until someone answers or something outside finishes. */
+    stepWaiting: string
     stepDone: string
     stepError: string
     /** Summary of steps still in progress, when no step names itself. */

@@ -34,8 +34,8 @@ const doc = ref<EditorDocument<PartialBlock>>({
       <DouSegmentedControl
         v-model="gap"
         :options="[
-          { value: '4px', label: '段距紧凑' },
-          { value: '16px', label: '段距舒展' },
+          { value: '4px', label: '块间距 4px' },
+          { value: '16px', label: '块间距 16px' },
         ]"
         size="sm"
       />
@@ -43,7 +43,7 @@ const doc = ref<EditorDocument<PartialBlock>>({
         v-model="width"
         :options="[
           { value: 'none', label: '占满宽度' },
-          { value: '480px', label: '阅读宽度 480px' },
+          { value: '360px', label: '阅读宽度 360px' },
         ]"
         size="sm"
       />

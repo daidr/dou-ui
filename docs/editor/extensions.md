@@ -53,15 +53,15 @@ const extensions = [editorKit({ codeBlock: false, divider: false })]
 
 ### defineBlock 选项
 
-| 名称        | 说明                                                                | 类型                 | 默认值     |
-| ----------- | ------------------------------------------------------------------- | -------------------- | ---------- |
-| `type`      | 块类型的名称，不能和已有的类型重复                                  | `string`             | —          |
-| `props`     | 块的属性和默认值，值需要能转换成 JSON                               | `object`             | `{}`       |
-| `content`   | `'inline'` 表示块里有文字，`'none'` 表示没有                        | `'inline' \| 'none'` | `'inline'` |
-| `component` | 渲染块的组件                                                        | `Component`          | —          |
-| `continues` | 在块末尾按 `Enter` 时，新块沿用同一类型，和列表一样                 | `boolean`            | `false`    |
-| `menu`      | 块菜单中的选项，不设置时不出现在菜单里                              | `BlockOption`        | —          |
-| `spec`      | 覆盖生成的 ProseMirror 节点定义，例如用 `parseDOM` 识别粘贴来的内容 | `Partial<NodeSpec>`  | —          |
+| 名称        | 说明                                                                                                       | 类型                 | 默认值     |
+| ----------- | ---------------------------------------------------------------------------------------------------------- | -------------------- | ---------- |
+| `type`      | 块类型的名称，不能和已有的类型重复                                                                         | `string`             | —          |
+| `props`     | 块的属性和默认值，值需要能转换成 JSON                                                                      | `object`             | `{}`       |
+| `content`   | `'inline'` 表示块里有文字，`'none'` 表示没有                                                               | `'inline' \| 'none'` | `'inline'` |
+| `component` | 渲染块的组件                                                                                               | `Component`          | —          |
+| `continues` | 在块末尾按 `Enter` 时，新块沿用同一类型，和列表一样；相邻的同类块之间也按[列表间距](./#间距和阅读宽度)排列 | `boolean`            | `false`    |
+| `menu`      | 块菜单中的选项，不设置时不出现在菜单里                                                                     | `BlockOption`        | —          |
+| `spec`      | 覆盖生成的 ProseMirror 节点定义，例如用 `parseDOM` 识别粘贴来的内容                                        | `Partial<NodeSpec>`  | —          |
 
 ### 组件的 Props
 

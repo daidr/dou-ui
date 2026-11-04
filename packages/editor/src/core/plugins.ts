@@ -1,5 +1,6 @@
 import type { Node as PMNode } from 'prosemirror-model'
 import { Plugin, PluginKey, type Transaction } from 'prosemirror-state'
+import { ReplaceAroundStep, ReplaceStep } from 'prosemirror-transform'
 import { Decoration, DecorationSet } from 'prosemirror-view'
 import { createId } from './model'
 
@@ -42,14 +43,54 @@ export function idPlugin(): Plugin {
   })
 }
 
+/**
+ * Whether a transaction may have changed which blocks there are, their
+ * types or their nesting. Typing and deleting inside one text block, marks
+ * and attributes don't; decorations that only follow the block structure
+ * then just map through the change instead of being rebuilt.
+ */
+export function changesBlockStructure(tr: Transaction): boolean {
+  if (!tr.docChanged) return false
+  return tr.steps.some((step, index) => {
+    if (step instanceof ReplaceAroundStep) return true
+    if (!(step instanceof ReplaceStep)) return false
+    const { from, to, slice } = step
+    if (slice.openStart || slice.openEnd) return true
+    let blocks = false
+    slice.content.forEach((node) => {
+      if (!node.isInline) blocks = true
+    })
+    if (blocks) return true
+    const doc = tr.docs[index]!
+    const $from = doc.resolve(from)
+    return !$from.parent.isTextblock || !$from.sameParent(doc.resolve(to))
+  })
+}
+
+/** Plugin state for decorations that only depend on the block structure. */
+const structureDecorations = (build: (doc: PMNode) => DecorationSet) => ({
+  init: (_config: unknown, state: { doc: PMNode }) => build(state.doc),
+  apply: (tr: Transaction, value: DecorationSet) =>
+    !tr.docChanged
+      ? value
+      : changesBlockStructure(tr)
+        ? build(tr.doc)
+        : value.map(tr.mapping, tr.doc),
+})
+
 const isList = (block: PMNode | null) => !!block?.firstChild?.type.spec.continues
 
+/** Whether a sibling block is an item of the same list as `block`. */
+const sameList = (sibling: PMNode, block: PMNode) =>
+  isList(sibling) && sibling.firstChild!.type === block.firstChild!.type
+
 /**
- * Blocks that continue like a list (`continues` in their spec) get
- * `is-list`, so the stylesheet can space list items apart by the list gap
+ * The content of blocks that continue like a list (`continues` in their
+ * spec) gets `is-list`, so the stylesheet can space list items apart by the list gap
  * instead of the block gap. The first and last block of a run of them also
- * get `is-list-start` / `is-list-end`, where the block gap comes back. A
- * nested run under a list item carries on its parent's run.
+ * get `is-list-start` / `is-list-end`, where the block gap comes back. A run
+ * is one type: a to-do list right after a numbered one is a list of its
+ * own. Nested items under a list item, of any type, carry on its run.
  */
 function listDecorations(doc: PMNode): DecorationSet {
   const decorations: Decoration[] = []
@@ -60,11 +101,16 @@ function listDecorations(doc: PMNode): DecorationSet {
       const list = isList(block)
       if (list) {
         const classes = ['is-list']
-        if (!(index > 0 ? isList(container.child(index - 1)) : inList))
+        if (!(index > 0 ? sameList(container.child(index - 1), block) : inList))
           classes.push('is-list-start')
-        if (!(index < last ? isList(container.child(index + 1)) : inList))
+        if (!(index < last ? sameList(container.child(index + 1), block) : inList))
           classes.push('is-list-end')
-        decorations.push(Decoration.node(pos, pos + block.nodeSize, { class: classes.join(' ') }))
+        // on the content, not the block: the view looks up a block's own
+        // decorations by scanning all of its parent's, once per child
+        const content = block.firstChild!
+        decorations.push(
+          Decoration.node(pos + 1, pos + 1 + content.nodeSize, { class: classes.join(' ') }),
+        )
       }
       if (block.childCount > 1)
         visit(block.child(1), pos + 1 + block.firstChild!.nodeSize + 1, list)
@@ -78,10 +124,7 @@ function listDecorations(doc: PMNode): DecorationSet {
 export function listPlugin(): Plugin {
   return new Plugin<DecorationSet>({
     key: new PluginKey('dou-editor-lists'),
-    state: {
-      init: (_config, state) => listDecorations(state.doc),
-      apply: (tr, value) => (tr.docChanged ? listDecorations(tr.doc) : value),
-    },
+    state: structureDecorations(listDecorations),
     props: {
       decorations(state) {
         return this.getState(state)
@@ -114,10 +157,7 @@ function numberDecorations(doc: PMNode): DecorationSet {
 export function numberingPlugin(): Plugin {
   return new Plugin<DecorationSet>({
     key: new PluginKey('dou-editor-numbering'),
-    state: {
-      init: (_config, state) => numberDecorations(state.doc),
-      apply: (tr, value) => (tr.docChanged ? numberDecorations(tr.doc) : value),
-    },
+    state: structureDecorations(numberDecorations),
     props: {
       decorations(state) {
         return this.getState(state)

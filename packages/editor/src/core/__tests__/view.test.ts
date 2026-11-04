@@ -8,6 +8,7 @@ import { createEditorView, getBlocks } from '../editor'
 import { resolveEditorExtensions } from '../extension'
 import { editorKit } from '../../extensions/editor-kit'
 import type { PartialBlock } from '../model'
+import { changesBlockStructure } from '../plugins'
 import { getSlash, slashPlugin } from '../slash'
 import { p, shape } from './helpers'
 
@@ -263,7 +264,9 @@ const classesOf = (target: EditorView) =>
   Object.fromEntries(
     [...target.dom.querySelectorAll<HTMLElement>('.dou-editor__block')].map((block) => [
       block.dataset.blockId,
-      ['is-list', 'is-list-start', 'is-list-end'].filter((name) => block.classList.contains(name)),
+      ['is-list', 'is-list-start', 'is-list-end'].filter((name) =>
+        block.querySelector(':scope > .dou-editor__content')!.classList.contains(name),
+      ),
     ]),
   )
 
@@ -285,12 +288,32 @@ describe('list spacing', () => {
     ])
     expect(classesOf(target)).toEqual({
       intro: [],
-      a: ['is-list', 'is-list-start'],
-      b: ['is-list', 'is-list-end'],
-      b1: ['is-list'],
-      b2: ['is-list'],
+      // a numbered list right after a bulleted one is a list of its own
+      a: ['is-list', 'is-list-start', 'is-list-end'],
+      b: ['is-list', 'is-list-start', 'is-list-end'],
+      // nested under a list item, any type carries on its run; siblings of another type split it
+      b1: ['is-list', 'is-list-end'],
+      b2: ['is-list', 'is-list-start'],
       c: [],
       c1: ['is-list', 'is-list-start', 'is-list-end'],
+    })
+  })
+
+  it('maps through typing, rebuilds when blocks change', () => {
+    const target = mount([
+      { id: 'a', type: 'bulletItem', content: 'a' },
+      { id: 'b', type: 'bulletItem', content: 'b' },
+    ])
+    cursorAt(target, 'a', 1)
+    const typing = target.state.tr.insertText('x')
+    expect(changesBlockStructure(typing)).toBe(false)
+    target.dispatch(typing)
+    expect(changesBlockStructure(target.state.tr.split(target.state.selection.from, 2))).toBe(true)
+    press(target, 'Enter')
+    expect(classesOf(target)).toEqual({
+      a: ['is-list', 'is-list-start'],
+      [getBlocks(target)[1]!.id]: ['is-list'],
+      b: ['is-list', 'is-list-end'],
     })
   })
 

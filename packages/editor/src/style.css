@@ -131,18 +131,39 @@
 
   /*
    * list items: the list gap between items; the block gap returns around a
-   * run of them, on its first and last block (which holds any nested items)
+   * run of them, on its first and last block (which holds any nested items).
+   * The difference is padding when the list gap is the smaller one, and a
+   * negative margin when it is the larger, so a heading's own margin after
+   * a list adds to it instead of swallowing it. At the very start and end of
+   * the document there is no neighbour to keep apart: no margin there, so
+   * it can't pull the editor over what's around it.
    */
-  .dou-editor__block.is-list > .dou-editor__content {
+  .dou-editor__block > .dou-editor__content.is-list {
     padding-block: calc(var(--dou-editor-list-gap) / 2);
   }
 
-  .dou-editor__block.is-list-start {
+  .dou-editor__block:has(> .dou-editor__content.is-list-start) {
     padding-top: max(0px, (var(--dou-editor-block-gap) - var(--dou-editor-list-gap)) / 2);
+    margin-top: min(0px, (var(--dou-editor-block-gap) - var(--dou-editor-list-gap)) / 2);
   }
 
-  .dou-editor__block.is-list-end {
+  .dou-editor__block:has(> .dou-editor__content.is-list-end) {
     padding-bottom: max(0px, (var(--dou-editor-block-gap) - var(--dou-editor-list-gap)) / 2);
+    margin-bottom: min(0px, (var(--dou-editor-block-gap) - var(--dou-editor-list-gap)) / 2);
+  }
+
+  /* two negative margins overlap instead of adding up: between two lists, the first takes it all */
+  .dou-editor__block:has(> .dou-editor__content.is-list-end)
+    + .dou-editor__block:has(> .dou-editor__content.is-list-start) {
+    margin-top: min(0px, var(--dou-editor-block-gap) - var(--dou-editor-list-gap));
+  }
+
+  .dou-editor__surface > .dou-editor__block:first-child:has(> .dou-editor__content.is-list-start) {
+    margin-top: 0;
+  }
+
+  .dou-editor__surface > .dou-editor__block:last-child:has(> .dou-editor__content.is-list-end) {
+    margin-bottom: 0;
   }
 
   .dou-editor__content--heading {
@@ -301,7 +322,8 @@
 
   .dou-editor__content--codeBlock {
     --dou-editor-line-height: 1.7;
-    margin-block: 4px;
+    /* its padding is inside the frame: the block gap goes outside, plus a little room */
+    margin-block: calc(var(--dou-editor-block-gap) / 2 + 2px);
     padding: 12px 16px;
     overflow-x: auto;
     border: 1px solid var(--dou-color-border);
@@ -675,7 +697,7 @@
     white-space: nowrap;
   }
 
-  .dou-editor__block.is-list > .dou-editor__content.is-empty::after {
+  .dou-editor__content.is-list.is-empty::after {
     top: calc(var(--dou-editor-list-gap) / 2);
   }
 

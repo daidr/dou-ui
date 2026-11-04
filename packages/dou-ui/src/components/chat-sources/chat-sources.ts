@@ -2,7 +2,12 @@ export interface ChatSource {
   /** Unique within the list. Defaults to the position. */
   key?: string | number
   title: string
-  /** Where the source lives. Without it the source is shown but not linked. */
+  /**
+   * Where the source lives. Without it the source is shown but not linked.
+   * Only http(s), mailto, tel and relative addresses become links; others,
+   * such as `javascript:`, are shown without a link. http(s) and relative
+   * links open in a new tab.
+   */
   url?: string
   /** A short name for the site, e.g. `weather.sh.cn`. Defaults to the host of `url`. */
   site?: string

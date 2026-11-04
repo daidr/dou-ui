@@ -44,7 +44,7 @@ npm dist-tag add @dou-ui/sheet@0.2.0 beta
 ## 本地命令
 
 ```sh
-bun run release <版本号>          # 发版 PR 里做的事：改版本号、汇总更新日志
+bun run release <版本号>          # 发版 PR 里做的事：改版本号（连同 bun.lock）、汇总更新日志
 bun run release:pack               # 构建后打包并检查 tarball（写到 .release/）
 bun run release:publish --dry-run  # 演练发布
 bun run changelog preview          # 看待发布的改动

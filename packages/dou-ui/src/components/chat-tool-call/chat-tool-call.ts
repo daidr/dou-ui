@@ -1,8 +1,9 @@
 /**
  * The same words as ChatPlan: `pending` hasn't started, `waiting` is paused on
- * someone else, such as the person allowing the call; the rest follow the run.
+ * someone else, such as the person allowing the call; `withdrawn` means the
+ * call was taken back before it ran, as with ChatConfirm; the rest follow the run.
  */
-export type ChatToolCallStatus = 'pending' | 'running' | 'waiting' | 'done' | 'error'
+export type ChatToolCallStatus = 'pending' | 'running' | 'waiting' | 'done' | 'error' | 'withdrawn'
 
 export interface ChatToolCallProps {
   /** The tool's name, e.g. `search_web`. */

@@ -27,6 +27,9 @@
   .dou-chat-tool-call--error {
     --dou-chat-tool-call-status: var(--dou-color-danger-text);
   }
+  .dou-chat-tool-call--withdrawn {
+    --dou-chat-tool-call-status: var(--dou-color-text-tertiary);
+  }
 
   .dou-chat-tool-call__header {
     display: flex;

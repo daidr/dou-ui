@@ -675,6 +675,8 @@ export interface Locale {
     toolWaiting: string
     toolDone: string
     toolError: string
+    /** A tool call taken back before it ran. */
+    toolWithdrawn: string
     /** Heads what a tool was called with. */
     toolInput: string
     /** Heads what a tool returned. */

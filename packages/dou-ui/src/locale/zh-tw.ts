@@ -455,6 +455,7 @@ export const zhTW: Locale = {
     toolWaiting: '等待中',
     toolDone: '已完成',
     toolError: '失敗',
+    toolWithdrawn: '已撤回',
     toolInput: '參數',
     toolOutput: '結果',
     attachments: '附件',

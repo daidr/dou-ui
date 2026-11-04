@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { CheckIcon, CloseIcon, ShieldIcon, UndoIcon } from '@dou-ui/icons'
-import { computed, useId } from 'vue'
+import { computed, nextTick, ref, useId, watch } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useStatusCheck } from '../../utils/status-check'
 import { DouButton } from '../button'
@@ -35,14 +35,29 @@ const outcome = computed(() =>
     : undefined,
 )
 
+// Answering or withdrawing removes the buttons; if focus was on one, keep it
+// on the card instead of losing it to the page. The watcher runs before the
+// DOM updates, while the focused button is still there to find.
+const root = ref<HTMLElement>()
+watch(
+  () => props.status,
+  (now, before) => {
+    if (before !== 'waiting' || now === 'waiting') return
+    if (!root.value?.contains(document.activeElement)) return
+    void nextTick(() => root.value?.focus({ preventScroll: true }))
+  },
+)
+
 const statuses = ['waiting', 'approved', 'denied', 'withdrawn']
 useStatusCheck('DouChatConfirm', () => [props.status], statuses, { pending: 'waiting' })
 </script>
 
 <template>
   <div
+    ref="root"
     :class="[ns.b(), ns.m(tone), ns.is(status)]"
     role="group"
+    tabindex="-1"
     :aria-labelledby="hasTitle ? `${id}-title` : undefined"
   >
     <div :class="ns.e('header')">
@@ -55,9 +70,12 @@ useStatusCheck('DouChatConfirm', () => [props.status], statuses, { pending: 'wai
         </div>
         <div v-if="description" :class="ns.e('description')">{{ description }}</div>
       </div>
-      <span v-if="outcome" :class="ns.e('result')" role="status">
-        <component :is="outcome.icon" aria-hidden="true" />
-        {{ t(outcome.text) }}
+      <!-- always there, so screen readers announce the outcome when it appears -->
+      <span :class="ns.e('result')" role="status">
+        <template v-if="outcome">
+          <component :is="outcome.icon" aria-hidden="true" />
+          {{ t(outcome.text) }}
+        </template>
       </span>
     </div>
     <div v-if="slots.default" :class="ns.e('detail')"><slot /></div>

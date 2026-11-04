@@ -455,6 +455,7 @@ export const en: Locale = {
     toolWaiting: 'Waiting',
     toolDone: 'Done',
     toolError: 'Failed',
+    toolWithdrawn: 'Withdrawn',
     toolInput: 'Input',
     toolOutput: 'Output',
     attachments: 'Attachments',

@@ -455,6 +455,7 @@ export const zhCN: Locale = {
     toolWaiting: '等待中',
     toolDone: '已完成',
     toolError: '失败',
+    toolWithdrawn: '已撤回',
     toolInput: '参数',
     toolOutput: '结果',
     attachments: '附件',

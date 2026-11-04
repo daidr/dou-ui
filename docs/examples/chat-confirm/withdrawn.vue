@@ -2,6 +2,10 @@
 import { ref } from 'vue'
 
 const status = ref('waiting')
+
+function toggle() {
+  status.value = status.value === 'waiting' ? 'withdrawn' : 'waiting'
+}
 </script>
 
 <template>
@@ -14,14 +18,8 @@ const status = ref('waiting')
     <DouText size="sm" variant="secondary">收件人：戴兜 · 主题：上海项目周报</DouText>
   </DouChatConfirm>
   <div>
-    <DouButton
-      v-if="status === 'waiting'"
-      size="sm"
-      variant="outline"
-      @click="status = 'withdrawn'"
-    >
-      停止生成
+    <DouButton size="sm" :variant="status === 'waiting' ? 'outline' : 'ghost'" @click="toggle">
+      {{ status === 'waiting' ? '停止生成' : '重置' }}
     </DouButton>
-    <DouButton v-else size="sm" variant="ghost" @click="status = 'waiting'">重置</DouButton>
   </div>
 </template>

@@ -5,6 +5,7 @@ import {
   ChevronDownIcon,
   ClockIcon,
   ClockPauseIcon,
+  UndoIcon,
   WrenchIcon,
 } from '@dou-ui/icons'
 import { computed, ref, useId, watchEffect } from 'vue'
@@ -43,7 +44,7 @@ const expandable = computed(() => hasInput.value || hasOutput.value || !!slots.d
 useStatusCheck(
   'DouChatToolCall',
   () => [props.status],
-  ['pending', 'running', 'waiting', 'done', 'error'],
+  ['pending', 'running', 'waiting', 'done', 'error', 'withdrawn'],
   {
     success: 'done',
   },
@@ -68,6 +69,7 @@ const statusText = computed(
       waiting: t('chat.toolWaiting'),
       done: t('chat.toolDone'),
       error: t('chat.toolError'),
+      withdrawn: t('chat.toolWithdrawn'),
     })[props.status],
 )
 </script>
@@ -97,6 +99,7 @@ const statusText = computed(
         <ClockIcon v-else-if="status === 'pending'" aria-hidden="true" />
         <ClockPauseIcon v-else-if="status === 'waiting'" aria-hidden="true" />
         <CheckCircleIcon v-else-if="status === 'done'" aria-hidden="true" />
+        <UndoIcon v-else-if="status === 'withdrawn'" aria-hidden="true" />
         <AlertCircleIcon v-else aria-hidden="true" />
         <span :class="ns.e('status-text')">{{ statusText }}</span>
       </span>

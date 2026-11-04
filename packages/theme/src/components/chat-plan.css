@@ -3,9 +3,9 @@
  *
  * The steps a model means to take, as a framed checklist. The header
  * counts what is finished; the running step shimmers, a waiting one holds
- * still in the warning color, finished ones are
- * ticked and step back in color. Without `collapsible` the header is
- * plain text and the list always shows.
+ * still in the warning color, finished ones are ticked and step back in
+ * color. Without `collapsible` the header is plain text and the list
+ * always shows.
  */
 @layer dou.components {
   .dou-chat-plan {

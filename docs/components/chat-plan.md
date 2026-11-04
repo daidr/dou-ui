@@ -10,7 +10,7 @@
 
 ## 状态
 
-`status` 有六种：`pending` 未开始、`running` 进行中、`waiting` 等待中、`done` 已完成、`skipped` 跳过、`error` 出错。`waiting` 表示这一步停下来等别人，比如等用户确认或等外部任务完成，和还没轮到的 `pending` 区分开。`description` 在标签下方显示一行说明，比如出错的原因。
+`status` 有六种：`pending` 未开始、`running` 进行中、`waiting` 等待中、`done` 已完成、`skipped` 跳过、`error` 出错。`waiting` 表示这一步在等待用户确认或外部任务完成，与尚未开始的 `pending` 不同。`description` 在标签下方显示一行说明，比如出错的原因。
 
 <DocDemo src="chat-plan/status" column />
 

@@ -123,7 +123,6 @@ const props = withDefaults(defineProps<FlowEditorProps>(), {
   searchable: true,
   panOnScroll: true,
   edgeType: undefined,
-  spreadEdges: true,
   simpleZoom: 0.4,
   bordered: true,
 })
@@ -537,58 +536,12 @@ function removeStaleEdges() {
 /** How far an edge may bulge past its ends, in canvas px. */
 const EDGE_REACH = 80
 
-/** How far apart edges spread along a side of a node sit, and how far from its corners they stay, in canvas px. */
-const SPREAD_GAP = 20
-const SPREAD_INSET = 12
-
-/**
- * Spreads the edges at each port that has its side of the node to itself
- * along that side, centred on the port and in the order of where their
- * other ends (or the first points they run through) lie, so they leave
- * side by side without crossing.
- */
-function spread(
-  ends: { edge: FlowEdge; node: FlowNode; port?: string; at: EdgeAnchor; other: Point }[],
-) {
-  const groups = new Map<string, typeof ends>()
-  for (const end of ends) {
-    const key = `${end.node.id}\u0000${end.port ?? ''}\u0000${end.at.side}`
-    const group = groups.get(key)
-    if (group) group.push(end)
-    else groups.set(key, [end])
-  }
-  for (const group of groups.values()) {
-    if (group.length < 2) continue
-    const { node, at } = group[0]!
-    const m = metrics.get(node.id)
-    if (!m) continue
-    let alone = true
-    for (const [id, port] of m.ports)
-      if (id !== group[0]!.port && port.side === at.side) alone = false
-    if (!alone) continue
-    const across = at.side === 'top' || at.side === 'bottom' ? 'x' : 'y'
-    const start = node[across] + SPREAD_INSET
-    const end = node[across] + (across === 'x' ? m.width : m.height) - SPREAD_INSET
-    if (end <= start) continue
-    const step = Math.min(SPREAD_GAP, (end - start) / (group.length - 1))
-    // oxlint-disable-next-line unicorn/no-array-sort -- sorts the group in place
-    group.sort((a, b) => a.other[across] - b.other[across] || a.edge.id.localeCompare(b.edge.id))
-    const first = Math.min(
-      Math.max(at[across] - (step * (group.length - 1)) / 2, start),
-      end - step * (group.length - 1),
-    )
-    group.forEach((item, i) => (item.at[across] = first + step * i))
-  }
-}
-
 /** Every edge's route and the box around it; independent of the view, so panning skips it. */
 const edgeRoutes = computed(() => {
   const out: { edge: FlowEdge; route: EdgeRoute; box: Rect; style?: CSSProperties }[] = []
   // Read once: adding or removing edges is tracked, single edges are replaced whole.
   const edges = doc.value.edges
   void edges.length
-  const ends: Parameters<typeof spread>[0] = []
-  const shown: { edge: FlowEdge; a: EdgeAnchor; b: EdgeAnchor }[] = []
   // While tidying animates, the points edges will run through don't fit yet.
   const tweening = tween.value !== null
   for (let edge of toRaw(edges)) {
@@ -603,16 +556,6 @@ const edgeRoutes = computed(() => {
     const a = anchor(source, from.port, 'source')
     const b = anchor(target, to.port, 'target')
     if (!a || !b) continue
-    shown.push({ edge, a, b })
-    if (!props.spreadEdges) continue
-    const points = edge.points?.length ? edge.points : undefined
-    ends.push(
-      { edge, node: source, port: from.port, at: a, other: points?.[0] ?? b },
-      { edge, node: target, port: to.port, at: b, other: points?.at(-1) ?? a },
-    )
-  }
-  spread(ends)
-  for (const { edge, a, b } of shown) {
     const xs = [a.x, b.x]
     const ys = [a.y, b.y]
     for (const p of edge.points ?? []) {

@@ -139,18 +139,9 @@ const ends = (wrapper: ReturnType<typeof setup>['wrapper']) =>
     points(wrapper.find(`[data-edge-id="${id}"] path`).attributes('d')!).at(-1)!,
   )
 
-describe('spreading edges', () => {
-  it('spreads edges at one port along its side, in the order of where they come from', async () => {
+describe('edges at one port', () => {
+  it('all meet in the port', async () => {
     const { wrapper } = setup(fan())
-    await ticks()
-    const [a, b, c] = ends(wrapper)
-    expect(a!.y).toBe(b!.y)
-    expect(b!.x - a!.x).toBe(c!.x - b!.x)
-    expect(b!.x - a!.x).toBeGreaterThan(0)
-  })
-
-  it('meets in the port with spreadEdges off', async () => {
-    const { wrapper } = setup(fan(), { spreadEdges: false })
     await ticks()
     const xs = new Set(ends(wrapper).map((p) => p.x))
     expect(xs.size).toBe(1)

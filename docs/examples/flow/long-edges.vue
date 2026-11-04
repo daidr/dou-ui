@@ -2,7 +2,7 @@
 import { DouFlowControls, DouFlowEditor, type FlowDocument } from '@dou-ui/flow'
 import { ref } from 'vue'
 
-// 先随手摆放，点控制栏最右边的“整理”看连线怎么排开、怎么绕开节点。
+// 先随手摆放，点控制栏最右边的“整理”看长连线怎么绕开节点。
 const steps: [id: string, label: string, x: number, y: number][] = [
   ['clothes', '打包衣物', 0, 0],
   ['books', '打包书籍', 220, 40],

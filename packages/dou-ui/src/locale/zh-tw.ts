@@ -475,6 +475,7 @@ export const zhTW: Locale = {
     deny: '拒絕',
     approved: '已允許',
     denied: '已拒絕',
+    withdrawn: '已撤回',
     generating: '正在生成…',
     generateError: '生成失敗',
     context: '上下文已使用 {used} / {total}（{percent}%）',

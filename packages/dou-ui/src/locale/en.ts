@@ -475,6 +475,7 @@ export const en: Locale = {
     deny: 'Deny',
     approved: 'Allowed',
     denied: 'Denied',
+    withdrawn: 'Withdrawn',
     generating: 'Generating…',
     generateError: 'Generation failed',
     context: 'Context {used} / {total} ({percent}%)',

@@ -705,6 +705,8 @@ export interface Locale {
     deny: string
     approved: string
     denied: string
+    /** A confirmation the assistant no longer needs answered. */
+    withdrawn: string
     /** An artifact still being made. */
     generating: string
     generateError: string

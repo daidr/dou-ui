@@ -3,7 +3,8 @@
  *
  * A request to act, waiting for the person's go-ahead. Framed like the
  * other cards, with the buttons on the right of a footer; once answered
- * it shrinks to its header and a short outcome.
+ * or withdrawn it shrinks to its header and a short outcome. A withdrawn
+ * request never happened, so its title steps back to secondary text.
  */
 @layer dou.components {
   .dou-chat-confirm {
@@ -55,6 +56,10 @@
 
   .dou-chat-confirm__title {
     font-weight: var(--dou-font-weight-medium);
+
+    .dou-chat-confirm.is-withdrawn & {
+      color: var(--dou-color-text-secondary);
+    }
   }
 
   .dou-chat-confirm__description {

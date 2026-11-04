@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CheckIcon, CloseIcon, ShieldIcon } from '@dou-ui/icons'
+import { CheckIcon, CloseIcon, ShieldIcon, UndoIcon } from '@dou-ui/icons'
 import { computed, useId } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useStatusCheck } from '../../utils/status-check'
@@ -23,11 +23,20 @@ const id = useId()
 
 const hasTitle = computed(() => !!props.title || !!slots.title)
 const waiting = computed(() => props.status === 'waiting')
-const answered = computed(() => props.status === 'approved' || props.status === 'denied')
+// How each answered or withdrawn request reads once it has collapsed.
+const outcomes = {
+  approved: { icon: CheckIcon, text: 'chat.approved' },
+  denied: { icon: CloseIcon, text: 'chat.denied' },
+  withdrawn: { icon: UndoIcon, text: 'chat.withdrawn' },
+} as const
+const outcome = computed(() =>
+  Object.hasOwn(outcomes, props.status)
+    ? outcomes[props.status as keyof typeof outcomes]
+    : undefined,
+)
 
-useStatusCheck('DouChatConfirm', () => [props.status], ['waiting', 'approved', 'denied'], {
-  pending: 'waiting',
-})
+const statuses = ['waiting', 'approved', 'denied', 'withdrawn']
+useStatusCheck('DouChatConfirm', () => [props.status], statuses, { pending: 'waiting' })
 </script>
 
 <template>
@@ -46,10 +55,9 @@ useStatusCheck('DouChatConfirm', () => [props.status], ['waiting', 'approved', '
         </div>
         <div v-if="description" :class="ns.e('description')">{{ description }}</div>
       </div>
-      <span v-if="answered" :class="ns.e('result')" role="status">
-        <CheckIcon v-if="status === 'approved'" aria-hidden="true" />
-        <CloseIcon v-else aria-hidden="true" />
-        {{ status === 'approved' ? t('chat.approved') : t('chat.denied') }}
+      <span v-if="outcome" :class="ns.e('result')" role="status">
+        <component :is="outcome.icon" aria-hidden="true" />
+        {{ t(outcome.text) }}
       </span>
     </div>
     <div v-if="slots.default" :class="ns.e('detail')"><slot /></div>

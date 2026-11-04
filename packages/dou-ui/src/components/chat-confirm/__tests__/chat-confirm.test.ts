@@ -20,9 +20,22 @@ describe('DouChatConfirm', () => {
   })
 
   it('shows the outcome once answered', () => {
-    const wrapper = mount(DouChatConfirm, { props: { title: '删除文件？', status: 'denied' } })
+    const wrapper = mount(DouChatConfirm, {
+      props: { title: '删除文件？', status: 'denied' },
+    })
     expect(wrapper.find('.dou-chat-confirm__actions').exists()).toBe(false)
     expect(wrapper.get('.dou-chat-confirm__result').text()).toBe('已拒绝')
+  })
+
+  it('collapses to a withdrawn line when no answer is needed any more', () => {
+    const wrapper = mount(DouChatConfirm, {
+      props: { title: '运行命令？', status: 'withdrawn' },
+      slots: { default: () => 'bun install' },
+    })
+    expect(wrapper.classes()).toContain('is-withdrawn')
+    expect(wrapper.find('.dou-chat-confirm__actions').exists()).toBe(false)
+    expect(wrapper.get('.dou-chat-confirm__result').text()).toBe('已撤回')
+    expect(wrapper.get('.dou-chat-confirm__result').attributes('role')).toBe('status')
   })
 
   it('shows no outcome for a status it does not know, and warns', () => {
@@ -32,7 +45,7 @@ describe('DouChatConfirm', () => {
     })
     expect(wrapper.find('.dou-chat-confirm__result').exists()).toBe(false)
     expect(warn).toHaveBeenCalledWith(
-      '[dou-ui] DouChatConfirm: unknown status `pending`, expected one of `waiting`, `approved`, `denied`. Use `waiting`.',
+      '[dou-ui] DouChatConfirm: unknown status `pending`, expected one of `waiting`, `approved`, `denied`, `withdrawn`. Use `waiting`.',
     )
     warn.mockRestore()
   })

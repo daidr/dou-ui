@@ -135,7 +135,9 @@ describe('tidy routes', () => {
         return DOMRect.fromRect({ x: 76, y: top - 4, width: 8, height: 8 })
       },
     })
-    onTestFinished(() => Object.defineProperty(Element.prototype, 'getBoundingClientRect', rect))
+    onTestFinished(() => {
+      Object.defineProperty(Element.prototype, 'getBoundingClientRect', rect)
+    })
     const { editor, doc } = setup(
       {
         version: 1,

@@ -16,6 +16,11 @@ export interface LayoutHeaderProps {
   bordered?: boolean
 }
 
+export interface LayoutFooterProps {
+  /** A hairline above the footer. */
+  bordered?: boolean
+}
+
 export interface LayoutAsideProps {
   /** The width when expanded. Numbers are px. */
   width?: number | string

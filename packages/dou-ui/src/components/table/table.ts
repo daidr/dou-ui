@@ -104,8 +104,13 @@ export interface TableProps<T = any> {
   rowKey?: string | ((row: T) => TableRowKey)
   /** Row density. */
   size?: TableSize
-  /** Hairlines between columns too. */
+  /**
+   * The hairline frame and rounded corners. Off, the table takes no border
+   * at all, for a card or panel that already has an edge. On by default.
+   */
   bordered?: boolean
+  /** Hairlines between columns too. */
+  columnDividers?: boolean
   /** Tint every other row. */
   striped?: boolean
   /** Highlight the row under the pointer. */

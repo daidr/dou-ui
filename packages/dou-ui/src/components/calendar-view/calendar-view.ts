@@ -103,6 +103,12 @@ export interface CalendarViewProps {
   maxEvents?: number
   /** Days that cannot be chosen. */
   disabledDate?: (date: string) => boolean
+  /**
+   * The hairline frame and rounded corners around the month grid, the
+   * week and day columns and the agenda. Off, they take no border at all,
+   * for a card or panel that already has an edge. On by default.
+   */
+  bordered?: boolean
 }
 
 export interface CalendarViewEmits {

@@ -15,6 +15,7 @@ const props = withDefaults(defineProps<CodeBlockProps>(), {
   startLine: 1,
   wrap: false,
   copyable: true,
+  bordered: true,
 })
 const slots = defineSlots<CodeBlockSlots>()
 
@@ -80,6 +81,7 @@ const classes = computed(() => [
   ns.is('numbered', props.lineNumbers),
   ns.is('folded', folded.value),
   ns.is('headless', !hasHeader.value),
+  ns.is('bordered', props.bordered),
 ])
 </script>
 

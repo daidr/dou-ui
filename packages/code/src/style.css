@@ -65,6 +65,12 @@
     &.is-focused {
       border-color: var(--dou-code-editor-border-focus);
     }
+    /* no frame: nothing left of the edge, not even a transparent pixel */
+    &:not(.is-bordered) {
+      min-height: calc(var(--dou-code-editor-line-height) + 2 * var(--dou-code-editor-padding-y));
+      border: 0;
+      border-radius: 0;
+    }
     &:not(.is-focused) {
       --dou-code-editor-selection: color-mix(in oklab, var(--dou-color-text) 10%, transparent);
     }
@@ -1387,8 +1393,8 @@
     &:focus-within {
       border-color: color-mix(in oklab, var(--dou-color-focus) 70%, var(--dou-color-text));
     }
-
-    .dou-code-editor {
+    /* no frame: no edge and no focus edge; the inner lines stay */
+    &:not(.is-bordered) {
       border: 0;
       border-radius: 0;
     }

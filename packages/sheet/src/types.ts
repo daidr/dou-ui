@@ -46,6 +46,12 @@ export interface SheetProps {
   outline?: boolean
   /** Draw lines between cells. */
   gridlines?: boolean
+  /**
+   * The hairline frame and rounded corners around the grid and its header
+   * and footer slots. Off, the sheet takes no border at all, for a panel
+   * or page region that already has an edge. On by default.
+   */
+  bordered?: boolean
   /** How many changes undo can go back. */
   historyDepth?: number
   /** The grid's accessible name. */

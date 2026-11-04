@@ -151,6 +151,27 @@ const css =
 
 只需要单个语气时可以用 `createTone(color, base)`，`base` 决定按亮色还是暗色处理。`contrastRatio(a, b)` 返回两个颜色的对比度，可以用来检查自己定义的 Token。`mixColors(color, base, amount)` 按 OKLab 把 `amount`（0–1）的 `color` 混进 `base`，和 CSS 的 `color-mix(in oklab, color amount%, base)` 一致，返回 `#rrggbb`，适合在画布、导出的文件这类用不了 CSS 变量的地方算出主题色的浅色版本。
 
+## 去掉外框与调整内边距
+
+组件放进已经有边框的卡片、面板或页面分区时，自带的边框和内边距常常多出来。各组件用同一套约定处理：
+
+- **`bordered` 开关外框。** 自带外框的组件（FlowEditor、CodeEditor、CodeDiff、Gantt、Scheduler、Sheet、Pivot、FormBuilder、Table、CodeBlock、QRCode、CalendarView）默认带外框，设为 `false` 时边框和圆角一起去掉：不会留下透明的 1px，聚焦时也不会再画出边框，需要的焦点环改画在内侧，不会被容器裁掉。LayoutHeader、LayoutAside、LayoutFooter 的 `bordered` 同理，控制朝向内容一侧的分隔线。
+- **`--dou-<组件>-border` 只改颜色。** 比如 `--dou-table-border`、`--dou-code-diff-border`。它只决定线画成什么颜色，不决定有没有线；想去掉外框请用 `bordered`。
+- **`--dou-<组件>-padding` 调内边距。** 比如 `--dou-card-padding`、`--dou-layout-aside-padding`、`--dou-result-padding`；只有一个方向能调时写作 `-padding-x` / `-padding-y`，比如 `--dou-code-editor-padding-x`。
+
+```vue
+<DouCard title="工作流" padding="none">
+  <DouFlowEditor v-model="doc" :bordered="false" />
+</DouCard>
+```
+
+```css
+/* 侧栏里放一棵贴边的树 */
+:root {
+  --dou-layout-aside-padding: 0px;
+}
+```
+
 ## 层叠顺序
 
 DouUI 的所有样式都放在级联层（cascade layers）中：

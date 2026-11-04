@@ -44,6 +44,7 @@ const props = withDefaults(defineProps<CodeDiffProps>(), {
   extensions: undefined,
   tabSize: 2,
   toolbar: true,
+  bordered: true,
   messages: undefined,
 })
 const emit = defineEmits<CodeDiffEmits>()
@@ -670,7 +671,12 @@ defineExpose({
 </script>
 
 <template>
-  <div ref="root" :class="[ns.b(), ns.m(view)]" role="group" :aria-label="messages.diff">
+  <div
+    ref="root"
+    :class="[ns.b(), ns.m(view), ns.is('bordered', bordered)]"
+    role="group"
+    :aria-label="messages.diff"
+  >
     <div v-if="toolbar" :class="ns.e('toolbar')">
       <span :class="ns.e('stats')">
         <template v-if="hunks.length">
@@ -745,6 +751,7 @@ defineExpose({
           :aria-label="messages.diffOriginal"
           :foldable="false"
           :active-line="false"
+          :bordered="false"
           readonly
           @transaction="revealAt('a', $event)"
         />
@@ -761,6 +768,7 @@ defineExpose({
           :aria-label="messages.diffModified"
           :foldable="false"
           :active-line="false"
+          :bordered="false"
           :readonly="!editable"
           @update:model-value="onModifiedInput"
           @transaction="revealAt('b', $event)"
@@ -780,6 +788,7 @@ defineExpose({
         :line-numbers="false"
         :foldable="false"
         :active-line="false"
+        :bordered="false"
         :wrap="wrap"
         readonly
         @transaction="revealAt('inline', $event)"

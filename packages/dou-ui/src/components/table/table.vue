@@ -60,7 +60,8 @@ const props = withDefaults(
   >(),
   {
     rowKey: 'id',
-    bordered: false,
+    bordered: true,
+    columnDividers: false,
     striped: false,
     hoverable: true,
     loading: false,
@@ -669,6 +670,7 @@ const classes = computed(() => [
   ns.b(),
   ns.m(size.value),
   ns.is('bordered', props.bordered),
+  ns.is('column-dividers', props.columnDividers),
   ns.is('striped', props.striped),
   ns.is('hoverable', props.hoverable),
   ns.is('loading', props.loading),

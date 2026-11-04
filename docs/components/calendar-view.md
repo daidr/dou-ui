@@ -175,23 +175,24 @@ toTime('2026-10-28 09:00', 'Asia/Shanghai') // Date.parse('2026-10-28T01:00:00Z'
 
 ### CalendarView Props
 
-| 名称                    | 说明                                              | 类型                                                                 | 默认值       |
-| ----------------------- | ------------------------------------------------- | -------------------------------------------------------------------- | ------------ |
-| `modelValue`（v-model） | 选中的日子，`YYYY-MM-DD`                          | `string \| null`                                                     | —            |
-| `month`（v-model）      | 显示的月份，`YYYY-MM`                             | `string`                                                             | 选中日或今天 |
-| `events`（v-model）     | 日程                                              | `CalendarEvent[]`                                                    | `[]`         |
-| `maxEvents`             | 每天最多列几项                                    | `number`                                                             | `3`          |
-| `weekStart`             | 每周从哪天开始，`0` 周日、`1` 周一                | `0 \| 1`                                                             | 跟随语言     |
-| `disabledDate`          | 不可选的日子                                      | `(date: string) => boolean`                                          | —            |
-| `view`（v-model）       | 当前视图                                          | `'month' \| 'week' \| 'day' \| 'agenda'`                             | `'month'`    |
-| `views`                 | 可切换的视图，多于一个时显示切换按钮              | `CalendarViewMode[]`                                                 | —            |
-| `hours`                 | 周、日视图时间轴的起止小时                        | `[number, number]`                                                   | `[0, 24]`    |
-| `scrollTime`            | 周、日视图打开时滚动到的时间                      | `string`                                                             | `'08:00'`    |
-| `editable`              | 可以拖动、新建和删除日程，见[拖动编辑](#拖动编辑) | `boolean`                                                            | `false`      |
-| `snap`                  | 时间轴上拖动对齐的分钟数                          | `number`                                                             | `15`         |
-| `canMove`               | 写入前的检查，见[锁定与限制](#锁定与限制)         | `(move: CalendarMove, events: CalendarEvent[]) => boolean \| string` | —            |
-| `contextMenu`           | 自己的菜单项，见[右键菜单](#右键菜单)             | `(target: CalendarMenuTarget) => ContextMenuItem[]`                  | —            |
-| `menu`                  | 设置 `editable` 时在日程菜单里显示“删除日程”      | `boolean`                                                            | `true`       |
+| 名称                    | 说明                                                                        | 类型                                                                 | 默认值       |
+| ----------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------- | ------------ |
+| `modelValue`（v-model） | 选中的日子，`YYYY-MM-DD`                                                    | `string \| null`                                                     | —            |
+| `month`（v-model）      | 显示的月份，`YYYY-MM`                                                       | `string`                                                             | 选中日或今天 |
+| `events`（v-model）     | 日程                                                                        | `CalendarEvent[]`                                                    | `[]`         |
+| `maxEvents`             | 每天最多列几项                                                              | `number`                                                             | `3`          |
+| `weekStart`             | 每周从哪天开始，`0` 周日、`1` 周一                                          | `0 \| 1`                                                             | 跟随语言     |
+| `disabledDate`          | 不可选的日子                                                                | `(date: string) => boolean`                                          | —            |
+| `view`（v-model）       | 当前视图                                                                    | `'month' \| 'week' \| 'day' \| 'agenda'`                             | `'month'`    |
+| `views`                 | 可切换的视图，多于一个时显示切换按钮                                        | `CalendarViewMode[]`                                                 | —            |
+| `hours`                 | 周、日视图时间轴的起止小时                                                  | `[number, number]`                                                   | `[0, 24]`    |
+| `scrollTime`            | 周、日视图打开时滚动到的时间                                                | `string`                                                             | `'08:00'`    |
+| `editable`              | 可以拖动、新建和删除日程，见[拖动编辑](#拖动编辑)                           | `boolean`                                                            | `false`      |
+| `snap`                  | 时间轴上拖动对齐的分钟数                                                    | `number`                                                             | `15`         |
+| `canMove`               | 写入前的检查，见[锁定与限制](#锁定与限制)                                   | `(move: CalendarMove, events: CalendarEvent[]) => boolean \| string` | —            |
+| `contextMenu`           | 自己的菜单项，见[右键菜单](#右键菜单)                                       | `(target: CalendarMenuTarget) => ContextMenuItem[]`                  | —            |
+| `menu`                  | 设置 `editable` 时在日程菜单里显示“删除日程”                                | `boolean`                                                            | `true`       |
+| `bordered`              | 月历、周 / 日视图和日程列表的外框和圆角；关闭后去掉，用于放进已有边框的容器 | `boolean`                                                            | `true`       |
 
 `CalendarEvent` 的字段：
 

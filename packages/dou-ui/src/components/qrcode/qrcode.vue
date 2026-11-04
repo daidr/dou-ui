@@ -14,6 +14,7 @@ const props = withDefaults(defineProps<QrcodeProps>(), {
   level: 'M',
   margin: 2,
   status: 'active',
+  bordered: true,
 })
 const emit = defineEmits<{ refresh: [] }>()
 const slots = defineSlots<QrcodeSlots>()
@@ -51,7 +52,7 @@ const label = computed(() => t('qrcode.label', { value: props.value }))
 
 <template>
   <div
-    :class="[ns.b(), ns.is(status, status !== 'active')]"
+    :class="[ns.b(), ns.is(status, status !== 'active'), ns.is('bordered', bordered)]"
     :style="{
       '--dou-qrcode-size': `${size}px`,
       '--dou-qrcode-color': color,

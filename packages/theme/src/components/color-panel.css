@@ -18,13 +18,14 @@
         transparent 0
       )
       0 0 / 8px 8px;
+    --dou-color-panel-padding: 12px;
 
     display: flex;
     flex-direction: column;
     gap: 12px;
     box-sizing: border-box;
     width: 256px;
-    padding: 12px;
+    padding: var(--dou-color-panel-padding);
 
     &.is-bordered {
       border: 1px solid var(--dou-color-border);

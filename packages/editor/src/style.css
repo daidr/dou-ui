@@ -508,14 +508,11 @@
     }
   }
 
-  .dou-editor-code__editor.dou-code-editor {
+  .dou-editor-code__editor.dou-code-editor:not(.is-bordered) {
     --dou-code-editor-bg: transparent;
     --dou-code-editor-gutter-bg: var(--dou-color-bg-muted);
-    --dou-code-editor-border: transparent;
-    --dou-code-editor-border-focus: transparent;
     --dou-code-editor-padding-x: 16px;
     --dou-code-editor-padding-y: 8px;
-    border: none;
     border-radius: inherit;
   }
 

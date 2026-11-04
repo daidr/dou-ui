@@ -155,6 +155,7 @@ const props = withDefaults(defineProps<CodeEditorProps>(), {
   teleport: undefined,
   tabIndents: true,
   gutter: true,
+  bordered: true,
 })
 const emit = defineEmits<CodeEditorEmits>()
 const ns = useNamespace('code-editor')
@@ -4906,6 +4907,7 @@ defineExpose<CodeEditorExpose>(api)
       ns.is('disabled', !!disabled),
       ns.is('foldable', foldable),
       ns.is('wrap', wrap),
+      ns.is('bordered', bordered),
     ]"
     :style="{
       '--dou-code-editor-gutter': `${gutterWidth}px`,

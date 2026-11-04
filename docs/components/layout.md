@@ -40,7 +40,15 @@
 </DouLayout>
 ```
 
-主区的内边距来自 CSS 变量 `--dou-layout-main-padding`（默认 24px），顶栏与页脚的左右内边距来自 `--dou-layout-padding-x`（默认 20px）。
+主区的内边距来自 CSS 变量 `--dou-layout-main-padding`（默认 24px），侧栏正文和底部的内边距来自 `--dou-layout-aside-padding`（默认 8px），顶栏与页脚的左右内边距来自 `--dou-layout-padding-x`（默认 20px）。侧栏放一棵贴边的树或菜单时，可以把侧栏的内边距设为 0：
+
+```css
+:root {
+  --dou-layout-aside-padding: 0px;
+}
+```
+
+窄屏下侧栏会作为抽屉挂到 `body` 上，所以这个变量要设在 `:root` 上，抽屉里才能读到。
 
 ## API
 
@@ -51,6 +59,12 @@
 | `height`   | 高度，数字为 px    | `number \| string` | `56`    |
 | `sticky`   | 页面滚动时停在顶部 | `boolean`          | `false` |
 | `bordered` | 底部的分隔线       | `boolean`          | `true`  |
+
+### LayoutFooter Props
+
+| 名称       | 说明         | 类型      | 默认值 |
+| ---------- | ------------ | --------- | ------ |
+| `bordered` | 顶部的分隔线 | `boolean` | `true` |
 
 ### LayoutAside Props
 

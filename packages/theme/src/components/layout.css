@@ -49,9 +49,12 @@
 
   .dou-layout-footer {
     min-height: 48px;
-    border-top: 1px solid var(--dou-color-border-subtle);
     color: var(--dou-color-text-tertiary);
     font-size: var(--dou-font-size-sm);
+
+    &.is-bordered {
+      border-top: 1px solid var(--dou-color-border-subtle);
+    }
   }
 
   .dou-layout-aside {
@@ -89,7 +92,7 @@
     flex: 1 1 auto;
     flex-direction: column;
     min-height: 0;
-    padding: 8px;
+    padding: var(--dou-layout-aside-padding, 8px);
     overflow-x: hidden;
     overflow-y: auto;
   }
@@ -98,7 +101,7 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
-    padding: 8px;
+    padding: var(--dou-layout-aside-padding, 8px);
     border-top: 1px solid var(--dou-color-border-subtle);
   }
 

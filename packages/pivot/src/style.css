@@ -11,6 +11,7 @@
   .dou-pivot {
     --dou-pivot-line: var(--dou-color-border-subtle);
     --dou-pivot-line-strong: var(--dou-color-border);
+    --dou-pivot-border: var(--dou-pivot-line-strong);
     --dou-pivot-bg: var(--dou-color-bg-surface);
     --dou-pivot-head-bg: color-mix(in oklab, var(--dou-color-text) 2.5%, var(--dou-pivot-bg));
     --dou-pivot-total-bg: color-mix(in oklab, var(--dou-color-text) 2%, var(--dou-pivot-bg));
@@ -35,7 +36,7 @@
     width: 100%;
     min-width: 0;
     overflow: hidden;
-    border: 1px solid var(--dou-pivot-line-strong);
+    border: 1px solid var(--dou-pivot-border);
     border-radius: var(--dou-radius-container);
     background-color: var(--dou-pivot-bg);
     color: var(--dou-color-text);
@@ -50,6 +51,14 @@
     &:has(.dou-pivot__viewport:focus-visible) {
       outline: 2px solid var(--dou-color-focus);
       outline-offset: 2px;
+    }
+    /* no frame: edge to edge, the focus ring drawn inside so nothing clips it */
+    &:not(.is-bordered) {
+      border: 0;
+      border-radius: 0;
+      &:has(.dou-pivot__viewport:focus-visible) {
+        outline-offset: -2px;
+      }
     }
   }
 

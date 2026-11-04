@@ -15,17 +15,24 @@
     --dou-code-block-padding-x: 16px;
     --dou-code-block-padding-y: 12px;
     --dou-code-block-mark: color-mix(in oklab, var(--dou-color-text) 5%, transparent);
+    --dou-code-block-border: var(--dou-color-border);
 
     position: relative;
     box-sizing: border-box;
     width: 100%;
     min-width: 0;
     overflow: hidden;
-    border: 1px solid var(--dou-color-border);
+    border: 1px solid var(--dou-code-block-border);
     border-radius: var(--dou-radius-container);
     background-color: var(--dou-code-block-bg);
     color: var(--dou-color-text);
     font-size: var(--dou-code-block-font-size);
+
+    /* no frame: nothing left of the edge, not even a transparent pixel */
+    &:not(.is-bordered) {
+      border: 0;
+      border-radius: 0;
+    }
   }
 
   .dou-code-block__header {
@@ -36,7 +43,7 @@
     min-height: 36px;
     padding: 2px 6px 2px var(--dou-code-block-padding-x);
     box-sizing: border-box;
-    border-bottom: 1px solid var(--dou-color-border);
+    border-bottom: 1px solid var(--dou-code-block-border);
     color: var(--dou-color-text-secondary);
     font-size: var(--dou-font-size-sm);
   }
@@ -186,7 +193,7 @@
     padding: 6px;
     margin: 0;
     border: 0;
-    border-top: 1px solid var(--dou-color-border);
+    border-top: 1px solid var(--dou-code-block-border);
     background: transparent;
     color: var(--dou-color-text-secondary);
     font: inherit;

@@ -38,6 +38,12 @@ export interface SchedulerProps {
   menu?: boolean
   /** Your own context menu items, shown above the built-in ones; return none to add nothing. */
   contextMenu?: (target: SchedulerMenuTarget) => ContextMenuItem[]
+  /**
+   * The hairline frame and rounded corners. Off, the scheduler takes no
+   * border at all, for a panel or card that already has an edge. On by
+   * default.
+   */
+  bordered?: boolean
   ariaLabel?: string
   messages?: GanttMessagesOverride
 }

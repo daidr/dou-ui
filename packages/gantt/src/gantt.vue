@@ -111,6 +111,7 @@ const props = withDefaults(defineProps<GanttProps>(), {
   scheduling: 'manual',
   menu: true,
   addRow: true,
+  bordered: true,
 })
 const model = defineModel<GanttDocument>({ default: emptyDocument })
 /** The `v-model`, with a wrongly shaped one read as well as it can be. */
@@ -2686,6 +2687,7 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
       [`is-dragging-${drag?.mode}`]: drag?.started,
       'is-linking': !!keyLink,
       'has-baseline': !!planned,
+      'is-bordered': bordered,
     }"
     :style="{ '--dou-gantt-row-height': `${rowHeight}px` }"
     role="group"

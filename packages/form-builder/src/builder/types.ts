@@ -34,6 +34,12 @@ export interface FormBuilderProps {
    * removed or edited.
    */
   readonly?: boolean
+  /**
+   * The hairline frame and rounded corners. Off, the builder takes no
+   * border at all, for a page region or dialog that already has an edge.
+   * On by default.
+   */
+  bordered?: boolean
   /** Pieces of the builder: field types, keys, buttons, menu items, inspector parts. */
   extensions?: (FormBuilderExtension | readonly FormBuilderExtension[])[]
   /** Replaces texts of the builder. */

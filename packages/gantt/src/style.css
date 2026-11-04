@@ -10,6 +10,7 @@
     --dou-gantt-header-bg: var(--dou-color-bg-canvas);
     --dou-gantt-line: var(--dou-color-border-subtle);
     --dou-gantt-line-strong: var(--dou-color-border);
+    --dou-gantt-border: var(--dou-color-border);
     --dou-gantt-off: color-mix(in oklab, var(--dou-color-text) 5%, transparent);
     --dou-gantt-hover: color-mix(in oklab, var(--dou-color-text) 3%, transparent);
     --dou-gantt-selected: color-mix(in oklab, var(--dou-color-primary) 7%, transparent);
@@ -24,7 +25,7 @@
     height: 480px;
     min-width: 0;
     overflow: hidden;
-    border: 1px solid var(--dou-color-border);
+    border: 1px solid var(--dou-gantt-border);
     border-radius: var(--dou-radius-container);
     background-color: var(--dou-color-bg-surface);
     color: var(--dou-color-text);
@@ -36,6 +37,14 @@
     &:focus-visible {
       outline: 2px solid var(--dou-color-focus);
       outline-offset: 2px;
+    }
+    /* no frame: edge to edge, the focus ring drawn inside so nothing clips it */
+    &:not(.is-bordered) {
+      border: 0;
+      border-radius: 0;
+      &:focus-visible {
+        outline-offset: -2px;
+      }
     }
     &.is-dragging,
     &.is-dragging * {

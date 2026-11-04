@@ -146,6 +146,12 @@ export interface GanttProps {
   baseline?: GanttBaselineItem[]
   /** Columns, rules, keys and layers added to the chart; see `defineGanttExtension`. */
   extensions?: (GanttExtension | GanttExtension[])[]
+  /**
+   * The hairline frame and rounded corners. Off, the chart takes no
+   * border at all, for a panel or card that already has an edge. On by
+   * default.
+   */
+  bordered?: boolean
   /** Accessible name of the chart. */
   ariaLabel?: string
   /** Texts to change; only the ones given are replaced. */

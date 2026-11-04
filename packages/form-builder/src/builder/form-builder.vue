@@ -48,7 +48,10 @@ const FormBuilderCanvas = FormBuilderCanvasComponent as WithAttributes<
 
 defineOptions({ name: 'DouFormBuilder' })
 
-const props = withDefaults(defineProps<FormBuilderProps>(), { readonly: false })
+const props = withDefaults(defineProps<FormBuilderProps>(), {
+  readonly: false,
+  bordered: true,
+})
 const emit = defineEmits<FormBuilderEmits>()
 defineSlots<FormBuilderSlots>()
 
@@ -252,6 +255,7 @@ defineExpose<FormBuilderExpose>({
       compact && 'is-compact',
       previewing && 'is-previewing',
       readonly && 'is-readonly',
+      bordered && 'is-bordered',
     ]"
   >
     <slot>

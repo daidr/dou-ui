@@ -752,6 +752,7 @@ onBeforeUnmount(() => observer?.disconnect())
                           :divided="grand.divided"
                           :tone="grand.tone"
                           :shortcut="coarse ? undefined : childShortcut(grand)"
+                          :description="grand.description"
                           @click="runChild(grand)"
                         >
                           <template v-if="childIcon(grand)" #prefix>
@@ -766,6 +767,7 @@ onBeforeUnmount(() => observer?.disconnect())
                         :divided="child.divided"
                         :tone="child.tone"
                         :shortcut="coarse ? undefined : childShortcut(child)"
+                        :description="child.description"
                         @click="runChild(child)"
                       >
                         <template v-if="childIcon(child)" #prefix>

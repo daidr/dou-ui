@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { h, nextTick } from 'vue'
+import { h, nextTick, ref } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DouDropdown, DouDropdownItem, DouDropdownRadioGroup } from '../../../index'
 
@@ -8,6 +8,7 @@ afterEach(() => {
 })
 
 const items = () => [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')]
+const firstItem = () => items()[0]!
 const key = (target: Element, name: string) =>
   target.dispatchEvent(new KeyboardEvent('keydown', { key: name, bubbles: true, cancelable: true }))
 
@@ -266,6 +267,39 @@ describe('DouDropdown', () => {
     expect(items()[0]!.querySelector('.dou-dropdown__description')?.textContent).toBe(
       '30 天后彻底删除',
     )
+    wrapper.unmount()
+  })
+
+  it('follows a description slot that comes and goes', async () => {
+    const shown = ref(false)
+    const wrapper = mount(DouDropdown, {
+      props: { open: true },
+      slots: {
+        default: () => h('button', '更多'),
+        menu: () =>
+          h(
+            DouDropdownItem,
+            { value: 'team' },
+            shown.value
+              ? { default: () => '团队成员', description: () => '上海办公室的成员' }
+              : { default: () => '团队成员' },
+          ),
+      },
+      attachTo: document.body,
+    })
+    await nextTick()
+    expect(firstItem().classList).not.toContain('is-described')
+    shown.value = true
+    await nextTick()
+    expect(firstItem().classList).toContain('is-described')
+    expect(
+      document.getElementById(firstItem().getAttribute('aria-describedby')!)?.textContent,
+    ).toBe('上海办公室的成员')
+    shown.value = false
+    await nextTick()
+    expect(firstItem().classList).not.toContain('is-described')
+    expect(firstItem().hasAttribute('aria-describedby')).toBe(false)
+    expect(firstItem().querySelector('.dou-dropdown__description')).toBeNull()
     wrapper.unmount()
   })
 })

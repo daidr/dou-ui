@@ -27,6 +27,8 @@
     --dou-dropdown-description-width: 200px;
 
     min-width: 160px;
+    /* never wider than the screen: a long label ends in an ellipsis instead */
+    max-width: calc(100vw - 16px);
     max-height: min(var(--dou-floating-available, 100vh), 400px);
     padding: var(--dou-dropdown-inset);
     overflow-y: auto;

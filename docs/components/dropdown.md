@@ -22,11 +22,11 @@
 
 ## 带说明的菜单项
 
-只看名字不容易分清几项的区别时，用 `description` 在名字下面加一行说明，比如几种可见范围、会删掉什么数据。说明比名字小一号、颜色更浅，可以换行，不会单独把菜单撑宽；名字仍是一行，放不下时以省略号结尾。图标、勾选标记和快捷键都和名字对齐。说明需要加粗、链接这类格式时用 `description` 插槽。
+只看文字不容易分清几项的区别时，用 `description` 在文字下面加一行说明，比如几种可见范围、会删掉什么数据。说明比文字小一号、颜色更浅，可以换行，不会单独把菜单撑宽；文字仍是一行，菜单最宽不超过屏幕，放不下时以省略号结尾。图标、勾选标记和快捷键都和文字对齐。说明需要加粗、链接这类格式时用 `description` 插槽。用数据写菜单项时同样可以写 `description`。
 
 <DocDemo src="dropdown/description" column />
 
-说明只是补充，名字本身要能说清这一项做什么。说明写一句就够，太长的说明会让菜单难以扫读；一个菜单里也不必每一项都写。读屏软件把名字读作这一项的名称，再读说明；按字母跳转时也只匹配名字。用数据写菜单项时同样可以写 `description`。
+说明只是补充，文字本身要能说清这一项做什么。说明写一句就够，太长的说明会让菜单难以扫读，一个菜单里也不必每一项都写。读屏软件把文字读作这一项的名称，再读说明；按字母跳转时也只匹配文字。
 
 ## 触发方式与宽度
 
@@ -134,7 +134,7 @@ const items: ContextMenuItem[] = [
 | `divided`     | 上方画一条分隔线                                   | `boolean`               | `false`     |
 | `checked`     | 勾选状态，配合 `v-model:checked`，设置后成为勾选项 | `boolean`               | —           |
 | `shortcut`    | 在右侧显示的快捷键，如 `'mod+s'`，只负责显示       | `string`                | —           |
-| `description` | 名字下面的说明，见[上文](#带说明的菜单项)          | `string`                | —           |
+| `description` | 文字下面的说明，见[上文](#带说明的菜单项)          | `string`                | —           |
 
 ### DropdownItem Slots
 
@@ -143,7 +143,7 @@ const items: ContextMenuItem[] = [
 | `default`     | 文字                                    |
 | `prefix`      | 文字前，如图标                          |
 | `suffix`      | 行尾，如快捷键                          |
-| `description` | 名字下面的说明，代替 `description` 属性 |
+| `description` | 文字下面的说明，代替 `description` 属性 |
 
 ### DropdownSub Props
 
@@ -194,13 +194,16 @@ const items: ContextMenuItem[] = [
 
 ### CSS 变量
 
-| 变量                            | 说明                     |
-| ------------------------------- | ------------------------ |
-| `--dou-dropdown-bg`             | 菜单底色                 |
-| `--dou-dropdown-inset`          | 菜单内边距               |
-| `--dou-dropdown-item-height`    | 行高                     |
-| `--dou-dropdown-item-radius`    | 行圆角                   |
-| `--dou-dropdown-item-active-bg` | 高亮行底色               |
-| `--dou-dropdown-item-padding-x` | 行左右内边距             |
-| `--dou-dropdown-item-gap`       | 行内图标、文字之间的间距 |
-| `--dou-dropdown-indicator-size` | 勾、圆点那一列的宽度     |
+| 变量                               | 说明                                                     |
+| ---------------------------------- | -------------------------------------------------------- |
+| `--dou-dropdown-bg`                | 菜单底色                                                 |
+| `--dou-dropdown-inset`             | 菜单内边距                                               |
+| `--dou-dropdown-item-height`       | 行高                                                     |
+| `--dou-dropdown-item-radius`       | 行圆角                                                   |
+| `--dou-dropdown-item-active-bg`    | 高亮行底色                                               |
+| `--dou-dropdown-item-padding-x`    | 行左右内边距                                             |
+| `--dou-dropdown-item-gap`          | 行内图标、文字之间的间距                                 |
+| `--dou-dropdown-indicator-size`    | 勾、圆点那一列的宽度                                     |
+| `--dou-dropdown-title-height`      | 带说明的行里，文字那一行的高度，图标和快捷键与它居中对齐 |
+| `--dou-dropdown-description-gap`   | 文字与说明之间的间距                                     |
+| `--dou-dropdown-description-width` | 带说明的行里，文字列的最小宽度                           |

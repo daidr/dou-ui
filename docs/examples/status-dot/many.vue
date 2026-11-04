@@ -21,12 +21,12 @@ const nodes = Array.from({ length: 96 }, (_, index) => {
           ? 'neutral'
           : 'success'
   const name = `sh-${String(index + 1).padStart(2, '0')}`
-  // 读屏读完整的 label，悬停时 Tooltip 再给出 label 里没有的位置
+  // 读屏读完整的 label，悬停时 Tooltip 显示节点名和所在机柜
   return {
     name,
     tone,
     label: `${name} ${states[tone]}`,
-    detail: `上海机房 ${Math.floor(index / 16) + 1} 号机柜`,
+    detail: `${name} · 上海机房 ${Math.floor(index / 16) + 1} 号机柜`,
   }
 })
 </script>

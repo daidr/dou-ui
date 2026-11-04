@@ -23,8 +23,8 @@ const byKey = computed(
   () =>
     new Map(
       entries.value.flatMap((entry) =>
-        (entry.kind === 'item' ? [entry.item] : entry.kind === 'group' ? entry.items : []).map(
-          (item) => [item.key, item] as const,
+        (entry.kind === 'group' ? entry.rows : [entry]).flatMap((row) =>
+          row.kind === 'item' ? [[row.item.key, row.item] as const] : [],
         ),
       ),
     ),
@@ -67,8 +67,9 @@ function onSelect(key: MenuKey | undefined) {
       <template v-for="(entry, index) in entries" :key="index">
         <div v-if="entry.kind === 'divider'" role="separator" class="dou-dropdown__separator" />
         <DouDropdownGroup v-else-if="entry.kind === 'group'" :label="entry.label">
-          <template v-for="item in entry.items" :key="item.key">
-            <MenuPopupItem :item="item" />
+          <template v-for="(row, at) in entry.rows" :key="at">
+            <div v-if="row.kind === 'divider'" role="separator" class="dou-dropdown__separator" />
+            <MenuPopupItem v-else :item="row.item" />
           </template>
         </DouDropdownGroup>
         <MenuPopupItem v-else :item="entry.item" />

@@ -101,14 +101,14 @@ export function pathTo(options: MenuOption[], key: MenuKey): MenuKey[] | undefin
   return undefined
 }
 
-export type FlatEntry =
-  | { kind: 'item'; item: MenuItemOption }
-  | { kind: 'group'; label: string; items: MenuItemOption[] }
-  | { kind: 'divider' }
+export type FlatRow = { kind: 'item'; item: MenuItemOption } | { kind: 'divider' }
+export type FlatEntry = FlatRow | { kind: 'group'; label: string; rows: FlatRow[] }
 
 /**
  * Lay a submenu out as one list for a popup: groups and deeper submenus
- * become titled groups, one level deep, in the order they come.
+ * become titled groups, one level deep. A group's own items come first,
+ * in order, and its deeper groups after them, so every item sits under
+ * the heading it belongs to.
  */
 export function flatten(options: MenuOption[]): FlatEntry[] {
   const entries: FlatEntry[] = []
@@ -116,16 +116,19 @@ export function flatten(options: MenuOption[]): FlatEntry[] {
     if (isDivider(option)) entries.push({ kind: 'divider' })
     else if (isGroup(option) || option.children?.length) {
       const inner = flatten(option.children!)
-      // the items up to the first nested group are this group's own
-      const own = inner.findIndex((entry) => entry.kind !== 'item')
-      const head = own < 0 ? inner : inner.slice(0, own)
-      entries.push({
-        kind: 'group',
-        label: option.label,
-        items: head.map((entry) => (entry as { item: MenuItemOption }).item),
-      })
-      if (own >= 0) entries.push(...inner.slice(own))
+      const rows = trimDividers(inner.filter((entry): entry is FlatRow => entry.kind !== 'group'))
+      entries.push({ kind: 'group', label: option.label, rows })
+      entries.push(...inner.filter((entry) => entry.kind === 'group'))
     } else entries.push({ kind: 'item', item: option })
   }
   return entries
+}
+
+/** Without separators at the ends or two in a row, which moving groups out can leave. */
+function trimDividers(rows: FlatRow[]): FlatRow[] {
+  return rows.filter(
+    (row, index) =>
+      row.kind !== 'divider' ||
+      (index > 0 && index < rows.length - 1 && rows[index + 1]!.kind !== 'divider'),
+  )
 }

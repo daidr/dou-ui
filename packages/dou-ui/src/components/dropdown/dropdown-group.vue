@@ -25,7 +25,9 @@ const titled = () => !!(slots.label || props.label)
   >
     <!-- the group is named by it; hidden so it is not read a second time as loose text -->
     <div v-if="titled()" :id="id" :class="ns.e('group-label')" aria-hidden="true">
-      <slot name="label">{{ label }}</slot>
+      <span :class="ns.e('group-text')"
+        ><slot name="label">{{ label }}</slot></span
+      >
     </div>
     <slot />
   </div>

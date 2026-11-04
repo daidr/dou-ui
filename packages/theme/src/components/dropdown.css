@@ -205,18 +205,27 @@
    * or chosen. It keeps its height on touch screens, where only rows grow.
    */
   .dou-dropdown__group-label {
-    overflow: hidden;
+    display: flex;
+    align-items: center;
     box-sizing: border-box;
     height: var(--dou-dropdown-group-label-height, 28px);
     padding: 0 var(--dou-dropdown-item-padding-x, 8px);
     color: var(--dou-color-text-tertiary);
     font-size: var(--dou-font-size-sm);
     font-weight: var(--dou-font-weight-medium);
-    line-height: var(--dou-dropdown-group-label-height, 28px);
+    line-height: 1;
     white-space: nowrap;
-    text-overflow: ellipsis;
     cursor: default;
     user-select: none;
+
+    /* the text in a box of its own: trimmed to the glyphs and centered, ending in an ellipsis */
+    & > .dou-dropdown__group-text {
+      min-width: 0;
+      /* clip inline only: glyphs overflow the trimmed line box vertically */
+      overflow-x: clip;
+      text-overflow: ellipsis;
+      text-box: trim-both cap alphabetic;
+    }
   }
 
   .dou-dropdown__separator {

@@ -115,8 +115,9 @@
   }
 
   .dou-collapse__content {
-    padding: 0 var(--dou-collapse-padding-x) 16px
-      calc(var(--dou-collapse-padding-x) + var(--dou-collapse-indent));
+    padding: 0 var(--dou-collapse-padding-x) 16px;
+    /* kept apart so an invalid indent only drops the indent */
+    padding-inline-start: calc(var(--dou-collapse-padding-x) + var(--dou-collapse-indent));
     color: var(--dou-color-text-secondary);
   }
 

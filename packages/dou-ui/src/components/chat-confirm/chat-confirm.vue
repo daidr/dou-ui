@@ -9,7 +9,7 @@ import type { ChatConfirmEmits, ChatConfirmProps, ChatConfirmSlots } from './cha
 defineOptions({ name: 'DouChatConfirm' })
 
 const props = withDefaults(defineProps<ChatConfirmProps>(), {
-  status: 'pending',
+  status: 'waiting',
   allowAlways: false,
   tone: 'neutral',
 })
@@ -21,7 +21,7 @@ const { t } = useLocale()
 const id = useId()
 
 const hasTitle = computed(() => !!props.title || !!slots.title)
-const pending = computed(() => props.status === 'pending')
+const waiting = computed(() => props.status === 'waiting')
 </script>
 
 <template>
@@ -40,14 +40,14 @@ const pending = computed(() => props.status === 'pending')
         </div>
         <div v-if="description" :class="ns.e('description')">{{ description }}</div>
       </div>
-      <span v-if="!pending" :class="ns.e('result')" role="status">
+      <span v-if="!waiting" :class="ns.e('result')" role="status">
         <CheckIcon v-if="status === 'approved'" aria-hidden="true" />
         <CloseIcon v-else aria-hidden="true" />
         {{ status === 'approved' ? t('chat.approved') : t('chat.denied') }}
       </span>
     </div>
     <div v-if="slots.default" :class="ns.e('detail')"><slot /></div>
-    <div v-if="pending" :class="ns.e('actions')">
+    <div v-if="waiting" :class="ns.e('actions')">
       <DouButton size="sm" variant="outline" @click="emit('decide', 'deny')">
         {{ denyText ?? t('chat.deny') }}
       </DouButton>

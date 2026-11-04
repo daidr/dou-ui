@@ -668,9 +668,12 @@ export interface Locale {
     thoughtSeconds: string
     /** Reasoning that took `{minutes}` minutes and `{seconds}` seconds. */
     thoughtMinutes: string
+    /** A tool call that hasn't started. */
     toolPending: string
     toolRunning: string
-    toolSuccess: string
+    /** A tool call paused on someone else, e.g. the person allowing it. */
+    toolWaiting: string
+    toolDone: string
     toolError: string
     /** Heads what a tool was called with. */
     toolInput: string

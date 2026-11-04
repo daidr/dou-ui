@@ -15,9 +15,9 @@ describe('DouChatArtifact', () => {
     expect(wrapper.emitted('open')).toHaveLength(1)
   })
 
-  it('shimmers while generating and swaps the arrow for actions', () => {
+  it('shimmers while running and swaps the arrow for actions', () => {
     const wrapper = mount(DouChatArtifact, {
-      props: { title: 'chart.png', kind: 'image', status: 'generating' },
+      props: { title: 'chart.png', kind: 'image', status: 'running' },
       slots: { actions: () => '下载' },
     })
     expect(wrapper.find('.dou-shimmer.is-active').text()).toBe('正在生成…')

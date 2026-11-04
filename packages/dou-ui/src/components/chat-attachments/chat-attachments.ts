@@ -1,4 +1,4 @@
-export type ChatAttachmentStatus = 'uploading' | 'success' | 'error'
+export type ChatAttachmentStatus = 'running' | 'done' | 'error'
 
 export interface ChatAttachment {
   /** Unique within the list. */
@@ -12,7 +12,7 @@ export interface ChatAttachment {
   url?: string
   /** Leave out once the file is ready. */
   status?: ChatAttachmentStatus
-  /** Upload progress, from 0 to 100, while `uploading`. */
+  /** Upload progress, from 0 to 100, while `running`. */
   percent?: number
 }
 

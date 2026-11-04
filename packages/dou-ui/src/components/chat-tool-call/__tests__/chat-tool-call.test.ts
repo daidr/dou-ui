@@ -8,7 +8,7 @@ describe('DouChatToolCall', () => {
     const wrapper = mount(DouChatToolCall, {
       props: { name: 'get_weather', input: { city: '上海' }, output: '晴，22°C' },
     })
-    expect(wrapper.classes()).toContain('dou-chat-tool-call--success')
+    expect(wrapper.classes()).toContain('dou-chat-tool-call--done')
     expect(wrapper.get('.dou-chat-tool-call__name').text()).toBe('get_weather')
     expect(wrapper.get('.dou-chat-tool-call__status').text()).toBe('已完成')
     const header = wrapper.get('.dou-chat-tool-call__header')
@@ -34,13 +34,20 @@ describe('DouChatToolCall', () => {
     expect(wrapper.find('.dou-spinner').exists()).toBe(true)
   })
 
-  it('shows actions for a pending call', () => {
+  it('shows actions for a waiting call', () => {
     const wrapper = mount(DouChatToolCall, {
-      props: { name: 'delete_file', status: 'pending' },
+      props: { name: 'delete_file', status: 'waiting' },
       slots: { actions: () => '允许' },
     })
-    expect(wrapper.get('.dou-chat-tool-call__status').text()).toBe('等待确认')
+    expect(wrapper.classes()).toContain('dou-chat-tool-call--waiting')
+    expect(wrapper.get('.dou-chat-tool-call__status').text()).toBe('等待中')
     expect(wrapper.get('.dou-chat-tool-call__actions').text()).toBe('允许')
+  })
+
+  it('tells a call that has not started from one that is waiting', () => {
+    const wrapper = mount(DouChatToolCall, { props: { name: 'read_file', status: 'pending' } })
+    expect(wrapper.classes()).toContain('dou-chat-tool-call--pending')
+    expect(wrapper.get('.dou-chat-tool-call__status').text()).toBe('未开始')
   })
 
   it('formats values', () => {

@@ -9,6 +9,7 @@ describe('DouChatConfirm', () => {
       slots: { default: () => 'diff' },
     })
     expect(wrapper.attributes('role')).toBe('group')
+    expect(wrapper.classes()).toContain('is-waiting')
     expect(wrapper.get('.dou-chat-confirm__detail').text()).toBe('diff')
     const buttons = wrapper.findAll('.dou-chat-confirm__actions button')
     expect(buttons.map((b) => b.text())).toEqual(['拒绝', '总是允许', '允许'])

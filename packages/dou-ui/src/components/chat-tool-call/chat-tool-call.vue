@@ -4,6 +4,7 @@ import {
   CheckCircleIcon,
   ChevronDownIcon,
   ClockIcon,
+  ClockPauseIcon,
   WrenchIcon,
 } from '@dou-ui/icons'
 import { computed, ref, useId } from 'vue'
@@ -17,7 +18,7 @@ import type { ChatToolCallEmits, ChatToolCallProps, ChatToolCallSlots } from './
 defineOptions({ name: 'DouChatToolCall' })
 
 const props = withDefaults(defineProps<ChatToolCallProps>(), {
-  status: 'success',
+  status: 'done',
   open: undefined,
 })
 const emit = defineEmits<ChatToolCallEmits>()
@@ -43,7 +44,8 @@ const statusText = computed(
     ({
       pending: t('chat.toolPending'),
       running: t('chat.toolRunning'),
-      success: t('chat.toolSuccess'),
+      waiting: t('chat.toolWaiting'),
+      done: t('chat.toolDone'),
       error: t('chat.toolError'),
     })[props.status],
 )
@@ -72,7 +74,8 @@ const statusText = computed(
       <span :class="ns.e('status')">
         <DouSpinner v-if="status === 'running'" size="sm" aria-hidden="true" />
         <ClockIcon v-else-if="status === 'pending'" aria-hidden="true" />
-        <CheckCircleIcon v-else-if="status === 'success'" aria-hidden="true" />
+        <ClockPauseIcon v-else-if="status === 'waiting'" aria-hidden="true" />
+        <CheckCircleIcon v-else-if="status === 'done'" aria-hidden="true" />
         <AlertCircleIcon v-else aria-hidden="true" />
         <span :class="ns.e('status-text')">{{ statusText }}</span>
       </span>

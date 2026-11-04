@@ -1,5 +1,8 @@
-/** `pending` waits for the person to allow the call; the rest follow the run. */
-export type ChatToolCallStatus = 'pending' | 'running' | 'success' | 'error'
+/**
+ * The same words as ChatPlan: `pending` hasn't started, `waiting` is paused on
+ * someone else, such as the person allowing the call; the rest follow the run.
+ */
+export type ChatToolCallStatus = 'pending' | 'running' | 'waiting' | 'done' | 'error'
 
 export interface ChatToolCallProps {
   /** The tool's name, e.g. `search_web`. */
@@ -30,7 +33,7 @@ export interface ChatToolCallSlots {
   output?: () => unknown
   /** Extra content in the panel, after the output. */
   default?: () => unknown
-  /** Under the header, always visible: e.g. allow / deny buttons for a `pending` call. */
+  /** Under the header, always visible: e.g. allow / deny buttons for a `waiting` call. */
   actions?: () => unknown
 }
 

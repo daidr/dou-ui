@@ -10,7 +10,7 @@
 
 ## 上传状态
 
-`status` 为 `uploading` 时底部显示进度，`percent` 是 0 到 100 的进度；`error` 时边框和说明变成危险色。上传本身由你完成，比如配合 [Upload](./upload) 的 `request` 或自己的请求代码，再更新这两个字段。
+`status` 为 `running` 时底部显示进度，`percent` 是 0 到 100 的进度；`error` 时边框和说明变成危险色。上传本身由你完成，比如配合 [Upload](./upload) 的 `request` 或自己的请求代码，再更新这两个字段。状态名和聊天套件的其他组件一致，所以 Upload 的 `uploading`、`success` 在这里分别对应 `running`、`done`。
 
 <DocDemo src="chat-attachments/status" />
 
@@ -31,15 +31,15 @@
 
 ### ChatAttachment
 
-| 名称      | 说明                                    | 类型                                  |
-| --------- | --------------------------------------- | ------------------------------------- |
-| `uid`     | 列表内唯一                              | `string`                              |
-| `name`    | 文件名                                  | `string`                              |
-| `size`    | 大小，单位字节                          | `number`                              |
-| `type`    | MIME 类型，用于判断图标和是否显示缩略图 | `string`                              |
-| `url`     | 文件地址，图片会显示缩略图              | `string`                              |
-| `status`  | 上传状态，上传完成后可以不传            | `'uploading' \| 'success' \| 'error'` |
-| `percent` | 上传进度，0 到 100                      | `number`                              |
+| 名称      | 说明                                    | 类型                             |
+| --------- | --------------------------------------- | -------------------------------- |
+| `uid`     | 列表内唯一                              | `string`                         |
+| `name`    | 文件名                                  | `string`                         |
+| `size`    | 大小，单位字节                          | `number`                         |
+| `type`    | MIME 类型，用于判断图标和是否显示缩略图 | `string`                         |
+| `url`     | 文件地址，图片会显示缩略图              | `string`                         |
+| `status`  | 上传状态，上传完成后可以不传            | `'running' \| 'done' \| 'error'` |
+| `percent` | 上传进度，0 到 100                      | `number`                         |
 
 ### Events
 

@@ -1,6 +1,6 @@
 /** Picks the icon. */
 export type ChatArtifactKind = 'document' | 'code' | 'image' | 'web' | 'data' | 'file'
-export type ChatArtifactStatus = 'generating' | 'done' | 'error'
+export type ChatArtifactStatus = 'running' | 'done' | 'error'
 
 export interface ChatArtifactProps {
   /** The name of what was made, e.g. "Trip plan.md". */
@@ -8,6 +8,7 @@ export interface ChatArtifactProps {
   kind?: ChatArtifactKind
   /** A short line under the title, e.g. "Markdown · 1,200 words". */
   description?: string
+  /** `running` while it is still being made. */
   status?: ChatArtifactStatus
   /** It is the one shown in the side panel now. */
   active?: boolean

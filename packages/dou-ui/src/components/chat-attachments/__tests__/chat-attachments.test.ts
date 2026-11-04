@@ -7,7 +7,7 @@ import type { ChatAttachment } from '../chat-attachments'
 const files: ChatAttachment[] = [
   { uid: '1', name: '周报.pdf', size: 2048 },
   { uid: '2', name: '截图.png', type: 'image/png', url: 'shot.png' },
-  { uid: '3', name: '数据.csv', status: 'uploading', percent: 40 },
+  { uid: '3', name: '数据.csv', status: 'running', percent: 40 },
   { uid: '4', name: '草稿.md', status: 'error' },
 ]
 

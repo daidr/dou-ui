@@ -83,7 +83,7 @@ const messages = ref([
         title: '发送邮件给 2 位同行的人？',
         description: '收件人：戴兜、骑行小组',
         detail: '主题：周六骑行\n周六上午九点，龙美术馆门口集合，全程约 16 公里。',
-        status: 'pending',
+        status: 'waiting',
         allowAlways: true,
       },
     ],

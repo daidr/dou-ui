@@ -120,7 +120,14 @@ const labelText = (entry: TabPanelEntry) => entry.props.label ?? String(entry.pr
 /** With `iconOnly`, whether the tab shows its icon alone; without an icon it keeps its text. */
 function iconAlone(entry: TabPanelEntry) {
   if (!props.iconOnly) return false
-  if (entry.props.icon) return true
+  if (entry.props.icon) {
+    // the label slot cannot name an icon: the tab would be read out as its value
+    if (process.env.NODE_ENV !== 'production' && entry.props.label === undefined)
+      devWarn(
+        `[dou-ui] DouTabs: \`iconOnly\` names each tab by its \`label\`; the DouTabPanel "${entry.props.value}" has none and is named by its value.`,
+      )
+    return true
+  }
   if (process.env.NODE_ENV !== 'production')
     devWarn(
       `[dou-ui] DouTabs: \`iconOnly\` needs an \`icon\` on each DouTabPanel; "${labelText(entry)}" keeps its text.`,

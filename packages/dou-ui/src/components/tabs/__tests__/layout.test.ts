@@ -133,6 +133,20 @@ describe('DouTabs icons', () => {
     expect(wrapper.emitted('remove')).toEqual([['profile']])
   })
 
+  it('with iconOnly, warns about a panel named only by its label slot', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const wrapper = mount(DouTabs, {
+      props: { iconOnly: true },
+      slots: {
+        default: () => [h(DouTabPanel, { value: 'p', icon: Icon }, { label: () => '个人资料' })],
+      },
+    })
+    await nextTick()
+    expect(wrapper.get('[role="tab"]').attributes('aria-label')).toBe('p')
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('names each tab by its `label`'))
+    warn.mockRestore()
+  })
+
   it('keeps the text of a panel without an icon, and warns', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const wrapper = mount(DouTabs, {

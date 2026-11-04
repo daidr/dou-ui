@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { DouLink } from '../../../index'
 
 describe('DouLink', () => {
@@ -22,7 +22,7 @@ describe('DouLink', () => {
 
   it('lets the trailing slot replace the external arrow', () => {
     const wrapper = mount(DouLink, {
-      props: { external: true },
+      props: { href: 'https://example.com', external: true },
       slots: { trailing: '→' },
     })
     expect(wrapper.find('.dou-link__external').exists()).toBe(false)
@@ -41,5 +41,30 @@ describe('DouLink', () => {
     const wrapper = mount(DouLink, { props: { href: '#' } })
     await wrapper.trigger('click')
     expect(wrapper.emitted('click')).toHaveLength(1)
+  })
+
+  it('renders a button when there is no href', async () => {
+    const wrapper = mount(DouLink, { slots: { default: '重新开始' } })
+    expect(wrapper.element.tagName).toBe('BUTTON')
+    expect(wrapper.attributes('type')).toBe('button')
+    expect(wrapper.attributes('href')).toBeUndefined()
+    expect(wrapper.classes()).toContain('dou-link')
+    await wrapper.trigger('click')
+    expect(wrapper.emitted('click')).toHaveLength(1)
+  })
+
+  it('disables the button natively', () => {
+    const wrapper = mount(DouLink, { props: { disabled: true } })
+    expect(wrapper.attributes('disabled')).toBeDefined()
+    expect(wrapper.attributes('aria-disabled')).toBeUndefined()
+  })
+
+  it('warns that external does nothing without an href', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const wrapper = mount(DouLink, { props: { external: true } })
+    expect(wrapper.find('.dou-link__external').exists()).toBe(false)
+    expect(wrapper.attributes('target')).toBeUndefined()
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('[dou-ui] DouLink'))
+    warn.mockRestore()
   })
 })

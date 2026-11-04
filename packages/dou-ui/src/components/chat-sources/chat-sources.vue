@@ -2,6 +2,7 @@
 import { GlobeIcon } from '@dou-ui/icons'
 import { computed, ref } from 'vue'
 import { useNamespace } from '../../utils/namespace'
+import { checkedUrl } from '../../utils/safe-url'
 import { useLocale } from '../config-provider/use-config'
 import { sourceSite } from './chat-sources'
 import type { ChatSourcesProps, ChatSourcesSlots } from './chat-sources'
@@ -21,6 +22,10 @@ const visible = computed(() =>
   props.max === undefined || expanded.value ? props.items : props.items.slice(0, props.max),
 )
 const hidden = computed(() => props.items.length - visible.value.length)
+// unsafe addresses such as `javascript:` are shown without a link
+const hrefs = computed(() =>
+  visible.value.map((source) => checkedUrl('DouChatSources', source.url)),
+)
 </script>
 
 <template>
@@ -28,11 +33,11 @@ const hidden = computed(() => props.items.length - visible.value.length)
     <ol :class="ns.e('list')" :aria-label="t('chat.sources')">
       <li v-for="(source, index) in visible" :key="source.key ?? index" :class="ns.e('item')">
         <component
-          :is="source.url ? 'a' : 'span'"
+          :is="hrefs[index] ? 'a' : 'span'"
           :class="ns.e('link')"
-          :href="source.url"
-          :target="source.url ? '_blank' : undefined"
-          :rel="source.url ? 'noopener noreferrer' : undefined"
+          :href="hrefs[index]"
+          :target="hrefs[index] ? '_blank' : undefined"
+          :rel="hrefs[index] ? 'noopener noreferrer' : undefined"
           :title="source.title"
         >
           <slot name="item" :source="source" :index="index">

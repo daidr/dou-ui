@@ -4,7 +4,7 @@
 
 ## 基础用法
 
-`ChatSources` 按顺序列出来源，序号从 1 开始。有 `url` 的来源可以点击，在新窗口打开；`site` 不传时取网址的域名。`max` 限制显示的数量，其余的收进“+N”按钮。
+`ChatSources` 按顺序列出来源，序号从 1 开始。有 `url` 的来源可以点击，在新窗口打开。`url` 只接受 http(s)、mailto、tel 和相对地址，`javascript:` 这类地址不会生成链接，开发环境下会警告一次；`site` 不传时取网址的域名。`max` 限制显示的数量，其余的收进“+N”按钮。
 
 正文里用 `ChatCitation` 标注引用，`index` 是序号，`source` 是对应的来源。鼠标悬停或键盘聚焦时弹出来源的预览。
 
@@ -32,14 +32,14 @@
 
 ### ChatSource
 
-| 名称          | 说明                 | 类型               |
-| ------------- | -------------------- | ------------------ |
-| `key`         | 唯一标识，默认用序号 | `string \| number` |
-| `title`       | 标题                 | `string`           |
-| `url`         | 地址                 | `string`           |
-| `site`        | 站点名，默认取域名   | `string`           |
-| `description` | 摘录，显示在预览里   | `string`           |
-| `icon`        | 站点图标地址         | `string`           |
+| 名称          | 说明                                         | 类型               |
+| ------------- | -------------------------------------------- | ------------------ |
+| `key`         | 唯一标识，默认用序号                         | `string \| number` |
+| `title`       | 标题                                         | `string`           |
+| `url`         | 地址，只接受 http(s)、mailto、tel 和相对地址 | `string`           |
+| `site`        | 站点名，默认取域名                           | `string`           |
+| `description` | 摘录，显示在预览里                           | `string`           |
+| `icon`        | 站点图标地址                                 | `string`           |
 
 ### ChatSources Slots
 

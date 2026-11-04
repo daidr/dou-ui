@@ -6,6 +6,12 @@ export type MenuMode = 'vertical' | 'horizontal'
 export interface MenuItemOption {
   key: MenuKey
   label: string
+  /**
+   * A line under the label that says more about the item. It shows in an
+   * expanded vertical menu and in popups; the top row of a horizontal or
+   * collapsed menu keeps one line and only reads it to screen readers.
+   */
+  description?: string
   /** An icon component, shown before the label and alone when the menu is collapsed. */
   icon?: Component
   disabled?: boolean

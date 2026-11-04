@@ -37,6 +37,7 @@ const MenuPopupItem: FunctionalComponent<{ item: MenuItemOption }> = ({ item }) 
     {
       value: item.key,
       disabled: item.disabled,
+      description: item.description,
       onContextmenu: (event: MouseEvent) => menu.contextmenu(item, event),
     },
     {

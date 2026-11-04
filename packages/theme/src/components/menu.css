@@ -17,6 +17,9 @@
     --dou-menu-indent: calc(var(--dou-menu-icon-size) + var(--dou-menu-gap));
     --dou-menu-hover-bg: color-mix(in oklab, var(--dou-color-text) 4%, transparent);
     --dou-menu-selected-bg: color-mix(in oklab, var(--dou-color-text) 7%, transparent);
+    /* rows with a description: the title line and the gap to the description */
+    --dou-menu-title-height: 16px;
+    --dou-menu-description-gap: 6px;
 
     min-width: 0;
     color: var(--dou-color-text-secondary);
@@ -118,6 +121,54 @@
     overflow-x: clip;
     text-overflow: ellipsis;
     text-box: trim-both cap alphabetic;
+  }
+
+  /*
+   * A row with a description grows to two lines or more, like a menu item
+   * with one. The icon and the arrow stay on the title line; the description
+   * wraps below in a quieter, smaller type and never widens the menu.
+   */
+  .dou-menu__item.is-described {
+    align-items: flex-start;
+    height: auto;
+    min-height: var(--dou-menu-item-height);
+    padding-block: calc((var(--dou-menu-item-height) - var(--dou-menu-title-height, 16px)) / 2);
+
+    & > .dou-menu__arrow {
+      margin-block: calc((var(--dou-menu-title-height, 16px) - 1em) / 2);
+    }
+
+    & > .dou-menu__icon {
+      margin-block: calc((var(--dou-menu-title-height, 16px) - var(--dou-menu-icon-size)) / 2);
+    }
+  }
+
+  .dou-menu__text {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: var(--dou-menu-description-gap, 6px);
+    min-width: 0;
+
+    /* the trimmed title sits in the middle of the title line */
+    & > .dou-menu__label {
+      padding-block: calc((var(--dou-menu-title-height, 16px) - 1cap) / 2);
+    }
+  }
+
+  .dou-menu__description {
+    contain: inline-size;
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    font-weight: var(--dou-font-weight-regular);
+    line-height: 1.5;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-box: trim-both cap alphabetic;
+
+    .dou-menu__item.is-disabled & {
+      color: inherit;
+    }
   }
 
   .dou-menu__arrow {

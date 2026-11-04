@@ -58,6 +58,17 @@ const make = (props: Record<string, unknown> = {}) => {
 const item = (wrapper: ReturnType<typeof make>['wrapper'], label: string) =>
   wrapper.findAll('[data-dou-menu-item]').find((el) => el.text() === label)!
 
+/** The accessible name and description an element gets from the ids it points at. */
+const nameAndDescription = (el: Element) => {
+  const text = (attr: string) =>
+    el
+      .getAttribute(attr)
+      ?.split(/\s+/)
+      .map((id) => document.getElementById(id)?.textContent?.trim())
+      .join(' ')
+  return [el.getAttribute('aria-label') ?? text('aria-labelledby'), text('aria-describedby')]
+}
+
 describe('DouMenu', () => {
   it('renders a navigation landmark with groups and dividers', () => {
     const { wrapper } = make()
@@ -177,6 +188,102 @@ describe('DouMenu', () => {
       ['archive', 'contextmenu'],
     ])
     wrapper.unmount()
+  })
+
+  describe('description', () => {
+    const described: MenuOption[] = [
+      { key: 'home', label: '首页', icon: Icon, description: '本周的待办和动态' },
+      {
+        key: 'projects',
+        label: '项目',
+        icon: Icon,
+        description: '上海办公室的全部项目',
+        children: [
+          { key: 'list', label: '项目列表', description: '按更新时间排列' },
+          { key: 'plain', label: '没有说明' },
+          {
+            key: 'settings',
+            label: '设置',
+            children: [{ key: 'members', label: '成员', description: '戴兜和另外 3 人' }],
+          },
+        ],
+      },
+      { key: 'billing', label: '账单' },
+    ]
+    it('shows it under the label of an expanded vertical menu', () => {
+      const wrapper = mount(DouMenu, {
+        props: { items: described, expanded: ['projects'] },
+        attachTo: document.body,
+      })
+      const rows = wrapper.findAll('[data-dou-menu-item]')
+      const home = rows.find((row) => row.text().startsWith('首页'))!
+      expect(home.classes()).toContain('is-described')
+      expect(home.get('.dou-menu__description').text()).toBe('本周的待办和动态')
+      expect(nameAndDescription(home.element)).toEqual(['首页', '本周的待办和动态'])
+      // a submenu row has one too
+      const projects = rows.find((row) => row.text().startsWith('项目'))!
+      expect(nameAndDescription(projects.element)).toEqual(['项目', '上海办公室的全部项目'])
+      // no description, no change
+      const plain = rows.find((row) => row.text() === '没有说明')!
+      expect(plain.classes()).not.toContain('is-described')
+      expect(plain.attributes('aria-labelledby')).toBeUndefined()
+      expect(plain.attributes('aria-describedby')).toBeUndefined()
+      expect(plain.find('.dou-menu__description').exists()).toBe(false)
+      wrapper.unmount()
+    })
+
+    it('only reads it in the top row of a horizontal menu', () => {
+      const wrapper = mount(DouMenu, {
+        props: { items: described, mode: 'horizontal' },
+        attachTo: document.body,
+      })
+      const row = (label: string) =>
+        wrapper
+          .findAll('[data-dou-menu-item]')
+          .find((one) => one.find('.dou-menu__label').text() === label)!
+      const home = row('首页')
+      expect(home.classes()).not.toContain('is-described')
+      expect(home.find('.dou-menu__description').exists()).toBe(false)
+      expect(nameAndDescription(home.element)).toEqual(['首页', '本周的待办和动态'])
+      const projects = row('项目')
+      expect(nameAndDescription(projects.element)).toEqual(['项目', '上海办公室的全部项目'])
+      wrapper.unmount()
+    })
+
+    it('only reads it on the icons of a collapsed menu', () => {
+      const wrapper = mount(DouMenu, {
+        props: { items: described, collapsed: true },
+        attachTo: document.body,
+      })
+      expect(nameAndDescription(wrapper.get('[aria-label="首页"]').element)).toEqual([
+        '首页',
+        '本周的待办和动态',
+      ])
+      expect(nameAndDescription(wrapper.get('[aria-label="项目"]').element)).toEqual([
+        '项目',
+        '上海办公室的全部项目',
+      ])
+      wrapper.unmount()
+    })
+
+    it('passes it to the items of a popup', async () => {
+      const wrapper = mount(DouMenu, {
+        props: { items: described, collapsed: true },
+        attachTo: document.body,
+      })
+      await wrapper.get('[aria-label="项目"]').trigger('keydown', { key: 'ArrowDown' })
+      await nextTick()
+      const menu = document.querySelector('[role="menu"]')!
+      const rows = [...menu.querySelectorAll('[role="menuitem"]')]
+      const find = (label: string) =>
+        rows.find(
+          (row) => row.querySelector('.dou-dropdown__label')?.textContent?.trim() === label,
+        )!
+      expect(nameAndDescription(find('项目列表'))).toEqual(['项目列表', '按更新时间排列'])
+      expect(nameAndDescription(find('成员'))).toEqual(['成员', '戴兜和另外 3 人'])
+      expect(find('没有说明').getAttribute('aria-describedby')).toBeNull()
+      wrapper.unmount()
+    })
   })
 
   it('tells which popup item was right-clicked', async () => {

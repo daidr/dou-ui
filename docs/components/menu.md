@@ -22,7 +22,15 @@
 
 <DocDemo src="menu/horizontal" column />
 
-弹出的子菜单直接复用 [Dropdown](./dropdown)：更深一层的子菜单和分组都摊平成带小标题的一段，当前项后面带一个对勾。
+弹出的子菜单直接复用 [Dropdown](./dropdown)：更深一层的子菜单和分组都摊平成带小标题的一段，当前项后面带一个对勾，项的说明显示在名称下面。
+
+## 带说明的项
+
+项上写 `description`，名称下面多一行说明，适合设置页这类只看名称分不清每一项管什么的侧边栏。说明比名称小一号、颜色更浅，放不下时换行，不会把菜单撑宽；图标和子菜单的箭头仍和名称对齐。
+
+说明只在展开的竖向菜单和弹出的子菜单里显示，写法、样式与 [Dropdown 的带说明的菜单项](./dropdown#带说明的菜单项) 一致。折叠后的图标列和水平菜单的顶层只有一行高，不显示说明，读屏仍会读出。
+
+<DocDemo src="menu/description" />
 
 ## 自定义标签
 
@@ -76,7 +84,7 @@ function onItemContextmenu(item: MenuItemOption, event: MouseEvent) {
 
 ## 键盘与读屏
 
-菜单渲染为 `<nav>` 里的列表，属于网站导航而不是应用菜单，所以不使用 `menu` 角色；需要时给它加 `aria-label`。当前项带 `aria-current="page"`，子菜单的开关是带 `aria-expanded` 与 `aria-controls` 的按钮，分组是带名称（`aria-label`）的子列表，分隔线只是装饰，对读屏隐藏。
+菜单渲染为 `<nav>` 里的列表，属于网站导航而不是应用菜单，所以不使用 `menu` 角色；需要时给它加 `aria-label`。当前项带 `aria-current="page"`，子菜单的开关是带 `aria-expanded` 与 `aria-controls` 的按钮，分组是带名称（`aria-label`）的子列表，分隔线只是装饰，对读屏隐藏。带说明的项只用名称作为可访问名称，说明通过 `aria-describedby` 读出。
 
 除了 `Tab`，竖向菜单里 `↑` `↓` 在可见的项之间移动，`Home` / `End` 跳到首尾，`→` 展开子菜单，`←` 收起或回到上一级；水平菜单里 `←` `→` 移动，`↓` 打开子菜单。
 
@@ -97,11 +105,11 @@ function onItemContextmenu(item: MenuItemOption, event: MouseEvent) {
 
 `MenuOption` 是以下三种之一：
 
-| 类型                | 字段                                                                  |
-| ------------------- | --------------------------------------------------------------------- |
-| `MenuItemOption`    | `key`、`label`、`icon?: Component`、`disabled?`、`href?`、`children?` |
-| `MenuGroupOption`   | `type: 'group'`、`label`、`children`                                  |
-| `MenuDividerOption` | `type: 'divider'`                                                     |
+| 类型                | 字段                                                                                  |
+| ------------------- | ------------------------------------------------------------------------------------- |
+| `MenuItemOption`    | `key`、`label`、`description?`、`icon?: Component`、`disabled?`、`href?`、`children?` |
+| `MenuGroupOption`   | `type: 'group'`、`label`、`children`                                                  |
+| `MenuDividerOption` | `type: 'divider'`                                                                     |
 
 ### Events
 
@@ -120,8 +128,10 @@ function onItemContextmenu(item: MenuItemOption, event: MouseEvent) {
 
 ### CSS 变量
 
-| 变量                     | 说明         |
-| ------------------------ | ------------ |
-| `--dou-menu-item-height` | 行高         |
-| `--dou-menu-indent`      | 每一级的缩进 |
-| `--dou-menu-selected-bg` | 当前项的底色 |
+| 变量                         | 说明                             |
+| ---------------------------- | -------------------------------- |
+| `--dou-menu-item-height`     | 行高                             |
+| `--dou-menu-indent`          | 每一级的缩进                     |
+| `--dou-menu-selected-bg`     | 当前项的底色                     |
+| `--dou-menu-title-height`    | 带说明的项里名称那一行的高度     |
+| `--dou-menu-description-gap` | 带说明的项里名称与说明之间的间距 |

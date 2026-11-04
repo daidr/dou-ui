@@ -49,21 +49,22 @@ const hunks = diffText('上海\n戴兜\n', '上海\n阿青\n')
 
 ### CodeDiff Props
 
-| 名称                | 说明                             | 类型                                                 | 默认值   |
-| ------------------- | -------------------------------- | ---------------------------------------------------- | -------- |
-| `original`          | 原文                             | `string`                                             | `''`     |
-| `v-model`           | 修改后的文本                     | `string`                                             | `''`     |
-| `v-model:mode`      | 显示方式                         | `'split' \| 'inline' \| 'auto'`                      | `'auto'` |
-| `language`          | 语言                             | `CodeLanguage \| null`                               | —        |
-| `editable`          | 允许在并排视图的右侧修改         | `boolean`                                            | `false`  |
-| `collapseUnchanged` | 收起未改动的行                   | `boolean \| { context?: number, minLines?: number }` | `true`   |
-| `ignoreWhitespace`  | 只有空白不同的行视为相同         | `boolean`                                            | `false`  |
-| `words`             | 标出行内改动的词                 | `boolean`                                            | `true`   |
-| `wrap`              | `inline` 视图中自动换行          | `boolean`                                            | `false`  |
-| `extensions`        | 右侧编辑器的扩展，只在并排时使用 | `CodeExtension[]`                                    | —        |
-| `toolbar`           | 显示工具栏                       | `boolean`                                            | `true`   |
-| `tabSize`           | 制表位宽度                       | `number`                                             | `2`      |
-| `messages`          | 改写界面上的文字                 | `Partial<CodeMessages>`                              | —        |
+| 名称                | 说明                                                                                           | 类型                                                 | 默认值   |
+| ------------------- | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------- | -------- |
+| `original`          | 原文                                                                                           | `string`                                             | `''`     |
+| `v-model`           | 修改后的文本                                                                                   | `string`                                             | `''`     |
+| `v-model:mode`      | 显示方式                                                                                       | `'split' \| 'inline' \| 'auto'`                      | `'auto'` |
+| `language`          | 语言                                                                                           | `CodeLanguage \| null`                               | —        |
+| `editable`          | 允许在并排视图的右侧修改                                                                       | `boolean`                                            | `false`  |
+| `collapseUnchanged` | 收起未改动的行                                                                                 | `boolean \| { context?: number, minLines?: number }` | `true`   |
+| `ignoreWhitespace`  | 只有空白不同的行视为相同                                                                       | `boolean`                                            | `false`  |
+| `words`             | 标出行内改动的词                                                                               | `boolean`                                            | `true`   |
+| `wrap`              | `inline` 视图中自动换行                                                                        | `boolean`                                            | `false`  |
+| `extensions`        | 右侧编辑器的扩展，只在并排时使用                                                               | `CodeExtension[]`                                    | —        |
+| `toolbar`           | 显示工具栏                                                                                     | `boolean`                                            | `true`   |
+| `bordered`          | 整体的外框和圆角；关闭后去掉外框和圆角，聚焦时也不再画出边框，工具栏和左右两栏之间的分隔线保留 | `boolean`                                            | `true`   |
+| `tabSize`           | 制表位宽度                                                                                     | `number`                                             | `2`      |
+| `messages`          | 改写界面上的文字                                                                               | `Partial<CodeMessages>`                              | —        |
 
 ### CodeDiff Exposes
 
@@ -73,3 +74,9 @@ const hunks = diffText('上海\n戴兜\n', '上海\n阿青\n')
 | `next()`、`previous()`         | 跳到下一处、上一处改动                           |
 | `expandAll()`、`collapseAll()` | 展开、收起全部未改动的行                         |
 | `original`、`modified`         | 两侧的编辑器实例；`inline` 视图中只有 `modified` |
+
+### CSS 变量
+
+| 名称                     | 说明                                                | 默认值                    |
+| ------------------------ | --------------------------------------------------- | ------------------------- |
+| `--dou-code-diff-border` | 外框和内部分隔线的颜色；只想去掉外框时用 `bordered` | `var(--dou-color-border)` |

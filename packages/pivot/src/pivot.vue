@@ -91,6 +91,7 @@ const props = withDefaults(
     size: 'md',
     rowHeaderWidth: 200,
     columnWidth: 120,
+    bordered: true,
   },
 )
 const config = defineModel<PivotConfig>('config', { default: () => ({}) })
@@ -1583,7 +1584,8 @@ const ariaLabel = computed(() => props.ariaLabel ?? messages.value.pivot)
 const rootStyle = computed(() => {
   const height = typeof props.maxHeight === 'number' ? `${props.maxHeight}px` : props.maxHeight
   // a short table ends with its last row instead of leaving blank space under it
-  const content = headHeight.value + bodyHeight.value + footHeight.value + gutter.value + 2
+  const frame = props.bordered ? 2 : 0
+  const content = headHeight.value + bodyHeight.value + footHeight.value + gutter.value + frame
   return `height:min(${height}, ${content}px);--dou-pivot-row-height:${rowHeight.value}px;--dou-pivot-head-width:${headWidth.value}px`
 })
 
@@ -1617,6 +1619,7 @@ defineExpose<PivotExpose>({
         'has-values-column': valuesOnRows,
         'is-tabular': tabular,
         'is-busy': busy,
+        'is-bordered': bordered,
       },
     ]"
     :style="rootStyle"

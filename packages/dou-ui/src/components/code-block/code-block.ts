@@ -38,6 +38,11 @@ export interface CodeBlockProps {
    * lines fade in.
    */
   streaming?: boolean
+  /**
+   * The hairline frame and rounded corners. Off, the block takes no border
+   * at all, for a card or panel that already has an edge. On by default.
+   */
+  bordered?: boolean
 }
 
 export interface CodeBlockSlots {

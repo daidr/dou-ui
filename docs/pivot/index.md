@@ -106,24 +106,25 @@ const config = ref<PivotConfig>({ rows: ['region'], columns: ['month'], values: 
 
 ### Pivot Props
 
-| 名称             | 说明                                                                                      | 类型                                      | 默认值         |
-| ---------------- | ----------------------------------------------------------------------------------------- | ----------------------------------------- | -------------- |
-| `data`           | 记录：对象数组，或[按列给出](./performance#按列给出数据)的数组                            | `object[] \| PivotColumns`                | —              |
-| `fields`         | 字段的说明                                                                                | `PivotField[]`                            | 从记录的键推断 |
-| `config`         | 字段放在哪里，支持 `v-model:config`                                                       | `PivotConfig`                             | `{}`           |
-| `collapsed`      | 折叠的组，支持 `v-model:collapsed`，见[展开与折叠](./layout#展开与折叠)                   | `PivotCollapsed`                          | `{}`           |
-| `maxHeight`      | 最大高度，数字按 px 计算；内容更少时随内容变矮                                            | `number \| string`                        | `480`          |
-| `size`           | 行高：28、32、40px                                                                        | `'sm' \| 'md' \| 'lg'`                    | `'md'`         |
-| `rowHeaderWidth` | 行头的宽度（px），窄屏上会自动收窄                                                        | `number`                                  | `200`          |
-| `columnWidth`    | 每个数值列的最小宽度（px），表格较宽时会适当加宽                                          | `number`                                  | `120`          |
-| `layout`         | 紧凑式或表格式[布局](./layout)                                                            | `'compact' \| 'tabular'`                  | `'compact'`    |
-| `resizable`      | 能否拖动调整列宽                                                                          | `boolean`                                 | `true`         |
-| `worker`         | 是否[在 worker 中汇总](./performance#在-worker-中汇总)；`'auto'` 超过 10 万条时使用       | `boolean \| 'auto'`                       | `'auto'`       |
-| `engine`         | 在别处汇总：自己的 worker 或服务端                                                        | `PivotEngine`                             | —              |
-| `aggregators`    | [自定义的汇总方式](./values#自定义汇总方式)                                               | `PivotAggregator[]`                       | —              |
-| `highlight`      | [标出](./details#标出行和列)一个行组和一个列组，路径同 `cellClick` 给出的 `row`、`column` | `{ row?: PivotPath; column?: PivotPath }` | —              |
-| `ariaLabel`      | 读屏读出的名称                                                                            | `string`                                  | `'数据透视表'` |
-| `messages`       | 替换语言包里的文字                                                                        | `PivotMessagesOverride`                   | —              |
+| 名称             | 说明                                                                                                        | 类型                                      | 默认值         |
+| ---------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------- | -------------- |
+| `data`           | 记录：对象数组，或[按列给出](./performance#按列给出数据)的数组                                              | `object[] \| PivotColumns`                | —              |
+| `fields`         | 字段的说明                                                                                                  | `PivotField[]`                            | 从记录的键推断 |
+| `config`         | 字段放在哪里，支持 `v-model:config`                                                                         | `PivotConfig`                             | `{}`           |
+| `collapsed`      | 折叠的组，支持 `v-model:collapsed`，见[展开与折叠](./layout#展开与折叠)                                     | `PivotCollapsed`                          | `{}`           |
+| `maxHeight`      | 最大高度，数字按 px 计算；内容更少时随内容变矮                                                              | `number \| string`                        | `480`          |
+| `size`           | 行高：28、32、40px                                                                                          | `'sm' \| 'md' \| 'lg'`                    | `'md'`         |
+| `bordered`       | 外框和圆角；关闭后去掉外框和圆角，用于放进已有边框的容器，见[去掉外框](/guide/theming#去掉外框与调整内边距) | `boolean`                                 | `true`         |
+| `rowHeaderWidth` | 行头的宽度（px），窄屏上会自动收窄                                                                          | `number`                                  | `200`          |
+| `columnWidth`    | 每个数值列的最小宽度（px），表格较宽时会适当加宽                                                            | `number`                                  | `120`          |
+| `layout`         | 紧凑式或表格式[布局](./layout)                                                                              | `'compact' \| 'tabular'`                  | `'compact'`    |
+| `resizable`      | 能否拖动调整列宽                                                                                            | `boolean`                                 | `true`         |
+| `worker`         | 是否[在 worker 中汇总](./performance#在-worker-中汇总)；`'auto'` 超过 10 万条时使用                         | `boolean \| 'auto'`                       | `'auto'`       |
+| `engine`         | 在别处汇总：自己的 worker 或服务端                                                                          | `PivotEngine`                             | —              |
+| `aggregators`    | [自定义的汇总方式](./values#自定义汇总方式)                                                                 | `PivotAggregator[]`                       | —              |
+| `highlight`      | [标出](./details#标出行和列)一个行组和一个列组，路径同 `cellClick` 给出的 `row`、`column`                   | `{ row?: PivotPath; column?: PivotPath }` | —              |
+| `ariaLabel`      | 读屏读出的名称                                                                                              | `string`                                  | `'数据透视表'` |
+| `messages`       | 替换语言包里的文字                                                                                          | `PivotMessagesOverride`                   | —              |
 
 ### Pivot Events
 
@@ -174,14 +175,15 @@ const config = ref<PivotConfig>({ rows: ['region'], columns: ['month'], values: 
 
 ### CSS 变量
 
-| 变量                            | 说明                                     |
-| ------------------------------- | ---------------------------------------- |
-| `--dou-pivot-line`              | 格子之间的线                             |
-| `--dou-pivot-line-strong`       | 表头、行头的分隔线                       |
-| `--dou-pivot-head-bg`           | 表头和总计行的背景                       |
-| `--dou-pivot-total-bg`          | 合计列和总计列的背景                     |
-| `--dou-pivot-ring`              | 键盘选中格子的边框颜色                   |
-| `--dou-pivot-selected`          | 选中范围的底色                           |
-| `--dou-pivot-scale-strength`    | 色阶最深时语气色的比例，默认 `28%`       |
-| `--dou-pivot-bar-strength`      | 数据条语气色的比例，默认 `12%`           |
-| `--dou-pivot-bar-strength-dark` | 深色主题下数据条语气色的比例，默认 `24%` |
+| 变量                            | 说明                                       |
+| ------------------------------- | ------------------------------------------ |
+| `--dou-pivot-line`              | 格子之间的线                               |
+| `--dou-pivot-line-strong`       | 表头、行头的分隔线                         |
+| `--dou-pivot-border`            | 外框颜色，默认同 `--dou-pivot-line-strong` |
+| `--dou-pivot-head-bg`           | 表头和总计行的背景                         |
+| `--dou-pivot-total-bg`          | 合计列和总计列的背景                       |
+| `--dou-pivot-ring`              | 键盘选中格子的边框颜色                     |
+| `--dou-pivot-selected`          | 选中范围的底色                             |
+| `--dou-pivot-scale-strength`    | 色阶最深时语气色的比例，默认 `28%`         |
+| `--dou-pivot-bar-strength`      | 数据条语气色的比例，默认 `12%`             |
+| `--dou-pivot-bar-strength-dark` | 深色主题下数据条语气色的比例，默认 `24%`   |

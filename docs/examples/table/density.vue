@@ -51,5 +51,5 @@ const rows = [
 </script>
 
 <template>
-  <DouTable size="sm" bordered striped :data="rows" :columns="columns" />
+  <DouTable size="sm" column-dividers striped :data="rows" :columns="columns" />
 </template>

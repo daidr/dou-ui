@@ -71,6 +71,7 @@ const props = withDefaults(defineProps<SchedulerProps>(), {
   rowHeight: 36,
   load: true,
   menu: true,
+  bordered: true,
 })
 const model = defineModel<GanttDocument>({ default: emptyDocument })
 /** The `v-model`, with a wrongly shaped one read as well as it can be. */
@@ -1219,6 +1220,7 @@ defineExpose<SchedulerExpose>({
       'is-editable': editable,
       'is-dragging': drag?.started,
       [`is-dragging-${drag?.mode}`]: drag?.started,
+      'is-bordered': bordered,
     }"
     :style="{ '--dou-gantt-row-height': `${rowHeight}px`, '--dou-gantt-lane': `${LANE}px` }"
     role="group"

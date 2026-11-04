@@ -613,7 +613,7 @@ function simulate() {
         <DouKbd>Esc</DouKbd>
       </div>
       <div style="margin-top: 16px">
-        <DouDescriptions bordered layout="horizontal" :columns="2" :label-width="72">
+        <DouDescriptions variant="table" layout="horizontal" :columns="2" :label-width="72">
           <DouDescriptionsItem label="名称">edge-fn-sh</DouDescriptionsItem>
           <DouDescriptionsItem label="副本">3</DouDescriptionsItem>
           <DouDescriptionsItem label="规格">2 vCPU · 512 MB</DouDescriptionsItem>

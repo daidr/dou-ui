@@ -82,6 +82,7 @@ const code = () => editor.value?.doc.toString() ?? props.state.text
     :readonly="!state.editable"
     :line-numbers="options.lineNumbers ?? false"
     :gutter="options.lineNumbers ?? false"
+    :bordered="false"
     :wrap="options.wrap ?? false"
     :tab-size="options.tabSize ?? 2"
     :tab-indents="true"

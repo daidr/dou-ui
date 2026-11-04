@@ -2,7 +2,7 @@
  * Descriptions
  *
  * Read-only fields of one record, laid out on a grid. Labels are small
- * and quiet, values are ink. The bordered form turns the grid into a
+ * and quiet, values are ink. The table variant turns the grid into a
  * table: hairlines between cells, labels on a faint tint.
  */
 @layer dou.components {
@@ -13,6 +13,7 @@
     --dou-descriptions-gap-y: 16px;
     --dou-descriptions-cell-padding: 10px 14px;
     --dou-descriptions-radius: calc(var(--dou-radius-control) + 2px);
+    --dou-descriptions-border: var(--dou-color-border);
 
     color: var(--dou-color-text);
     font-size: var(--dou-font-size-md);
@@ -87,10 +88,10 @@
     }
   }
 
-  /* bordered: a table of cells */
-  .dou-descriptions.is-bordered {
+  /* the table variant: a table of cells */
+  .dou-descriptions--table {
     & .dou-descriptions__body {
-      border: 1px solid var(--dou-color-border);
+      border: 1px solid var(--dou-descriptions-border);
       border-radius: var(--dou-descriptions-radius);
       background-color: var(--dou-color-bg-surface);
       overflow: hidden;
@@ -119,7 +120,7 @@
     }
   }
 
-  .dou-descriptions--horizontal.is-bordered {
+  .dou-descriptions--horizontal.dou-descriptions--table {
     & .dou-descriptions__item {
       align-items: stretch;
     }
@@ -139,5 +140,11 @@
     & .dou-descriptions__content {
       padding: var(--dou-descriptions-cell-padding);
     }
+  }
+
+  /* no frame: nothing left of the edge, not even a transparent pixel; the cell lines stay */
+  .dou-descriptions--table:not(.is-bordered) .dou-descriptions__body {
+    border: 0;
+    border-radius: 0;
   }
 }

@@ -29,6 +29,11 @@ export interface PivotProps<Row = Record<string, unknown>> {
   maxHeight?: number | string
   /** Row height: 28, 32 (`md`, the default) or 40 px. */
   size?: Size
+  /**
+   * The hairline frame and rounded corners. Off, the table takes no border
+   * at all, for a panel or card that already has an edge. On by default.
+   */
+  bordered?: boolean
   /** The width of the row headers, in px. */
   rowHeaderWidth?: number
   /** The width of each value column, in px. */

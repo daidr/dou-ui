@@ -36,6 +36,12 @@ export interface CodeEditorProps {
    * On by default.
    */
   gutter?: boolean
+  /**
+   * The hairline frame and rounded corners. Off, the editor takes no
+   * border at all, for a panel or card that already has an edge. On by
+   * default.
+   */
+  bordered?: boolean
   /** Tints the line with the cursor. */
   activeLine?: boolean
   /** Columns per tab stop, also the width of one indent. */
@@ -260,6 +266,13 @@ export interface CodeDiffProps {
   tabSize?: number
   /** The toolbar above: change count, previous and next, expand, and the view toggle. On by default. */
   toolbar?: boolean
+  /**
+   * The hairline frame and rounded corners around the whole diff. Off,
+   * the diff takes no border at all and no focus edge, for a panel or
+   * card that already has one; the lines between the toolbar and the
+   * sides stay. On by default.
+   */
+  bordered?: boolean
   messages?: Partial<CodeMessages>
 }
 

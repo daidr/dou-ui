@@ -40,7 +40,16 @@
 </DouLayout>
 ```
 
-主区的内边距来自 CSS 变量 `--dou-layout-main-padding`（默认 24px），顶栏与页脚的左右内边距来自 `--dou-layout-padding-x`（默认 20px）。
+内边距来自三个 CSS 变量：主区是 `--dou-layout-main-padding`（默认 24px），顶栏与页脚的左右内边距是 `--dou-layout-padding-x`（默认 20px），侧栏正文和底部是 `--dou-layout-aside-padding`（默认 8px）。和其他组件变量一样，默认值写在各自的元素上，覆盖时要设在 `.dou-layout-main`、`.dou-layout-header` / `.dou-layout-footer`、`.dou-layout-aside` 这些类上，设在 `:root` 上不会生效。侧栏里放一棵贴边的树或菜单时，可以把侧栏的内边距设为 0：
+
+```css
+.dou-layout-aside,
+.dou-layout-aside-drawer {
+  --dou-layout-aside-padding: 0px;
+}
+```
+
+窄屏下侧栏会作为抽屉挂到 `body` 上，抽屉的类名是 `dou-layout-aside-drawer`，所以选择器里要把它也写上。分隔线的颜色分别来自 `--dou-layout-header-border`、`--dou-layout-aside-border`、`--dou-layout-footer-border`（默认 `var(--dou-color-border-subtle)`），想去掉分隔线时用各自的 `bordered`。
 
 ## API
 
@@ -51,6 +60,12 @@
 | `height`   | 高度，数字为 px    | `number \| string` | `56`    |
 | `sticky`   | 页面滚动时停在顶部 | `boolean`          | `false` |
 | `bordered` | 底部的分隔线       | `boolean`          | `true`  |
+
+### LayoutFooter Props
+
+| 名称       | 说明         | 类型      | 默认值 |
+| ---------- | ------------ | --------- | ------ |
+| `bordered` | 顶部的分隔线 | `boolean` | `true` |
 
 ### LayoutAside Props
 

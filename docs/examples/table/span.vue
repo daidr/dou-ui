@@ -23,5 +23,5 @@ const mergeRegion = ({ row, rowIndex, columnIndex }) => {
 </script>
 
 <template>
-  <DouTable :data="mergeRows" :columns="mergeColumns" :span-method="mergeRegion" bordered />
+  <DouTable :data="mergeRows" :columns="mergeColumns" :span-method="mergeRegion" column-dividers />
 </template>

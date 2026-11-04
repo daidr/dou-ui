@@ -98,6 +98,12 @@ export interface FlowEditorProps {
    * sentence saying why. Called for every port while an edge is dragged.
    */
   canConnect?: (connection: FlowConnection, doc: FlowDocument) => boolean | string
+  /**
+   * The hairline frame and rounded corners. Off, the canvas takes no
+   * border at all, for a panel or page region that already has an edge.
+   * On by default.
+   */
+  bordered?: boolean
   /** Accessible name of the canvas. */
   ariaLabel?: string
   /** Texts to change; only the ones given are replaced. */

@@ -67,6 +67,7 @@ const props = withDefaults(defineProps<CalendarViewProps>(), {
   scrollTime: '08:00',
   snap: 15,
   menu: true,
+  bordered: true,
 })
 const model = defineModel<string | null>()
 const month = defineModel<string>('month')
@@ -1015,6 +1016,7 @@ defineExpose<CalendarViewExpose>({
       ns.b(),
       ns.m(view),
       ns.is('editable', !!editable),
+      ns.is('bordered', bordered),
       ns.is('dragging', !!drag?.started && drag.kind !== 'press'),
       drag?.started && drag.kind !== 'press' ? `is-dragging-${drag.kind}` : '',
     ]"

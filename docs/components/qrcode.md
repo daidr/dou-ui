@@ -40,18 +40,19 @@ const { size, modules } = encodeQr('https://ui.daidr.me', 'M')
 
 ### Qrcode Props
 
-| 名称          | 说明               | 类型                                 | 默认值       |
-| ------------- | ------------------ | ------------------------------------ | ------------ |
-| `value`       | 要编码的文字       | `string`                             | —            |
-| `size`        | 边长（像素）       | `number`                             | `160`        |
-| `level`       | 纠错等级           | `'L' \| 'M' \| 'Q' \| 'H'`           | `'M'`        |
-| `margin`      | 四周留白（模块数） | `number`                             | `2`          |
-| `color`       | 深色模块的颜色     | `string`                             | 近黑         |
-| `bgColor`     | 底色               | `string`                             | 白色         |
-| `icon`        | 中间的图片地址     | `string`                             | —            |
-| `iconSize`    | 图片边长（像素）   | `number`                             | `size` / 5   |
-| `status`      | 状态               | `'active' \| 'expired' \| 'loading'` | `'active'`   |
-| `expiredText` | 过期时的提示       | `string`                             | 二维码已过期 |
+| 名称          | 说明                               | 类型                                 | 默认值       |
+| ------------- | ---------------------------------- | ------------------------------------ | ------------ |
+| `value`       | 要编码的文字                       | `string`                             | —            |
+| `size`        | 边长（像素）                       | `number`                             | `160`        |
+| `level`       | 纠错等级                           | `'L' \| 'M' \| 'Q' \| 'H'`           | `'M'`        |
+| `margin`      | 四周留白（模块数）                 | `number`                             | `2`          |
+| `color`       | 深色模块的颜色                     | `string`                             | 近黑         |
+| `bgColor`     | 底色                               | `string`                             | 白色         |
+| `icon`        | 中间的图片地址                     | `string`                             | —            |
+| `iconSize`    | 图片边长（像素）                   | `number`                             | `size` / 5   |
+| `status`      | 状态                               | `'active' \| 'expired' \| 'loading'` | `'active'`   |
+| `expiredText` | 过期时的提示                       | `string`                             | 二维码已过期 |
+| `bordered`    | 外框和圆角；关闭后只留白色底和留白 | `boolean`                            | `true`       |
 
 ### Qrcode Events
 
@@ -64,6 +65,13 @@ const { size, modules } = encodeQr('https://ui.daidr.me', 'M')
 | 名称     | 说明                                           |
 | -------- | ---------------------------------------------- |
 | `status` | 替换过期 / 加载时的遮罩内容，参数 `{ status }` |
+
+### CSS 变量
+
+| 名称                   | 说明                       | 默认值                           |
+| ---------------------- | -------------------------- | -------------------------------- |
+| `--dou-qrcode-padding` | 白色底的内边距，在留白之外 | `8px`                            |
+| `--dou-qrcode-border`  | 外框颜色                   | `var(--dou-color-border-subtle)` |
 
 ### 读屏
 

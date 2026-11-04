@@ -11,18 +11,26 @@
   .dou-qrcode {
     --dou-qrcode-ink: var(--dou-qrcode-color, oklch(0.2 0 0));
     --dou-qrcode-paper: var(--dou-qrcode-bg, #fff);
+    --dou-qrcode-padding: 8px;
+    --dou-qrcode-border: var(--dou-color-border-subtle);
 
     position: relative;
     display: inline-flex;
     box-sizing: content-box;
     width: var(--dou-qrcode-size);
     height: var(--dou-qrcode-size);
-    padding: 8px;
+    padding: var(--dou-qrcode-padding);
     overflow: hidden;
-    border: 1px solid var(--dou-color-border-subtle);
+    border: 1px solid var(--dou-qrcode-border);
     border-radius: var(--dou-radius-container);
     background-color: var(--dou-qrcode-paper);
     vertical-align: middle;
+
+    /* no frame: nothing left of the edge, not even a transparent pixel */
+    &:not(.is-bordered) {
+      border: 0;
+      border-radius: 0;
+    }
   }
 
   .dou-qrcode__svg {

@@ -24,6 +24,11 @@ export interface QrcodeProps {
   status?: QrcodeStatus
   /** Shown over an expired code. */
   expiredText?: string
+  /**
+   * The hairline frame and rounded corners. Off, the code takes no border
+   * at all, for a card that already has an edge. On by default.
+   */
+  bordered?: boolean
 }
 
 export interface QrcodeEmits {

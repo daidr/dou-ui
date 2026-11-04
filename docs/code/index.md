@@ -71,36 +71,37 @@ app.use(DouCodeEditor)
 
 ### CodeEditor Props
 
-| 名称                | 说明                                                                     | 类型                               | 默认值                |
-| ------------------- | ------------------------------------------------------------------------ | ---------------------------------- | --------------------- |
-| `v-model`           | 代码；`v-model.lazy` 在失去焦点时才更新                                  | `string`                           | —                     |
-| `v-model:doc`       | 以 `CodeText` 绑定代码，见[大文件](./performance)                        | `CodeText`                         | —                     |
-| `v-model:selection` | 选区，见[选区](./editing#选区)                                           | `CodeSelection`                    | 开头的光标            |
-| `language`          | 语言，见[语言](./languages)                                              | `CodeLanguage \| null`             | —                     |
-| `readonly`          | 只读                                                                     | `boolean`                          | `false`               |
-| `disabled`          | 禁用                                                                     | `boolean`                          | `false`               |
-| `placeholder`       | 内容为空时的提示文字                                                     | `string`                           | —                     |
-| `lineNumbers`       | 显示行号                                                                 | `boolean`                          | `true`                |
-| `gutter`            | 显示行号左侧的栏（行号、折叠箭头、问题图标）；关闭后问题只有波浪线       | `boolean`                          | `true`                |
-| `activeLine`        | 给光标所在行加底色                                                       | `boolean`                          | `true`                |
-| `tabSize`           | 制表位宽度                                                               | `number`                           | `2`                   |
-| `indentWithTabs`    | 用制表符缩进                                                             | `boolean`                          | `false`               |
-| `tabIndents`        | `Tab` 用于缩进；关闭后 `Tab` 移到下一个控件，补全和片段中仍然可用        | `boolean`                          | `true`                |
-| `closeBrackets`     | 输入括号和引号时补上另一半                                               | `boolean`                          | `true`                |
-| `matchBrackets`     | 标出光标旁的括号和它的配对                                               | `boolean`                          | `true`                |
-| `searchable`        | 提供查找替换面板，见[查找与替换](./editing#查找与替换)                   | `boolean`                          | `true`                |
-| `wrap`              | 长行自动换行                                                             | `boolean`                          | `false`               |
-| `foldable`          | 允许折叠代码                                                             | `boolean`                          | `true`                |
-| `minimap`           | 在右侧显示小地图，编辑器窄于 480px 时不显示                              | `boolean`                          | `false`               |
-| `worker`            | 在 Web Worker 中分析语法，见[大文件](./performance#在-worker-中分析语法) | `boolean \| (() => Worker)`        | `false`               |
-| `keys`              | 触屏上可拖动的符号栏，见[手机触控](./touch)                              | `boolean \| (CodeKey \| string)[]` | `true`                |
-| `keymap`            | 额外的快捷键，优先于内置快捷键，见[用代码修改](./transactions#快捷键)    | `CodeKeymap`                       | —                     |
-| `extensions`        | 扩展，见[扩展](./extensions)                                             | `CodeExtension[]`                  | —                     |
-| `diagnostics`       | 要显示的问题，见[诊断](./assist#诊断)                                    | `CodeDiagnostic[]`                 | —                     |
-| `teleport`          | 补全列表、说明和触屏把手的渲染位置；`false` 时在编辑器内，可能被裁掉     | `string \| HTMLElement \| false`   | 全局配置，否则 `body` |
-| `messages`          | 改写编辑器中的文字（符号栏、工具条等），默认跟随 ConfigProvider 的语言   | `Partial<CodeMessages>`            | —                     |
-| `autofocus`         | 挂载后获得焦点                                                           | `boolean`                          | `false`               |
-| `ariaLabel`         | 读屏读出的名称                                                           | `string`                           | —                     |
+| 名称                | 说明                                                                                                        | 类型                               | 默认值                |
+| ------------------- | ----------------------------------------------------------------------------------------------------------- | ---------------------------------- | --------------------- |
+| `v-model`           | 代码；`v-model.lazy` 在失去焦点时才更新                                                                     | `string`                           | —                     |
+| `v-model:doc`       | 以 `CodeText` 绑定代码，见[大文件](./performance)                                                           | `CodeText`                         | —                     |
+| `v-model:selection` | 选区，见[选区](./editing#选区)                                                                              | `CodeSelection`                    | 开头的光标            |
+| `language`          | 语言，见[语言](./languages)                                                                                 | `CodeLanguage \| null`             | —                     |
+| `readonly`          | 只读                                                                                                        | `boolean`                          | `false`               |
+| `disabled`          | 禁用                                                                                                        | `boolean`                          | `false`               |
+| `placeholder`       | 内容为空时的提示文字                                                                                        | `string`                           | —                     |
+| `lineNumbers`       | 显示行号                                                                                                    | `boolean`                          | `true`                |
+| `gutter`            | 显示行号左侧的栏（行号、折叠箭头、问题图标）；关闭后问题只有波浪线                                          | `boolean`                          | `true`                |
+| `bordered`          | 外框和圆角；关闭后去掉外框和圆角，用于放进已有边框的容器，见[去掉外框](/guide/theming#去掉外框与调整内边距) | `boolean`                          | `true`                |
+| `activeLine`        | 给光标所在行加底色                                                                                          | `boolean`                          | `true`                |
+| `tabSize`           | 制表位宽度                                                                                                  | `number`                           | `2`                   |
+| `indentWithTabs`    | 用制表符缩进                                                                                                | `boolean`                          | `false`               |
+| `tabIndents`        | `Tab` 用于缩进；关闭后 `Tab` 移到下一个控件，补全和片段中仍然可用                                           | `boolean`                          | `true`                |
+| `closeBrackets`     | 输入括号和引号时补上另一半                                                                                  | `boolean`                          | `true`                |
+| `matchBrackets`     | 标出光标旁的括号和它的配对                                                                                  | `boolean`                          | `true`                |
+| `searchable`        | 提供查找替换面板，见[查找与替换](./editing#查找与替换)                                                      | `boolean`                          | `true`                |
+| `wrap`              | 长行自动换行                                                                                                | `boolean`                          | `false`               |
+| `foldable`          | 允许折叠代码                                                                                                | `boolean`                          | `true`                |
+| `minimap`           | 在右侧显示小地图，编辑器窄于 480px 时不显示                                                                 | `boolean`                          | `false`               |
+| `worker`            | 在 Web Worker 中分析语法，见[大文件](./performance#在-worker-中分析语法)                                    | `boolean \| (() => Worker)`        | `false`               |
+| `keys`              | 触屏上可拖动的符号栏，见[手机触控](./touch)                                                                 | `boolean \| (CodeKey \| string)[]` | `true`                |
+| `keymap`            | 额外的快捷键，优先于内置快捷键，见[用代码修改](./transactions#快捷键)                                       | `CodeKeymap`                       | —                     |
+| `extensions`        | 扩展，见[扩展](./extensions)                                                                                | `CodeExtension[]`                  | —                     |
+| `diagnostics`       | 要显示的问题，见[诊断](./assist#诊断)                                                                       | `CodeDiagnostic[]`                 | —                     |
+| `teleport`          | 补全列表、说明和触屏把手的渲染位置；`false` 时在编辑器内，可能被裁掉                                        | `string \| HTMLElement \| false`   | 全局配置，否则 `body` |
+| `messages`          | 改写编辑器中的文字（符号栏、工具条等），默认跟随 ConfigProvider 的语言                                      | `Partial<CodeMessages>`            | —                     |
+| `autofocus`         | 挂载后获得焦点                                                                                              | `boolean`                          | `false`               |
+| `ariaLabel`         | 读屏读出的名称                                                                                              | `string`                           | —                     |
 
 ### CodeEditor Events
 
@@ -134,15 +135,17 @@ app.use(DouCodeEditor)
 
 ### CSS 变量
 
-| 变量                            | 说明                           | 默认值                        |
-| ------------------------------- | ------------------------------ | ----------------------------- |
-| `--dou-code-editor-font-size`   | 字号                           | `var(--dou-font-size-sm)`     |
-| `--dou-code-editor-line-height` | 行高，请使用整数像素           | `20px`                        |
-| `--dou-code-editor-padding-y`   | 第一行上方和最后一行下方的空白 | `8px`                         |
-| `--dou-code-editor-padding-x`   | 每行左右的空白                 | `12px`                        |
-| `--dou-code-editor-bg`          | 背景色                         | `var(--dou-color-bg-surface)` |
-| `--dou-code-editor-selection`   | 选区颜色                       | 主色的浅色                    |
-| `--dou-code-editor-active-line` | 光标所在行的底色               | 文字色的 4%                   |
+| 变量                             | 说明                           | 默认值                        |
+| -------------------------------- | ------------------------------ | ----------------------------- |
+| `--dou-code-editor-font-size`    | 字号                           | `var(--dou-font-size-sm)`     |
+| `--dou-code-editor-line-height`  | 行高，请使用整数像素           | `20px`                        |
+| `--dou-code-editor-padding-y`    | 第一行上方和最后一行下方的空白 | `8px`                         |
+| `--dou-code-editor-padding-x`    | 每行左右的空白                 | `12px`                        |
+| `--dou-code-editor-bg`           | 背景色                         | `var(--dou-color-bg-surface)` |
+| `--dou-code-editor-selection`    | 选区颜色                       | 主色的浅色                    |
+| `--dou-code-editor-active-line`  | 光标所在行的底色               | 文字色的 4%                   |
+| `--dou-code-editor-border`       | 外框颜色                       | `var(--dou-color-border)`     |
+| `--dou-code-editor-border-focus` | 聚焦时的外框颜色               | 焦点色                        |
 
 浮在页面上的补全列表、说明和提示会带上编辑器上的字号、背景色、选区颜色和问题颜色（`--dou-code-editor-error`、`--dou-code-editor-warning`、`--dou-code-editor-info`），在编辑器上设置即可。
 

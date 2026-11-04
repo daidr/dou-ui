@@ -1,6 +1,8 @@
 import type { InjectionKey, Ref } from 'vue'
 
 export type DescriptionsLayout = 'vertical' | 'horizontal'
+/** `plain` lays the fields out on an open grid, `table` draws them as a table of cells. */
+export type DescriptionsVariant = 'plain' | 'table'
 
 export interface DescriptionsProps {
   /** Heading above the list. */
@@ -9,7 +11,13 @@ export interface DescriptionsProps {
   columns?: number
   /** `vertical` puts each label above its value, `horizontal` beside it. */
   layout?: DescriptionsLayout
-  /** Draw the list as a table: hairlines between cells and tinted labels. */
+  /** `table` draws the list as a table: a frame, hairlines between cells and tinted labels. */
+  variant?: DescriptionsVariant
+  /**
+   * The table variant's frame and rounded corners. Off, the table takes no
+   * outer border at all, for a card or panel that already has an edge; the
+   * hairlines between cells stay. On by default.
+   */
   bordered?: boolean
   /** Width of the labels in the horizontal layout, e.g. `96px`. A number is in px. */
   labelWidth?: string | number

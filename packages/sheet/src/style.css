@@ -9,6 +9,7 @@
   .dou-sheet {
     --dou-sheet-line: var(--dou-color-border-subtle);
     --dou-sheet-line-strong: var(--dou-color-border);
+    --dou-sheet-border: var(--dou-color-border);
     --dou-sheet-freeze-line: var(--dou-color-border-strong);
     --dou-sheet-scroll-shadow: color-mix(in oklab, var(--dou-color-text) 14%, transparent);
     --dou-sheet-header-bg: var(--dou-color-bg-canvas);
@@ -33,7 +34,7 @@
     height: 480px;
     min-width: 0;
     overflow: hidden;
-    border: 1px solid var(--dou-color-border);
+    border: 1px solid var(--dou-sheet-border);
     border-radius: var(--dou-radius-container);
     background-color: var(--dou-color-bg-surface);
     color: var(--dou-color-text);
@@ -49,6 +50,11 @@
     }
     &:not(.has-gridlines) {
       --dou-sheet-line: transparent;
+    }
+    /* no frame: nothing left of the edge, not even a transparent pixel */
+    &:not(.is-bordered) {
+      border: 0;
+      border-radius: 0;
     }
     &.is-dragging,
     &.is-dragging * {

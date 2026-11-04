@@ -88,18 +88,25 @@ wide: true
 
 ### FormBuilder Props
 
-| 名称                | 说明                                                                             | 类型                                                 | 默认值     |
-| ------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------- | ---------- |
-| `v-model`           | 表单描述，每次修改得到一份新的对象，见[表单描述](./document)                     | `FormDocument`                                       | —          |
-| `v-model:selection` | 选中的节点 id，最后一个是最后选中的                                              | `string[]`                                           | —          |
-| `v-model:mode`      | 设计（`design`）还是预览（`preview`），见[预览](#预览)                           | `'design' \| 'preview'`                              | `'design'` |
-| `fields`            | 内置之外的字段类型，和交给渲染器的是同一份，见[字段类型](./fields)               | `FormFieldType[]`                                    | —          |
-| `functions`         | 表达式能调用的函数，和渲染器的一样：预览会执行它们，属性面板补全和检查它们的名字 | `Record<string, FormFunction>`                       | —          |
-| `sources`           | 选项来源，和渲染器的一样，预览时用                                               | `Record<string, FormOptionsLoader>`                  | —          |
-| `validators`        | 校验函数，和渲染器的一样：规则里可以选这些名字，预览时会执行                     | `Record<string, FormValidator>`                      | —          |
-| `readonly`          | 只能查看，不能修改，见[只读](#只读)                                              | `boolean`                                            | `false`    |
-| `extensions`        | 扩展：字段类型、快捷键、按钮、菜单项和属性面板，见[扩展](./builder-extensions)   | `(FormBuilderExtension \| FormBuilderExtension[])[]` | —          |
-| `messages`          | 覆盖设计器的文案，按分组合并，见[文字](#文字)                                    | `FormBuilderMessagesOverride`                        | —          |
+| 名称                | 说明                                                                                                        | 类型                                                 | 默认值     |
+| ------------------- | ----------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- | ---------- |
+| `v-model`           | 表单描述，每次修改得到一份新的对象，见[表单描述](./document)                                                | `FormDocument`                                       | —          |
+| `v-model:selection` | 选中的节点 id，最后一个是最后选中的                                                                         | `string[]`                                           | —          |
+| `v-model:mode`      | 设计（`design`）还是预览（`preview`），见[预览](#预览)                                                      | `'design' \| 'preview'`                              | `'design'` |
+| `fields`            | 内置之外的字段类型，和交给渲染器的是同一份，见[字段类型](./fields)                                          | `FormFieldType[]`                                    | —          |
+| `functions`         | 表达式能调用的函数，和渲染器的一样：预览会执行它们，属性面板补全和检查它们的名字                            | `Record<string, FormFunction>`                       | —          |
+| `sources`           | 选项来源，和渲染器的一样，预览时用                                                                          | `Record<string, FormOptionsLoader>`                  | —          |
+| `validators`        | 校验函数，和渲染器的一样：规则里可以选这些名字，预览时会执行                                                | `Record<string, FormValidator>`                      | —          |
+| `readonly`          | 只能查看，不能修改，见[只读](#只读)                                                                         | `boolean`                                            | `false`    |
+| `bordered`          | 外框和圆角；关闭后去掉外框和圆角，用于放进已有边框的容器，见[去掉外框](/guide/theming#去掉外框与调整内边距) | `boolean`                                            | `true`     |
+| `extensions`        | 扩展：字段类型、快捷键、按钮、菜单项和属性面板，见[扩展](./builder-extensions)                              | `(FormBuilderExtension \| FormBuilderExtension[])[]` | —          |
+| `messages`          | 覆盖设计器的文案，按分组合并，见[文字](#文字)                                                               | `FormBuilderMessagesOverride`                        | —          |
+
+### CSS 变量
+
+| 名称                        | 说明     | 默认值                    |
+| --------------------------- | -------- | ------------------------- |
+| `--dou-form-builder-border` | 外框颜色 | `var(--dou-color-border)` |
 
 ### FormBuilder Events
 

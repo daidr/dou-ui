@@ -124,6 +124,7 @@ const props = withDefaults(defineProps<FlowEditorProps>(), {
   panOnScroll: true,
   edgeType: undefined,
   simpleZoom: 0.4,
+  bordered: true,
 })
 const model = defineModel<FlowDocument>({ default: emptyDocument })
 /** The `v-model`, with a wrongly shaped one read as well as it can be. */
@@ -3380,6 +3381,7 @@ const classes = computed(() => ({
   'is-dragging': !!dragging.value,
   'is-connecting': !!connecting.value,
   'is-refused': !!connecting.value?.refused,
+  'is-bordered': props.bordered,
 }))
 
 const context: FlowEditorContext = {

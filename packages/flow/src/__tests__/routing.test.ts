@@ -124,44 +124,52 @@ describe('tidy routes', () => {
     expect(doc.value).toEqual(chain())
   })
 
-  it('runs a long edge straight from port to port when the ports sit between grid lines', async () => {
-    // Ports in the middle of the 160px wide nodes, top and bottom.
-    const rect = Object.getOwnPropertyDescriptor(Element.prototype, 'getBoundingClientRect')!
-    Object.defineProperty(Element.prototype, 'getBoundingClientRect', {
-      configurable: true,
-      value(this: Element) {
-        if (!this.classList.contains('dou-flow-port')) return rect.value.call(this)
-        const top = this.classList.contains('is-bottom') ? 60 : 0
-        return DOMRect.fromRect({ x: 76, y: top - 4, width: 8, height: 8 })
-      },
-    })
-    onTestFinished(() => {
-      Object.defineProperty(Element.prototype, 'getBoundingClientRect', rect)
-    })
-    const { editor, doc } = setup(
-      {
-        version: 1,
-        nodes: [node('a'), node('b', 300, 40), node('c', 40, 300), node('d', 200, 500)],
-        edges: [
-          edge('ab', 'a', 'b'),
-          edge('ac', 'a', 'c'),
-          edge('bd', 'b', 'd'),
-          edge('cd', 'c', 'd'),
-          edge('ad', 'a', 'd'),
-        ],
-      },
-      // Ports sit 80px into a node, between the lines of a 24px grid.
-      { grid: 24 },
-    )
-    await ticks()
-    editor.tidy()
-    await ticks()
-    const at = (id: string) => doc.value.nodes.find((n) => n.id === id)!.x + 80
-    const long = doc.value.edges.find((e) => e.id === 'ad')!
-    expect(long.points).toHaveLength(2)
-    expect(at('d')).toBe(at('a'))
-    for (const p of long.points!) expect(p.x).toBe(at('a'))
-  })
+  it.each([
+    ['in the middle of every node', 80],
+    ['nearer the side of the last node', 60],
+  ])(
+    'runs a long edge straight from port to port with ports %s, off the grid lines',
+    async (_, last) => {
+      // Ports 80px into the 160px wide nodes, or `last` into `d`, top and bottom.
+      const portAt = (id: string) => (id === 'd' ? last : 80)
+      const rect = Object.getOwnPropertyDescriptor(Element.prototype, 'getBoundingClientRect')!
+      Object.defineProperty(Element.prototype, 'getBoundingClientRect', {
+        configurable: true,
+        value(this: Element) {
+          if (!this.classList.contains('dou-flow-port')) return rect.value.call(this)
+          const id = this.closest('[data-node-id]')!.getAttribute('data-node-id')!
+          const top = this.classList.contains('is-bottom') ? 60 : 0
+          return DOMRect.fromRect({ x: portAt(id) - 4, y: top - 4, width: 8, height: 8 })
+        },
+      })
+      onTestFinished(() => {
+        Object.defineProperty(Element.prototype, 'getBoundingClientRect', rect)
+      })
+      const { editor, doc } = setup(
+        {
+          version: 1,
+          nodes: [node('a'), node('b', 300, 40), node('c', 40, 300), node('d', 200, 500)],
+          edges: [
+            edge('ab', 'a', 'b'),
+            edge('ac', 'a', 'c'),
+            edge('bd', 'b', 'd'),
+            edge('cd', 'c', 'd'),
+            edge('ad', 'a', 'd'),
+          ],
+        },
+        // 80 and 60 both sit between the lines of a 24px grid.
+        { grid: 24 },
+      )
+      await ticks()
+      editor.tidy()
+      await ticks()
+      const at = (id: string) => doc.value.nodes.find((n) => n.id === id)!.x + portAt(id)
+      const long = doc.value.edges.find((e) => e.id === 'ad')!
+      expect(long.points).toHaveLength(2)
+      expect(at('d')).toBe(at('a'))
+      for (const p of long.points!) expect(p.x).toBe(at('a'))
+    },
+  )
 
   it('draws an edge through its points', async () => {
     const withPoints = chain()

@@ -955,6 +955,8 @@ function tidy(ids?: string[]) {
   const vertical = props.direction === 'vertical'
   const gap = TIDY_GAP[vertical ? 'vertical' : 'horizontal']
   const across = vertical ? (['top', 'bottom'] as const) : (['left', 'right'] as const)
+  // Where each node's edges meet it across the flow, from its top (left) edge.
+  const anchors = new Map<string, number>()
   const layout = layoutGraph(
     nodes.map((node) => {
       const m = metrics.get(node.id)
@@ -966,6 +968,7 @@ function tidy(ids?: string[]) {
           offset = vertical ? port.x : port.y
           break
         }
+      anchors.set(node.id, offset)
       return { id: node.id, width, height, anchor: offset }
     }),
     doc.value.edges.flatMap((e) => {
@@ -989,7 +992,13 @@ function tidy(ids?: string[]) {
   for (const node of nodes) {
     const placed = layout.nodes.get(node.id)
     if (!placed || node.locked) continue
-    const to = { x: origin.x + snap(placed.x), y: origin.y + snap(placed.y) }
+    // Across the flow the port snaps, not the corner, so ports on one line
+    // stay on one line even when the nodes are of different sizes, and the
+    // points of a long edge between them, snapped too, are on it as well.
+    const anchor = Math.round(anchors.get(node.id) ?? 0)
+    const to = vertical
+      ? { x: origin.x + snap(placed.x + anchor) - anchor, y: origin.y + snap(placed.y) }
+      : { x: origin.x + snap(placed.x), y: origin.y + snap(placed.y + anchor) - anchor }
     if (to.x !== node.x || to.y !== node.y) moved.set(node.id, to)
   }
   // Edges spanning several ranks run between the nodes in their way.
@@ -1008,17 +1017,12 @@ function tidy(ids?: string[]) {
   for (const [key, group] of pairs) {
     const [a, b] = key.split('\u0000') as [string, string]
     const points = locked.has(a) || locked.has(b) ? undefined : through.get(key)
-    // Across the flow the points move as far as snapping moved the source,
-    // so an edge running straight from port to port stays straight even
-    // when the ports sit between grid lines.
-    const source = layout.nodes.get(a)
-    const shift = source ? { x: snap(source.x) - source.x, y: snap(source.y) - source.y } : null
     group.forEach((edge, i) => {
       const off = (i - (group.length - 1) / 2) * (props.grid || 8)
       const next = points?.length
         ? points.map((p) => ({
-            x: origin.x + (vertical && shift ? p.x + shift.x : snap(p.x)) + (vertical ? off : 0),
-            y: origin.y + (!vertical && shift ? p.y + shift.y : snap(p.y)) + (vertical ? 0 : off),
+            x: origin.x + snap(p.x) + (vertical ? off : 0),
+            y: origin.y + snap(p.y) + (vertical ? 0 : off),
           }))
         : undefined
       routes.set(edge.id, next)

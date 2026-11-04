@@ -136,7 +136,11 @@ describe('DouMenu', () => {
     const menu = document.querySelector('[role="menu"]')!
     expect(menu.textContent).toContain('项目列表')
     // a deeper submenu becomes a labelled section
-    expect(menu.querySelector('.dou-menu__popup-label')!.textContent!.trim()).toBe('设置')
+    const section = menu.querySelector<HTMLElement>('[role="group"][aria-labelledby]')!
+    expect(
+      document.getElementById(section.getAttribute('aria-labelledby')!)!.textContent!.trim(),
+    ).toBe('设置')
+    expect(section.textContent).toContain('成员')
     ;[...menu.querySelectorAll<HTMLElement>('[role="menuitem"]')]
       .find((el) => el.textContent?.trim() === '成员')!
       .click()

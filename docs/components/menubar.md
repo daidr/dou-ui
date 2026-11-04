@@ -4,7 +4,7 @@
 
 ## 基础用法
 
-`DouMenubar` 里放若干 `DouMenubarMenu`，`label` 是按钮文字，菜单内容与 [Dropdown](./dropdown) 相同：`DouDropdownItem`、`DouDropdownSub` 子菜单，以及下面介绍的勾选项和单选项。
+`DouMenubar` 里放若干 `DouMenubarMenu`，`label` 是按钮文字，菜单内容与 [Dropdown](./dropdown) 相同：`DouDropdownItem`、`DouDropdownSub` 子菜单、带小标题的 [`DouDropdownGroup`](./dropdown#分组)，以及下面介绍的勾选项和单选项。
 
 <DocDemo src="menubar/basic" />
 
@@ -43,10 +43,10 @@
 
 ### MenubarMenu Slots
 
-| 名称      | 说明                                                                 |
-| --------- | -------------------------------------------------------------------- |
-| `default` | 菜单项：`DouDropdownItem`、`DouDropdownSub`、`DouDropdownRadioGroup` |
-| `label`   | 按钮内容                                                             |
+| 名称      | 说明                                                                                     |
+| --------- | ---------------------------------------------------------------------------------------- |
+| `default` | 菜单项：`DouDropdownItem`、`DouDropdownSub`、`DouDropdownGroup`、`DouDropdownRadioGroup` |
+| `label`   | 按钮内容                                                                                 |
 
 ### 新增的菜单项属性
 

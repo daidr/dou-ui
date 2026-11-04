@@ -23,6 +23,7 @@ import { useMenuKeys } from '../dropdown/menu-keys'
 import type { ContextMenuExpose, ContextMenuProps, ContextMenuSlots } from './context-menu'
 import DropdownItems from '../dropdown/dropdown-items.vue'
 import { useItemsWarning } from '../dropdown/items-warning'
+import { findMenuItem } from '../dropdown/menu-entries'
 import { useTeleport } from '../../utils/teleport'
 import { devWarn } from '../../utils/status-check'
 
@@ -264,7 +265,7 @@ const onMenuKeydown = useMenuKeys(
 
 provide(dropdownKey, {
   select(value) {
-    props.items?.find((item) => item.key === value)?.run?.()
+    findMenuItem(props.items, value)?.run?.()
     emit('select', value)
     if (props.hideOnSelect) dismiss()
   },

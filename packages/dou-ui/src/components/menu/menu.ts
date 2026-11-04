@@ -102,22 +102,29 @@ export function pathTo(options: MenuOption[], key: MenuKey): MenuKey[] | undefin
 }
 
 export type FlatEntry =
-  { kind: 'item'; item: MenuItemOption } | { kind: 'label'; label: string } | { kind: 'divider' }
+  | { kind: 'item'; item: MenuItemOption }
+  | { kind: 'group'; label: string; items: MenuItemOption[] }
+  | { kind: 'divider' }
 
 /**
  * Lay a submenu out as one list for a popup: groups and deeper submenus
- * become labelled sections.
+ * become titled groups, one level deep, in the order they come.
  */
 export function flatten(options: MenuOption[]): FlatEntry[] {
   const entries: FlatEntry[] = []
   for (const option of options) {
     if (isDivider(option)) entries.push({ kind: 'divider' })
-    else if (isGroup(option)) {
-      entries.push({ kind: 'label', label: option.label })
-      entries.push(...flatten(option.children))
-    } else if (option.children?.length) {
-      entries.push({ kind: 'label', label: option.label })
-      entries.push(...flatten(option.children))
+    else if (isGroup(option) || option.children?.length) {
+      const inner = flatten(option.children!)
+      // the items up to the first nested group are this group's own
+      const own = inner.findIndex((entry) => entry.kind !== 'item')
+      const head = own < 0 ? inner : inner.slice(0, own)
+      entries.push({
+        kind: 'group',
+        label: option.label,
+        items: head.map((entry) => (entry as { item: MenuItemOption }).item),
+      })
+      if (own >= 0) entries.push(...inner.slice(own))
     } else entries.push({ kind: 'item', item: option })
   }
   return entries

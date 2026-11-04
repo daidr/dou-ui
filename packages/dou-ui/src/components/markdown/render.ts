@@ -235,8 +235,13 @@ function inlines(
         break
       }
       case 'link': {
-        const href = node.href === undefined ? undefined : ctx.sanitize(node.href, 'link')
         const children = inlines(ctx, node.children, fade, [], true)
+        // `[a]()` links nowhere: plain text
+        if (node.href === '' && !ctx.slots.link) {
+          out.push(...children)
+          break
+        }
+        const href = node.href === undefined ? undefined : ctx.sanitize(node.href, 'link')
         const external = href !== undefined && isExternal(href)
         const slot = ctx.slots.link
         if (slot) {

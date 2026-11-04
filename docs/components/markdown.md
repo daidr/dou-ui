@@ -100,7 +100,7 @@ app.use(DouUI, {
 - 链接、图片和角标来源的地址默认只允许 `http:`、`https:`、`mailto:`、`tel:`、相对地址和锚点，`javascript:`、`data:` 等会被去掉（链接保留文字，来源保留标题）。规则就是导出的 `defaultSanitizeUrl`。
 - 只有完整地址在新窗口打开，并带 `rel="noopener noreferrer"`；相对地址和锚点在当前页打开。`linkTarget` 设为 `'_self'` 时全部在当前页打开。
 
-需要放宽或收紧时传入 `sanitizeUrl`，返回 `undefined` 表示丢弃。在默认规则上多允许一种地址：
+需要放宽或收紧时传入 `sanitizeUrl`，返回 `undefined` 表示丢弃。角标来源的地址只能收紧：角标本身还会按默认规则再检查一次，放行的其他协议在角标里仍然不能点击。在默认规则上多允许一种地址：
 
 ```ts
 import { defaultSanitizeUrl } from 'dou-ui'

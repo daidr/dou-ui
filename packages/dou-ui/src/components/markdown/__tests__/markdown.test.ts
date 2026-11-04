@@ -258,6 +258,12 @@ describe('DouMarkdown citations and links', () => {
     expect(outside!.attributes('target')).toBe('_blank')
   })
 
+  it('shows a link without an address as text', () => {
+    const wrapper = mount(DouMarkdown, { props: { content: '见[附录]()。' } })
+    expect(wrapper.find('.dou-markdown__link').exists()).toBe(false)
+    expect(wrapper.find('p').text()).toBe('见附录。')
+  })
+
   it('hands links to the `link` slot', () => {
     const wrapper = mount(DouMarkdown, {
       props: { content: '[文档](/docs) 和 [坏](javascript:x)' },

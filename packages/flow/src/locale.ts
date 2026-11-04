@@ -237,7 +237,7 @@ const zhCN: FlowMessages = {
     cycle: '这样会连成环',
     custom: '不能连到这个端口',
   },
-  status: { pending: '等待', running: '运行中', done: '已完成', error: '失败' },
+  status: { pending: '未开始', running: '运行中', done: '已完成', error: '失败' },
   board: {
     tools: '白板工具',
     select: '选择',
@@ -352,7 +352,7 @@ const zhTW: FlowMessages = {
     cycle: '這樣會連成環',
     custom: '不能連到這個連接埠',
   },
-  status: { pending: '等待', running: '執行中', done: '已完成', error: '失敗' },
+  status: { pending: '未開始', running: '執行中', done: '已完成', error: '失敗' },
   board: {
     tools: '白板工具',
     select: '選取',
@@ -467,7 +467,7 @@ const en: FlowMessages = {
     cycle: 'This would make a cycle',
     custom: 'Can’t connect to this port',
   },
-  status: { pending: 'Waiting', running: 'Running', done: 'Done', error: 'Failed' },
+  status: { pending: 'Not started', running: 'Running', done: 'Done', error: 'Failed' },
   board: {
     tools: 'Whiteboard tools',
     select: 'Select',

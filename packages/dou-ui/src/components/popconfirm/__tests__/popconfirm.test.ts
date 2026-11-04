@@ -56,6 +56,21 @@ describe('DouPopconfirm', () => {
     wrapper.unmount()
   })
 
+  it('returns focus to the trigger after either answer', async () => {
+    const wrapper = make()
+    const trigger = wrapper.get('.trigger')
+    for (const name of ['取消', '确定']) {
+      await trigger.trigger('click')
+      await nextTick()
+      await nextTick()
+      button(name).focus()
+      button(name).click()
+      await flushPromises()
+      expect(document.activeElement).toBe(trigger.element)
+    }
+    wrapper.unmount()
+  })
+
   it('waits for an async confirm and stays open when it fails', async () => {
     let settle!: (ok: boolean) => void
     const onConfirm = vi.fn<() => Promise<void>>(

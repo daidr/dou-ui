@@ -76,6 +76,27 @@ describe('DouPopover', () => {
     wrapper.unmount()
   })
 
+  it('returns focus to the trigger when the content closes it', async () => {
+    const wrapper = withModel({ open: true })
+    await nextTick()
+    const inside = document.getElementById('inside')!
+    inside.focus()
+    inside.click()
+    await nextTick()
+    expect(wrapper.props('open')).toBe(false)
+    expect(document.activeElement?.id).toBe('trigger')
+
+    // closing from outside the panel leaves focus where it is
+    await wrapper.setProps({ open: true })
+    const other = document.body.appendChild(document.createElement('button'))
+    other.focus()
+    ;(wrapper.vm as unknown as { close: () => void }).close()
+    await nextTick()
+    expect(wrapper.props('open')).toBe(false)
+    expect(document.activeElement).toBe(other)
+    wrapper.unmount()
+  })
+
   it('steps into the panel with Tab from the trigger', async () => {
     const wrapper = withModel({ open: true })
     await nextTick()

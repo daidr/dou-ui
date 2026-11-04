@@ -5,6 +5,7 @@ import { toneIcon } from '../../utils/tone-icons'
 import { DouButton } from '../button'
 import { useLocale } from '../config-provider/use-config'
 import { DouPopover } from '../popover'
+import type { PopoverExpose } from '../popover'
 import type { PopconfirmProps, PopconfirmSlots } from './popconfirm'
 
 defineOptions({ name: 'DouPopconfirm', inheritAttrs: false })
@@ -26,6 +27,9 @@ const Icon = () => toneIcon(props.tone)
 
 const pending = ref(false)
 const actions = useTemplateRef<HTMLElement>('actions')
+const popover = useTemplateRef<PopoverExpose>('popover')
+// Closing from a button hands focus back to the trigger.
+const close = () => popover.value?.close()
 
 // Focus starts on "cancel": the safe answer is the one Enter gives.
 // The panel renders on first open, so wait for it as well as for `open`.
@@ -48,7 +52,7 @@ async function confirm() {
       pending.value = true
       await result
     }
-    open.value = false
+    close()
   } catch {
     // A rejected confirm keeps the question open, so it can be tried again.
   } finally {
@@ -57,7 +61,7 @@ async function confirm() {
 }
 
 function cancel() {
-  open.value = false
+  close()
   emit('cancel')
 }
 
@@ -66,6 +70,7 @@ const confirmTone = computed(() => (props.tone === 'danger' ? 'danger' : 'neutra
 
 <template>
   <DouPopover
+    ref="popover"
     v-model:open="open"
     trigger="click"
     :placement="placement"

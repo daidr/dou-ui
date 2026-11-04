@@ -62,29 +62,35 @@ app.use(DouSheet)
 
 ### Sheet Props
 
-| 名称                    | 说明                                                                                                                                  | 类型                                     | 默认值  |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- | ------- |
-| `v-model`               | 工作簿，见[文档数据](./data)                                                                                                          | `SheetWorkbook`                          | —       |
-| `v-model:selection`     | 选区，见[选择与编辑](./editing#选择)                                                                                                  | `SheetSelection`                         | —       |
-| `v-model:activeSheet`   | 显示的工作表的序号，见[工作表](./toolbar#多个工作表)                                                                                  | `number`                                 | `0`     |
-| `readonly`              | 只读：可以选择和复制，不能修改                                                                                                        | `boolean`                                | `false` |
-| `rowHeight`             | 默认行高（px）                                                                                                                        | `number`                                 | `28`    |
-| `colWidth`              | 默认列宽（px）                                                                                                                        | `number`                                 | `96`    |
-| `headers`               | 显示列标和行号                                                                                                                        | `boolean`                                | `true`  |
-| `outline`               | 显示分组的大纲栏，见[分组](./rows#分组)                                                                                               | `boolean`                                | `true`  |
-| `gridlines`             | 显示单元格之间的细线                                                                                                                  | `boolean`                                | `true`  |
-| `bordered`              | 外框和圆角，包括 `header`、`footer` 插槽；关闭后外框和圆角，用于放进已有边框的容器，见[去掉外框](/guide/theming#去掉外框与调整内边距) | `boolean`                                | `true`  |
-| `historyDepth`          | 最多能撤销多少步                                                                                                                      | `number`                                 | `100`   |
-| `menu`                  | 修改右键菜单，见[右键菜单](./rows#右键菜单)                                                                                           | `(items, context) => SheetMenuItem[]`    | —       |
-| `extensions`            | 扩展，见[扩展](./extensions)                                                                                                          | `(SheetExtension \| SheetExtension[])[]` | `[]`    |
-| `fileDrop`              | 拖到表格上的文件用导入器读入，见[导入导出](./files#拖入文件)                                                                          | `boolean`                                | `false` |
-| `v-model:comments`      | 所有讨论，见[评论](./comments)                                                                                                        | `CommentThread[]`                        | —       |
-| `author`                | 当前用户，见[评论](./comments)                                                                                                        | `CommentAuthor`                          | —       |
-| `v-model:activeComment` | 打开的讨论，见[评论](./comments)                                                                                                      | `string \| null`                         | —       |
-| `commentable`           | 能否发起和回复讨论                                                                                                                    | `boolean`                                | `true`  |
-| `compare`               | 要对比的旧版本，见[历史版本](./versions)                                                                                              | `SheetWorkbook \| null`                  | —       |
-| `ariaLabel`             | 表格的无障碍名称                                                                                                                      | `string`                                 | —       |
-| `messages`              | 覆盖表格的文案，只需写要改的部分                                                                                                      | `SheetMessagesOverride`                  | —       |
+| 名称                    | 说明                                                                                                                                      | 类型                                     | 默认值  |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- | ------- |
+| `v-model`               | 工作簿，见[文档数据](./data)                                                                                                              | `SheetWorkbook`                          | —       |
+| `v-model:selection`     | 选区，见[选择与编辑](./editing#选择)                                                                                                      | `SheetSelection`                         | —       |
+| `v-model:activeSheet`   | 显示的工作表的序号，见[工作表](./toolbar#多个工作表)                                                                                      | `number`                                 | `0`     |
+| `readonly`              | 只读：可以选择和复制，不能修改                                                                                                            | `boolean`                                | `false` |
+| `rowHeight`             | 默认行高（px）                                                                                                                            | `number`                                 | `28`    |
+| `colWidth`              | 默认列宽（px）                                                                                                                            | `number`                                 | `96`    |
+| `headers`               | 显示列标和行号                                                                                                                            | `boolean`                                | `true`  |
+| `outline`               | 显示分组的大纲栏，见[分组](./rows#分组)                                                                                                   | `boolean`                                | `true`  |
+| `gridlines`             | 显示单元格之间的细线                                                                                                                      | `boolean`                                | `true`  |
+| `bordered`              | 外框和圆角，包括 `header`、`footer` 插槽；关闭后去掉外框和圆角，用于放进已有边框的容器，见[去掉外框](/guide/theming#去掉外框与调整内边距) | `boolean`                                | `true`  |
+| `historyDepth`          | 最多能撤销多少步                                                                                                                          | `number`                                 | `100`   |
+| `menu`                  | 修改右键菜单，见[右键菜单](./rows#右键菜单)                                                                                               | `(items, context) => SheetMenuItem[]`    | —       |
+| `extensions`            | 扩展，见[扩展](./extensions)                                                                                                              | `(SheetExtension \| SheetExtension[])[]` | `[]`    |
+| `fileDrop`              | 拖到表格上的文件用导入器读入，见[导入导出](./files#拖入文件)                                                                              | `boolean`                                | `false` |
+| `v-model:comments`      | 所有讨论，见[评论](./comments)                                                                                                            | `CommentThread[]`                        | —       |
+| `author`                | 当前用户，见[评论](./comments)                                                                                                            | `CommentAuthor`                          | —       |
+| `v-model:activeComment` | 打开的讨论，见[评论](./comments)                                                                                                          | `string \| null`                         | —       |
+| `commentable`           | 能否发起和回复讨论                                                                                                                        | `boolean`                                | `true`  |
+| `compare`               | 要对比的旧版本，见[历史版本](./versions)                                                                                                  | `SheetWorkbook \| null`                  | —       |
+| `ariaLabel`             | 表格的无障碍名称                                                                                                                          | `string`                                 | —       |
+| `messages`              | 覆盖表格的文案，只需写要改的部分                                                                                                          | `SheetMessagesOverride`                  | —       |
+
+### CSS 变量
+
+| 名称                 | 说明     | 默认值                    |
+| -------------------- | -------- | ------------------------- |
+| `--dou-sheet-border` | 外框颜色 | `var(--dou-color-border)` |
 
 ### Sheet Events
 

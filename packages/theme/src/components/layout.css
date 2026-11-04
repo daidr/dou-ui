@@ -34,10 +34,11 @@
   }
 
   .dou-layout-header {
+    --dou-layout-header-border: var(--dou-color-border-subtle);
     height: var(--dou-layout-header-height);
 
     &.is-bordered {
-      border-bottom: 1px solid var(--dou-color-border-subtle);
+      border-bottom: 1px solid var(--dou-layout-header-border);
     }
 
     &.is-sticky {
@@ -48,13 +49,21 @@
   }
 
   .dou-layout-footer {
+    --dou-layout-footer-border: var(--dou-color-border-subtle);
     min-height: 48px;
     color: var(--dou-color-text-tertiary);
     font-size: var(--dou-font-size-sm);
 
     &.is-bordered {
-      border-top: 1px solid var(--dou-color-border-subtle);
+      border-top: 1px solid var(--dou-layout-footer-border);
     }
+  }
+
+  /* the drawer holds the same body and footer, so it reads the same variables */
+  .dou-layout-aside,
+  .dou-layout-aside-drawer {
+    --dou-layout-aside-padding: 8px;
+    --dou-layout-aside-border: var(--dou-color-border-subtle);
   }
 
   .dou-layout-aside {
@@ -72,10 +81,10 @@
      * collapsed content centers on whole pixels.
      */
     &.is-bordered {
-      box-shadow: inset -1px 0 0 var(--dou-color-border-subtle);
+      box-shadow: inset -1px 0 0 var(--dou-layout-aside-border);
     }
     &.is-bordered:not(:first-child):last-child {
-      box-shadow: inset 1px 0 0 var(--dou-color-border-subtle);
+      box-shadow: inset 1px 0 0 var(--dou-layout-aside-border);
     }
 
     &.is-sticky {
@@ -92,7 +101,7 @@
     flex: 1 1 auto;
     flex-direction: column;
     min-height: 0;
-    padding: var(--dou-layout-aside-padding, 8px);
+    padding: var(--dou-layout-aside-padding);
     overflow-x: hidden;
     overflow-y: auto;
   }
@@ -101,8 +110,8 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
-    padding: var(--dou-layout-aside-padding, 8px);
-    border-top: 1px solid var(--dou-color-border-subtle);
+    padding: var(--dou-layout-aside-padding);
+    border-top: 1px solid var(--dou-layout-aside-border);
   }
 
   .dou-layout-aside__toggle {

@@ -40,15 +40,16 @@
 </DouLayout>
 ```
 
-主区的内边距来自 CSS 变量 `--dou-layout-main-padding`（默认 24px），侧栏正文和底部的内边距来自 `--dou-layout-aside-padding`（默认 8px），顶栏与页脚的左右内边距来自 `--dou-layout-padding-x`（默认 20px）。侧栏放一棵贴边的树或菜单时，可以把侧栏的内边距设为 0：
+主区的内边距来自 CSS 变量 `--dou-layout-main-padding`（默认 24px），顶栏与页脚的左右内边距来自 `--dou-layout-padding-x`（默认 20px）。侧栏正文和底部的内边距来自 `--dou-layout-aside-padding`（默认 8px）。侧栏里放一棵贴边的树或菜单时，可以把它设为 0：
 
 ```css
-:root {
+.dou-layout-aside,
+.dou-layout-aside-drawer {
   --dou-layout-aside-padding: 0px;
 }
 ```
 
-窄屏下侧栏会作为抽屉挂到 `body` 上，所以这个变量要设在 `:root` 上，抽屉里才能读到。
+窄屏下侧栏会作为抽屉挂到 `body` 上，抽屉的类名是 `dou-layout-aside-drawer`，所以选择器里要把它也写上。分隔线的颜色分别来自 `--dou-layout-header-border`、`--dou-layout-aside-border`、`--dou-layout-footer-border`（默认 `var(--dou-color-border-subtle)`），想去掉分隔线时用各自的 `bordered`。
 
 ## API
 

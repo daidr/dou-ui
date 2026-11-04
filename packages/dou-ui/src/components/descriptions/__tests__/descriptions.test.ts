@@ -23,12 +23,12 @@ describe('DouDescriptions', () => {
     expect(wrapper.attributes('style')).toContain('--dou-descriptions-columns: 3')
   })
 
-  it('applies layout, bordered, columns and label width', () => {
+  it('applies layout, variant, columns and label width', () => {
     const wrapper = mount(DouDescriptions, {
-      props: { layout: 'horizontal', bordered: true, columns: 2, labelWidth: 80 },
+      props: { layout: 'horizontal', variant: 'table', columns: 2, labelWidth: 80 },
     })
     expect(wrapper.classes()).toEqual(
-      expect.arrayContaining(['dou-descriptions--horizontal', 'is-bordered']),
+      expect.arrayContaining(['dou-descriptions--horizontal', 'dou-descriptions--table']),
     )
     expect(wrapper.attributes('style')).toContain('--dou-descriptions-columns: 2')
     expect(wrapper.attributes('style')).toContain('--dou-descriptions-label-width: 80px')

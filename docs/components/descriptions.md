@@ -14,9 +14,11 @@
 
 <DocDemo src="descriptions/horizontal" column />
 
-## 带边框
+## 表格样式
 
-<DocDemo src="descriptions/bordered" column />
+`variant="table"` 把列表画成表格：外框、单元格之间的细线，水平布局下标签带浅底色。放进已有边框的卡片时，用 `:bordered="false"` 去掉外框，单元格之间的细线保留。
+
+<DocDemo src="descriptions/table" column />
 
 ## 语义
 
@@ -26,13 +28,14 @@
 
 ### Descriptions Props
 
-| 名称         | 说明                             | 类型                         | 默认值       |
-| ------------ | -------------------------------- | ---------------------------- | ------------ |
-| `title`      | 标题                             | `string`                     | —            |
-| `columns`    | 一行几项                         | `number`                     | `3`          |
-| `layout`     | 标签在值上方，还是左边           | `'vertical' \| 'horizontal'` | `'vertical'` |
-| `bordered`   | 画成表格                         | `boolean`                    | `false`      |
-| `labelWidth` | 水平布局下的标签宽度；数字为像素 | `string \| number`           | `96px`       |
+| 名称         | 说明                                                                 | 类型                         | 默认值       |
+| ------------ | -------------------------------------------------------------------- | ---------------------------- | ------------ |
+| `title`      | 标题                                                                 | `string`                     | —            |
+| `columns`    | 一行几项                                                             | `number`                     | `3`          |
+| `layout`     | 标签在值上方，还是左边                                               | `'vertical' \| 'horizontal'` | `'vertical'` |
+| `variant`    | `plain` 是普通网格，`table` 画成表格                                 | `'plain' \| 'table'`         | `'plain'`    |
+| `bordered`   | `table` 样式的外框和圆角；关闭后去掉外框和圆角，单元格之间的细线保留 | `boolean`                    | `true`       |
+| `labelWidth` | 水平布局下的标签宽度；数字为像素                                     | `string \| number`           | `96px`       |
 
 ### Descriptions Slots
 
@@ -41,6 +44,12 @@
 | `default` | `DouDescriptionsItem` |
 | `title`   | 替换标题              |
 | `extra`   | 头部末尾，如编辑按钮  |
+
+### CSS 变量
+
+| 名称                        | 说明                   | 默认值                    |
+| --------------------------- | ---------------------- | ------------------------- |
+| `--dou-descriptions-border` | `table` 样式外框的颜色 | `var(--dou-color-border)` |
 
 ### DescriptionsItem Props
 

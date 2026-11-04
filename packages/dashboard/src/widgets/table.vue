@@ -88,6 +88,7 @@ setWorkbook(() =>
   <DouTable
     ref="root"
     class="dou-dashboard-table"
+    :bordered="false"
     :data="rows"
     :columns="columns"
     :row-key="rowKey"

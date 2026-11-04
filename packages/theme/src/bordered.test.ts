@@ -16,6 +16,7 @@ const framed: [file: string, block: string][] = [
   ['theme/src/components/code-block.css', '.dou-code-block'],
   ['theme/src/components/qrcode.css', '.dou-qrcode'],
   ['theme/src/components/calendar-view.css', '.dou-calendar-view'],
+  ['theme/src/components/descriptions.css', '.dou-descriptions--table'],
   ['code/src/style.css', '.dou-code-editor'],
   ['code/src/style.css', '.dou-code-diff'],
   ['flow/src/style.css', '.dou-flow-editor'],
@@ -46,7 +47,7 @@ describe('bordered', () => {
       // nested in the component's own rule, or written out as `.dou-x:not(.is-bordered)`
       const off =
         (root && ruleOf(root, /&:not\(\.is-bordered\)\s*\{/)) ??
-        ruleOf(css, new RegExp(`${escaped}:not\\(\\.is-bordered\\)\\s*\\{`))
+        ruleOf(css, new RegExp(`${escaped}:not\\(\\.is-bordered\\)[^{,]*\\{`))
       expect(off, `${file}: no rule for ${block} without is-bordered`).toBeDefined()
       expect(off).toMatch(/border:\s*0;/)
       expect(off).toMatch(/border-radius:\s*0;/)

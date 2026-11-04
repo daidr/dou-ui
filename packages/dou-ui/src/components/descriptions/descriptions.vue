@@ -9,7 +9,8 @@ defineOptions({ name: 'DouDescriptions' })
 const props = withDefaults(defineProps<DescriptionsProps>(), {
   columns: 3,
   layout: 'vertical',
-  bordered: false,
+  variant: 'plain',
+  bordered: true,
 })
 const slots = defineSlots<DescriptionsSlots>()
 
@@ -27,7 +28,12 @@ const style = computed(() => {
   return vars
 })
 
-const classes = computed(() => [ns.b(), ns.m(props.layout), ns.is('bordered', props.bordered)])
+const classes = computed(() => [
+  ns.b(),
+  ns.m(props.layout),
+  ns.m(props.variant),
+  ns.is('bordered', props.bordered),
+])
 </script>
 
 <template>

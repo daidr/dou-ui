@@ -80,6 +80,7 @@ function onCell(cell: PivotCellEvent) {
   <DouPivot
     ref="pivot"
     class="dou-dashboard-pivot"
+    :bordered="false"
     :data="rows"
     :fields="fields"
     :config="config"

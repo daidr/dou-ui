@@ -62,19 +62,19 @@ app.use(DouUI, {
 
 ### Props
 
-| 名称             | 说明                                                                                                    | 类型                                                        | 默认值          |
-| ---------------- | ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- | --------------- |
-| `code`           | 代码                                                                                                    | `string`                                                    | `''`            |
-| `lang`           | 语言，传给 `highlight`，没有文件名时显示在标题栏                                                        | `string`                                                    | `'text'`        |
-| `filename`       | 标题栏中的文件名                                                                                        | `string`                                                    | —               |
-| `highlight`      | 高亮函数，写法同 Shiki 的 `codeToHtml`                                                                  | `(code: string, lang: string) => string \| Promise<string>` | 全局 `defaults` |
-| `lineNumbers`    | 显示行号                                                                                                | `boolean`                                                   | `false`         |
-| `startLine`      | 第一行的行号                                                                                            | `number`                                                    | `1`             |
-| `highlightLines` | 标出的行                                                                                                | `number[] \| string`                                        | —               |
-| `wrap`           | 长行自动换行                                                                                            | `boolean`                                                   | `false`         |
-| `maxLines`       | 超过这么多行时折叠                                                                                      | `number`                                                    | —               |
-| `copyable`       | 显示复制按钮                                                                                            | `boolean`                                                   | `true`          |
-| `bordered`       | 外框和圆角；关闭后外框和圆角，用于放进已有边框的容器，见[去掉外框](/guide/theming#去掉外框与调整内边距) | `boolean`                                                   | `true`          |
+| 名称             | 说明                                                                                                        | 类型                                                        | 默认值          |
+| ---------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- | --------------- |
+| `code`           | 代码                                                                                                        | `string`                                                    | `''`            |
+| `lang`           | 语言，传给 `highlight`，没有文件名时显示在标题栏                                                            | `string`                                                    | `'text'`        |
+| `filename`       | 标题栏中的文件名                                                                                            | `string`                                                    | —               |
+| `highlight`      | 高亮函数，写法同 Shiki 的 `codeToHtml`                                                                      | `(code: string, lang: string) => string \| Promise<string>` | 全局 `defaults` |
+| `lineNumbers`    | 显示行号                                                                                                    | `boolean`                                                   | `false`         |
+| `startLine`      | 第一行的行号                                                                                                | `number`                                                    | `1`             |
+| `highlightLines` | 标出的行                                                                                                    | `number[] \| string`                                        | —               |
+| `wrap`           | 长行自动换行                                                                                                | `boolean`                                                   | `false`         |
+| `maxLines`       | 超过这么多行时折叠                                                                                          | `number`                                                    | —               |
+| `copyable`       | 显示复制按钮                                                                                                | `boolean`                                                   | `true`          |
+| `bordered`       | 外框和圆角；关闭后去掉外框和圆角，用于放进已有边框的容器，见[去掉外框](/guide/theming#去掉外框与调整内边距) | `boolean`                                                   | `true`          |
 
 ### Slots
 

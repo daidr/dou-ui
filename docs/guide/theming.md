@@ -155,21 +155,22 @@ const css =
 
 组件放进已经有边框的卡片、面板或页面分区时，自带的边框和内边距常常多出来。各组件用同一套约定处理：
 
-- **`bordered` 开关外框。** 自带外框的组件（FlowEditor、CodeEditor、CodeDiff、Gantt、Scheduler、Sheet、Pivot、FormBuilder、Table、CodeBlock、QRCode、CalendarView）默认带外框，设为 `false` 时边框和圆角一起去掉：不会留下透明的 1px，聚焦时也不会再画出边框，需要的焦点环改画在内侧，不会被容器裁掉。LayoutHeader、LayoutAside、LayoutFooter 的 `bordered` 同理，控制朝向内容一侧的分隔线。
+- **`bordered` 开关外框。** 默认带外框的组件有 FlowEditor、CodeEditor、CodeDiff、Gantt、Scheduler、Sheet、Pivot、FormBuilder、Table、CodeBlock、QRCode、CalendarView、ColorPanel，以及 `variant="table"` 的 Descriptions。设为 `false` 时边框和圆角一起去掉：不会留下透明的 1px，聚焦时也不会再画出边框；FlowEditor、Gantt、Scheduler、Pivot 的焦点环改画在内侧，不会被容器裁掉。Collapse 的外框是可选的外观，默认关闭，`bordered` 打开后才画。LayoutHeader、LayoutAside、LayoutFooter 的 `bordered` 控制朝向内容一侧的分隔线，默认打开。
 - **`--dou-<组件>-border` 只改颜色。** 比如 `--dou-table-border`、`--dou-code-diff-border`。它只决定线画成什么颜色，不决定有没有线；想去掉外框请用 `bordered`。
-- **`--dou-<组件>-padding` 调内边距。** 比如 `--dou-card-padding`、`--dou-layout-aside-padding`、`--dou-result-padding`；只有一个方向能调时写作 `-padding-x` / `-padding-y`，比如 `--dou-code-editor-padding-x`。
+- **`--dou-<组件>-padding` 调内边距。** 比如 `--dou-card-padding`、`--dou-layout-aside-padding`、`--dou-result-padding`。如果只能调一个方向，就写成 `-padding-x` 或 `-padding-y`，比如 `--dou-code-editor-padding-x`。
 
-```vue
-<DouCard title="工作流" padding="none">
-  <DouFlowEditor v-model="doc" :bordered="false" />
-</DouCard>
-```
+组件变量的默认值写在组件自己的元素上，所以覆盖时要设在组件的类或元素上，设在 `:root` 或外层容器上不会生效：
 
 ```css
-/* 侧栏里放一棵贴边的树 */
-:root {
-  --dou-layout-aside-padding: 0px;
+.dou-table {
+  --dou-table-border: var(--dou-color-border-subtle);
 }
+```
+
+```vue
+<div class="panel">
+  <DouFlowEditor v-model="doc" :bordered="false" />
+</div>
 ```
 
 ## 层叠顺序

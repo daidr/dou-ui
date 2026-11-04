@@ -1,7 +1,14 @@
 import { mount } from '@vue/test-utils'
 import { h } from 'vue'
 import { describe, expect, it } from 'vitest'
-import { DouCalendarView, DouCodeBlock, DouLayoutFooter, DouQrcode, DouTable } from '../index'
+import {
+  DouCalendarView,
+  DouCodeBlock,
+  DouDescriptions,
+  DouLayoutFooter,
+  DouQrcode,
+  DouTable,
+} from '../index'
 
 // Every framed component takes `bordered`, on by default; off, it drops the
 // `is-bordered` class that the stylesheet keys the frame on.
@@ -41,6 +48,17 @@ describe('bordered', () => {
       expect(mount(() => set(false)).classes()).not.toContain('is-bordered')
     })
   }
+
+  it('DouDescriptions takes its look from variant, and bordered frames the table variant', () => {
+    const plain = mount(DouDescriptions)
+    expect(plain.classes()).toContain('dou-descriptions--plain')
+    const table = mount(DouDescriptions, { props: { variant: 'table' } })
+    expect(table.classes()).toEqual(
+      expect.arrayContaining(['dou-descriptions--table', 'is-bordered']),
+    )
+    const bare = mount(DouDescriptions, { props: { variant: 'table', bordered: false } })
+    expect(bare.classes()).not.toContain('is-bordered')
+  })
 
   it('DouTable draws column dividers only with columnDividers', () => {
     const plain = mount(DouTable, { props: { data: [], columns: [] } })

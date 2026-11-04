@@ -18,6 +18,8 @@ const items = ref([
 // 在较窄的断点上拖动过的位置，按断点名保存
 const layouts = ref({})
 const columns = { lg: 12, md: 6, sm: 1 }
+// 示例区域较窄，断点相应调小，便于看到 12 列和 6 列
+const breakpoints = { lg: 640, md: 400, sm: 0 }
 </script>
 
 <template>
@@ -28,7 +30,7 @@ const columns = { lg: 12, md: 6, sm: 1 }
         size="sm"
         :options="[
           { value: '100%', label: '整行' },
-          { value: '560px', label: '560px' },
+          { value: '480px', label: '480px' },
           { value: '320px', label: '320px' },
         ]"
       />
@@ -43,6 +45,7 @@ const columns = { lg: 12, md: 6, sm: 1 }
         v-model="items"
         v-model:layouts="layouts"
         editable
+        :breakpoints="breakpoints"
         :row-height="40"
         :gap="8"
       >

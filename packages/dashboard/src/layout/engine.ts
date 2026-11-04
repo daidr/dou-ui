@@ -286,78 +286,141 @@ export function findPlace(
   return { x: 0, y: bottom }
 }
 
-/** Where items land when their edges, counted from `origin`, are scaled by `factor`. */
-function scaleEdges(items: readonly GridItem[], origin: number, factor: number) {
-  // both edges are rounded, so items side by side stay side by side
-  const edge = (value: number) => Math.round((value - origin) * factor)
-  return items.map((item) => {
-    const x = edge(item.x)
-    return { x, w: Math.max(1, edge(item.x + item.w) - x) }
-  })
-}
-
-/** Whether items that were equally wide still are. */
-function keepsEqual(items: readonly GridItem[], spans: readonly { w: number }[]) {
-  const widths = new Map<number, number>()
-  return items.every((item, i) => {
-    const w = widths.get(item.w)
-    if (w === undefined) widths.set(item.w, spans[i]!.w)
-    return w === undefined || w === spans[i]!.w
-  })
-}
-
 interface Span {
   item: GridItem
   x: number
+  w: number
   /** Line within the row, 0 when the row didn't wrap. */
   line: number
-  w: number
+  /** What the item's width was scaled by, for its `minW` and `maxW`. */
+  factor: number
 }
 
 /**
- * One row (items sharing a `y`, left to right) on `to` columns. Scaled
- * as is when equally wide items stay equally wide; otherwise the row is
- * wrapped onto as few lines as it takes for them to, each line holding
- * `from / lines` source columns, so four quarters of 12 columns become
- * two lines of halves on 6.
+ * Whether a row came out right: every item at least a column wide, none
+ * on top of the one before it or past the last column, and items that
+ * were equally wide still equally wide.
  */
-function scaleRow(row: readonly GridItem[], from: number, to: number): Span[] {
-  const spans = scaleEdges(row, 0, to / from)
-  if (keepsEqual(row, spans)) return row.map((item, i) => ({ item, line: 0, ...spans[i]! }))
-  for (let lines = 2; ; lines++) {
-    const capacity = from / lines
-    const groups: GridItem[][] = []
-    for (const item of row) {
-      const group = groups[groups.length - 1]
-      if (group && item.x + item.w - group[0]!.x <= capacity) group.push(item)
-      else groups.push([item])
-    }
-    if (groups.length > lines && lines < row.length) continue
-    const out: Span[] = []
-    for (const [line, group] of groups.entries()) {
-      const scaled = scaleEdges(group, group[0]!.x, (to * lines) / from)
-      for (const [i, item] of group.entries())
-        out.push({ item, line, x: scaled[i]!.x, w: Math.min(to, scaled[i]!.w) })
-    }
-    if (
-      lines >= row.length ||
-      (out.every((span) => span.x + span.w <= to) &&
-        keepsEqual(
-          out.map((span) => span.item),
-          out,
-        ))
-    )
-      return out
-  }
+function fair(spans: readonly Span[], to: number) {
+  const widths = new Map<number, number>()
+  return spans.every((span, i) => {
+    const prev = spans[i - 1]
+    if (span.w < 1 || span.x + span.w > to) return false
+    if (prev && prev.line === span.line && span.x < prev.x + prev.w) return false
+    const w = widths.get(span.item.w)
+    if (w === undefined) widths.set(span.item.w, span.w)
+    return w === undefined || w === span.w
+  })
 }
+
+/** Both edges scaled and rounded, so items side by side stay side by side. */
+function scaled(row: readonly GridItem[], factor: number): Span[] {
+  const edge = (value: number) => Math.round(value * factor)
+  return row.map((item) => {
+    const x = edge(item.x)
+    return { item, x, w: edge(item.x + item.w) - x, line: 0, factor }
+  })
+}
+
+/**
+ * The row wrapped onto as few lines as keep its items equally wide, at
+ * most `most`. Items are packed left to right without the gaps between
+ * them, each line holding the same number of source columns at most, the
+ * fullest line filling the grid. At least one line holds two items or
+ * more, so items never end up one per line. With `floor`, widths are
+ * rounded down when no number of lines keeps them equal otherwise.
+ */
+function wrapped(
+  row: readonly GridItem[],
+  to: number,
+  most: number,
+  floor: boolean,
+): Span[] | undefined {
+  const total = row.reduce((sum, item) => sum + item.w, 0)
+  const pack = (size: number) => {
+    const lines: GridItem[][] = []
+    let used = Infinity
+    for (const item of row) {
+      if (used + item.w > size) {
+        lines.push([])
+        used = 0
+      }
+      lines[lines.length - 1]!.push(item)
+      used += item.w
+    }
+    return lines
+  }
+  // the smallest size for each number of lines balances the lines best
+  const options = new Map<number, { lines: GridItem[][]; size: number }>()
+  for (let size = Math.max(...row.map((item) => item.w)); size < total; size++) {
+    const lines = pack(size)
+    if (lines.length <= most && lines.length < row.length && !options.has(lines.length))
+      options.set(lines.length, { lines, size })
+  }
+  const counts = [...options.keys()]
+  counts.sort((a, b) => a - b)
+  for (const down of floor ? [false, true] : [false])
+    for (const count of counts) {
+      const { lines, size } = options.get(count)!
+      const factor = to / size
+      const spans: Span[] = []
+      for (const [line, items] of lines.entries()) {
+        let start = 0
+        let end = 0
+        for (const item of items) {
+          const x = down ? end : Math.round(start * factor)
+          start += item.w
+          const w = down ? Math.floor(item.w * factor) : Math.round(start * factor) - x
+          end = x + w
+          spans.push({ item, x, w, line, factor })
+        }
+      }
+      if (fair(spans, to)) return spans
+    }
+  return undefined
+}
+
+/**
+ * One row (items sharing a `y`, left to right) on `to` columns, keeping
+ * equally wide items equally wide. In order of preference: scaled as is;
+ * wrapped onto two lines; kept on one line with the widths of items that
+ * share one rounded down, leaving columns empty; wrapped onto more lines,
+ * when rounding down would leave them no column. Rows only wrap when the
+ * grid gets narrower and the row is a band of its own (all its items
+ * equally tall, nothing else reaching into it). Rounded as before when
+ * none of that works.
+ */
+function scaleRow(row: readonly GridItem[], band: boolean, from: number, to: number): Span[] {
+  const scale = to / from
+  const spans = scaled(row, scale)
+  if (fair(spans, to)) return spans
+  const wraps = band && to < from
+  const two = wraps ? wrapped(row, to, 2, false) : undefined
+  if (two) return two
+  const shared = new Map<number, number>()
+  for (const item of row) shared.set(item.w, (shared.get(item.w) ?? 0) + 1)
+  const floored: Span[] = []
+  for (const item of row) {
+    const prev = floored[floored.length - 1]
+    const x = Math.max(Math.round(item.x * scale), prev ? prev.x + prev.w : 0)
+    const w = shared.get(item.w)! > 1 ? Math.floor(item.w * scale) : Math.round(item.w * scale)
+    floored.push({ item, x, w, line: 0, factor: scale })
+  }
+  if (fair(floored, to)) return floored
+  const more = wraps ? wrapped(row, to, row.length, true) : undefined
+  return more ?? spans.map((span) => ({ ...span, w: Math.max(1, span.w) }))
+}
+
+/** A `minW` or `maxW` scaled with the item. */
+const limit = (value: number | undefined, factor: number) =>
+  value === undefined ? undefined : Math.max(1, Math.round(value * factor))
 
 /**
  * The layout worked out for a grid of another width: positions and widths
  * scaled by the ratio of the columns, then settled. Items in a row that
- * were equally wide stay equally wide; when the columns don't divide
- * evenly, the row wraps instead (four quarters of 12 columns become two
- * lines of halves on 6). On a single column the items are stacked in
- * reading order (top to bottom, then left to right), each keeping its height.
+ * were equally wide stay equally wide, by wrapping the row or leaving
+ * columns empty (see the docs). On a single column the items are stacked
+ * in reading order (top to bottom, then left to right), each keeping its height.
  */
 export function deriveLayout(
   items: readonly GridItem[],
@@ -378,48 +441,41 @@ export function deriveLayout(
     }
     return out
   }
-  const scale = to / from
-  const limit = (value: number | undefined) =>
-    value === undefined ? undefined : Math.max(1, Math.round(value * scale))
   const rows = new Map<number, GridItem[]>()
   for (const item of items) {
     const row = rows.get(item.y)
     if (row) row.push(item)
     else rows.set(item.y, [item])
   }
-  const placed = new Map<GridItem, GridItem>()
-  // rows that wrap push everything below them down by the lines they add
-  let shift = 0
   const ys = [...rows.keys()]
   ys.sort((a, b) => a - b)
+  const placed = new Map<GridItem, GridItem>()
+  // lines a row wraps onto push everything below it down
+  let shift = 0
   for (const y of ys) {
     const row = rows.get(y)!
     row.sort((a, b) => a.x - b.x)
-    const lineTop = [0]
-    const spans = scaleRow(row, from, to)
-    for (const span of spans) {
-      const top = lineTop[span.line] ?? 0
-      lineTop[span.line + 1] = Math.max(lineTop[span.line + 1] ?? 0, top + span.item.h)
-    }
-    for (const span of spans) {
-      const top = lineTop[span.line]!
+    const h = row[0]!.h
+    const band =
+      row.every((item) => item.h === h) &&
+      items.every((item) => item.y === y || item.y + item.h <= y || item.y >= y + h)
+    const spans = scaleRow(row, band, from, to)
+    for (const span of spans)
       placed.set(
         span.item,
         fitItem(
           {
             ...span.item,
             x: span.x,
-            y: y + shift + top,
+            y: y + shift + span.line * h,
             w: span.w,
-            minW: limit(span.item.minW),
-            maxW: limit(span.item.maxW),
+            minW: limit(span.item.minW, span.factor),
+            maxW: limit(span.item.maxW, span.factor),
           },
           to,
         ),
       )
-    }
-    const height = Math.max(...row.map((item) => item.h))
-    shift += lineTop[lineTop.length - 1]! - height
+    shift += spans[spans.length - 1]!.line * h
   }
   return normalizeLayout(
     items.map((item) => placed.get(item)!),

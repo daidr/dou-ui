@@ -259,6 +259,16 @@ describe('findPlace', () => {
   })
 })
 
+/** Items of the given widths side by side on the first row. */
+const inRow = (widths: number[], h = 1) => {
+  let x = 0
+  return widths.map((w, i) => {
+    const item = { id: 'abcdefghijkl'[i]!, x, y: 0, w, h }
+    x += w
+    return item
+  })
+}
+
 describe('deriveLayout', () => {
   const wide = [
     { id: 'a', x: 0, y: 0, w: 6, h: 2 },
@@ -274,50 +284,132 @@ describe('deriveLayout', () => {
     })
   })
 
-  it('keeps equally wide items equally wide', () => {
-    const quarters = ['a', 'b', 'c', 'd'].map((id, i) => ({ id, x: i * 3, y: 0, w: 3, h: 2 }))
-    const below = { id: 'e', x: 0, y: 2, w: 12, h: 1 }
-    const out = deriveLayout([...quarters, below], 12, { columns: 6 })
+  it('wraps a row onto two lines to keep equally wide items equally wide', () => {
+    const below = { id: 'z', x: 0, y: 2, w: 12, h: 1 }
+    const out = deriveLayout([...inRow([3, 3, 3, 3], 2), below], 12, { columns: 6 })
     expect(byId(out)).toEqual({
       a: [0, 0, 3, 2],
       b: [3, 0, 3, 2],
       c: [0, 2, 3, 2],
       d: [3, 2, 3, 2],
-      e: [0, 4, 6, 1],
+      z: [0, 4, 6, 1],
     })
     noOverlap(out)
+    // also without compacting: the row below moves down by the added line
+    expect(
+      byId(deriveLayout([...inRow([3, 3, 3, 3], 2), below], 12, { columns: 6, compact: false })).z,
+    ).toEqual([0, 4, 6, 1])
+    expect(byId(deriveLayout(inRow([4, 4, 4]), 12, { columns: 8 }))).toEqual({
+      a: [0, 0, 4, 1],
+      b: [4, 0, 4, 1],
+      c: [0, 1, 4, 1],
+    })
+    expect(byId(deriveLayout(inRow([3, 3, 6]), 12, { columns: 6 }))).toEqual({
+      a: [0, 0, 3, 1],
+      b: [3, 0, 3, 1],
+      c: [0, 1, 6, 1],
+    })
   })
 
-  it('wraps a row by width, keeping wide items on their own line', () => {
-    const mixed = [
+  it('packs a wrapped row without the gaps in it', () => {
+    const gaps = [
       { id: 'a', x: 0, y: 0, w: 3, h: 1 },
-      { id: 'b', x: 3, y: 0, w: 3, h: 2 },
-      { id: 'c', x: 6, y: 0, w: 6, h: 1 },
+      { id: 'b', x: 6, y: 0, w: 3, h: 1 },
+      { id: 'c', x: 9, y: 0, w: 3, h: 1 },
     ]
-    expect(byId(deriveLayout(mixed, 12, { columns: 6 }))).toEqual({
+    expect(byId(deriveLayout(gaps, 12, { columns: 6 }))).toEqual({
       a: [0, 0, 3, 1],
-      b: [3, 0, 3, 2],
-      c: [0, 2, 6, 1],
+      b: [3, 0, 3, 1],
+      c: [0, 1, 3, 1],
+    })
+  })
+
+  it('leaves columns empty instead of putting items one per line', () => {
+    expect(byId(deriveLayout(inRow([6, 6]), 12, { columns: 5 }))).toEqual({
+      a: [0, 0, 2, 1],
+      b: [3, 0, 2, 1],
+    })
+    expect(byId(deriveLayout(inRow([3, 3, 3, 3]), 12, { columns: 5 }))).toEqual({
+      a: [0, 0, 1, 1],
+      b: [1, 0, 1, 1],
+      c: [3, 0, 1, 1],
+      d: [4, 0, 1, 1],
+    })
+    const apart = [
+      { id: 'a', x: 0, y: 0, w: 3, h: 1 },
+      { id: 'b', x: 9, y: 0, w: 3, h: 1 },
+    ]
+    expect(byId(deriveLayout(apart, 12, { columns: 6 }))).toEqual({
+      a: [0, 0, 1, 1],
+      b: [5, 0, 1, 1],
+    })
+  })
+
+  it('wraps onto more lines when items would get no column', () => {
+    expect(byId(deriveLayout(inRow([2, 2, 2, 2, 2, 2]), 12, { columns: 4 }))).toEqual({
+      a: [0, 0, 2, 1],
+      b: [2, 0, 2, 1],
+      c: [0, 1, 2, 1],
+      d: [2, 1, 2, 1],
+      e: [0, 2, 2, 1],
+      f: [2, 2, 2, 1],
     })
   })
 
   it('leaves rows of unequal items side by side', () => {
-    const uneven = [
-      { id: 'a', x: 0, y: 0, w: 5, h: 1 },
-      { id: 'b', x: 5, y: 0, w: 7, h: 1 },
-    ]
-    expect(byId(deriveLayout(uneven, 12, { columns: 6 }))).toEqual({
+    expect(byId(deriveLayout(inRow([5, 7]), 12, { columns: 6 }))).toEqual({
       a: [0, 0, 3, 1],
       b: [3, 0, 3, 1],
     })
   })
 
-  it('wraps three quarters with a gap after them', () => {
-    const three = ['a', 'b', 'c'].map((id, i) => ({ id, x: i * 3, y: 0, w: 3, h: 1 }))
-    expect(byId(deriveLayout(three, 12, { columns: 6 }))).toEqual({
-      a: [0, 0, 3, 1],
-      b: [3, 0, 3, 1],
-      c: [0, 1, 3, 1],
+  it("doesn't wrap a row with a tall item or one that others reach into", () => {
+    const tall = [
+      { id: 'a', x: 0, y: 0, w: 3, h: 4 },
+      { id: 'b', x: 3, y: 0, w: 3, h: 1 },
+      { id: 'c', x: 6, y: 0, w: 3, h: 1 },
+      { id: 'd', x: 9, y: 0, w: 3, h: 1 },
+      { id: 'e', x: 3, y: 1, w: 9, h: 3 },
+    ]
+    const out = byId(deriveLayout(tall, 12, { columns: 6 }))
+    expect(out).toEqual({
+      a: [0, 0, 1, 4],
+      b: [2, 0, 1, 1],
+      c: [3, 0, 1, 1],
+      d: [5, 0, 1, 1],
+      e: [2, 1, 4, 3],
+    })
+    const side = [
+      { id: 't', x: 0, y: 0, w: 6, h: 4 },
+      { id: 'a', x: 6, y: 0, w: 3, h: 1 },
+      { id: 'b', x: 9, y: 0, w: 3, h: 1 },
+      { id: 'q', x: 6, y: 1, w: 6, h: 3 },
+    ]
+    expect(byId(deriveLayout(side, 12, { columns: 6 }))).toEqual({
+      t: [0, 0, 3, 4],
+      a: [3, 0, 1, 1],
+      b: [5, 0, 1, 1],
+      q: [3, 1, 3, 3],
+    })
+  })
+
+  it('scales the size limits of wrapped items like their widths', () => {
+    const limited = inRow([3, 3, 3, 3]).map((item) => ({ ...item, maxW: 3 }))
+    const out = deriveLayout(limited, 12, { columns: 6 })
+    expect(out.map((item) => [item.w, item.maxW])).toEqual([
+      [3, 3],
+      [3, 3],
+      [3, 3],
+      [3, 3],
+    ])
+  })
+
+  it("doesn't wrap when the grid gets wider", () => {
+    expect(byId(deriveLayout(inRow([1, 1, 1, 1]), 4, { columns: 6 }))).toEqual({
+      a: [0, 0, 1, 1],
+      b: [2, 0, 1, 1],
+      c: [3, 0, 1, 1],
+      d: [5, 0, 1, 1],
     })
   })
 

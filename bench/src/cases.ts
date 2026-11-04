@@ -1385,6 +1385,18 @@ export const cases: Record<string, Case> = {
     frames: 20,
     budget: { 2000: 25 },
   },
+  // One key typed in a list item: list spacing and numbering follow the text, not rebuilt.
+  'editor-type-list': {
+    render: (n) => blockEditor(n),
+    prepare: () => editorCursor(true),
+    act: () => {
+      const view = editorApi().view!
+      view.dispatch(view.state.tr.insertText('字'))
+      return nextTick()
+    },
+    frames: 20,
+    budget: { 2000: 25 },
+  },
   // The cursor moved to another block: menus and the selection event follow.
   'editor-move-cursor': {
     render: (n) => blockEditor(n),
@@ -1978,10 +1990,15 @@ function blockEditor(n: number) {
 
 const editorApi = () => (window as any).blockEditor.value as EditorExpose
 
-/** The cursor in a paragraph in the middle of the document. */
-function editorCursor() {
+/** The cursor in a paragraph (or a list item) in the middle of the document. */
+function editorCursor(list = false) {
   const ids = (window as any).editorIds as string[]
   const middle = ids.length >> 1
-  const id = ids.slice(middle).find((_, i) => (middle + i) % 10 >= 4 && (middle + i) % 25 < 24)!
+  const id = ids.slice(middle).find((_, i) => {
+    const index = middle + i
+    return list
+      ? index % 10 > 0 && index % 10 < 4 && index % 50 !== 9
+      : index % 10 >= 4 && index % 25 < 24
+  })!
   editorApi().focusBlock(id)
 }

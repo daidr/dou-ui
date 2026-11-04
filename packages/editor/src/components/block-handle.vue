@@ -390,7 +390,8 @@ function updateDrop() {
     y = blockElementOf(content)!.getBoundingClientRect().bottom
   }
   if (!moveRangeTo(range, pos)(instance.state)) return (drop.value = null)
-  drop.value = { pos, top: y - box.top, left: left - box.left, width: box.right - left }
+  // to the end of the text column, which a reading width can end before the editor
+  drop.value = { pos, top: y - box.top, left: left - box.left, width: rect.right - left }
 }
 
 function autoScroll() {

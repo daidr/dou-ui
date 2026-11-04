@@ -8,6 +8,7 @@ import { createEditorView, getBlocks } from '../editor'
 import { resolveEditorExtensions } from '../extension'
 import { editorKit } from '../../extensions/editor-kit'
 import type { PartialBlock } from '../model'
+import { changesBlockStructure } from '../plugins'
 import { getSlash, slashPlugin } from '../slash'
 import { p, shape } from './helpers'
 
@@ -256,5 +257,111 @@ describe('paste', () => {
       ['checkItem', true],
       ['checkItem', false],
     ])
+  })
+})
+
+const classesOf = (target: EditorView) =>
+  Object.fromEntries(
+    [...target.dom.querySelectorAll<HTMLElement>('.dou-editor__block')].map((block) => [
+      block.dataset.blockId,
+      [
+        ...['is-list', 'is-list-start', 'is-list-after', 'is-list-end'].filter((name) =>
+          block.querySelector(':scope > .dou-editor__content')!.classList.contains(name),
+        ),
+        // the end of a list item with children is after them, on their group
+        ...(block.querySelector(':scope > .dou-editor__group.is-list-end')
+          ? ['group:is-list-end']
+          : []),
+      ],
+    ]),
+  )
+
+describe('list spacing', () => {
+  it('marks list items and the ends of their runs, nested items carrying on the run', () => {
+    const target = mount([
+      p('intro'),
+      { id: 'a', type: 'bulletItem', content: 'a' },
+      {
+        id: 'b',
+        type: 'numberedItem',
+        content: 'b',
+        children: [
+          { id: 'b1', type: 'checkItem', content: 'b1' },
+          { id: 'b2', type: 'bulletItem', content: 'b2' },
+        ],
+      },
+      { id: 'c', type: 'paragraph', content: 'c', children: [{ id: 'c1', type: 'bulletItem' }] },
+    ])
+    expect(classesOf(target)).toEqual({
+      intro: [],
+      // a numbered list right after a bulleted one is a list of its own
+      a: ['is-list', 'is-list-start', 'is-list-end'],
+      b: ['is-list', 'is-list-start', 'is-list-after', 'group:is-list-end'],
+      // nested under a list item, any type carries on its run; siblings of another type split it
+      b1: ['is-list', 'is-list-end'],
+      b2: ['is-list', 'is-list-start', 'is-list-after'],
+      c: [],
+      c1: ['is-list', 'is-list-start', 'is-list-end'],
+    })
+  })
+
+  it('maps through typing, rebuilds when blocks change', () => {
+    const target = mount([
+      { id: 'a', type: 'bulletItem', content: 'a' },
+      { id: 'b', type: 'bulletItem', content: 'b' },
+    ])
+    cursorAt(target, 'a', 1)
+    const typing = target.state.tr.insertText('x')
+    expect(changesBlockStructure(typing)).toBe(false)
+    target.dispatch(typing)
+    expect(changesBlockStructure(target.state.tr.split(target.state.selection.from, 2))).toBe(true)
+    press(target, 'Enter')
+    expect(classesOf(target)).toEqual({
+      a: ['is-list', 'is-list-start'],
+      [getBlocks(target)[1]!.id]: ['is-list'],
+      b: ['is-list', 'is-list-end'],
+    })
+  })
+
+  it('follows changes to the document', () => {
+    const target = mount([p('a'), { id: 'b', type: 'bulletItem', content: 'b' }])
+    cursorAt(target, 'a')
+    type(target, '- ')
+    expect(classesOf(target)).toEqual({
+      a: ['is-list', 'is-list-start'],
+      b: ['is-list', 'is-list-end'],
+    })
+  })
+  it('updates around a change the same as working it all out again', () => {
+    const target = mount([
+      p('a'),
+      { id: 'b', type: 'bulletItem', content: 'b' },
+      { id: 'c', type: 'bulletItem', content: 'c', children: [{ id: 'c1', type: 'checkItem' }] },
+      p('d'),
+      { id: 'e', type: 'numberedItem', content: 'e' },
+      p('f'),
+    ])
+    const fresh = () => {
+      const blocks = getBlocks(target)
+      const current = view
+      const other = mount(blocks)
+      const expected = classesOf(other)
+      other.destroy()
+      view = current
+      return expected
+    }
+    // split a list item, turn a paragraph into a list, join two blocks, remove a block
+    cursorAt(target, 'b', 1)
+    press(target, 'Enter')
+    expect(classesOf(target)).toEqual(fresh())
+    cursorAt(target, 'd')
+    type(target, '1. ')
+    expect(classesOf(target)).toEqual(fresh())
+    cursorAt(target, 'f')
+    press(target, 'Backspace')
+    expect(classesOf(target)).toEqual(fresh())
+    const info = findBlockById(target.state.doc, 'a')!
+    target.dispatch(target.state.tr.delete(info.pos, info.pos + info.node.nodeSize))
+    expect(classesOf(target)).toEqual(fresh())
   })
 })

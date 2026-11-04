@@ -41,6 +41,21 @@ app.use(DouEditor)
 
 <DocDemo src="editor/readonly" column />
 
+## 间距和阅读宽度
+
+块与块之间、同一列表的各项之间各有一个间距：`--dou-editor-block-gap` 是相邻两块之间的距离，`--dou-editor-list-gap` 是同一列表里相邻两项之间的距离，嵌套的列表项也用它。一段列表的前后仍然是块间距，所以把块间距调大，列表还是紧凑的一组；列表间距比块间距大时也一样。同一层级换了列表类型（比如编号列表后面接待办）算作另一段列表，前后是块间距。
+
+宽屏上一行太长不好读，`--dou-editor-reading-width` 限制正文的最大宽度，编辑器更宽时正文居中，手柄显示在左侧空出来的边距里，点击正文两侧也能把光标放进去。编辑器比阅读宽度窄时，这个设置不起作用，正文占满编辑器。默认是 `none`，不限制宽度。
+
+```css
+.note-editor {
+  --dou-editor-block-gap: 12px;
+  --dou-editor-reading-width: 42em;
+}
+```
+
+<DocDemo src="editor/spacing" column />
+
 ## 打开链接
 
 编辑时按住 `Ctrl` / `⌘` 点击链接，或者在只读状态下点击链接，链接会在新标签页打开。打开之前会触发 `linkOpen` 事件，参数里有链接地址 `link` 和链接所在块的 id `block`。调用 `event.preventDefault()` 后编辑器不再自己打开，可以改用应用的路由，或者先让用户确认：
@@ -145,13 +160,15 @@ function reset() {
 
 ### CSS 变量
 
-| 变量                         | 说明                                 |
-| ---------------------------- | ------------------------------------ |
-| `--dou-editor-font-size`     | 正文字号                             |
-| `--dou-editor-match`         | 查找结果的底色                       |
-| `--dou-editor-match-current` | 当前查找结果的描边                   |
-| `--dou-editor-line-height`   | 正文行高                             |
-| `--dou-editor-gutter`        | 左侧留给手柄的宽度，只读时为 `0`     |
-| `--dou-editor-indent`        | 每一级缩进的宽度，也是列表符号的宽度 |
-| `--dou-editor-block-gap`     | 块上下的间距                         |
-| `--dou-editor-selected`      | 选中的块的底色                       |
+| 变量                         | 说明                                     |
+| ---------------------------- | ---------------------------------------- |
+| `--dou-editor-font-size`     | 正文字号                                 |
+| `--dou-editor-match`         | 查找结果的底色                           |
+| `--dou-editor-match-current` | 当前查找结果的描边                       |
+| `--dou-editor-line-height`   | 正文行高                                 |
+| `--dou-editor-gutter`        | 左侧留给手柄的宽度，只读时为 `0`         |
+| `--dou-editor-indent`        | 每一级缩进的宽度，也是列表符号的宽度     |
+| `--dou-editor-block-gap`     | 相邻两块之间的距离，默认 `4px`           |
+| `--dou-editor-list-gap`      | 同一列表里相邻两项之间的距离，默认 `4px` |
+| `--dou-editor-reading-width` | 正文的最大宽度，超出时居中，默认 `none`  |
+| `--dou-editor-selected`      | 选中的块的底色                           |

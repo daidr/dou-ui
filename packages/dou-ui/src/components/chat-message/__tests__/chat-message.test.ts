@@ -67,6 +67,19 @@ describe('DouChatMessage', () => {
     expect(wrapper.find('.dou-chat-message__actions .dou-copy-button').exists()).toBe(true)
   })
 
+  it('keeps the actions while only an artifact is still being made', () => {
+    const wrapper = mount(DouChatMessage, {
+      props: {
+        parts: [
+          { type: 'text', text: '图在生成' },
+          { type: 'artifact', title: '路线图.png', kind: 'image', status: 'running' },
+        ],
+      },
+    })
+    expect(wrapper.attributes('aria-busy')).toBeUndefined()
+    expect(wrapper.find('.dou-chat-message__actions .dou-copy-button').exists()).toBe(true)
+  })
+
   it('shows the waiting dots while loading', () => {
     const wrapper = mount(DouChatMessage, { props: { loading: true } })
     expect(wrapper.get('.dou-chat-message__loading').attributes('aria-label')).toBe('正在回复')

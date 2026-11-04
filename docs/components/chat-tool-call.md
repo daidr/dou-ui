@@ -14,7 +14,7 @@
 
 有些操作需要用户同意后才能执行，这时把 `status` 设为 `waiting`。`actions` 插槽显示在卡片底部，不需要展开就能看到，可以放允许和拒绝按钮。
 
-<DocDemo src="chat-tool-call/pending" column />
+<DocDemo src="chat-tool-call/waiting" column />
 
 ## API
 

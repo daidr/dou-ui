@@ -40,6 +40,7 @@ const props = withDefaults(defineProps<ChatMessageProps>(), {
   copyable: true,
   editable: false,
   markdown: false,
+  actionsVisible: undefined,
   versions: 1,
   version: undefined,
 })
@@ -67,6 +68,7 @@ const markdownSlots = () =>
       inner: name.slice(PREFIX.length),
     }))
 const isUser = computed(() => props.sender === 'user')
+const actionsShow = computed(() => props.actionsVisible ?? (isUser.value ? 'hover' : 'always'))
 // the person's attachments sit above their bubble, not inside it
 const files = computed(() => (isUser.value ? parts.value.filter((p) => p.type === 'files') : []))
 const body = computed(() =>
@@ -181,7 +183,13 @@ const rest = (part: AnyPart) => {
 
 <template>
   <div
-    :class="[ns.b(), ns.m(sender), ns.is('loading', loading), ns.is('editing', editing)]"
+    :class="[
+      ns.b(),
+      ns.m(sender),
+      ns.m(`actions-${actionsShow}`),
+      ns.is('loading', loading),
+      ns.is('editing', editing),
+    ]"
     :aria-busy="busy || undefined"
   >
     <div v-if="files.length && !editing" :class="ns.e('files')">

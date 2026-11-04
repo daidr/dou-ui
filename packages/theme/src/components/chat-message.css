@@ -5,7 +5,7 @@
  * tinted bubble on the right; the assistant's runs full width with no
  * bubble or avatar, its parts stacked with even gaps, like a page.
  * Actions sit underneath: always for the assistant, on hover for the
- * person.
+ * person, unless `actionsVisible` says otherwise.
  */
 @layer dou.components {
   .dou-chat-message {
@@ -133,17 +133,22 @@
       grid-column: 1;
       align-self: end;
       margin-left: 0;
+    }
+
+    /* hidden, not removed: showing them moves nothing around */
+    .dou-chat-message--actions-hover > & {
       opacity: 0;
       transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
     }
 
-    .dou-chat-message--user:hover > &,
-    .dou-chat-message--user > &:focus-within {
+    .dou-chat-message--actions-hover:hover > &,
+    .dou-chat-message--actions-hover:focus-within > & {
       opacity: 1;
     }
 
+    /* no hover to reveal them, so they stay */
     @media (hover: none) {
-      .dou-chat-message--user > & {
+      .dou-chat-message--actions-hover > & {
         opacity: 1;
       }
     }

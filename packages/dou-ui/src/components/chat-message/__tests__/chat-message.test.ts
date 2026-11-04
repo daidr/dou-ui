@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { h } from 'vue'
 import { describe, expect, it } from 'vitest'
-import { DouChatMessage } from '../../../index'
+import { DouChatMessage, DouConfigProvider } from '../../../index'
 import { messageText } from '../chat-message'
 
 describe('DouChatMessage', () => {
@@ -91,6 +91,34 @@ describe('DouChatMessage', () => {
     })
     expect(wrapper.attributes('aria-busy')).toBeUndefined()
     expect(wrapper.find('.dou-chat-message__actions .dou-copy-button').exists()).toBe(true)
+  })
+
+  it('shows actions on hover for the person and always for the assistant by default', () => {
+    const user = mount(DouChatMessage, { props: { sender: 'user', content: '周六去哪' } })
+    const assistant = mount(DouChatMessage, { props: { content: '去滴水湖骑车。' } })
+    const system = mount(DouChatMessage, { props: { sender: 'system', content: '已切换模型' } })
+    expect(user.classes()).toContain('dou-chat-message--actions-hover')
+    expect(assistant.classes()).toContain('dou-chat-message--actions-always')
+    expect(system.classes()).toContain('dou-chat-message--actions-always')
+  })
+
+  it('takes when the actions show from `actionsVisible`', async () => {
+    const wrapper = mount(DouChatMessage, {
+      props: { content: '去滴水湖骑车。', actionsVisible: 'hover' },
+    })
+    expect(wrapper.classes()).toContain('dou-chat-message--actions-hover')
+    expect(wrapper.classes()).not.toContain('dou-chat-message--actions-always')
+    await wrapper.setProps({ sender: 'user', actionsVisible: 'always' })
+    expect(wrapper.classes()).toContain('dou-chat-message--actions-always')
+    expect(wrapper.classes()).not.toContain('dou-chat-message--actions-hover')
+  })
+
+  it('takes `actionsVisible` for every message from the ConfigProvider defaults', () => {
+    const wrapper = mount(DouConfigProvider, {
+      props: { defaults: { DouChatMessage: { actionsVisible: 'hover' } } },
+      slots: { default: () => h(DouChatMessage, { content: '去滴水湖骑车。' }) },
+    })
+    expect(wrapper.get('.dou-chat-message').classes()).toContain('dou-chat-message--actions-hover')
   })
 
   it('keeps the actions while only an artifact is still being made', () => {

@@ -202,6 +202,18 @@ describe('tidy routes', () => {
     expect(path).not.toContain('777')
   })
 
+  it('treats a change of position through updateNode as a move', () => {
+    const tr = new FlowTransaction({
+      version: 1,
+      nodes: [node('a'), node('c', 0, 300)],
+      edges: [{ ...edge('ac', 'a', 'c'), points: [{ x: 200, y: 100 }] }],
+    })
+    tr.updateNode('a', { x: 50 })
+    expect(tr.getEdge('ac')!.points).toBeUndefined()
+    tr.updateNode('c', { x: 50 })
+    expect(tr.getEdge('ac')!.points).toEqual([{ x: 250, y: 100 }])
+  })
+
   it('drops the points when either end is resized', () => {
     const tr = new FlowTransaction({
       version: 1,

@@ -137,47 +137,42 @@ export class FlowTransaction {
     return this.step({ type: 'removeNode', id })
   }
 
-  /** Changes a node; resizing it drops the points its edges run through, as its ports move. */
+  /**
+   * Changes a node. Moving it moves the points of an edge at it along when
+   * the edge's other end has moved just as far in this transaction, and
+   * drops them otherwise, as they no longer fit; so does resizing it, as
+   * its ports move.
+   */
   updateNode(id: string, patch: Patch<FlowNode>) {
     const node = this.getNode(id)
-    if (
-      node &&
-      (('width' in patch && patch.width !== node.width) ||
-        ('height' in patch && patch.height !== node.height))
-    )
-      for (const edge of this.edgesOf(id))
-        if (edge.points) this.updateEdge(edge.id, { points: undefined })
-    return this.step({ type: 'updateNode', id, patch })
+    const changed = (key: 'x' | 'y' | 'width' | 'height') =>
+      node !== undefined && key in patch && patch[key] !== node[key]
+    const moved = changed('x') || changed('y')
+    const resized = changed('width') || changed('height')
+    this.step({ type: 'updateNode', id, patch })
+    if (moved || resized) this.carryPoints(id, resized)
+    return this
   }
 
-  /**
-   * Moves a node. An edge at it whose other end has moved just as far in
-   * this transaction keeps the points it runs through, moved along; any
-   * other edge at it drops them, as they no longer fit.
-   */
   moveNode(id: string, x: number, y: number) {
     const node = this.getNode(id)
-    if (!node) return this.updateNode(id, { x, y })
-    if (node.x === x && node.y === y) return this
-    this.updateNode(id, { x, y })
-    const shift = this.shiftOf(id)!
+    if (node && node.x === x && node.y === y) return this
+    return this.updateNode(id, { x, y })
+  }
+
+  /** Moves the points of the edges at a moved node along, or drops them. */
+  private carryPoints(id: string, drop: boolean) {
+    const shift = this.shiftOf(id)
     for (const edge of this.edgesOf(id)) {
       const before = this.before.edges.find((e) => e.id === edge.id)
-      if (!before?.points) {
-        if (edge.points) this.updateEdge(edge.id, { points: undefined })
-        continue
-      }
       const other = this.shiftOf(edge.source.node === id ? edge.target.node : edge.source.node)
-      const together = other && other.x === shift.x && other.y === shift.y
-      if (!together) {
-        if (edge.points) this.updateEdge(edge.id, { points: undefined })
-        continue
-      }
-      this.updateEdge(edge.id, {
-        points: before.points.map((p) => ({ x: p.x + shift.x, y: p.y + shift.y })),
-      })
+      const together = !drop && shift && other && other.x === shift.x && other.y === shift.y
+      if (before?.points && together)
+        this.updateEdge(edge.id, {
+          points: before.points.map((p) => ({ x: p.x + shift!.x, y: p.y + shift!.y })),
+        })
+      else if (edge.points) this.updateEdge(edge.id, { points: undefined })
     }
-    return this
   }
 
   /** How far a node has moved in this transaction so far. */

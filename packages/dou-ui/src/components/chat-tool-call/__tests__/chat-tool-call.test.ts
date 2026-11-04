@@ -50,6 +50,12 @@ describe('DouChatToolCall', () => {
     expect(wrapper.get('.dou-chat-tool-call__status').text()).toBe('未开始')
   })
 
+  it('shows a call taken back before it ran', () => {
+    const wrapper = mount(DouChatToolCall, { props: { name: 'send_email', status: 'withdrawn' } })
+    expect(wrapper.classes()).toContain('dou-chat-tool-call--withdrawn')
+    expect(wrapper.get('.dou-chat-tool-call__status').text()).toBe('已撤回')
+  })
+
   it('formats values', () => {
     expect(formatToolValue('a')).toBe('a')
     expect(formatToolValue([1])).toBe('[\n  1\n]')
@@ -67,7 +73,7 @@ describe('DouChatToolCall', () => {
     mount(DouChatToolCall, { props: { name: 'read_file', status: 'success' as never } })
     expect(warn.mock.calls.map((c) => c[0])).toEqual([
       '[dou-ui] DouChatToolCall: `pending` now means not started; use `waiting` for a call that waits for approval.',
-      '[dou-ui] DouChatToolCall: unknown status `success`, expected one of `pending`, `running`, `waiting`, `done`, `error`. Use `done`.',
+      '[dou-ui] DouChatToolCall: unknown status `success`, expected one of `pending`, `running`, `waiting`, `done`, `error`, `withdrawn`. Use `done`.',
     ])
     warn.mockRestore()
   })

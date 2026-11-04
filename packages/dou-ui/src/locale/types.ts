@@ -675,6 +675,8 @@ export interface Locale {
     toolWaiting: string
     toolDone: string
     toolError: string
+    /** A tool call taken back before it ran. */
+    toolWithdrawn: string
     /** Heads what a tool was called with. */
     toolInput: string
     /** Heads what a tool returned. */
@@ -705,6 +707,8 @@ export interface Locale {
     deny: string
     approved: string
     denied: string
+    /** A confirmation the assistant no longer needs answered. */
+    withdrawn: string
     /** An artifact still being made. */
     generating: string
     generateError: string

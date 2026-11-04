@@ -122,11 +122,25 @@ function onConfirm(part, decision) {
   if (todo) todo.items[3].status = decision === 'deny' ? 'skipped' : 'done'
 }
 
+// A new message or a stop means the assistant no longer waits for answers
+// it asked for earlier: withdraw them, and skip the plan steps they held up.
+function withdrawWaiting() {
+  for (const message of messages.value) {
+    for (const part of message.parts) {
+      if (part.type === 'confirm' && part.status === 'waiting') part.status = 'withdrawn'
+      if (part.type === 'plan') {
+        for (const item of part.items) if (item.status === 'waiting') item.status = 'skipped'
+      }
+    }
+  }
+}
+
 function later(fn, ms) {
   timers.push(setTimeout(fn, ms))
 }
 
 function send(value) {
+  withdrawWaiting()
   messages.value.push({ id: Date.now(), sender: 'user', parts: [{ type: 'text', text: value }] })
   text.value = ''
   loading.value = true
@@ -181,6 +195,7 @@ function stop() {
     for (const step of part.items ?? []) if (step.status === 'running') step.status = 'done'
   }
   loading.value = false
+  withdrawWaiting()
 }
 
 const panelOpen = computed(() => panel.value === 'plan')

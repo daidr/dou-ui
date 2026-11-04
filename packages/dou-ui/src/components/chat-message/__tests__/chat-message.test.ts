@@ -102,20 +102,20 @@ describe('DouChatMessage', () => {
     expect(system.classes()).toContain('dou-chat-message--actions-always')
   })
 
-  it('takes when the actions show from `actions`', async () => {
+  it('takes when the actions show from `actionsVisible`', async () => {
     const wrapper = mount(DouChatMessage, {
-      props: { content: '去滴水湖骑车。', actions: 'hover' },
+      props: { content: '去滴水湖骑车。', actionsVisible: 'hover' },
     })
     expect(wrapper.classes()).toContain('dou-chat-message--actions-hover')
     expect(wrapper.classes()).not.toContain('dou-chat-message--actions-always')
-    await wrapper.setProps({ sender: 'user', actions: 'always' })
+    await wrapper.setProps({ sender: 'user', actionsVisible: 'always' })
     expect(wrapper.classes()).toContain('dou-chat-message--actions-always')
     expect(wrapper.classes()).not.toContain('dou-chat-message--actions-hover')
   })
 
-  it('takes `actions` for every message from the ConfigProvider defaults', () => {
+  it('takes `actionsVisible` for every message from the ConfigProvider defaults', () => {
     const wrapper = mount(DouConfigProvider, {
-      props: { defaults: { DouChatMessage: { actions: 'hover' } } },
+      props: { defaults: { DouChatMessage: { actionsVisible: 'hover' } } },
       slots: { default: () => h(DouChatMessage, { content: '去滴水湖骑车。' }) },
     })
     expect(wrapper.get('.dou-chat-message').classes()).toContain('dou-chat-message--actions-hover')

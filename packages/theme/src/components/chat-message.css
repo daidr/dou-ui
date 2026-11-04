@@ -5,7 +5,7 @@
  * tinted bubble on the right; the assistant's runs full width with no
  * bubble or avatar, its parts stacked with even gaps, like a page.
  * Actions sit underneath: always for the assistant, on hover for the
- * person, unless `actions` says otherwise.
+ * person, unless `actionsVisible` says otherwise.
  */
 @layer dou.components {
   .dou-chat-message {

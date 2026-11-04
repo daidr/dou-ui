@@ -21,7 +21,7 @@ export type ChatMessageMarkdown = Pick<
 export type ChatMessageSender = 'user' | 'assistant' | 'system'
 
 /** When the actions under a message show. */
-export type ChatMessageActions = 'always' | 'hover'
+export type ChatMessageActionsVisible = 'always' | 'hover'
 
 export interface ChatTextPart {
   type: 'text'
@@ -128,10 +128,10 @@ export interface ChatMessageProps {
   /**
    * When the actions show: `'always'`, or `'hover'` while the pointer is
    * over the message or focus is inside. Devices without hover always show
-   * them. Defaults to `'hover'` for the person's messages and `'always'`
-   * for the rest.
+   * them. Buttons from the `actions` slot follow along. Defaults to
+   * `'hover'` for the person's messages and `'always'` for the rest.
    */
-  actions?: ChatMessageActions
+  actionsVisible?: ChatMessageActionsVisible
   /** Show a copy button among the actions, copying the text parts. */
   copyable?: boolean
   /** Offer an edit button on the person's own messages; saving emits `edit`. */

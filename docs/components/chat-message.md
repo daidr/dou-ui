@@ -34,7 +34,7 @@
 
 ## 操作
 
-助手消息下方默认始终显示操作，用户消息默认在鼠标悬停时显示，可以用 `actions` 调整。内置的操作有：
+助手消息下方默认始终显示操作，用户消息默认在鼠标悬停时显示，可以用 `actions-visible` 调整。内置的操作有：
 
 - 复制：`copyable` 默认开启，复制所有文字片段。
 - 编辑：用户消息设置 `editable` 后出现编辑按钮，在原位改写，回车或点击发送触发 `edit`，Esc 取消。
@@ -46,12 +46,12 @@
 
 ### 显示时机
 
-`actions` 决定操作何时显示：`'always'` 始终显示，`'hover'` 在鼠标悬停或焦点在消息内时显示。不设置时，用户消息为 `'hover'`，其余消息为 `'always'`。想让整个对话统一，在 [ConfigProvider](./config-provider) 的 `defaults` 里设置一次：
+`actions-visible` 决定操作何时显示：`'always'` 始终显示，`'hover'` 在鼠标悬停或焦点在消息内时显示，`actions` 插槽追加的按钮也一样。不设置时，用户消息为 `'hover'`，其余消息为 `'always'`。想让整个对话统一，在 [ConfigProvider](./config-provider) 的 `defaults` 里设置一次：
 
 ```ts
 app.use(DouUI, {
   defaults: {
-    DouChatMessage: { actions: 'hover' },
+    DouChatMessage: { actionsVisible: 'hover' },
   },
 })
 ```
@@ -80,18 +80,18 @@ app.use(DouUI, {
 
 ### Props
 
-| 名称       | 说明                                                     | 类型                                | 默认值                              |
-| ---------- | -------------------------------------------------------- | ----------------------------------- | ----------------------------------- |
-| `sender`   | 发送方                                                   | `'user' \| 'assistant' \| 'system'` | `'assistant'`                       |
-| `parts`    | 片段数组                                                 | `ChatMessagePart[]`                 | —                                   |
-| `content`  | 只有一段文字时的简写                                     | `string`                            | —                                   |
-| `loading`  | 还没有收到内容，显示等待圆点                             | `boolean`                           | `false`                             |
-| `copyable` | 显示复制按钮                                             | `boolean`                           | `true`                              |
-| `actions`  | 操作何时显示，无法悬停的设备始终显示                     | `'always' \| 'hover'`               | 用户消息 `'hover'`，其余 `'always'` |
-| `markdown` | 文字和思考过程片段按 Markdown 渲染，对象为 Markdown 选项 | `boolean \| ChatMessageMarkdown`    | `false`                             |
-| `editable` | 用户消息显示编辑按钮                                     | `boolean`                           | `false`                             |
-| `versions` | 共有几个版本，大于 1 时显示切换器                        | `number`                            | `1`                                 |
-| `version`  | 当前版本，从 1 开始，配合 `v-model:version`              | `number`                            | 最后一个版本                        |
+| 名称              | 说明                                                     | 类型                                | 默认值                              |
+| ----------------- | -------------------------------------------------------- | ----------------------------------- | ----------------------------------- |
+| `sender`          | 发送方                                                   | `'user' \| 'assistant' \| 'system'` | `'assistant'`                       |
+| `parts`           | 片段数组                                                 | `ChatMessagePart[]`                 | —                                   |
+| `content`         | 只有一段文字时的简写                                     | `string`                            | —                                   |
+| `loading`         | 还没有收到内容，显示等待圆点                             | `boolean`                           | `false`                             |
+| `copyable`        | 显示复制按钮                                             | `boolean`                           | `true`                              |
+| `actions-visible` | 操作何时显示，无法悬停的设备始终显示                     | `'always' \| 'hover'`               | 用户消息 `'hover'`，其余 `'always'` |
+| `markdown`        | 文字和思考过程片段按 Markdown 渲染，对象为 Markdown 选项 | `boolean \| ChatMessageMarkdown`    | `false`                             |
+| `editable`        | 用户消息显示编辑按钮                                     | `boolean`                           | `false`                             |
+| `versions`        | 共有几个版本，大于 1 时显示切换器                        | `number`                            | `1`                                 |
+| `version`         | 当前版本，从 1 开始，配合 `v-model:version`              | `number`                            | 最后一个版本                        |
 
 ### Events
 

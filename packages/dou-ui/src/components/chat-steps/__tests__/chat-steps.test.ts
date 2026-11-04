@@ -28,10 +28,10 @@ describe('DouChatSteps', () => {
     const wrapper = mount(DouChatSteps, {
       props: { open: true, live: false, items: [{ label: '读取网页', status: 'running' }] },
     })
-    expect(wrapper.get('.dou-chat-steps__header').text()).toBe('已完成 1 个步骤')
+    expect(wrapper.get('.dou-chat-steps__header').text()).toBe('共 1 个步骤')
     expect(wrapper.classes()).not.toContain('is-running')
     expect(wrapper.find('.dou-spinner').exists()).toBe(false)
-    expect(wrapper.get('.dou-status-dot').classes()).toContain('dou-status-dot--primary')
+    expect(wrapper.get('.dou-status-dot').classes()).toContain('dou-status-dot--neutral')
 
     await wrapper.setProps({ live: true, items: [{ label: '读取网页' }] })
     expect(wrapper.get('.dou-chat-steps__header').text()).toBe('正在处理')

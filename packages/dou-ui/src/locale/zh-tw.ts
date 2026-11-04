@@ -468,6 +468,7 @@ export const zhTW: Locale = {
     stepError: '出錯',
     working: '正在處理',
     stepsDone: '已完成 {count} 個步驟',
+    stepsTotal: '共 {count} 個步驟',
     sources: '來源',
     citation: '來源 {index}：{title}',
     approve: '允許',

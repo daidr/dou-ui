@@ -43,3 +43,11 @@ export interface ChatStepsSlots {
   /** Replaces the summary line. */
   title?: (props: { live: boolean; count: number }) => unknown
 }
+
+/**
+ * Whether the steps are running, as they show it: `live` when set, else
+ * whether a step is `running`. ChatMessage reads the same for `aria-busy`.
+ */
+export function stepsLive(items: readonly ChatStep[] | undefined, live?: boolean): boolean {
+  return live ?? !!items?.some((step) => step.status === 'running')
+}

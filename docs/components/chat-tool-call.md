@@ -10,7 +10,11 @@
 
 <DocDemo src="chat-tool-call/basic" column />
 
-这一轮结束或被停止时，可以把 `live` 设为 `false`，`running` 的调用把转圈换成静止的主色圆点，含义和 [ChatPlan](./chat-plan#运行开关) 一致。
+## 运行开关
+
+这一轮结束或被停止时，把 `live` 设为 `false`：`running` 的调用把转圈换成同色的静止圆点，状态文字不变。含义和 [ChatPlan](./chat-plan#运行开关) 一致。
+
+<DocDemo src="chat-tool-call/live" column />
 
 ## 等待确认
 

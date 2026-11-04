@@ -38,3 +38,11 @@ export interface ChatPlanSlots {
   /** Replaces the label and description of each item. */
   item?: (props: { item: ChatPlanItem; index: number }) => unknown
 }
+
+/**
+ * Whether the plan shows a step running: one is `running` and the run hasn't
+ * stopped. ChatMessage reads the same for `aria-busy`.
+ */
+export function planRunning(items: readonly ChatPlanItem[] | undefined, live = true): boolean {
+  return live && !!items?.some((item) => item.status === 'running')
+}

@@ -28,7 +28,7 @@
 
 ## 生成中
 
-`loading` 表示还没有收到任何内容，显示三个跳动的圆点。有片段正在输出（`streaming`、`thinking`、执行步骤的 `live` 为 `true`，或工具状态为 `running` 且 `live` 不为 `false`）时，消息带 `aria-busy`，并且暂时不显示底部操作。
+`loading` 表示还没有收到任何内容，显示三个跳动的圆点。有片段正在输出（`streaming`、`thinking`，或执行步骤、任务计划、工具调用正在运行，即画面上在转圈）时，消息带 `aria-busy`，并且暂时不显示底部操作。
 
 <DocDemo src="chat-message/loading" column />
 

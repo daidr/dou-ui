@@ -55,7 +55,7 @@ describe('DouChatToolCall', () => {
     expect(wrapper.find('.dou-spinner').exists()).toBe(true)
     await wrapper.setProps({ live: false })
     expect(wrapper.find('.dou-spinner').exists()).toBe(false)
-    expect(wrapper.get('.dou-status-dot').classes()).toContain('dou-status-dot--primary')
+    expect(wrapper.get('.dou-status-dot').classes()).toContain('dou-status-dot--neutral')
     expect(wrapper.get('.dou-chat-tool-call__status').text()).toBe('运行中')
   })
 

@@ -13,6 +13,7 @@ import { useLocale } from '../config-provider/use-config'
 import { DouShimmer } from '../shimmer'
 import { DouSpinner } from '../spinner'
 import { DouStatusDot } from '../status-dot'
+import { planRunning } from './chat-plan'
 import type { ChatPlanEmits, ChatPlanProps, ChatPlanSlots } from './chat-plan'
 
 defineOptions({ name: 'DouChatPlan' })
@@ -52,7 +53,7 @@ const finished = computed(
   () => props.items.filter((item) => item.status === 'done' || item.status === 'skipped').length,
 )
 // `live` false: the run has stopped, so a running step holds still
-const running = computed(() => props.live && props.items.some((item) => item.status === 'running'))
+const running = computed(() => planRunning(props.items, props.live))
 </script>
 
 <template>
@@ -95,7 +96,7 @@ const running = computed(() => props.live && props.items.some((item) => item.sta
             <span :class="ns.e('mark')">
               <template v-if="item.status === 'running'">
                 <DouSpinner v-if="live" size="sm" :label="t('chat.stepRunning')" />
-                <DouStatusDot v-else tone="primary" :label="t('chat.stepRunning')" />
+                <DouStatusDot v-else :label="t('chat.stepRunning')" />
               </template>
               <ClockPauseIcon
                 v-else-if="item.status === 'waiting'"

@@ -97,7 +97,7 @@ const statusText = computed(
       <span :class="ns.e('status')">
         <template v-if="status === 'running'">
           <DouSpinner v-if="live" size="sm" aria-hidden="true" />
-          <DouStatusDot v-else tone="primary" />
+          <DouStatusDot v-else />
         </template>
         <ClockIcon v-else-if="status === 'pending'" aria-hidden="true" />
         <ClockPauseIcon v-else-if="status === 'waiting'" aria-hidden="true" />

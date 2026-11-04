@@ -468,6 +468,7 @@ export const en: Locale = {
     stepError: 'Failed',
     working: 'Working',
     stepsDone: '{count} steps done',
+    stepsTotal: '{count} steps',
     sources: 'Sources',
     citation: 'Source {index}: {title}',
     approve: 'Allow',

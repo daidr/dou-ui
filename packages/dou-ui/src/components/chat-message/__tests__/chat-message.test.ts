@@ -67,18 +67,20 @@ describe('DouChatMessage', () => {
     expect(wrapper.find('.dou-chat-message__actions .dou-copy-button').exists()).toBe(true)
   })
 
-  it('is busy while steps are live or a live call runs', async () => {
+  it('is busy while steps, a plan or a call look like they run', async () => {
     const wrapper = mount(DouChatMessage, {
       props: { parts: [{ type: 'steps', items: [], live: true }] },
     })
     expect(wrapper.attributes('aria-busy')).toBe('true')
-    await wrapper.setProps({
-      parts: [
-        { type: 'tool', name: 'search_web', status: 'running' },
-        { type: 'plan', items: [{ label: '查天气', status: 'running' }], live: true },
-      ],
-    })
-    expect(wrapper.attributes('aria-busy')).toBe('true')
+    for (const part of [
+      { type: 'steps', items: [{ label: '读取网页', status: 'running' }] },
+      { type: 'plan', items: [{ label: '查天气', status: 'running' }] },
+      { type: 'tool', name: 'search_web', status: 'running' },
+    ]) {
+      await wrapper.setProps({ parts: [part] })
+      expect(wrapper.attributes('aria-busy')).toBe('true')
+      expect(wrapper.find('.dou-chat-message__actions').exists()).toBe(false)
+    }
     await wrapper.setProps({
       parts: [
         { type: 'text', text: '停下了' },

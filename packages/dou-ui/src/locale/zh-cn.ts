@@ -468,6 +468,7 @@ export const zhCN: Locale = {
     stepError: '出错',
     working: '正在处理',
     stepsDone: '已完成 {count} 个步骤',
+    stepsTotal: '共 {count} 个步骤',
     sources: '来源',
     citation: '来源 {index}：{title}',
     approve: '允许',

@@ -37,7 +37,7 @@ describe('DouChatPlan', () => {
     expect(row().classes()).toContain('is-running')
     expect(row().find('.dou-spinner').exists()).toBe(false)
     const dot = row().get('.dou-status-dot')
-    expect(dot.classes()).toContain('dou-status-dot--primary')
+    expect(dot.classes()).toContain('dou-status-dot--neutral')
     expect(dot.classes()).not.toContain('is-ripple')
     expect(dot.attributes('aria-label')).toBe('进行中')
     expect(row().find('.dou-shimmer.is-active').exists()).toBe(false)

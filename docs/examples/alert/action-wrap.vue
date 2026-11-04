@@ -40,6 +40,8 @@ function answer(text) {
 
 <style scoped>
 .alert-wrap-demo {
+  width: 100%;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: flex-start;

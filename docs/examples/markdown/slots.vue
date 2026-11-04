@@ -1,25 +1,29 @@
 <script setup>
-const content = `部署前请确认以下事项：
-
-\`\`\`tip
-预览环境会在分支合并 30 天后自动清理。
-\`\`\`
+const content = `发布前请先看[发布流程](/guide/release)，构建命令如下：
 
 \`\`\`sh
 bun run build
 \`\`\`
+
+上线后在[监控面板](https://status.example.com)确认没有报错。
 
 ![构建流程](https://images.example.com/pipeline.png)`
 </script>
 
 <template>
   <DouMarkdown :content="content">
-    <template #code="{ code, lang }">
-      <DouAlert v-if="lang === 'tip'" tone="primary">{{ code }}</DouAlert>
-      <DouCodeBlock v-else :code="code" :lang="lang" />
+    <!-- external: a full address, which opens in a new window -->
+    <template #link="{ href, external, children }">
+      <DouLink :href="href" :external="external" tone="primary">
+        <component :is="children" />
+      </DouLink>
+    </template>
+    <!-- only `sh` blocks; pass `streaming` on so that only whole lines are highlighted -->
+    <template #code-sh="{ code, streaming }">
+      <DouCodeBlock :code="code" lang="sh" filename="终端" :streaming="streaming" />
     </template>
     <template #image="{ alt }">
-      <div class="placeholder">{{ alt }}</div>
+      <span class="placeholder">{{ alt }}</span>
     </template>
   </DouMarkdown>
 </template>

@@ -3,11 +3,21 @@ import { createCodeHighlighter, typescript } from '@dou-ui/code'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 
 // One highlighter for every code block, in the code editor's colors.
-const defaults = { DouCodeBlock: { highlight: createCodeHighlighter([typescript]) } }
+const defaults = {
+  DouCodeBlock: { highlight: createCodeHighlighter([typescript]) },
+}
 
 const sources = [
-  { title: '上海市气象局', url: 'https://weather.example.com', description: '周六多云转小雨。' },
-  { title: '城市骑行指南', url: 'https://ride.example.com', description: '滨江骑行路线与租车点。' },
+  {
+    title: '上海市气象局',
+    url: 'https://weather.example.com',
+    description: '周六多云转小雨。',
+  },
+  {
+    title: '城市骑行指南',
+    url: 'https://ride.example.com',
+    description: '滨江骑行路线与租车点。',
+  },
 ]
 const full = `周六上海**多云转小雨**[1]，建议上午出门。滨江的骑行道全程约 4 公里[2]：
 
@@ -49,8 +59,8 @@ onBeforeUnmount(() => clearTimeout(timer))
     <DouChatMessage
       markdown
       :parts="[
+        { type: 'sources', items: sources },
         { type: 'text', text, streaming },
-        ...(streaming ? [] : [{ type: 'sources', items: sources }]),
       ]"
     />
   </DouConfigProvider>

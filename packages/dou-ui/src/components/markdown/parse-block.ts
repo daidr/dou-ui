@@ -14,7 +14,16 @@ import { normalizeLabel, unescapeMarkdown, type MarkdownRefs } from './parse-inl
  */
 
 export type BlockKind =
-  'document' | 'blockquote' | 'list' | 'item' | 'paragraph' | 'heading' | 'code' | 'hr' | 'table'
+  | 'document'
+  | 'blockquote'
+  | 'container'
+  | 'list'
+  | 'item'
+  | 'paragraph'
+  | 'heading'
+  | 'code'
+  | 'hr'
+  | 'table'
 
 /** A source line of a leaf: its text and where that text starts in the source. */
 export interface SourceLine {
@@ -62,7 +71,12 @@ const SETEXT = /^(?:=+|-+)[ \t]*$/
 const HR = /^(?:(?:\*[ \t]*){3,}|(?:_[ \t]*){3,}|(?:-[ \t]*){3,})$/
 const TABLE_DELIM = /^\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*$/
 const TABLE_DELIM_PARTIAL = /^[|:\- \t]*-[|:\- \t]*$/
-const TABLE_BREAK = /^(?:>|#{1,6}(?:[ \t]|$)|`{3,}|~{3,}|[*+-][ \t]|\d{1,9}[.)][ \t])/
+const TABLE_BREAK = /^(?:>|#{1,6}(?:[ \t]|$)|`{3,}|~{3,}|:{3,}|[*+-][ \t]|\d{1,9}[.)][ \t])/
+/** `:::name title` opens a custom block; more colons let one hold another. */
+const CONTAINER = /^(:{3,})[ \t]*([A-Za-z][\w-]*)(?:[ \t]+(.*?))?[ \t]*$/
+const CLOSE_CONTAINER = /^:{3,}(?=[ \t]*$)/
+/** A container fence still being written: colons, maybe the start of a name. */
+const CONTAINER_PARTIAL = /^:+(?:[ \t]*[A-Za-z][\w-]*)?[ \t]*$/
 const DEF =
   /^\[((?:[^\]\\\n]|\\.){1,999})\]:[ \t]*(<[^>\n]*>|\S+)(?:[ \t]+("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\((?:[^)\\]|\\.)*\)))?[ \t]*$/
 
@@ -95,7 +109,11 @@ function node(kind: BlockKind, start: number, line: number): BNode {
 const canContain = (parent: BlockKind, child: BlockKind) =>
   parent === 'list'
     ? child === 'item'
-    : (parent === 'document' || parent === 'blockquote' || parent === 'item') && child !== 'item'
+    : (parent === 'document' ||
+        parent === 'blockquote' ||
+        parent === 'container' ||
+        parent === 'item') &&
+      child !== 'item'
 
 const acceptsLines = (kind: BlockKind) =>
   kind === 'paragraph' || kind === 'code' || kind === 'table'
@@ -290,7 +308,10 @@ class BlockParser {
       let href = match[2]!
       if (href.startsWith('<')) href = href.slice(1, -1)
       const title = match[3] ? unescapeMarkdown(match[3].slice(1, -1)) : undefined
-      if (!this.refs.has(label))
+      // a definition still being written is hidden, but its address is not known yet
+      const writing =
+        this.partial && !this.line.complete && block.lines[0]!.line === this.line.start
+      if (!writing && !this.refs.has(label))
         this.refs.set(label, { href: unescapeMarkdown(href), ...(title ? { title } : {}) })
       labels.push(label)
       block.lines.shift()
@@ -341,6 +362,21 @@ class BlockParser {
         return 1
       case 'list':
         return 0
+      case 'container': {
+        const match = this.indent <= 3 ? CLOSE_CONTAINER.exec(this.rest) : null
+        if (!match) return 0
+        // the innermost open container the fence is long enough for
+        let target = block
+        for (let b = lastOpen(block); b; b = lastOpen(b))
+          if (b.kind === 'container' && b.fence!.len <= match[0].length) target = b
+        target.closed = true
+        this.touch(target)
+        if (target.parent === this.doc) this.closeResume = this.line.start + text.length + 1
+        while (this.tip !== target) this.finalize(this.tip)
+        this.finalize(target)
+        this.closeResume = null
+        return 2
+      }
       case 'code': {
         const fence = block.fence
         if (fence) {
@@ -434,6 +470,18 @@ class BlockParser {
         })
         this.pos = text.length
         this.started = heading
+        return 2
+      }
+      const directive = CONTAINER.exec(rest)
+      if (directive) {
+        const indent = this.indent
+        this.advanceNextNonspace()
+        const box = this.addChild('container')
+        box.fence = { ch: ':', len: directive[1]!.length, indent }
+        box.marker = directive[2]!
+        box.info = directive[3] ?? ''
+        this.pos = text.length
+        this.started = box
         return 2
       }
       const fence = FENCE.exec(rest)
@@ -570,7 +618,7 @@ class BlockParser {
             return
           }
         }
-        if (MARKER_ONLY.test(rest)) return
+        if (MARKER_ONLY.test(rest) || CONTAINER_PARTIAL.test(rest)) return
       }
     }
 
@@ -646,6 +694,11 @@ class BlockParser {
       complete: lastComplete,
     } satisfies BlockParseResult
   }
+}
+
+function lastOpen(block: BNode): BNode | null {
+  const last = block.children[block.children.length - 1]
+  return last?.open ? last : null
 }
 
 const acceptsLeaf = (kind: BlockKind) => kind === 'heading' || kind === 'table'

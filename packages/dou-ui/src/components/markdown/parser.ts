@@ -1,11 +1,35 @@
-import type { MarkdownBlock, MarkdownInline, MarkdownListItem, MarkdownTableRow } from './markdown'
+import type { MarkdownBlock, MarkdownInline, MarkdownItem, MarkdownRow } from './markdown'
 import { parseBlocks, splitRow, type BNode, type SourceLine } from './parse-block'
 import { parseInline, type MarkdownRefs } from './parse-inline'
 
-type Converted = MarkdownBlock | MarkdownListItem | MarkdownTableRow
+type Converted = MarkdownBlock | MarkdownItem | MarkdownRow
+type Ref = MarkdownRefs extends Map<string, infer V> ? V : never
+
+/** Reference definitions, noting the labels looked up and not found. */
+class RefLookup extends Map<string, Ref> {
+  misses: string[] = []
+  override get(label: string) {
+    const ref = super.get(label)
+    if (!ref) this.misses.push(label)
+    return ref
+  }
+}
+
+// labels a leaf or row looked up without finding a definition
+const missesOf = new WeakMap<object, string[]>()
+
+/** Labels the blocks used without a definition, so a later one can fix them. */
+function collectMisses(node: Converted, into: Set<string>) {
+  for (const label of missesOf.get(node) ?? []) into.add(label)
+  if (node.type === 'table') {
+    collectMisses(node.head, into)
+    for (const row of node.rows) collectMisses(row, into)
+  } else if ('children' in node && node.type !== 'paragraph' && node.type !== 'heading')
+    for (const child of node.children) collectMisses(child as Converted, into)
+}
 
 interface Context {
-  refs: MarkdownRefs
+  refs: RefLookup
   /** The leaf still being written. */
   tip: BNode | null
   /** What the previous update made, by kind and start, to hand back unchanged. */
@@ -55,7 +79,16 @@ function convertLeaf(n: BNode, ctx: Context, lines: SourceLine[] = n.lines): Mar
   if (n.kind === 'paragraph' && partial) {
     // a lone `| a | b |` is a table header until its delimiter row says otherwise
     const last = lines[lines.length - 1]
-    if (last && last.text.trimStart().startsWith('|')) lines = lines.slice(0, -1)
+    const before = lines[lines.length - 2]
+    if (
+      last &&
+      before?.text.trimStart().startsWith('|') &&
+      /^[|:\- \t]*$/.test(last.text) &&
+      /[|:]/.test(last.text)
+    )
+      // `|` or `|:` under a header: a delimiter row just begun
+      lines = lines.slice(0, -2)
+    else if (last && last.text.trimStart().startsWith('|')) lines = lines.slice(0, -1)
   }
   if (n.kind === 'paragraph' && !lines.length) return null
   const last = lines[lines.length - 1]
@@ -65,6 +98,7 @@ function convertLeaf(n: BNode, ctx: Context, lines: SourceLine[] = n.lines): Mar
     if (prev.type === 'paragraph' || (prev.type === 'heading' && prev.level === n.level))
       return remember(ctx, key, prev)
   }
+  const misses = ctx.refs.misses.length
   const children = inlineOf(lines, ctx.refs, partial)
   const block: MarkdownBlock =
     n.kind === 'heading'
@@ -76,6 +110,7 @@ function convertLeaf(n: BNode, ctx: Context, lines: SourceLine[] = n.lines): Mar
           children,
         }
       : { type: 'paragraph', start: n.start, end, children }
+  if (ctx.refs.misses.length > misses) missesOf.set(block, ctx.refs.misses.slice(misses))
   partialOf.set(block, partial)
   return remember(ctx, key, block)
 }
@@ -96,7 +131,7 @@ function isTight(list: BNode): boolean {
 const TASK = /^\[([ xX])\](?=[ \t]|$)/
 const TASK_PENDING = /^\[[ xX]?\]?$/
 
-function convertItem(n: BNode, tight: boolean, ctx: Context): MarkdownListItem {
+function convertItem(n: BNode, tight: boolean, ctx: Context): MarkdownItem {
   const key = `item:${n.start}`
   let checked: boolean | null = null
   const children: MarkdownBlock[] = []
@@ -146,14 +181,15 @@ function convertRow(
   columns: number,
   partial: boolean,
   ctx: Context,
-): MarkdownTableRow {
+): MarkdownRow {
   const key = `row:${line.line}`
   const end = line.at + line.text.length
   const prev = ctx.prev.get(key)
   if (prev?.type === 'row' && prev.end === end && partialOf.get(prev) === partial)
     return remember(ctx, key, prev)
   const cells = splitRow(line.text)
-  const row: MarkdownTableRow = {
+  const misses = ctx.refs.misses.length
+  const row: MarkdownRow = {
     type: 'row',
     start: line.line,
     end,
@@ -169,6 +205,7 @@ function convertRow(
       )
     }),
   }
+  if (ctx.refs.misses.length > misses) missesOf.set(row, ctx.refs.misses.slice(misses))
   partialOf.set(row, partial)
   return remember(ctx, key, row)
 }
@@ -205,6 +242,28 @@ function convert(n: BNode, ctx: Context): MarkdownBlock | null {
       )
         return remember(ctx, key, prev)
       return remember(ctx, key, { type: 'blockquote', start: n.start, end: n.end, children })
+    }
+    case 'container': {
+      const children = convertAll(n.children, ctx)
+      const title = n.info.trim()
+      if (
+        prev?.type === 'container' &&
+        prev.end === n.end &&
+        prev.closed === n.closed &&
+        prev.name === n.marker &&
+        prev.title === title &&
+        sameChildren(prev.children, children)
+      )
+        return remember(ctx, key, prev)
+      return remember(ctx, key, {
+        type: 'container',
+        start: n.start,
+        end: n.end,
+        name: n.marker,
+        title,
+        closed: n.closed,
+        children,
+      })
     }
     case 'list': {
       const tight = isTight(n)
@@ -266,14 +325,19 @@ function convertAll(nodes: BNode[], ctx: Context): MarkdownBlock[] {
   return out
 }
 
+export interface MarkdownParseOptions {
+  /** The stream is over: unfinished syntax at the end is read as it stands. */
+  final?: boolean
+}
+
 export interface MarkdownParser {
   /**
    * Parse `source`, a longer version of the last one while streaming.
    * Blocks that cannot change any more are not parsed again, and every
    * block that is unchanged since the last update is the same object.
-   * Pass `final` once the stream is over.
+   * Pass `{ final: true }` once the stream is over.
    */
-  update: (source: string, final?: boolean) => MarkdownBlock[]
+  update: (source: string, options?: MarkdownParseOptions) => MarkdownBlock[]
   /** How many leading blocks of the last update can no longer change. */
   readonly stable: number
   /** Forget everything parsed so far. */
@@ -286,6 +350,7 @@ export function createMarkdownParser(): MarkdownParser {
   let frozenEnd = 0
   let frozenSource = ''
   let refs: MarkdownRefs = new Map()
+  let frozenMisses = new Set<string>()
   let prev = new Map<string, Converted>()
 
   function reset() {
@@ -293,23 +358,30 @@ export function createMarkdownParser(): MarkdownParser {
     frozenEnd = 0
     frozenSource = ''
     refs = new Map()
+    frozenMisses = new Set()
     prev = new Map()
   }
 
-  function update(source: string, final = false): MarkdownBlock[] {
+  function update(source: string, { final = false }: MarkdownParseOptions = {}): MarkdownBlock[] {
     if (frozenEnd && !source.startsWith(frozenSource)) reset()
     const result = parseBlocks(source, frozenEnd, !final)
-    // A new definition may be used by a block parsed before it: start over once.
-    if (frozen.length && result.stableLabels.some((label) => !refs.has(label))) {
-      reset()
-      return update(source, final)
+    // A definition that a block already frozen looked for: start over once.
+    // Rare (a definition usually comes after its use only at the very end),
+    // so a full parse is simpler than finding the blocks it changes.
+    if (frozenMisses.size) {
+      for (const label of result.refs.keys()) {
+        if (!frozenMisses.has(label)) continue
+        reset()
+        return update(source, { final })
+      }
     }
-    const all = refs.size ? new Map([...result.refs, ...refs]) : result.refs
-    const ctx: Context = { refs: all, tip: result.tip, prev, next: new Map() }
+    const lookup = new RefLookup(refs.size ? [...result.refs, ...refs] : result.refs)
+    const ctx: Context = { refs: lookup, tip: result.tip, prev, next: new Map() }
     const stable = convertAll(result.blocks.slice(0, result.stable), ctx)
     const tail = convertAll(result.blocks.slice(result.stable), ctx)
     if (result.stable) {
       frozen = frozen.concat(stable)
+      for (const block of stable) collectMisses(block, frozenMisses)
       frozenEnd = result.resume
       frozenSource = source.slice(0, frozenEnd)
       for (const label of result.stableLabels) {
@@ -332,5 +404,5 @@ export function createMarkdownParser(): MarkdownParser {
 
 /** Parse a whole Markdown document. Works anywhere, without a DOM. */
 export function parseMarkdown(source: string): MarkdownBlock[] {
-  return createMarkdownParser().update(source, true)
+  return createMarkdownParser().update(source, { final: true })
 }

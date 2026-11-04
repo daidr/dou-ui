@@ -1,3 +1,4 @@
+import type { VNode } from 'vue'
 import type { ChatSource } from '../chat-sources/chat-sources'
 
 /** Column alignment of a table, from its delimiter row. */
@@ -41,14 +42,25 @@ export interface MarkdownCode extends Span {
   /** The closing fence has arrived (always true for indented code). */
   closed: boolean
 }
-export interface MarkdownRule extends Span {
+export interface MarkdownHr extends Span {
   type: 'hr'
 }
-export interface MarkdownQuote extends Span {
+export interface MarkdownBlockquote extends Span {
   type: 'blockquote'
   children: MarkdownBlock[]
 }
-export interface MarkdownListItem extends Span {
+/** A custom block: `:::name title`, its content, then `:::`. */
+export interface MarkdownContainer extends Span {
+  type: 'container'
+  /** The word after the colons, e.g. `tip`. */
+  name: string
+  /** The rest of the opening line, trimmed. */
+  title: string
+  /** The closing fence has arrived. */
+  closed: boolean
+  children: MarkdownBlock[]
+}
+export interface MarkdownItem extends Span {
   type: 'item'
   /** `true` / `false` for a task item, `null` otherwise. */
   checked: boolean | null
@@ -62,30 +74,34 @@ export interface MarkdownList extends Span {
   /** The number of the first item of an ordered list. */
   startNumber: number
   tight: boolean
-  children: MarkdownListItem[]
+  children: MarkdownItem[]
 }
-export interface MarkdownTableRow extends Span {
+export interface MarkdownRow extends Span {
   type: 'row'
   cells: MarkdownInline[][]
 }
 export interface MarkdownTable extends Span {
   type: 'table'
   align: MarkdownAlign[]
-  head: MarkdownTableRow
-  rows: MarkdownTableRow[]
+  head: MarkdownRow
+  rows: MarkdownRow[]
 }
 
 export type MarkdownBlock =
   | MarkdownParagraph
   | MarkdownHeading
   | MarkdownCode
-  | MarkdownRule
-  | MarkdownQuote
+  | MarkdownHr
+  | MarkdownBlockquote
+  | MarkdownContainer
   | MarkdownList
   | MarkdownTable
 
 /** Kinds of address `sanitizeUrl` is asked about. */
-export type MarkdownUrlKind = 'link' | 'image'
+export type MarkdownUrlKind = 'link' | 'image' | 'source'
+
+/** Where links open; any other string names a window or frame. */
+export type MarkdownLinkTarget = '_blank' | '_self' | '_parent' | '_top' | (string & {})
 
 export interface MarkdownProps {
   /** The Markdown source. While streaming, everything received so far. */
@@ -104,12 +120,16 @@ export interface MarkdownProps {
   caret?: boolean
   /** Sources for citations: `[1]` in the text shows as a ChatCitation for the first one. */
   sources?: ChatSource[]
-  /** Where links open. */
-  linkTarget?: string
   /**
-   * Checks the address of a link or image and returns the one to use, or
-   * `undefined` to drop it (a link keeps its text). By default only http(s),
-   * mailto, tel, relative addresses and anchors are kept.
+   * Where links with a full address (`https://…`, `//…`) open. Relative
+   * addresses and anchors always open in place.
+   */
+  linkTarget?: MarkdownLinkTarget
+  /**
+   * Checks the address of a link, image or citation source and returns the
+   * one to use, or `undefined` to drop it (a link keeps its text, a source
+   * its title). By default only http(s), mailto, tel, relative addresses and
+   * anchors are kept: see `defaultSanitizeUrl`.
    */
   sanitizeUrl?: (url: string, kind: MarkdownUrlKind) => string | undefined
 }
@@ -119,11 +139,68 @@ export interface MarkdownEmits {
   done: []
 }
 
+/**
+ * Every slot replaces one kind of node. `children` is what would be drawn
+ * inside it, new text still fading in; draw it with
+ * `<component :is="children" />`.
+ */
 export interface MarkdownSlots {
-  /** Replaces a fenced code block, e.g. to draw `mermaid` as a chart. */
-  code?: (props: { code: string; lang: string; streaming: boolean }) => unknown
-  /** Replaces an image, e.g. to add a preview. */
+  paragraph?: (props: { node: MarkdownParagraph; children: VNode }) => unknown
+  heading?: (props: { node: MarkdownHeading; level: number; children: VNode }) => unknown
+  blockquote?: (props: { node: MarkdownBlockquote; children: VNode }) => unknown
+  list?: (props: { node: MarkdownList; children: VNode }) => unknown
+  /** A list item; `children` leaves out the task checkbox. */
+  item?: (props: { node: MarkdownItem; checked: boolean | null; children: VNode }) => unknown
+  /** A table; `children` is the default `<table>`, e.g. to wrap it. */
+  table?: (props: { node: MarkdownTable; children: VNode }) => unknown
+  hr?: (props: { node: MarkdownHr }) => unknown
+  /**
+   * A fenced code block. `streaming` is on while its closing fence has not
+   * arrived; hand it to CodeBlock so that only whole lines are highlighted.
+   */
+  code?: (props: MarkdownCodeSlotProps) => unknown
+  /** A code block in one language, e.g. `code-mermaid`; before `code`. */
+  [name: `code-${string}`]: ((props: MarkdownCodeSlotProps) => unknown) | undefined
+  /** A `:::name` block. Without a slot, `tip`, `info`, `note`, `warning` and `danger` show as an Alert. */
+  container?: (props: MarkdownContainerSlotProps) => unknown
+  /** A container of one name, e.g. `container-tip`; before `container`. */
+  [name: `container-${string}`]: ((props: MarkdownContainerSlotProps) => unknown) | undefined
+  /**
+   * A link. `href` has passed `sanitizeUrl`, and is missing while the
+   * address is still being written or was dropped. `external` for a full
+   * address, which opens at `linkTarget`.
+   */
+  link?: (props: {
+    node: Extract<MarkdownInline, { type: 'link' }>
+    href: string | undefined
+    title: string | undefined
+    external: boolean
+    children: VNode
+  }) => unknown
+  /** An image whose address has passed `sanitizeUrl`. */
   image?: (props: { src: string; alt: string; title?: string }) => unknown
+  /** A citation such as `[1]`, with the source from `sources` (its `url` checked). */
+  citation?: (props: { index: number; source: ChatSource }) => unknown
+  'inline-code'?: (props: { code: string }) => unknown
+  strong?: (props: { children: VNode }) => unknown
+  em?: (props: { children: VNode }) => unknown
+  del?: (props: { children: VNode }) => unknown
+}
+
+export interface MarkdownCodeSlotProps {
+  node: MarkdownCode
+  code: string
+  lang: string
+  streaming: boolean
+}
+
+export interface MarkdownContainerSlotProps {
+  node: MarkdownContainer
+  name: string
+  title: string
+  /** Its closing fence has not arrived yet. */
+  streaming: boolean
+  children: VNode
 }
 
 export interface MarkdownExpose {

@@ -44,11 +44,17 @@
 
 <DocDemo src="chat-message/actions" column />
 
+## Markdown
+
+设置 `markdown` 后，文字和思考过程片段用 [Markdown](./markdown) 渲染，流式输出同样适用；正文中的 `[1]` 显示为消息里 `sources` 片段对应来源的角标。
+
+`markdown` 也可以是一个对象，传入 Markdown 组件的 `sanitizeUrl`、`linkTarget`、`smooth`、`speed`、`caret`。Markdown 组件的插槽加上 `markdown-` 前缀就能在这里使用，比如用 `#markdown-code-mermaid` 把图表代码交给自己的组件。更多写法见 Markdown 的[在对话中使用](./markdown#在对话中使用)。
+
+<DocDemo src="chat-message/markdown" column />
+
 ## 自定义渲染
 
-设置 `markdown` 后，文字片段用 [Markdown](./markdown) 渲染，流式输出同样适用；正文中的 `[1]` 会显示为消息里 `sources` 片段对应来源的角标。
-
-`text` 插槽接管文字片段的渲染，参数里的 `text` 是已经逐字显示出来的部分，可以交给 Markdown 渲染器，或者像下面这样把 `[1]` 换成 [ChatCitation](./chat-sources#角标引用)。
+`text` 插槽完全接管文字片段的渲染，写了它之后 `markdown` 不再作用于文字片段。参数里的 `text` 是已经逐字显示出来的部分，`part.text` 是全部文字，`sources` 是消息里的来源。下面的例子把 `[1]` 换成 [ChatCitation](./chat-sources#角标引用)。
 
 不认识的 `type` 交给 `part` 插槽渲染，适合天气卡片、图表这类应用自己的内容。
 
@@ -58,17 +64,17 @@
 
 ### Props
 
-| 名称       | 说明                                        | 类型                                | 默认值        |
-| ---------- | ------------------------------------------- | ----------------------------------- | ------------- |
-| `sender`   | 发送方                                      | `'user' \| 'assistant' \| 'system'` | `'assistant'` |
-| `parts`    | 片段数组                                    | `ChatMessagePart[]`                 | —             |
-| `content`  | 只有一段文字时的简写                        | `string`                            | —             |
-| `loading`  | 还没有收到内容，显示等待圆点                | `boolean`                           | `false`       |
-| `copyable` | 显示复制按钮                                | `boolean`                           | `true`        |
-| `markdown` | 文字片段按 Markdown 渲染                    | `boolean`                           | `false`       |
-| `editable` | 用户消息显示编辑按钮                        | `boolean`                           | `false`       |
-| `versions` | 共有几个版本，大于 1 时显示切换器           | `number`                            | `1`           |
-| `version`  | 当前版本，从 1 开始，配合 `v-model:version` | `number`                            | 最后一个版本  |
+| 名称       | 说明                                                     | 类型                                | 默认值        |
+| ---------- | -------------------------------------------------------- | ----------------------------------- | ------------- |
+| `sender`   | 发送方                                                   | `'user' \| 'assistant' \| 'system'` | `'assistant'` |
+| `parts`    | 片段数组                                                 | `ChatMessagePart[]`                 | —             |
+| `content`  | 只有一段文字时的简写                                     | `string`                            | —             |
+| `loading`  | 还没有收到内容，显示等待圆点                             | `boolean`                           | `false`       |
+| `copyable` | 显示复制按钮                                             | `boolean`                           | `true`        |
+| `markdown` | 文字和思考过程片段按 Markdown 渲染，对象为 Markdown 选项 | `boolean \| ChatMessageMarkdown`    | `false`       |
+| `editable` | 用户消息显示编辑按钮                                     | `boolean`                           | `false`       |
+| `versions` | 共有几个版本，大于 1 时显示切换器                        | `number`                            | `1`           |
+| `version`  | 当前版本，从 1 开始，配合 `v-model:version`              | `number`                            | 最后一个版本  |
 
 ### Events
 
@@ -81,9 +87,10 @@
 
 ### Slots
 
-| 名称      | 说明                                         |
-| --------- | -------------------------------------------- |
-| `text`    | 渲染文字片段，参数为 `{ part, text, index }` |
-| `part`    | 渲染未知类型的片段，参数为 `{ part, index }` |
-| `actions` | 追加在内置操作后面的按钮                     |
-| `default` | 替换全部片段，自己排版                       |
+| 名称         | 说明                                                         |
+| ------------ | ------------------------------------------------------------ |
+| `text`       | 渲染文字片段，参数为 `{ part, text, index, sources }`        |
+| `markdown-*` | Markdown 组件的同名插槽，如 `markdown-code`、`markdown-link` |
+| `part`       | 渲染未知类型的片段，参数为 `{ part, index }`                 |
+| `actions`    | 追加在内置操作后面的按钮                                     |
+| `default`    | 替换全部片段，自己排版                                       |

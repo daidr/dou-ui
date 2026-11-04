@@ -14,7 +14,7 @@ import DouChatSteps from '../chat-steps/chat-steps.vue'
 import DouChatToolCall from '../chat-tool-call/chat-tool-call.vue'
 import { useLocale } from '../config-provider/use-config'
 import DouCopyButton from '../copy-button/copy-button.vue'
-import DouMarkdown from '../markdown/markdown.vue'
+import { DouMarkdown } from '../markdown'
 import type { ChatSource } from '../chat-sources/chat-sources'
 import DouStreamText from '../stream-text/stream-text.vue'
 import DouTooltip from '../tooltip/tooltip.vue'
@@ -25,6 +25,7 @@ import type {
   ChatCustomPart,
   ChatMessageEmits,
   ChatMessagePart,
+  ChatMessageMarkdownSlots,
   ChatMessageProps,
   ChatMessageSlots,
 } from './chat-message'
@@ -41,7 +42,7 @@ const props = withDefaults(defineProps<ChatMessageProps>(), {
   version: undefined,
 })
 const emit = defineEmits<ChatMessageEmits>()
-const slots = defineSlots<ChatMessageSlots>()
+const slots = defineSlots<ChatMessageSlots & ChatMessageMarkdownSlots>()
 
 const ns = useNamespace('chat-message')
 const { t } = useLocale()
@@ -51,6 +52,18 @@ type AnyPart = ChatMessagePart | ChatCustomPart
 const parts = computed<AnyPart[]>(
   () => props.parts ?? (props.content === undefined ? [] : [{ type: 'text', text: props.content }]),
 )
+const markdownOptions = computed(() =>
+  typeof props.markdown === 'object' ? props.markdown : undefined,
+)
+// `markdown-code` here is the Markdown component's `code`
+const PREFIX = 'markdown-'
+const markdownSlots = () =>
+  Object.keys(slots)
+    .filter((name) => name.startsWith(PREFIX))
+    .map((name) => ({
+      name: name as keyof ChatMessageMarkdownSlots,
+      inner: name.slice(PREFIX.length),
+    }))
 const isUser = computed(() => props.sender === 'user')
 // the person's attachments sit above their bubble, not inside it
 const files = computed(() => (isUser.value ? parts.value.filter((p) => p.type === 'files') : []))
@@ -192,11 +205,16 @@ const rest = (part: AnyPart) => {
         <template v-for="(part, index) in body" :key="index">
           <DouMarkdown
             v-if="part.type === 'text' && markdown && !slots.text"
+            v-bind="markdownOptions"
             :class="ns.e('text')"
             :content="asText(part).text"
             :streaming="!!asText(part).streaming"
             :sources="sources.length ? sources : undefined"
-          />
+          >
+            <template v-for="slot in markdownSlots()" :key="slot.name" #[slot.inner]="scope">
+              <slot :name="slot.name" v-bind="scope" />
+            </template>
+          </DouMarkdown>
           <DouStreamText
             v-else-if="part.type === 'text'"
             :class="ns.e('text')"
@@ -204,7 +222,13 @@ const rest = (part: AnyPart) => {
             :streaming="!!asText(part).streaming"
           >
             <template v-if="slots.text" #default="{ text: shown }">
-              <slot name="text" :part="asText(part)" :text="shown" :index="index" />
+              <slot
+                name="text"
+                :part="asText(part)"
+                :text="shown"
+                :index="index"
+                :sources="sources"
+              />
             </template>
           </DouStreamText>
           <DouChatReasoning
@@ -212,7 +236,19 @@ const rest = (part: AnyPart) => {
             :thinking="!!asReasoning(part).thinking"
             :duration="asReasoning(part).duration"
           >
+            <DouMarkdown
+              v-if="markdown"
+              v-bind="markdownOptions"
+              :content="asReasoning(part).text"
+              :streaming="!!asReasoning(part).thinking"
+              :caret="false"
+            >
+              <template v-for="slot in markdownSlots()" :key="slot.name" #[slot.inner]="scope">
+                <slot :name="slot.name" v-bind="scope" />
+              </template>
+            </DouMarkdown>
             <DouStreamText
+              v-else
               :content="asReasoning(part).text"
               :streaming="!!asReasoning(part).thinking"
               :caret="false"

@@ -379,7 +379,8 @@ export function parseInline(
         let pending = false
         if (!target && partial) {
           const rest = text.slice(i + 1)
-          if ((rest[0] === '(' && !rest.includes(')')) || (!rest && !/^\d+$/.test(label))) {
+          // `[text](` with the address on its way; a bare `[text]` stays text
+          if (rest[0] === '(' && !rest.includes(')')) {
             pending = true
             end = len
           }

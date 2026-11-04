@@ -1,11 +1,12 @@
 /*
  * Markdown
  *
- * Rendered Markdown sized for conversation: it takes the surrounding font
- * size, spaces blocks in em, and keeps headings close to body size, so a
- * reply reads like a message rather than a page. Headings and strong text
- * are ink, body one step softer; quotes, rules and tables are hairlines,
- * inline code a faint tint.
+ * Rendered Markdown sized for conversation: body text takes the
+ * surrounding font size and blocks are spaced in em; headings stay on the
+ * type scale, h1 and h2 one step up, the rest at body size and told apart
+ * by weight, so a reply reads like a message rather than a page. Text is
+ * ink, quotes one step softer; quotes, rules and tables are hairlines,
+ * inline code a faint tint. `:::` blocks with a known name are Alerts.
  *
  * New content fades in: text a step at a time (`__fresh`), whole blocks
  * such as code, tables and rules when they first show (`__enter`). Both
@@ -41,6 +42,8 @@
         .dou-markdown__table,
         .dou-markdown__code,
         .dou-markdown__custom,
+        .dou-markdown__callout,
+        .dou-markdown__container,
         hr,
         img
       ) {
@@ -54,17 +57,11 @@
       line-height: 1.45;
     }
 
-    & :where(h1) {
-      font-size: 1.375em;
+    & :where(h1, h2) {
+      font-size: var(--dou-font-size-lg);
     }
-    & :where(h2) {
-      font-size: 1.2em;
-    }
-    & :where(h3) {
-      font-size: 1.075em;
-    }
-    & :where(h4, h5, h6) {
-      font-size: 1em;
+    & :where(h3, h4, h5, h6) {
+      font-size: var(--dou-font-size-md);
     }
 
     & :where(strong) {
@@ -137,7 +134,7 @@
       border-radius: 4px;
       background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
       font-family: var(--dou-font-family-mono);
-      font-size: 0.875em;
+      font-size: var(--dou-font-size-sm);
     }
 
     & :where(hr) {
@@ -162,7 +159,7 @@
     & table {
       min-width: 100%;
       border-collapse: collapse;
-      font-size: 0.9375em;
+      font-size: var(--dou-font-size-sm);
       line-height: 1.6;
     }
 
@@ -183,6 +180,21 @@
     & tbody tr:last-child td {
       border-bottom: 0;
     }
+  }
+
+  /* blocks inside a container keep the spacing between them, not around them */
+  .dou-markdown__callout .dou-alert__description,
+  .dou-markdown__container {
+    & > :first-child {
+      margin-top: 0;
+    }
+    & > :last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  .dou-markdown__container-title {
+    font-weight: var(--dou-font-weight-bold);
   }
 
   .dou-markdown__task-list {

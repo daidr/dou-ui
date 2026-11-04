@@ -25,8 +25,8 @@ const props = withDefaults(defineProps<MarkdownProps>(), {
   content: '',
   streaming: false,
   smooth: true,
-  speed: 60,
-  caret: false,
+  speed: 40,
+  caret: true,
   linkTarget: '_blank',
 })
 const emit = defineEmits<MarkdownEmits>()
@@ -46,7 +46,7 @@ const shown = ref(props.content.length)
 let committed = props.content.length
 let committedText = props.content
 let committedFinal = !props.streaming
-const blocks = shallowRef<MarkdownBlock[]>(parser.update(props.content, committedFinal))
+const blocks = shallowRef<MarkdownBlock[]>(parser.update(props.content, { final: committedFinal }))
 const tick = ref(0)
 
 const commits: MarkdownCommit[] = []
@@ -67,6 +67,8 @@ const ctx: MarkdownRenderContext = {
   now: 0,
   delays: new Map(),
   caret: null,
+  drawing: null,
+  fading: new Set(),
 }
 provide(markdownContextKey, ctx)
 
@@ -79,7 +81,8 @@ function caretTarget(list: MarkdownBlock[]): object | null {
   for (;;) {
     if (!node) return null
     if (Array.isArray(node)) node = node[node.length - 1]
-    else if (node.type === 'blockquote') node = node.children[node.children.length - 1]
+    else if (node.type === 'blockquote' || node.type === 'container')
+      node = node.children[node.children.length - 1]
     else if (node.type === 'list') {
       const item = node.children[node.children.length - 1]
       if (!item) return null
@@ -114,15 +117,22 @@ function commit(now: number) {
   const final = !props.streaming && shown.value >= props.content.length
   if (animate() && shown.value > committed) commits.push({ from: committed, time: now })
   // fades that are over need no span any more
+  let ended = false
   while (commits.length && now - commits[0]!.time >= FADE) {
     const old = commits.shift()!
+    ended = true
     for (const key of ctx.delays.keys()) if (key.endsWith(`:${old.from}`)) ctx.delays.delete(key)
+  }
+  if (ended) {
+    // blocks that are finished are not drawn again by themselves
+    for (const block of ctx.fading) if (!block.isUnmounted) block.proxy?.$forceUpdate()
+    ctx.fading.clear()
   }
   committedText = props.content.slice(0, shown.value)
   committed = shown.value
   committedFinal = final
   ctx.now = now
-  blocks.value = parser.update(committedText, final)
+  blocks.value = parser.update(committedText, { final })
   chunked.value = chunkOf(blocks.value)
   tick.value++
   clearTimeout(cleanup)
@@ -215,6 +225,7 @@ defineExpose<MarkdownExpose>({ flush })
 // Renders the blocks. The caret target is set here, untracked, so that
 // moving the caret does not re-render every block that checks for it.
 function Body() {
+  ctx.drawing = null
   ctx.caret = props.caret && !done.value ? caretTarget(blocks.value) : null
   const list = chunked.value
   const children = list.map((chunk, index) =>

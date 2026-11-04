@@ -1,8 +1,14 @@
 import { mount } from '@vue/test-utils'
-import { createSSRApp, h, nextTick } from 'vue'
+import { createSSRApp, defineComponent, h, nextTick } from 'vue'
 import { renderToString } from 'vue/server-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { DouChatMessage, DouCodeBlock, DouMarkdown } from '../../../index'
+import {
+  DouAlert,
+  DouChatMessage,
+  DouCodeBlock,
+  DouConfigProvider,
+  DouMarkdown,
+} from '../../../index'
 
 let queue: FrameRequestCallback[] = []
 function frames(count: number, step = 16) {
@@ -11,6 +17,14 @@ function frames(count: number, step = 16) {
     const run = queue
     queue = []
     for (const cb of run) cb(performance.now())
+  }
+}
+
+// frame by frame, letting Vue draw after each few
+async function drawFrames(count: number) {
+  for (let i = 0; i < count; i++) {
+    frames(8)
+    await nextTick()
   }
 }
 
@@ -198,6 +212,127 @@ describe('DouMarkdown', () => {
   })
 })
 
+describe('DouMarkdown citations and links', () => {
+  const sources = [
+    { title: '上海市气象局', url: 'https://weather.example.com' },
+    { title: '坏来源', url: 'javascript:alert(1)' },
+  ]
+
+  it('checks source addresses with `sanitizeUrl`', () => {
+    const wrapper = mount(DouMarkdown, { props: { content: '晴[1]，雨[2]', sources } })
+    const citations = wrapper.findAllComponents({ name: 'DouChatCitation' })
+    expect(citations).toHaveLength(2)
+    expect(citations[0]!.props('source')).toEqual(sources[0])
+    expect(citations[1]!.props('source')).toMatchObject({ title: '坏来源', url: undefined })
+    expect(wrapper.html()).not.toContain('javascript:')
+  })
+
+  it('keeps citations out of links, and reads `[1, 2]` and `[^1]`', () => {
+    const wrapper = mount(DouMarkdown, {
+      props: { content: '[见 [1]](https://a.com) 晴[1, 2]，[^1]，a[1].b', sources },
+    })
+    expect(wrapper.find('a[href="https://a.com"] a').exists()).toBe(false)
+    expect(wrapper.find('a[href="https://a.com"]').text()).toBe('见 [1]')
+    expect(wrapper.findAllComponents({ name: 'DouChatCitation' })).toHaveLength(3)
+    expect(wrapper.text()).toContain('a[1].b')
+  })
+
+  it('hands citations to the `citation` slot', () => {
+    const wrapper = mount(DouMarkdown, {
+      props: { content: '晴[1]', sources },
+      slots: {
+        citation: ({ index, source }: { index: number; source: { title: string } }) =>
+          h('sup', { class: 'own' }, `${index}:${source.title}`),
+      },
+    })
+    expect(wrapper.find('.own').text()).toBe('1:上海市气象局')
+  })
+
+  it('opens only full addresses at `linkTarget`', () => {
+    const wrapper = mount(DouMarkdown, {
+      props: { content: '[站内](/docs) [锚点](#a) [外部](https://a.com)' },
+    })
+    const [inside, anchor, outside] = wrapper.findAll('a')
+    expect(inside!.attributes('target')).toBeUndefined()
+    expect(anchor!.attributes('target')).toBeUndefined()
+    expect(outside!.attributes('target')).toBe('_blank')
+  })
+
+  it('hands links to the `link` slot', () => {
+    const wrapper = mount(DouMarkdown, {
+      props: { content: '[文档](/docs) 和 [坏](javascript:x)' },
+      slots: {
+        link: ({ href, children }: { href?: string; children: unknown }) =>
+          h('button', { 'data-to': href ?? 'none' }, [children as never]),
+      },
+    })
+    const buttons = wrapper.findAll('button')
+    expect(buttons.map((b) => b.attributes('data-to'))).toEqual(['/docs', 'none'])
+    expect(buttons[0]!.text()).toBe('文档')
+  })
+})
+
+describe('DouMarkdown custom rendering', () => {
+  it('draws known containers as an Alert and others as a plain box', () => {
+    const wrapper = mount(DouMarkdown, {
+      props: { content: ':::warning 注意\n周六**有雨**\n:::\n\n:::steps\n第一步\n:::' },
+    })
+    const alert = wrapper.findComponent(DouAlert)
+    expect(alert.props()).toMatchObject({ tone: 'warning', title: '注意' })
+    expect(alert.attributes('role')).toBe('note')
+    expect(alert.find('strong').text()).toBe('有雨')
+    expect(wrapper.find('.dou-markdown__container[data-name="steps"]').text()).toBe('第一步')
+  })
+
+  it('takes a container by name before the general slot', () => {
+    const wrapper = mount(DouMarkdown, {
+      props: { content: ':::tip 贴士\n带伞\n:::\n\n:::other\n别的\n:::', streaming: true },
+      slots: {
+        'container-tip': ({ title, children }: { title: string; children: unknown }) =>
+          h('aside', { class: 'tip' }, [title, children as never]),
+        container: ({ name, streaming }: { name: string; streaming: boolean }) =>
+          h('div', { class: 'any' }, `${name}:${streaming}`),
+      },
+    })
+    expect(wrapper.find('.tip').text()).toBe('贴士带伞')
+    expect(wrapper.find('.any').text()).toBe('other:false')
+  })
+
+  it('replaces blocks and inline nodes by type, keeping their content', () => {
+    const wrapper = mount(DouMarkdown, {
+      props: {
+        content: '## 行程\n\n**周六** `出发`\n\n```mermaid\ngraph TD\n```\n\n```ts\nlet a\n```',
+      },
+      slots: {
+        heading: ({ level, children }: { level: number; children: unknown }) =>
+          h('div', { class: `h${level}` }, [children as never]),
+        strong: ({ children }: { children: unknown }) => h('b', [children as never]),
+        'inline-code': ({ code }: { code: string }) => h('kbd', code),
+        'code-mermaid': ({ code }: { code: string }) => h('figure', code),
+      },
+    })
+    expect(wrapper.find('.h2').text()).toBe('行程')
+    expect(wrapper.find('b').text()).toBe('周六')
+    expect(wrapper.find('kbd').text()).toBe('出发')
+    expect(wrapper.find('figure').text()).toBe('graph TD')
+    expect(wrapper.findComponent(DouCodeBlock).props('code')).toBe('let a')
+  })
+
+  it('merges every fading span back into text once the fades end', async () => {
+    const wrapper = mount(DouMarkdown, { props: { content: '', streaming: true } })
+    await wrapper.setProps({ content: '第一段\n\n第二段\n\n第三段\n\n第四段' })
+    // drawn frame by frame, so finished blocks are drawn while they fade
+    await drawFrames(3)
+    expect(wrapper.findAll('.dou-markdown__fresh').length).toBeGreaterThan(0)
+    await drawFrames(7)
+    vi.advanceTimersByTime(400)
+    await nextTick()
+    await nextTick()
+    expect(wrapper.findAll('p')).toHaveLength(4)
+    expect(wrapper.find('.dou-markdown__fresh').exists()).toBe(false)
+  })
+})
+
 describe('DouCodeBlock streaming', () => {
   it('highlights whole lines only', async () => {
     const highlight = vi.fn<(code: string) => string>((code) =>
@@ -263,5 +398,38 @@ describe('DouChatMessage markdown', () => {
     const wrapper = mount(DouChatMessage, { props: { content: '**不加粗**' } })
     expect(wrapper.find('.dou-markdown').exists()).toBe(false)
     expect(wrapper.text()).toContain('**不加粗**')
+  })
+})
+
+describe('DouChatMessage markdown options', () => {
+  it('takes Markdown options and `markdown-` slots', () => {
+    const wrapper = mount(DouChatMessage, {
+      props: {
+        markdown: { sanitizeUrl: (url: string) => (url.startsWith('/') ? url : undefined) },
+        parts: [{ type: 'text', text: '[a](https://a.com) [b](/b)\n\n```mermaid\ngraph\n```' }],
+      },
+      slots: { 'markdown-code-mermaid': ({ code }: { code: string }) => h('figure', code) },
+    })
+    expect(wrapper.findAll('a').map((a) => a.attributes('href'))).toEqual(['/b'])
+    expect(wrapper.find('figure').text()).toBe('graph')
+  })
+
+  it('renders reasoning as Markdown too', () => {
+    const wrapper = mount(DouChatMessage, {
+      props: { markdown: true, parts: [{ type: 'reasoning', text: '**分析**一下' }] },
+    })
+    expect(wrapper.find('.dou-markdown strong').text()).toBe('分析')
+  })
+
+  it('reads ConfigProvider defaults for the Markdown inside', () => {
+    const wrapper = mount(
+      defineComponent({
+        render: () =>
+          h(DouConfigProvider, { defaults: { DouMarkdown: { linkTarget: '_self' } } }, () =>
+            h(DouChatMessage, { markdown: true, content: '[a](https://a.com)' }),
+          ),
+      }),
+    )
+    expect(wrapper.find('a').attributes('target')).toBeUndefined()
   })
 })

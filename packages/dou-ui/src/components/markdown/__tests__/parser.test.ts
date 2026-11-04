@@ -165,7 +165,7 @@ describe('createMarkdownParser', () => {
         const source = SAMPLE.slice(0, i)
         expect(shape(parser.update(source))).toEqual(shape(createMarkdownParser().update(source)))
       }
-      expect(shape(parser.update(SAMPLE, true))).toEqual(shape(parseMarkdown(SAMPLE)))
+      expect(shape(parser.update(SAMPLE, { final: true }))).toEqual(shape(parseMarkdown(SAMPLE)))
     }
   })
 
@@ -193,7 +193,7 @@ describe('createMarkdownParser', () => {
   it('starts over when the source is replaced', () => {
     const parser = createMarkdownParser()
     parser.update('# a\n\nb\n\nc')
-    expect(shape(parser.update('x\n\ny', true))).toEqual(shape(parseMarkdown('x\n\ny')))
+    expect(shape(parser.update('x\n\ny', { final: true }))).toEqual(shape(parseMarkdown('x\n\ny')))
   })
 })
 
@@ -294,5 +294,86 @@ describe('defaultSanitizeUrl', () => {
       'data:text/html,<script>',
     ])
       expect(defaultSanitizeUrl(url)).toBeUndefined()
+  })
+})
+
+describe('containers', () => {
+  it('reads `:::name title` blocks with Markdown inside', () => {
+    expect(stream(':::tip 小贴士\n**带伞**\n\n- 外滩\n:::\n\n之后')).toEqual(
+      shape(parseMarkdown(':::tip 小贴士\n**带伞**\n\n- 外滩\n:::\n\n之后')),
+    )
+    const [box, after] = parseMarkdown(':::tip 小贴士\n**带伞**\n:::\n\n之后')
+    expect(shape(box)).toEqual({
+      type: 'container',
+      name: 'tip',
+      title: '小贴士',
+      closed: true,
+      children: [{ type: 'paragraph', children: [{ type: 'strong', children: [text('带伞')] }] }],
+    })
+    expect(after).toMatchObject({ type: 'paragraph' })
+  })
+
+  it('nests with longer fences, and a fence closes the innermost container it fits', () => {
+    const [outer] = parseMarkdown('::::steps\n:::tip\n内层\n:::\n外层\n::::') as {
+      children: { type: string; name?: string }[]
+    }[]
+    expect(outer!.children.map((c) => c.name ?? c.type)).toEqual(['tip', 'paragraph'])
+  })
+
+  it('freezes a container once it closes', () => {
+    const parser = createMarkdownParser()
+    const first = parser.update(':::info\n一\n:::\n\n二')
+    expect(parser.stable).toBe(1)
+    expect(parser.update(':::info\n一\n:::\n\n二三')[0]).toBe(first[0])
+  })
+
+  it('shows an open container while streaming, without a half-written fence', () => {
+    expect(stream(':::warning\n小心')).toMatchObject([{ type: 'container', closed: false }])
+    expect(stream(':::warning\n小心\n::')).toEqual(stream(':::warning\n小心\n'))
+    // the name may still grow
+    expect(stream('段落\n\n:::war')).toEqual(stream('段落\n\n'))
+  })
+})
+
+describe('streaming corner cases', () => {
+  it('reaches the same result as a full parse when a definition comes last', () => {
+    const source = '参考 [文档][doc] 了解更多。\n\n第二段。\n\n[doc]: https://ui.daidr.me'
+    const parser = createMarkdownParser()
+    for (let i = 1; i <= source.length; i++) parser.update(source.slice(0, i))
+    expect(shape(parser.update(source, { final: true }))).toEqual(shape(parseMarkdown(source)))
+  })
+
+  it('hides a table header while its delimiter row has only begun', () => {
+    for (const row of ['|', '| ', '|:'])
+      expect(stream(`前文\n\n| 时间 | 地点 |\n${row}`)).toEqual(stream('前文\n\n'))
+  })
+
+  it('keeps a bare `[text]` at the end as text', () => {
+    expect(inline('见[附表]', true)).toEqual([text('见[附表]')])
+  })
+})
+
+describe('defaultSanitizeUrl with a kind', () => {
+  it('takes the same arguments as `sanitizeUrl`', () => {
+    expect(defaultSanitizeUrl('javascript:x', 'source')).toBeUndefined()
+    expect(defaultSanitizeUrl('https://a.com', 'link')).toBe('https://a.com')
+  })
+})
+
+describe('streaming matches a full parse', () => {
+  const docs = [
+    '参考 [文档][doc] 和 [b]。\n\n> 引用 [doc]\n\n- 项 [b]\n\n[doc]: https://ui.daidr.me "标题"\n[b]: /b',
+    ':::tip 小贴士\n- 一\n- 二\n\n::::note\n嵌套\n::::\n:::\n\n| a | b |\n| - | - |\n| 1 | [x] |\n\n[x]: https://x.com',
+    '# 标题\n\n```ts\nconst a = 1\n```\n\n1. 一\n   - 子项 **粗\n2. 二\n\n---\n\n末尾 `code` ~~删~~',
+  ]
+  it('at every prefix, and once final', () => {
+    for (const doc of docs) {
+      const parser = createMarkdownParser()
+      for (let i = 1; i <= doc.length; i++) {
+        const prefix = doc.slice(0, i)
+        expect(shape(parser.update(prefix))).toEqual(shape(createMarkdownParser().update(prefix)))
+      }
+      expect(shape(parser.update(doc, { final: true }))).toEqual(shape(parseMarkdown(doc)))
+    }
   })
 })

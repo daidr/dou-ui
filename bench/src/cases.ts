@@ -31,6 +31,7 @@ import {
   DouSwitch,
   DouTextarea,
   DouNodeGraph,
+  DouMarkdown,
   type GraphEdge,
   type GraphNode,
 } from 'dou-ui'
@@ -278,6 +279,36 @@ const messages = (n: number) =>
     text: `#${index} ` + sentence.repeat(1 + ((index * 7) % 9)),
   }))
 
+/** A reply of about `n` lines: headings, paragraphs, lists, tables and code, over and over. */
+function markdownDoc(n: number) {
+  const parts: string[] = []
+  let lines = 0
+  for (let i = 0; lines < n; i++) {
+    const section = [
+      `## 第 ${i} 节：${words[i % words.length]}`,
+      '',
+      `${sentence.repeat(3)}**重点 ${i}**，参考 [文档](https://example.com/${i}) 和 \`code_${i}\`。`,
+      '',
+      `- ${words[i % 8]}的第一项`,
+      `- 第二项，*强调*`,
+      `  - 嵌套 ${i}`,
+      '',
+      '| 城市 | 数值 |',
+      '| --- | --: |',
+      `| ${words[(i + 1) % 8]} | ${i * 3} |`,
+      `| ${words[(i + 2) % 8]} | ${i * 7} |`,
+      '',
+      '```ts',
+      `const value${i} = compute(${i})`,
+      '```',
+      '',
+    ]
+    parts.push(...section)
+    lines += section.length
+  }
+  return parts.join('\n')
+}
+
 export const cases: Record<string, Case> = {
   'virtual-measured': {
     render: (n) => {
@@ -338,6 +369,50 @@ export const cases: Record<string, Case> = {
             ),
           ),
         )
+    },
+  },
+  // a reply of `n` lines rendered at once, e.g. a past message
+  'markdown-mount': {
+    render: (n) => {
+      const content = markdownDoc(n)
+      return () => h(DouMarkdown, { content, style: 'width: 720px' })
+    },
+  },
+  // a reply of `n` lines still streaming: a few characters come in at the end, then the frame
+  'markdown-stream': {
+    frames: 30,
+    budget: { 10_000: 8 },
+    render: (n) => {
+      const content = ref(markdownDoc(n))
+      ;(window as any).markdown = { content, count: 0 }
+      return () =>
+        h(DouMarkdown, {
+          content: content.value,
+          streaming: true,
+          smooth: false,
+          style: 'width: 720px',
+        })
+    },
+    act: async () => {
+      const state = (window as any).markdown
+      const piece = `${sentence.slice(state.count % 10, (state.count % 10) + 4)}`
+      state.count++
+      await timedDraw(() => (state.content.value += piece))
+    },
+  },
+  // the same, with the reveal and fade on
+  'markdown-stream-smooth': {
+    frames: 30,
+    render: (n) => {
+      const content = ref(markdownDoc(n))
+      ;(window as any).markdown = { content, count: 0 }
+      return () =>
+        h(DouMarkdown, { content: content.value, streaming: true, style: 'width: 720px' })
+    },
+    act: async () => {
+      const state = (window as any).markdown
+      state.count++
+      await timedDraw(() => (state.content.value += sentence.slice(0, 4)))
     },
   },
   /* per-instance cost of plain components */

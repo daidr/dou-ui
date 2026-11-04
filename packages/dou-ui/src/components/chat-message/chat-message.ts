@@ -103,6 +103,12 @@ export interface ChatMessageProps {
   parts?: (ChatMessagePart | ChatCustomPart)[]
   /** Shorthand for a message of one text part. */
   content?: string
+  /**
+   * Render text parts as Markdown, streaming included. `[1]` in the text
+   * becomes a citation of the message's sources parts. Set it for every
+   * message in the ConfigProvider's `defaults`.
+   */
+  markdown?: boolean
   /** No part has arrived yet: show the waiting dots, like ChatBubble's. */
   loading?: boolean
   /** Show a copy button among the actions, copying the text parts. */

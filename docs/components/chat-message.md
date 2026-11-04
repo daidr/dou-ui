@@ -46,6 +46,8 @@
 
 ## 自定义渲染
 
+设置 `markdown` 后，文字片段用 [Markdown](./markdown) 渲染，流式输出同样适用；正文中的 `[1]` 会显示为消息里 `sources` 片段对应来源的角标。
+
 `text` 插槽接管文字片段的渲染，参数里的 `text` 是已经逐字显示出来的部分，可以交给 Markdown 渲染器，或者像下面这样把 `[1]` 换成 [ChatCitation](./chat-sources#角标引用)。
 
 不认识的 `type` 交给 `part` 插槽渲染，适合天气卡片、图表这类应用自己的内容。
@@ -63,6 +65,7 @@
 | `content`  | 只有一段文字时的简写                        | `string`                            | —             |
 | `loading`  | 还没有收到内容，显示等待圆点                | `boolean`                           | `false`       |
 | `copyable` | 显示复制按钮                                | `boolean`                           | `true`        |
+| `markdown` | 文字片段按 Markdown 渲染                    | `boolean`                           | `false`       |
 | `editable` | 用户消息显示编辑按钮                        | `boolean`                           | `false`       |
 | `versions` | 共有几个版本，大于 1 时显示切换器           | `number`                            | `1`           |
 | `version`  | 当前版本，从 1 开始，配合 `v-model:version` | `number`                            | 最后一个版本  |

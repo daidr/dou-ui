@@ -14,6 +14,8 @@ import DouChatSteps from '../chat-steps/chat-steps.vue'
 import DouChatToolCall from '../chat-tool-call/chat-tool-call.vue'
 import { useLocale } from '../config-provider/use-config'
 import DouCopyButton from '../copy-button/copy-button.vue'
+import DouMarkdown from '../markdown/markdown.vue'
+import type { ChatSource } from '../chat-sources/chat-sources'
 import DouStreamText from '../stream-text/stream-text.vue'
 import DouTooltip from '../tooltip/tooltip.vue'
 import { messageText } from './chat-message'
@@ -34,6 +36,7 @@ const props = withDefaults(defineProps<ChatMessageProps>(), {
   loading: false,
   copyable: true,
   editable: false,
+  markdown: false,
   versions: 1,
   version: undefined,
 })
@@ -55,6 +58,18 @@ const body = computed(() =>
   isUser.value ? parts.value.filter((p) => p.type !== 'files') : parts.value,
 )
 const text = computed(() => messageText(parts.value as { type: string; text?: unknown }[]))
+// Every source of the message, numbered in order, for `[1]` in Markdown
+// text. The same array while the sources stay the same, so text that
+// streams in does not redraw the whole reply.
+let lastSources: ChatSource[] = []
+const sources = computed(() => {
+  const next = parts.value.flatMap((part) =>
+    part.type === 'sources' ? ((part as { items?: ChatSource[] }).items ?? []) : [],
+  )
+  if (next.length === lastSources.length && next.every((s, i) => s === lastSources[i]))
+    return lastSources
+  return (lastSources = next)
+})
 
 const busy = computed(
   () =>
@@ -175,8 +190,15 @@ const rest = (part: AnyPart) => {
     <div v-else-if="body.length || loading || slots.default" :class="ns.e('content')">
       <slot>
         <template v-for="(part, index) in body" :key="index">
+          <DouMarkdown
+            v-if="part.type === 'text' && markdown && !slots.text"
+            :class="ns.e('text')"
+            :content="asText(part).text"
+            :streaming="!!asText(part).streaming"
+            :sources="sources.length ? sources : undefined"
+          />
           <DouStreamText
-            v-if="part.type === 'text'"
+            v-else-if="part.type === 'text'"
             :class="ns.e('text')"
             :content="asText(part).text"
             :streaming="!!asText(part).streaming"

@@ -274,6 +274,53 @@ describe('deriveLayout', () => {
     })
   })
 
+  it('keeps equally wide items equally wide', () => {
+    const quarters = ['a', 'b', 'c', 'd'].map((id, i) => ({ id, x: i * 3, y: 0, w: 3, h: 2 }))
+    const below = { id: 'e', x: 0, y: 2, w: 12, h: 1 }
+    const out = deriveLayout([...quarters, below], 12, { columns: 6 })
+    expect(byId(out)).toEqual({
+      a: [0, 0, 3, 2],
+      b: [3, 0, 3, 2],
+      c: [0, 2, 3, 2],
+      d: [3, 2, 3, 2],
+      e: [0, 4, 6, 1],
+    })
+    noOverlap(out)
+  })
+
+  it('wraps a row by width, keeping wide items on their own line', () => {
+    const mixed = [
+      { id: 'a', x: 0, y: 0, w: 3, h: 1 },
+      { id: 'b', x: 3, y: 0, w: 3, h: 2 },
+      { id: 'c', x: 6, y: 0, w: 6, h: 1 },
+    ]
+    expect(byId(deriveLayout(mixed, 12, { columns: 6 }))).toEqual({
+      a: [0, 0, 3, 1],
+      b: [3, 0, 3, 2],
+      c: [0, 2, 6, 1],
+    })
+  })
+
+  it('leaves rows of unequal items side by side', () => {
+    const uneven = [
+      { id: 'a', x: 0, y: 0, w: 5, h: 1 },
+      { id: 'b', x: 5, y: 0, w: 7, h: 1 },
+    ]
+    expect(byId(deriveLayout(uneven, 12, { columns: 6 }))).toEqual({
+      a: [0, 0, 3, 1],
+      b: [3, 0, 3, 1],
+    })
+  })
+
+  it('wraps three quarters with a gap after them', () => {
+    const three = ['a', 'b', 'c'].map((id, i) => ({ id, x: i * 3, y: 0, w: 3, h: 1 }))
+    expect(byId(deriveLayout(three, 12, { columns: 6 }))).toEqual({
+      a: [0, 0, 3, 1],
+      b: [3, 0, 3, 1],
+      c: [0, 1, 3, 1],
+    })
+  })
+
   it('stacks in reading order on one column', () => {
     expect(byId(deriveLayout(wide, 12, { columns: 1 }))).toEqual({
       a: [0, 0, 1, 2],

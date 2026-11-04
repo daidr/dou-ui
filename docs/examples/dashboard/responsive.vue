@@ -8,9 +8,10 @@ const grid = ref()
 // 当前断点由网格自己的宽度决定
 const breakpoint = computed(() => grid.value?.breakpoint ?? 'lg')
 const items = ref([
-  { id: '访问量', x: 0, y: 0, w: 4, h: 2 },
-  { id: '订单', x: 4, y: 0, w: 4, h: 2 },
-  { id: '退款', x: 8, y: 0, w: 4, h: 2 },
+  { id: '访问量', x: 0, y: 0, w: 3, h: 2 },
+  { id: '订单', x: 3, y: 0, w: 3, h: 2 },
+  { id: '退款', x: 6, y: 0, w: 3, h: 2 },
+  { id: '转化率', x: 9, y: 0, w: 3, h: 2 },
   { id: '销售趋势', x: 0, y: 2, w: 8, h: 3 },
   { id: '新用户', x: 8, y: 2, w: 4, h: 3 },
 ])

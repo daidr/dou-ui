@@ -137,17 +137,54 @@ export class FlowTransaction {
     return this.step({ type: 'removeNode', id })
   }
 
+  /** Changes a node; resizing it drops the points its edges run through, as its ports move. */
   updateNode(id: string, patch: Patch<FlowNode>) {
+    const node = this.getNode(id)
+    if (
+      node &&
+      (('width' in patch && patch.width !== node.width) ||
+        ('height' in patch && patch.height !== node.height))
+    )
+      for (const edge of this.edgesOf(id))
+        if (edge.points) this.updateEdge(edge.id, { points: undefined })
     return this.step({ type: 'updateNode', id, patch })
   }
 
-  /** Moves a node; edges at it drop the points they ran through, which no longer fit. */
+  /**
+   * Moves a node. An edge at it whose other end has moved just as far in
+   * this transaction keeps the points it runs through, moved along; any
+   * other edge at it drops them, as they no longer fit.
+   */
   moveNode(id: string, x: number, y: number) {
     const node = this.getNode(id)
-    if (node && node.x === x && node.y === y) return this
-    for (const edge of this.edgesOf(id))
-      if (edge.points) this.updateEdge(edge.id, { points: undefined })
-    return this.updateNode(id, { x, y })
+    if (!node) return this.updateNode(id, { x, y })
+    if (node.x === x && node.y === y) return this
+    this.updateNode(id, { x, y })
+    const shift = this.shiftOf(id)!
+    for (const edge of this.edgesOf(id)) {
+      const before = this.before.edges.find((e) => e.id === edge.id)
+      if (!before?.points) {
+        if (edge.points) this.updateEdge(edge.id, { points: undefined })
+        continue
+      }
+      const other = this.shiftOf(edge.source.node === id ? edge.target.node : edge.source.node)
+      const together = other && other.x === shift.x && other.y === shift.y
+      if (!together) {
+        if (edge.points) this.updateEdge(edge.id, { points: undefined })
+        continue
+      }
+      this.updateEdge(edge.id, {
+        points: before.points.map((p) => ({ x: p.x + shift.x, y: p.y + shift.y })),
+      })
+    }
+    return this
+  }
+
+  /** How far a node has moved in this transaction so far. */
+  private shiftOf(id: string) {
+    const now = this.getNode(id)
+    const was = this.before.nodes.find((n) => n.id === id)
+    return now && was ? { x: now.x - was.x, y: now.y - was.y } : undefined
   }
 
   /** Merges `patch` into the node's `data`. */

@@ -82,6 +82,30 @@ const chain = (): FlowDocument => ({
   edges: [edge('ab', 'a', 'b'), edge('bc', 'b', 'c'), edge('ac', 'a', 'c')],
 })
 
+const twoLongEdges = (): FlowDocument => ({
+  version: 1,
+  nodes: [
+    {
+      ...node('a'),
+      data: {
+        label: 'a',
+        outputs: [
+          { id: 'o1', side: 'bottom' },
+          { id: 'o2', side: 'bottom' },
+        ],
+      },
+    },
+    node('b', 300, 40),
+    node('c', 40, 300),
+  ],
+  edges: [
+    edge('ab', 'a', 'b'),
+    edge('bc', 'b', 'c'),
+    { id: 'c1', source: { node: 'a', port: 'o1' }, target: { node: 'c', port: 'in' } },
+    { id: 'c2', source: { node: 'a', port: 'o2' }, target: { node: 'c', port: 'in' } },
+  ],
+})
+
 describe('tidy routes', () => {
   it('runs an edge spanning several ranks between the nodes in its way, as one undo step', async () => {
     const { editor, doc } = setup(chain())
@@ -114,6 +138,80 @@ describe('tidy routes', () => {
     const path = wrapper.find('[data-edge-id="ac"] path').attributes('d')
     expect(path).toContain('600 100')
     expect(path).toContain('L600 200')
+  })
+
+  it('moves the points along when both ends move together, else drops them', () => {
+    const tr = new FlowTransaction({
+      version: 1,
+      nodes: [node('a'), node('b', 0, 150), node('c', 0, 300)],
+      edges: [{ ...edge('ac', 'a', 'c'), points: [{ x: 200, y: 100 }] }],
+    })
+    tr.moveNode('a', 10, 20)
+    expect(tr.getEdge('ac')!.points).toBeUndefined()
+    tr.moveNode('c', 10, 320)
+    expect(tr.getEdge('ac')!.points).toEqual([{ x: 210, y: 120 }])
+    // A node the edge only passes by doesn't count.
+    tr.moveNode('b', 50, 150)
+    expect(tr.getEdge('ac')!.points).toEqual([{ x: 210, y: 120 }])
+  })
+
+  it('runs long edges between the same two nodes side by side', async () => {
+    const { editor, doc } = setup(twoLongEdges())
+    await ticks()
+    editor.tidy()
+    const [p1, p2] = ['c1', 'c2'].map((id) => doc.value.edges.find((e) => e.id === id)!.points!)
+    expect(p2![0]!.x - p1![0]!.x).toBe(8)
+    expect(p2![0]!.y).toBe(p1![0]!.y)
+  })
+
+  it('carries the points along with a copy', async () => {
+    const { wrapper, editor, doc } = setup(chain(), {
+      selection: { nodes: ['a', 'b', 'c'], edges: [] },
+    })
+    await ticks()
+    editor.tidy()
+    await ticks()
+    const before = doc.value.edges.find((e) => e.id === 'ac')!.points!
+    await wrapper.find('.dou-flow-toolbar button[aria-label="复制一份"]').trigger('click')
+    const copy = doc.value.edges.at(-1)!
+    expect(copy.id).not.toBe('ac')
+    expect(copy.points).toEqual(before.map((p) => ({ x: p.x + 24, y: p.y + 24 })))
+  })
+
+  it('ignores the points when a folded container stands in for an end', async () => {
+    const folded: FlowDocument = {
+      version: 1,
+      nodes: [
+        node('a'),
+        {
+          id: 'g',
+          type: 'group',
+          x: 300,
+          y: 300,
+          width: 300,
+          height: 200,
+          data: { label: '组', collapsed: true },
+        },
+        { ...node('c', 320, 340), parent: 'g' },
+      ],
+      edges: [{ ...edge('ac', 'a', 'c'), points: [{ x: 777, y: 400 }] }],
+    }
+    const { wrapper } = setup(folded)
+    await ticks()
+    const path = wrapper.find('[data-edge-id="ac"] path').attributes('d')!
+    expect(path).not.toContain('777')
+  })
+
+  it('drops the points when either end is resized', () => {
+    const tr = new FlowTransaction({
+      version: 1,
+      nodes: [node('a'), node('c', 0, 300)],
+      edges: [{ ...edge('ac', 'a', 'c'), points: [{ x: 200, y: 100 }] }],
+    })
+    tr.updateNode('a', { width: 160 })
+    expect(tr.getEdge('ac')!.points).toHaveLength(1)
+    tr.updateNode('a', { width: 200 })
+    expect(tr.getEdge('ac')!.points).toBeUndefined()
   })
 
   it('drops the points when either end moves', () => {

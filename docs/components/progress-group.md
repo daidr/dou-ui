@@ -14,6 +14,14 @@
 
 <DocDemo src="progress-group/fill" column />
 
+## 竖排图例
+
+设置 `legend-direction="vertical"` 后，图例每项占一行：名称在前，数量靠右对齐，方便上下对照。适合卡片、侧栏这类较窄的位置。名称过长时以省略号截断，悬停可以看到全名。默认值 `horizontal` 让各项并排，放不下时换行。只在开启 `legend` 时生效。
+
+用 `legend` 插槽时，插槽内容的第一部分在左、最后一部分靠右。
+
+<DocDemo src="progress-group/vertical" column />
+
 ## 可访问性
 
 整体是 `role="group"`，可以用 `label` 命名；每一段是 `role="meter"`，读出名称和 `format` 后的数量。
@@ -22,15 +30,16 @@
 
 ### Props
 
-| 名称      | 说明                     | 类型                                         | 默认值   |
-| --------- | ------------------------ | -------------------------------------------- | -------- |
-| `items`   | 各段                     | `ProgressGroupItem[]`                        | `[]`     |
-| `max`     | 总量                     | `number`                                     | 各段之和 |
-| `size`    | 粗细：4、6、8px          | `'sm' \| 'md' \| 'lg'`                       | `'md'`   |
-| `legend`  | 显示图例                 | `boolean`                                    | `false`  |
-| `tooltip` | 悬停时显示名称和数量     | `boolean`                                    | `true`   |
-| `format`  | 数量的写法               | `(value: number, percent: number) => string` | 百分比   |
-| `label`   | 无可见标签时给读屏的名称 | `string`                                     | —        |
+| 名称              | 说明                       | 类型                                         | 默认值         |
+| ----------------- | -------------------------- | -------------------------------------------- | -------------- |
+| `items`           | 各段                       | `ProgressGroupItem[]`                        | `[]`           |
+| `max`             | 总量                       | `number`                                     | 各段之和       |
+| `size`            | 粗细：4、6、8px            | `'sm' \| 'md' \| 'lg'`                       | `'md'`         |
+| `legend`          | 显示图例                   | `boolean`                                    | `false`        |
+| `legendDirection` | 图例的排列：并排或每项一行 | `'horizontal' \| 'vertical'`                 | `'horizontal'` |
+| `tooltip`         | 悬停时显示名称和数量       | `boolean`                                    | `true`         |
+| `format`          | 数量的写法                 | `(value: number, percent: number) => string` | 百分比         |
+| `label`           | 无可见标签时给读屏的名称   | `string`                                     | —              |
 
 ### ProgressGroupItem
 

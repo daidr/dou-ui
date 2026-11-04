@@ -14,7 +14,7 @@ export type {
   WhiteboardImageOptions,
   WhiteboardUpload,
   WhiteboardUploaded,
-  WhiteboardUploadError,
+  WhiteboardUploadErrorHandler,
 } from './image'
 export type {
   WhiteboardImageData,

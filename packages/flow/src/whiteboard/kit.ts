@@ -27,7 +27,7 @@ import {
   insertImages,
   pickImages,
   type WhiteboardUpload,
-  type WhiteboardUploadError,
+  type WhiteboardUploadErrorHandler,
 } from './image'
 import { connectorEdge, connectorToolbar } from './connector'
 import { drawBoardNode } from './draw'
@@ -154,11 +154,11 @@ export interface WhiteboardKitOptions {
    */
   upload?: WhiteboardUpload
   /**
-   * Called for each image whose `upload` failed, with the error and the
-   * file; the app then tells the user, screen readers included. Without
+   * Called for each image whose `upload` failed, with the file and the
+   * error; the app then tells the user, screen readers included. Without
    * it, a danger toast at the bottom says which images were not added.
    */
-  onUploadError?: WhiteboardUploadError
+  onUploadError?: WhiteboardUploadErrorHandler
 }
 
 /**

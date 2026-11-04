@@ -15,11 +15,11 @@ export type WhiteboardUpload = (file: File) => WhiteboardUploaded | Promise<Whit
 export type WhiteboardUploaded = string | { src: string; alt?: string }
 
 /**
- * Called for each image whose upload threw or rejected, with what it threw
- * and the file. Giving it replaces the built-in error toast, and the app
+ * Called for each image whose upload threw or rejected, with the file and
+ * what it threw. Giving it replaces the built-in error toast, and the app
  * then tells the user, screen readers included, in its own way.
  */
-export type WhiteboardUploadError = (error: unknown, file: File) => void
+export type WhiteboardUploadErrorHandler = (file: File, error: unknown) => void
 
 export interface WhiteboardImageOptions {
   /** Where the images go, in canvas units; the middle of the view by default. */
@@ -27,7 +27,7 @@ export interface WhiteboardImageOptions {
   /** Overrides the kit's `upload` option for these images. */
   upload?: WhiteboardUpload
   /** Overrides the kit's `onUploadError` option for these images. */
-  onUploadError?: WhiteboardUploadError
+  onUploadError?: WhiteboardUploadErrorHandler
 }
 
 /** Without an upload, images are kept in the document as data URLs. */
@@ -87,18 +87,23 @@ export async function insertImages(
         let alt = file.name.replace(/\.[^.]+$/, '')
         try {
           const done = await upload(file)
-          if (typeof done === 'string') src = done
-          else {
-            src = done.src
-            if (done.alt !== undefined) alt = done.alt
+          const given = typeof done === 'string' ? done : done?.src
+          if (typeof given !== 'string' || !given) {
+            // a broken image would go in otherwise
+            console.warn(
+              `[@dou-ui/flow] upload returned no src for "${file.name}"; return a URL or { src, alt }`,
+            )
+            throw new Error('[@dou-ui/flow] upload returned no src')
           }
+          src = given
+          if (typeof done === 'object' && done.alt !== undefined) alt = done.alt
         } catch (error) {
           failed.push(file)
           try {
-            onUploadError?.(error, file)
+            onUploadError?.(file, error)
           } catch (thrown) {
             // the other images still go in
-            console.error(thrown)
+            console.error('[@dou-ui/flow] onUploadError threw', thrown)
           }
           return
         }

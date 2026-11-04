@@ -84,6 +84,8 @@ const extensions = [
       const body = new FormData()
       body.append('file', file)
       const res = await fetch('/api/upload', { method: 'POST', body })
+      // 抛出的错误会交给 onUploadError，见下文
+      if (!res.ok) throw new Error((await res.text()) || `上传失败（${res.status}）`)
       return (await res.json()).url
     },
   }),
@@ -94,18 +96,24 @@ const extensions = [
 
 `upload` 抛出错误或返回被拒绝的 Promise 时，这张图片不会加进来，屏幕下方会弹出一条错误提示，说明哪张图片没能添加，读屏也会朗读。一次拖入、粘贴或选择的图片里有两张或更多失败时，合成一条提示，说明有几张没能添加。
 
-想用自己的方式提示，例如显示服务器返回的原因，传入 `onUploadError`。每张失败的图片调用它一次，传入错误和对应的文件。传了它，默认提示和读屏朗读都不再出现，由应用自己告诉用户：
+想用自己的方式提示，例如显示服务器返回的原因，传入 `onUploadError`。每张失败的图片调用它一次，传入对应的文件和错误。传了它，默认提示和读屏朗读都不再出现，由应用自己告诉用户：
 
 ```ts
 import { toast } from 'dou-ui'
 
 whiteboardKit({
   upload,
-  onUploadError(error, file) {
+  onUploadError(file, error) {
     toast.danger(`${file.name} 上传失败：${(error as Error).message}`)
   },
 })
 ```
+
+`upload` 返回的结果没有 `src` 时也算失败，开发时控制台会提示。
+
+下面的示例默认模拟上传失败，拖入或选择一张图片就能看到默认提示；打开“用 onUploadError 自己提示”，提示会带上失败原因：
+
+<DocDemo src="flow/whiteboard-upload-error" />
 
 ## 旋转
 
@@ -215,7 +223,7 @@ const board: FlowDocument = {
 | `tool`          | 当前工具，和自己的工具栏共享；不传时由内部管理                            | `Ref<WhiteboardTool>`                                               | —             |
 | `toolbar`       | 是否显示内置工具栏                                                        | `boolean`                                                           | `true`        |
 | `upload`        | 把图片文件变成要保存的地址，例如上传后返回 URL；也可以返回 `{ src, alt }` | `(file: File) => WhiteboardUploaded \| Promise<WhiteboardUploaded>` | 存为 data URL |
-| `onUploadError` | 每张上传失败的图片调用一次；传了就不再显示默认的错误提示，也不再朗读      | `(error: unknown, file: File) => void`                              | 显示错误提示  |
+| `onUploadError` | 每张上传失败的图片调用一次；传了就不再显示默认的错误提示，也不再朗读      | `(file: File, error: unknown) => void`                              | 显示错误提示  |
 
 ```ts
 type WhiteboardUploaded = string | { src: string; alt?: string }
@@ -243,7 +251,7 @@ type WhiteboardTool =
 | --------------- | ---------------------------- | ------------------------------------------------------------------- | ---------------------------------- |
 | `at`            | 图片放在哪里，画布坐标       | `{ x: number; y: number }`                                          | 视野中间                           |
 | `upload`        | 这次插入用的上传函数         | `(file: File) => WhiteboardUploaded \| Promise<WhiteboardUploaded>` | `whiteboardKit` 的 `upload`        |
-| `onUploadError` | 这次插入的图片上传失败时调用 | `(error: unknown, file: File) => void`                              | `whiteboardKit` 的 `onUploadError` |
+| `onUploadError` | 这次插入的图片上传失败时调用 | `(file: File, error: unknown) => void`                              | `whiteboardKit` 的 `onUploadError` |
 
 ### CSS 变量
 

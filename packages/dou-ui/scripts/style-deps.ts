@@ -161,9 +161,10 @@ export function reachableFiles(entry: string): string[] {
  * of the components and functions it imports from `dou-ui`, and of the
  * `dou-*` classes it writes itself, in every file the entry reaches. Entries
  * already covered by another one are left out; the rest keep the cascade
- * order.
+ * order. Several entries are read as one (a package's main style entry
+ * also covers its subpaths without their own).
  */
-export function styleDirsFor(entry: string): string[] {
+export function styleDirsFor(entry: string | string[]): string[] {
   const exported = exportDirs()
   const deps = styleDeps()
   const order = stylesheetOrder()
@@ -172,7 +173,8 @@ export function styleDirsFor(entry: string): string[] {
 
   const dirs = new Set<string>()
   const sheets = new Set<string>()
-  for (const file of reachableFiles(entry)) {
+  const files = new Set([entry].flat().flatMap((one) => reachableFiles(one)))
+  for (const file of files) {
     const code = stripComments(readFileSync(file, 'utf8'))
     for (const m of code.matchAll(/import\s+(?:type\s+)?\{([^}]*)\}\s+from\s+['"]dou-ui['"]/g)) {
       if (/^import\s+type\s/.test(m[0])) continue

@@ -7,7 +7,7 @@ import {
   insertImages,
   whiteboardKit,
   type WhiteboardTool,
-  type WhiteboardUploadError,
+  type WhiteboardUploadErrorHandler,
 } from '..'
 import { turn } from '../../core/geometry'
 import { fitInk, inkHit, inkOutline, strokeNode, unpack } from '../ink'
@@ -1335,11 +1335,11 @@ describe('images', () => {
   })
 
   it('hands failed uploads to onUploadError instead of the toast', async () => {
-    const onUploadError = vi.fn<WhiteboardUploadError>()
+    const onUploadError = vi.fn<WhiteboardUploadErrorHandler>()
     const { root } = await dropFailing(['a.png', 'b.png'], { onUploadError })
     expect(toasts()).toEqual([])
     expect(onUploadError).toHaveBeenCalledTimes(2)
-    const [error, file] = onUploadError.mock.calls[0]!
+    const [file, error] = onUploadError.mock.calls[0]!
     expect((error as Error).message).toBe('offline: a.png')
     expect((file as File).name).toBe('a.png')
     // the app tells the user, screen readers included
@@ -1365,12 +1365,24 @@ describe('images', () => {
       },
     })
     expect(flow.value.nodes).toHaveLength(2)
-    expect(logged).toHaveBeenCalledWith(thrown)
+    expect(logged).toHaveBeenCalledWith('[@dou-ui/flow] onUploadError threw', thrown)
+  })
+
+  it('treats an upload without a src as failed', async () => {
+    const warned = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { flow } = await dropFailing(['a.png'], {
+      upload: () => ({}) as unknown as string,
+    })
+    expect(flow.value.nodes).toHaveLength(0)
+    expect(toasts()).toEqual(['a.png 没能添加'])
+    expect(warned.mock.calls[0]![0]).toMatch(
+      /^\[@dou-ui\/flow\] upload returned no src for "a.png"/,
+    )
   })
 
   it('lets insertImages take its own onUploadError', async () => {
-    const kitError = vi.fn<WhiteboardUploadError>()
-    const ownError = vi.fn<WhiteboardUploadError>()
+    const kitError = vi.fn<WhiteboardUploadErrorHandler>()
+    const ownError = vi.fn<WhiteboardUploadErrorHandler>()
     let context!: FlowEditorContext
     const grab = defineFlowExtension({
       name: 'grab',

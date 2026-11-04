@@ -10,7 +10,7 @@
 
 ## 放入操作
 
-`content` 插槽替换卡片内容，插槽参数里的 `close` 用来关闭卡片。也可以用 `v-model:open` 自己控制。
+`content` 插槽替换卡片内容，插槽参数里的 `close` 用来关闭卡片；焦点在卡片内时，关闭后回到触发元素。也可以用 `v-model:open` 自己控制。
 
 <DocDemo src="popover/action" />
 

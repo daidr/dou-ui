@@ -77,7 +77,7 @@ const width = computed(() =>
   typeof props.width === 'number' ? `${props.width}px` : (props.width ?? undefined),
 )
 
-defineExpose<PopoverExpose>({ open: () => popup.show(), close: () => popup.hide() })
+defineExpose<PopoverExpose>({ open: () => popup.show(), close: () => popup.dismiss() })
 </script>
 
 <template>
@@ -101,7 +101,7 @@ defineExpose<PopoverExpose>({ open: () => popup.show(), close: () => popup.hide(
           <slot name="title">{{ title }}</slot>
         </div>
         <div :class="ns.e('content')">
-          <slot name="content" :close="() => popup.hide()">{{ content }}</slot>
+          <slot name="content" :close="popup.dismiss">{{ content }}</slot>
         </div>
       </div>
     </Transition>

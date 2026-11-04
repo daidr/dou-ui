@@ -24,6 +24,8 @@ Popconfirm 总是在问“要不要继续”，所以始终有取消和确认两
 
 <DocDemo src="popconfirm/notice" />
 
+Popover 打开时焦点留在触发元素上。示例在打开后把焦点移到“知道了”，并用 `aria-describedby` 指向说明文字，这样读屏会读出整段提示；“知道了”和 `Esc` 关闭后，焦点回到触发元素。
+
 需要打断用户、等用户看完再继续的提示，使用 [`dialog.alert()`](./dialog#函数式调用)；操作完成后才需要告知的结果，使用 [Toast](./toast)。
 
 ## 键盘与读屏

@@ -54,7 +54,7 @@
 
 <DocDemo src="dropdown/group" />
 
-组与组之间要分开时，在后一组上写 `divided`，分隔线画在小标题上方。只有一组时不必写小标题，触发按钮已经说明了菜单是什么。
+组与组之间要分开时，在后一组上写 `divided`，分隔线画在小标题上方。只有一组时不必写小标题，触发按钮已经说明了菜单是什么。`DouDropdownSub` 的子菜单里同样可以分组。
 
 ## 分裂按钮
 
@@ -64,7 +64,7 @@
 
 ## 用数据写菜单项
 
-菜单项在代码里生成时，可以不写 `menu` 插槽，直接传 `items`，写法和 [ContextMenu 的菜单项](./context-menu#用数据写菜单项) 相同：选中时调用这一项的 `run`，`select` 同样会触发。`{ type: 'group', label, children }` 是一组带小标题的菜单项。每一项都写了 `checked` 时，菜单是单选；一组里每一项都写了 `checked` 时，这一组是单选。同时写了 `menu` 插槽时显示插槽，`items` 不起作用。
+菜单项在代码里生成时，可以不写 `menu` 插槽，直接传 `items`，写法和 [ContextMenu 的菜单项](./context-menu#用数据写菜单项) 相同：选中时调用这一项的 `run`，`select` 同样会触发。`{ type: 'group', label, children }` 是一组带小标题的菜单项。每一项都写了 `checked` 时，菜单是单选；一组里每一项都写了 `checked` 时，这一组是单选。有分组时，组外写了 `checked` 的项都是勾选项，要单选就把这几项放进一组；没有子项的组不显示。同时写了 `menu` 插槽时显示插槽，`items` 不起作用。
 
 ```vue
 <script setup lang="ts">

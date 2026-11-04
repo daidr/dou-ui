@@ -43,7 +43,7 @@ export interface DropdownEmits {
 export interface DropdownSlots {
   /** The trigger. Its first element receives the listeners and ARIA attributes. */
   default?: () => unknown
-  /** The items, `DouDropdownItem`s. */
+  /** The items: `DouDropdownItem`, `DouDropdownSub`, `DouDropdownGroup` and `DouDropdownRadioGroup`. */
   menu?: () => unknown
 }
 
@@ -145,7 +145,7 @@ export interface DropdownSubProps {
 }
 
 export interface DropdownSubSlots {
-  /** The submenu's items: `DouDropdownItem`s and more `DouDropdownSub`s. */
+  /** The submenu's items: `DouDropdownItem`, `DouDropdownSub`, `DouDropdownGroup` and `DouDropdownRadioGroup`. */
   default?: () => unknown
   /** The item's text. */
   title?: () => unknown
@@ -183,7 +183,7 @@ export interface DropdownButtonSlots {
   default?: () => unknown
   /** Before the label, usually an icon. */
   leading?: () => unknown
-  /** The items, `DouDropdownItem`s. */
+  /** The items: `DouDropdownItem`, `DouDropdownSub`, `DouDropdownGroup` and `DouDropdownRadioGroup`. */
   menu?: () => unknown
 }
 

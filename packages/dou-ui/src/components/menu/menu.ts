@@ -117,7 +117,8 @@ export function flatten(options: MenuOption[]): FlatEntry[] {
     else if (isGroup(option) || option.children?.length) {
       const inner = flatten(option.children!)
       const rows = trimDividers(inner.filter((entry): entry is FlatRow => entry.kind !== 'group'))
-      entries.push({ kind: 'group', label: option.label, rows })
+      // a group that only holds deeper ones gets no heading of its own
+      if (rows.length) entries.push({ kind: 'group', label: option.label, rows })
       entries.push(...inner.filter((entry) => entry.kind === 'group'))
     } else entries.push({ kind: 'item', item: option })
   }

@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { provide } from 'vue'
 import { dropdownRadioGroupKey } from './dropdown'
-import type { DropdownRadioGroupSlots, DropdownValue } from './dropdown'
+import type { DropdownGroupProps, DropdownRadioGroupSlots, DropdownValue } from './dropdown'
 import DropdownGroup from './dropdown-group.vue'
 
 defineOptions({ name: 'DouDropdownRadioGroup', inheritAttrs: false })
 
-withDefaults(defineProps<{ label?: string; divided?: boolean }>(), { divided: false })
+withDefaults(defineProps<DropdownGroupProps>(), { divided: false })
 const model = defineModel<DropdownValue>()
 const slots = defineSlots<DropdownRadioGroupSlots>()
 

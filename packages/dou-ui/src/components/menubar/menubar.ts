@@ -28,7 +28,7 @@ export interface MenubarMenuProps {
 }
 
 export interface MenubarMenuSlots {
-  /** The items: `DouDropdownItem`, `DouDropdownSub` and `DouDropdownRadioGroup`. */
+  /** The items: `DouDropdownItem`, `DouDropdownSub`, `DouDropdownGroup` and `DouDropdownRadioGroup`. */
   default?: () => unknown
   /** The menu's button text. */
   label?: () => unknown

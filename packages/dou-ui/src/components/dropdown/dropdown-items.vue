@@ -25,10 +25,13 @@ const sections = computed<Section[]>(() => {
   const { items } = props
   // the whole menu is one choice: a group without a heading
   if (isChoice(items)) return [{ key: 'choice', children: items, choice: true }]
-  return items.map((entry, index) =>
-    isMenuGroup(entry)
-      ? { ...entry, key: `group:${index}`, choice: isChoice(entry.children) }
-      : { key: entry.key, item: entry },
+  return items.flatMap((entry, index): Section[] =>
+    !isMenuGroup(entry)
+      ? [{ key: entry.key, item: entry }]
+      : // an empty group would leave a heading with nothing under it
+        entry.children.length
+        ? [{ ...entry, key: `group:${index}`, choice: isChoice(entry.children) }]
+        : [],
   )
 })
 

@@ -86,7 +86,7 @@ export interface ContextMenuEmits {
 export interface ContextMenuSlots {
   /** The area that opens the menu. Its first element receives the listener. */
   default?: () => unknown
-  /** The items, `DouDropdownItem`s. */
+  /** The items: `DouDropdownItem`, `DouDropdownSub`, `DouDropdownGroup` and `DouDropdownRadioGroup`. */
   menu?: () => unknown
 }
 

@@ -121,6 +121,8 @@ describe('DouDropdownGroup', () => {
       },
       { key: 'thumbs', label: '缩略图', checked: true, divided: true },
       { type: 'group', label: '更多', divided: true, children: [{ key: 'reset', label: '重置' }] },
+      // nothing to show: no heading alone
+      { type: 'group', label: '空', children: [] },
     ]
     const onSelect = vi.fn<(value: unknown) => void>()
     const data = mount(DouDropdown, {

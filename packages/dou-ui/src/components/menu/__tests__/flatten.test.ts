@@ -46,4 +46,14 @@ describe('flatten', () => {
     ]
     expect(outline(flatten(options))).toEqual(['设置[甲,|,乙]', '子[丙]'])
   })
+  it('gives no heading to a group that only holds deeper ones', () => {
+    const options: MenuOption[] = [
+      {
+        type: 'group',
+        label: '设置',
+        children: [{ key: 'sub', label: '高级', children: [{ key: 'cache', label: '缓存' }] }],
+      },
+    ]
+    expect(outline(flatten(options))).toEqual(['高级[缓存]'])
+  })
 })

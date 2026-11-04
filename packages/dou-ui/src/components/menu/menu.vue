@@ -31,7 +31,10 @@ const props = withDefaults(defineProps<MenuProps>(), {
 })
 const model = defineModel<MenuKey>()
 const expandedModel = defineModel<MenuKey[]>('expanded')
-const emit = defineEmits<{ select: [key: MenuKey, item: MenuItemOption] }>()
+const emit = defineEmits<{
+  select: [key: MenuKey, item: MenuItemOption]
+  itemContextmenu: [item: MenuItemOption, event: MouseEvent]
+}>()
 const slots = defineSlots<MenuSlots>()
 
 const ns = useNamespace('menu')
@@ -74,6 +77,10 @@ provide(menuKey, {
     model.value = item.key
     emit('select', item.key, item)
     if (fromPopup && item.href) window.location.assign(item.href)
+  },
+  contextmenu(item, event) {
+    // the "more" popup is made up here, not one of the user's items
+    if (item !== more.value) emit('itemContextmenu', item, event)
   },
   labelSlot: () => slots.label,
   subId: (key) => `${id}-sub-${String(key).replace(/\s+/g, '-')}`,

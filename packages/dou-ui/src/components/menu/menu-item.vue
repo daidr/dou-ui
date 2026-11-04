@@ -64,6 +64,7 @@ function onClick(event: MouseEvent) {
     :aria-label="iconOnly ? item.label : undefined"
     data-dou-menu-item=""
     @click="onClick"
+    @contextmenu="menu.contextmenu(item, $event)"
   >
     <component :is="item.icon" v-if="item.icon" :class="ns.e('icon')" aria-hidden="true" />
     <span v-else-if="iconOnly" :class="ns.e('initial')" aria-hidden="true">

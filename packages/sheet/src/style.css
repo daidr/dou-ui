@@ -1615,10 +1615,6 @@
     }
   }
 
-  .dou-sheet-toolbar__trigger {
-    display: inline-flex;
-    flex: none;
-  }
   .dou-sheet-toolbar__picker {
     display: none;
   }

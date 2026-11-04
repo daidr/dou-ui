@@ -327,7 +327,8 @@ describe('keyboard and names', () => {
     await ticks()
     const tip = document.querySelector('[role="tooltip"]')!
     expect(tip.textContent).toBe('矩形R')
-    expect(rect.attributes('aria-describedby')).toBe(tip.id)
+    // the tip says what the name already does, so it is not read a second time
+    expect(rect.attributes('aria-describedby')).toBeUndefined()
   })
 
   it('draws connectors without an edge-type prop', async () => {

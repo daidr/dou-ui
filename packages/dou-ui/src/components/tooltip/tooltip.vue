@@ -33,6 +33,7 @@ const id = `dou-tooltip-${useId()}`
 const {
   triggerRef,
   panelRef,
+  reference,
   rendered,
   theme,
   placement,
@@ -83,6 +84,69 @@ watch(open, (value) => {
   }
 })
 onBeforeUnmount(() => releaseTooltip(close))
+
+/*
+ * On the trigger of a popover or a menu, the tip gives way once the panel
+ * opens: it would only sit over the panel. The trigger may also hold the
+ * button that opens it (the arrow of a DouDropdownButton). It comes back
+ * when the pointer comes in again, or with the next focus.
+ */
+// Only a control that opens a popup counts: a tree item or a collapse
+// header inside the trigger is expanded too, and must not hide the tip.
+const popupOpen = '[aria-haspopup]:not([aria-haspopup="false"])[aria-expanded="true"]'
+const expanded = () => {
+  const element = reference()
+  return !!element && (element.matches(popupOpen) || !!element.querySelector(popupOpen))
+}
+let watching: MutationObserver | undefined
+watch(open, (value) => {
+  watching?.disconnect()
+  watching = undefined
+  if (!value || !byTrigger) return
+  if (expanded()) {
+    open.value = false
+    return
+  }
+  const element = reference()
+  if (!element || typeof MutationObserver === 'undefined') return
+  watching = new MutationObserver(() => {
+    if (expanded()) open.value = false
+  })
+  watching.observe(element, {
+    attributes: true,
+    attributeFilter: ['aria-expanded'],
+    subtree: true,
+  })
+})
+onBeforeUnmount(() => watching?.disconnect())
+
+/*
+ * An icon button named "设置" with the tip "设置" would be read twice:
+ * once as its name, once as its description. The tip describes the
+ * trigger only when it says something the name does not.
+ */
+const describes = ref(false)
+const plain = (text: string | null | undefined) =>
+  (text ?? '').replace(/\s+/g, ' ').trim().toLowerCase()
+function nameOf(element: Element) {
+  const label = element.getAttribute('aria-label')
+  if (label?.trim()) return label
+  const ids = element.getAttribute('aria-labelledby')?.split(/\s+/).filter(Boolean)
+  if (ids?.length) return ids.map((one) => document.getElementById(one)?.textContent).join(' ')
+  return element.textContent
+}
+watch(
+  [open, () => props.content],
+  ([value]) => {
+    if (!value) return
+    const element = reference()
+    const panel = panelRef.value
+    // the shortcut is announced through aria-keyshortcuts, so only the words count
+    const text = panel && (panel.querySelector(`.${ns.e('text')}`) ?? panel).textContent
+    describes.value = !element || plain(text) !== plain(nameOf(element))
+  },
+  { flush: 'post' },
+)
 /** Marks what follows (the open after the delay) as the trigger's own doing. */
 const fromTrigger = (handler?: (event: Event) => void) =>
   handler &&
@@ -137,7 +201,7 @@ const triggerProps = computed(() => ({
   onFocusout: leave(triggerListeners.value.onFocusout),
   onPointerdown,
   onPointermove,
-  'aria-describedby': open.value ? id : undefined,
+  'aria-describedby': open.value && describes.value ? id : undefined,
   ...(props.shortcut && { 'aria-keyshortcuts': ariaHotkey(props.shortcut, apple.value) }),
 }))
 </script>

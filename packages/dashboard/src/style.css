@@ -314,11 +314,6 @@
     color: var(--dou-color-text-tertiary);
   }
 
-  .dou-dashboard__trigger {
-    display: inline-flex;
-    flex: none;
-  }
-
   /* a failed export, over the content: a long reason scrolls inside, the close button stays */
   .dou-dashboard__export-error {
     flex: none;

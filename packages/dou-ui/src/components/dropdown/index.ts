@@ -1,4 +1,5 @@
 import { withInstall } from '../../utils/install'
+import { forwardsTrigger } from '../../utils/only-child'
 import Dropdown from './dropdown.vue'
 import DropdownButton from './dropdown-button.vue'
 import type DropdownGroup from './dropdown-group.vue'
@@ -8,6 +9,8 @@ import { DouDropdownGroup, DouDropdownItem, DouDropdownRadioGroup } from './item
 import DropdownSub from './dropdown-sub.vue'
 
 export const DouDropdown = withInstall(Dropdown)
+// 默认插槽就是触发元素：套在另一个浮层外面时，属性转交给插槽
+forwardsTrigger(Dropdown)
 export const DouDropdownSub = withInstall(DropdownSub)
 export const DouDropdownButton = withInstall(DropdownButton)
 export { DouDropdownGroup, DouDropdownItem, DouDropdownRadioGroup }

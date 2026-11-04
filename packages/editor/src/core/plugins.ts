@@ -68,13 +68,16 @@ export function changesBlockStructure(tr: Transaction): boolean {
 }
 
 /** Plugin state for decorations that only depend on the block structure. */
-const structureDecorations = (build: (doc: PMNode) => DecorationSet) => ({
+const structureDecorations = (
+  build: (doc: PMNode) => DecorationSet,
+  update: (set: DecorationSet, tr: Transaction) => DecorationSet = (_set, tr) => build(tr.doc),
+) => ({
   init: (_config: unknown, state: { doc: PMNode }) => build(state.doc),
   apply: (tr: Transaction, value: DecorationSet) =>
     !tr.docChanged
       ? value
       : changesBlockStructure(tr)
-        ? build(tr.doc)
+        ? update(value, tr)
         : value.map(tr.mapping, tr.doc),
 })
 
@@ -92,39 +95,79 @@ const sameList = (sibling: PMNode, block: PMNode) =>
  * is one type: a to-do list right after a numbered one is a list of its
  * own. Nested items under a list item, of any type, carry on its run.
  */
-function listDecorations(doc: PMNode): DecorationSet {
+/** The list decorations of top-level blocks `first` to `final` (and their children). */
+function listDecorationsOf(doc: PMNode, first: number, final: number): Decoration[] {
   const decorations: Decoration[] = []
-  const visit = (container: PMNode, start: number, inList: boolean) => {
+  const visit = (container: PMNode, start: number, inList: boolean, from = 0, to = Infinity) => {
     const last = container.childCount - 1
     container.forEach((block, offset, index) => {
+      if (index < from || index > to) return
       const pos = start + offset
+      const content = block.firstChild!
+      const groupPos = pos + 1 + content.nodeSize
       const list = isList(block)
       if (list) {
+        // all on the content (or the children's group), never on the block
+        // itself: the view looks up a block's own decorations by scanning
+        // all of its parent's, and a selector matching blocks by what they
+        // hold would be checked again for every block when blocks change
         const classes = ['is-list']
-        if (!(index > 0 ? sameList(container.child(index - 1), block) : inList))
+        const previous = index > 0 ? container.child(index - 1) : null
+        if (!(previous ? sameList(previous, block) : inList)) {
           classes.push('is-list-start')
-        if (!(index < last ? sameList(container.child(index + 1), block) : inList))
-          classes.push('is-list-end')
-        // on the content, not the block: the view looks up a block's own
-        // decorations by scanning all of its parent's, once per child
-        const content = block.firstChild!
-        decorations.push(
-          Decoration.node(pos + 1, pos + 1 + content.nodeSize, { class: classes.join(' ') }),
-        )
+          // right after another list: the two edges overlap
+          if (previous && isList(previous)) classes.push('is-list-after')
+        }
+        const end = !(index < last ? sameList(container.child(index + 1), block) : inList)
+        if (end && block.childCount < 2) classes.push('is-list-end')
+        decorations.push(Decoration.node(pos + 1, groupPos, { class: classes.join(' ') }))
+        if (end && block.childCount > 1)
+          decorations.push(
+            Decoration.node(groupPos, groupPos + block.child(1).nodeSize, { class: 'is-list-end' }),
+          )
       }
-      if (block.childCount > 1)
-        visit(block.child(1), pos + 1 + block.firstChild!.nodeSize + 1, list)
+      if (block.childCount > 1) visit(block.child(1), groupPos + 1, list)
     })
   }
-  visit(doc, 0, false)
-  return DecorationSet.create(doc, decorations)
+  visit(doc, 0, false, first, final)
+  return decorations
+}
+
+const listDecorations = (doc: PMNode) =>
+  DecorationSet.create(doc, listDecorationsOf(doc, 0, doc.childCount - 1))
+
+/**
+ * After blocks were added, removed or changed type: only the top-level
+ * blocks the change touched, and one on either side (whose run may have
+ * started or ended there), are worked out again.
+ */
+function updateListDecorations(set: DecorationSet, tr: Transaction): DecorationSet {
+  const { doc, mapping } = tr
+  let from = doc.content.size
+  let to = 0
+  mapping.maps.forEach((map, index) => {
+    const rest = mapping.slice(index + 1)
+    map.forEach((_oldStart, _oldEnd, start, end) => {
+      from = Math.min(from, rest.map(start, -1))
+      to = Math.max(to, rest.map(end, 1))
+    })
+  })
+  const mapped = set.map(mapping, doc)
+  if (from > to) return mapped
+  const first = Math.max(0, doc.resolve(from).index(0) - 1)
+  const last = Math.min(doc.childCount - 1, doc.resolve(to).index(0) + 1)
+  let start = 0
+  for (let index = 0; index < first; index++) start += doc.child(index).nodeSize
+  let end = start
+  for (let index = first; index <= last; index++) end += doc.child(index).nodeSize
+  return mapped.remove(mapped.find(start, end)).add(doc, listDecorationsOf(doc, first, last))
 }
 
 /** Marks list-like blocks and the ends of their runs, for spacing. */
 export function listPlugin(): Plugin {
   return new Plugin<DecorationSet>({
     key: new PluginKey('dou-editor-lists'),
-    state: structureDecorations(listDecorations),
+    state: structureDecorations(listDecorations, updateListDecorations),
     props: {
       decorations(state) {
         return this.getState(state)

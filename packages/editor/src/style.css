@@ -131,38 +131,44 @@
 
   /*
    * list items: the list gap between items; the block gap returns around a
-   * run of them, on its first and last block (which holds any nested items).
-   * The difference is padding when the list gap is the smaller one, and a
-   * negative margin when it is the larger, so a heading's own margin after
-   * a list adds to it instead of swallowing it. At the very start and end of
-   * the document there is no neighbour to keep apart: no margin there, so
-   * it can't pull the editor over what's around it.
+   * run of them, on its first item and after its last (after any nested
+   * items, on their group). The difference is padding when the list gap is
+   * the smaller one, and a negative margin when it is the larger, so a
+   * heading's own margin after a list adds to it instead of swallowing it.
+   * Two negative margins overlap instead of adding up: between two lists,
+   * the second takes it all. At the very start and end of the document
+   * there is no neighbour to keep apart, so no margin there.
+   * --dou-editor-list-top is where an item's first line starts, for markers.
    */
   .dou-editor__block > .dou-editor__content.is-list {
-    padding-block: calc(var(--dou-editor-list-gap) / 2);
+    --dou-editor-list-top: calc(var(--dou-editor-list-gap) / 2);
+    padding-block: var(--dou-editor-list-top) calc(var(--dou-editor-list-gap) / 2);
   }
 
-  .dou-editor__block:has(> .dou-editor__content.is-list-start) {
-    padding-top: max(0px, (var(--dou-editor-block-gap) - var(--dou-editor-list-gap)) / 2);
+  .dou-editor__block > .dou-editor__content.is-list-start {
+    --dou-editor-list-top: calc(max(var(--dou-editor-block-gap), var(--dou-editor-list-gap)) / 2);
     margin-top: min(0px, (var(--dou-editor-block-gap) - var(--dou-editor-list-gap)) / 2);
   }
 
-  .dou-editor__block:has(> .dou-editor__content.is-list-end) {
+  .dou-editor__block > .dou-editor__content.is-list-start.is-list-after {
+    margin-top: min(0px, var(--dou-editor-block-gap) - var(--dou-editor-list-gap));
+  }
+
+  .dou-editor__block > .dou-editor__content.is-list-end {
+    padding-bottom: calc(max(var(--dou-editor-block-gap), var(--dou-editor-list-gap)) / 2);
+    margin-bottom: min(0px, (var(--dou-editor-block-gap) - var(--dou-editor-list-gap)) / 2);
+  }
+
+  .dou-editor__group.is-list-end {
     padding-bottom: max(0px, (var(--dou-editor-block-gap) - var(--dou-editor-list-gap)) / 2);
     margin-bottom: min(0px, (var(--dou-editor-block-gap) - var(--dou-editor-list-gap)) / 2);
   }
 
-  /* two negative margins overlap instead of adding up: between two lists, the first takes it all */
-  .dou-editor__block:has(> .dou-editor__content.is-list-end)
-    + .dou-editor__block:has(> .dou-editor__content.is-list-start) {
-    margin-top: min(0px, var(--dou-editor-block-gap) - var(--dou-editor-list-gap));
-  }
-
-  .dou-editor__surface > .dou-editor__block:first-child:has(> .dou-editor__content.is-list-start) {
+  .dou-editor__surface > .dou-editor__block:first-child > .dou-editor__content.is-list-start {
     margin-top: 0;
   }
 
-  .dou-editor__surface > .dou-editor__block:last-child:has(> .dou-editor__content.is-list-end) {
+  .dou-editor__surface > .dou-editor__block:last-child > .is-list-end {
     margin-bottom: 0;
   }
 
@@ -202,7 +208,7 @@
 
   .dou-editor__content--bulletItem::before {
     content: '';
-    top: calc(var(--dou-editor-list-gap) / 2 + var(--dou-editor-line-height) * 0.5em - 3px);
+    top: calc(var(--dou-editor-list-top) + var(--dou-editor-line-height) * 0.5em - 3px);
     inset-inline-start: 7px;
     width: 6px;
     height: 6px;
@@ -220,7 +226,7 @@
 
   .dou-editor__content--numberedItem::before {
     content: attr(data-index) '.';
-    top: calc(var(--dou-editor-list-gap) / 2);
+    top: var(--dou-editor-list-top);
     padding-inline-end: 6px;
     box-sizing: border-box;
     color: var(--dou-color-text-secondary);
@@ -698,7 +704,7 @@
   }
 
   .dou-editor__content.is-list.is-empty::after {
-    top: calc(var(--dou-editor-list-gap) / 2);
+    top: var(--dou-editor-list-top);
   }
 
   .dou-editor__content--bulletItem.is-empty::after,

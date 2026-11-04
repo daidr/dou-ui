@@ -1,7 +1,9 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, expectTypeOf, it } from 'vitest'
 import { createCommentVNode, createTextVNode, defineComponent, h, ref } from 'vue'
+import type { ExtractPublicPropTypes } from 'vue'
 import { DouStatusDot } from '../../../index'
+import type { StatusDotProps, statusDotProps } from '../status-dot'
 
 describe('DouStatusDot', () => {
   it('renders a neutral medium dot without a ripple by default', () => {
@@ -74,5 +76,13 @@ describe('DouStatusDot', () => {
       expect(wrapper.attributes('role')).toBe('img')
       expect(wrapper.attributes('aria-label')).toBe('在线')
     }
+  })
+
+  it('declares the same props at runtime as StatusDotProps', () => {
+    type Runtime = ExtractPublicPropTypes<typeof statusDotProps>
+    type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false
+    // same names, and each takes the same values
+    expectTypeOf<Same<keyof Runtime, keyof StatusDotProps>>().toEqualTypeOf<true>()
+    expectTypeOf<Same<Required<Runtime>, Required<StatusDotProps>>>().toEqualTypeOf<true>()
   })
 })

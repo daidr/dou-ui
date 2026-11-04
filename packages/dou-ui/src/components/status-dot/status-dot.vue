@@ -1,16 +1,7 @@
 <script lang="ts">
-import {
-  Comment,
-  Fragment,
-  Text,
-  defineComponent,
-  h,
-  type PropType,
-  type SlotsType,
-  type VNode,
-} from 'vue'
+import { Comment, Fragment, Text, defineComponent, h, type SlotsType, type VNode } from 'vue'
 import { useNamespace } from '../../utils/namespace'
-import type { StatusDotSize, StatusDotSlots, StatusDotTone } from './status-dot'
+import { statusDotProps, type StatusDotSlots } from './status-dot'
 
 /** Whether rendered slot content shows anything: comments, `v-if`s and empty text don't. */
 function hasContent(nodes: VNode[]): boolean {
@@ -28,12 +19,7 @@ function hasContent(nodes: VNode[]): boolean {
 // slot actually renders.
 export default defineComponent({
   name: 'DouStatusDot',
-  props: {
-    tone: { type: String as PropType<StatusDotTone>, default: 'neutral' },
-    size: { type: String as PropType<StatusDotSize>, default: 'md' },
-    ripple: { type: Boolean, default: false },
-    label: { type: String, default: undefined },
-  },
+  props: statusDotProps,
   slots: Object as SlotsType<StatusDotSlots>,
   setup(props, { slots, attrs }) {
     const ns = useNamespace('status-dot')

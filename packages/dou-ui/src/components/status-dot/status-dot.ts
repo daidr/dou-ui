@@ -1,3 +1,4 @@
+import type { PropType } from 'vue'
 import type { Size, Tone } from '../../utils/types'
 
 export type StatusDotTone = Tone
@@ -23,4 +24,15 @@ export interface StatusDotProps {
 export interface StatusDotSlots {
   /** Text beside the dot, e.g. "运行中". */
   default?: () => unknown
+}
+
+/**
+ * The runtime props of the render-function component, kept next to
+ * `StatusDotProps`; a type test checks that the two stay the same.
+ */
+export const statusDotProps = {
+  tone: { type: String as PropType<StatusDotTone>, default: 'neutral' },
+  size: { type: String as PropType<StatusDotSize>, default: 'md' },
+  ripple: { type: Boolean, default: false },
+  label: { type: String, default: undefined },
 }

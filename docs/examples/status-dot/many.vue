@@ -21,17 +21,17 @@ const nodes = Array.from({ length: 96 }, (_, index) => {
           ? 'neutral'
           : 'success'
   const name = `sh-${String(index + 1).padStart(2, '0')}`
-  return { name, tone, label: `${name} ${states[tone]}` }
+  return { name, tone, detail: `节点 ${name}` }
 })
 </script>
 
 <template>
   <div class="rack">
-    <DouTooltip v-for="node in nodes" :key="node.name" :content="node.label">
+    <DouTooltip v-for="node in nodes" :key="node.name" :content="node.detail">
       <DouStatusDot
         :tone="node.tone"
         :ripple="node.tone === 'danger' || node.tone === 'warning'"
-        :label="node.label"
+        :label="states[node.tone]"
       />
     </DouTooltip>
   </div>

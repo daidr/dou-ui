@@ -49,5 +49,7 @@ describe('DouTimeline', () => {
     expect(wrapper.classes()).not.toContain('is-custom-dot')
     expect(wrapper.attributes('aria-current')).toBe('step')
     expect(wrapper.find('.my-icon').exists()).toBe(false)
+    // the ripple comes from the shared status dot
+    expect(wrapper.get('.dou-timeline__dot .dou-status-dot').classes()).toContain('is-ripple')
   })
 })

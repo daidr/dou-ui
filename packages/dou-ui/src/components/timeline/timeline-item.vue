@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useNamespace } from '../../utils/namespace'
+import DouStatusDot from '../status-dot/status-dot.vue'
 import type { TimelineItemProps, TimelineItemSlots } from './timeline'
 
 defineOptions({ name: 'DouTimelineItem' })
@@ -32,7 +33,8 @@ const customDot = computed(() => !props.active && !!slots.dot)
   >
     <span :class="ns.e('rail')" aria-hidden="true">
       <span :class="ns.e('dot')">
-        <slot v-if="!active" name="dot" />
+        <DouStatusDot v-if="active" ripple />
+        <slot v-else name="dot" />
       </span>
       <span :class="ns.e('line')" />
     </span>

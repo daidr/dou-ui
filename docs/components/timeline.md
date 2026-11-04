@@ -14,7 +14,7 @@
 
 ## 当前步骤
 
-`active` 标出流程走到的这一步：实心圆点，外面一圈同色的涟漪缓缓散开并淡出。`pending` 是还没轮到，`active` 是正在这一步。开启「减弱动态效果」时，涟漪换成一圈静止的光晕。
+`active` 标出流程走到的这一步：实心圆点，外面一圈同色的涟漪缓缓散开并淡出，和 [StatusDot 状态点](/components/status-dot) 的涟漪是同一个实现。`pending` 是还没轮到，`active` 是正在这一步。开启「减弱动态效果」时，涟漪换成一圈静止的光晕。
 
 <DocDemo src="timeline/current" column />
 

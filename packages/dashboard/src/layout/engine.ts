@@ -286,11 +286,162 @@ export function findPlace(
   return { x: 0, y: bottom }
 }
 
+interface Span {
+  item: GridItem
+  x: number
+  w: number
+  /** Line within the row, 0 when the row didn't wrap. */
+  line: number
+  /** What the item's width was scaled by, for its `minW` and `maxW`. */
+  factor: number
+}
+
+/**
+ * Whether a row came out right: every item at least a column wide, none
+ * on top of the one before it or past the last column, and items that
+ * were equally wide still equally wide.
+ */
+function fair(spans: readonly Span[], to: number) {
+  const widths = new Map<number, number>()
+  return spans.every((span, i) => {
+    const prev = spans[i - 1]
+    if (span.w < 1 || span.x + span.w > to) return false
+    if (prev && prev.line === span.line && span.x < prev.x + prev.w) return false
+    const w = widths.get(span.item.w)
+    if (w === undefined) widths.set(span.item.w, span.w)
+    return w === undefined || w === span.w
+  })
+}
+
+/** Both edges scaled and rounded, so items side by side stay side by side. */
+function scaled(row: readonly GridItem[], factor: number): Span[] {
+  const edge = (value: number) => Math.round(value * factor)
+  return row.map((item) => {
+    const x = edge(item.x)
+    return { item, x, w: edge(item.x + item.w) - x, line: 0, factor }
+  })
+}
+
+/**
+ * The row wrapped onto as few lines as keep its items equally wide, at
+ * most `most`. Items are packed left to right without the gaps between
+ * them, each line holding the same number of source columns at most, the
+ * fullest line filling the grid. At least one line holds two items or
+ * more, so items never end up one per line. Widths are rounded down,
+ * leaving columns empty, when no number of lines keeps them equal otherwise.
+ */
+function wrapped(row: readonly GridItem[], to: number, most: number): Span[] | undefined {
+  const total = row.reduce((sum, item) => sum + item.w, 0)
+  const pack = (size: number) => {
+    const lines: GridItem[][] = []
+    let used = Infinity
+    for (const item of row) {
+      if (used + item.w > size) {
+        lines.push([])
+        used = 0
+      }
+      lines[lines.length - 1]!.push(item)
+      used += item.w
+    }
+    return lines
+  }
+  // the smallest size for each number of lines balances the lines best
+  const options = new Map<number, { lines: GridItem[][]; size: number }>()
+  for (let size = Math.max(...row.map((item) => item.w)); size < total; size++) {
+    const lines = pack(size)
+    if (lines.length <= most && lines.length < row.length && !options.has(lines.length))
+      options.set(lines.length, { lines, size })
+  }
+  const counts = [...options.keys()]
+  counts.sort((a, b) => a - b)
+  for (const down of [false, true])
+    for (const count of counts) {
+      const { lines, size } = options.get(count)!
+      const factor = to / size
+      const spans: Span[] = []
+      for (const [line, items] of lines.entries()) {
+        let start = 0
+        let end = 0
+        for (const item of items) {
+          const x = down ? end : Math.round(start * factor)
+          start += item.w
+          const w = down ? Math.floor(item.w * factor) : Math.round(start * factor) - x
+          end = x + w
+          spans.push({ item, x, w, line, factor })
+        }
+      }
+      if (fair(spans, to)) return spans
+    }
+  return undefined
+}
+
+/**
+ * The row kept on one line, items that share a width given the same
+ * number of columns: rounded to the nearest when they fit, otherwise
+ * rounded down. Items that touched still touch, so the columns left empty
+ * gather at the end; items with a gap between them stay near where they
+ * were, moved left only as far as it takes to fit.
+ */
+function oneLine(row: readonly GridItem[], scale: number, to: number): Span[] | undefined {
+  const shared = new Map<number, number>()
+  for (const item of row) shared.set(item.w, (shared.get(item.w) ?? 0) + 1)
+  for (const round of [Math.round, Math.floor]) {
+    const spans: Span[] = []
+    for (const item of row) {
+      const prev = spans[spans.length - 1]
+      // items that touched still touch, so empty columns gather at the end
+      const x = !prev
+        ? Math.round(item.x * scale)
+        : prev.item.x + prev.item.w === item.x
+          ? prev.x + prev.w
+          : Math.max(Math.round(item.x * scale), prev.x + prev.w)
+      const w = (shared.get(item.w)! > 1 ? round : Math.round)(item.w * scale)
+      spans.push({ item, x, w, line: 0, factor: scale })
+    }
+    let end = to
+    for (let i = spans.length - 1; i >= 0; i--) {
+      const span = spans[i]!
+      span.x = Math.min(span.x, end - span.w)
+      end = span.x
+    }
+    if (end >= 0 && fair(spans, to)) return spans
+  }
+  return undefined
+}
+
+/**
+ * One row (items sharing a `y`, left to right) on `to` columns, keeping
+ * equally wide items equally wide. In order of preference: scaled as is;
+ * wrapped onto two lines; kept on one line; wrapped onto more lines. The
+ * widths are rounded to the nearest column when that keeps them equal and
+ * rounded down otherwise, leaving columns empty. Rows
+ * only wrap when the grid gets narrower and the row is a band of its own
+ * (all its items equally tall, nothing else reaching into it). Rounded as
+ * before when none of that works.
+ */
+function scaleRow(row: readonly GridItem[], band: boolean, from: number, to: number): Span[] {
+  const scale = to / from
+  const spans = scaled(row, scale)
+  if (fair(spans, to)) return spans
+  const wraps = band && to < from
+  const two = wraps ? wrapped(row, to, 2) : undefined
+  if (two) return two
+  const one = oneLine(row, scale, to)
+  if (one) return one
+  const more = wraps ? wrapped(row, to, row.length) : undefined
+  return more ?? spans.map((span) => ({ ...span, w: Math.max(1, span.w) }))
+}
+
+/** A `minW` or `maxW` scaled with the item. */
+const limit = (value: number | undefined, factor: number) =>
+  value === undefined ? undefined : Math.max(1, Math.round(value * factor))
+
 /**
  * The layout worked out for a grid of another width: positions and widths
- * scaled by the ratio of the columns, then settled. On a single column the
- * items are stacked in reading order (top to bottom, then left to right),
- * each keeping its height.
+ * scaled by the ratio of the columns, then settled. Items in a row that
+ * were equally wide stay equally wide, by wrapping the row or leaving
+ * columns empty (see the docs). On a single column the items are stacked
+ * in reading order (top to bottom, then left to right), each keeping its height.
  */
 export function deriveLayout(
   items: readonly GridItem[],
@@ -311,23 +462,44 @@ export function deriveLayout(
     }
     return out
   }
-  const scale = to / from
-  // both edges are scaled, so items side by side stay side by side
-  const edge = (value: number) => Math.round(value * scale)
-  const limit = (value: number | undefined) =>
-    value === undefined ? undefined : Math.max(1, edge(value))
-  const scaled = items.map((item) => {
-    const x = edge(item.x)
-    return fitItem(
-      {
-        ...item,
-        x,
-        w: Math.max(1, edge(item.x + item.w) - x),
-        minW: limit(item.minW),
-        maxW: limit(item.maxW),
-      },
-      to,
-    )
-  })
-  return normalizeLayout(scaled, options)
+  const rows = new Map<number, GridItem[]>()
+  for (const item of items) {
+    const row = rows.get(item.y)
+    if (row) row.push(item)
+    else rows.set(item.y, [item])
+  }
+  const ys = [...rows.keys()]
+  ys.sort((a, b) => a - b)
+  const placed = new Map<GridItem, GridItem>()
+  // lines a row wraps onto push everything below it down
+  let shift = 0
+  for (const y of ys) {
+    const row = rows.get(y)!
+    row.sort((a, b) => a.x - b.x)
+    const h = row[0]!.h
+    const band =
+      row.every((item) => item.h === h) &&
+      items.every((item) => item.y === y || item.y + item.h <= y || item.y >= y + h)
+    const spans = scaleRow(row, band, from, to)
+    for (const span of spans)
+      placed.set(
+        span.item,
+        fitItem(
+          {
+            ...span.item,
+            x: span.x,
+            y: y + shift + span.line * h,
+            w: span.w,
+            minW: limit(span.item.minW, span.factor),
+            maxW: limit(span.item.maxW, span.factor),
+          },
+          to,
+        ),
+      )
+    shift += spans[spans.length - 1]!.line * h
+  }
+  return normalizeLayout(
+    items.map((item) => placed.get(item)!),
+    options,
+  )
 }

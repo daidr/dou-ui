@@ -8,15 +8,18 @@ const grid = ref()
 // 当前断点由网格自己的宽度决定
 const breakpoint = computed(() => grid.value?.breakpoint ?? 'lg')
 const items = ref([
-  { id: '访问量', x: 0, y: 0, w: 4, h: 2 },
-  { id: '订单', x: 4, y: 0, w: 4, h: 2 },
-  { id: '退款', x: 8, y: 0, w: 4, h: 2 },
+  { id: '访问量', x: 0, y: 0, w: 3, h: 2 },
+  { id: '订单', x: 3, y: 0, w: 3, h: 2 },
+  { id: '退款', x: 6, y: 0, w: 3, h: 2 },
+  { id: '转化率', x: 9, y: 0, w: 3, h: 2 },
   { id: '销售趋势', x: 0, y: 2, w: 8, h: 3 },
   { id: '新用户', x: 8, y: 2, w: 4, h: 3 },
 ])
 // 在较窄的断点上拖动过的位置，按断点名保存
 const layouts = ref({})
 const columns = { lg: 12, md: 6, sm: 1 }
+// 示例区域较窄，断点相应调小，便于看到 12 列和 6 列
+const breakpoints = { lg: 640, md: 400, sm: 0 }
 </script>
 
 <template>
@@ -27,7 +30,7 @@ const columns = { lg: 12, md: 6, sm: 1 }
         size="sm"
         :options="[
           { value: '100%', label: '整行' },
-          { value: '560px', label: '560px' },
+          { value: '480px', label: '480px' },
           { value: '320px', label: '320px' },
         ]"
       />
@@ -42,6 +45,7 @@ const columns = { lg: 12, md: 6, sm: 1 }
         v-model="items"
         v-model:layouts="layouts"
         editable
+        :breakpoints="breakpoints"
         :row-height="40"
         :gap="8"
       >

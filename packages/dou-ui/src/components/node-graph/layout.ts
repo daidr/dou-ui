@@ -295,9 +295,8 @@ const indexOf = (layer: Item[] | undefined) => new Map(layer?.map((item, i) => [
  * nodes. A fan around a long edge to the node its nodes merge into then
  * lets that edge run straight through, instead of around the outside.
  */
-function centreLongEdges(layers: Item[][]) {
+export function centreLongEdges(layers: Item[][]) {
   const result = layers.map((layer) => [...layer])
-  let count = totalCrossings(result)
   result.forEach((layer, c) => {
     const before = indexOf(result[c - 1])
     const after = indexOf(result[c + 1])
@@ -309,19 +308,29 @@ function centreLongEdges(layers: Item[][]) {
         item.succs.map((n) => after.get(n) ?? 0),
         -1,
       )}`
+    // Moving items within this layer only changes the crossings on its two sides.
+    const local = () =>
+      (c > 0 ? crossings(result[c - 1]!, layer) : 0) +
+      (c < result.length - 1 ? crossings(layer, result[c + 1]!) : 0)
+    let count = -1
     for (let start = 0; start < layer.length;) {
       let end = start + 1
       while (end < layer.length && key(layer[end]!) === key(layer[start]!)) end++
       const run = layer.slice(start, end)
       const nodes = run.filter((item) => item.edge < 0)
       const edges = run.filter((item) => item.edge >= 0)
-      if (edges.length && nodes.length >= 2) {
-        const half = Math.floor(nodes.length / 2)
-        const middle = [...nodes.slice(0, half), ...edges, ...nodes.slice(half)]
-        const kept = layer.slice(start, end)
-        layer.splice(start, end - start, ...middle)
-        const now = totalCrossings(result)
-        if (now > count) layer.splice(start, end - start, ...kept)
+      // Only into an even number of nodes: with an odd one the middle is a
+      // node, so the edge could not run straight and would only wedge the
+      // fan apart on one side.
+      if (edges.length && nodes.length >= 2 && nodes.length % 2 === 0) {
+        if (count < 0) count = local()
+        const half = nodes.length / 2
+        layer.splice(start, end - start, ...nodes.slice(0, half), ...edges, ...nodes.slice(half))
+        const now = local()
+        // Items line up on the same mean position, not the same neighbours:
+        // one fed from either side of the edge's source can cross it more
+        // often once the edge moves past it. Then the run stays as it was.
+        if (now > count) layer.splice(start, end - start, ...run)
         else count = now
       }
       start = end
@@ -404,6 +413,36 @@ function spacing(layer: Item[], gap: (a: Item, b: Item) => number, grid: number,
       }
     }
   }
+  // Long edges between two nodes, as `centreLongEdges` puts them, sit right
+  // in the middle so they run straight, and only the two nodes stay on the
+  // grid: on a coarse grid, putting each edge on it too would take a whole
+  // extra step on either side. Laid out as before (`outer` is `Infinity`),
+  // everything stays on the grid.
+  if (Number.isFinite(outer)) {
+    let from = -1
+    layer.forEach((item, to) => {
+      if (item.edge >= 0) return
+      if (from >= 0 && to > from + 1) {
+        const a = layer[from]!
+        const b = item
+        const inner = layer.slice(from + 1, to)
+        let between = 0
+        for (let k = 1; k < inner.length; k++) between += gap(inner[k - 1]!, inner[k]!)
+        const side = Math.max(
+          a.height - a.anchor + gap(a, inner[0]!),
+          gap(inner.at(-1)!, b) + b.anchor,
+        )
+        const now = steps.slice(from, to).reduce((sum, n) => sum + n, 0)
+        const total = Math.min(now, Math.ceil((2 * side + between) / grid - 1e-6))
+        const lead = Math.floor((total * grid - between) / 2)
+        steps[from] = lead / grid
+        for (let k = 1; k < inner.length; k++)
+          steps[from + k] = gap(inner[k - 1]!, inner[k]!) / grid
+        steps[to - 1] = total - (lead + between) / grid
+      }
+      from = to
+    })
+  }
   return steps
 }
 
@@ -424,6 +463,10 @@ function place(
   const steps = spacing(layer, gap, grid, outer)
   const offsets: number[] = [0]
   steps.forEach((n, i) => offsets.push(offsets[i]! + n))
+  // Long edges can sit between grid rows; nodes never do.
+  layer.forEach((item, i) => {
+    if (item.edge < 0) offsets[i] = Math.round(offsets[i]!)
+  })
   const blocks: { sum: number; count: number }[] = []
   targets.forEach((t, i) => {
     blocks.push({ sum: t / grid - offsets[i]!, count: 1 })
@@ -439,7 +482,11 @@ function place(
   let i = 0
   for (const block of blocks) {
     const z = Math.round(block.sum / block.count)
-    for (let k = 0; k < block.count; k++, i++) layer[i]!.y = (z + offsets[i]!) * grid
+    for (let k = 0; k < block.count; k++, i++) {
+      const y = (z + offsets[i]!) * grid
+      // A long edge between rows is a whole number of px from the row; drop the rounding error.
+      layer[i]!.y = layer[i]!.edge < 0 ? y : Math.round(y * 1000) / 1000
+    }
   }
 }
 
@@ -593,8 +640,8 @@ export function layoutGraph(
     // Neighbours stay at least as far apart as placing them asked for, so
     // the gaps in a fan keep mirroring each other.
     const fits = (layer: Item[], steps: number[], i: number, y: number) =>
-      (i === 0 || y - layer[i - 1]!.y >= steps[i - 1]! * grid) &&
-      (i === layer.length - 1 || layer[i + 1]!.y - y >= steps[i]! * grid)
+      (i === 0 || y - layer[i - 1]!.y >= steps[i - 1]! * grid - 1e-6) &&
+      (i === layer.length - 1 || layer[i + 1]!.y - y >= steps[i]! * grid - 1e-6)
     const centre = (layer: Item[], side: (item: Item) => Item[]) => {
       const steps = spacing(layer, gap, grid, outer)
       let moved = false
@@ -654,6 +701,8 @@ export function layoutGraph(
     if (untangled.some((layer) => layer.some((item) => item.edge >= 0))) {
       arranged = centreLongEdges(untangled)
       arrange(arranged, fanNodes(straightChains))
+      // Both layouts move the same items, so keep the first one's rows to
+      // put them back if it wins.
       const all = arranged.flat()
       const close = all.map((item) => item.y)
       const a = extent(arranged)

@@ -1008,12 +1008,17 @@ function tidy(ids?: string[]) {
   for (const [key, group] of pairs) {
     const [a, b] = key.split('\u0000') as [string, string]
     const points = locked.has(a) || locked.has(b) ? undefined : through.get(key)
+    // Across the flow the points move as far as snapping moved the source,
+    // so an edge running straight from port to port stays straight even
+    // when the ports sit between grid lines.
+    const source = layout.nodes.get(a)
+    const shift = source ? { x: snap(source.x) - source.x, y: snap(source.y) - source.y } : null
     group.forEach((edge, i) => {
       const off = (i - (group.length - 1) / 2) * (props.grid || 8)
       const next = points?.length
         ? points.map((p) => ({
-            x: origin.x + snap(p.x) + (vertical ? off : 0),
-            y: origin.y + snap(p.y) + (vertical ? 0 : off),
+            x: origin.x + (vertical && shift ? p.x + shift.x : snap(p.x)) + (vertical ? off : 0),
+            y: origin.y + (!vertical && shift ? p.y + shift.y : snap(p.y)) + (vertical ? 0 : off),
           }))
         : undefined
       routes.set(edge.id, next)

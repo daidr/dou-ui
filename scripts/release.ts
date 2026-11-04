@@ -1,7 +1,7 @@
 /**
- * Prepare a release: check the version, bump every published package to it
- * and turn the changelog fragments into its section of CHANGELOG.md. The
- * release workflow publishes once this change is merged.
+ * Prepare a release: check the version, bump every published package (and
+ * bun.lock) to it and turn the changelog fragments into its section of
+ * CHANGELOG.md. The release workflow publishes once this change is merged.
  *
  *   bun run release 0.1.0-alpha.0
  */
@@ -67,6 +67,13 @@ for (const pkg of packages) {
   manifest.version = version
   await Bun.write(file, `${JSON.stringify(manifest, null, 2)}\n`)
 }
+// bun.lock records each workspace package's version; keep it in step.
+const lock = Bun.spawnSync(['bun', 'install', '--lockfile-only'], {
+  cwd: root,
+  stdout: 'ignore',
+  stderr: 'pipe',
+})
+if (lock.exitCode !== 0) fail(`更新 bun.lock 失败：\n${lock.stderr.toString()}`)
 await Bun.write(changelogFile, changelog)
 if (isPre) {
   markPrereleased(pending, version)

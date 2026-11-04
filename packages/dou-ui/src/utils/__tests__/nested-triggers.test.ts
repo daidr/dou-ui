@@ -1,7 +1,14 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { DouButton, DouDropdown, DouPopconfirm, DouPopover, DouTooltip } from '../../index'
+import {
+  DouButton,
+  DouDropdown,
+  DouDropdownButton,
+  DouPopconfirm,
+  DouPopover,
+  DouTooltip,
+} from '../../index'
 
 const tooltip = () => document.querySelector<HTMLElement>('[role="tooltip"]')
 const popover = () => document.querySelector<HTMLElement>('.dou-popover')
@@ -175,5 +182,60 @@ describe('a tooltip around another overlay trigger', () => {
     await nextTick()
     expect(wrapper.get('#t').text()).toBe('乙')
     wrapper.unmount()
+  })
+
+  it('gives way to a menu opened by a button inside the trigger', async () => {
+    const wrapper = mount(
+      () =>
+        h(DouTooltip, { content: '保存选项' }, () =>
+          h(
+            DouDropdownButton,
+            { items: [{ key: 'a', label: '另存为' }] },
+            { default: () => '保存' },
+          ),
+        ),
+      { attachTo: document.body },
+    )
+    const root = wrapper.get('.dou-dropdown-button').element as HTMLElement
+    await hover(root)
+    expect(visible(tooltip())).toBe(true)
+    const arrow = root.querySelector<HTMLElement>('[aria-haspopup]')!
+    arrow.click()
+    await nextTick()
+    await flushPromises()
+    expect(arrow.getAttribute('aria-expanded')).toBe('true')
+    expect(visible(tooltip())).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('warns while developing when the trigger gets none of the listeners', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    // a wrapper whose root is a dropdown: its attributes go on the dropdown's panel
+    const MyMenu = defineComponent({
+      setup:
+        (_, { slots }) =>
+        () =>
+          h(DouDropdown, { items: [{ key: 'a', label: '甲' }] }, () => slots.default?.()),
+    })
+    const wrapper = mount(
+      () => h(DouTooltip, { content: '更多' }, () => h(MyMenu, null, () => h('button', '更多'))),
+      { attachTo: document.body },
+    )
+    expect(
+      warn.mock.calls.some(([m]) => String(m).includes('DouTooltip: its trigger got none')),
+    ).toBe(true)
+    wrapper.unmount()
+
+    warn.mockClear()
+    const fine = mount(
+      () =>
+        h(DouTooltip, { content: '更多' }, () =>
+          h(DouDropdown, { items: [{ key: 'a', label: '甲' }] }, () => h('button', '更多')),
+        ),
+      { attachTo: document.body },
+    )
+    expect(warn.mock.calls.some(([m]) => String(m).includes('got none'))).toBe(false)
+    fine.unmount()
+    warn.mockRestore()
   })
 })

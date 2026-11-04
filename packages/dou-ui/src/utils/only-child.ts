@@ -1,6 +1,17 @@
-import { Comment, Fragment, Text, cloneVNode, defineComponent, h } from 'vue'
+import {
+  Comment,
+  Fragment,
+  Text,
+  cloneVNode,
+  defineComponent,
+  getCurrentInstance,
+  h,
+  mergeProps,
+  onMounted,
+} from 'vue'
 import type { Component, ComponentPublicInstance, HTMLAttributes, VNode } from 'vue'
 import type { WithAttributes } from './install'
+import { devWarn } from './status-check'
 
 function firstElement(nodes: VNode[]): VNode | null {
   for (const node of nodes) {
@@ -65,18 +76,53 @@ const OnlyChildComponent = defineComponent({
   name: 'DouOnlyChild',
   inheritAttrs: false,
   setup(_, { slots, attrs }) {
+    const probe = useProbe(attrs)
     return () => {
       const child = firstElement(slots.default?.() ?? [])
       if (!child) return null
-      if (triggerHosts.has(child.type as object)) return passToTrigger(child, { ...attrs })
+      // probes of the components around are kept: each checks its own listeners
+      const given = probe ? mergeProps(attrs, { onDouProbe: probe }) : attrs
+      if (triggerHosts.has(child.type as object)) return passToTrigger(child, { ...given })
       // ids that describe the element are a list: the element's own stay with the ones given
       const own = child.props?.['aria-describedby'] as string | undefined
-      const given = attrs['aria-describedby'] as string | undefined
-      const describedBy = [own, given].filter(Boolean).join(' ') || undefined
-      return cloneVNode(child, { ...attrs, 'aria-describedby': describedBy }, true)
+      const theirs = attrs['aria-describedby'] as string | undefined
+      const describedBy = [own, theirs].filter(Boolean).join(' ') || undefined
+      return cloneVNode(child, { ...given, 'aria-describedby': describedBy }, true)
     }
   },
 })
+
+/*
+ * While developing: check once that the listeners reached an element. A
+ * component in the slot that keeps its attributes for something else
+ * (say a wrapper whose root is a DouDropdown, which puts them on its
+ * panel) leaves the trigger without them, and nothing else would say so.
+ */
+function useProbe(attrs: Record<string, unknown>) {
+  if (process.env.NODE_ENV === 'production') return undefined
+  const instance = getCurrentInstance()
+  let reached = false
+  onMounted(() => {
+    if (!Object.keys(attrs).some((key) => /^on[A-Z]/.test(key) && key !== 'onDouProbe')) return
+    const root = onlyChildElement(instance?.proxy)
+    if (!root) return
+    // the listeners may sit on an element inside the root, not on the root itself
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT)
+    let node: Node | null = root
+    for (let n = 0; node && n < 500; n++) {
+      node.dispatchEvent(new Event('dou-probe'))
+      if (reached) return
+      node = walker.nextNode()
+    }
+    // a trigger too large to look through is given the benefit of the doubt
+    if (node) return
+    const owner = (instance?.parent?.type as { name?: string } | undefined)?.name ?? 'DouOnlyChild'
+    devWarn(
+      `[dou-ui] ${owner}: its trigger got none of its listeners. The component in the default slot keeps its attributes for something else, e.g. your own component whose root is a DouPopover or DouDropdown. Put ${owner} inside that component, right around the overlay, or wrap the slot in an element.`,
+    )
+  })
+  return () => (reached = true)
+}
 
 /** 属性和事件都转交给插槽里的元素，所以模板里可以写任何原生属性。 */
 export const OnlyChild = OnlyChildComponent as WithAttributes<

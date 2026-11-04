@@ -84,10 +84,18 @@ onBeforeUnmount(() => releaseTooltip(close))
 
 /*
  * On the trigger of a popover or a menu, the tip gives way once the panel
- * opens: it would only sit over the panel. It comes back with the next
- * hover or focus after the panel closes.
+ * opens: it would only sit over the panel. The trigger may also hold the
+ * button that opens it (the arrow of a DouDropdownButton). It comes back
+ * when the pointer comes in again, or with the next focus.
  */
-const expanded = () => reference()?.getAttribute('aria-expanded') === 'true'
+const expanded = () => {
+  const element = reference()
+  if (!element) return false
+  return (
+    element.getAttribute('aria-expanded') === 'true' ||
+    !!element.querySelector('[aria-expanded="true"]')
+  )
+}
 let watching: MutationObserver | undefined
 watch(open, (value) => {
   watching?.disconnect()
@@ -102,7 +110,11 @@ watch(open, (value) => {
   watching = new MutationObserver(() => {
     if (expanded()) open.value = false
   })
-  watching.observe(element, { attributes: true, attributeFilter: ['aria-expanded'] })
+  watching.observe(element, {
+    attributes: true,
+    attributeFilter: ['aria-expanded'],
+    subtree: true,
+  })
 })
 onBeforeUnmount(() => watching?.disconnect())
 

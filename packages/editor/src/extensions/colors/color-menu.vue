@@ -39,60 +39,56 @@ const open = useToolbarMenu()
 </script>
 
 <template>
-  <DouTooltip :content="messages.colors.label" :disabled="open" placement="bottom">
-    <span class="dou-editor-bubble__trigger">
-      <DouDropdown v-model:open="open" placement="bottom-start" class="dou-editor-menu">
-        <DouButton
-          size="sm"
-          variant="ghost"
-          class="dou-editor-colors__button"
-          :aria-label="messages.colors.label"
-        >
-          <template #leading>
-            <span
-              class="dou-editor-colors__swatch"
-              :data-color="shown(color)"
-              :data-highlight="shown(highlight)"
-              aria-hidden="true"
-              ><span class="dou-editor-colors__letter">A</span></span
-            >
-          </template>
-        </DouButton>
-        <template #menu>
-          <DouDropdownSub
-            v-for="kind in ['text', 'background'] as const"
-            :key="kind"
-            :title="kind === 'text' ? messages.colors.text : messages.colors.background"
+  <DouTooltip :content="messages.colors.label" placement="bottom">
+    <DouDropdown v-model:open="open" placement="bottom-start" class="dou-editor-menu">
+      <DouButton
+        size="sm"
+        variant="ghost"
+        class="dou-editor-colors__button"
+        :aria-label="messages.colors.label"
+      >
+        <template #leading>
+          <span
+            class="dou-editor-colors__swatch"
+            :data-color="shown(color)"
+            :data-highlight="shown(highlight)"
+            aria-hidden="true"
+            ><span class="dou-editor-colors__letter">A</span></span
           >
-            <DouDropdownItem @click="apply(kind, null)">
-              <template #prefix>
-                <span class="dou-editor-colors__swatch" aria-hidden="true"
-                  ><span class="dou-editor-colors__letter">A</span></span
-                >
-              </template>
-              {{ messages.colors.none }}
-              <template v-if="!(kind === 'text' ? color : highlight)" #suffix
-                ><CheckIcon
-              /></template>
-            </DouDropdownItem>
-            <DouDropdownItem v-for="name in textColors" :key="name" @click="apply(kind, name)">
-              <template #prefix>
-                <span
-                  class="dou-editor-colors__swatch"
-                  :data-color="kind === 'text' ? name : undefined"
-                  :data-highlight="kind === 'background' ? name : undefined"
-                  aria-hidden="true"
-                  ><span class="dou-editor-colors__letter">A</span></span
-                >
-              </template>
-              {{ messages.colors.names[name] }}
-              <template v-if="(kind === 'text' ? color : highlight) === name" #suffix>
-                <CheckIcon />
-              </template>
-            </DouDropdownItem>
-          </DouDropdownSub>
         </template>
-      </DouDropdown>
-    </span>
+      </DouButton>
+      <template #menu>
+        <DouDropdownSub
+          v-for="kind in ['text', 'background'] as const"
+          :key="kind"
+          :title="kind === 'text' ? messages.colors.text : messages.colors.background"
+        >
+          <DouDropdownItem @click="apply(kind, null)">
+            <template #prefix>
+              <span class="dou-editor-colors__swatch" aria-hidden="true"
+                ><span class="dou-editor-colors__letter">A</span></span
+              >
+            </template>
+            {{ messages.colors.none }}
+            <template v-if="!(kind === 'text' ? color : highlight)" #suffix><CheckIcon /></template>
+          </DouDropdownItem>
+          <DouDropdownItem v-for="name in textColors" :key="name" @click="apply(kind, name)">
+            <template #prefix>
+              <span
+                class="dou-editor-colors__swatch"
+                :data-color="kind === 'text' ? name : undefined"
+                :data-highlight="kind === 'background' ? name : undefined"
+                aria-hidden="true"
+                ><span class="dou-editor-colors__letter">A</span></span
+              >
+            </template>
+            {{ messages.colors.names[name] }}
+            <template v-if="(kind === 'text' ? color : highlight) === name" #suffix>
+              <CheckIcon />
+            </template>
+          </DouDropdownItem>
+        </DouDropdownSub>
+      </template>
+    </DouDropdown>
   </DouTooltip>
 </template>

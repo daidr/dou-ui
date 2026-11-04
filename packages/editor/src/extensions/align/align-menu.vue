@@ -27,34 +27,27 @@ const open = useToolbarMenu()
 </script>
 
 <template>
-  <DouTooltip
-    v-if="align !== undefined"
-    :content="messages.align.label"
-    :disabled="open"
-    placement="bottom"
-  >
-    <span class="dou-editor-bubble__trigger">
-      <DouDropdown v-model:open="open" placement="bottom-start" class="dou-editor-menu">
-        <DouButton size="sm" variant="ghost" :aria-label="messages.align.label">
-          <component :is="icons[align === 'mixed' || !align ? 'left' : align]" />
-        </DouButton>
-        <template #menu>
-          <DouDropdownRadioGroup
-            :model-value="align === 'mixed' ? undefined : (align ?? 'left')"
-            @update:model-value="choose"
+  <DouTooltip v-if="align !== undefined" :content="messages.align.label" placement="bottom">
+    <DouDropdown v-model:open="open" placement="bottom-start" class="dou-editor-menu">
+      <DouButton size="sm" variant="ghost" :aria-label="messages.align.label">
+        <component :is="icons[align === 'mixed' || !align ? 'left' : align]" />
+      </DouButton>
+      <template #menu>
+        <DouDropdownRadioGroup
+          :model-value="align === 'mixed' ? undefined : (align ?? 'left')"
+          @update:model-value="choose"
+        >
+          <DouDropdownItem
+            v-for="name in aligns"
+            :key="name"
+            :value="name"
+            :shortcut="shortcuts[name]"
           >
-            <DouDropdownItem
-              v-for="name in aligns"
-              :key="name"
-              :value="name"
-              :shortcut="shortcuts[name]"
-            >
-              <template #prefix><component :is="icons[name]" /></template>
-              {{ messages.align[name] }}
-            </DouDropdownItem>
-          </DouDropdownRadioGroup>
-        </template>
-      </DouDropdown>
-    </span>
+            <template #prefix><component :is="icons[name]" /></template>
+            {{ messages.align[name] }}
+          </DouDropdownItem>
+        </DouDropdownRadioGroup>
+      </template>
+    </DouDropdown>
   </DouTooltip>
 </template>

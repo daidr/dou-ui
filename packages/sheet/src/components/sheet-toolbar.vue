@@ -717,66 +717,56 @@ onBeforeUnmount(() => observer?.disconnect())
 
         <template v-else-if="extras.get(tool)?.children">
           <template v-for="item in [extras.get(tool)!]" :key="item.key">
-            <DouTooltip
-              :content="item.label"
-              :disabled="menuOpen === tool || !item.icon"
-              placement="bottom"
-            >
-              <span class="dou-sheet-toolbar__trigger">
-                <DouDropdown
-                  :open="menuOpen === tool"
-                  placement="bottom-start"
-                  :disabled="item.disabled"
-                  @update:open="onMenu(tool, $event)"
-                >
-                  <DouButton
-                    variant="ghost"
-                    class="dou-sheet-toolbar__menu"
-                    :aria-label="item.label"
-                  >
-                    <component :is="item.icon" v-if="item.icon" />
-                    <span v-else class="dou-sheet-toolbar__text">{{ item.label }}</span>
-                    <template #trailing><ChevronDownIcon /></template>
-                  </DouButton>
-                  <template #menu>
-                    <template v-for="child in item.children" :key="child.key">
-                      <DouDropdownSub
-                        v-if="child.children?.length"
-                        :title="childLabel(child)"
-                        :divided="child.divided"
-                      >
-                        <DouDropdownItem
-                          v-for="grand in child.children"
-                          :key="grand.key"
-                          :disabled="childDisabled(grand)"
-                          :divided="grand.divided"
-                          :tone="grand.tone"
-                          :shortcut="coarse ? undefined : childShortcut(grand)"
-                          @click="runChild(grand)"
-                        >
-                          <template v-if="childIcon(grand)" #prefix>
-                            <component :is="childIcon(grand)" />
-                          </template>
-                          {{ childLabel(grand) }}
-                        </DouDropdownItem>
-                      </DouDropdownSub>
+            <DouTooltip :content="item.label" :disabled="!item.icon" placement="bottom">
+              <DouDropdown
+                :open="menuOpen === tool"
+                placement="bottom-start"
+                :disabled="item.disabled"
+                @update:open="onMenu(tool, $event)"
+              >
+                <DouButton variant="ghost" class="dou-sheet-toolbar__menu" :aria-label="item.label">
+                  <component :is="item.icon" v-if="item.icon" />
+                  <span v-else class="dou-sheet-toolbar__text">{{ item.label }}</span>
+                  <template #trailing><ChevronDownIcon /></template>
+                </DouButton>
+                <template #menu>
+                  <template v-for="child in item.children" :key="child.key">
+                    <DouDropdownSub
+                      v-if="child.children?.length"
+                      :title="childLabel(child)"
+                      :divided="child.divided"
+                    >
                       <DouDropdownItem
-                        v-else
-                        :disabled="childDisabled(child)"
-                        :divided="child.divided"
-                        :tone="child.tone"
-                        :shortcut="coarse ? undefined : childShortcut(child)"
-                        @click="runChild(child)"
+                        v-for="grand in child.children"
+                        :key="grand.key"
+                        :disabled="childDisabled(grand)"
+                        :divided="grand.divided"
+                        :tone="grand.tone"
+                        :shortcut="coarse ? undefined : childShortcut(grand)"
+                        @click="runChild(grand)"
                       >
-                        <template v-if="childIcon(child)" #prefix>
-                          <component :is="childIcon(child)" />
+                        <template v-if="childIcon(grand)" #prefix>
+                          <component :is="childIcon(grand)" />
                         </template>
-                        {{ childLabel(child) }}
+                        {{ childLabel(grand) }}
                       </DouDropdownItem>
-                    </template>
+                    </DouDropdownSub>
+                    <DouDropdownItem
+                      v-else
+                      :disabled="childDisabled(child)"
+                      :divided="child.divided"
+                      :tone="child.tone"
+                      :shortcut="coarse ? undefined : childShortcut(child)"
+                      @click="runChild(child)"
+                    >
+                      <template v-if="childIcon(child)" #prefix>
+                        <component :is="childIcon(child)" />
+                      </template>
+                      {{ childLabel(child) }}
+                    </DouDropdownItem>
                   </template>
-                </DouDropdown>
-              </span>
+                </template>
+              </DouDropdown>
             </DouTooltip>
           </template>
         </template>
@@ -904,82 +894,79 @@ onBeforeUnmount(() => observer?.disconnect())
         <DouTooltip
           v-else-if="tool === 'color' || tool === 'fill'"
           :content="tool === 'color' ? m.textColor : m.fillColor"
-          :disabled="colorOpen === tool"
           placement="bottom"
         >
-          <span class="dou-sheet-toolbar__trigger">
-            <DouPopover
-              :open="colorOpen === tool"
-              placement="bottom-start"
-              :disabled="disabled"
-              @update:open="colorOpen = $event ? tool : colorOpen === tool ? null : colorOpen"
+          <DouPopover
+            :open="colorOpen === tool"
+            placement="bottom-start"
+            :disabled="disabled"
+            @update:open="colorOpen = $event ? tool : colorOpen === tool ? null : colorOpen"
+          >
+            <DouButton
+              variant="ghost"
+              class="dou-sheet-toolbar__color"
+              :class="`is-${tool}`"
+              :style="{ '--dou-sheet-swatch': swatchOf(tool) }"
+              :aria-label="tool === 'color' ? m.textColor : m.fillColor"
+              :aria-expanded="colorOpen === tool"
             >
-              <DouButton
-                variant="ghost"
-                class="dou-sheet-toolbar__color"
-                :class="`is-${tool}`"
-                :style="{ '--dou-sheet-swatch': swatchOf(tool) }"
+              <BaselineIcon v-if="tool === 'color'" />
+              <PaintBucketIcon v-else />
+            </DouButton>
+            <template #content>
+              <div
+                class="dou-sheet-toolbar__colors"
                 :aria-label="tool === 'color' ? m.textColor : m.fillColor"
-                :aria-expanded="colorOpen === tool"
+                role="group"
               >
-                <BaselineIcon v-if="tool === 'color'" />
-                <PaintBucketIcon v-else />
-              </DouButton>
-              <template #content>
-                <div
-                  class="dou-sheet-toolbar__colors"
-                  :aria-label="tool === 'color' ? m.textColor : m.fillColor"
-                  role="group"
-                >
-                  <button
-                    type="button"
-                    class="dou-sheet-toolbar__swatch is-default"
-                    :class="`is-${tool}`"
-                    :aria-pressed="!colorOf(tool).tone && !colorOf(tool).css"
-                    :aria-label="m.colorDefault"
-                    :title="m.colorDefault"
-                    @click="setColor(tool, {})"
-                  />
-                  <button
-                    v-for="tone in TONES"
-                    :key="tone"
-                    type="button"
-                    class="dou-sheet-toolbar__swatch"
-                    :class="[`is-${tool}`, `is-tone-${tone}`]"
-                    :aria-pressed="colorOf(tool).tone === tone"
-                    :aria-label="toneLabel(tone)"
-                    :title="toneLabel(tone)"
-                    @click="setColor(tool, { tone })"
-                  >
-                    <span v-if="tool === 'color'" aria-hidden="true">A</span>
-                  </button>
-                  <button
-                    type="button"
-                    class="dou-sheet-toolbar__swatch is-custom"
-                    :class="`is-${tool}`"
-                    :aria-pressed="!!colorOf(tool).css"
-                    :aria-expanded="custom === tool"
-                    :aria-label="m.colorCustom"
-                    :title="m.colorCustom"
-                    :style="{ '--dou-sheet-swatch': colorOf(tool).css }"
-                    @click="openCustom(tool, $event)"
-                  >
-                    <span v-if="colorOf(tool).css && tool === 'color'" aria-hidden="true">A</span>
-                    <PaletteIcon v-else-if="!colorOf(tool).css" />
-                  </button>
-                </div>
-                <DouColorPanel
-                  v-if="custom === tool"
-                  v-model="customColor"
-                  class="dou-sheet-toolbar__panel"
-                  :bordered="false"
-                  format="hex"
-                  show-input
-                  @change="$event && setColor(tool, { css: $event }, false)"
+                <button
+                  type="button"
+                  class="dou-sheet-toolbar__swatch is-default"
+                  :class="`is-${tool}`"
+                  :aria-pressed="!colorOf(tool).tone && !colorOf(tool).css"
+                  :aria-label="m.colorDefault"
+                  :title="m.colorDefault"
+                  @click="setColor(tool, {})"
                 />
-              </template>
-            </DouPopover>
-          </span>
+                <button
+                  v-for="tone in TONES"
+                  :key="tone"
+                  type="button"
+                  class="dou-sheet-toolbar__swatch"
+                  :class="[`is-${tool}`, `is-tone-${tone}`]"
+                  :aria-pressed="colorOf(tool).tone === tone"
+                  :aria-label="toneLabel(tone)"
+                  :title="toneLabel(tone)"
+                  @click="setColor(tool, { tone })"
+                >
+                  <span v-if="tool === 'color'" aria-hidden="true">A</span>
+                </button>
+                <button
+                  type="button"
+                  class="dou-sheet-toolbar__swatch is-custom"
+                  :class="`is-${tool}`"
+                  :aria-pressed="!!colorOf(tool).css"
+                  :aria-expanded="custom === tool"
+                  :aria-label="m.colorCustom"
+                  :title="m.colorCustom"
+                  :style="{ '--dou-sheet-swatch': colorOf(tool).css }"
+                  @click="openCustom(tool, $event)"
+                >
+                  <span v-if="colorOf(tool).css && tool === 'color'" aria-hidden="true">A</span>
+                  <PaletteIcon v-else-if="!colorOf(tool).css" />
+                </button>
+              </div>
+              <DouColorPanel
+                v-if="custom === tool"
+                v-model="customColor"
+                class="dou-sheet-toolbar__panel"
+                :bordered="false"
+                format="hex"
+                show-input
+                @change="$event && setColor(tool, { css: $event }, false)"
+              />
+            </template>
+          </DouPopover>
         </DouTooltip>
 
         <DouToggleGroup
@@ -996,43 +983,36 @@ onBeforeUnmount(() => observer?.disconnect())
           </DouTooltip>
         </DouToggleGroup>
 
-        <DouTooltip
-          v-else-if="tool === 'valign'"
-          :content="m.verticalAlign"
-          :disabled="menuOpen === tool"
-          placement="bottom"
-        >
-          <span class="dou-sheet-toolbar__trigger">
-            <DouDropdown
-              :open="menuOpen === tool"
-              placement="bottom-start"
-              :disabled="disabled"
-              @update:open="onMenu(tool, $event)"
+        <DouTooltip v-else-if="tool === 'valign'" :content="m.verticalAlign" placement="bottom">
+          <DouDropdown
+            :open="menuOpen === tool"
+            placement="bottom-start"
+            :disabled="disabled"
+            @update:open="onMenu(tool, $event)"
+          >
+            <DouButton
+              variant="ghost"
+              class="dou-sheet-toolbar__menu"
+              :aria-label="m.verticalAlign"
             >
-              <DouButton
-                variant="ghost"
-                class="dou-sheet-toolbar__menu"
-                :aria-label="m.verticalAlign"
-              >
-                <component :is="valignIcon" />
-                <template #trailing><ChevronDownIcon /></template>
-              </DouButton>
-              <template #menu>
-                <DouDropdownRadioGroup :model-value="valign">
-                  <DouDropdownItem
-                    v-for="v in VALIGN"
-                    :key="v.value"
-                    :value="v.value"
-                    :disabled="!can(`valign.${v.value}`)"
-                    @click="run(`valign.${v.value}`)"
-                  >
-                    <template #prefix><component :is="v.icon" /></template>
-                    {{ m[v.label] }}
-                  </DouDropdownItem>
-                </DouDropdownRadioGroup>
-              </template>
-            </DouDropdown>
-          </span>
+              <component :is="valignIcon" />
+              <template #trailing><ChevronDownIcon /></template>
+            </DouButton>
+            <template #menu>
+              <DouDropdownRadioGroup :model-value="valign">
+                <DouDropdownItem
+                  v-for="v in VALIGN"
+                  :key="v.value"
+                  :value="v.value"
+                  :disabled="!can(`valign.${v.value}`)"
+                  @click="run(`valign.${v.value}`)"
+                >
+                  <template #prefix><component :is="v.icon" /></template>
+                  {{ m[v.label] }}
+                </DouDropdownItem>
+              </DouDropdownRadioGroup>
+            </template>
+          </DouDropdown>
         </DouTooltip>
 
         <DouTooltip v-else-if="tool === 'wrap'" :content="m.wrap" placement="bottom">
@@ -1077,118 +1057,93 @@ onBeforeUnmount(() => observer?.disconnect())
           </DouButton>
         </DouTooltip>
 
-        <DouTooltip
-          v-else-if="tool === 'protect'"
-          :content="m.protect.menu"
-          :disabled="menuOpen === tool"
-          placement="bottom"
-        >
-          <span class="dou-sheet-toolbar__trigger">
-            <DouDropdown
-              :open="menuOpen === tool"
-              placement="bottom-start"
-              :disabled="disabled"
-              @update:open="onMenu(tool, $event)"
+        <DouTooltip v-else-if="tool === 'protect'" :content="m.protect.menu" placement="bottom">
+          <DouDropdown
+            :open="menuOpen === tool"
+            placement="bottom-start"
+            :disabled="disabled"
+            @update:open="onMenu(tool, $event)"
+          >
+            <DouButton
+              variant="ghost"
+              class="dou-sheet-toolbar__menu"
+              :class="{ 'is-on': on('protect.sheet') }"
+              :aria-label="m.protect.menu"
             >
-              <DouButton
-                variant="ghost"
-                class="dou-sheet-toolbar__menu"
-                :class="{ 'is-on': on('protect.sheet') }"
-                :aria-label="m.protect.menu"
+              <ShieldLockIcon />
+              <template #trailing><ChevronDownIcon /></template>
+            </DouButton>
+            <template #menu>
+              <DouDropdownItem
+                v-for="name in PROTECT_COMMANDS"
+                :key="name"
+                :disabled="!can(name)"
+                :divided="name === 'protect.sheet'"
+                @click="run(name)"
               >
-                <ShieldLockIcon />
-                <template #trailing><ChevronDownIcon /></template>
-              </DouButton>
-              <template #menu>
-                <DouDropdownItem
-                  v-for="name in PROTECT_COMMANDS"
-                  :key="name"
-                  :disabled="!can(name)"
-                  :divided="name === 'protect.sheet'"
-                  @click="run(name)"
-                >
-                  <template #prefix>
-                    <component :is="sheet.commands.get(name)?.icon" />
-                  </template>
-                  {{ sheet.commands.get(name)?.label }}
-                </DouDropdownItem>
-              </template>
-            </DouDropdown>
-          </span>
+                <template #prefix>
+                  <component :is="sheet.commands.get(name)?.icon" />
+                </template>
+                {{ sheet.commands.get(name)?.label }}
+              </DouDropdownItem>
+            </template>
+          </DouDropdown>
         </DouTooltip>
 
-        <DouTooltip
-          v-else-if="tool === 'freeze'"
-          :content="m.freeze"
-          :disabled="menuOpen === tool"
-          placement="bottom"
-        >
-          <span class="dou-sheet-toolbar__trigger">
-            <DouDropdown
-              :open="menuOpen === tool"
-              placement="bottom-start"
-              :disabled="disabled"
-              @update:open="onMenu(tool, $event)"
+        <DouTooltip v-else-if="tool === 'freeze'" :content="m.freeze" placement="bottom">
+          <DouDropdown
+            :open="menuOpen === tool"
+            placement="bottom-start"
+            :disabled="disabled"
+            @update:open="onMenu(tool, $event)"
+          >
+            <DouButton
+              variant="ghost"
+              class="dou-sheet-toolbar__menu"
+              :class="{ 'is-on': frozen }"
+              :aria-label="m.freeze"
             >
-              <DouButton
-                variant="ghost"
-                class="dou-sheet-toolbar__menu"
-                :class="{ 'is-on': frozen }"
-                :aria-label="m.freeze"
+              <TableFreezeIcon />
+              <template #trailing><ChevronDownIcon /></template>
+            </DouButton>
+            <template #menu>
+              <DouDropdownItem
+                v-for="item in freezeItems"
+                :key="item.key"
+                :checked="(freeze.rows ?? 0) === item.rows && (freeze.cols ?? 0) === item.cols"
+                @click="setFreeze(item.rows, item.cols)"
               >
-                <TableFreezeIcon />
-                <template #trailing><ChevronDownIcon /></template>
-              </DouButton>
-              <template #menu>
-                <DouDropdownItem
-                  v-for="item in freezeItems"
-                  :key="item.key"
-                  :checked="(freeze.rows ?? 0) === item.rows && (freeze.cols ?? 0) === item.cols"
-                  @click="setFreeze(item.rows, item.cols)"
-                >
-                  {{ item.label }}
-                </DouDropdownItem>
-                <DouDropdownItem divided :disabled="!frozen" @click="setFreeze(0, 0)">
-                  {{ m.unfreeze }}
-                </DouDropdownItem>
-              </template>
-            </DouDropdown>
-          </span>
+                {{ item.label }}
+              </DouDropdownItem>
+              <DouDropdownItem divided :disabled="!frozen" @click="setFreeze(0, 0)">
+                {{ m.unfreeze }}
+              </DouDropdownItem>
+            </template>
+          </DouDropdown>
         </DouTooltip>
 
-        <DouTooltip
-          v-else-if="tool === 'sort'"
-          :content="m.filter.sort"
-          :disabled="menuOpen === tool"
-          placement="bottom"
-        >
-          <span class="dou-sheet-toolbar__trigger">
-            <DouDropdown
-              :open="menuOpen === tool"
-              placement="bottom-start"
-              :disabled="disabled"
-              @update:open="onMenu(tool, $event)"
-            >
-              <DouButton
-                variant="ghost"
-                class="dou-sheet-toolbar__menu"
-                :aria-label="m.filter.sort"
-              >
-                <SortIcon />
-                <template #trailing><ChevronDownIcon /></template>
-              </DouButton>
-              <template #menu>
-                <DouDropdownItem :disabled="!can('sort.asc')" @click="run('sort.asc')">
-                  <template #prefix><SortAscendingIcon /></template>
-                  {{ m.filter.sortAsc }}
-                </DouDropdownItem>
-                <DouDropdownItem :disabled="!can('sort.desc')" @click="run('sort.desc')">
-                  <template #prefix><SortDescendingIcon /></template>
-                  {{ m.filter.sortDesc }}
-                </DouDropdownItem>
-              </template>
-            </DouDropdown>
-          </span>
+        <DouTooltip v-else-if="tool === 'sort'" :content="m.filter.sort" placement="bottom">
+          <DouDropdown
+            :open="menuOpen === tool"
+            placement="bottom-start"
+            :disabled="disabled"
+            @update:open="onMenu(tool, $event)"
+          >
+            <DouButton variant="ghost" class="dou-sheet-toolbar__menu" :aria-label="m.filter.sort">
+              <SortIcon />
+              <template #trailing><ChevronDownIcon /></template>
+            </DouButton>
+            <template #menu>
+              <DouDropdownItem :disabled="!can('sort.asc')" @click="run('sort.asc')">
+                <template #prefix><SortAscendingIcon /></template>
+                {{ m.filter.sortAsc }}
+              </DouDropdownItem>
+              <DouDropdownItem :disabled="!can('sort.desc')" @click="run('sort.desc')">
+                <template #prefix><SortDescendingIcon /></template>
+                {{ m.filter.sortDesc }}
+              </DouDropdownItem>
+            </template>
+          </DouDropdown>
         </DouTooltip>
 
         <DouTooltip
@@ -1209,115 +1164,101 @@ onBeforeUnmount(() => observer?.disconnect())
         <DouTooltip
           v-else-if="tool === 'conditional'"
           :content="m.formats.title"
-          :disabled="menuOpen === tool"
           placement="bottom"
         >
-          <span class="dou-sheet-toolbar__trigger">
-            <DouDropdown
-              :open="menuOpen === tool"
-              placement="bottom-start"
-              :disabled="disabled"
-              @update:open="onMenu(tool, $event)"
+          <DouDropdown
+            :open="menuOpen === tool"
+            placement="bottom-start"
+            :disabled="disabled"
+            @update:open="onMenu(tool, $event)"
+          >
+            <DouButton
+              variant="ghost"
+              class="dou-sheet-toolbar__menu"
+              :aria-label="m.formats.title"
             >
-              <DouButton
-                variant="ghost"
-                class="dou-sheet-toolbar__menu"
-                :aria-label="m.formats.title"
-              >
-                <TableHighlightIcon />
-                <template #trailing><ChevronDownIcon /></template>
-              </DouButton>
-              <template #menu>
-                <DouDropdownSub :title="m.formats.highlight">
-                  <DouDropdownItem v-for="kind in HIGHLIGHTS" :key="kind" @click="openFormat(kind)">
-                    {{ m.formats[kind] }}
-                  </DouDropdownItem>
-                </DouDropdownSub>
-                <DouDropdownSub :title="m.formats.ranks">
-                  <DouDropdownItem v-for="kind in RANKS" :key="kind" @click="openFormat(kind)">
-                    {{ m.formats[kind] }}
-                  </DouDropdownItem>
-                </DouDropdownSub>
-                <DouDropdownSub :title="m.formats.bar">
-                  <DouDropdownItem v-for="tone in TONES" :key="tone" @click="addBar(tone)">
-                    <template #prefix>
-                      <span
-                        class="dou-sheet-toolbar__gradient"
-                        :style="{ backgroundImage: barSwatch(tone) }"
-                      />
-                    </template>
-                    {{ toneLabel(tone) }}
-                  </DouDropdownItem>
-                </DouDropdownSub>
-                <DouDropdownSub :title="m.formats.scale">
-                  <DouDropdownItem
-                    v-for="(colors, key) in SCALES"
-                    :key="key"
-                    @click="addScale(colors)"
-                  >
-                    <template #prefix>
-                      <span
-                        class="dou-sheet-toolbar__gradient"
-                        :style="{ backgroundImage: scaleSwatch(colors) }"
-                      />
-                    </template>
-                    {{ m.formats.scales[key] }}
-                  </DouDropdownItem>
-                </DouDropdownSub>
-                <DouDropdownItem divided @click="clearFormats(false)">
-                  {{ m.formats.clearSelection }}
+              <TableHighlightIcon />
+              <template #trailing><ChevronDownIcon /></template>
+            </DouButton>
+            <template #menu>
+              <DouDropdownSub :title="m.formats.highlight">
+                <DouDropdownItem v-for="kind in HIGHLIGHTS" :key="kind" @click="openFormat(kind)">
+                  {{ m.formats[kind] }}
                 </DouDropdownItem>
-                <DouDropdownItem :disabled="!conditionals.length" @click="clearFormats(true)">
-                  {{ m.formats.clearSheet }}
+              </DouDropdownSub>
+              <DouDropdownSub :title="m.formats.ranks">
+                <DouDropdownItem v-for="kind in RANKS" :key="kind" @click="openFormat(kind)">
+                  {{ m.formats[kind] }}
                 </DouDropdownItem>
-                <DouDropdownItem divided @click="listOpen = true">
-                  {{ m.formats.manage }}
+              </DouDropdownSub>
+              <DouDropdownSub :title="m.formats.bar">
+                <DouDropdownItem v-for="tone in TONES" :key="tone" @click="addBar(tone)">
+                  <template #prefix>
+                    <span
+                      class="dou-sheet-toolbar__gradient"
+                      :style="{ backgroundImage: barSwatch(tone) }"
+                    />
+                  </template>
+                  {{ toneLabel(tone) }}
                 </DouDropdownItem>
-              </template>
-            </DouDropdown>
-          </span>
+              </DouDropdownSub>
+              <DouDropdownSub :title="m.formats.scale">
+                <DouDropdownItem
+                  v-for="(colors, key) in SCALES"
+                  :key="key"
+                  @click="addScale(colors)"
+                >
+                  <template #prefix>
+                    <span
+                      class="dou-sheet-toolbar__gradient"
+                      :style="{ backgroundImage: scaleSwatch(colors) }"
+                    />
+                  </template>
+                  {{ m.formats.scales[key] }}
+                </DouDropdownItem>
+              </DouDropdownSub>
+              <DouDropdownItem divided @click="clearFormats(false)">
+                {{ m.formats.clearSelection }}
+              </DouDropdownItem>
+              <DouDropdownItem :disabled="!conditionals.length" @click="clearFormats(true)">
+                {{ m.formats.clearSheet }}
+              </DouDropdownItem>
+              <DouDropdownItem divided @click="listOpen = true">
+                {{ m.formats.manage }}
+              </DouDropdownItem>
+            </template>
+          </DouDropdown>
         </DouTooltip>
 
-        <DouTooltip
-          v-else-if="tool === 'export'"
-          :content="m.file.export"
-          :disabled="menuOpen === tool"
-          placement="bottom"
-        >
-          <span class="dou-sheet-toolbar__trigger">
-            <DouDropdown
-              :open="menuOpen === tool"
-              placement="bottom-start"
-              @update:open="onMenu(tool, $event)"
-            >
-              <DouButton
-                variant="ghost"
-                class="dou-sheet-toolbar__menu"
-                :aria-label="m.file.export"
-              >
-                <DownloadIcon />
-                <template #trailing><ChevronDownIcon /></template>
-              </DouButton>
-              <template #menu>
-                <template v-for="item in exportItems" :key="item.name">
-                  <DouDropdownSub v-if="item.scopes.length" :title="item.label">
-                    <template v-if="item.icon" #prefix><component :is="item.icon" /></template>
-                    <DouDropdownItem
-                      v-for="scope in item.scopes"
-                      :key="scope"
-                      @click="exportWith(item.name, scope)"
-                    >
-                      {{ m.file[scope] }}
-                    </DouDropdownItem>
-                  </DouDropdownSub>
-                  <DouDropdownItem v-else @click="exportWith(item.name, item.scope)">
-                    <template v-if="item.icon" #prefix><component :is="item.icon" /></template>
-                    {{ item.label }}
+        <DouTooltip v-else-if="tool === 'export'" :content="m.file.export" placement="bottom">
+          <DouDropdown
+            :open="menuOpen === tool"
+            placement="bottom-start"
+            @update:open="onMenu(tool, $event)"
+          >
+            <DouButton variant="ghost" class="dou-sheet-toolbar__menu" :aria-label="m.file.export">
+              <DownloadIcon />
+              <template #trailing><ChevronDownIcon /></template>
+            </DouButton>
+            <template #menu>
+              <template v-for="item in exportItems" :key="item.name">
+                <DouDropdownSub v-if="item.scopes.length" :title="item.label">
+                  <template v-if="item.icon" #prefix><component :is="item.icon" /></template>
+                  <DouDropdownItem
+                    v-for="scope in item.scopes"
+                    :key="scope"
+                    @click="exportWith(item.name, scope)"
+                  >
+                    {{ m.file[scope] }}
                   </DouDropdownItem>
-                </template>
+                </DouDropdownSub>
+                <DouDropdownItem v-else @click="exportWith(item.name, item.scope)">
+                  <template v-if="item.icon" #prefix><component :is="item.icon" /></template>
+                  {{ item.label }}
+                </DouDropdownItem>
               </template>
-            </DouDropdown>
-          </span>
+            </template>
+          </DouDropdown>
         </DouTooltip>
 
         <DouTooltip v-else-if="tool === 'import'" :content="m.file.import" placement="bottom">

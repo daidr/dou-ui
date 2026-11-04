@@ -183,36 +183,28 @@ function onSelect(value: DropdownValue | undefined) {
             </DouDropdownItem>
           </template>
         </DouDropdown>
-        <DouTooltip
-          v-if="!editing && exporters.length"
-          :content="messages.export"
-          :disabled="exportOpen"
-        >
-          <span class="dou-dashboard__trigger">
-            <DouDropdown v-model:open="exportOpen" placement="bottom-end" @select="onSelect">
-              <DouButton
-                size="sm"
-                variant="ghost"
-                :aria-label="messages.export"
-                :loading="exporting"
-                :disabled="exporting"
+        <DouTooltip v-if="!editing && exporters.length" :content="messages.export">
+          <DouDropdown v-model:open="exportOpen" placement="bottom-end" @select="onSelect">
+            <DouButton
+              size="sm"
+              variant="ghost"
+              :aria-label="messages.export"
+              :loading="exporting"
+              :disabled="exporting"
+            >
+              <DownloadIcon />
+            </DouButton>
+            <template #menu>
+              <DouDropdownItem
+                v-for="exporter in exporters"
+                :key="exporter.name"
+                :value="EXPORT + exporter.name"
               >
-                <DownloadIcon />
-              </DouButton>
-              <template #menu>
-                <DouDropdownItem
-                  v-for="exporter in exporters"
-                  :key="exporter.name"
-                  :value="EXPORT + exporter.name"
-                >
-                  <template v-if="exporter.icon" #prefix
-                    ><component :is="exporter.icon"
-                  /></template>
-                  {{ exporter.label }}
-                </DouDropdownItem>
-              </template>
-            </DouDropdown>
-          </span>
+                <template v-if="exporter.icon" #prefix><component :is="exporter.icon" /></template>
+                {{ exporter.label }}
+              </DouDropdownItem>
+            </template>
+          </DouDropdown>
         </DouTooltip>
         <DouTooltip v-if="!editing && canFullscreen" :content="messages.fullscreen">
           <DouButton

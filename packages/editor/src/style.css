@@ -1438,11 +1438,6 @@
     }
   }
 
-  /* a menu in the formatting toolbar, with its tooltip */
-  .dou-editor-bubble__trigger {
-    display: inline-flex;
-  }
-
   /* attachment */
   .dou-editor__content--attachment,
   .dou-editor__content--embed {

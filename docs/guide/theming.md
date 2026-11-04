@@ -24,12 +24,10 @@ Token 名称表示**用途**，例如 `color.primary`、`color.bg.surface`、`ra
 
 每种语气色（tone）有四个值：
 
-| Token                   | CSS 变量                   | 用途                                         |
-| ----------------------- | -------------------------- | -------------------------------------------- |
-| `color.primary.DEFAULT` | `--dou-color-primary`      | 实心按钮等填充的颜色                         |
-| `color.primary.on`      | `--dou-color-primary-on`   | 显示在填充色上的文字                         |
-| `color.primary.text`    | `--dou-color-primary-text` | 当作文字使用：浅色按钮与标签、链接、语气文字 |
-| `color.primary.soft`    | `--dou-color-primary-soft` | 浅色底：状态胶囊、被标记的行等安静的背景     |
+- `DEFAULT`（`--dou-color-primary`）：实心按钮等填充的颜色。
+- `on`（`--dou-color-primary-on`）：显示在填充色上的文字。
+- `text`（`--dou-color-primary-text`）：当作文字使用，比如浅色按钮与标签、链接、语气文字。
+- `soft`（`--dou-color-primary-soft`）：淡色底，比如状态胶囊、被标记的行的背景。
 
 亮色主题里 `text` 基本等于 `DEFAULT`；暗色主题里同一个颜色无法既衬托白字、又在深色页面上作为文字清晰可读，所以 `text` 更亮一些。
 `soft` 是把 `DEFAULT` 以 7% 混进 `bg.surface` 得到的颜色，亮色和暗色主题各有一套，和 soft 按钮、标签的底色一致。文字对比度都按 WCAG AA（正文 4.5:1）取值，`text` 和正文在 `soft` 上同样满足。
@@ -80,6 +78,8 @@ Token 就是普通的 CSS 变量，不在级联层中的样式可以直接覆盖
 }
 ```
 
+这样只换了填充色。`--dou-color-primary-text`、`--dou-color-primary-soft` 是预先算好的值，不会跟着变，换语气色时要一起改，或者用下文的 [`createTheme`](#从品牌色生成) 生成整组。
+
 也可以只作用于某个区域：
 
 ```css
@@ -128,7 +128,7 @@ const css = themeToCss(brand, '[data-dou-theme="brand"]')
 - `DEFAULT`：按钮等实心填充的颜色，尽量保持传入的颜色。
 - `on`：填充色上的文字，从白色和深色中选择对比度足够的一个。
 - `text`：在页面上当作文字使用的颜色。
-- `soft`：浅色底，`DEFAULT` 以 7% 混进表面色。
+- `soft`：淡色底，`DEFAULT` 以 7% 混进表面色。
 
 如果传入的颜色在某套主题里对比度不足，会在 OKLCH 里只调整明度，直到所有文字对比度（包括 `text` 在 `soft` 上）都不低于 4.5:1，色相保持不变。焦点环的颜色由 `primary` 推出，对页面的对比度不低于 3:1。
 
@@ -147,7 +147,7 @@ const css =
 
 想同时调整中性色、圆角和字号，可以用 [主题编辑器](./theme-editor)。
 
-没有传入的语气保持默认值。颜色接受 `#rrggbb`、`#rgb` 与 `rgb()` 写法。第二个参数可以换掉起点主题，比如 `createTheme({ primary }, { light: myLight, dark: myDark })`。
+没有传入的语气保持起点主题里的值。只有一个例外：起点主题改了表面色、`soft` 还是按原来的表面色算出的值时，`soft` 会按新的表面色重算（`text` 在上面读不清时一并调整）；自己写的 `soft` 原样保留。颜色接受 `#rrggbb`、`#rgb` 与 `rgb()` 写法。第二个参数可以换掉起点主题，比如 `createTheme({ primary }, { light: myLight, dark: myDark })`。
 
 只需要单个语气时可以用 `createTone(color, base)`，`base` 决定按亮色还是暗色处理。`contrastRatio(a, b)` 返回两个颜色的对比度，可以用来检查自己定义的 Token。`mixColors(color, base, amount)` 按 OKLab 把 `amount`（0–1）的 `color` 混进 `base`，和 CSS 的 `color-mix(in oklab, color amount%, base)` 一致，返回 `#rrggbb`，适合在画布、导出的文件这类用不了 CSS 变量的地方算出主题色的浅色版本。
 

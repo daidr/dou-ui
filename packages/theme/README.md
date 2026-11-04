@@ -17,7 +17,7 @@
 import { defineTheme, light, themeToCss } from '@dou-ui/theme'
 
 const brand = defineTheme(light, {
-  color: { primary: { DEFAULT: '#6d5bd0', on: '#ffffff', text: '#6d5bd0' } },
+  color: { primary: { DEFAULT: '#6d5bd0', on: '#ffffff', text: '#6d5bd0', soft: '#f4f4fd' } },
 })
 
 const css = themeToCss(brand, '[data-dou-theme="brand"]')

@@ -191,8 +191,8 @@ export interface ToneTokens {
   text: string
   /**
    * A faint tint of the tone over the surface: the fill of soft buttons and
-   * tags, and the background of anything that should carry the tone
-   * quietly, such as a status pill or a highlighted row. Computed as
+   * tags, and a faint toned background for things such as a status pill
+   * or a highlighted row. Computed as
    * `color-mix(in oklab, DEFAULT 7%, bg.surface)`; `text` and the body
    * text color both read on it at 4.5:1 or more.
    */

@@ -24,7 +24,7 @@ const shiftOf = (date) => shifts[Number(date.slice(8)) % 3]
 </template>
 
 <style scoped>
-/* 按日期格本身的宽度判断：格子放不下两个字时（手机、窄侧栏）改用单字 */
+/* 按日期格自身的宽度判断：放不下两个字时（手机、窄侧栏、抽屉）改用单字 */
 .shift {
   container-type: inline-size;
 }

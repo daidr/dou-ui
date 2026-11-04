@@ -46,9 +46,17 @@
 
 ### 显示时机
 
-`actions` 决定操作何时显示：`'always'` 始终显示，`'hover'` 在鼠标悬停或焦点在消息内时显示。不设置时，用户消息为 `'hover'`，其余消息为 `'always'`。想让整个对话统一，可以在 ConfigProvider 的 `defaults` 里给 `DouChatMessage` 设置一次。
+`actions` 决定操作何时显示：`'always'` 始终显示，`'hover'` 在鼠标悬停或焦点在消息内时显示。不设置时，用户消息为 `'hover'`，其余消息为 `'always'`。想让整个对话统一，在 [ConfigProvider](./config-provider) 的 `defaults` 里设置一次：
 
-`'hover'` 只是把操作变透明，位置照旧保留，悬停时下面的消息不会被挤开。触屏等无法悬停的设备上，操作始终显示。
+```ts
+app.use(DouUI, {
+  defaults: {
+    DouChatMessage: { actions: 'hover' },
+  },
+})
+```
+
+`'hover'` 下操作隐藏时仍然占着位置，显示出来时不会挤动下面的消息。触屏等无法悬停的设备上，操作始终显示。
 
 <DocDemo src="chat-message/actions-hover" column />
 

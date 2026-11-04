@@ -142,7 +142,7 @@
     }
 
     .dou-chat-message--actions-hover:hover > &,
-    .dou-chat-message--actions-hover > &:focus-within {
+    .dou-chat-message--actions-hover:focus-within > & {
       opacity: 1;
     }
 

@@ -11,8 +11,6 @@
     --dou-alert-bg: color-mix(in oklab, var(--dou-color-text) 3%, var(--dou-color-bg-surface));
     --dou-alert-border: var(--dou-color-border);
     --dou-alert-radius: calc(var(--dou-radius-control) + 2px);
-    /* the text never gets narrower than this beside the actions */
-    --dou-alert-text-min: 16em;
 
     display: flex;
     align-items: flex-start;
@@ -67,6 +65,10 @@
    * --dou-alert-text-min; when that and the actions don't fit side by side,
    * the actions wrap onto their own line under the text, lined up with it.
    * No breakpoint: it follows the alert's own width wherever it is placed.
+   * The width is reserved even for short text: flex wrapping can't take
+   * min(max-content, limit) as a basis without calc-size(), so narrow places
+   * lower the variable instead. It isn't declared on .dou-alert, so a value
+   * set on an ancestor (a sidebar, a card) reaches every alert inside.
    */
   .dou-alert__body {
     display: flex;
@@ -78,7 +80,7 @@
   }
 
   .dou-alert__content {
-    flex: 1 1 var(--dou-alert-text-min);
+    flex: 1 1 var(--dou-alert-text-min, 16em);
     min-width: 0;
     /* keep the first line level with the icon when the actions are taller */
     align-self: flex-start;

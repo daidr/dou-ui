@@ -173,6 +173,7 @@ const dashboardSidebar = ecosystem('仪表盘', [
   { text: '数据与筛选', link: '/dashboard/data' },
   { text: '内置格子', link: '/dashboard/widgets' },
   { text: '导出与打印', link: '/dashboard/export' },
+  { text: '评论', link: '/dashboard/comments' },
   { text: '协同编辑', link: '/dashboard/collaboration' },
 ])
 const formBuilderSidebar = ecosystem('表单设计器', [

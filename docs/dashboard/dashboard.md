@@ -78,6 +78,8 @@ wide: true
 | `createId`      | 生成新格子的 id                               | `(type: string) => string`         | 类型加几个随机字母             |
 | `collaboration` | 与他人协同编辑，见[协同编辑](./collaboration) | `DashboardCollaboration`           | —                              |
 
+评论相关的 `comments`、`author`、`activeComment`、`commentable` 见[评论](./comments#api)。
+
 ### Dashboard Events
 
 | 名称               | 说明                                              | 参数                         |
@@ -87,7 +89,7 @@ wide: true
 
 ### Dashboard Exposes
 
-修改文档的 `transaction`、`dispatch` 见[文档与事务](./document#api)，导出相关的见[导出与打印](./export#api)，筛选相关的见[数据与筛选](./data#api)。
+修改文档的 `transaction`、`dispatch` 见[文档与事务](./document#api)，导出相关的见[导出与打印](./export#api)，筛选相关的见[数据与筛选](./data#api)，评论相关的见[评论](./comments#api)。
 
 | 名称                  | 说明                                                  | 类型                                                                   |
 | --------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------- |

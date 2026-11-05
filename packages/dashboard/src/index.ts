@@ -17,6 +17,7 @@ export type {
   DashboardExportErrorEvent,
   DashboardExportOptions,
   DashboardSaveOptions,
+  DashboardCommentAnchor,
   DashboardExpose,
   DashboardFilterBarProps,
   DashboardPaletteProps,

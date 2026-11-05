@@ -1,6 +1,6 @@
 import { applySteps } from './transaction'
 import type { DashboardStep, DashboardTransaction } from './transaction'
-import type { DashboardDocument } from './types'
+import type { DashboardDocument, DashboardWidget } from './types'
 
 interface Entry {
   steps: DashboardStep[]
@@ -56,8 +56,33 @@ export class DashboardHistory {
     return applySteps(document, entry.steps, { history: false, origin: 'redo' })
   }
 
+  /**
+   * Gives a change kept out of undo to the widget as undo and redo bring it
+   * back, too: comments started on a widget stay on it when its adding is
+   * undone and redone.
+   */
+  carry(id: string, patch: Partial<DashboardWidget>) {
+    const fix = (steps: DashboardStep[]) =>
+      steps.map((step) =>
+        step.type === 'add' && step.widget.id === id
+          ? { ...step, widget: withPatch(step.widget, patch) }
+          : step,
+      )
+    for (const entry of [...this.done, ...this.undone]) {
+      entry.steps = fix(entry.steps)
+      entry.inverse = fix(entry.inverse)
+    }
+  }
+
   clear() {
     this.done = []
     this.undone = []
   }
+}
+
+function withPatch(widget: DashboardWidget, patch: Partial<DashboardWidget>): DashboardWidget {
+  const next = { ...widget, ...patch }
+  for (const [key, value] of Object.entries(patch))
+    if (value === undefined) delete (next as Record<string, unknown>)[key]
+  return next
 }

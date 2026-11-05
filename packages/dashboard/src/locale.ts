@@ -39,6 +39,10 @@ export interface DashboardMessages {
   nothingToExport: string
   duplicate: string
   remove: string
+  /** The comment button and the card of a widget's discussions. */
+  comment: string
+  /** The comment button of a widget with discussions; `{count}` is how many are open. */
+  comments: string
   /** The settings drawer's title: `{title}`. */
   settingsTitle: string
   /** The title field in the settings drawer. */
@@ -130,6 +134,8 @@ const zhCN: DashboardMessages = {
   nothingToExport: '没有可导出的数据',
   duplicate: '复制一份',
   remove: '删除',
+  comment: '评论',
+  comments: '{count} 条评论',
   settingsTitle: '{title}的设置',
   titleField: '标题',
   added: '已添加 {item}',
@@ -203,6 +209,8 @@ const zhTW: DashboardMessages = {
   nothingToExport: '沒有可匯出的資料',
   duplicate: '複製一份',
   remove: '刪除',
+  comment: '評論',
+  comments: '{count} 則評論',
   settingsTitle: '{title}的設定',
   titleField: '標題',
   added: '已新增 {item}',
@@ -277,6 +285,8 @@ const en: DashboardMessages = {
   nothingToExport: 'There is no data to export',
   duplicate: 'Duplicate',
   remove: 'Remove',
+  comment: 'Comment',
+  comments: '{count} comments',
   settingsTitle: '{title} settings',
   titleField: 'Title',
   added: 'Added {item}',

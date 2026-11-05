@@ -70,6 +70,8 @@ import WidgetBody from './widget-body.vue'
 import WidgetFrame from './widget-frame.vue'
 import WidgetSettings from './widget-settings.vue'
 import { frameContextKey } from './frame-context'
+import CommentCard from './comment-card.vue'
+import { useDashboardComments } from './comments'
 import type { FrameExporter, WidgetAction } from './frame-context'
 
 defineOptions({ name: 'DouDashboard' })
@@ -81,6 +83,10 @@ const props = withDefaults(defineProps<Omit<DashboardProps, 'modelValue' | 'filt
   rowHeight: 80,
   gap: 16,
   compact: 'vertical',
+  comments: undefined,
+  author: undefined,
+  activeComment: undefined,
+  commentable: true,
 })
 const emit = defineEmits<Omit<DashboardEmits, 'update:modelValue' | 'update:filters'>>()
 const model = defineModel<DashboardDocument>({ default: emptyDocument })
@@ -163,6 +169,27 @@ function run(steps: DashboardStep[], meta: DashboardTransactionMeta) {
   dispatch(tr)
   return tr
 }
+
+// ---------------------------------------------------------------------------
+// Comments on widgets
+
+const comments = useDashboardComments({
+  props,
+  emit,
+  model,
+  run,
+  carry: (id, patch) => history.carry(id, patch),
+})
+const buttonOf = (id: string) =>
+  root.value?.querySelector<HTMLElement>(`[data-dou-comment="${CSS.escape(id)}"]`) ?? null
+// A thread opened from outside, e.g. a list beside the dashboard: bring its widget into view.
+watch(
+  () => props.activeComment,
+  (id) => {
+    const widget = id && !comments.openedHere(id) ? comments.widgetOf(id) : null
+    if (widget) grid.value?.scrollToItem(widget)
+  },
+)
 
 function undo() {
   if (props.collaboration) return props.collaboration.undo()
@@ -399,6 +426,8 @@ function addCopy(source: DashboardWidget, near?: GridItem) {
     id,
     place: { [main.value.name]: place },
   }
+  // a copy starts without the original's discussions
+  delete widget.comments
   const index = near
     ? model.value.widgets.findIndex((other) => other.id === near.id) + 1
     : model.value.widgets.length
@@ -612,6 +641,7 @@ watch(
 const NO_PEERS: readonly DashboardPeer[] = []
 
 provide(frameContextKey, {
+  comments,
   widget: (id) => widgetMap.value.get(id),
   type: typeOf,
   title: titleOf,
@@ -895,6 +925,12 @@ function isTyping(target: EventTarget | null) {
   )
 }
 
+/** The widget an element is in, such as the one holding the focus. */
+function widgetHolding(target: EventTarget | null) {
+  const el = (target as HTMLElement | null)?.closest?.<HTMLElement>('[data-grid-id]')
+  return el && el.closest('.dou-dashboard') === root.value ? el.dataset.gridId : undefined
+}
+
 /** The widget whose item itself has focus (not a control inside it). */
 function focusedId(target: EventTarget | null) {
   const el = target as HTMLElement | null
@@ -904,7 +940,14 @@ function focusedId(target: EventTarget | null) {
 }
 
 function onKeydown(event: KeyboardEvent) {
-  if (!props.editable || event.defaultPrevented || isTyping(event.target)) return
+  if (event.defaultPrevented || isTyping(event.target)) return
+  // anywhere in a widget, also while viewing: its discussions
+  if (matchesHotkey(event, 'mod+alt+m') && comments.enabled.value) {
+    const id = widgetHolding(event.target)
+    if (id && comments.start(id)) event.preventDefault()
+    return
+  }
+  if (!props.editable) return
   if (matchesHotkey(event, 'mod+z')) {
     event.preventDefault()
     undo()
@@ -1028,6 +1071,8 @@ defineExpose<DashboardExpose>({
   },
   addWidget,
   removeWidget,
+  comment: (id = widgetHolding(document.activeElement)) => !!id && comments.start(id),
+  getCommentAnchors: comments.anchors,
   duplicateWidget,
   focusWidget,
   openSettings,
@@ -1106,6 +1151,12 @@ defineExpose<DashboardExpose>({
       </DouEmpty>
     </div>
     <div class="dou-dashboard__live" aria-live="polite" aria-atomic="true">{{ live }}</div>
+    <CommentCard
+      v-if="comments.enabled.value"
+      :comments="comments"
+      :messages="messages"
+      :button-of="buttonOf"
+    />
     <DouDrawer
       :open="!!settingsWidget"
       :title="

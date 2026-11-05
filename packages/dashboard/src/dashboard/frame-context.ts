@@ -1,6 +1,7 @@
 import type { SheetWorkbook } from '@dou-ui/sheet/core'
 import type { Component, InjectionKey } from 'vue'
 import type { DashboardPeer } from '../core/collaboration'
+import type { DashboardComments } from './comments'
 import type { DashboardWidget } from '../core/types'
 import type { DashboardLinkedFilter } from '../data/types'
 import type { DashboardMessages } from '../locale'
@@ -21,6 +22,7 @@ export interface FrameExporter {
  * that widget's frame again, not every frame on the grid.
  */
 export interface FrameContext {
+  comments: DashboardComments
   widget: (id: string) => DashboardWidget | undefined
   type: (widget: DashboardWidget) => DashboardWidgetType<any> | undefined
   title: (widget: DashboardWidget) => string

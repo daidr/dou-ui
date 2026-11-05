@@ -1,3 +1,4 @@
+import type { CommentAction, CommentAuthor, CommentThread } from 'dou-ui'
 import type { SheetExporterOptionsOf } from '@dou-ui/sheet'
 import type { SheetExporter } from '@dou-ui/sheet/core'
 import type { DashboardCollaboration } from '../core/collaboration'
@@ -14,6 +15,11 @@ import type { GridCompact } from '../layout/types'
 import type { DashboardMessagesOverride } from '../locale'
 import type { DashboardWidgetType } from '../widget/define'
 import type { DashboardImageOptions } from './export'
+
+/** What a comment thread is about: a widget. */
+export interface DashboardCommentAnchor {
+  widget: string
+}
 
 export interface DashboardProps {
   /** The dashboard, bound with `v-model`; a new document object after every change. */
@@ -65,6 +71,18 @@ export interface DashboardProps {
    * such as PNG, are left out.
    */
   exporters?: readonly SheetExporter[]
+  /**
+   * The comment threads, bound with `v-model:comments`. The widget a thread
+   * is about keeps the thread's id in its `comments`. Left out, there are
+   * no comments.
+   */
+  comments?: CommentThread[]
+  /** Who is commenting. Without it comments can be read but not written. */
+  author?: CommentAuthor
+  /** The thread open now, bound with `v-model:activeComment`. */
+  activeComment?: string | null
+  /** Threads can be started and replied to; also while not `editable`. On by default. */
+  commentable?: boolean
 }
 
 /** Options of a dashboard's `exportWidget`. */
@@ -103,6 +121,10 @@ export interface DashboardEmits {
   breakpointChange: [breakpoint: string]
   /** Exporting a widget from its menu or `saveWidget` failed; the widget tells of it unless prevented. */
   exportError: [event: DashboardExportErrorEvent]
+  'update:comments': [threads: CommentThread[]]
+  'update:activeComment': [id: string | null]
+  /** A change to the comments made here: to send to a server, notify people, keep a log. */
+  commentAction: [action: CommentAction]
 }
 
 export interface DashboardAddOptions {
@@ -127,6 +149,15 @@ export interface DashboardExpose {
   /** Adds a widget of a registered type; returns its id, or `undefined` for an unknown type. */
   addWidget: (type: string, options?: DashboardAddOptions) => string | undefined
   removeWidget: (id: string) => void
+  /**
+   * Opens the open threads on a widget (the one holding the focus when
+   * left out), ready to reply, or starts one there; `false` when there is
+   * no such widget, comments are off, or there is nothing to open and
+   * comments can't be written.
+   */
+  comment: (id?: string) => boolean
+  /** The widget each thread is about; `null` when it is gone. Not reactive. */
+  getCommentAnchors: () => Record<string, DashboardCommentAnchor | null>
   /** Adds a copy of a widget next to it; returns the copy's id. */
   duplicateWidget: (id: string) => string | undefined
   focusWidget: (id: string) => void

@@ -20,6 +20,11 @@ export interface DashboardWidget<P extends object = Record<string, unknown>> {
    * main one; a narrower breakpoint without one is laid out from it.
    */
   place: Partial<Record<string, DashboardPlace>>
+  /**
+   * The ids of the comment threads about this widget, see the dashboard's
+   * `comments`. Kept when the widget is removed and brought back by undo.
+   */
+  comments?: string[]
 }
 
 /** A dashboard: a JSON document the app saves and loads itself. */

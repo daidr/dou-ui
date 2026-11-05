@@ -17,6 +17,7 @@ import { format } from '../locale'
 import { frameContextKey } from './frame-context'
 import type { WidgetAction } from './frame-context'
 import { observersKey } from './observers'
+import CommentButton from './comment-button.vue'
 import WidgetBody from './widget-body.vue'
 
 defineOptions({ name: 'DouDashboardWidget' })
@@ -155,6 +156,7 @@ function onSelect(value: DropdownValue | undefined) {
         </DouTag>
       </div>
       <div class="dou-dashboard__actions" data-dou-nodrag>
+        <CommentButton :id="id" :comments="frame.comments" :messages="messages" />
         <DouDropdown v-if="editing" placement="bottom-end" @select="onSelect">
           <DouButton size="sm" variant="ghost" :aria-label="messages.widgetMenu">
             <MoreHorizontalIcon />

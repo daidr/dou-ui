@@ -36,6 +36,7 @@ const doc = ref<DashboardDocument>({
 
 - `type` 是注册过的格子类型，`props` 是这个格子自己的设置，都必须能被 `JSON.stringify` 保存。
 - `title` 可以不写，这时标题栏显示类型的名称。
+- `comments` 是格子上的讨论 id，见[评论](./comments)。
 - `place` 按断点记录位置，单位是列和行。最宽断点（默认 `lg`）的位置是主位置；较窄的断点没有记录时，按主位置推算，在那个断点上拖动过之后才会写进去。缺少主位置的格子放在第一个放得下的地方。
 - 每次修改都会得到一个新的文档对象，没有改动的格子保持原来的对象，可以直接比较引用。
 
@@ -99,19 +100,20 @@ const problems = checkDocument(doc, { widgets })
 
 ### 函数
 
-| 名称                            | 说明                                                                         | 类型                                                                                                                 |
-| ------------------------------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `applySteps(doc, steps, meta?)` | 一次应用一组步骤，返回事务                                                   | `(doc: DashboardDocument, steps: readonly DashboardStep[], meta?: DashboardTransactionMeta) => DashboardTransaction` |
-| `checkDocument(doc, options?)`  | 检查文档，返回问题列表；`options.widgets` 是注册的格子类型，不给时不检查类型 | `(doc: DashboardDocument, options?: CheckDocumentOptions) => DocumentProblem[]`                                      |
-| `migrateDocument(data)`         | 把读到的数据补全成当前版本的文档                                             | `(data: unknown) => DashboardDocument`                                                                               |
-| `emptyDocument()`               | 没有格子的新文档                                                             | `() => DashboardDocument`                                                                                            |
+| 名称                                 | 说明                                                                                                                                                              | 类型                                                                                                                 |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `applySteps(doc, steps, meta?)`      | 一次应用一组步骤，返回事务                                                                                                                                        | `(doc: DashboardDocument, steps: readonly DashboardStep[], meta?: DashboardTransactionMeta) => DashboardTransaction` |
+| `checkDocument(doc, options?)`       | 检查文档，返回问题列表；`options.widgets` 是注册的格子类型，不给时不检查类型                                                                                      | `(doc: DashboardDocument, options?: CheckDocumentOptions) => DocumentProblem[]`                                      |
+| `migrateDocument(data)`              | 把读到的数据补全成当前版本的文档                                                                                                                                  | `(data: unknown) => DashboardDocument`                                                                               |
+| `emptyDocument()`                    | 没有格子的新文档                                                                                                                                                  | `() => DashboardDocument`                                                                                            |
+| `replaceWidgets(tr, next, options?)` | 往事务里加入从当前文档变成 `next` 所需的步骤，用于“恢复默认”。留下的格子保留现在的 `comments`；`options.keepComments` 为 `false` 时连 `comments` 也改成 `next` 的 | `(tr: DashboardTransaction, next: DashboardDocument, options?: ReplaceWidgetsOptions) => DashboardTransaction`       |
 
 ### DocumentProblem
 
-| 名称       | 说明                                    | 类型                                                                                      |
-| ---------- | --------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `code`     | 问题种类                                | `'version' \| 'shape' \| 'duplicate-id' \| 'missing-id' \| 'unknown-type' \| 'bad-place'` |
-| `widgetId` | 出问题的格子；文档本身的问题没有        | `string \| undefined`                                                                     |
-| `path`     | 出问题的位置，如 `widgets[2].place.lg`  | `string`                                                                                  |
-| `text`     | 出问题的 id、类型或断点，供提示文字使用 | `string`                                                                                  |
-| `message`  | 英文说明，用于日志                      | `string`                                                                                  |
+| 名称       | 说明                                                            | 类型                                                                                                        |
+| ---------- | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `code`     | 问题种类；`bad-comments` 是格子的 `comments` 不是讨论 id 的数组 | `'version' \| 'shape' \| 'duplicate-id' \| 'missing-id' \| 'unknown-type' \| 'bad-place' \| 'bad-comments'` |
+| `widgetId` | 出问题的格子；文档本身的问题没有                                | `string \| undefined`                                                                                       |
+| `path`     | 出问题的位置，如 `widgets[2].place.lg`                          | `string`                                                                                                    |
+| `text`     | 出问题的 id、类型或断点，供提示文字使用                         | `string`                                                                                                    |
+| `message`  | 英文说明，用于日志                                              | `string`                                                                                                    |

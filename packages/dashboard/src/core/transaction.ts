@@ -27,6 +27,11 @@ export interface DashboardTransactionMeta {
 
 const PROTECTED = new Set(['id', 'type'])
 
+export interface ReplaceWidgetsOptions {
+  /** A widget that stays keeps its `comments`; `true` by default. */
+  keepComments?: boolean
+}
+
 /** Deep equality of JSON values; key order doesn't matter. */
 export function sameValue(a: unknown, b: unknown): boolean {
   if (a === b) return true
@@ -197,8 +202,18 @@ function longestRun(values: readonly number[]): Set<number> {
  * that are gone are removed, new ones added, changed keys updated, and the
  * fewest widgets taken out and put back to match the order. Unchanged
  * widgets keep their objects.
+ *
+ * A widget that stays keeps its `comments`, the discussions on it, as they
+ * are: restoring a default layout doesn't take them off. Pass
+ * `{ keepComments: false }` for the exact steps, e.g. to apply a shared
+ * document.
  */
-export function replaceWidgets(tr: DashboardTransaction, next: DashboardDocument) {
+export function replaceWidgets(
+  tr: DashboardTransaction,
+  next: DashboardDocument,
+  options: ReplaceWidgetsOptions = {},
+) {
+  const keep = options.keepComments !== false
   const wanted = new Map(next.widgets.map((widget, index) => [widget.id, index]))
   for (const widget of tr.doc.widgets) {
     const index = wanted.get(widget.id)
@@ -215,7 +230,7 @@ export function replaceWidgets(tr: DashboardTransaction, next: DashboardDocument
     const old = there as unknown as Record<string, unknown>
     const item = widget as unknown as Record<string, unknown>
     for (const key of new Set([...Object.keys(old), ...Object.keys(item)]))
-      if (!PROTECTED.has(key)) patch[key] = item[key]
+      if (!PROTECTED.has(key) && !(keep && key === 'comments')) patch[key] = item[key]
     tr.update(widget.id, patch as DashboardWidgetPatch)
   })
   return tr

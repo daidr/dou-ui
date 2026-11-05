@@ -120,7 +120,7 @@ interface DashboardPresence {
 
 ### 接入其他同步方式
 
-`DouDashboard` 的 `collaboration` 属性接受任何实现了 `DashboardCollaboration` 的对象，不限于 Yjs。仪表盘在每次修改后调用它的 `transaction`，撤销和重做交给它处理；它通过 `setup` 拿到的 `apply` 把共享的仪表盘交给仪表盘显示。`replaceWidgets` 可以算出从一个仪表盘变成另一个所需的步骤。
+`DouDashboard` 的 `collaboration` 属性接受任何实现了 `DashboardCollaboration` 的对象，不限于 Yjs。仪表盘在每次修改后调用它的 `transaction`，撤销和重做交给它处理；它通过 `setup` 拿到的 `apply` 把共享的仪表盘交给仪表盘显示。`replaceWidgets(tr, next, { keepComments: false })` 可以算出从一个仪表盘变成另一个所需的步骤；不传 `keepComments: false` 时会保留格子现在的 `comments`，用于“恢复默认”。
 
 | 名称                                    | 说明                                                                       |
 | --------------------------------------- | -------------------------------------------------------------------------- |

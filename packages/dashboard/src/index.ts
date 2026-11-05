@@ -17,6 +17,7 @@ export type {
   DashboardExportErrorEvent,
   DashboardExportOptions,
   DashboardSaveOptions,
+  DashboardCommentAnchor,
   DashboardExpose,
   DashboardFilterBarProps,
   DashboardPaletteProps,
@@ -26,6 +27,7 @@ export type { DashboardDocument, DashboardPlace, DashboardWidget } from './core/
 export { checkDocument, emptyDocument, isDashboardPlace, migrateDocument } from './core/document'
 export type { CheckDocumentOptions, DocumentProblem } from './core/document'
 export { applySteps, DashboardTransaction, replaceWidgets, sameValue } from './core/transaction'
+export type { ReplaceWidgetsOptions } from './core/transaction'
 export type {
   DashboardCollaboration,
   DashboardCollaborationHost,

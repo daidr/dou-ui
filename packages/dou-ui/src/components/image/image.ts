@@ -14,6 +14,14 @@ export interface ImageProps {
   /** A number is in px. */
   width?: string | number
   height?: string | number
+  /**
+   * Without `width` and `height` the picture keeps its own size and
+   * proportions: these cap it, and the box follows the picture. A number is
+   * in px, e.g. `maxWidth="100%"` and `:max-height="320"` for a picture in a
+   * message. While it loads, or when it fails, the box takes these sizes.
+   */
+  maxWidth?: string | number
+  maxHeight?: string | number
   /** How the picture fills its box. */
   fit?: ImageFit
   /** Load only when the image comes near the viewport (the native `loading="lazy"`). */

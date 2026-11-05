@@ -8,6 +8,12 @@
 
 `width` / `height` 决定盒子大小（数字为 px），`fit` 决定图片如何填满盒子，对应 CSS 的 `object-fit`，默认 `cover`。`lazy` 使用浏览器原生的 `loading="lazy"`，图片接近视口时才加载。
 
+## 按原始比例
+
+不传 `width` 和 `height` 时，图片按自己的尺寸和比例显示，盒子跟着图片走。`max-width` 和 `max-height` 给它设上限，图片整体等比缩小，不会被裁掉，比如消息里的图片：宽不超过消息，高不超过 320px。加载中和加载失败时，盒子按这两个上限显示。
+
+<DocDemo src="image/natural" />
+
 ## 加载失败
 
 `fallback` 是 `src` 失败后再试一次的地址；仍然失败时显示错误状态，有 `alt` 就把它写出来。`error` 插槽可以换成别的内容，`placeholder` 插槽替换加载中的微光。
@@ -50,20 +56,22 @@
 
 ### Image Props
 
-| 名称           | 说明                            | 类型                                                       | 默认值     |
-| -------------- | ------------------------------- | ---------------------------------------------------------- | ---------- |
-| `src`          | 图片地址                        | `string`                                                   | —          |
-| `alt`          | 替代文字；只在纯装饰时留空      | `string`                                                   | —          |
-| `width`        | 宽度，数字为 px                 | `string \| number`                                         | —          |
-| `height`       | 高度，数字为 px                 | `string \| number`                                         | —          |
-| `fit`          | 填充方式                        | `'fill' \| 'contain' \| 'cover' \| 'none' \| 'scale-down'` | `'cover'`  |
-| `lazy`         | 原生懒加载                      | `boolean`                                                  | `false`    |
-| `fallback`     | 失败后再试的地址                | `string`                                                   | —          |
-| `preview`      | 点击打开预览                    | `boolean`                                                  | `false`    |
-| `previewSrc`   | 预览用的大图                    | `string`                                                   | `src`      |
-| `previewList`  | 预览里可以切换的一组图片        | `(string \| { src, alt? })[]`                              | —          |
-| `previewIndex` | 这张图在 `previewList` 中的位置 | `number`                                                   | 按地址查找 |
-| `downloadable` | 预览中显示下载按钮              | `boolean`                                                  | `false`    |
+| 名称           | 说明                                                | 类型                                                       | 默认值     |
+| -------------- | --------------------------------------------------- | ---------------------------------------------------------- | ---------- |
+| `src`          | 图片地址                                            | `string`                                                   | —          |
+| `alt`          | 替代文字；只在纯装饰时留空                          | `string`                                                   | —          |
+| `width`        | 宽度，数字为 px                                     | `string \| number`                                         | —          |
+| `height`       | 高度，数字为 px                                     | `string \| number`                                         | —          |
+| `maxWidth`     | 不传宽高时的最大宽度，图片按原始比例缩小，数字为 px | `string \| number`                                         | —          |
+| `maxHeight`    | 不传宽高时的最大高度，图片按原始比例缩小，数字为 px | `string \| number`                                         | —          |
+| `fit`          | 填充方式                                            | `'fill' \| 'contain' \| 'cover' \| 'none' \| 'scale-down'` | `'cover'`  |
+| `lazy`         | 原生懒加载                                          | `boolean`                                                  | `false`    |
+| `fallback`     | 失败后再试的地址                                    | `string`                                                   | —          |
+| `preview`      | 点击打开预览                                        | `boolean`                                                  | `false`    |
+| `previewSrc`   | 预览用的大图                                        | `string`                                                   | `src`      |
+| `previewList`  | 预览里可以切换的一组图片                            | `(string \| { src, alt? })[]`                              | —          |
+| `previewIndex` | 这张图在 `previewList` 中的位置                     | `number`                                                   | 按地址查找 |
+| `downloadable` | 预览中显示下载按钮                                  | `boolean`                                                  | `false`    |
 
 ### Image Events
 

@@ -1,6 +1,18 @@
 <script setup lang="ts">
 import { ArrowUpIcon, StopIcon } from '@dou-ui/icons'
-import { computed, nextTick, onMounted, ref, useAttrs, useId, useTemplateRef, watch } from 'vue'
+import {
+  computed,
+  getCurrentInstance,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  reactive,
+  ref,
+  useAttrs,
+  useId,
+  useTemplateRef,
+  watch,
+} from 'vue'
 import type { StyleValue } from 'vue'
 import { useFloating } from '../../composables/use-floating'
 import { useLayer } from '../../composables/use-layer'
@@ -33,6 +45,8 @@ const props = withDefaults(defineProps<ChatInputProps>(), {
   canSubmit: undefined,
   commands: () => [],
   mentions: () => [],
+  filter: true,
+  searchDelay: 300,
   teleport: undefined,
 })
 const emit = defineEmits<ChatInputEmits>()
@@ -92,10 +106,28 @@ const token = ref<ChatInputToken | null>(null)
 const dismissed = ref<number | null>(null)
 const active = ref(0)
 
+// While an input method composes, the text holds what is being spelled
+// (pinyin, say), not what will be typed: wait for it to finish.
+let composing = false
+function onCaret(event?: Event) {
+  if (composing || (event instanceof KeyboardEvent && isComposing(event))) return
+  if ((event as InputEvent | undefined)?.isComposing) return
+  readToken()
+}
+function onCompositionStart() {
+  composing = true
+}
+function onCompositionEnd() {
+  composing = false
+  readToken()
+}
+
 function readToken() {
   const el = textareaRef.value
   if (!el) return
-  const next = findToken(model.value, el.selectionStart ?? model.value.length)
+  // the textarea's own text: the model may not have caught up yet, e.g. right
+  // after an input method puts its text down
+  const next = findToken(el.value, el.selectionStart ?? el.value.length)
   const current = token.value
   // keyup and click re-read the caret after every key, arrows included: an
   // unchanged token must keep its identity or the menu resets its highlight.
@@ -112,17 +144,73 @@ function readToken() {
   token.value = next
 }
 
+const filterOf = (trigger: '/' | '@') =>
+  typeof props.filter === 'object' ? (props.filter[trigger] ?? true) : props.filter
+
 const options = computed<ChatInputOption[]>(() => {
   const current = token.value
   if (!current || dismissed.value === current.start) return []
   const source = current.trigger === '/' ? props.commands : props.mentions
+  const filter = filterOf(current.trigger)
+  if (filter === false || (filter === true && !current.query)) return source
+  if (typeof filter === 'function')
+    return source.filter((option) => filter(option, current.query, current.trigger))
+  // what the person sees: the label, a mention's value (it gets inserted), the description
   const query = current.query.toLowerCase()
-  return source.filter(
-    (option) =>
-      option.value.toLowerCase().includes(query) ||
-      (option.label ?? '').toLowerCase().includes(query),
-  )
+  const texts = (option: ChatInputOption) => [
+    option.label ?? option.value,
+    ...(current.trigger === '@' && option.label ? [option.value] : []),
+    option.description ?? '',
+    ...(option.keywords ?? []),
+  ]
+  return source.filter((option) => texts(option).some((text) => text.toLowerCase().includes(query)))
 })
+
+// Without local matching, a list the parent puts in after a `search` is the
+// answer to the last query handed out. While what is typed now differs from
+// that query (its search still waits for `searchDelay`, or its answer is on
+// the way), the list shown answers an older one: it stays in view, but
+// Enter and Tab must not pick from it. A list put in before any search,
+// e.g. loaded once after mounting, is fixed and never stale. Nor is any
+// list when nobody listens to `search`: with no one to answer, a parent
+// that passes a new array each render is not answering a query.
+const instance = getCurrentInstance()
+const listening = () => !!instance?.vnode.props?.onSearch
+type Query = { start: number; query: string }
+const asked: { '/'?: Query; '@'?: Query } = {}
+const answered = reactive<{ '/'?: Query; '@'?: Query }>({})
+watch(
+  () => props.commands,
+  () => (answered['/'] = asked['/']),
+)
+watch(
+  () => props.mentions,
+  () => (answered['@'] = asked['@']),
+)
+const stale = computed(() => {
+  const current = token.value
+  if (!current || filterOf(current.trigger) !== false || !listening()) return false
+  const last = answered[current.trigger]
+  return !!last && (last.start !== current.start || last.query !== current.query)
+})
+
+// Each new query is handed out once typing pauses, to look options up
+// elsewhere; the same text at another `@` is a new query too.
+let searchTimer: ReturnType<typeof setTimeout> | undefined
+watch(
+  () => (token.value ? `${token.value.start}${token.value.trigger}${token.value.query}` : null),
+  (key) => {
+    clearTimeout(searchTimer)
+    const current = token.value
+    // Escape closed this one: nothing to look up until another is typed
+    if (key === null || !current || dismissed.value === current.start) return
+    searchTimer = setTimeout(() => {
+      if (listening()) asked[current.trigger] = { start: current.start, query: current.query }
+      emit('search', current.query, current.trigger)
+    }, props.searchDelay)
+  },
+)
+onBeforeUnmount(() => clearTimeout(searchTimer))
 const menuOpen = computed(() => !disabled.value && options.value.length > 0)
 
 // The menu is a popup like any other: rendered on top of the page, above
@@ -222,6 +310,8 @@ function onMenuKeydown(event: KeyboardEvent): boolean {
   }
   if ((event.key === 'Enter' || event.key === 'Tab') && !isComposing(event)) {
     event.preventDefault()
+    // the results for what is typed now are on their way: wait for them
+    if (stale.value) return true
     pick(options.value[active.value]!)
     return true
   }
@@ -335,9 +425,11 @@ defineExpose<ChatInputExpose>({
       :aria-controls="menuOpen ? `${id}-menu` : undefined"
       :aria-activedescendant="menuOpen ? optionId(active) : undefined"
       @keydown="onKeydown"
-      @keyup="readToken"
-      @click="readToken"
-      @input="readToken"
+      @keyup="onCaret"
+      @click="onCaret"
+      @input="onCaret"
+      @compositionstart="onCompositionStart"
+      @compositionend="onCompositionEnd"
       @blur="token = null"
       @paste="onPaste"
     />
@@ -347,7 +439,8 @@ defineExpose<ChatInputExpose>({
           v-if="menuOpen"
           :id="`${id}-menu`"
           ref="menu"
-          :class="[ns.e('menu'), 'dou-floating']"
+          :class="[ns.e('menu'), 'dou-floating', ns.is('stale', stale)]"
+          :aria-busy="stale || undefined"
           :style="menuStyle"
           :data-placement="menuPlacement"
           :data-dou-theme="theme"

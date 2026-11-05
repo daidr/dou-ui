@@ -3,16 +3,31 @@ import type { Size } from '../../utils/types'
 
 /** An entry of the `/` command or `@` mention menu. */
 export interface ChatInputOption {
-  /** What is matched and handed back. For a mention it is also what gets inserted after `@`. */
+  /**
+   * Handed back when picked; for a mention it is also what gets inserted
+   * after `@`, and so matched too. A command's value is never shown and
+   * is matched only when there is no `label`: it may be an id.
+   */
   value: string
-  /** Shown in the menu. Defaults to `value`. */
+  /** Shown in the menu and matched against what is typed. Defaults to `value`. */
   label?: string
-  /** A quieter line after the label. */
+  /** More words that find it, e.g. other names or pinyin. */
+  keywords?: string[]
+  /** A quieter line after the label; matched too. */
   description?: string
   /** An icon component before the label. */
   icon?: Component
   disabled?: boolean
 }
+
+/** Whether an option matches what is typed after the `/` or `@`. */
+export type ChatInputFilter = (
+  option: ChatInputOption,
+  query: string,
+  trigger: '/' | '@',
+) => boolean
+/** `true` matches as described under `filter`, `false` lists every option as given. */
+export type ChatInputFilterMode = boolean | ChatInputFilter
 
 /** `enter` sends on Enter (Shift+Enter breaks the line); `mod-enter` sends on Ctrl / ⌘ + Enter. */
 export type ChatInputSubmitOn = 'enter' | 'mod-enter'
@@ -52,6 +67,17 @@ export interface ChatInputProps {
    * one replaces the typed `@…` with `@value` and emits `mention`.
    */
   mentions?: ChatInputOption[]
+  /**
+   * How options match what is typed after the trigger. By default what
+   * the person sees holds it, ignoring case: the label (or the value, when
+   * there is no label), a mention's value, the description and `keywords`.
+   * `false` lists them all as given, e.g. results already looked up with
+   * `search`. Give `{ '@': false }` to set the `/` and `@` menus apart;
+   * a trigger left out matches by default.
+   */
+  filter?: ChatInputFilterMode | { '/'?: ChatInputFilterMode; '@'?: ChatInputFilterMode }
+  /** Wait this many ms after the last keystroke before emitting `search`. */
+  searchDelay?: number
   /** Where to render the `/` and `@` menu; `false` keeps it in place. */
   teleport?: string | HTMLElement | false
 }
@@ -66,6 +92,12 @@ export interface ChatInputEmits {
   command: [option: ChatInputOption]
   /** Something was picked from the `@` menu. */
   mention: [option: ChatInputOption]
+  /**
+   * The text after a `/` or `@` changed (after `searchDelay`), and when one
+   * is typed: look options up somewhere else and replace `commands` or
+   * `mentions` with them, usually with `filter` set to `false`.
+   */
+  search: [query: string, trigger: '/' | '@']
   /** Files were pasted or dropped onto the input. */
   attach: [files: File[]]
 }

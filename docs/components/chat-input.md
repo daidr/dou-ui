@@ -32,6 +32,16 @@
 
 <DocDemo src="chat-input/commands" column />
 
+## 匹配与远程候选
+
+菜单只列出和输入匹配的项，默认按用户看得到的文字匹配，不区分大小写：`label`（没有 `label` 时用 `value`）、引用的 `value`（它会被插入到文字里）、`description`，以及 `keywords`。命令的 `value` 用户看不到，可能只是内部 id，所以有 `label` 时不参与匹配；想让 `/summarize` 也能找到“总结”，把它写进 `keywords`。`filter` 可以传一个函数自己判断，参数为 `(option, query, trigger)`。
+
+候选太多、要按输入去服务端查时，监听 `search`：`/` 或 `@` 后的文字变化后，停顿 `searchDelay`（默认 300ms）触发，刚输入 `/` 或 `@` 时也会触发一次，参数为 `(query, trigger)`；输入法组词期间不触发，按 Esc 关掉菜单后也不再触发，直到输入新的 `/` 或 `@`。把查到的结果换进 `commands` 或 `mentions`，并关掉这一种的本地匹配，免得组件筛掉服务端已经挑好的结果：`:filter="{ '@': false }"` 只关引用，命令照常在本地匹配。
+
+请求是异步的，慢的请求可能比后发的先回来，只采用最后一次查询的结果。每次查到结果都换一个新数组，组件以此判断结果对应哪次输入：输入变了而新结果还没回来时，菜单里仍是上一次的结果，显示为变淡，按回车或 Tab 不会选中，等新结果回来再选。所以每次 `search` 都要换一次列表：没查到结果时换成空数组；不想查的输入（比如少于两个字）也要清空或换成别的列表，否则上一次的结果会一直变淡、选不了。菜单只在有候选时出现：第一批结果回来之前、或者没有查到结果时，菜单不显示。选项里放图标组件时，用 `shallowRef` 或 `markRaw` 保存列表，不要让 Vue 把组件变成响应式对象。
+
+<DocDemo src="chat-input/search" column />
+
 ## 发送快捷键
 
 `submit-on="mod-enter"` 时回车换行，Ctrl / ⌘ + 回车发送，适合经常输入多行内容的场景。`minRows` 和 `maxRows` 控制最少显示几行、最多增高到几行。`size` 可选 `sm`、`md`、`lg`，放在侧边栏这类窄的地方时用 `sm`。
@@ -42,33 +52,36 @@
 
 ### Props
 
-| 名称          | 说明                                         | 类型                             | 默认值         |
-| ------------- | -------------------------------------------- | -------------------------------- | -------------- |
-| `modelValue`  | 文字，配合 `v-model`                         | `string`                         | `''`           |
-| `placeholder` | 占位文字                                     | `string`                         | 语言包中的提示 |
-| `submitOn`    | 发送的按键                                   | `'enter' \| 'mod-enter'`         | `'enter'`      |
-| `loading`     | 正在生成，发送按钮变成停止按钮               | `boolean`                        | `false`        |
-| `size`        | 文字大小与内边距，圆角和按钮随之变化         | `'sm' \| 'md' \| 'lg'`           | `'md'`         |
-| `disabled`    | 禁用                                         | `boolean`                        | `false`        |
-| `minRows`     | 最少显示的行数                               | `number`                         | `1`            |
-| `maxRows`     | 最多增高到的行数，超出后滚动                 | `number`                         | `8`            |
-| `canSubmit`   | 能否发送；不设置时文字非空白才能发送         | `boolean`                        | —              |
-| `commands`    | 以 `/` 开头时弹出的命令                      | `ChatInputOption[]`              | `[]`           |
-| `mentions`    | 输入 `@` 后弹出的引用                        | `ChatInputOption[]`              | `[]`           |
-| `teleport`    | 命令与引用菜单渲染到哪里；`false` 为原地渲染 | `string \| HTMLElement \| false` | `'body'`       |
+| 名称          | 说明                                                                                                                                                                     | 类型                                                                              | 默认值         |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------- | -------------- |
+| `modelValue`  | 文字，配合 `v-model`                                                                                                                                                     | `string`                                                                          | `''`           |
+| `placeholder` | 占位文字                                                                                                                                                                 | `string`                                                                          | 语言包中的提示 |
+| `submitOn`    | 发送的按键                                                                                                                                                               | `'enter' \| 'mod-enter'`                                                          | `'enter'`      |
+| `loading`     | 正在生成，发送按钮变成停止按钮                                                                                                                                           | `boolean`                                                                         | `false`        |
+| `size`        | 文字大小与内边距，圆角和按钮随之变化                                                                                                                                     | `'sm' \| 'md' \| 'lg'`                                                            | `'md'`         |
+| `disabled`    | 禁用                                                                                                                                                                     | `boolean`                                                                         | `false`        |
+| `minRows`     | 最少显示的行数                                                                                                                                                           | `number`                                                                          | `1`            |
+| `maxRows`     | 最多增高到的行数，超出后滚动                                                                                                                                             | `number`                                                                          | `8`            |
+| `canSubmit`   | 能否发送；不设置时文字非空白才能发送                                                                                                                                     | `boolean`                                                                         | —              |
+| `commands`    | 以 `/` 开头时弹出的命令                                                                                                                                                  | `ChatInputOption[]`                                                               | `[]`           |
+| `mentions`    | 输入 `@` 后弹出的引用                                                                                                                                                    | `ChatInputOption[]`                                                               | `[]`           |
+| `filter`      | 怎样匹配 `/`、`@` 后的文字；`false` 原样列出全部；可以按触发符分开设置，如 `{ '@': false }`；`ChatInputFilterMode` 为 `boolean \| ((option, query, trigger) => boolean)` | `ChatInputFilterMode \| { '/'?: ChatInputFilterMode; '@'?: ChatInputFilterMode }` | `true`         |
+| `searchDelay` | 输入停顿多久后触发 `search`，毫秒                                                                                                                                        | `number`                                                                          | `300`          |
+| `teleport`    | 命令与引用菜单渲染到哪里；`false` 为原地渲染                                                                                                                             | `string \| HTMLElement \| false`                                                  | `'body'`       |
 
 其余属性会传给内部的 `<textarea>`，比如 `maxlength`、`autofocus`。
 
 ### Events
 
-| 名称                | 说明                     | 参数                        |
-| ------------------- | ------------------------ | --------------------------- |
-| `update:modelValue` | 文字变化                 | `(value: string)`           |
-| `submit`            | 按下发送键或点击发送按钮 | `(value: string)`           |
-| `stop`              | 生成中点击停止按钮       | —                           |
-| `command`           | 从 `/` 菜单选中了一项    | `(option: ChatInputOption)` |
-| `mention`           | 从 `@` 菜单选中了一项    | `(option: ChatInputOption)` |
-| `attach`            | 粘贴或拖入了文件         | `(files: File[])`           |
+| 名称                | 说明                                                                                       | 参数                                   |
+| ------------------- | ------------------------------------------------------------------------------------------ | -------------------------------------- |
+| `update:modelValue` | 文字变化                                                                                   | `(value: string)`                      |
+| `submit`            | 按下发送键或点击发送按钮                                                                   | `(value: string)`                      |
+| `stop`              | 生成中点击停止按钮                                                                         | —                                      |
+| `command`           | 从 `/` 菜单选中了一项                                                                      | `(option: ChatInputOption)`            |
+| `mention`           | 从 `@` 菜单选中了一项                                                                      | `(option: ChatInputOption)`            |
+| `search`            | `/` 或 `@` 后的文字变化（停顿后），以及刚输入 `/` 或 `@` 时；组词期间和按 Esc 关掉后不触发 | `(query: string, trigger: '/' \| '@')` |
+| `attach`            | 粘贴或拖入了文件                                                                           | `(files: File[])`                      |
 
 ### Slots
 
@@ -81,13 +94,14 @@
 
 ### ChatInputOption
 
-| 名称          | 说明                                 | 类型        |
-| ------------- | ------------------------------------ | ----------- |
-| `value`       | 匹配和返回的值，引用时也是插入的文字 | `string`    |
-| `label`       | 菜单中显示的文字，默认为 `value`     | `string`    |
-| `description` | 文字后面的说明                       | `string`    |
-| `icon`        | 图标组件                             | `Component` |
-| `disabled`    | 禁用                                 | `boolean`   |
+| 名称          | 说明                                                        | 类型        |
+| ------------- | ----------------------------------------------------------- | ----------- |
+| `value`       | 返回的值，引用时也是插入的文字；命令有 `label` 时不参与匹配 | `string`    |
+| `label`       | 菜单中显示并参与匹配的文字，默认为 `value`                  | `string`    |
+| `keywords`    | 另外能找到这一项的词，比如英文名、拼音                      | `string[]`  |
+| `description` | 文字后面的说明，也参与匹配                                  | `string`    |
+| `icon`        | 图标组件                                                    | `Component` |
+| `disabled`    | 禁用                                                        | `boolean`   |
 
 ### Exposes
 

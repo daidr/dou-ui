@@ -99,9 +99,27 @@ const list = useTemplateRef('list')
 let timers = []
 
 const commands = [
-  { value: 'summarize', label: '总结', description: '概括对话要点', icon: TextSparkleIcon },
-  { value: 'translate', label: '翻译', description: '翻译上一条回复', icon: GlobeIcon },
-  { value: 'plan', label: '计划', description: '先列计划再动手', icon: ListChecksIcon },
+  {
+    value: 'summarize',
+    keywords: ['summarize'],
+    label: '总结',
+    description: '概括对话要点',
+    icon: TextSparkleIcon,
+  },
+  {
+    value: 'translate',
+    keywords: ['translate'],
+    label: '翻译',
+    description: '翻译上一条回复',
+    icon: GlobeIcon,
+  },
+  {
+    value: 'plan',
+    keywords: ['plan'],
+    label: '计划',
+    description: '先列计划再动手',
+    icon: ListChecksIcon,
+  },
 ]
 const mentions = [
   { value: '上次骑行记录.gpx', description: '文件', icon: FileTextIcon },

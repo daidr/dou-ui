@@ -416,7 +416,7 @@ const notEmpty = (value) => (value.trim() ? true : '名称不能为空')
   gap: 8px;
   min-height: 24px;
   color: var(--dou-color-text-tertiary);
-  font-size: var(--dou-font-size-xs);
+  font-size: var(--dou-font-size-sm);
   font-variant-numeric: tabular-nums;
 }
 .meta-item {

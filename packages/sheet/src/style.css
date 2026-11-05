@@ -2173,7 +2173,7 @@
     background-color: var(--dou-color-bg-surface);
     background-repeat: no-repeat;
     color: var(--dou-color-text);
-    font-size: var(--dou-font-size-xs);
+    font-size: var(--dou-font-size-sm);
     font-variant-numeric: tabular-nums;
 
     &.is-bold {

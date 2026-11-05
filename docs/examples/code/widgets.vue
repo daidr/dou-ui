@@ -121,6 +121,6 @@ const extensions = [swatches, review]
 }
 :deep(.demo-comment-author) {
   color: var(--dou-color-text-secondary);
-  font-size: var(--dou-font-size-xs);
+  font-size: var(--dou-font-size-sm);
 }
 </style>

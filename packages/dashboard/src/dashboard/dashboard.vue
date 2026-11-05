@@ -70,6 +70,7 @@ import WidgetBody from './widget-body.vue'
 import WidgetFrame from './widget-frame.vue'
 import WidgetSettings from './widget-settings.vue'
 import { frameContextKey } from './frame-context'
+import CommentButton from './comment-button.vue'
 import CommentCard from './comment-card.vue'
 import { useDashboardComments } from './comments'
 import type { FrameExporter, WidgetAction } from './frame-context'
@@ -180,8 +181,29 @@ const comments = useDashboardComments({
   run,
   carry: (id, patch) => history.carry(id, patch),
 })
-const buttonOf = (id: string) =>
-  root.value?.querySelector<HTMLElement>(`[data-dou-comment="${CSS.escape(id)}"]`) ?? null
+/** The full screen view, which has a comment button of its own. */
+const fullscreenBody = shallowRef<HTMLElement | null>(null)
+/** A widget's comment button: in the full screen view while that widget is there. */
+function buttonOf(id: string) {
+  const selector = `[data-dou-comment="${CSS.escape(id)}"]`
+  const inFullscreen = fullscreenId.value === id ? fullscreenBody.value : null
+  return (
+    inFullscreen?.querySelector<HTMLElement>(selector) ??
+    root.value?.querySelector<HTMLElement>(selector) ??
+    null
+  )
+}
+/** Where a widget's card goes: by its comment button, or by the widget until the button is drawn. */
+const cardSpotOf = (id: string) =>
+  buttonOf(id) ??
+  root.value?.querySelector<HTMLElement>(`[data-grid-id="${CSS.escape(id)}"]`) ??
+  null
+/** The comment shortcut in the full screen view, which is outside the dashboard. */
+function onFullscreenKeydown(event: KeyboardEvent) {
+  const id = fullscreenId.value
+  if (!id || event.defaultPrevented || !comments.enabled.value) return
+  if (matchesHotkey(event, 'mod+alt+m') && comments.start(id)) event.preventDefault()
+}
 // A thread opened from outside, e.g. a list beside the dashboard: bring its widget into view.
 watch(
   () => props.activeComment,
@@ -549,7 +571,7 @@ function applyShared(doc: DashboardDocument, origin: 'remote' | 'undo' | 'redo')
     held = true
     return
   }
-  const tr = replaceWidgets(new DashboardTransaction(model.value), doc)
+  const tr = replaceWidgets(new DashboardTransaction(model.value), doc, { keepComments: false })
   if (!tr.changed) return
   tr.setMeta('history', false).setMeta('origin', origin)
   const ids = new Set(tr.doc.widgets.map((widget) => widget.id))
@@ -1156,6 +1178,7 @@ defineExpose<DashboardExpose>({
       :comments="comments"
       :messages="messages"
       :button-of="buttonOf"
+      :place-of="cardSpotOf"
     />
     <DouDrawer
       :open="!!settingsWidget"
@@ -1209,16 +1232,25 @@ defineExpose<DashboardExpose>({
       @update:open="(open) => !open && (fullscreenId = undefined)"
       @closed="restoreFocus"
     >
-      <WidgetBody
+      <div
         v-if="fullscreenWidget"
-        class="is-fullscreen"
-        :widget="fullscreenWidget"
-        :type="typeOf(fullscreenWidget)"
-        :editing="false"
-        fullscreen
-        :messages="messages"
-        :set-props="setProps"
-      />
+        ref="fullscreenBody"
+        class="dou-dashboard__fullscreen"
+        @keydown="onFullscreenKeydown"
+      >
+        <div v-if="comments.enabled.value" class="dou-dashboard__fullscreen-bar">
+          <CommentButton :id="fullscreenWidget.id" :comments="comments" :messages="messages" />
+        </div>
+        <WidgetBody
+          class="is-fullscreen"
+          :widget="fullscreenWidget"
+          :type="typeOf(fullscreenWidget)"
+          :editing="false"
+          fullscreen
+          :messages="messages"
+          :set-props="setProps"
+        />
+      </div>
     </DouDialog>
   </div>
 </template>

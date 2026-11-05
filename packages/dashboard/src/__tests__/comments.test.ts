@@ -2,7 +2,13 @@ import { mount } from '@vue/test-utils'
 import { DouCommentThread, type CommentAction, type CommentThread } from 'dou-ui'
 import { afterEach, describe, expect, it } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
-import { DouDashboard, defineDashboardWidget } from '..'
+import {
+  checkDocument,
+  DashboardTransaction,
+  DouDashboard,
+  defineDashboardWidget,
+  replaceWidgets,
+} from '..'
 import type { DashboardDocument, DashboardExpose } from '..'
 import { later } from '../../../../test/later'
 
@@ -260,5 +266,53 @@ describe('DouDashboard comments', () => {
     await ticks()
     const again = document.querySelector('.dou-dashboard__comment-card')!
     expect(again.contains(document.activeElement)).toBe(true)
+  })
+
+  it('comments in the full screen view, by its button and the shortcut', async () => {
+    const { dashboard, active } = setup({ editable: false })
+    await ticks()
+    dashboard.value!.openFullscreen('orders')
+    await ticks()
+    const inside = document.querySelector<HTMLElement>(
+      '.dou-dashboard__fullscreen [data-dou-comment="orders"]',
+    )!
+    expect(inside.getAttribute('aria-label')).toBe('1 条评论')
+    const event = new KeyboardEvent('keydown', {
+      key: 'm',
+      code: 'KeyM',
+      ctrlKey: true,
+      altKey: true,
+      bubbles: true,
+      cancelable: true,
+    })
+    later()
+    inside.dispatchEvent(event)
+    await ticks()
+    expect(active.value).toBe('t1')
+    expect(event.defaultPrevented).toBe(true)
+  })
+})
+
+describe('replaceWidgets and checkDocument with comments', () => {
+  it('keeps the threads on a widget that stays, unless asked not to', () => {
+    const now = doc()
+    const defaults: DashboardDocument = {
+      version: 1,
+      widgets: now.widgets.map((widget) => ({ ...widget, comments: undefined, title: '默认' })),
+    }
+    const kept = replaceWidgets(new DashboardTransaction(now), defaults).doc
+    expect(kept.widgets[0]!.comments).toEqual(['t1', 'done'])
+    expect(kept.widgets[0]!.title).toBe('默认')
+    const exact = replaceWidgets(new DashboardTransaction(now), defaults, { keepComments: false })
+    expect(exact.doc.widgets[0]!.comments).toBeUndefined()
+  })
+
+  it('reports comments that are not a list of thread ids', () => {
+    const bad = doc()
+    ;(bad.widgets[1] as { comments?: unknown }).comments = 'orders-drop'
+    expect(checkDocument(bad).map((p) => [p.code, p.path])).toEqual([
+      ['bad-comments', 'widgets[1].comments'],
+    ])
+    expect(checkDocument(doc())).toEqual([])
   })
 })

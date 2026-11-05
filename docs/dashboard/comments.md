@@ -7,12 +7,14 @@
 ```vue
 <script setup lang="ts">
 import { DouDashboard, type DashboardDocument } from '@dou-ui/dashboard'
+import { statWidget } from '@dou-ui/dashboard/widgets'
 import type { CommentThread } from 'dou-ui'
 import { ref } from 'vue'
 
 const doc = ref<DashboardDocument>({ version: 1, widgets: [] })
 const threads = ref<CommentThread[]>([])
 const active = ref<string | null>(null)
+const widgets = [statWidget()]
 </script>
 
 <template>
@@ -34,6 +36,7 @@ const active = ref<string | null>(null)
 - 只用键盘时，焦点在格子里时按 `Ctrl/⌘` + `Alt` + `M`。用键盘打开时焦点直接落在回复框里；用鼠标或手指点开时只显示讨论，不会在手机上弹出键盘，点回复框再回复。
 - 有讨论的格子，评论按钮上显示条数，不用把鼠标移上去也能看到。一个格子有几条讨论时，卡片里依次列出，可以回复、编辑、删除和标记为已解决。
 - 已经有讨论的格子再点评论按钮，会打开已有的讨论，不会再发起一条。
+- 全屏查看格子时，右上方也有评论按钮，快捷键同样可用。
 - 再点一次评论按钮或按 `Esc` 关闭卡片，焦点回到评论按钮上；回复框里有没发出的文字时，第一次按 `Esc` 先清空文字。
 - 不能发起讨论时（没有 `author`，或 `commentable` 为 `false`），没有讨论的格子不显示评论按钮。
 
@@ -61,6 +64,7 @@ const active = ref<string | null>(null)
 ### 复制和删除
 
 - 复制、粘贴或“复制一份”得到的格子不带讨论，讨论仍然只在原来的格子上。
+- 用 [`replaceWidgets`](./document#函数) “恢复默认”时，留下来的格子保留现在的讨论。
 - 删除带讨论的格子后，讨论仍然留在 `comments` 里，撤销删除时会回到原处。用 `getCommentAnchors()` 可以查到每条讨论现在在哪个格子上，格子已删除的返回 `null`，可以在侧栏里单独显示，或者自行清理。把 `activeComment` 设为这样一条讨论的 id 时不会打开卡片，示例里把它们显示为不可点击。
 - 在卡片里删除整条讨论时，格子上的 id 会一起去掉。用代码从 `comments` 里删掉讨论时，id 还在，但不再显示；需要清理时用 [`transaction`](./document#修改文档) 修改格子的 `comments`。
 
@@ -130,6 +134,6 @@ interface DashboardCommentAnchor {
 
 ### 文档字段
 
-| 名称       | 说明                    | 类型       |
-| ---------- | ----------------------- | ---------- |
-| `comments` | 格子上的讨论 id，见上文 | `string[]` |
+| 名称       | 说明                                                                  | 类型       |
+| ---------- | --------------------------------------------------------------------- | ---------- |
+| `comments` | 格子上的讨论 id，见上文；格式不对时 `checkDocument` 报 `bad-comments` | `string[]` |

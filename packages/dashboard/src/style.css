@@ -314,12 +314,29 @@
     color: var(--dou-color-text-tertiary);
   }
 
-  /* a widget with discussions: its comment button stands out a little, with how many */
-  .dou-dashboard__comment.has-threads {
-    color: var(--dou-color-text-secondary);
-  }
-  .dou-dashboard__comment-count {
+  /* the comment button: quiet on a widget without discussions, like the other buttons with some */
+  .dou-dashboard__comment {
     font-variant-numeric: tabular-nums;
+
+    &:not(.has-threads) {
+      color: var(--dou-color-text-secondary);
+    }
+
+    /* with a count it is no longer square: still 40px for a finger */
+    @media (pointer: coarse) {
+      &.has-threads::after {
+        position: absolute;
+        inset: min(0px, calc(50% - 20px));
+        content: '';
+      }
+    }
+  }
+
+  /* full screen: the comment button above the content, on the right */
+  .dou-dashboard__fullscreen-bar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 8px;
   }
 
   .dou-dashboard__comment-card {

@@ -5,7 +5,14 @@ import type { DashboardDocument, DashboardPlace, DashboardWidget } from './types
 export const emptyDocument = (): DashboardDocument => ({ version: 1, widgets: [] })
 
 export interface DocumentProblem {
-  code: 'version' | 'shape' | 'duplicate-id' | 'missing-id' | 'unknown-type' | 'bad-place'
+  code:
+    | 'version'
+    | 'shape'
+    | 'duplicate-id'
+    | 'missing-id'
+    | 'unknown-type'
+    | 'bad-place'
+    | 'bad-comments'
   /** The widget at fault; none for the document's own problems. */
   widgetId?: string
   /** Where the problem is, e.g. `widgets[2]` or `widgets[2].place.lg`; `version` for the version. */
@@ -46,7 +53,8 @@ function shapeProblems(value: unknown, lists: string[]): DocumentProblem[] {
 /**
  * The problems of a dashboard document, before it is saved or shown: an
  * unknown version, widgets without an id or sharing one, types nobody
- * registered, and places that are not whole cells.
+ * registered, places that are not whole cells, and `comments` that are
+ * not a list of thread ids.
  */
 export function checkDocument(
   document: DashboardDocument,
@@ -95,6 +103,18 @@ export function checkDocument(
           text: name,
           message: `The place of "${widget.id}" on "${name}" is not whole cells`,
         })
+    const notes: unknown = widget.comments
+    if (
+      notes !== undefined &&
+      !(Array.isArray(notes) && notes.every((id) => typeof id === 'string'))
+    )
+      problems.push({
+        code: 'bad-comments',
+        widgetId: widget.id,
+        path: `${path}.comments`,
+        text: widget.id,
+        message: `The comments of "${widget.id}" are not a list of thread ids`,
+      })
   })
   return problems
 }

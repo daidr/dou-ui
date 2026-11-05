@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { DownloadIcon, MaximizeIcon, MessageCircleIcon, MoreHorizontalIcon } from '@dou-ui/icons'
+import { DownloadIcon, MaximizeIcon, MoreHorizontalIcon } from '@dou-ui/icons'
 import {
   DouAlert,
   DouButton,
@@ -17,6 +17,7 @@ import { format } from '../locale'
 import { frameContextKey } from './frame-context'
 import type { WidgetAction } from './frame-context'
 import { observersKey } from './observers'
+import CommentButton from './comment-button.vue'
 import WidgetBody from './widget-body.vue'
 
 defineOptions({ name: 'DouDashboardWidget' })
@@ -84,24 +85,6 @@ watch(
   },
   { immediate: true },
 )
-// Comments: a button in the title bar, with how many open threads there are.
-const comments = frame.comments
-const threadCount = computed(() => comments.openOn.value.get(props.id)?.length ?? 0)
-const commentable = computed(
-  () => comments.enabled.value && (comments.writable.value || threadCount.value > 0),
-)
-const commentOpen = computed(() => comments.current.value === props.id)
-const commentLabel = computed(() =>
-  threadCount.value
-    ? format(messages.value.comments, { count: threadCount.value })
-    : messages.value.comment,
-)
-function toggleComments(event: MouseEvent) {
-  if (commentOpen.value) comments.close()
-  // pressed from the keyboard (no clicks counted): straight into the reply box
-  else comments.start(props.id, event.detail === 0)
-}
-
 const canFullscreen = computed(() => type.value?.fullscreen !== false)
 
 const emitAction = (action: WidgetAction) => frame.action(props.id, action)
@@ -173,20 +156,7 @@ function onSelect(value: DropdownValue | undefined) {
         </DouTag>
       </div>
       <div class="dou-dashboard__actions" data-dou-nodrag>
-        <DouTooltip v-if="commentable" :content="commentLabel">
-          <DouButton
-            size="sm"
-            variant="ghost"
-            :class="['dou-dashboard__comment', threadCount && 'has-threads']"
-            :aria-label="commentLabel"
-            :aria-expanded="commentOpen"
-            :data-dou-comment="id"
-            @click="toggleComments"
-          >
-            <MessageCircleIcon />
-            <span v-if="threadCount" class="dou-dashboard__comment-count">{{ threadCount }}</span>
-          </DouButton>
-        </DouTooltip>
+        <CommentButton :id="id" :comments="frame.comments" :messages="messages" />
         <DouDropdown v-if="editing" placement="bottom-end" @select="onSelect">
           <DouButton size="sm" variant="ghost" :aria-label="messages.widgetMenu">
             <MoreHorizontalIcon />

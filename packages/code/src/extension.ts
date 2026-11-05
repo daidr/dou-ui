@@ -94,8 +94,17 @@ export interface CodeGutterMarker {
   /** Short text, when there is no icon. */
   text?: string
   class?: string
-  /** Shown on hover and read out. */
+  /**
+   * Shown on hover. Required when the column has `onPress`: the marker is
+   * then a button, and this is its name.
+   */
   title?: string
+  /**
+   * When the marker shows: `always`, or `hover`, out of sight until its
+   * line is hovered, holds the cursor, or the marker has the focus, e.g. a
+   * "comment" mark offered on every line. Defaults to `always`.
+   */
+  visible?: 'always' | 'hover'
 }
 
 /** A column of the gutter, left of the line numbers. */
@@ -105,8 +114,16 @@ export interface CodeGutter {
   width?: number
   /** The markers on the lines in view; reactive state read here updates them. */
   markers: (context: CodeExtensionContext) => CodeGutterMarker[]
-  /** A press on the column, on line `line`, e.g. to set a breakpoint. */
-  onPress?: (line: number, event: PointerEvent, context: CodeExtensionContext) => void
+  /**
+   * A press on the column, on line `line`, e.g. to set a breakpoint. A
+   * marker in such a column is a button: the one on the cursor's line is
+   * reached with Escape then Shift+Tab, and Enter or Space presses it.
+   */
+  onPress?: (
+    line: number,
+    event: PointerEvent | KeyboardEvent,
+    context: CodeExtensionContext,
+  ) => void
 }
 
 /** An undo history that takes the place of the editor's own, e.g. one shared with others. */

@@ -53,9 +53,42 @@ describe('DouLink', () => {
   it('keeps a soft link’s icons on the line of the words beside them', () => {
     const wrapper = mount(DouLink, {
       props: { href: '/a', variant: 'soft', external: true },
+      slots: { leading: '<i>i</i>', default: '\n  会议纪要\n  ' },
+    })
+    expect(wrapper.get('.dou-link__lead').text()).toBe('i会')
+    expect(wrapper.get('.dou-link__label').element.textContent).toBe('议纪')
+    expect(wrapper.get('.dou-link__trail').text()).toBe('要')
+    expect(wrapper.find('.dou-link__trail .dou-link__external').exists()).toBe(true)
+    // nothing is added to what is read out or copied
+    expect(wrapper.element.textContent).toBe('i会议纪要')
+    const plain = mount(DouLink, {
+      props: { href: '/a', external: true },
       slots: { leading: '<i>i</i>', default: '文档' },
     })
-    expect(wrapper.text()).toBe('i\u2060文档\u2060')
+    expect(plain.find('.dou-link__lead').exists()).toBe(false)
+    expect(plain.get('.dou-link__label').text()).toBe('文档')
+  })
+
+  it('looks past a fragment that holds only spaces', () => {
+    const Wrapper = defineComponent({
+      setup(_, { slots }) {
+        return () =>
+          h(
+            DouLink,
+            { href: '/a', variant: 'soft' },
+            {
+              leading: () => h('i', 'i'),
+              // an empty named slot passed on before the default one
+              default: () => [h(Fragment, slots.prefix?.() ?? []), h(Fragment, slots.default?.())],
+            },
+          )
+      },
+    })
+    const wrapper = mount(Wrapper, {
+      slots: { prefix: () => [createTextVNode('  ')], default: () => [createTextVNode(' 周会 ')] },
+    })
+    expect(wrapper.get('.dou-link__lead').text()).toBe('i周')
+    expect(wrapper.get('.dou-link__label').element.textContent).toBe('会')
   })
 
   it('trims the spaces a label on its own lines brings', () => {

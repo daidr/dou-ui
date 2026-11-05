@@ -97,21 +97,31 @@
       }
     }
 
-    /* inline, so no gap: the icons keep their distance with a margin */
     /* a button never breaks across lines and stands as tall as its line
        height: take the height of the text itself, as the inline <a> does */
     &:is(button) {
       line-height: normal;
     }
 
-    & > .dou-link__icon {
+    /* each icon and the character beside it break as one, so an icon is
+       never left alone at the end of a line */
+    & > .dou-link__lead,
+    & > .dou-link__trail {
+      white-space: nowrap;
+    }
+
+    /* inline, so no gap: the icons keep their distance with a margin */
+    & .dou-link__icon {
       display: inline-flex;
       vertical-align: -0.125em;
+    }
+
+    & .dou-link__lead > .dou-link__icon {
       margin-inline-end: 0.25em;
     }
 
-    & > .dou-link__label + .dou-link__icon {
-      margin-inline: 0.25em 0;
+    & .dou-link__trail > .dou-link__icon {
+      margin-inline-start: 0.25em;
     }
   }
 

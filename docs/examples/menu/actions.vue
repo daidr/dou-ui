@@ -9,10 +9,8 @@ const items = shallowRef([
   { key: 'report', label: '十月周报', icon: MessageIcon },
 ])
 const current = ref('report')
-function approve(item) {
-  items.value = items.value.map((it) =>
-    it.key === item.key ? { ...it, description: '已审阅' } : it,
-  )
+function review(item, description) {
+  items.value = items.value.map((it) => (it.key === item.key ? { ...it, description } : it))
 }
 </script>
 
@@ -21,10 +19,17 @@ function approve(item) {
     <template #actions="{ item }">
       <template v-if="item.description === '等你审阅'">
         <DouTooltip content="还要改">
-          <DouButton size="xs" variant="ghost" aria-label="还要改"><PencilIcon /></DouButton>
+          <DouButton
+            size="xs"
+            variant="ghost"
+            aria-label="还要改"
+            @click="review(item, '要再改改')"
+          >
+            <PencilIcon />
+          </DouButton>
         </DouTooltip>
         <DouTooltip content="看完了">
-          <DouButton size="xs" variant="ghost" aria-label="看完了" @click="approve(item)">
+          <DouButton size="xs" variant="ghost" aria-label="看完了" @click="review(item, '已审阅')">
             <CheckIcon />
           </DouButton>
         </DouTooltip>

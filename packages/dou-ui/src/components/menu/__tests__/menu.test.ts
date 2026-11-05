@@ -1,6 +1,7 @@
 import { mount } from '@vue/test-utils'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
+import type { VNode } from 'vue'
 import { DouContextMenu, DouDropdownItem, DouMenu } from '../../../index'
 import type { MenuItemOption, MenuKey, MenuOption } from '../../../index'
 
@@ -108,6 +109,39 @@ describe('DouMenu', () => {
     await wrapper.setProps({ actionsVisible: 'always' })
     expect(wrapper.classes()).toContain('dou-menu--actions-always')
     wrapper.unmount()
+  })
+
+  it('calls the actions slot once an item and hands the focus back when a button goes', async () => {
+    const done = ref(false)
+    const actions = vi.fn<(scope: { item: MenuItemOption }) => VNode | null>((scope) =>
+      scope.item.key === 'a' && !done.value
+        ? h('button', { class: 'approve', onClick: () => (done.value = true) }, '看完了')
+        : null,
+    )
+    const wrapper = mount(DouMenu, {
+      props: {
+        items: [
+          { key: 'a', label: '上海门店排班' },
+          { key: 'b', label: '十月周报' },
+        ],
+      },
+      slots: { actions },
+      attachTo: document.body,
+    })
+    expect(actions).toHaveBeenCalledTimes(2)
+    const approve = wrapper.get<HTMLButtonElement>('.approve')
+    approve.element.focus()
+    await approve.trigger('click')
+    await nextTick()
+    await nextTick()
+    expect(wrapper.find('.dou-menu__actions').exists()).toBe(false)
+    expect(document.activeElement).toBe(wrapper.findAll('.dou-menu__item')[0]!.element)
+    wrapper.unmount()
+  })
+
+  it('draws no actions part without the slot', () => {
+    const { wrapper } = make()
+    expect(wrapper.findComponent({ name: 'DouMenuActions' }).exists()).toBe(false)
   })
 
   it('opens the submenus around the current item and marks it', () => {

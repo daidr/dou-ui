@@ -188,12 +188,17 @@
   }
 
   .dou-menu__group + .dou-menu__group,
+  .dou-menu__entry + .dou-menu__group {
+    margin-top: 8px;
+  }
+
   /*
    * An item's own buttons sit over the end of its row, as siblings of the
    * item, and the item keeps clear of them with an end padding as wide as
-   * they are (measured into --dou-menu-actions-width). With `hover` they
-   * wait for the row to be hovered, focused or current; hidden, they keep
-   * their size so it can be measured, and leave the item its full width.
+   * they are (measured into --dou-menu-actions-width), shown or not, so
+   * nothing in the row moves when they appear. With `hover` they wait for
+   * this row (not a row nested under it) to be hovered or focused, or for
+   * the item to be the current one.
    */
   .dou-menu__entry:has(> .dou-menu__actions) {
     position: relative;
@@ -209,26 +214,45 @@
     height: var(--dou-menu-item-height);
   }
 
+  /* touch hit areas reach 8px past a small button: keep them apart */
+  @media (pointer: coarse) {
+    .dou-menu__actions {
+      gap: 16px;
+    }
+  }
+
   .dou-menu__entry:has(> .dou-menu__actions) > .dou-menu__item {
     padding-inline-end: calc(var(--dou-menu-actions-width, 0px) + 12px);
   }
 
+  /* the buttons are part of the row: over them, the row stays hovered */
+  .dou-menu__entry:has(> .dou-menu__actions:hover)
+    > .dou-menu__item:not(.is-disabled, .is-selected) {
+    background-color: var(--dou-menu-hover-bg);
+    color: var(--dou-color-text);
+  }
+
+  /* the focus is tested with :focus-within on the row: Chrome passes over
+     buttons shown by :has(:focus) when Tab leaves the item. Focus in a
+     row nested below is not this row's. */
   @media (hover: hover) {
     .dou-menu--actions-hover
-      .dou-menu__entry:not(:hover, :focus-within, .is-current)
+      .dou-menu__entry:not(
+        .is-current,
+        :focus-within,
+        :has(> .dou-menu__item:hover),
+        :has(> .dou-menu__actions:hover)
+      )
+      > .dou-menu__actions,
+    .dou-menu--actions-hover
+      .dou-menu__entry:not(
+        .is-current,
+        :has(> .dou-menu__item:hover),
+        :has(> .dou-menu__actions:hover)
+      ):has(> ul :focus)
       > .dou-menu__actions {
       visibility: hidden;
     }
-
-    .dou-menu--actions-hover
-      .dou-menu__entry:not(:hover, :focus-within, .is-current):has(> .dou-menu__actions)
-      > .dou-menu__item {
-      padding-inline-end: var(--dou-menu-padding-x);
-    }
-  }
-
-  .dou-menu__entry + .dou-menu__group {
-    margin-top: 8px;
   }
 
   .dou-menu__group-label {

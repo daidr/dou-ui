@@ -56,9 +56,12 @@ const editor = useTemplateRef<InstanceType<typeof DouFlowEditor>>('editor')
 
 // 每条讨论在哪个节点或连线上，文档或评论变化时重新读取
 const places = ref<Record<string, string>>({})
+// 所在节点或连线已删除的讨论打不开，列表里只做展示
+const orphans = ref(new Set<string>())
 const name = (id: string) => doc.value.nodes.find((node) => node.id === id)?.data?.label
 function readPlaces() {
   const anchors = editor.value?.getCommentAnchors() ?? {}
+  orphans.value = new Set(Object.keys(anchors).filter((id) => !anchors[id]))
   places.value = Object.fromEntries(
     Object.entries(anchors).map(([id, on]) => {
       if (!on) return [id, '（已删除）']
@@ -95,6 +98,7 @@ watch([threads, doc], readPlaces, { flush: 'post' })
         type="button"
         class="flow-comments-demo__item"
         :class="{ 'is-active': thread.id === active }"
+        :disabled="orphans.has(thread.id)"
         @click="active = thread.id"
       >
         <span class="flow-comments-demo__place">
@@ -154,8 +158,14 @@ watch([threads, doc], readPlaces, { flush: 'post' })
   text-align: start;
   cursor: pointer;
 
-  &:hover {
-    background-color: color-mix(in oklab, currentColor 4%, transparent);
+  @media (hover: hover) {
+    &:hover:enabled {
+      background-color: color-mix(in oklab, currentColor 4%, transparent);
+    }
+  }
+
+  &:disabled {
+    cursor: default;
   }
 
   &.is-active {

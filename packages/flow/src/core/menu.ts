@@ -31,4 +31,9 @@ export interface FlowToolbarItem {
    * click. Give the items `checked` to mark the one in use.
    */
   children?: ContextMenuItem[]
+  /**
+   * Offered while the editor is `readonly` too, such as commenting; the
+   * others are left out then.
+   */
+  readonly?: boolean
 }

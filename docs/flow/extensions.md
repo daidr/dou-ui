@@ -112,7 +112,7 @@ const keepStart = defineFlowExtension({
 })
 ```
 
-撤销、重做和协作里别人的修改（`meta.history` 为 `false`）已经发生过，不能取消，调用 `cancel()` 不起作用。电子表格和甘特图的扩展用同样的 `tr.cancel()`。
+撤销、重做、协作里别人的修改，以及发起和删除评论时给节点、连线写上讨论 id 的修改（`meta.history` 为 `false`），不能取消，调用 `cancel()` 不起作用，开发环境会提示一次。按权限拦截修改的钩子可以用 `meta.origin` 放过它们：撤销、重做分别是 `'undo'`、`'redo'`，评论是 `'comment'`。电子表格和甘特图的扩展用同样的 `tr.cancel()`。
 
 ## 图层组件
 

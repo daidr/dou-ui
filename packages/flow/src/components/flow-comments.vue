@@ -22,8 +22,12 @@ import { format, type FlowMessages } from '../locale'
 export interface FlowCommentMarker {
   key: string
   anchor: FlowCommentAnchor
-  /** The open threads there, oldest first; empty for a thread being started. */
+  /** The open threads there, oldest first, counted on the marker; empty for a thread being started. */
   threads: string[]
+  /** The threads its card shows: the open ones, and a resolved one opened from outside. */
+  shown: string[]
+  /** A thread is being started here. */
+  pending: boolean
   /** Where it goes, in px within the editor. */
   x: number
   y: number
@@ -41,15 +45,11 @@ const { comments } = props
 const panel = shallowRef<HTMLElement | null>(null)
 const markerEls = new Map<string, HTMLElement>()
 
-const keyOf = (anchor: FlowCommentAnchor) =>
-  'node' in anchor ? `n:${anchor.node}` : `e:${anchor.edge}`
-
 /** The marker the card belongs to: the active thread's, or the one being started. */
 const current = computed<FlowCommentMarker | null>(() => {
-  const pending = comments.pending.value
-  if (pending) return props.markers.find((m) => m.key === keyOf(pending)) ?? null
+  if (comments.pending.value) return props.markers.find((m) => m.pending) ?? null
   const id = comments.active.value
-  return (id && props.markers.find((m) => m.threads.includes(id))) || null
+  return (id && props.markers.find((m) => m.shown.includes(id))) || null
 })
 
 /** The threads the card shows: every open one there, or the active one opened from elsewhere. */
@@ -57,10 +57,19 @@ const shown = computed<CommentThread[]>(() => {
   const marker = current.value
   if (!marker || comments.pending.value) return []
   const byId = new Map(comments.threads.value.map((t) => [t.id, t]))
-  return marker.threads.flatMap((id) => byId.get(id) ?? [])
+  return marker.shown.flatMap((id) => byId.get(id) ?? [])
 })
 
 const open = computed(() => !!current.value)
+
+const layer = shallowRef<HTMLElement | null>(null)
+/** The marker has been panned out of the editor: the card waits, hidden, until it is back. */
+const away = computed(() => {
+  const marker = current.value
+  const el = layer.value
+  if (!marker || !el) return false
+  return marker.x < 0 || marker.y < 0 || marker.x > el.clientWidth || marker.y > el.clientHeight
+})
 
 const anchor: VirtualElement = {
   getBoundingClientRect() {
@@ -125,9 +134,14 @@ function onClosed() {
   if (!el || el === document.body) props.restore(lastAnchor)
 }
 
-function press(marker: FlowCommentMarker) {
+function press(marker: FlowCommentMarker, event: MouseEvent) {
   if (current.value?.key === marker.key) return comments.close()
-  comments.start(marker.anchor)
+  // pressed from the keyboard (no clicks counted): straight into the reply box;
+  // a click or tap only shows the threads, without bringing up a phone's keyboard
+  const focus = event.detail === 0
+  const [first] = marker.threads
+  if (first) comments.show(first, focus)
+  else comments.start(marker.anchor, focus)
 }
 
 const label = (marker: FlowCommentMarker) =>
@@ -135,7 +149,7 @@ const label = (marker: FlowCommentMarker) =>
 </script>
 
 <template>
-  <div class="dou-flow-editor__comments">
+  <div ref="layer" class="dou-flow-editor__comments">
     <button
       v-for="marker in markers"
       :key="marker.key"
@@ -144,11 +158,15 @@ const label = (marker: FlowCommentMarker) =>
       "
       type="button"
       class="dou-flow-editor__comment"
-      :class="{ 'is-active': current?.key === marker.key, 'is-new': !marker.threads.length }"
+      :class="{
+        'is-active': current?.key === marker.key,
+        'is-new': !marker.threads.length,
+        'is-node': 'node' in marker.anchor,
+      }"
       :style="{ translate: `${marker.x}px ${marker.y}px` }"
       :aria-label="marker.threads.length ? label(marker) : messages.comment"
       :aria-expanded="current?.key === marker.key"
-      @click="press(marker)"
+      @click="press(marker, $event)"
     >
       <MessageCircleIcon aria-hidden="true" />
       <span v-if="marker.threads.length > 1" class="dou-flow-editor__comment-count">{{
@@ -161,6 +179,7 @@ const label = (marker: FlowCommentMarker) =>
       v-if="open"
       ref="panel"
       class="dou-floating dou-flow-editor__comment-card"
+      :class="{ 'is-away': away }"
       role="dialog"
       :aria-label="messages.comment"
       :style="[style, { zIndex }]"

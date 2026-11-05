@@ -546,7 +546,7 @@
     min-width: 24px;
     height: 24px;
     margin: 0;
-    padding: 0 5px;
+    padding: 0 4px;
     transform: translate(-50%, -50%);
     border: 1px solid var(--dou-color-border);
     border-radius: 12px;
@@ -567,6 +567,11 @@
       flex: none;
       width: 14px;
       height: 14px;
+    }
+
+    /* off a node's top right corner, clear of the corner's resize handle */
+    &.is-node {
+      transform: translate(6px, calc(-100% - 6px));
     }
 
     @media (hover: hover) {
@@ -595,7 +600,7 @@
   .dou-flow-editor__comment-card {
     box-sizing: border-box;
     width: min(340px, calc(100vw - 32px));
-    max-height: min(480px, calc(100vh - 32px));
+    max-height: min(var(--dou-floating-available, 100vh), 480px, calc(100vh - 32px));
     padding: 12px;
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -607,6 +612,11 @@
       var(--dou-color-bg-surface)
     );
     box-shadow: var(--dou-shadow-md);
+
+    /* what it is about has been panned out of the editor: back when it returns */
+    &.is-away {
+      visibility: hidden;
+    }
 
     /* several threads on one node: one after another, a line between */
     & > .dou-comment-thread + .dou-comment-thread {

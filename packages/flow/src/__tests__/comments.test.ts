@@ -199,4 +199,121 @@ describe('DouFlowEditor comments', () => {
     expect(flow.value.nodes[2]!.comments).toBeUndefined()
     expect(flow.value.nodes[0]!.comments).toEqual(['t1'])
   })
+
+  it('opens a resolved thread from outside where an open one is too', async () => {
+    const { active } = setup()
+    await ticks()
+    active.value = 'done'
+    await ticks()
+    const card = document.querySelector('.dou-flow-editor__comment-card')!
+    expect(card.textContent).toContain('已经定了')
+    // the open one there is shown with it, but only it is counted
+    expect(card.textContent).toContain('5000 元以下直接打款？')
+    const marker = document.querySelectorAll('.dou-flow-editor__comment')[1]!
+    expect(marker.getAttribute('aria-label')).toBe('1 条评论')
+  })
+
+  it('keeps a thread on a new node whose adding is undone and redone', async () => {
+    const { wrapper, editor, flow } = setup()
+    await ticks()
+    const id = editor.value!.insertNode('default')!
+    await ticks()
+    expect(editor.value!.comment({ node: id })).toBe(true)
+    await ticks()
+    wrapper.findComponent(DouCommentThread).vm.$emit('action', {
+      type: 'create',
+      thread: { id: 'n', comments: [{ id: 'n1', author: me, body: '新节点', createdAt: at }] },
+    })
+    await ticks()
+    editor.value!.undo()
+    await ticks()
+    expect(flow.value.nodes.some((n) => n.id === id)).toBe(false)
+    editor.value!.redo()
+    await ticks()
+    expect(flow.value.nodes.find((n) => n.id === id)!.comments).toEqual(['n'])
+    expect(editor.value!.getCommentAnchors().n).toEqual({ node: id })
+  })
+
+  it('marks what comments write, and comment() takes what to comment on', async () => {
+    const metas: unknown[] = []
+    const { wrapper, editor } = setup({
+      onTransaction: (tr: { meta: unknown }) => metas.push(tr.meta),
+    })
+    await ticks()
+    expect(editor.value!.comment({ node: 'nowhere' })).toBe(false)
+    expect(editor.value!.comment({ edge: 'e' })).toBe(true)
+    editor.value!.comment({ node: 'b' })
+    await ticks()
+    wrapper.findComponent(DouCommentThread).vm.$emit('action', {
+      type: 'create',
+      thread: { id: 'm', comments: [{ id: 'm1', author: me, body: '标记', createdAt: at }] },
+    })
+    await ticks()
+    expect(metas.at(-1)).toMatchObject({ history: false, origin: 'comment' })
+  })
+
+  it('opens a marker without the reply box taking the focus, unless from the keyboard', async () => {
+    const { wrapper } = setup()
+    await ticks()
+    const marker = () => wrapper.findAll('.dou-flow-editor__comment')[0]!.element
+    marker().dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }))
+    await ticks()
+    const card = () => document.querySelector('.dou-flow-editor__comment-card')
+    expect(card()!.contains(document.activeElement)).toBe(false)
+    marker().dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }))
+    await ticks()
+    marker().dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 0 }))
+    await ticks()
+    await new Promise((resolve) => setTimeout(resolve))
+    await ticks()
+    expect(card()!.contains(document.activeElement)).toBe(true)
+  })
+
+  it('offers commenting on the toolbar while read-only, and nothing else', async () => {
+    const { wrapper } = setup({ readonly: true }, ['b'])
+    await ticks()
+    const buttons = wrapper.findAll('.dou-flow-toolbar button')
+    expect(buttons.map((b) => b.attributes('aria-label'))).toEqual(['评论'])
+  })
+
+  it('shows the threads in a collapsed group on the group', async () => {
+    const flow = ref<FlowDocument>({
+      version: 1,
+      nodes: [
+        {
+          id: 'g',
+          type: 'group',
+          x: 0,
+          y: 0,
+          width: 400,
+          height: 200,
+          data: { label: '审批', collapsed: true },
+        },
+        { id: 'a', x: 24, y: 56, parent: 'g', data: { label: '主管审批' }, comments: ['t1'] },
+      ],
+      edges: [],
+    })
+    const active = ref<string | null>(null)
+    const wrapper = mount(
+      defineComponent(
+        () => () =>
+          h(DouFlowEditor, {
+            modelValue: flow.value,
+            comments: [thread('t1', '复核要不要限时？')],
+            activeComment: active.value,
+            'onUpdate:activeComment': (value: string | null) => (active.value = value),
+            author: me,
+          }),
+      ),
+      { attachTo: document.body },
+    )
+    mounted.push(wrapper)
+    await ticks()
+    expect(wrapper.findAll('.dou-flow-editor__comment')).toHaveLength(1)
+    active.value = 't1'
+    await ticks()
+    expect(document.querySelector('.dou-flow-editor__comment-card')!.textContent).toContain(
+      '复核要不要限时？',
+    )
+  })
 })

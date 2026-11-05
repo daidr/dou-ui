@@ -31,7 +31,9 @@ export interface FlowComments {
   focusRequest: ShallowRef<number>
   /** The open threads on each node and edge, oldest first. */
   openOn: ComputedRef<{ nodes: Map<string, string[]>; edges: Map<string, string[]> }>
-  start: (anchor?: FlowCommentAnchor | null) => boolean
+  start: (anchor?: FlowCommentAnchor | null, focus?: boolean) => boolean
+  /** Opens a thread, with the focus in its reply box when `focus`. */
+  show: (id: string, focus: boolean) => void
   apply: (action: CommentAction) => void
   open: (id: string | null) => void
   close: () => void
@@ -52,8 +54,10 @@ export function useFlowComments(options: {
   selection: Ref<FlowSelection>
   messages: ComputedRef<FlowMessages>
   transact: (fn: (tr: FlowTransaction) => void, meta?: FlowTransactionMeta) => FlowTransaction
+  /** Keeps a change kept out of undo on a node or edge as undo and redo bring it back. */
+  carry: (anchor: FlowCommentAnchor, patch: { comments: string[] | undefined }) => void
 }) {
-  const { props, emit, doc, selection, messages, transact } = options
+  const { props, emit, doc, selection, messages, transact, carry } = options
 
   const threads = computed<readonly CommentThread[]>(() => props.comments ?? [])
   const enabled = computed(() => props.comments !== undefined)
@@ -102,14 +106,29 @@ export function useFlowComments(options: {
     return null
   }
 
-  function start(anchor: FlowCommentAnchor | null = selected()): boolean {
+  function show(id: string, focus: boolean) {
+    pending.value = null
+    open(id)
+    if (focus) focusRequest.value++
+  }
+
+  /**
+   * Opens the threads on a node or edge, the selected one by default, or
+   * the box to start one there. `focus` puts the focus in the reply box:
+   * from the keyboard, not from a tap, which would bring up the keyboard
+   * on a phone.
+   */
+  function start(anchor: FlowCommentAnchor | null = selected(), focus = true): boolean {
     if (!enabled.value || !anchor) return false
-    // one already there: open it, ready to reply
+    const there =
+      'node' in anchor
+        ? doc.value.nodes.some((n) => n.id === anchor.node)
+        : doc.value.edges.some((e) => e.id === anchor.edge)
+    if (!there) return false
+    // one already there: open it
     const [first] = threadsOf(anchor)
     if (first) {
-      pending.value = null
-      open(first)
-      focusRequest.value++
+      show(first, focus)
       return true
     }
     if (!writable.value) return false
@@ -126,18 +145,20 @@ export function useFlowComments(options: {
 
   /** Adds or takes away a thread's id on what it is about; not an undo step. */
   function mark(anchor: FlowCommentAnchor, id: string, add: boolean) {
+    let patch: { comments: string[] | undefined } | null = null
     transact(
       (tr) => {
         const item = 'node' in anchor ? tr.getNode(anchor.node) : tr.getEdge(anchor.edge)
         if (!item) return
         const had = idsOf(item)
         const next = add ? [...had.filter((x) => x !== id), id] : had.filter((x) => x !== id)
-        const comments = next.length ? next : undefined
-        if ('node' in anchor) tr.updateNode(anchor.node, { comments })
-        else tr.updateEdge(anchor.edge, { comments })
+        patch = { comments: next.length ? next : undefined }
+        if ('node' in anchor) tr.updateNode(anchor.node, patch)
+        else tr.updateEdge(anchor.edge, patch)
       },
-      { history: false },
+      { history: false, origin: 'comment' },
     )
+    if (patch) carry(anchor, patch)
   }
 
   function anchorOf(id: string): FlowCommentAnchor | null {
@@ -178,6 +199,7 @@ export function useFlowComments(options: {
     label: messages.value.comment,
     icon: MessagePlusIcon,
     shortcut: KEY,
+    readonly: true,
     run: () => void start(anchor),
   })
 
@@ -211,6 +233,7 @@ export function useFlowComments(options: {
     focusRequest,
     openOn,
     start,
+    show,
     apply,
     open,
     close,

@@ -209,11 +209,11 @@ export interface FlowEditorExpose {
   /** Removes the stale edges as one undo step; returns how many. */
   removeStaleEdges: () => number
   /**
-   * Starts a thread on the selected node or edge, or opens the open thread
-   * already on it; `false` when one node or edge isn't selected, or there is
-   * nothing to open and comments can't be written.
+   * Opens the open thread on a node or edge (the selected one when left
+   * out), ready to reply, or starts one there; `false` when there is no such
+   * node or edge, or nothing to open and comments can't be written.
    */
-  comment: () => boolean
+  comment: (anchor?: FlowCommentAnchor) => boolean
   /** What each thread is about; `null` when its node or edge is gone. Not reactive. */
   getCommentAnchors: () => Record<string, FlowCommentAnchor | null>
   /**

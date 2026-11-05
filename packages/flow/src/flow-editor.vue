@@ -174,7 +174,15 @@ const {
   extension: commentsExtension,
   anchors: getCommentAnchors,
   anchorOf: commentAnchorOf,
-} = useFlowComments({ props, emit, doc, selection, messages, transact })
+} = useFlowComments({
+  props,
+  emit,
+  doc,
+  selection,
+  messages,
+  transact,
+  carry: (on, patch) => !customHistory && history.carry(on, patch),
+})
 
 const resolved = computed(() => {
   const own = props.extensions ?? flowKit()
@@ -2461,15 +2469,28 @@ onBeforeUnmount(() => {
   window.removeEventListener('click', onMenuClick)
 })
 
+/** The toolbar's groups with something in; while read-only, only what is offered then too, such as comments. */
+function offeredItems(lists: FlowToolbarItem[][], readonly: boolean) {
+  return lists
+    .map((list) => (readonly ? list.filter((item) => item.readonly) : list))
+    .filter((list) => list.length)
+}
+
 const toolbarItems = computed<FlowToolbarItem[][]>(() => {
-  if (props.readonly || gesture.value || keyLink.value || quickAdd.value) return []
+  if (gesture.value || keyLink.value || quickAdd.value) return []
   const nodes = selection.value.nodes.flatMap((id) => nodeById.value.get(id) ?? [])
   if (nodes.length)
-    return resolved.value.toolbars.map((fn) => fn(context, nodes)).filter((list) => list.length)
+    return offeredItems(
+      resolved.value.toolbars.map((fn) => fn(context, nodes)),
+      props.readonly,
+    )
   const ids = new Set(selection.value.edges)
   const edges = doc.value.edges.filter((edge) => ids.has(edge.id))
   if (!edges.length) return []
-  return resolved.value.edgeToolbars.map((fn) => fn(context, edges)).filter((list) => list.length)
+  return offeredItems(
+    resolved.value.edgeToolbars.map((fn) => fn(context, edges)),
+    props.readonly,
+  )
 })
 
 /** Where the toolbar floats: above the selected nodes, in screen px within the editor. */
@@ -3722,52 +3743,115 @@ async function exportPNG(options: FlowImageOptions = {}) {
 
 /** Half an edge label's height, in canvas px. */
 const EDGE_LABEL_HALF = 10
-/** A marker at the top right of each node, and on each edge's middle, with open threads. */
-const commentMarkers = computed<FlowCommentMarker[]>(() => {
-  if (!comments.enabled.value) return []
-  const { x: vx, y: vy, zoom } = viewport.value
+/** How far above an edge's label its marker sits, in screen px. */
+const EDGE_MARKER_LIFT = 14
+
+/** Where a node or edge shows its comments: a collapsed container hiding it shows them instead. */
+function commentSpotOf(on: FlowCommentAnchor): FlowCommentAnchor | null {
   const hidden = hiddenIn.value
+  if ('node' in on) {
+    if (!nodeById.value.has(on.node)) return null
+    return { node: hidden.get(on.node) ?? on.node }
+  }
+  if (edgeRouteById.value.has(on.edge)) return on
+  // not drawn: folded away inside a container
+  const edge = doc.value.edges.find((e) => e.id === on.edge)
+  const outer = edge && (hidden.get(edge.source.node) ?? hidden.get(edge.target.node))
+  return outer ? { node: outer } : null
+}
+
+const edgeRouteById = computed(() => new Map(edgeRoutes.value.map((item) => [item.edge.id, item])))
+
+/**
+ * The markers, in canvas px: one at the top right of each node and on each
+ * edge's middle with open threads. Worked out as the document changes; the
+ * view only moves them, below.
+ */
+const commentSpots = computed(() => {
+  if (!comments.enabled.value) return []
   const { nodes, edges } = comments.openOn.value
-  const out: FlowCommentMarker[] = []
-  const add = (on: FlowCommentAnchor, threads: string[]) => {
-    const key = 'node' in on ? `n:${on.node}` : `e:${on.edge}`
-    if (out.some((m) => m.key === key)) return
-    let at: Point | undefined
-    if ('node' in on) {
-      const node = nodeById.value.get(on.node)
-      if (!node || hidden.has(node.id)) return
+  const spots = new Map<string, Omit<FlowCommentMarker, 'x' | 'y'> & Point & { lift: number }>()
+  const add = (on: FlowCommentAnchor, threads: string[], extra: { pending?: boolean } = {}) => {
+    const spot = commentSpotOf(on)
+    if (!spot) return
+    const key = 'node' in spot ? `n:${spot.node}` : `e:${spot.edge}`
+    const had = spots.get(key)
+    if (had) {
+      for (const id of threads) if (!had.threads.includes(id)) had.threads.push(id)
+      if (extra.pending) had.pending = true
+      return
+    }
+    let at: Point
+    let lift = 0
+    if ('node' in spot) {
+      const node = nodeById.value.get(spot.node)!
       const box = nodeBounds(specOf(node), node, rectOf(node))
       at = { x: box.x + box.width, y: box.y }
     } else {
-      const item = edgeRoutes.value.find((route) => route.edge.id === on.edge)
+      const item = edgeRouteById.value.get(spot.edge)!
       // above the edge's label, if it has one, not over it
-      if (item)
-        at = item.edge.label
-          ? { x: item.route.label.x, y: item.route.label.y - EDGE_LABEL_HALF - 14 / zoom }
-          : item.route.label
+      at = item.route.label
+      if (item.edge.label) {
+        at = { x: at.x, y: at.y - EDGE_LABEL_HALF }
+        lift = EDGE_MARKER_LIFT
+      }
     }
-    if (at) out.push({ key, anchor: on, threads, x: at.x * zoom + vx, y: at.y * zoom + vy })
+    spots.set(key, {
+      key,
+      anchor: spot,
+      threads: [...threads],
+      shown: [],
+      pending: !!extra.pending,
+      ...at,
+      lift,
+    })
   }
   for (const [id, threads] of nodes) add({ node: id }, threads)
   for (const [id, threads] of edges) add({ edge: id }, threads)
-  // a thread being started, or a resolved one opened from outside
   const starting = comments.pending.value
-  if (starting) add(starting, [])
+  if (starting) add(starting, [], { pending: true })
+  // the card shows the open threads there, and a resolved one opened from outside
+  const list = [...spots.values()]
   const active = comments.active.value
   const where = active ? commentAnchorOf(active) : null
-  if (active && where) add(where, [active])
-  return out
+  for (const spot of list) spot.shown = spot.threads
+  if (active && where) {
+    const spot = commentSpotOf(where)
+    const key = spot && ('node' in spot ? `n:${spot.node}` : `e:${spot.edge}`)
+    const there = key && spots.get(key)
+    if (there && !there.threads.includes(active)) there.shown = [...there.threads, active]
+    else if (!there) {
+      add(where, [])
+      const added = key && spots.get(key)
+      if (added) {
+        added.shown = [active]
+        list.push(added)
+      }
+    }
+  }
+  return list
+})
+
+/** The markers in px within the editor: only this follows the view as it pans and zooms. */
+const commentMarkers = computed<FlowCommentMarker[]>(() => {
+  const { x: vx, y: vy, zoom } = viewport.value
+  return commentSpots.value.map(({ x, y, lift, ...spot }) => ({
+    ...spot,
+    x: x * zoom + vx,
+    y: y * zoom + vy - lift,
+  }))
 })
 
 // A thread opened from outside, e.g. a list beside the editor: bring what it is about into view.
 watch(
   () => props.activeComment,
   (id) => {
-    const on = id && !comments.openedHere(id) ? commentAnchorOf(id) : null
+    const at = id && !comments.openedHere(id) ? commentAnchorOf(id) : null
+    const on = at && commentSpotOf(at)
     if (!on) return
     if ('node' in on) return reveal(on.node)
-    const at = edgeRoutes.value.find((item) => item.edge.id === on.edge)?.route.label
-    if (at) revealRect({ x: at.x - 16, y: at.y - 16, width: 32, height: 32 })
+    const label = edgeRouteById.value.get(on.edge)?.route.label
+    if (label) revealRect({ x: label.x - 16, y: label.y - 16, width: 32, height: 32 })
   },
 )
 
@@ -3807,7 +3891,7 @@ defineExpose<FlowEditorExpose>({
     return [...staleEdges.value]
   },
   removeStaleEdges,
-  comment: () => comments.start(),
+  comment: (on) => comments.start(on),
   getCommentAnchors,
   insertNode,
   startInsertDrag,

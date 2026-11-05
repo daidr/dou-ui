@@ -22,7 +22,7 @@
 
 ## 键盘与读屏
 
-卡片带有 `role="dialog"`，有标题时由标题命名。触发元素带 `aria-haspopup="dialog"`、`aria-expanded` 与 `aria-controls`。卡片是非模态的：焦点留在触发元素上，`Tab` 进入卡片，从卡片两端出去会回到触发元素；`Esc` 或点击外部关闭，焦点在卡片内时回到触发元素。
+卡片带有 `role="dialog"`，有标题时由标题命名。触发元素带 `aria-haspopup="dialog"`、`aria-expanded` 与 `aria-controls`。卡片是非模态的：焦点留在触发元素上，`Tab` 从触发元素进入卡片；卡片里没有可聚焦的内容时，`Tab` 离开触发元素会关闭卡片；从触发元素 `Shift+Tab` 往前离开也会关闭卡片。在卡片第一项按 `Shift+Tab` 回到触发元素；从最后一项 `Tab` 出去时卡片关闭，焦点继续往后。`Esc` 或点击外部关闭，焦点在卡片内时回到触发元素。
 
 ## API
 

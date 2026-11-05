@@ -14,7 +14,13 @@ async function wait() {
 async function remote() {
   vi.useFakeTimers()
   const wrapper = mount(DouChatInput, {
-    props: { modelValue: '', filter: { '@': false }, searchDelay: 100, teleport: false },
+    props: {
+      modelValue: '',
+      filter: { '@': false },
+      searchDelay: 100,
+      teleport: false,
+      onSearch: () => {},
+    },
     attachTo: document.body,
   })
   const textarea = wrapper.get('textarea')
@@ -291,6 +297,43 @@ describe('DouChatInput', () => {
     await textarea.trigger('keydown', { key: 'Enter' })
     expect(wrapper.emitted('mention')).toEqual([[{ value: '戴兜' }]])
     wrapper.unmount()
+  })
+
+  it('never goes stale without a search listener, even on a new array each render', async () => {
+    vi.useFakeTimers()
+    const files = ['戴兜.md', '上海.md']
+    const wrapper = mount(DouChatInput, {
+      props: {
+        modelValue: '',
+        mentions: files.map((value) => ({ value })),
+        filter: false,
+        teleport: false,
+        'onUpdate:modelValue': (value: unknown): void => {
+          // the parent renders again and passes an equal, new array
+          void wrapper.setProps({
+            modelValue: value as string,
+            mentions: files.map((file) => ({ value: file })),
+          })
+        },
+      },
+      attachTo: document.body,
+    })
+    const textarea = wrapper.get('textarea')
+    const el = textarea.element as HTMLTextAreaElement
+    for (const text of ['@', '@d', '@da']) {
+      el.value = text
+      el.setSelectionRange(text.length, text.length)
+      await textarea.trigger('input')
+      await textarea.trigger('keyup')
+      await vi.advanceTimersByTimeAsync(300)
+    }
+    const listbox = wrapper.get('[role="listbox"]')
+    expect(listbox.classes()).not.toContain('is-stale')
+    expect(listbox.attributes('aria-busy')).toBeUndefined()
+    await textarea.trigger('keydown', { key: 'Enter' })
+    expect(wrapper.emitted('mention')).toEqual([[{ value: '戴兜.md' }]])
+    wrapper.unmount()
+    vi.useRealTimers()
   })
 
   it('waits for an input method to finish and stays quiet once dismissed', async () => {

@@ -2,6 +2,7 @@
 import { ArrowUpIcon, StopIcon } from '@dou-ui/icons'
 import {
   computed,
+  getCurrentInstance,
   nextTick,
   onBeforeUnmount,
   onMounted,
@@ -170,7 +171,11 @@ const options = computed<ChatInputOption[]>(() => {
 // that query (its search still waits for `searchDelay`, or its answer is on
 // the way), the list shown answers an older one: it stays in view, but
 // Enter and Tab must not pick from it. A list put in before any search,
-// e.g. loaded once after mounting, is fixed and never stale.
+// e.g. loaded once after mounting, is fixed and never stale. Nor is any
+// list when nobody listens to `search`: with no one to answer, a parent
+// that passes a new array each render is not answering a query.
+const instance = getCurrentInstance()
+const listening = () => !!instance?.vnode.props?.onSearch
 type Query = { start: number; query: string }
 const asked: { '/'?: Query; '@'?: Query } = {}
 const answered = reactive<{ '/'?: Query; '@'?: Query }>({})
@@ -184,7 +189,7 @@ watch(
 )
 const stale = computed(() => {
   const current = token.value
-  if (!current || filterOf(current.trigger) !== false) return false
+  if (!current || filterOf(current.trigger) !== false || !listening()) return false
   const last = answered[current.trigger]
   return !!last && (last.start !== current.start || last.query !== current.query)
 })
@@ -200,7 +205,7 @@ watch(
     // Escape closed this one: nothing to look up until another is typed
     if (key === null || !current || dismissed.value === current.start) return
     searchTimer = setTimeout(() => {
-      asked[current.trigger] = { start: current.start, query: current.query }
+      if (listening()) asked[current.trigger] = { start: current.start, query: current.query }
       emit('search', current.query, current.trigger)
     }, props.searchDelay)
   },

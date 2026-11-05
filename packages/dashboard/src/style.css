@@ -333,6 +333,19 @@
   }
 
   /* full screen: the comment button above the content, on the right */
+  /* fills the dialog: the comment button on top, the widget below taking the rest */
+  .dou-dashboard__fullscreen {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+
+    & > .dou-dashboard__body.is-fullscreen {
+      flex: 1;
+      min-height: 0;
+    }
+  }
+
   .dou-dashboard__fullscreen-bar {
     display: flex;
     justify-content: flex-end;

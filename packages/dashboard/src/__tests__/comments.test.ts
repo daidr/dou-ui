@@ -269,7 +269,7 @@ describe('DouDashboard comments', () => {
   })
 
   it('comments in the full screen view, by its button and the shortcut', async () => {
-    const { dashboard, active } = setup({ editable: false })
+    const { dashboard, active, actions } = setup({ editable: false })
     await ticks()
     dashboard.value!.openFullscreen('orders')
     await ticks()
@@ -290,6 +290,18 @@ describe('DouDashboard comments', () => {
     await ticks()
     expect(active.value).toBe('t1')
     expect(event.defaultPrevented).toBe(true)
+    // the card is in the dialog, which keeps the focus to itself: a reply goes in and is sent
+    await new Promise((resolve) => setTimeout(resolve))
+    await ticks()
+    const card = document.querySelector('.dou-dashboard__fullscreen .dou-dashboard__comment-card')!
+    const box = card.querySelector('textarea')!
+    expect(document.activeElement).toBe(box)
+    box.value = '看过了'
+    box.dispatchEvent(new Event('input', { bubbles: true }))
+    await ticks()
+    card.querySelector<HTMLButtonElement>('.dou-button--primary')!.click()
+    await ticks()
+    expect(actions.at(-1)).toMatchObject({ type: 'reply', threadId: 't1' })
   })
 })
 

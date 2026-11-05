@@ -1173,8 +1173,9 @@ defineExpose<DashboardExpose>({
       </DouEmpty>
     </div>
     <div class="dou-dashboard__live" aria-live="polite" aria-atomic="true">{{ live }}</div>
+    <!-- in fullscreen the card goes in the dialog, which keeps the focus to itself -->
     <CommentCard
-      v-if="comments.enabled.value"
+      v-if="comments.enabled.value && !fullscreenWidget"
       :comments="comments"
       :messages="messages"
       :button-of="buttonOf"
@@ -1249,6 +1250,13 @@ defineExpose<DashboardExpose>({
           fullscreen
           :messages="messages"
           :set-props="setProps"
+        />
+        <CommentCard
+          v-if="comments.enabled.value"
+          :comments="comments"
+          :messages="messages"
+          :button-of="buttonOf"
+          :place-of="cardSpotOf"
         />
       </div>
     </DouDialog>

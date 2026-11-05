@@ -590,7 +590,6 @@ export function layoutGraph(
 
   const gap = (a: Item, b: Item) => (a.edge >= 0 && b.edge >= 0 ? edgeGap : laneGap)
 
-  /** Orders and places the columns of one part of the graph. */
   /** Places the ordered columns of one part of the graph. */
   const lay = (ordered: Item[][]) => {
     // Start each column stacked around the middle, then relax.

@@ -25,6 +25,7 @@ export interface CommentThreadProps {
   /**
    * Offer the resolve button. `false` hides only that button, e.g. for a
    * draft comment that has no resolved state; replies and the menus stay.
+   * A thread that is resolved anyway still says so and can be reopened.
    */
   resolvable?: boolean
   /** The hint in the box that starts a thread (`thread` is `null`). Replies always read "Reply". */

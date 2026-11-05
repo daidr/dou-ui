@@ -68,7 +68,7 @@ export interface ChatListExpose {
    * it with the message's `highlighted` to show which one it is. A target
    * not in the list is ignored. `align` defaults to `center`.
    */
-  scrollToMessage: (target: ChatListTarget, align?: VirtualListAlign) => void
+  scrollToMessage: (target: ChatListTarget | null | undefined, align?: VirtualListAlign) => void
   /** Whether the list is at the bottom now. */
   readonly atBottom: boolean
 }

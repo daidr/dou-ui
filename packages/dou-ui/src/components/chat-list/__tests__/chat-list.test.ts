@@ -78,6 +78,10 @@ describe('DouChatList', () => {
     const exposed = wrapper.vm as unknown as { scrollToMessage: (target: unknown) => void }
     sized(el, 1000)
     exposed.scrollToMessage(document.createElement('p'))
+    // the ref of a message no longer shown: ignored like a key not found, without a warning
+    exposed.scrollToMessage(null)
+    exposed.scrollToMessage(undefined)
+    expect(warn).not.toHaveBeenCalled()
     exposed.scrollToMessage('m1')
     expect(warn).toHaveBeenCalledTimes(1)
     grow?.()

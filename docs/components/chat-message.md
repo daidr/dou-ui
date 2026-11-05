@@ -1,6 +1,6 @@
 # ChatMessage 对话消息
 
-对话中的一条消息，由多个片段组成：文字、思考过程、工具调用、执行步骤、任务计划、引用来源、文件、产物和操作确认可以按任意顺序排列。
+对话中的一条消息，由多个片段组成：文字、思考过程、工具调用、执行步骤、任务计划、引用来源、文件、产物、操作确认和选项提问可以按任意顺序排列。
 
 ## 基础用法
 
@@ -23,8 +23,9 @@
 | `files`     | [ChatAttachments](./chat-attachments) | `files`                                                                 |
 | `artifact`  | [ChatArtifact](./chat-artifact)       | `id`、`title`、`kind`、`description`、`status`、`active`                |
 | `confirm`   | [ChatConfirm](./chat-confirm)         | `id`、`title`、`description`、`status`、`allowAlways`、`tone`、`detail` |
+| `question`  | [ChatQuestion](./chat-question)       | `id`、`title`、`description`、`options`、`status`、`answer`             |
 
-用户消息里的 `files` 片段显示在气泡上方。确认片段被回答时触发 `confirm`，产物卡片被点击时触发 `artifact`，参数里都有这个片段本身，可以用 `id` 区分。
+用户消息里的 `files` 片段显示在气泡上方。确认片段被回答时触发 `confirm`，选项提问被回答时触发 `question`，产物卡片被点击时触发 `artifact`，参数里都有这个片段本身，可以用 `id` 区分。
 
 ## 生成中
 
@@ -95,12 +96,13 @@ app.use(DouUI, {
 
 ### Events
 
-| 名称             | 说明               | 参数                                                                 |
-| ---------------- | ------------------ | -------------------------------------------------------------------- |
-| `update:version` | 切换了版本         | `(version: number)`                                                  |
-| `edit`           | 保存了编辑后的消息 | `(text: string)`                                                     |
-| `confirm`        | 回答了确认片段     | `(part: ChatConfirmPart, decision: 'approve' \| 'always' \| 'deny')` |
-| `artifact`       | 点击了产物片段     | `(part: ChatArtifactPart)`                                           |
+| 名称             | 说明                       | 参数                                                                            |
+| ---------------- | -------------------------- | ------------------------------------------------------------------------------- |
+| `update:version` | 切换了版本                 | `(version: number)`                                                             |
+| `edit`           | 保存了编辑后的消息         | `(text: string)`                                                                |
+| `confirm`        | 回答了确认片段             | `(part: ChatConfirmPart, decision: 'approve' \| 'always' \| 'deny')`            |
+| `artifact`       | 点击了产物片段             | `(part: ChatArtifactPart)`                                                      |
+| `question`       | 在选项提问片段中点选了一项 | `(part: ChatQuestionPart, value: string \| number, option: ChatQuestionOption)` |
 
 ### Slots
 

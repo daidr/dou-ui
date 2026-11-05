@@ -131,6 +131,7 @@
 @import './components/chat-steps.css';
 @import './components/chat-sources.css';
 @import './components/chat-confirm.css';
+@import './components/chat-question.css';
 @import './components/chat-artifact.css';
 @import './components/chat-context-meter.css';
 @import './components/chat-message.css';

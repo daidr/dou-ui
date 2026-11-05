@@ -50,6 +50,43 @@
     transition: opacity var(--dou-motion-duration-normal) var(--dou-motion-easing);
   }
 
+  /*
+   * No size of its own: the picture keeps its proportions under the caps
+   * and the box follows it. Until there is a picture, the box takes the caps.
+   */
+  .dou-image.is-natural {
+    /* never stretched by a flex or grid parent: as wide as the picture */
+    width: fit-content;
+    height: fit-content;
+
+    & > .dou-image__inner {
+      width: auto;
+      height: auto;
+      max-width: min(100%, var(--dou-image-max-width, 100%));
+      max-height: var(--dou-image-max-height, none);
+    }
+
+    &:is(.is-loading, .is-error) {
+      width: var(--dou-image-max-width, auto);
+      height: var(--dou-image-max-height, auto);
+    }
+
+    /* a picture that has not come yet takes no room: the box keeps the caps */
+    &.is-loading > .dou-image__inner {
+      position: absolute;
+    }
+  }
+
+  /*
+   * A box given a width and only a cap on its height is as tall as the
+   * picture up to the cap: the picture takes the same cap and fills the
+   * box by `fit`, rather than running past its edge. Its height has nothing
+   * definite to resolve 100% against, so the cap comes as a variable.
+   */
+  .dou-image:not(.is-natural) > .dou-image__inner {
+    max-height: var(--dou-image-cap-height, none);
+  }
+
   .dou-image.is-loading .dou-image__inner {
     opacity: 0;
   }

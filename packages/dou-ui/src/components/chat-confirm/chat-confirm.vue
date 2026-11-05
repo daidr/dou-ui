@@ -21,7 +21,6 @@ const ns = useNamespace('chat-confirm')
 const { t } = useLocale()
 const id = useId()
 
-const hasTitle = computed(() => !!props.title || !!slots.title)
 const waiting = computed(() => props.status === 'waiting')
 // How each answered or withdrawn request reads once it has collapsed.
 const outcomes = {
@@ -58,14 +57,14 @@ useStatusCheck('DouChatConfirm', () => [props.status], statuses, { pending: 'wai
     :class="[ns.b(), ns.m(tone), ns.is(status)]"
     role="group"
     tabindex="-1"
-    :aria-labelledby="hasTitle ? `${id}-title` : undefined"
+    :aria-labelledby="title || slots.title ? `${id}-title` : undefined"
   >
     <div :class="ns.e('header')">
       <span :class="ns.e('icon')" aria-hidden="true">
         <slot name="icon"><ShieldIcon /></slot>
       </span>
       <div :class="ns.e('text')">
-        <div v-if="hasTitle" :id="`${id}-title`" :class="ns.e('title')">
+        <div v-if="title || slots.title" :id="`${id}-title`" :class="ns.e('title')">
           <slot name="title">{{ title }}</slot>
         </div>
         <div v-if="description" :class="ns.e('description')">{{ description }}</div>

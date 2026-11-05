@@ -6,6 +6,7 @@ import type {
   ChatConfirmTone,
 } from '../chat-confirm/chat-confirm'
 import type { ChatPlanItem } from '../chat-plan/chat-plan'
+import type { ChatQuestionOption, ChatQuestionStatus } from '../chat-question/chat-question'
 import type { ChatSource } from '../chat-sources/chat-sources'
 import type { ChatStep } from '../chat-steps/chat-steps'
 import type { ChatToolCallStatus } from '../chat-tool-call/chat-tool-call'
@@ -88,6 +89,17 @@ export interface ChatConfirmPart {
   /** Shown as monospace detail, e.g. the command to run or a diff. */
   detail?: string
 }
+export interface ChatQuestionPart {
+  type: 'question'
+  /** Handed back with `question`, to tell questions apart. */
+  id?: string | number
+  title: string
+  description?: string
+  options: ChatQuestionOption[]
+  status?: ChatQuestionStatus
+  /** The `value` of the option chosen. */
+  answer?: string | number
+}
 /** Any other part; render it with the `part` slot. */
 export interface ChatCustomPart {
   type: string
@@ -104,12 +116,13 @@ export type ChatMessagePart =
   | ChatFilesPart
   | ChatArtifactPart
   | ChatConfirmPart
+  | ChatQuestionPart
 
 export interface ChatMessageProps {
   sender?: ChatMessageSender
   /**
    * What the message is made of, in order: text, reasoning, tool calls,
-   * steps, a plan, sources, files, artifacts and confirmations may follow
+   * steps, a plan, sources, files, artifacts, confirmations and questions may follow
    * one another in any order.
    */
   parts?: (ChatMessagePart | ChatCustomPart)[]
@@ -150,6 +163,8 @@ export interface ChatMessageEmits {
   confirm: [part: ChatConfirmPart, decision: ChatConfirmDecision]
   /** An artifact part was pressed. */
   artifact: [part: ChatArtifactPart]
+  /** An option of a question part was pressed, with its `value` and the option itself. */
+  question: [part: ChatQuestionPart, value: string | number, option: ChatQuestionOption]
 }
 
 export interface ChatMessageSlots {

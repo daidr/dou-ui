@@ -7,6 +7,7 @@ import { DouButton } from '../button'
 import { DouChatArtifact } from '../chat-artifact'
 import { DouChatAttachments } from '../chat-attachments'
 import { DouChatConfirm } from '../chat-confirm'
+import { DouChatQuestion } from '../chat-question'
 import { DouChatPlan } from '../chat-plan'
 import { planRunning, type ChatPlanItem } from '../chat-plan/chat-plan'
 import { DouChatReasoning } from '../chat-reasoning'
@@ -24,6 +25,7 @@ import { messageText } from './chat-message'
 import type {
   ChatArtifactPart,
   ChatConfirmPart,
+  ChatQuestionPart,
   ChatCustomPart,
   ChatMessageEmits,
   ChatMessagePart,
@@ -163,6 +165,7 @@ const asReasoning = (part: AnyPart) => part as Extract<ChatMessagePart, { type: 
 const asFiles = (part: AnyPart) => part as Extract<ChatMessagePart, { type: 'files' }>
 const asConfirm = (part: AnyPart) => part as ChatConfirmPart
 const asArtifact = (part: AnyPart) => part as ChatArtifactPart
+const asQuestion = (part: AnyPart) => part as ChatQuestionPart
 const known = new Set([
   'text',
   'reasoning',
@@ -173,6 +176,7 @@ const known = new Set([
   'files',
   'artifact',
   'confirm',
+  'question',
 ])
 // props for the part components, without the `type` discriminator
 const rest = (part: AnyPart) => {
@@ -297,6 +301,15 @@ const rest = (part: AnyPart) => {
               asConfirm(part).detail
             }}</pre>
           </DouChatConfirm>
+          <DouChatQuestion
+            v-else-if="part.type === 'question'"
+            :title="asQuestion(part).title"
+            :description="asQuestion(part).description"
+            :options="asQuestion(part).options"
+            :status="asQuestion(part).status"
+            :answer="asQuestion(part).answer"
+            @select="(value, option) => emit('question', asQuestion(part), value, option)"
+          />
           <slot
             v-else-if="!known.has(part.type)"
             name="part"

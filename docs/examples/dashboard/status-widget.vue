@@ -4,7 +4,7 @@ import { DouSparkline } from 'dou-ui'
 import { computed, onBeforeUnmount, onMounted } from 'vue'
 
 const { props, size, setStatus } = useDashboardWidget()
-// 设置不是数组时（比如旧格式写成了文字）这里会抛错，格子显示“这个格子显示出错”
+// 设置不是数组时（比如旧格式写成了文字）这里会抛错，格子显示“无法显示”
 const points = computed(() => props.value.points.map(Number))
 
 let tries = 0

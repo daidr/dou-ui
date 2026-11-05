@@ -288,7 +288,7 @@ describe('props of the wrong type', () => {
     expect(wrapper.find('.dou-dashboard-text').text()).toContain('戴兜')
     const alert = wrapper.find('.dou-dashboard__status.is-error')
     expect(alert.attributes('role')).toBe('alert')
-    expect(alert.text()).toContain('这个格子显示出错')
+    expect(alert.text()).toContain('无法显示')
     expect(appError).not.toHaveBeenCalled()
     expect(error).toHaveBeenCalledWith(expect.stringContaining('"b" (broken)'), expect.any(Error))
     // retrying with the same props fails again, still in the card
@@ -457,7 +457,7 @@ describe('props of the wrong type, more', () => {
     await flush()
     const alert = document.querySelector('.dou-dashboard__settings-error')!
     expect(alert.getAttribute('role')).toBe('alert')
-    expect(alert.textContent).toContain('设置显示出错')
+    expect(alert.textContent).toContain('无法显示设置')
     expect(widgetError).toHaveBeenLastCalledWith({
       widget: 'b',
       part: 'settings',

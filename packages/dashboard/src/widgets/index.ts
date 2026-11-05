@@ -10,7 +10,18 @@ import TextSettings from './text-settings.vue'
 import type { StatWidgetProps, TableWidgetProps, TextWidgetProps } from './types'
 
 export type { StatWidgetProps, TableWidgetColumn, TableWidgetProps, TextWidgetProps } from './types'
-export { fieldsOf, filterValueOf, numberFieldsOf, rowsOf, valueAt } from './shared'
+export {
+  fieldsOf,
+  filterValueOf,
+  flagOf,
+  numberFieldsOf,
+  numberOf,
+  recordOf,
+  rowsOf,
+  textOf,
+  textsOf,
+  valueAt,
+} from './shared'
 
 /** What a built-in widget's definition can change: its type, label, icon, size and more. */
 export type WidgetOverrides<P extends object> = Partial<Omit<DashboardWidgetType<P>, 'component'>>

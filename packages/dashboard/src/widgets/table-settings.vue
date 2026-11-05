@@ -7,22 +7,24 @@ import SettingsField from './settings-field.vue'
 import { fieldsOf, rowsOf } from './shared'
 import SourceField from './source-field.vue'
 import type { TableWidgetColumn, TableWidgetProps } from './types'
+import { tablePropsOf } from './read-props'
 
 defineOptions({ name: 'DouDashboardTableSettings' })
 
 const model = defineModel<TableWidgetProps>({ required: true })
+// the props as saved may have the wrong types: read them as the widget does
+const view = computed(() => tablePropsOf(model.value as Record<string, unknown>))
 const messages = useDashboardMessages()
 const { data } = useDashboardWidget()
 
 /** Every field of the rows, those shown first in their order. */
 const fields = computed(() => {
-  const all = fieldsOf(rowsOf(data.value, model.value.path))
-  const shown = model.value.columns?.map((column) => column.key) ?? all
+  const all = fieldsOf(rowsOf(data.value, view.value.path))
+  const shown = view.value.columns?.map((column) => column.key) ?? all
   return [...shown, ...all.filter((key) => !shown.includes(key))]
 })
 const columns = computed<TableWidgetColumn[]>(
-  () =>
-    model.value.columns ?? fieldsOf(rowsOf(data.value, model.value.path)).map((key) => ({ key })),
+  () => view.value.columns ?? fieldsOf(rowsOf(data.value, view.value.path)).map((key) => ({ key })),
 )
 const columnOf = (key: string) => columns.value.find((column) => column.key === key)
 
@@ -44,7 +46,7 @@ function retitle(key: string, title: string) {
 <template>
   <div class="dou-dashboard__settings">
     <SourceField
-      :model-value="model.source"
+      :model-value="view.source"
       @update:model-value="(source) => (model = { ...model, source })"
     />
     <SettingsField v-if="fields.length" :label="messages.columns">

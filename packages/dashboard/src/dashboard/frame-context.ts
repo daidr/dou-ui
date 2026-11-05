@@ -53,6 +53,8 @@ export interface FrameContext {
   /** Why the last export from a widget's menu failed. */
   exportError: (id: string) => string | undefined
   clearExportError: (id: string) => void
+  /** A widget's content broke, for `widgetError`. */
+  reportError: (id: string, error: unknown) => void
 }
 
 export const frameContextKey: InjectionKey<FrameContext> = Symbol('dou-dashboard-frame')

@@ -2,10 +2,27 @@ import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { DouDashboard, defineDashboardWidget, useDashboardWidget } from '..'
-import type { DashboardDocument, DashboardExpose, DashboardFilters, DashboardSources } from '..'
+import type {
+  DashboardDocument,
+  DashboardExpose,
+  DashboardFilters,
+  DashboardSources,
+  DashboardWidgetErrorEvent,
+} from '..'
 import { chartWidget } from '../chart'
 import { pivotWidget } from '../pivot'
-import { filterValueOf, statWidget, tableWidget, textWidget, valueAt } from '../widgets'
+import { chartPropsOf } from '../chart/read-props'
+import { pivotPropsOf } from '../pivot/read-props'
+import {
+  filterValueOf,
+  flagOf,
+  numberOf,
+  statWidget,
+  tableWidget,
+  textWidget,
+  valueAt,
+} from '../widgets'
+import { statPropsOf, tablePropsOf, textPropsOf } from '../widgets/read-props'
 
 const flush = async () => {
   for (let i = 0; i < 4; i++) {
@@ -287,6 +304,225 @@ describe('props of the wrong type', () => {
     expect(wrapper.find('.fixed').exists()).toBe(true)
     expect(wrapper.find('.dou-dashboard__status.is-error').exists()).toBe(false)
     expect(appError).not.toHaveBeenCalled()
+    error.mockRestore()
+    wrapper.unmount()
+  })
+})
+
+/** A dashboard with these widgets and types, editable, with the app's error handler and the events. */
+function mountWith(
+  list: DashboardDocument['widgets'],
+  types = widgets,
+  sources: DashboardSources = {},
+) {
+  const doc = ref<DashboardDocument>({ version: 1, widgets: list })
+  const dashboard = ref<DashboardExpose>()
+  const appError = vi.fn<(error: unknown, instance: unknown, info: string) => void>()
+  const widgetError = vi.fn<(event: DashboardWidgetErrorEvent) => void>()
+  const wrapper = mount(
+    defineComponent({
+      setup: () => () =>
+        h(DouDashboard, {
+          ref: dashboard,
+          modelValue: doc.value,
+          'onUpdate:modelValue': (next: DashboardDocument) => (doc.value = next),
+          widgets: types,
+          sources,
+          editable: true,
+          onWidgetError: widgetError,
+        }),
+    }),
+    { attachTo: document.body, global: { config: { errorHandler: appError } } },
+  )
+  return { wrapper, doc, appError, widgetError, api: () => dashboard.value! }
+}
+
+describe('props of the wrong type, more', () => {
+  it('reads props as their types say in one place, for widgets and settings', () => {
+    expect(statPropsOf({ value: '12', prefix: 1, precision: 2.5, field: 3 })).toMatchObject({
+      value: 12,
+      prefix: undefined,
+      precision: undefined,
+      field: undefined,
+    })
+    expect(textPropsOf({ text: ['a'], size: 'huge' })).toEqual({ text: undefined, size: undefined })
+    expect(tablePropsOf({ columns: { key: 'a' } }).columns).toBeUndefined()
+    expect(tablePropsOf({ columns: [{ key: 'a', title: 1 }, 'b', null] }).columns).toEqual([
+      { key: 'a' },
+    ])
+    expect(
+      chartPropsOf({ stacked: 'no', horizontal: 'yes', y: 'amount', labels: 2 }),
+    ).toMatchObject({
+      stacked: false,
+      horizontal: false,
+      y: [],
+      labels: {},
+    })
+    expect(pivotPropsOf({ config: 'x' }).config).toBeUndefined()
+    expect(
+      pivotPropsOf({ config: { rows: 'region', values: 3, columns: ['city', 1] } }).config,
+    ).toMatchObject({ rows: undefined, values: undefined, columns: ['city'] })
+    expect(numberOf('12')).toBe(12)
+    expect(numberOf('')).toBeUndefined()
+    expect(numberOf(null)).toBeUndefined()
+    expect(numberOf(true)).toBeUndefined()
+    expect(flagOf('yes')).toBe(false)
+  })
+
+  it('opens the settings of every built-in widget with props of the wrong type', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const list: DashboardDocument['widgets'] = [
+      { id: 's', type: 'stat', props: { value: '12', prefix: 1, precision: 'x' }, place: place(0) },
+      { id: 'x', type: 'text', props: { text: ['a'], size: 'huge' }, place: place(3) },
+      {
+        id: 't',
+        type: 'table',
+        props: { source: 'rows', columns: { key: 'city' } },
+        place: place(6),
+      },
+      {
+        id: 'c',
+        type: 'chart',
+        props: { source: 'rows', y: 'amount', stacked: 'no', horizontal: 'yes', kind: 'bar' },
+        place: place(9),
+      },
+      {
+        id: 'p',
+        type: 'pivot',
+        props: { source: 'rows', config: { rows: 'region', values: 3 } },
+        place: place(0, 3),
+      },
+      { id: 'q', type: 'pivot', props: { source: 'rows', config: 'x' }, place: place(3, 3) },
+      {
+        id: 'u',
+        type: 'table',
+        props: { source: 'rows', columns: [1, null, { key: 2 }] },
+        place: place(6, 3),
+      },
+    ]
+    const { wrapper, appError, widgetError, api } = mountWith(list, widgets, { rows: () => rows })
+    await flush()
+    // a fixed value in text that is a number shows, as one read from the data would
+    expect(wrapper.find('.dou-dashboard-stat').text()).toContain('12')
+    expect(document.querySelectorAll('.dou-dashboard__status.is-error')).toHaveLength(0)
+    for (const { id } of list) {
+      api().openSettings(id)
+      await flush()
+      expect([id, document.querySelector('.dou-dashboard__settings-error')]).toEqual([id, null])
+      expect([id, !!document.querySelector('.dou-dashboard__settings')]).toEqual([id, true])
+    }
+    expect(appError).not.toHaveBeenCalled()
+    expect(widgetError).not.toHaveBeenCalled()
+    expect(error).not.toHaveBeenCalled()
+    expect(warn.mock.calls).toEqual([])
+    error.mockRestore()
+    warn.mockRestore()
+    wrapper.unmount()
+  })
+
+  it('tells of a broken widget or settings form with widgetError, and keeps the settings drawer working', async () => {
+    let renders = 0
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const broken = defineDashboardWidget({
+      type: 'broken',
+      label: '会出错的格子',
+      component: defineComponent(() => () => {
+        renders++
+        throw new Error('content')
+      }),
+      settings: defineComponent(() => () => {
+        throw new Error('settings')
+      }),
+    })
+    // its data arrives after the first try: the second try fails the same way
+    const { wrapper, appError, widgetError, api } = mountWith(
+      [{ id: 'b', type: 'broken', props: { source: 's' }, place: place(0) }],
+      [broken],
+      { s: () => new Promise((resolve) => setTimeout(() => resolve({ n: 1 }), 20)) },
+    )
+    await flush()
+    await new Promise((resolve) => setTimeout(resolve, 40))
+    await flush()
+    expect(widgetError).toHaveBeenCalledWith({
+      widget: 'b',
+      part: 'content',
+      error: expect.any(Error),
+    })
+    // tried again when its data arrived, failing the same way: told once
+    expect(renders).toBe(2)
+    expect(widgetError).toHaveBeenCalledTimes(1)
+    expect(error).toHaveBeenCalledTimes(1)
+    api().openSettings('b')
+    await flush()
+    const alert = document.querySelector('.dou-dashboard__settings-error')!
+    expect(alert.getAttribute('role')).toBe('alert')
+    expect(alert.textContent).toContain('设置显示出错')
+    expect(widgetError).toHaveBeenLastCalledWith({
+      widget: 'b',
+      part: 'settings',
+      error: expect.any(Error),
+    })
+    expect(appError).not.toHaveBeenCalled()
+    error.mockRestore()
+    wrapper.unmount()
+  })
+
+  it('leaves a widget showing when an event handler throws: that error goes on to the app', async () => {
+    const clicky = defineDashboardWidget({
+      type: 'clicky',
+      label: '按钮',
+      component: defineComponent(() => {
+        const count = ref(0)
+        return () =>
+          h(
+            'button',
+            {
+              class: 'clicky',
+              onClick: () => {
+                count.value++
+                throw new Error('click')
+              },
+            },
+            String(count.value),
+          )
+      }),
+    })
+    const { wrapper, appError, widgetError } = mountWith(
+      [{ id: 'k', type: 'clicky', props: {}, place: place(0) }],
+      [clicky],
+    )
+    await flush()
+    await wrapper.get('.clicky').trigger('click')
+    await flush()
+    expect(wrapper.get('.clicky').text()).toBe('1')
+    expect(wrapper.find('.dou-dashboard__status.is-error').exists()).toBe(false)
+    expect(widgetError).not.toHaveBeenCalled()
+    expect(appError).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+
+  it('puts focus on the new retry button when a retry fails again', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const broken = defineDashboardWidget({
+      type: 'broken',
+      label: '会出错的格子',
+      component: defineComponent(() => () => {
+        throw new Error('boom')
+      }),
+    })
+    const { wrapper } = mountWith(
+      [{ id: 'b', type: 'broken', props: {}, place: place(0) }],
+      [broken],
+    )
+    await flush()
+    const first = wrapper.get('.dou-dashboard__status.is-error button')
+    ;(first.element as HTMLElement).focus()
+    await first.trigger('click')
+    await flush()
+    const again = wrapper.get('.dou-dashboard__status.is-error button')
+    expect(again.element).not.toBe(first.element)
+    expect(document.activeElement).toBe(again.element)
     error.mockRestore()
     wrapper.unmount()
   })

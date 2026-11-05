@@ -1,9 +1,11 @@
 <script setup>
 import { useDashboardWidget } from '@dou-ui/dashboard'
 import { DouSparkline } from 'dou-ui'
-import { onBeforeUnmount, onMounted } from 'vue'
+import { computed, onBeforeUnmount, onMounted } from 'vue'
 
 const { props, size, setStatus } = useDashboardWidget()
+// 设置不是数组时（比如旧格式写成了文字）这里会抛错，格子显示“这个格子显示出错”
+const points = computed(() => props.value.points.map(Number))
 
 let tries = 0
 let timer
@@ -25,7 +27,7 @@ onBeforeUnmount(() => clearTimeout(timer))
 
 <template>
   <DouSparkline
-    :data="props.points"
+    :data="points"
     type="area"
     smooth
     :width="size.width.value"

@@ -100,6 +100,14 @@ export interface DashboardSaveOptions<Options = any> extends DashboardExportOpti
 }
 
 /** A widget's export from its menu failed. */
+export interface DashboardWidgetErrorEvent {
+  /** The widget's id. */
+  widget: string
+  /** Which part broke: what the widget shows, or its settings form. */
+  part: 'content' | 'settings'
+  error: unknown
+}
+
 export interface DashboardExportErrorEvent {
   /** The widget's id. */
   widget: string
@@ -121,6 +129,12 @@ export interface DashboardEmits {
   breakpointChange: [breakpoint: string]
   /** Exporting a widget from its menu or `saveWidget` failed; the widget tells of it unless prevented. */
   exportError: [event: DashboardExportErrorEvent]
+  /**
+   * A widget's content or settings form threw while it set up or drew; it
+   * shows an error in its place, and the error goes no further. To report
+   * to error tracking.
+   */
+  widgetError: [event: DashboardWidgetErrorEvent]
   'update:comments': [threads: CommentThread[]]
   'update:activeComment': [id: string | null]
   /** A change to the comments made here: to send to a server, notify people, keep a log. */

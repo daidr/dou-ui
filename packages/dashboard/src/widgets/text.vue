@@ -1,19 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useDashboardWidget } from '../widget/context'
-import type { TextWidgetProps } from './types'
+import { textPropsOf } from './read-props'
 
 defineOptions({ name: 'DouDashboardTextWidget' })
 
-const { props } = useDashboardWidget<TextWidgetProps>()
-const sizes = ['sm', 'md', 'lg']
-const size = computed(() => (sizes.includes(props.value.size as string) ? props.value.size : 'md'))
-const text = computed(() => {
-  const value = props.value.text
-  return typeof value === 'string' || typeof value === 'number' ? value : ''
-})
+const { props: raw } = useDashboardWidget()
+const props = computed(() => textPropsOf(raw.value))
 </script>
 
 <template>
-  <div :class="['dou-dashboard-text', `is-${size}`]">{{ text }}</div>
+  <div :class="['dou-dashboard-text', `is-${props.size ?? 'md'}`]">{{ props.text }}</div>
 </template>

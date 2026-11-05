@@ -26,16 +26,41 @@ export function rowsOf(data: unknown, path?: unknown): Record<string, unknown>[]
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === 'object'
 
-/**
- * A widget's props come from JSON that types don't check: a prop meant to be
- * text is used only when it is text, otherwise it counts as not set.
+/*
+ * A widget's props come from JSON that types don't check, often written by a
+ * program or an AI. These read one prop as the type it is meant to be; any
+ * other value counts as not set, so a widget never throws on it.
  */
+
+/** Text, or not set. */
 export const textOf = (value: unknown): string | undefined =>
   typeof value === 'string' ? value : undefined
 
-/** A prop meant to be a list of texts: the texts in it, or none. */
+/** A list of texts: the texts in it, or none. */
 export const textsOf = (value: unknown): string[] =>
   Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
+
+/** A finite number, or text that is one (`'12'`, as a number read from data); otherwise not set. */
+export function numberOf(value: unknown): number | undefined {
+  const n =
+    typeof value === 'number'
+      ? value
+      : typeof value === 'string' && value.trim()
+        ? Number(value)
+        : Number.NaN
+  return Number.isFinite(n) ? n : undefined
+}
+
+/** On only for `true`: `'no'` or `1` don't turn a switch on. */
+export const flagOf = (value: unknown): boolean => value === true
+
+/** A plain object, not a list; otherwise not set. */
+export const recordOf = (value: unknown): Record<string, unknown> | undefined =>
+  isRecord(value) && !Array.isArray(value) ? value : undefined
+
+/** One of the values listed, or not set. */
+export const oneOf = <T extends string>(value: unknown, values: readonly T[]): T | undefined =>
+  values.includes(value as T) ? (value as T) : undefined
 
 /** The keys of the first row of a list, or of an object: the fields to pick from in settings. */
 export function fieldsOf(data: unknown): string[] {

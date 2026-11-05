@@ -683,6 +683,7 @@ CalendarView 补上按时间排布的视图，再补几个写应用时常要自�
 | 常用格子与协同   | ✅   | 统计数字、文字、表格格子，图表与透视表适配；Yjs 协同                                                                                                                           |
 | 示例与区块       | ✅   | [运营大盘](https://ui.daidr.me/blocks/ops-board)、[服务大盘](https://ui.daidr.me/blocks/services)、[可自定义的首页](https://ui.daidr.me/blocks/home)；200 格子拖动进入性能预算 |
 | 仪表盘评论       | ✅   | 格子标题栏的评论按钮显示讨论条数，讨论 id 随格子保存；不能编辑时也能评论；`activeComment` 与侧栏联动。图表数据点上的评论 ⏳                                                    |
+| 格子设置校验     | ⏳   | 格子类型提供 `props` 的校验（或 JSON Schema），`checkDocument` 据此报 `bad-props`，程序或 AI 生成的仪表盘保存前就能查出类型不对的设置                                          |
 
 ## 横向事项
 

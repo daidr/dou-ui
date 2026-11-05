@@ -15,6 +15,7 @@ export type {
   DashboardAddOptions,
   DashboardEmits,
   DashboardExportErrorEvent,
+  DashboardWidgetErrorEvent,
   DashboardExportOptions,
   DashboardSaveOptions,
   DashboardCommentAnchor,

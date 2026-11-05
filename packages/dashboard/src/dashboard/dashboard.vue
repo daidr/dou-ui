@@ -684,6 +684,7 @@ provide(frameContextKey, {
   setDrawn: (id, drawn) => (drawn ? drawnIds.add(id) : drawnIds.delete(id)),
   exportError: (id) => exportErrors.get(id),
   clearExportError: (id) => exportErrors.delete(id),
+  reportError: (id, error) => emit('widgetError', { widget: id, part: 'content', error }),
 })
 
 // ---------------------------------------------------------------------------
@@ -1215,7 +1216,11 @@ defineExpose<DashboardExpose>({
           v-if="typeOf(settingsWidget)?.settings"
           :widget="settingsWidget"
           :type="typeOf(settingsWidget)!"
+          :messages="messages"
           :set-props="setProps"
+          :report-error="
+            (id, error) => emit('widgetError', { widget: id, part: 'settings', error })
+          "
           @update:props="
             (value) =>
               run([{ type: 'update', id: settingsWidget!.id, patch: { props: value } }], {
@@ -1251,6 +1256,7 @@ defineExpose<DashboardExpose>({
           fullscreen
           :messages="messages"
           :set-props="setProps"
+          :report-error="(id, error) => emit('widgetError', { widget: id, part: 'content', error })"
         />
         <CommentCard
           v-if="comments.enabled.value"

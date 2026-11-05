@@ -10,19 +10,19 @@ import {
 import type { ChartPointEvent } from '@dou-ui/chart'
 import { computed, watch } from 'vue'
 import { useDashboardWidget } from '../widget/context'
-import { filterValueOf, rowsOf, rowsToWorkbook, textOf, textsOf } from '../widgets/shared'
-import type { ChartWidgetProps } from './types'
+import { filterValueOf, rowsOf, rowsToWorkbook } from '../widgets/shared'
+import { chartPropsOf } from './read-props'
 
 defineOptions({ name: 'DouDashboardChartWidget' })
 
-const { props, data, size, setFilter, ownFilters, widget, setWorkbook } =
-  useDashboardWidget<ChartWidgetProps>()
+const { props: raw, data, size, setFilter, ownFilters, widget, setWorkbook } = useDashboardWidget()
+const props = computed(() => chartPropsOf(raw.value))
 const rows = computed(() => rowsOf(data.value, props.value.path))
 const kind = computed(() => props.value.kind ?? 'line')
-const ys = computed(() => textsOf(props.value.y))
-const x = computed(() => textOf(props.value.x))
-const filter = computed(() => textOf(props.value.filter))
-const nameOf = (key: string) => textOf(props.value.labels?.[key]) ?? key
+const ys = computed(() => props.value.y ?? [])
+const x = computed(() => props.value.x)
+const filter = computed(() => props.value.filter)
+const nameOf = (key: string) => props.value.labels?.[key] ?? key
 /** The x this widget filters by, if any: the other bars fade. */
 const picked = computed(() => (filter.value ? ownFilters.value[filter.value] : undefined))
 /** Bars other than the picked one turn gray; a new function when the pick changes, so they draw again. */

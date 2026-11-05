@@ -47,7 +47,7 @@
     },
     "packages/chart": {
       "name": "@dou-ui/chart",
-      "version": "0.1.0-alpha.3",
+      "version": "0.1.0-alpha.4",
       "peerDependencies": {
         "dou-ui": "workspace:*",
         "vue": "^3.5.0",
@@ -55,7 +55,7 @@
     },
     "packages/code": {
       "name": "@dou-ui/code",
-      "version": "0.1.0-alpha.3",
+      "version": "0.1.0-alpha.4",
       "dependencies": {
         "@dou-ui/icons": "workspace:*",
       },
@@ -77,7 +77,7 @@
     },
     "packages/dashboard": {
       "name": "@dou-ui/dashboard",
-      "version": "0.1.0-alpha.3",
+      "version": "0.1.0-alpha.4",
       "dependencies": {
         "@dou-ui/icons": "workspace:*",
         "@dou-ui/sheet": "workspace:*",
@@ -103,7 +103,7 @@
     },
     "packages/dou-ui": {
       "name": "dou-ui",
-      "version": "0.1.0-alpha.3",
+      "version": "0.1.0-alpha.4",
       "dependencies": {
         "@dou-ui/icons": "workspace:*",
         "@dou-ui/theme": "workspace:*",
@@ -114,7 +114,7 @@
     },
     "packages/editor": {
       "name": "@dou-ui/editor",
-      "version": "0.1.0-alpha.3",
+      "version": "0.1.0-alpha.4",
       "dependencies": {
         "@dou-ui/icons": "workspace:*",
         "prosemirror-commands": "^1.7.2",
@@ -149,7 +149,7 @@
     },
     "packages/flow": {
       "name": "@dou-ui/flow",
-      "version": "0.1.0-alpha.3",
+      "version": "0.1.0-alpha.4",
       "dependencies": {
         "@dou-ui/icons": "workspace:*",
       },
@@ -168,7 +168,7 @@
     },
     "packages/form-builder": {
       "name": "@dou-ui/form-builder",
-      "version": "0.1.0-alpha.3",
+      "version": "0.1.0-alpha.4",
       "dependencies": {
         "@dou-ui/icons": "workspace:*",
       },
@@ -190,7 +190,7 @@
     },
     "packages/gantt": {
       "name": "@dou-ui/gantt",
-      "version": "0.1.0-alpha.3",
+      "version": "0.1.0-alpha.4",
       "dependencies": {
         "@dou-ui/icons": "workspace:*",
       },
@@ -209,14 +209,14 @@
     },
     "packages/icons": {
       "name": "@dou-ui/icons",
-      "version": "0.1.0-alpha.3",
+      "version": "0.1.0-alpha.4",
       "peerDependencies": {
         "vue": "^3.5.0",
       },
     },
     "packages/nuxt": {
       "name": "@dou-ui/nuxt",
-      "version": "0.1.0-alpha.3",
+      "version": "0.1.0-alpha.4",
       "dependencies": {
         "@dou-ui/resolver": "workspace:*",
         "@nuxt/kit": "^4.0.0",
@@ -234,7 +234,7 @@
     },
     "packages/pivot": {
       "name": "@dou-ui/pivot",
-      "version": "0.1.0-alpha.3",
+      "version": "0.1.0-alpha.4",
       "dependencies": {
         "@dou-ui/icons": "workspace:*",
       },
@@ -245,11 +245,11 @@
     },
     "packages/resolver": {
       "name": "@dou-ui/resolver",
-      "version": "0.1.0-alpha.3",
+      "version": "0.1.0-alpha.4",
     },
     "packages/sheet": {
       "name": "@dou-ui/sheet",
-      "version": "0.1.0-alpha.3",
+      "version": "0.1.0-alpha.4",
       "dependencies": {
         "@dou-ui/icons": "workspace:*",
         "@dou-ui/theme": "workspace:*",
@@ -272,14 +272,14 @@
     },
     "packages/sheet-xlsx": {
       "name": "@dou-ui/sheet-xlsx",
-      "version": "0.1.0-alpha.3",
+      "version": "0.1.0-alpha.4",
       "peerDependencies": {
         "@dou-ui/sheet": "workspace:*",
       },
     },
     "packages/theme": {
       "name": "@dou-ui/theme",
-      "version": "0.1.0-alpha.3",
+      "version": "0.1.0-alpha.4",
     },
     "playground": {
       "name": "@dou-ui/playground",

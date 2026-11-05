@@ -1,6 +1,8 @@
 ---
 type: 新增
 packages: [dou-ui, theme]
+pr: 346
+version: 0.1.0-alpha.4
 ---
 
 `DouChatMessage` 新增 `highlighted`，用主题色描边框住这条消息，并带 `aria-current="true"`；关掉后淡出，减少动效时很快消失。

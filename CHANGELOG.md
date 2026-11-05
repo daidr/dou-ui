@@ -7,6 +7,53 @@ DouUI 的所有包（`dou-ui`、`@dou-ui/theme`、`@dou-ui/icons` 以及生态�
 
 这个文件由发版脚本生成：改动先以碎片文件记在 [`.changes/`](./.changes/README.md) 里，发布时汇总到这里。
 
+## 0.1.0-alpha.4 · 2026-11-05
+
+### 不兼容
+
+- **dou-ui**：`DouChatInput` 的命令有 `label` 时不再按 `value` 匹配：`value` 用户看不到，常常只是 id。以前靠 `value` 找到的命令（如输入 `/sum` 找到 `{ value: 'summarize', label: '总结' }`），把这个词写进 `keywords`：`{ value: 'summarize', label: '总结', keywords: ['summarize'] }`。 ([#341](https://github.com/daidr/dou-ui/pull/341))
+- **dou-ui**：移除 `setDialogContext` 和 `setToastContext`，改用 `setInstalledAppContext`：对话框、轻提示和其他在组件树之外渲染的内容共用同一个应用上下文。 ([#350](https://github.com/daidr/dou-ui/pull/350))
+
+### 新增
+
+- **@dou-ui/theme**：折叠面板内容的缩进改为 CSS 变量 `--dou-collapse-indent`，默认仍是箭头宽度加间距，和标题文字对齐。 ([#320](https://github.com/daidr/dou-ui/pull/320))
+- **dou-ui、@dou-ui/theme**：Menu 的项支持 `description`：展开的竖向菜单和弹出的子菜单在名称下面多一行说明，折叠和水平菜单的顶层只读给读屏；新增 `description` 插槽。 ([#321](https://github.com/daidr/dou-ui/pull/321))
+- **dou-ui、@dou-ui/theme**：`DouChatMessage` 新增 `actions-visible`，设置操作栏何时显示：`'always'` 始终显示，`'hover'` 悬停或聚焦时显示。默认和以前一样，用户消息悬停显示，助手消息始终显示；无法悬停的设备上始终显示。 ([#324](https://github.com/daidr/dou-ui/pull/324))
+- **dou-ui**：`DouCommentThread` 新增 `resolvable`，设为 `false` 时只隐藏解决按钮，回复框和编辑、删除菜单保留，适合没有“已解决”状态的草稿批注。 ([#340](https://github.com/daidr/dou-ui/pull/340))
+- **dou-ui**：`DouChatInput` 的命令和引用按用户看得到的文字匹配：`label`（没有时用 `value`）、引用的 `value` 和 `description`，选项新增 `keywords` 补充匹配词；新增 `filter`，可传函数自定义匹配、`false` 原样列出，也可以按触发符分开设置，如 `{ '@': false }`；新增 `search` 事件和 `searchDelay`，`/`、`@` 后的文字变化时触发，方便按输入去服务端查候选。 ([#341](https://github.com/daidr/dou-ui/pull/341))
+- **dou-ui、@dou-ui/theme**：`DouLink` 新增 `variant="soft"`：带所在语气浅色底、默认无下划线的行内引用，悬停略深，换行时每行各有底色，图标和紧挨的字不会被分到两行，可用 `--dou-link-fill` 调整。所有链接都会去掉文字首尾的空白（模板里把文字单独写成一行时带上的），不会多出一截下划线或底色。悬停效果只在能悬停的设备上出现。 ([#343](https://github.com/daidr/dou-ui/pull/343))
+- **dou-ui、@dou-ui/theme**：`DouMenu` 新增 `actions` 插槽，给某一项加上它自己的按钮：按钮放在项旁边而不是项里面，能用 Tab 聚焦，点击不会选中这一项；新增 `actions-visible`，`hover`（默认）在悬停、聚焦或当前项时显示，`always` 始终显示。 ([#344](https://github.com/daidr/dou-ui/pull/344))
+- **dou-ui、@dou-ui/theme**：`DouImage` 新增 `max-width` 和 `max-height`，限制盒子的最大宽高。不传 `width` 和 `height` 时，图片按原始比例等比缩小到上限以内，不会被裁剪。加载中和加载失败时，盒子使用这两个上限作为尺寸。
+
+  不传尺寸的 `DouImage` 现在默认不超过容器宽度，盒子大小与图片一致，不再被 flex 或 grid 父元素拉伸。 ([#345](https://github.com/daidr/dou-ui/pull/345))
+
+- **dou-ui、@dou-ui/theme**：`DouChatMessage` 新增 `highlighted`，用主题色描边框住这条消息，并带 `aria-current="true"`；关掉后淡出，减少动效时很快消失。
+
+  `DouChatList` 新增 `scrollToMessage`，直接跳到一条消息并停止跟随新内容，适合搜索定位。传了 `items` 时按键值定位，否则传元素或 DouChatMessage 的 `ref`。 ([#346](https://github.com/daidr/dou-ui/pull/346))
+
+- **dou-ui、@dou-ui/theme**：新增 `DouChatQuestion` 选项提问：助手提一个问题，用户从几个选项里选一个回答。它有等待中、已回答、已撤回三种状态，回答或撤回后收起为一行，外观与 `DouChatConfirm` 一致。`DouChatMessage` 新增 `question` 片段和 `question` 事件。 ([#348](https://github.com/daidr/dou-ui/pull/348))
+- **@dou-ui/code**：`DouCodeDiff` 新增 `gutters` 和 `widgets`：标记和行间小部件可以放在原文或修改后任一侧的行上，并排和 `inline` 两种视图都会放到对应的行；并排时另一侧留出同样高的空白保持对齐，`span: 'both'` 的小部件横跨两栏。带标记或小部件的行不会被收起。 ([#349](https://github.com/daidr/dou-ui/pull/349))
+- **@dou-ui/flow**：新增 `renderFlowSVG(document, options?)` 和 `renderFlowPNG(document, options?)`：页面上不需要有编辑器，直接把文档画成和 `exportSVG`、`exportPNG` 一样的图片，可以用 `colorMode` 指定浅色或深色，默认沿用调用过 `app.use(DouUI)` 的应用的语言包，适合做缩略图。 ([#350](https://github.com/daidr/dou-ui/pull/350))
+- **dou-ui**：新增 `installedAppContext()` 和 `setInstalledAppContext()`：记下配置了 DouUI 的应用（`app.use(DouUI)`、`provideGlobalConfig(config, app)`、Nuxt 模块），`dialog()`、`toast()` 和在组件树之外渲染的内容都从这里沿用应用的语言包和全局配置。`provideGlobalConfig` 传入 `app` 时，`dialog()` 和 `toast()` 也会沿用这份配置。 ([#350](https://github.com/daidr/dou-ui/pull/350))
+- **@dou-ui/flow**：`DouFlowEditor` 新增评论：传入 `v-model:comments` 后可以对节点和连线发起讨论，讨论所在位置保存在节点和连线的 `comments` 字段，配合 `v-model:activeComment`、`commentAction` 事件和 `getCommentAnchors()` 做评论列表和保存。只读时选中节点或连线，工具栏上只显示评论按钮；工具栏按钮新增 `showWhenReadonly` 字段，写上的按钮只读时也显示。 ([#351](https://github.com/daidr/dou-ui/pull/351))
+- **@dou-ui/dashboard**：`DouDashboard` 支持评论：传入 `v-model:comments` 和 `author` 后，格子标题栏出现评论按钮，显示讨论条数，点击或按 `Ctrl/⌘` + `Alt` + `M` 发起、查看讨论。讨论 id 保存在格子的 `comments` 字段，内容在 `v-model:comments` 里；不能编辑时也能评论，`v-model:activeComment` 可与侧栏联动，`getCommentAnchors()` 查询每条讨论所在的格子。 ([#352](https://github.com/daidr/dou-ui/pull/352))
+
+### 改进
+
+- **dou-ui、@dou-ui/theme**：`DouLink` 不传 `href` 时渲染为 `<button type="button">`，可以聚焦并用 Enter 或空格触发，适合一句话里的行内操作。放在 Checkbox 文字里时，点它不再顺带勾选复选框。 ([#322](https://github.com/daidr/dou-ui/pull/322))
+- **@dou-ui/code**：`DouCodeEditor` 有 `onPress` 的行号栏列里，标记成为以 `title` 命名的按钮（这时 `title` 必填）：光标所在行的标记可以按 `Esc` 后 `Shift` + `Tab` 聚焦，按 `Enter` 或 `Space` 触发 `onPress`，第二个参数可能是 `KeyboardEvent`。标记新增 `visible: 'hover'`，平时不显示，指着这一行、光标在这一行或它有焦点时显示。修复按 `Esc` 后按 `Shift` + `Tab` 不能离开编辑区的问题。 ([#347](https://github.com/daidr/dou-ui/pull/347))
+- **@dou-ui/flow**：文档里有没注册的节点类型时，`DouFlowEditor` 在开发环境提示一次，不再悄悄画成默认节点。 ([#350](https://github.com/daidr/dou-ui/pull/350))
+- **dou-ui**：DouChatList 的 `scrollToMessage` 传 `null` 或 `undefined`（比如已经移除的消息的 `ref`）时直接忽略，不再提示“只有 `items` 时才能传键”；文档里默认插槽的写法补上了 `refs` 的定义和移除时的清理。参数类型从 `HTMLElement` 放宽为 `Element`，函数 `ref` 拿到的值可以直接传入，TypeScript 不再报错。 ([#354](https://github.com/daidr/dou-ui/pull/354))
+
+### 修复
+
+- **dou-ui**：Menu 的 `label` 插槽在折叠和水平菜单弹出的子菜单里不生效，仍显示原来的文字。 ([#321](https://github.com/daidr/dou-ui/pull/321))
+- **dou-ui、@dou-ui/flow**：`layoutGraph` 里，长连线跨过一组并列节点、中间正好有空位时（节点数为偶数），会从正中直着穿过去，不再绕到扇形外侧；网格较粗时为了让它正好居中，图最多变宽一个网格步长，要宽更多、或节点宽度让它没法居中时，仍绕外侧，和节点镜像对称。节点较宽时整理后的图会更窄。流程编辑器整理时按端口吸附网格，两端节点宽度不同时长连线也不会在末端折一下。 ([#323](https://github.com/daidr/dou-ui/pull/323))
+- **dou-ui、@dou-ui/theme**：`DouCard` 的 `as="button"` 不再带浏览器按钮的内边距、字体和居中，外观与其他卡片一致，自带悬停描边和焦点环，默认 `type="button"`；内部各部分改用 `span` 渲染，结构合法。 ([#339](https://github.com/daidr/dou-ui/pull/339))
+- **dou-ui**：`DouChatConfirm` 的 `title` 插槽在组件渲染之后才传入时，现在也会显示，并用作卡片的名称。 ([#348](https://github.com/daidr/dou-ui/pull/348))
+- **@dou-ui/editor、@dou-ui/sheet**：块编辑器和电子表格的评论卡片高度随可用空间收缩，在屏幕中间打开、内容又多时，卡片不再跑出屏幕。 ([#351](https://github.com/daidr/dou-ui/pull/351))
+- **@dou-ui/sheet**：条件格式面板里样式预览的字号用了不存在的令牌，改为 `--dou-font-size-sm`。 ([#353](https://github.com/daidr/dou-ui/pull/353))
+
 ## 0.1.0-alpha.3 · 2026-11-04
 
 ### 不兼容

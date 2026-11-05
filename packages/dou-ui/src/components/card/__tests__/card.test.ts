@@ -40,4 +40,31 @@ describe('DouCard', () => {
       expect.arrayContaining(['dou-card--padding-none', 'is-raised', 'is-interactive']),
     )
   })
+
+  it('renders as a button with only text-level parts inside', () => {
+    const wrapper = mount(DouCard, {
+      props: { as: 'button', title: '上海', description: '戴兜的产物' },
+      slots: { default: '正文', footer: '底部' },
+    })
+    expect(wrapper.element.tagName).toBe('BUTTON')
+    expect(wrapper.attributes('type')).toBe('button')
+    expect(wrapper.classes()).toContain('is-interactive')
+    expect(wrapper.find('div, header, footer').exists()).toBe(false)
+    expect(
+      wrapper.findAll('span.dou-card__header, span.dou-card__body, span.dou-card__footer'),
+    ).toHaveLength(3)
+    expect(wrapper.find('.dou-card__title').text()).toBe('上海')
+  })
+
+  it('lets a type attribute replace the button default', () => {
+    const wrapper = mount(DouCard, { props: { as: 'button' }, attrs: { type: 'submit' } })
+    expect(wrapper.attributes('type')).toBe('submit')
+  })
+
+  it('keeps block parts for other elements', () => {
+    const wrapper = mount(DouCard, { props: { as: 'a', title: '上海' }, slots: { footer: '底部' } })
+    expect(wrapper.find('header.dou-card__header').exists()).toBe(true)
+    expect(wrapper.find('footer.dou-card__footer').exists()).toBe(true)
+    expect(wrapper.attributes('type')).toBeUndefined()
+  })
 })

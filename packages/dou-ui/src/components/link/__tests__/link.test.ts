@@ -1,5 +1,6 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
+import { Fragment, createCommentVNode, createTextVNode, defineComponent, h } from 'vue'
 import { DouLink } from '../../../index'
 
 describe('DouLink', () => {
@@ -13,15 +14,48 @@ describe('DouLink', () => {
     )
   })
 
-  it('drops the underline for a chip unless one is asked for', () => {
-    const chip = mount(DouLink, { props: { href: '/a', variant: 'chip' } })
-    expect(chip.classes()).toEqual(
-      expect.arrayContaining(['dou-link--chip', 'dou-link--underline-none']),
+  it('drops the underline for a soft link unless one is asked for', () => {
+    const soft = mount(DouLink, { props: { href: '/a', variant: 'soft' } })
+    expect(soft.classes()).toEqual(
+      expect.arrayContaining(['dou-link--soft', 'dou-link--underline-none']),
     )
     const underlined = mount(DouLink, {
-      props: { href: '/a', variant: 'chip', underline: 'hover' },
+      props: { href: '/a', variant: 'soft', underline: 'hover' },
     })
     expect(underlined.classes()).toContain('dou-link--underline-hover')
+  })
+
+  it('trims a label passed on by a wrapper, or after a v-if', () => {
+    const Wrapper = defineComponent({
+      setup(_, { slots }) {
+        return () =>
+          h(DouLink, { href: '/a', variant: 'soft' }, { default: () => slots.default?.() })
+      },
+    })
+    const passed = mount(Wrapper, {
+      slots: { default: () => [createTextVNode('\n  #128 排班\n  ')] },
+    })
+    expect(passed.get('.dou-link__label').element.textContent).toBe('#128 排班')
+    const Forwarded = defineComponent({
+      setup(_, { slots }) {
+        return () => h(DouLink, { href: '/a' }, { default: () => [h(Fragment, slots.default?.())] })
+      },
+    })
+    const fragment = mount(Forwarded, { slots: { default: () => [createTextVNode(' 共 3 条 ')] } })
+    expect(fragment.get('.dou-link__label').element.textContent).toBe('共 3 条')
+    const afterIf = mount(DouLink, {
+      props: { href: '/a' },
+      slots: { default: () => [createCommentVNode('v-if'), createTextVNode(' 共 3 条')] },
+    })
+    expect(afterIf.get('.dou-link__label').element.textContent).toBe('共 3 条')
+  })
+
+  it('keeps a soft link’s icons on the line of the words beside them', () => {
+    const wrapper = mount(DouLink, {
+      props: { href: '/a', variant: 'soft', external: true },
+      slots: { leading: '<i>i</i>', default: '文档' },
+    })
+    expect(wrapper.text()).toBe('i\u2060文档\u2060')
   })
 
   it('trims the spaces a label on its own lines brings', () => {

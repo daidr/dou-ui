@@ -12,11 +12,15 @@
 
 <DocDemo src="link/underline" />
 
-## 胶囊
+## 浅色底
 
-`variant="chip"` 让链接落在一块浅色底上，适合消息里的引用，比如合并请求、讨论或文档，和周围的文字区分开。底色取自 `tone`，悬停时略深；默认不带下划线，需要时仍可以设 `underline`。胶囊和文字一样随行折断，每一行都有自己的圆角底色。`leading` 放图标。
+`variant="soft"` 给链接加上所在语气的浅色底色，和周围的文字区分开，适合在消息里引用合并请求、讨论或文档。悬停时底色略深；默认不带下划线，需要时仍可以设 `underline`。它和文字一样随行折断，每一行都有自己的圆角底色。图标放在 `leading` 插槽里，总是和紧挨的字留在同一行。不传 `href` 时它是按钮，按钮不会折断，会整块换到下一行。
 
-<DocDemo src="link/chip" />
+把链接和前后的文字写在同一行：模板里的换行会变成一个空格，出现在“，”这类全角标点前面。
+
+要显示一个固定高度、不折行、不可点击的标记时用 [Tag](./tag)；带地址、可以点开的行内引用用浅色底的链接。
+
+<DocDemo src="link/soft" />
 
 ## 外部链接
 
@@ -61,8 +65,8 @@
 | ----------- | ------------------------------------------------------ | -------------------------------------------------------------- | ----------- |
 | `href`      | 目标地址；不传时渲染为按钮                             | `string`                                                       | —           |
 | `tone`      | 语义                                                   | `'neutral' \| 'primary' \| 'success' \| 'warning' \| 'danger'` | `'neutral'` |
-| `variant`   | 外观：`text` 为行内文字，`chip` 为浅色底的胶囊         | `'text' \| 'chip'`                                             | `'text'`    |
-| `underline` | 下划线出现的时机；`chip` 默认 `none`                   | `'always' \| 'hover' \| 'none'`                                | `'always'`  |
+| `variant`   | 外观：`text` 为行内文字，`soft` 带浅色底               | `'text' \| 'soft'`                                             | `'text'`    |
+| `underline` | 下划线出现的时机；`soft` 默认 `none`                   | `'always' \| 'hover' \| 'none'`                                | `'always'`  |
 | `disabled`  | 禁用                                                   | `boolean`                                                      | `false`     |
 | `external`  | 在新标签页打开，并加上安全的 `rel` 与箭头，需要 `href` | `boolean`                                                      | `false`     |
 
@@ -82,10 +86,10 @@
 
 ### CSS 变量
 
-| 变量                         | 说明             |
-| ---------------------------- | ---------------- |
-| `--dou-link-tone`            | 文字颜色         |
-| `--dou-link-underline`       | 静止时下划线颜色 |
-| `--dou-link-underline-hover` | 悬停时下划线颜色 |
-| `--dou-link-fill`            | 胶囊的底色       |
-| `--dou-link-fill-hover`      | 胶囊悬停时的底色 |
+| 变量                         | 说明               |
+| ---------------------------- | ------------------ |
+| `--dou-link-tone`            | 文字颜色           |
+| `--dou-link-underline`       | 静止时下划线颜色   |
+| `--dou-link-underline-hover` | 悬停时下划线颜色   |
+| `--dou-link-fill`            | 浅色底的颜色       |
+| `--dou-link-fill-hover`      | 浅色底悬停时的颜色 |

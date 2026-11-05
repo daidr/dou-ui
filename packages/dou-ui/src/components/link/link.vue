@@ -1,6 +1,16 @@
 <script setup lang="ts">
 import { ArrowUpRightIcon } from '@dou-ui/icons'
-import { Text, computed, createTextVNode, onMounted, useTemplateRef, watchEffect } from 'vue'
+import {
+  Comment,
+  Fragment,
+  Text,
+  computed,
+  createTextVNode,
+  isVNode,
+  onMounted,
+  useTemplateRef,
+  watchEffect,
+} from 'vue'
 import type { VNode } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { devWarn } from '../../utils/status-check'
@@ -44,26 +54,49 @@ if (process.env.NODE_ENV !== 'production')
   })
 
 // A label written on its own lines in a template starts and ends with a
-// space, which would show inside a chip's fill or under the underline.
-function trimmed(nodes: VNode[] | undefined) {
-  if (!nodes?.length) return nodes
+// space, which would show inside a soft fill or under the underline. Slots
+// passed on by a wrapper come as fragments, and a `v-if` leaves a comment:
+// look through both for the first and last text.
+type Trim = 'trimStart' | 'trimEnd'
+function trimEdge(nodes: unknown[], how: Trim): unknown[] {
   const out = [...nodes]
-  const trim = (index: number, how: 'trimStart' | 'trimEnd') => {
-    const node = out[index]!
-    if (node.type === Text && typeof node.children === 'string')
-      out[index] = createTextVNode(node.children[how]())
+  const order = how === 'trimStart' ? out.keys() : [...out.keys()].reverse()
+  for (const index of order) {
+    const node = out[index]
+    if (!isVNode(node)) {
+      if (typeof node === 'string') {
+        out[index] = node[how]()
+        if (out[index]) return out
+      }
+      continue
+    }
+    if (node.type === Comment) continue
+    if (node.type === Text && typeof node.children === 'string') {
+      const text = node.children[how]()
+      out[index] = createTextVNode(text)
+      if (text) return out
+      continue
+    }
+    if (node.type === Fragment && Array.isArray(node.children)) {
+      out[index] = { ...node, children: trimEdge(node.children, how) } as VNode
+      return out
+    }
+    return out
   }
-  trim(0, 'trimStart')
-  trim(out.length - 1, 'trimEnd')
   return out
 }
+function trimmed(nodes: VNode[] | undefined) {
+  if (!nodes?.length) return nodes
+  return trimEdge(trimEdge(nodes, 'trimStart'), 'trimEnd') as VNode[]
+}
+const WJ = '\u2060'
 const Label = () => trimmed(slots.default?.() as VNode[] | undefined)
 
 const classes = computed(() => [
   ns.b(),
   ns.m(props.tone),
   ns.m(props.variant),
-  ns.m(`underline-${props.underline ?? (props.variant === 'chip' ? 'none' : 'always')}`),
+  ns.m(`underline-${props.underline ?? (props.variant === 'soft' ? 'none' : 'always')}`),
   ns.is('disabled', props.disabled),
 ])
 
@@ -98,7 +131,13 @@ function onClick(event: MouseEvent) {
     <span v-if="slots.leading" :class="ns.e('icon')">
       <slot name="leading" />
     </span>
+    <!-- a soft link breaks with the line: a word joiner keeps each icon on
+         the line of the word beside it -->
+    <template v-if="slots.leading && variant === 'soft'">{{ WJ }}</template>
     <span :class="ns.e('label')"><Label /></span>
+    <template v-if="(slots.trailing || (external && !isButton)) && variant === 'soft'">{{
+      WJ
+    }}</template>
     <span v-if="slots.trailing" :class="ns.e('icon')">
       <slot name="trailing" />
     </span>

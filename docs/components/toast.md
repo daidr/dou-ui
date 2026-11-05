@@ -53,7 +53,7 @@ await toast.promise(save(), {
 
 ## 语言与层级
 
-`toast()` 第一次调用时会自动挂载一个容器。用 `app.use(DouUI)` 注册时，容器沿用应用的全局配置（语言包、`zIndex`）。
+`toast()` 第一次调用时会自动挂载一个容器。用 `app.use(DouUI)` 或 `provideGlobalConfig(config, app)` 配置时，容器沿用应用的全局配置（语言包、`zIndex`）。
 
 如果要让提示使用某个 [ConfigProvider](./config-provider) 的配置，把 `DouToastViewport` 放进去即可；最后挂载的容器负责显示提示。
 

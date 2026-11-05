@@ -1,5 +1,6 @@
 import { getCurrentInstance, h, markRaw, render } from 'vue'
 import type { AppContext } from 'vue'
+import { installedAppContext } from '../../utils/app-context'
 import DialogBox from './dialog-box.vue'
 import type {
   DialogAlertOptions,
@@ -9,13 +10,6 @@ import type {
   DialogHandle,
   DialogPromptOptions,
 } from './dialog-api'
-
-let context: AppContext | null = null
-
-/** Remember the app whose config (locale, z-index) dialogs opened by `dialog` should use. */
-export function setDialogContext(appContext: AppContext | null) {
-  context = appContext
-}
 
 const open = new Set<() => void>()
 const noop = () => {}
@@ -50,7 +44,7 @@ function show<T>(
       },
       onClosed: () => render(null, container),
     })
-    vnode.appContext = appContext ?? context
+    vnode.appContext = appContext ?? installedAppContext()
     render(vnode, container)
     close = () => controller.close?.()
     open.add(close)

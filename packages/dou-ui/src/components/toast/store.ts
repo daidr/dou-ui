@@ -1,5 +1,4 @@
 import { reactive } from 'vue'
-import type { AppContext } from 'vue'
 import type { ToastOptions, ToastRecord } from './toast'
 
 export const toastState = reactive({
@@ -12,16 +11,6 @@ let seed = 0
 let viewportSeed = 0
 
 export const nextViewportId = () => ++viewportSeed
-let context: AppContext | null = null
-
-/** Remember the app whose config (locale, z-index) toasts shown by `toast()` should use. */
-export function setToastContext(appContext: AppContext | null) {
-  context = appContext
-}
-
-export function getToastContext() {
-  return context
-}
 
 const defaultDuration = (options: Partial<ToastOptions>) =>
   options.loading ? 0 : options.action ? 6000 : 3000

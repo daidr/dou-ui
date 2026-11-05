@@ -1,4 +1,5 @@
 import { computed, hasInjectionContext, inject, provide, toValue } from 'vue'
+import { setInstalledAppContext } from '../../utils/app-context'
 import type { App, ComputedRef, MaybeRefOrGetter } from 'vue'
 import { zhCN } from '../../locale/zh-cn'
 import type { Locale } from '../../locale/types'
@@ -40,8 +41,12 @@ export function provideGlobalConfig(
     }
     return result
   })
-  if (app) app.provide(configProviderKey, merged)
-  else provide(configProviderKey, merged)
+  if (app) {
+    app.provide(configProviderKey, merged)
+    // what is rendered outside the app's tree (dialog(), toast(), renderFlowSVG) takes it from here too
+    // oxlint-disable-next-line no-underscore-dangle -- the public way to reach an app's context
+    setInstalledAppContext(app._context)
+  } else provide(configProviderKey, merged)
   return merged
 }
 

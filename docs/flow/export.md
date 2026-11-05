@@ -40,7 +40,39 @@ PNG 是位图，适合直接发送或插入文档。
 - 默认按 2 倍像素导出，`pixelRatio` 可以改。
 - 图片节点的图片会嵌进 PNG。图片地址在别的域名下、又不允许跨域读取时读不到，那张图片画成和画布上一样的占位（灰色方块加图片图标）；读不到的地址会记下来，同一个编辑器之后再导出时不再请求。
 
-浏览器对画布的尺寸有限制：每边 16384 像素，总像素数在 iPhone 和 iPad 上约 1677 万，其他设备上是 16384 × 16384。图片很大时 `exportPNG()` 会自动降低 `pixelRatio`，降到 1 仍然放不下时会抛出 `RangeError`，不会生成一张模糊的图。这时可以用 `range: 'view'` 或 `range: 'selection'` 分几次导出，或者改用 `exportSVG()`。
+浏览器对画布的尺寸有限制：每边 16384 像素，总像素数在 iPhone 和 iPad 上约 1677 万，其他设备上是 16384 × 16384。图片很大时 `exportPNG()` 会自动降低 `pixelRatio`，降到 1 仍然放不下时会抛出 `RangeError`，不会生成一张模糊的图。这时可以用 `range: 'view'` 或 `range: 'selection'` 分几次导出，或者改用 `exportSVG()`。`renderFlowPNG()` 遇到同样的情况也抛出 `RangeError`，这时改用 `renderFlowSVG()`。
+
+## 不挂编辑器导出
+
+`renderFlowSVG(document, options?)` 和 `renderFlowPNG(document, options?)` 直接把一份文档画成图片，页面上不需要有编辑器，适合产物列表里的缩略图、分享前的预览。两者都返回 Promise。
+
+```ts
+import { renderFlowSVG } from '@dou-ui/flow'
+import '@dou-ui/flow/style'
+import { onMounted, ref } from 'vue'
+
+const thumbnail = ref('')
+// 只能在浏览器里画：放在 onMounted 或点击处理里，不要写在 <script setup> 顶层
+onMounted(async () => {
+  const svg = await renderFlowSVG(doc, { colorMode: 'light', padding: 12 })
+  thumbnail.value = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
+})
+```
+
+画法和 `exportSVG` 完全相同：函数在页面上临时挂一个看不见的只读编辑器，等节点排好、量好尺寸后导出，然后立即移除。所以：
+
+- 节点形状、文字、端口、曲线连线、分组都和画布上一致，自定义节点组件放的端口也在原位。
+- 要传入和显示这份文档的编辑器相同的 `extensions`、`nodeTypes`、`edgeTypes`、`portTypes`，否则用不到的类型会按默认节点画。
+- 需要浏览器环境，在服务端调用会抛出错误。
+- 需要流程编辑器的样式。用解析器或 Nuxt 模块自动引入时，样式随 `<DouFlowEditor>` 一起加载；页面上没有编辑器、只调用这两个函数时，要自己引入 `@dou-ui/flow/style`，否则会抛出错误提示。
+- 文档里有没注册的节点类型时，开发环境会在控制台提示一次（编辑器也一样）。
+- 一次只画一份。十几张缩略图依次调用即可，每次结束后不留下任何东西；文档没变时，可以把结果缓存起来。
+
+<DocDemo src="flow/render" column />
+
+`colorMode` 设为 `'light'` 或 `'dark'` 时按这种颜色模式画，不设时跟随页面当前的颜色模式。
+
+节点组件默认在配置了 DouUI 的应用里渲染（`app.use(DouUI)`、`provideGlobalConfig(config, app)` 或 Nuxt 模块，见 [installedAppContext](/guide/composables#installedappcontext)），沿用它的语言包和全局配置。节点组件还要用到别的插件或 `provide`，或者有多个应用时，传入 `appContext`，例如 `getCurrentInstance()!.appContext`。`DouConfigProvider` 这类写在组件树里的设置带不过去，需要时用 `messages` 改写文字。
 
 ## 自定义节点
 
@@ -97,10 +129,25 @@ const noteNode = defineNodeType<{ text?: string }>({
 
 ### 函数
 
-| 名称                       | 说明                                                  | 类型                                                                              |
-| -------------------------- | ----------------------------------------------------- | --------------------------------------------------------------------------------- |
-| `drawCard(draw, classes?)` | 画出编辑器默认的卡片，`classes` 是卡片上额外的类名    | `(draw: FlowDrawContext, classes?: string[]) => string`                           |
-| `drawLayer`                | 扩展的选项：返回画在所有节点上方的 SVG 标记，画布坐标 | `(ctx: FlowExtensionContext, draw: FlowDrawContext, nodes: FlowNode[]) => string` |
+| 名称                                | 说明                                                  | 类型                                                                              |
+| ----------------------------------- | ----------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `renderFlowSVG(document, options?)` | 不挂编辑器，把文档画成 SVG 文本                       | `(document: FlowDocument, options?: RenderFlowOptions) => Promise<string>`        |
+| `renderFlowPNG(document, options?)` | 不挂编辑器，把文档画成 PNG                            | `(document: FlowDocument, options?: RenderFlowImageOptions) => Promise<Blob>`     |
+| `drawCard(draw, classes?)`          | 画出编辑器默认的卡片，`classes` 是卡片上额外的类名    | `(draw: FlowDrawContext, classes?: string[]) => string`                           |
+| `drawLayer`                         | 扩展的选项：返回画在所有节点上方的 SVG 标记，画布坐标 | `(ctx: FlowExtensionContext, draw: FlowDrawContext, nodes: FlowNode[]) => string` |
+
+### RenderFlowOptions / RenderFlowImageOptions
+
+`renderFlowSVG` 的选项是 `RenderFlowOptions`；`renderFlowPNG` 的 `RenderFlowImageOptions` 多一个 `pixelRatio`。
+
+| 选项                                                                                     | 说明                                | 类型                 | 默认值              |
+| ---------------------------------------------------------------------------------------- | ----------------------------------- | -------------------- | ------------------- |
+| `extensions`、`nodeTypes`、`edgeTypes`、`edgeType`、`portTypes`、`direction`、`messages` | 与编辑器的同名属性相同              | —                    | —                   |
+| `colorMode`                                                                              | 按浅色或深色画；不设时跟随页面      | `'light' \| 'dark'`  | —                   |
+| `padding`                                                                                | 四周留白，单位 px                   | `number`             | `24`                |
+| `background`                                                                             | 是否铺上画布的底色                  | `boolean`            | `true`              |
+| `appContext`                                                                             | 节点组件渲染时使用的应用上下文      | `AppContext \| null` | 配置了 DouUI 的应用 |
+| `pixelRatio`                                                                             | 仅 PNG：每个 CSS 像素对应的图片像素 | `number`             | `2`                 |
 
 ### FlowDrawContext
 

@@ -331,7 +331,7 @@ describe('layoutGraph', () => {
     expect(centreLongEdges(layers)[1]!.map((n) => n.id)).toEqual(['v', 'long', 'w'])
   })
 
-  it('runs long edges on both sides of a fan, or two on one side, close past it', () => {
+  it('keeps long edges beyond a fan in its symmetry', () => {
     const vertical = {
       direction: 'vertical',
       rankGap: 56,
@@ -350,33 +350,34 @@ describe('layoutGraph', () => {
         edges,
         vertical,
       )
-      const [b, c] = layout.ranks[1]!.map((id) => layout.nodes.get(id)!)
       const a = layout.nodes.get('a')!
-      expect(a.x + a.width / 2).toBe((b!.x + c!.x + c!.width) / 2)
-      // How far each long edge out of `a` runs past the fan, from the nearest node.
-      const past = layout.edges
-        .filter((e) => e.from === 'a' && e.points.length)
-        .map((e) => e.points[0]!.x)
-        .map((x) => (x < b!.x ? x - b!.x : x - c!.x - c!.width))
-        .toSorted((p, q) => p - q)
-      return { layout, past }
+      // Where each edge out of `a` reaches the next rank.
+      const ends = layout.edges
+        .filter((e) => e.from === 'a')
+        .map((e) => {
+          if (e.points.length) return e.points[0]!.x
+          const to = layout.nodes.get(e.to)!
+          return to.x + to.width / 2
+        })
+      return { layout, hub: a.x + a.width / 2, ends }
     }
-    // One on each side: a lane gap past either end. Mirroring the nodes made it 960 wide.
+    // A long edge on each side mirrors the nodes, a node's width out: the
+    // canvas scrolls, and moving a node keeps its edges where they were.
     const both = lay('a>b,a>c,a>d,a>e,b>d,b>e,c>d,c>e')
-    expect(both.past).toEqual([-40, 40])
-    expect(both.layout.width).toBe(672)
-    // Two on one side: a lane gap past the fan, then an edge gap apart. Was 952.
+    expect(both.ends.toSorted((p, q) => p - q)).toEqual([0, 320, 640, 960])
+    expect(both.hub).toBe(480)
+    // Two on one side: the hub sits in the middle of all four.
     const two = lay('a>b,a>c,a>d,a>e,b>d,d>e')
-    expect(two.past).toEqual([40, 48])
-    expect(two.layout.width).toBe(640)
+    expect(two.hub).toBe(two.ends.reduce((sum, x) => sum + x, 0) / two.ends.length)
   })
 
   it('never lets a part joined only by a long edge drift away', () => {
-    // No wider than before long edges ran close past fans, not 396 and 424.
+    // Graphs where moving long edges about once let a part drift: no wider
+    // than they always were.
     expect(smallGraph('a>b,a>c,a>g,d>f,f>g', true).height).toBeLessThanOrEqual(200)
     expect(smallGraph('a>b,a>c,a>g,d>e,e>g,f>g', false).height).toBeLessThanOrEqual(256)
 
-    // A chain beside a fan's long edge stays close: 904 wide before, not 1352.
+    // A chain beside a fan's long edge stays close, not 1352 wide.
     const layout = layoutGraph(
       [
         { id: 'n0', width: 272, height: 40 },
@@ -406,8 +407,7 @@ describe('layoutGraph', () => {
     )
     expect(layout.width).toBeLessThanOrEqual(904)
 
-    // Leaving long edges out of the fans lets this one settle 1204 wide; laid
-    // out keeping them in, as before, it is 964, and the narrower wins.
+    // Leaving long edges out of the fans let this one settle 1204 wide.
     const drifting = layoutGraph(
       [
         { id: 'n0', width: 120, height: 64 },

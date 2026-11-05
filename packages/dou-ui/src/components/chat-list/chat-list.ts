@@ -5,14 +5,14 @@ import type { VirtualListAlign, VirtualListKey } from '../virtual-list/virtual-l
  * A message to scroll to: its key with `items`; otherwise its element, or
  * the component that renders it (a `ref` on DouChatMessage).
  */
-export type ChatListTarget = VirtualListKey | HTMLElement | ComponentPublicInstance
+export type ChatListTarget = VirtualListKey | Element | ComponentPublicInstance
 
 /** @internal Whether the target is an element or a component, not a key. */
-export const isTarget = (target: ChatListTarget): target is HTMLElement | ComponentPublicInstance =>
+export const isTarget = (target: ChatListTarget): target is Element | ComponentPublicInstance =>
   typeof target === 'object' && target !== null
 
 /** @internal The element of a target: a component gives its root element. */
-export function elementOf(target: HTMLElement | ComponentPublicInstance): HTMLElement | null {
+export function elementOf(target: Element | ComponentPublicInstance): HTMLElement | null {
   const el = '$el' in target ? (target.$el as unknown) : target
   return el instanceof HTMLElement ? el : null
 }

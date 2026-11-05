@@ -48,7 +48,15 @@ export interface MenuProps {
   collapsed?: boolean
   /** Keep at most one submenu open on each level. */
   accordion?: boolean
+  /**
+   * When the `actions` of each item show: `hover` while the row is hovered
+   * or holds the focus, and on the current item; `always` all the time.
+   * Without hover (touch screens) they always show.
+   */
+  actionsVisible?: MenuActionsVisible
 }
+
+export type MenuActionsVisible = 'always' | 'hover'
 
 export interface MenuEmits {
   'update:modelValue': [key: MenuKey]
@@ -68,6 +76,13 @@ export interface MenuSlots {
   label?: (props: { item: MenuItemOption; selected: boolean }) => unknown
   /** Replaces the description of each item that has one, e.g. to set part of it in bold. */
   description?: (props: { item: MenuItemOption; selected: boolean }) => unknown
+  /**
+   * Buttons of an item's own, e.g. to approve it, drawn over the end of
+   * its row as its siblings: they take the focus with Tab, and pressing
+   * them never chooses the item. Return nothing for items without any.
+   * Shown in the vertical menu only, not in a collapsed one or a popup.
+   */
+  actions?: (props: { item: MenuItemOption; selected: boolean }) => unknown
 }
 
 export interface MenuContext {
@@ -81,6 +96,7 @@ export interface MenuContext {
   contextmenu: (item: MenuItemOption, event: MouseEvent) => void
   labelSlot: () => MenuSlots['label']
   descriptionSlot: () => MenuSlots['description']
+  actionsSlot: () => MenuSlots['actions']
   subId: (key: MenuKey) => string
 }
 

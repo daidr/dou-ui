@@ -1,6 +1,7 @@
 import { mount } from '@vue/test-utils'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
+import type { VNode } from 'vue'
 import { DouContextMenu, DouDropdownItem, DouMenu } from '../../../index'
 import type { MenuItemOption, MenuKey, MenuOption } from '../../../index'
 
@@ -79,6 +80,68 @@ describe('DouMenu', () => {
     expect(item(wrapper, '文档').attributes('href')).toBe('https://example.com/docs')
     expect(item(wrapper, '首页').element.tagName).toBe('BUTTON')
     expect(item(wrapper, '首页').find('.icon').exists()).toBe(true)
+  })
+
+  it('draws an item’s actions beside it, never inside it', async () => {
+    const wrapper = mount(DouMenu, {
+      props: {
+        items: [
+          { key: 'a', label: '上海门店排班' },
+          { key: 'b', label: '十月周报' },
+        ],
+        modelValue: 'b',
+      },
+      slots: {
+        actions: (scope: { item: MenuItemOption }) =>
+          scope.item.key === 'a' ? h('button', { class: 'approve' }, '看完了') : null,
+      },
+      attachTo: document.body,
+    })
+    const entries = wrapper.findAll('.dou-menu__entry')
+    const actions = entries[0]!.get('.dou-menu__actions')
+    expect(actions.element.parentElement).toBe(entries[0]!.element)
+    expect(entries[0]!.find('.dou-menu__item .approve').exists()).toBe(false)
+    expect(entries[1]!.find('.dou-menu__actions').exists()).toBe(false)
+    expect(entries[1]!.classes()).toContain('is-current')
+    await actions.get('.approve').trigger('click')
+    expect(wrapper.emitted('select')).toBeUndefined()
+    expect(wrapper.classes()).toContain('dou-menu--actions-hover')
+    await wrapper.setProps({ actionsVisible: 'always' })
+    expect(wrapper.classes()).toContain('dou-menu--actions-always')
+    wrapper.unmount()
+  })
+
+  it('calls the actions slot once an item and hands the focus back when a button goes', async () => {
+    const done = ref(false)
+    const actions = vi.fn<(scope: { item: MenuItemOption }) => VNode | null>((scope) =>
+      scope.item.key === 'a' && !done.value
+        ? h('button', { class: 'approve', onClick: () => (done.value = true) }, '看完了')
+        : null,
+    )
+    const wrapper = mount(DouMenu, {
+      props: {
+        items: [
+          { key: 'a', label: '上海门店排班' },
+          { key: 'b', label: '十月周报' },
+        ],
+      },
+      slots: { actions },
+      attachTo: document.body,
+    })
+    expect(actions).toHaveBeenCalledTimes(2)
+    const approve = wrapper.get<HTMLButtonElement>('.approve')
+    approve.element.focus()
+    await approve.trigger('click')
+    await nextTick()
+    await nextTick()
+    expect(wrapper.find('.dou-menu__actions').exists()).toBe(false)
+    expect(document.activeElement).toBe(wrapper.findAll('.dou-menu__item')[0]!.element)
+    wrapper.unmount()
+  })
+
+  it('draws no actions part without the slot', () => {
+    const { wrapper } = make()
+    expect(wrapper.findComponent({ name: 'DouMenuActions' }).exists()).toBe(false)
   })
 
   it('opens the submenus around the current item and marks it', () => {

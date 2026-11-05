@@ -709,7 +709,9 @@ export interface Locale {
     deny: string
     approved: string
     denied: string
-    /** A confirmation the assistant no longer needs answered. */
+    /** A question answered with an option no longer listed. */
+    answered: string
+    /** A confirmation or question the assistant no longer needs answered. */
     withdrawn: string
     /** An artifact still being made. */
     generating: string

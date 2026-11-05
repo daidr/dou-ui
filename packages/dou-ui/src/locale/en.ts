@@ -477,6 +477,7 @@ export const en: Locale = {
     deny: 'Deny',
     approved: 'Allowed',
     denied: 'Denied',
+    answered: 'Answered',
     withdrawn: 'Withdrawn',
     generating: 'Generating…',
     generateError: 'Generation failed',

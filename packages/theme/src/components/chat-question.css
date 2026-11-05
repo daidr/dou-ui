@@ -1,0 +1,183 @@
+/*
+ * ChatQuestion
+ *
+ * A question from the assistant with a few answers to pick from, waiting
+ * for the person. The same card as ChatConfirm: framed, raised while it
+ * waits, and once answered or withdrawn it shrinks to its header and a
+ * short outcome. The answers are quiet framed rows under the question,
+ * lifting to a muted fill on hover like suggestions do. A withdrawn
+ * question steps back a shade, as a withdrawn confirmation does.
+ */
+@layer dou.components {
+  .dou-chat-question {
+    overflow: hidden;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-container);
+    background-color: var(--dou-color-bg-surface);
+    color: var(--dou-color-text);
+    font-size: var(--dou-font-size-sm);
+    line-height: 20px;
+
+    &.is-waiting {
+      border-color: var(--dou-color-border-strong);
+      box-shadow: var(--dou-shadow-sm);
+    }
+
+    /* focus lands here only when its options go away; it is not a control */
+    &:focus {
+      outline: none;
+    }
+  }
+
+  .dou-chat-question__header {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .dou-chat-question__icon {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    height: 20px;
+    color: var(--dou-color-text-secondary);
+    font-size: 16px;
+
+    .dou-chat-question.is-withdrawn & {
+      color: var(--dou-color-text-tertiary);
+    }
+  }
+
+  .dou-chat-question__text {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .dou-chat-question__title {
+    font-weight: var(--dou-font-weight-medium);
+
+    .dou-chat-question.is-withdrawn & {
+      color: var(--dou-color-text-secondary);
+    }
+  }
+
+  .dou-chat-question__description {
+    color: var(--dou-color-text-secondary);
+
+    .dou-chat-question.is-withdrawn & {
+      color: var(--dou-color-text-tertiary);
+    }
+  }
+
+  .dou-chat-question__result {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 4px;
+    max-width: 50%;
+    color: var(--dou-color-text-tertiary);
+
+    & > svg {
+      flex: none;
+    }
+
+    .dou-chat-question.is-answered & {
+      color: var(--dou-color-text-secondary);
+    }
+
+    /* empty while waiting: out of the flow so it adds no gap */
+    .dou-chat-question.is-waiting & {
+      position: absolute;
+    }
+  }
+
+  .dou-chat-question__answer {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dou-chat-question__options {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0;
+    padding: 0 12px 12px 38px;
+    list-style: none;
+  }
+
+  .dou-chat-question__option {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    box-sizing: border-box;
+    width: 100%;
+    margin: 0;
+    padding: 8px 10px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-color-bg-surface);
+    color: inherit;
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+    transition-property: background-color, border-color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    @media (hover: hover) {
+      &:hover:not(:disabled) {
+        border-color: var(--dou-color-border-strong);
+        background-color: color-mix(
+          in oklab,
+          var(--dou-color-text) 4%,
+          var(--dou-color-bg-surface)
+        );
+      }
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 2px;
+    }
+
+    &:disabled {
+      color: var(--dou-color-text-disabled);
+      cursor: not-allowed;
+    }
+  }
+
+  .dou-chat-question__option-icon {
+    flex: none;
+    height: 20px;
+    color: var(--dou-color-text-secondary);
+    font-size: 16px;
+
+    .dou-chat-question__option:disabled & {
+      color: inherit;
+    }
+  }
+
+  .dou-chat-question__option-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .dou-chat-question__label {
+    font-weight: var(--dou-font-weight-medium);
+  }
+
+  .dou-chat-question__option-description {
+    color: var(--dou-color-text-tertiary);
+
+    .dou-chat-question__option:disabled & {
+      color: inherit;
+    }
+  }
+}

@@ -1,9 +1,9 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { h } from 'vue'
 import * as dou from '../../../index'
 import { DouButton, DouChatContextMeter, DouTooltip } from '../../../index'
-import { compactNumber } from '../chat-context-meter'
+import { compactNumber, contextUsage } from '../chat-context-meter'
 
 describe('DouChatContextMeter', () => {
   it('reads as a meter with the share used', async () => {
@@ -48,6 +48,47 @@ describe('DouChatContextMeter', () => {
     expect(wrapper.findAll('[tabindex="0"]')).toHaveLength(0)
     expect(wrapper.findAll('button')).toHaveLength(1)
     expect(wrapper.get('button').find('[role="meter"]').exists()).toBe(true)
+  })
+
+  it('works out the numbers as the ring does, for tooltips around it', () => {
+    expect(contextUsage(45_200, 200_000)).toEqual({
+      used: 45_200,
+      total: 200_000,
+      share: 0.226,
+      percent: 23,
+    })
+    expect(contextUsage(210_000, 200_000).percent).toBe(100)
+    expect(contextUsage(10, 0)).toEqual({ used: 10, total: 0, share: 0, percent: 0 })
+    expect(contextUsage(Number.NaN, 100)).toMatchObject({ used: 0, percent: 0 })
+    expect(contextUsage(-5, 100)).toMatchObject({ used: 0, percent: 0 })
+    expect((dou as Record<string, unknown>).contextUsage).toBe(contextUsage)
+  })
+
+  it('counts a used or total that isn’t a finite number, or is below 0, as 0', () => {
+    const wrapper = mount(DouChatContextMeter, {
+      props: { used: Number.NaN, total: 100, showLabel: true },
+    })
+    const meter = wrapper.get('[role="meter"]')
+    expect(meter.attributes('aria-valuenow')).toBe('0')
+    expect(wrapper.get('.dou-chat-context-meter__label').text()).toBe('0%')
+    expect(wrapper.html()).not.toContain('NaN')
+    return wrapper.setProps({ used: -5 }).then(() => {
+      expect(meter.attributes('aria-valuetext')).toBe('上下文已用 0 / 100（0%）')
+    })
+  })
+
+  it('warns while developing when its label sits in a button', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const wrapper = mount(() =>
+      h(
+        'button',
+        null,
+        h(DouChatContextMeter, { used: 1, total: 2, showLabel: true, key: 'warn-in-button' }),
+      ),
+    )
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('`leading` slot'))
+    warn.mockRestore()
+    wrapper.unmount()
   })
 
   it('formats compact numbers, exported for tooltips around it', () => {

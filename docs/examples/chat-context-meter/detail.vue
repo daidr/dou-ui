@@ -1,5 +1,5 @@
 <script setup>
-import { compactNumber, useLocale } from 'dou-ui'
+import { compactNumber, contextUsage, useLocale } from 'dou-ui'
 import { computed } from 'vue'
 
 const { t } = useLocale()
@@ -14,10 +14,16 @@ const usage = {
   compacted: 2,
 }
 const used = usage.input + usage.output + usage.cacheWrite
-const percent = Math.round((used / total) * 100)
+// 和圆环同一口径：超过上限时是 100%，没有上限时是 0%
+const meter = contextUsage(used, total)
 
+// 一行数字：悬停提示、按钮名称和弹层顶部共用，触屏和读屏也能拿到
 const hint = computed(() =>
-  t('chat.context', { used: compactNumber(used), total: compactNumber(total), percent }),
+  t('chat.context', {
+    used: compactNumber(meter.used),
+    total: compactNumber(meter.total),
+    percent: meter.percent,
+  }),
 )
 const parts = [
   { label: '输入', value: usage.input },
@@ -30,10 +36,11 @@ const hitRate = Math.round((usage.cacheRead / (usage.cacheRead + usage.input)) *
 <template>
   <DouTooltip :content="hint">
     <DouPopover title="本次会话用量" placement="top-start" :width="280">
-      <DouButton variant="ghost" size="sm" aria-label="上下文用量">
+      <DouButton variant="ghost" size="sm" :aria-label="hint">
         <DouChatContextMeter :used="used" :total="total" />
       </DouButton>
       <template #content>
+        <p class="summary">{{ hint }}</p>
         <DouProgressGroup
           :items="parts"
           :max="total"
@@ -53,6 +60,11 @@ const hitRate = Math.round((usage.cacheRead / (usage.cacheRead + usage.input)) *
 </template>
 
 <style scoped>
+.summary {
+  margin: 0 0 12px;
+  font-size: var(--dou-font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
 .stats {
   display: grid;
   grid-template-columns: 1fr auto;

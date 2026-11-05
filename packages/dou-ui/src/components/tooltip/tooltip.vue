@@ -123,7 +123,8 @@ onBeforeUnmount(() => watching?.disconnect())
 /*
  * An icon button named "设置" with the tip "设置" would be read twice:
  * once as its name, once as its description. The tip describes the
- * trigger only when it says something the name does not.
+ * trigger only when it says something the name does not, nor the value
+ * a meter or slider reads out (`aria-valuetext`).
  */
 const describes = ref(false)
 const plain = (text: string | null | undefined) =>
@@ -143,7 +144,10 @@ watch(
     const panel = panelRef.value
     // the shortcut is announced through aria-keyshortcuts, so only the words count
     const text = panel && (panel.querySelector(`.${ns.e('text')}`) ?? panel).textContent
-    describes.value = !element || plain(text) !== plain(nameOf(element))
+    describes.value =
+      !element ||
+      (plain(text) !== plain(nameOf(element)) &&
+        plain(text) !== plain(element.getAttribute('aria-valuetext')))
   },
   { flush: 'post' },
 )

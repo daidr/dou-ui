@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, useTemplateRef } from 'vue'
 import { useNamespace } from '../../utils/namespace'
+import { devWarn } from '../../utils/status-check'
 import { useLocale } from '../config-provider/use-config'
-import { compactNumber } from './chat-context-meter'
+import { compactNumber, contextUsage } from './chat-context-meter'
 import type { ChatContextMeterProps } from './chat-context-meter'
 
 defineOptions({ name: 'DouChatContextMeter' })
@@ -18,21 +19,30 @@ const props = withDefaults(defineProps<ChatContextMeterProps>(), {
 const ns = useNamespace('chat-context-meter')
 const { t } = useLocale()
 
-const share = computed(() =>
-  props.total > 0 ? Math.min(Math.max(props.used / props.total, 0), 1) : 0,
-)
-const percent = computed(() => Math.round(share.value * 100))
+const usage = computed(() => contextUsage(props.used, props.total))
+const share = computed(() => usage.value.share)
+const percent = computed(() => usage.value.percent)
 const tone = computed(() =>
   share.value >= props.dangerAt ? 'danger' : share.value >= props.warnAt ? 'warning' : 'neutral',
 )
 // what a screen reader hears for the value; the ring shows no numbers
 const valueText = computed(() =>
   t('chat.context', {
-    used: compactNumber(props.used),
-    total: compactNumber(props.total),
+    used: compactNumber(usage.value.used),
+    total: compactNumber(usage.value.total),
     percent: percent.value,
   }),
 )
+
+// a button sizes a ring as an icon: the label would spill out of it
+const root = useTemplateRef<HTMLElement>('root')
+onMounted(() => {
+  if (process.env.NODE_ENV === 'production' || !props.showLabel) return
+  if (root.value?.parentElement?.closest('button'))
+    devWarn(
+      '[dou-ui] DouChatContextMeter: `showLabel` inside a button spills out of it, as the button sizes the ring as an icon. Put the ring in the button’s `leading` slot and the percentage as its text.',
+    )
+})
 
 // r = 6 on a 16 box; the circumference drives the dash
 const CIRCUMFERENCE = 2 * Math.PI * 6
@@ -41,6 +51,7 @@ const CIRCUMFERENCE = 2 * Math.PI * 6
 <template>
   <!-- only the ring: a tooltip or popover goes around it, so it takes no focus of its own; an `aria-label` passed in replaces the default name -->
   <span
+    ref="root"
     :class="[ns.b(), ns.m(tone)]"
     role="meter"
     :aria-label="t('chat.contextLabel')"

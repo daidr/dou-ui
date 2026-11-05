@@ -10,7 +10,7 @@ import {
   SearchIcon,
   TextSparkleIcon,
 } from '@dou-ui/icons'
-import { compactNumber, useLocale } from 'dou-ui'
+import { compactNumber, contextUsage, useLocale } from 'dou-ui'
 import { computed, nextTick, onBeforeUnmount, reactive, ref, useTemplateRef } from 'vue'
 
 const sources = [
@@ -97,11 +97,12 @@ const model = ref('Dou 1.5')
 const panel = ref(null)
 const used = ref(48_600)
 const { t } = useLocale()
+const context = computed(() => contextUsage(used.value, 200_000))
 const contextHint = computed(() =>
   t('chat.context', {
-    used: compactNumber(used.value),
-    total: compactNumber(200_000),
-    percent: Math.round((used.value / 200_000) * 100),
+    used: compactNumber(context.value.used),
+    total: compactNumber(context.value.total),
+    percent: context.value.percent,
   }),
 )
 const list = useTemplateRef('list')
@@ -283,7 +284,12 @@ onBeforeUnmount(stop)
             </template>
           </DouDropdown>
           <DouTooltip :content="contextHint">
-            <DouChatContextMeter :used="used" :total="200000" show-label tabindex="0" />
+            <DouPopover :content="contextHint" placement="top-end">
+              <DouButton variant="ghost" size="sm" :aria-label="contextHint">
+                <template #leading><DouChatContextMeter :used="used" :total="200000" /></template>
+                {{ context.percent }}%
+              </DouButton>
+            </DouPopover>
           </DouTooltip>
         </template>
       </DouChatInput>

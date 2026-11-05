@@ -14,12 +14,14 @@
     align-items: center;
     gap: 4px;
     color: var(--dou-color-text-tertiary);
-    font-size: 12px;
+    font-size: var(--dou-font-size-sm);
     font-variant-numeric: tabular-nums;
 
+    /* focusable only when the app makes it a tooltip's trigger with tabindex */
     &:focus-visible {
+      border-radius: var(--dou-radius-control);
       outline: 2px solid var(--dou-color-focus);
-      outline-offset: 1px;
+      outline-offset: 2px;
     }
   }
 

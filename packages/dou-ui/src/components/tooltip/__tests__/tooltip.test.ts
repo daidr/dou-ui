@@ -231,4 +231,27 @@ describe('DouTooltip', () => {
     expect(more.attributes('aria-describedby')).toBe(shown[shown.length - 1]!.id)
     wrapper.unmount()
   })
+
+  it('does not describe a meter whose value text already says the same', async () => {
+    const wrapper = mount(
+      {
+        render: () =>
+          h(DouTooltip, { content: '上下文已用 1 / 2（50%）' }, () =>
+            h('span', {
+              id: 'meter',
+              role: 'meter',
+              tabindex: '0',
+              'aria-label': '上下文用量',
+              'aria-valuetext': '上下文已用 1 / 2（50%）',
+            }),
+          ),
+      },
+      { attachTo: document.body },
+    )
+    const meter = wrapper.get('#meter')
+    await meter.trigger('focusin')
+    expect(tooltip()).not.toBeNull()
+    expect(meter.attributes('aria-describedby')).toBeUndefined()
+    wrapper.unmount()
+  })
 })

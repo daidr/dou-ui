@@ -1687,7 +1687,7 @@
     }
     &[aria-pressed='true'] {
       box-shadow:
-        0 0 0 2px var(--dou-color-bg-elevated, var(--dou-color-bg-surface)),
+        0 0 0 2px var(--dou-color-bg-surface),
         0 0 0 3px var(--dou-color-text);
     }
 

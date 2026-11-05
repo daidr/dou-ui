@@ -59,7 +59,7 @@ function pick(row) {
   height: 28px;
   padding: 0 4px;
   border: 0;
-  border-radius: var(--dou-radius-sm);
+  border-radius: var(--dou-radius-control);
   background: none;
   color: var(--dou-color-text);
   font: inherit;

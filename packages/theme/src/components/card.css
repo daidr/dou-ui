@@ -29,6 +29,24 @@
     /* keeps the footer tint inside the rounded corners */
     overflow: hidden;
 
+    /* a card rendered as a button: none of the browser's button look */
+    &:is(button) {
+      appearance: none;
+      /*
+       * A button shrinks to its content where a div fills the line: fill it.
+       * In a flex row the basis comes from the content instead, so it sizes
+       * like a div card there rather than taking the whole row.
+       */
+      flex-basis: content;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      font-family: inherit;
+      font-weight: inherit;
+      letter-spacing: inherit;
+      text-align: start;
+    }
+
     &.is-raised {
       --dou-card-shadow: var(--dou-shadow-md);
     }
@@ -39,12 +57,18 @@
       transition-duration: var(--dou-motion-duration-fast);
       transition-timing-function: var(--dou-motion-easing);
 
-      &:hover {
+      &:hover:not(:disabled) {
         --dou-card-border: var(--dou-color-border-strong);
       }
 
-      &.is-raised:hover {
+      &.is-raised:hover:not(:disabled) {
         --dou-card-shadow: var(--dou-shadow-lg);
+      }
+
+      /* a disabled button card, as a disabled button */
+      &:disabled {
+        cursor: not-allowed;
+        opacity: 0.45;
       }
 
       &:focus-visible {
@@ -76,11 +100,13 @@
   }
 
   .dou-card__heading {
+    display: block;
     flex: 1 1 auto;
     min-width: 0;
   }
 
   .dou-card__title {
+    display: block;
     color: var(--dou-color-text);
     font-size: var(--dou-font-size-lg);
     font-weight: var(--dou-font-weight-bold);
@@ -88,6 +114,7 @@
   }
 
   .dou-card__description {
+    display: block;
     margin-top: 2px;
     color: var(--dou-color-text-secondary);
     font-size: var(--dou-font-size-md);
@@ -101,6 +128,7 @@
   }
 
   .dou-card__body {
+    display: block;
     flex: 1 1 auto;
     padding: var(--dou-card-padding);
   }

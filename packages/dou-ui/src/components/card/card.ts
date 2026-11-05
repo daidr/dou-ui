@@ -11,7 +11,12 @@ export interface CardProps {
   raised?: boolean
   /** Deepen the edge on hover, for a card that is a link or a button. */
   interactive?: boolean
-  /** The root element, e.g. `article`, `section` or `a`. */
+  /**
+   * The root element, e.g. `article`, `section`, `a` or `button`. A
+   * `button` looks the same as the other cards, defaults to `type="button"`
+   * and holds its parts in spans, as a button may only hold text-level
+   * content: put nothing interactive inside it.
+   */
   as?: string
 }
 

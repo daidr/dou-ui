@@ -54,22 +54,14 @@ const breakpoint = defineCodeExtension({
   gutters: [
     {
       name: 'breakpoint',
-      // 断点常驻；其余可见的行上放一个悬停才出现的空心点，键盘也能加断点
-      markers: ({ visible }) => {
-        const out = []
-        for (let line = visible.from; line <= visible.to; line++)
-          out.push(
-            breakpoints.value.has(line)
-              ? { line, class: 'demo-breakpoint', title: `移除第 ${line} 行的断点` }
-              : {
-                  line,
-                  class: 'demo-breakpoint is-ghost',
-                  title: `在第 ${line} 行加断点`,
-                  visible: 'hover',
-                },
-          )
-        return out
-      },
+      // 断点常驻；其余的行上放一个悬停才出现的空心点，键盘也能加断点
+      markers: () =>
+        [...breakpoints.value].map((line) => ({
+          line,
+          class: 'demo-breakpoint',
+          title: `移除第 ${line} 行的断点`,
+        })),
+      hoverMarker: { class: 'demo-breakpoint is-ghost', title: (line) => `在第 ${line} 行加断点` },
       onPress(line) {
         const next = new Set(breakpoints.value)
         if (next.has(line)) next.delete(line)

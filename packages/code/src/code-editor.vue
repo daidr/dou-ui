@@ -114,6 +114,7 @@ import {
   type CodeDiagnosticSeverity,
   type CodeExtension,
   type CodeExtensionContext,
+  type CodeGutterHoverMarker,
   type CodeGutterMarker,
   type CodeHistoryHandler,
   type CodePanel,
@@ -900,6 +901,7 @@ const gutterColumns = computed(() => {
     width: number
     markers: () => CodeGutterMarker[]
     onPress?: (line: number, event: PointerEvent | KeyboardEvent) => void
+    pressOn?: 'any' | 'markers'
   }> = []
   if (!props.gutter) return columns
   // Kept while anything may report problems, so the text doesn't jump when the first one comes.
@@ -910,14 +912,33 @@ const gutterColumns = computed(() => {
       columns.push({
         name: gutter.name,
         width: gutter.width ?? 16,
-        markers: () => gutter.markers(context),
+        markers: () => withHoverMarker(gutter.markers?.(context) ?? [], gutter.hoverMarker),
         onPress: gutter.onPress && ((line, event) => gutter.onPress!(line, event, context)),
+        pressOn: gutter.pressOn,
       })
   return columns
 })
 const gutterCells = computed(() =>
   gutterColumns.value.reduce((sum, column) => sum + column.width, 0),
 )
+
+/** A column's markers, and its `hoverMarker` on the other lines in view. */
+function withHoverMarker(own: CodeGutterMarker[], hover: CodeGutterHoverMarker | undefined) {
+  if (!hover) return own
+  const taken = new Set(own.map((marker) => marker.line))
+  const out = [...own]
+  for (let line = visibleFrom.value; line <= visibleTo.value; line++)
+    if (!taken.has(line))
+      out.push({
+        icon: hover.icon,
+        text: hover.text,
+        class: hover.class,
+        title: typeof hover.title === 'function' ? hover.title(line) : hover.title,
+        line,
+        visible: 'hover',
+      })
+  return out
+}
 
 /** The worst problem on each line in view, as a marker. */
 function problemMarkers(): CodeGutterMarker[] {
@@ -3712,6 +3733,30 @@ let touch: {
   hold: ReturnType<typeof holdPointer>
 } | null = null
 
+/** A finger or pen on a pressable gutter cell, which presses if it lifts in place. */
+let cellTap: { x: number; y: number; pointer: number; column: number; line: number } | null = null
+
+/**
+ * A tap on a gutter cell lifted in place. A marker still out of sight (shown
+ * on hover, which a finger can't do) isn't pressed yet: the cursor moves to
+ * its line, which shows it, and the next tap presses it.
+ */
+function endCellTap(event: PointerEvent) {
+  const tap = cellTap
+  cellTap = null
+  if (!tap) return
+  const column = gutterColumns.value[tap.column]
+  if (!column?.onPress || props.disabled) return
+  const marker = gutterMarkers.value[tap.column]?.get(tap.line)
+  if (marker?.visible === 'hover' && !(focused.value && activeLineNumber.value === tap.line)) {
+    touchUi.value = true
+    select('char', doc.value.line(tap.line).from, false)
+    focusInput()
+    return
+  }
+  column.onPress(tap.line, event)
+}
+
 /** The fold toggle or folded marker under a pointer, as the line it belongs to. */
 function foldTarget(event: Event) {
   const el = (event.target as Element | null)?.closest?.('[data-fold], [data-unfold]')
@@ -3725,11 +3770,19 @@ function foldTarget(event: Event) {
 function onPointerDown(event: PointerEvent, area: 'text' | 'gutter') {
   if (event.button !== 0 || props.disabled) return
   const cell = (event.target as Element | null)?.closest?.('[data-gutter-cell]')
-  const column = cell && gutterColumns.value[Number(cell.getAttribute('data-gutter-cell'))]
+  const c = Number(cell?.getAttribute('data-gutter-cell'))
+  const column = cell && gutterColumns.value[c]
   if (column?.onPress) {
     event.preventDefault()
     event.stopPropagation()
-    column.onPress(Number(cell!.getAttribute('data-line')), event)
+    const line = Number(cell!.getAttribute('data-line'))
+    // A finger or pen presses once it lifts in place: dragging from here scrolls.
+    if (event.pointerType === 'touch' || event.pointerType === 'pen') {
+      onPointerCancel()
+      cellTap = { x: event.clientX, y: event.clientY, pointer: event.pointerId, column: c, line }
+      return
+    }
+    column.onPress(line, event)
     return
   }
   const fold = foldTarget(event)
@@ -3806,12 +3859,17 @@ function countClick(event: PointerEvent) {
 }
 
 function onPointerMove(event: PointerEvent) {
+  if (cellTap && event.pointerId === cellTap.pointer) {
+    if (Math.hypot(event.clientX - cellTap.x, event.clientY - cellTap.y) > 8) cellTap = null
+    return
+  }
   if (!touch || event.pointerId !== touch.pointer) return
   // Moving before the long press is a scroll, which the page goes on with.
   if (Math.hypot(event.clientX - touch.x, event.clientY - touch.y) > 8) onPointerCancel()
 }
 
 function onPointerUp(event: PointerEvent, area: 'text' | 'gutter') {
+  if (cellTap && event.pointerId === cellTap.pointer) return endCellTap(event)
   if (!touch || event.pointerId !== touch.pointer) return
   onPointerCancel()
   const iconLine = area === 'gutter' ? problemIconLine(event) : null
@@ -3834,6 +3892,7 @@ function onPointerUp(event: PointerEvent, area: 'text' | 'gutter') {
 }
 
 function onPointerCancel() {
+  cellTap = null
   if (touch) {
     clearTimeout(touch.timer)
     touch.hold.release()
@@ -5070,7 +5129,12 @@ defineExpose<CodeEditorExpose>(api)
                     ]"
                     :style="{ width: `${column.width}px` }"
                     :title="gutterMarkers[c]?.get(row.n)?.title"
-                    :data-gutter-cell="column.onPress ? c : undefined"
+                    :data-gutter-cell="
+                      column.onPress &&
+                      (column.pressOn !== 'markers' || gutterMarkers[c]?.has(row.n))
+                        ? c
+                        : undefined
+                    "
                     :data-line="row.n"
                     v-bind="
                       column.onPress && gutterMarkers[c]?.get(row.n) && !disabled

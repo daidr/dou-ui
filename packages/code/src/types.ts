@@ -1,5 +1,10 @@
 import type { Component, VNodeChild } from 'vue'
-import type { CodeDiagnostic, CodeExtension, CodeGutterMarker } from './extension'
+import type {
+  CodeDiagnostic,
+  CodeExtension,
+  CodeGutterHoverMarker,
+  CodeGutterMarker,
+} from './extension'
 import type { CodeCommand } from './core/commands'
 import type { CodeKeymap } from './core/keymap'
 import type { CodeSearchQuery } from './core/search'
@@ -298,12 +303,34 @@ export interface CodeDiffGutterMarker extends CodeGutterMarker {
   side: CodeDiffSide
 }
 
+/** `DouCodeDiff`'s `hoverMarker`: on the lines of one side only, with `side`. */
+export interface CodeDiffHoverMarker extends Omit<CodeGutterHoverMarker, 'title'> {
+  /**
+   * Its name; a function names the marker of each line, with the line and
+   * side `onPress` gets there, e.g. "Comment on line 3 of the new text".
+   * It is called for every line in view, often: keep it quick.
+   */
+  title?: string | ((line: number, side: CodeDiffSide) => string)
+  /** Only on the lines of this side; on both when left out. */
+  side?: CodeDiffSide
+}
+
 /** A column of `DouCodeDiff`'s gutter, left of the line numbers. */
 export interface CodeDiffGutter {
   name: string
   /** In px. Defaults to 16. */
   width?: number
-  markers: CodeDiffGutterMarker[]
+  markers?: CodeDiffGutterMarker[]
+  /**
+   * A marker on every other line, shown on hover. With `side`, the other
+   * side's column only answers presses on its own markers.
+   */
+  hoverMarker?: CodeDiffHoverMarker
+  /**
+   * Where `onPress` answers: `any` cell of the column (the default), or only
+   * its markers. With a `hoverMarker` on one side, only markers anyway.
+   */
+  pressOn?: 'any' | 'markers'
   /**
    * A press on the column, on line `line` of `side`. Inline, a row both
    * texts share counts as the marker's side there, else as `modified`.

@@ -157,6 +157,16 @@ describe('DouCommentThread', () => {
     expect(wrapper.find('textarea').exists()).toBe(false)
     expect(wrapper.find('.dou-comment-thread__actions').exists()).toBe(false)
   })
+
+  it('resolvable false hides only the resolve button', () => {
+    const wrapper = mount(DouCommentThread, {
+      props: { thread: thread(), author: dai, resolvable: false },
+    })
+    expect(wrapper.find('textarea').exists()).toBe(true)
+    expect(wrapper.find('[aria-label="解决"]').exists()).toBe(false)
+    // the menu on dai's own comment stays
+    expect(wrapper.find('[aria-label="更多操作"]').exists()).toBe(true)
+  })
   it('keeps the thread itself when not bound', async () => {
     const wrapper = mount(DouCommentThread, { props: { author: dai } })
     await wrapper.get('textarea').setValue('第一条')

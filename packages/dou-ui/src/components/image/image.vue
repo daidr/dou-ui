@@ -53,10 +53,18 @@ onMounted(() => {
 })
 
 const px = (value?: string | number) => (typeof value === 'number' ? `${value}px` : value)
+// Without a size of its own the box follows the picture, kept under the caps.
+const natural = computed(() => props.width === undefined && props.height === undefined)
 const style = computed(() => ({
   width: px(props.width),
   height: px(props.height),
+  maxWidth: px(props.maxWidth),
+  maxHeight: px(props.maxHeight),
   '--dou-image-fit': props.fit,
+  '--dou-image-max-width': natural.value ? px(props.maxWidth) : undefined,
+  '--dou-image-max-height': natural.value ? px(props.maxHeight) : undefined,
+  '--dou-image-cap-height':
+    !natural.value && props.height === undefined ? px(props.maxHeight) : undefined,
 }))
 
 /* preview */
@@ -85,7 +93,12 @@ function onKeydown(event: KeyboardEvent) {
 <template>
   <div
     v-bind="$attrs"
-    :class="[ns.b(), ns.is(status, true), ns.is('previewable', canPreview)]"
+    :class="[
+      ns.b(),
+      ns.is(status, true),
+      ns.is('natural', natural),
+      ns.is('previewable', canPreview),
+    ]"
     :style="style"
     :role="canPreview ? 'button' : undefined"
     :tabindex="canPreview ? 0 : undefined"

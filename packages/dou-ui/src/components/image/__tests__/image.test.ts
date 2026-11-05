@@ -110,3 +110,33 @@ describe('DouImagePreview', () => {
     wrapper.unmount()
   })
 })
+
+describe('DouImage without a size of its own', () => {
+  it('keeps its own proportions under maxWidth and maxHeight', () => {
+    const wrapper = mount(DouImage, {
+      props: { src: 'a.png', maxWidth: '100%', maxHeight: 320 },
+    })
+    expect(wrapper.get('.dou-image').classes()).toContain('is-natural')
+    const style = wrapper.get('.dou-image').attributes('style')
+    expect(style).toContain('max-width: 100%')
+    expect(style).toContain('max-height: 320px')
+    expect(style).toContain('--dou-image-max-height: 320px')
+  })
+
+  it('leaves a sized box to its width and height', () => {
+    const wrapper = mount(DouImage, {
+      props: { src: 'a.png', width: 120, height: 80, maxWidth: '100%' },
+    })
+    expect(wrapper.get('.dou-image').classes()).not.toContain('is-natural')
+    const style = wrapper.get('.dou-image').attributes('style')
+    expect(style).not.toContain('--dou-image-max-width')
+    // still a cap on the box
+    expect(style).toContain('max-width: 100%')
+    expect(style).not.toContain('--dou-image-cap-height')
+  })
+
+  it('hands a height cap to the picture when only the width is given', () => {
+    const wrapper = mount(DouImage, { props: { src: 'a.png', width: 200, maxHeight: 100 } })
+    expect(wrapper.get('.dou-image').attributes('style')).toContain('--dou-image-cap-height: 100px')
+  })
+})

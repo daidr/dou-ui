@@ -5,6 +5,8 @@ import * as dou from '../../../index'
 import { DouButton, DouChatContextMeter, DouTooltip } from '../../../index'
 import { compactNumber, contextUsage } from '../chat-context-meter'
 
+const labelled = () => h(DouChatContextMeter, { used: 1, total: 2, showLabel: true })
+
 describe('DouChatContextMeter', () => {
   it('reads as a meter with the share used', async () => {
     const wrapper = mount(DouChatContextMeter, {
@@ -77,18 +79,17 @@ describe('DouChatContextMeter', () => {
     })
   })
 
-  it('warns while developing when its label sits in a button', () => {
+  it('warns while developing when its label sits in an icon-only button, not in `leading`', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    const wrapper = mount(() =>
-      h(
-        'button',
-        null,
-        h(DouChatContextMeter, { used: 1, total: 2, showLabel: true, key: 'warn-in-button' }),
-      ),
-    )
+    // the ring in `leading`, the percentage as the button's text: fits
+    const fits = mount(() => h(DouButton, null, { leading: labelled, default: () => '50%' }))
+    expect(warn).not.toHaveBeenCalled()
+    fits.unmount()
+    const spills = mount(() => h(DouButton, null, { default: labelled }))
+    expect(spills.get('button').classes()).toContain('is-icon-only')
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('`leading` slot'))
     warn.mockRestore()
-    wrapper.unmount()
+    spills.unmount()
   })
 
   it('formats compact numbers, exported for tooltips around it', () => {

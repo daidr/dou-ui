@@ -34,13 +34,13 @@ const valueText = computed(() =>
   }),
 )
 
-// a button sizes a ring as an icon: the label would spill out of it
+// an icon-only button sizes the ring as its icon: the label would spill out of it
 const root = useTemplateRef<HTMLElement>('root')
 onMounted(() => {
   if (process.env.NODE_ENV === 'production' || !props.showLabel) return
-  if (root.value?.parentElement?.closest('button'))
+  if (root.value?.parentElement?.closest('.dou-button.is-icon-only'))
     devWarn(
-      '[dou-ui] DouChatContextMeter: `showLabel` inside a button spills out of it, as the button sizes the ring as an icon. Put the ring in the button’s `leading` slot and the percentage as its text.',
+      '[dou-ui] DouChatContextMeter: `showLabel` inside an icon-only button spills out of it, as the button sizes the ring as its icon. Put the ring in the button’s `leading` slot and the percentage as its text.',
     )
 })
 

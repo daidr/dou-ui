@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, onTestFinished } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { bezierEdge, DouFlowEditor, FlowTransaction, stepEdge, straightEdge } from '../index'
 import type { FlowDocument, FlowEdge } from '../index'
@@ -123,6 +123,59 @@ describe('tidy routes', () => {
     editor.undo()
     expect(doc.value).toEqual(chain())
   })
+
+  it.each([
+    ['in the middle of every node', 80, 80],
+    ['nearer the side of the last node', 80, 60],
+    // Zoomed views measure ports between pixels; rounded apart, these put the
+    // last node a whole grid step off the edge.
+    ['between pixels', 71.5, 59.5],
+  ])(
+    'runs a long edge straight from port to port with ports %s, off the grid lines',
+    async (_, first, last) => {
+      // Ports `first` into the 160px wide nodes, or `last` into `d`, top and bottom.
+      const portAt = (id: string) => (id === 'd' ? last : first)
+      const rect = Object.getOwnPropertyDescriptor(Element.prototype, 'getBoundingClientRect')!
+      Object.defineProperty(Element.prototype, 'getBoundingClientRect', {
+        configurable: true,
+        value(this: Element) {
+          if (!this.classList.contains('dou-flow-port')) return rect.value.call(this)
+          const id = this.closest('[data-node-id]')!.getAttribute('data-node-id')!
+          const top = this.classList.contains('is-bottom') ? 60 : 0
+          return DOMRect.fromRect({ x: portAt(id) - 4, y: top - 4, width: 8, height: 8 })
+        },
+      })
+      onTestFinished(() => {
+        Object.defineProperty(Element.prototype, 'getBoundingClientRect', rect)
+      })
+      const { editor, doc } = setup(
+        {
+          version: 1,
+          nodes: [node('a'), node('b', 300, 40), node('c', 40, 300), node('d', 200, 500)],
+          edges: [
+            edge('ab', 'a', 'b'),
+            edge('ac', 'a', 'c'),
+            edge('bd', 'b', 'd'),
+            edge('cd', 'c', 'd'),
+            edge('ad', 'a', 'd'),
+          ],
+        },
+        // The ports all sit between the lines of a 24px grid.
+        { grid: 24 },
+      )
+      await ticks()
+      editor.tidy()
+      await ticks()
+      const at = (id: string) => doc.value.nodes.find((n) => n.id === id)!.x + portAt(id)
+      const long = doc.value.edges.find((e) => e.id === 'ad')!
+      expect(long.points).toHaveLength(2)
+      // A port between pixels is at most half a pixel off the line.
+      const line = long.points![0]!.x
+      expect(Math.abs(at('a') - line)).toBeLessThanOrEqual(0.5)
+      expect(Math.abs(at('d') - line)).toBeLessThanOrEqual(0.5)
+      for (const p of long.points!) expect(p.x).toBe(line)
+    },
+  )
 
   it('draws an edge through its points', async () => {
     const withPoints = chain()

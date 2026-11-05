@@ -955,6 +955,8 @@ function tidy(ids?: string[]) {
   const vertical = props.direction === 'vertical'
   const gap = TIDY_GAP[vertical ? 'vertical' : 'horizontal']
   const across = vertical ? (['top', 'bottom'] as const) : (['left', 'right'] as const)
+  // Where each node's edges meet it across the flow, from its top (left) edge.
+  const anchors = new Map<string, number>()
   const layout = layoutGraph(
     nodes.map((node) => {
       const m = metrics.get(node.id)
@@ -966,6 +968,9 @@ function tidy(ids?: string[]) {
           offset = vertical ? port.x : port.y
           break
         }
+      // Rounded once, so the layout and the snapping below agree to the pixel.
+      offset = Math.round(offset)
+      anchors.set(node.id, offset)
       return { id: node.id, width, height, anchor: offset }
     }),
     doc.value.edges.flatMap((e) => {
@@ -989,7 +994,13 @@ function tidy(ids?: string[]) {
   for (const node of nodes) {
     const placed = layout.nodes.get(node.id)
     if (!placed || node.locked) continue
-    const to = { x: origin.x + snap(placed.x), y: origin.y + snap(placed.y) }
+    // Across the flow the port snaps, not the corner, so ports on one line
+    // stay on one line even when the nodes are of different sizes, and the
+    // points of a long edge between them, snapped too, are on it as well.
+    const offset = anchors.get(node.id) ?? 0
+    const to = vertical
+      ? { x: origin.x + snap(placed.x + offset) - offset, y: origin.y + snap(placed.y) }
+      : { x: origin.x + snap(placed.x), y: origin.y + snap(placed.y + offset) - offset }
     if (to.x !== node.x || to.y !== node.y) moved.set(node.id, to)
   }
   // Edges spanning several ranks run between the nodes in their way.

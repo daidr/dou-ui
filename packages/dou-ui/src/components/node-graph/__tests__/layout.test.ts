@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { acyclic, layoutGraph, rank } from '../layout'
+import { acyclic, centreLongEdges, layoutGraph, rank } from '../layout'
 
 const size = (id: string, width = 80) => ({ id, width, height: 32 })
 const options = { rankGap: 56, laneGap: 20 }
@@ -29,6 +29,79 @@ const chainWithLongEdge = (straightChains: boolean) =>
     ],
     { ...options, direction: 'vertical', straightChains },
   )
+
+const smallGraph = (spec: string, straightChains: boolean) => {
+  const edges = spec.split(',').map((pair) => {
+    const [from, to] = pair.split('>')
+    return { from: from!, to: to! }
+  })
+  const ids = [...new Set(edges.flatMap((e) => [e.from, e.to]))]
+  return layoutGraph(
+    ids.map((id) => ({ id, width: 160, height: 32 })),
+    edges,
+    { rankGap: 48, laneGap: 24, grid: 28, equalWidth: false, straightChains },
+  )
+}
+
+// As vertical NodeGraph lays out nodes sized to their text: lanes of the
+// usual width, half a lane apart.
+const fanWithLongEdge = (a: number, b: number, c: number, d: number) => {
+  const nodes = [
+    { id: 'a', width: a, height: 32 },
+    { id: 'b', width: b, height: 32 },
+    { id: 'c', width: c, height: 32 },
+    { id: 'd', width: d, height: 32 },
+  ]
+  const widths = nodes.map((n) => n.width).toSorted((p, q) => p - q)
+  const usual = widths[(widths.length - 1) >> 1]!
+  const lane = Math.max(usual, ...widths.filter((w) => w <= usual * 1.5))
+  const layout = layoutGraph(
+    nodes,
+    ['a>b', 'a>c', 'b>d', 'c>d', 'a>d'].map((pair) => ({ from: pair[0]!, to: pair[2]! })),
+    {
+      direction: 'vertical',
+      rankGap: 56,
+      laneGap: 20,
+      grid: (lane + 20) / 2,
+      equalWidth: false,
+    },
+  )
+  const long = layout.edges.find((e) => e.from === 'a' && e.to === 'd')!
+  return { layout, xs: long.points.map((p) => p.x) }
+}
+
+const middle = (layout: ReturnType<typeof layoutGraph>, id: string) => {
+  const n = layout.nodes.get(id)!
+  return n.x + n.width / 2
+}
+
+const throughFan = (siblings: string[]) => {
+  const edges = [
+    ...siblings.map((to) => ({ from: 'a', to })),
+    ...siblings.map((from) => ({ from, to: 'z' })),
+  ]
+  edges.push({ from: 'a', to: 'z' })
+  return layoutGraph(
+    ['a', ...siblings, 'z'].map((id) => ({ id, width: 80, height: 32 })),
+    edges,
+    { ...options, direction: 'vertical', equalWidth: false },
+  )
+}
+
+type Layers = Parameters<typeof centreLongEdges>[0]
+const item = (id: string, edge = -1): Layers[number][number] => ({
+  id,
+  edge,
+  height: edge < 0 ? 32 : 0,
+  anchor: edge < 0 ? 16 : 0,
+  preds: [],
+  succs: [],
+  y: 0,
+})
+const link = (from: Layers[number][number], to: Layers[number][number]) => {
+  from.succs.push(to)
+  to.preds.push(from)
+}
 
 describe('layoutGraph', () => {
   it('puts each node one column after its furthest predecessor', () => {
@@ -132,30 +205,297 @@ describe('layoutGraph', () => {
     expect(x('b')).toBe((x('b1') + x('b2')) / 2)
   })
 
-  it('keeps a fan with a long edge through it symmetric top to bottom', () => {
-    const layout = layoutGraph(
-      [size('a'), size('b', 112), size('c'), size('d')],
+  it('runs a long edge straight down the middle of a fan into the node it merges into', () => {
+    const edges = [
+      { from: 'a', to: 'b' },
+      { from: 'a', to: 'c' },
+      { from: 'b', to: 'd' },
+      { from: 'c', to: 'd' },
+      { from: 'a', to: 'd' },
+    ]
+    const small = layoutGraph([size('a'), size('b', 112), size('c'), size('d')], edges, {
+      ...options,
+      direction: 'vertical',
+      equalWidth: false,
+      grid: 26,
+    })
+    const long = small.edges.find((e) => e.from === 'a' && e.to === 'd')!
+    const [b, c] = small.ranks[1]!.map((id) => small.nodes.get(id)!)
+    expect(long.points[0]!.x).toBeGreaterThan(b!.x + b!.width)
+    expect(long.points[0]!.x).toBeLessThan(c!.x)
+    expect(long.path).not.toMatch(/C/)
+    expect(middle(small, 'a')).toBe(long.points[0]!.x)
+    expect(middle(small, 'd')).toBe(long.points[0]!.x)
+
+    // With wide nodes it is narrower too: two nodes and two lane gaps, not
+    // 776 with the long edge mirroring a node on the far side.
+    for (const straightChains of [false, true]) {
+      const wide = layoutGraph(
+        ['a', 'b', 'c', 'd'].map((id) => ({ id, width: 272, height: 64 })),
+        edges,
+        {
+          direction: 'vertical',
+          rankGap: 56,
+          laneGap: 40,
+          equalWidth: false,
+          grid: 8,
+          straightChains,
+        },
+      )
+      expect(wide.width).toBe(272 * 2 + 40 * 2)
+      expect(wide.edges.find((e) => e.from === 'a' && e.to === 'd')!.path).not.toMatch(/C/)
+    }
+  })
+
+  it('runs a long edge down the middle only of an even fan', () => {
+    const even = throughFan(['b', 'c', 'd', 'e'])
+    const [b, c, d, e] = even.ranks[1]!.map((id) => even.nodes.get(id)!)
+    const long = even.edges.find((edge) => edge.from === 'a' && edge.to === 'z')!
+    expect(long.points[0]!.x).toBeGreaterThan(c!.x + c!.width)
+    expect(long.points[0]!.x).toBeLessThan(d!.x)
+    expect(long.path).not.toMatch(/C/)
+    expect(c!.x - b!.x).toBe(e!.x - d!.x)
+    // With three nodes a node is in the middle: the edge would have to bend
+    // between two of them and wedge them apart, so it stays outside.
+    const odd = layoutGraph(
+      ['a', 'b', 'c', 'e', 'd'].map((id) => ({ id, width: 160, height: 40 })),
       [
         { from: 'a', to: 'b' },
         { from: 'a', to: 'c' },
+        { from: 'a', to: 'e' },
         { from: 'b', to: 'd' },
         { from: 'c', to: 'd' },
+        { from: 'e', to: 'd' },
         { from: 'a', to: 'd' },
       ],
-      { ...options, direction: 'vertical', equalWidth: false, grid: 26 },
+      {
+        direction: 'vertical',
+        rankGap: 56,
+        laneGap: 40,
+        equalWidth: false,
+        grid: 8,
+        straightChains: true,
+      },
     )
-    // where each edge out of `a` reaches the next rank
-    const ends = layout.edges
-      .filter((e) => e.from === 'a')
-      .map((e) => {
-        const [, x, command, rest] = /^M([-\d.]+) [-\d.]+([CV])([^A-Z]*)/.exec(e.path)!
-        return command === 'V' ? Number(x) : Number(rest!.trim().split(/\s+/)[4])
+    const nodes = odd.ranks[1]!.map((id) => odd.nodes.get(id)!)
+    const x = odd.edges.find((edge) => edge.from === 'a' && edge.to === 'd')!.points[0]!.x
+    expect(x < nodes[0]!.x || x > nodes[2]!.x + nodes[2]!.width).toBe(true)
+    expect(nodes[1]!.x - nodes[0]!.x).toBe(nodes[2]!.x - nodes[1]!.x)
+  })
+
+  it('runs a long edge straight down the middle on the coarse grid NodeGraph uses', () => {
+    // NodeGraph snaps rows to half a node pitch; the edge sits between rows
+    // instead of taking a whole extra one on each side (448 wide before).
+    const layout = layoutGraph(
+      ['r', 'api', 'ui', 'join', 'ok'].map((id) => ({ id, width: 160, height: 32 })),
+      [
+        { from: 'r', to: 'api' },
+        { from: 'r', to: 'ui' },
+        { from: 'r', to: 'join' },
+        { from: 'api', to: 'join' },
+        { from: 'ui', to: 'join' },
+        { from: 'join', to: 'ok' },
+      ],
+      { direction: 'vertical', rankGap: 56, laneGap: 24, grid: (160 + 24) / 2, equalWidth: false },
+    )
+    const long = layout.edges.find((e) => e.from === 'r' && e.to === 'join')!
+    expect(long.path).not.toMatch(/C/)
+    expect(middle(layout, 'r')).toBe(long.points[0]!.x)
+    expect(middle(layout, 'join')).toBe(long.points[0]!.x)
+    expect(layout.width).toBe(436)
+  })
+
+  it('runs a long edge straight down the middle where the graph grows a grid step at most', () => {
+    const straight = (layout: ReturnType<typeof layoutGraph>, xs: number[], x: number) => {
+      const [b, c] = layout.ranks[1]!.map((id) => layout.nodes.get(id)!)
+      expect(xs).toEqual([x, x])
+      expect(middle(layout, 'a')).toBe(x)
+      expect(middle(layout, 'd')).toBe(x)
+      expect(x).toBeGreaterThan(b!.x + b!.width)
+      expect(x).toBeLessThan(c!.x)
+    }
+    // The fan centres on the edge between its nodes, at no cost.
+    const through = fanWithLongEdge(92, 64, 200, 60)
+    straight(through.layout, through.xs, 172)
+    // A plan sized to its text: on this grid (59px) the edge in the middle
+    // would be half a step off the nodes, so the nodes move a step apart.
+    // Around the outside it was 285 wide.
+    const plan = fanWithLongEdge(92, 98, 98, 60)
+    straight(plan.layout, plan.xs, 167)
+    expect(plan.layout.width).toBe(334)
+    // Here that would take 310, more than a step (30px) over 260: the edge
+    // stays outside, mirroring the nodes, the source in the middle of all three.
+    const outside = fanWithLongEdge(40, 40, 160, 40)
+    const [e, f] = outside.layout.ranks[1]!.map((id) => outside.layout.nodes.get(id)!)
+    expect(outside.layout.width).toBe(260)
+    expect(outside.xs[0]).toBeGreaterThan(f!.x + f!.width)
+    expect(middle(outside.layout, 'a')).toBe(
+      (e!.x + e!.width / 2 + f!.x + f!.width / 2 + outside.xs[0]!) / 3,
+    )
+  })
+
+  it('keeps a long edge at least a lane gap from the nodes beside it', () => {
+    const layout = layoutGraph(
+      [
+        { id: 'n0', width: 272, height: 32 },
+        { id: 'n1', width: 160, height: 32 },
+        { id: 'n2', width: 160, height: 40 },
+        { id: 'n3', width: 272, height: 64 },
+        { id: 'n4', width: 160, height: 64 },
+      ],
+      [
+        { from: 'n0', to: 'n2' },
+        { from: 'n0', to: 'n4' },
+        { from: 'n1', to: 'n3' },
+        { from: 'n1', to: 'n4' },
+        { from: 'n2', to: 'n4' },
+      ],
+      {
+        direction: 'vertical',
+        rankGap: 56,
+        laneGap: 40,
+        equalWidth: false,
+        grid: 24,
+        straightChains: true,
+      },
+    )
+    const long = layout.edges.find((e) => e.from === 'n0' && e.to === 'n4')!
+    const x = long.points[0]!.x
+    for (const id of layout.ranks[1]!) {
+      const n = layout.nodes.get(id)!
+      expect(Math.max(n.x - x, x - n.x - n.width)).toBeGreaterThanOrEqual(40)
+    }
+  })
+
+  it('keeps a long edge where it is when moving it to the middle would add crossings', () => {
+    const top = [0, 1, 2, 3, 4, 5].map((i) => item(`t${i}`))
+    const [v, w, long] = [item('v'), item('w'), item('long', 0)]
+    const z = item('z')
+    // `v` and `w` are fed from 0, 1 and 5, on average 2, like the long edge
+    // from 2, but from more places left of it than right.
+    for (const n of [v, w]) for (const i of [0, 1, 5]) link(top[i]!, n)
+    link(top[2]!, long)
+    for (const n of [v, w, long]) link(n, z)
+    const layers: Layers = [top, [v, w, long], [z]]
+    expect(centreLongEdges(layers)[1]!.map((n) => n.id)).toEqual(['v', 'w', 'long'])
+    // Fed from 1, 2 and 3 instead, the edge has nothing to cross and goes in the middle.
+    for (const n of [v, w]) {
+      n.preds = [1, 2, 3].map((i) => top[i]!)
+    }
+    for (const t of top) t.succs = t.succs.filter((n) => n === long)
+    for (const n of [v, w]) for (const p of n.preds) p.succs.push(n)
+    expect(centreLongEdges(layers)[1]!.map((n) => n.id)).toEqual(['v', 'long', 'w'])
+  })
+
+  it('keeps long edges beyond a fan in its symmetry', () => {
+    const vertical = {
+      direction: 'vertical',
+      rankGap: 56,
+      laneGap: 40,
+      equalWidth: false,
+      grid: 8,
+    } as const
+    const lay = (spec: string) => {
+      const edges = spec.split(',').map((pair) => {
+        const [from, to] = pair.split('>')
+        return { from: from!, to: to! }
       })
-      .toSorted((p, q) => p - q)
-    const a = layout.nodes.get('a')!
-    expect(ends).toHaveLength(3)
-    expect(ends[1]! - ends[0]!).toBe(ends[2]! - ends[1]!)
-    expect(a.x + a.width / 2).toBe(ends[1])
+      const ids = [...new Set(edges.flatMap((e) => [e.from, e.to]))]
+      const layout = layoutGraph(
+        ids.map((id) => ({ id, width: 272, height: 64 })),
+        edges,
+        vertical,
+      )
+      const a = layout.nodes.get('a')!
+      // Where each edge out of `a` reaches the next rank.
+      const ends = layout.edges
+        .filter((e) => e.from === 'a')
+        .map((e) => {
+          if (e.points.length) return e.points[0]!.x
+          const to = layout.nodes.get(e.to)!
+          return to.x + to.width / 2
+        })
+      return { layout, hub: a.x + a.width / 2, ends }
+    }
+    // A long edge on each side mirrors the nodes, a node's width out: the
+    // canvas scrolls, and moving a node keeps its edges where they were.
+    const both = lay('a>b,a>c,a>d,a>e,b>d,b>e,c>d,c>e')
+    expect(both.ends.toSorted((p, q) => p - q)).toEqual([0, 320, 640, 960])
+    expect(both.hub).toBe(480)
+    // Two on one side: the hub sits in the middle of all four.
+    const two = lay('a>b,a>c,a>d,a>e,b>d,d>e')
+    expect(two.hub).toBe(two.ends.reduce((sum, x) => sum + x, 0) / two.ends.length)
+  })
+
+  it('never lets a part joined only by a long edge drift away', () => {
+    // Graphs where moving long edges about once let a part drift: no wider
+    // than they always were.
+    expect(smallGraph('a>b,a>c,a>g,d>f,f>g', true).height).toBeLessThanOrEqual(200)
+    expect(smallGraph('a>b,a>c,a>g,d>e,e>g,f>g', false).height).toBeLessThanOrEqual(256)
+
+    // A chain beside a fan's long edge stays close, not 1352 wide.
+    const layout = layoutGraph(
+      [
+        { id: 'n0', width: 272, height: 40 },
+        { id: 'n1', width: 272, height: 40 },
+        { id: 'n2', width: 160, height: 40 },
+        { id: 'n3', width: 160, height: 40 },
+        { id: 'n4', width: 272, height: 32 },
+        { id: 'n5', width: 120, height: 40 },
+        { id: 'n6', width: 160, height: 64 },
+      ],
+      [
+        { from: 'n0', to: 'n5' },
+        { from: 'n1', to: 'n4' },
+        { from: 'n1', to: 'n6' },
+        { from: 'n2', to: 'n6' },
+        { from: 'n3', to: 'n5' },
+        { from: 'n5', to: 'n6' },
+      ],
+      {
+        direction: 'vertical',
+        rankGap: 56,
+        laneGap: 40,
+        equalWidth: false,
+        grid: 8,
+        straightChains: true,
+      },
+    )
+    expect(layout.width).toBeLessThanOrEqual(904)
+
+    // Leaving long edges out of the fans let this one settle 1204 wide.
+    const drifting = layoutGraph(
+      [
+        { id: 'n0', width: 120, height: 64 },
+        { id: 'n1', width: 160, height: 40 },
+        { id: 'n2', width: 272, height: 64 },
+        { id: 'n3', width: 160, height: 40 },
+        { id: 'n4', width: 120, height: 32 },
+        { id: 'n6', width: 272, height: 40 },
+        { id: 'n7', width: 120, height: 40 },
+        { id: 'n8', width: 120, height: 32 },
+      ],
+      [
+        { from: 'n0', to: 'n2' },
+        { from: 'n0', to: 'n3' },
+        { from: 'n1', to: 'n6' },
+        { from: 'n1', to: 'n7' },
+        { from: 'n2', to: 'n4' },
+        { from: 'n2', to: 'n8' },
+        { from: 'n3', to: 'n8' },
+        { from: 'n4', to: 'n8' },
+        { from: 'n6', to: 'n8' },
+      ],
+      {
+        direction: 'vertical',
+        rankGap: 56,
+        laneGap: 40,
+        equalWidth: false,
+        grid: 8,
+        straightChains: true,
+      },
+    )
+    expect(drifting.width).toBeLessThanOrEqual(964)
   })
 
   it('widens only the gaps beside a long node, mirrored', () => {

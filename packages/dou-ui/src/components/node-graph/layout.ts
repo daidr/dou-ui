@@ -110,6 +110,10 @@ interface Item {
   succs: Item[]
   /** The row the item lines up on. */
   y: number
+  /** A long edge `centreLongEdges` moved into the middle of a fan. */
+  centred?: boolean
+  /** Such an edge that takes whole grid steps on either side. */
+  whole?: boolean
 }
 
 /** Topological order plus the edges that had to be dropped to get one. */
@@ -286,13 +290,68 @@ function untangle(layers: Item[][]) {
   return best
 }
 
+const indexOf = (layer: Item[] | undefined) => new Map(layer?.map((item, i) => [item, i]))
+
 /**
- * Move the items of one column as close to their targets as possible,
- * keeping their order and the gaps between them, with every anchor on
- * the row grid. With `s` the offset of each item from the first, in grid
- * steps, `y - s` must not decrease: isotonic regression, solved by
- * pooling adjacent violators, then rounded to whole steps.
+ * A long edge that could run on either side of a fan, or between its
+ * nodes, at no cost in crossings, goes down the middle: next to items
+ * joined to the same places, the long edges move to the middle of the
+ * nodes. A fan around a long edge to the node its nodes merge into then
+ * lets that edge run straight through, instead of around the outside.
+ * A run holding an item of `keep` stays as it is.
  */
+export function centreLongEdges(layers: Item[][], keep: ReadonlySet<Item> = new Set()) {
+  const result = layers.map((layer) => [...layer])
+  result.forEach((layer, c) => {
+    const before = indexOf(result[c - 1])
+    const after = indexOf(result[c + 1])
+    const key = (item: Item) =>
+      `${mean(
+        item.preds.map((n) => before.get(n) ?? 0),
+        -1,
+      )}:${mean(
+        item.succs.map((n) => after.get(n) ?? 0),
+        -1,
+      )}`
+    // Moving items within this layer only changes the crossings on its two sides.
+    const local = () =>
+      (c > 0 ? crossings(result[c - 1]!, layer) : 0) +
+      (c < result.length - 1 ? crossings(layer, result[c + 1]!) : 0)
+    let count = -1
+    for (let start = 0; start < layer.length;) {
+      let end = start + 1
+      while (end < layer.length && key(layer[end]!) === key(layer[start]!)) end++
+      const run = layer.slice(start, end)
+      const nodes = run.filter((item) => item.edge < 0)
+      const edges = run.filter((item) => item.edge >= 0)
+      // Only into an even number of nodes: with an odd one the middle is a
+      // node, so the edge could not run straight and would only wedge the
+      // fan apart on one side.
+      if (
+        edges.length &&
+        nodes.length >= 2 &&
+        nodes.length % 2 === 0 &&
+        !edges.some((item) => keep.has(item))
+      ) {
+        if (count < 0) count = local()
+        const half = nodes.length / 2
+        layer.splice(start, end - start, ...nodes.slice(0, half), ...edges, ...nodes.slice(half))
+        const now = local()
+        // Items line up on the same mean position, not the same neighbours:
+        // one fed from either side of the edge's source can cross it more
+        // often once the edge moves past it. Then the run stays as it was.
+        if (now > count) layer.splice(start, end - start, ...run)
+        else {
+          count = now
+          for (const item of edges) item.centred = true
+        }
+      }
+      start = end
+    }
+  })
+  return result
+}
+
 /**
  * Runs of items in a layer fed by one node, or feeding one: the fans,
  * edges passing through included. Each is the index of its first and last
@@ -351,13 +410,59 @@ function spacing(layer: Item[], gap: (a: Item, b: Item) => number, grid: number)
       }
     }
   }
+  // Long edges between two nodes, as `centreLongEdges` puts them, sit right
+  // in the middle so they run straight, and only the two nodes stay on the
+  // grid: on a coarse grid, putting each edge on it too would take a whole
+  // extra step on either side.
+  let from = -1
+  layer.forEach((item, to) => {
+    if (item.edge >= 0) return
+    const inner = layer.slice(from + 1, to)
+    if (from >= 0 && inner.length && inner.every((n) => n.centred)) {
+      const a = layer[from]!
+      const b = item
+      let between = 0
+      for (let k = 1; k < inner.length; k++) between += gap(inner[k - 1]!, inner[k]!)
+      const side = Math.max(
+        a.height - a.anchor + gap(a, inner[0]!),
+        gap(inner.at(-1)!, b) + b.anchor,
+      )
+      const now = steps.slice(from, to).reduce((sum, n) => sum + n, 0)
+      const total = Math.ceil((2 * side + between) / grid - 1e-6)
+      const lead = Math.floor((total * grid - between) / 2)
+      if (!inner[0]!.whole && total <= now && lead >= a.height - a.anchor + gap(a, inner[0]!)) {
+        steps[from] = lead / grid
+        for (let k = 1; k < inner.length; k++)
+          steps[from + k] = gap(inner[k - 1]!, inner[k]!) / grid
+        steps[to - 1] = total - (lead + between) / grid
+      } else if (inner.length === 1) {
+        // Where that leaves it off the middle of the fan, a single edge takes
+        // as many whole steps on either side, so it is on the grid in the
+        // very middle, even if the fan grows; `arrange` keeps that only
+        // while the graph grows by one step at most.
+        steps[from] = steps[to - 1] = Math.max(Math.ceil(side / grid - 1e-6), Math.ceil(now / 2))
+      }
+    }
+    from = to
+  })
   return steps
 }
 
+/**
+ * Move the items of one column as close to their targets as possible,
+ * keeping their order and the gaps between them, with every anchor on
+ * the row grid. With `s` the offset of each item from the first, in grid
+ * steps, `y - s` must not decrease: isotonic regression, solved by
+ * pooling adjacent violators, then rounded to whole steps.
+ */
 function place(layer: Item[], targets: number[], gap: (a: Item, b: Item) => number, grid: number) {
   const steps = spacing(layer, gap, grid)
   const offsets: number[] = [0]
   steps.forEach((n, i) => offsets.push(offsets[i]! + n))
+  // Long edges can sit between grid rows; nodes never do.
+  layer.forEach((item, i) => {
+    if (item.edge < 0) offsets[i] = Math.round(offsets[i]!)
+  })
   const blocks: { sum: number; count: number }[] = []
   targets.forEach((t, i) => {
     blocks.push({ sum: t / grid - offsets[i]!, count: 1 })
@@ -373,7 +478,11 @@ function place(layer: Item[], targets: number[], gap: (a: Item, b: Item) => numb
   let i = 0
   for (const block of blocks) {
     const z = Math.round(block.sum / block.count)
-    for (let k = 0; k < block.count; k++, i++) layer[i]!.y = (z + offsets[i]!) * grid
+    for (let k = 0; k < block.count; k++, i++) {
+      const y = (z + offsets[i]!) * grid
+      // A long edge between rows is a whole number of px from the row; drop the rounding error.
+      layer[i]!.y = layer[i]!.edge < 0 ? y : Math.round(y * 1000) / 1000
+    }
   }
 }
 
@@ -410,14 +519,39 @@ function components(layers: Item[][]) {
 
 /**
  * What a node lines up with on one side. With `straight`, the one node
- * there when it has just one besides long edges, so a chain of nodes stays straight and the
- * long edges bend around it instead. A fan of two or more nodes keeps its
- * long edges, so they share its symmetry.
+ * there when it has just one besides long edges, so a chain of nodes stays
+ * straight and the long edges bend around it instead. A fan of two or more
+ * nodes keeps its long edges, so they share its symmetry.
  */
 function lineUp(item: Item, neighbours: Item[], straight: boolean) {
   if (!straight || item.edge >= 0) return neighbours
   const nodes = neighbours.filter((n) => n.edge < 0)
   return nodes.length === 1 ? nodes : neighbours
+}
+
+/** How far a laid out part spans across the flow. */
+function breadth(part: Item[][]) {
+  let lo = Infinity
+  let hi = -Infinity
+  for (const layer of part) {
+    for (const item of layer) {
+      lo = Math.min(lo, item.y - item.anchor)
+      hi = Math.max(hi, item.y - item.anchor + item.height)
+    }
+  }
+  return hi - lo
+}
+
+/** Whether a long edge runs straight from its source to its target. */
+function inLine(item: Item) {
+  let from = item
+  while (from.edge >= 0) from = from.preds[0]!
+  let to = item
+  while (to.edge >= 0) to = to.succs[0]!
+  const ys = [from.y, to.y]
+  for (let at = from.succs.find((n) => n.edge === item.edge)!; at !== to; at = at.succs[0]!)
+    ys.push(at.y)
+  return ys.every((y) => Math.abs(y - from.y) < 1e-6)
 }
 
 function mean(values: number[], fallback: number) {
@@ -475,10 +609,8 @@ export function layoutGraph(
 
   const gap = (a: Item, b: Item) => (a.edge >= 0 && b.edge >= 0 ? edgeGap : laneGap)
 
-  /** Orders and places the columns of one part of the graph. */
-  const arrange = (part: Item[][]) => {
-    const ordered = untangle(part)
-
+  /** Places the ordered columns of one part of the graph. */
+  const lay = (ordered: Item[][]) => {
     // Start each column stacked around the middle, then relax.
     for (const layer of ordered)
       place(
@@ -512,8 +644,8 @@ export function layoutGraph(
     // Neighbours stay at least as far apart as placing them asked for, so
     // the gaps in a fan keep mirroring each other.
     const fits = (layer: Item[], steps: number[], i: number, y: number) =>
-      (i === 0 || y - layer[i - 1]!.y >= steps[i - 1]! * grid) &&
-      (i === layer.length - 1 || layer[i + 1]!.y - y >= steps[i]! * grid)
+      (i === 0 || y - layer[i - 1]!.y >= steps[i - 1]! * grid - 1e-6) &&
+      (i === layer.length - 1 || layer[i + 1]!.y - y >= steps[i]! * grid - 1e-6)
     const centre = (layer: Item[], side: (item: Item) => Item[]) => {
       const steps = spacing(layer, gap, grid)
       let moved = false
@@ -543,7 +675,41 @@ export function layoutGraph(
           centre(layer, (item) => (item.preds.length > item.succs.length ? item.preds : [])) ||
           moved
     }
-    return ordered
+  }
+
+  /** Orders and places the columns of one part of the graph. */
+  const arrange = (part: Item[][]) => {
+    const untangled = untangle(part)
+    // Long edges run down the middle of a fan where they come out straight.
+    // Where the nodes either side differ in size, or the grid is coarse,
+    // the fan may not come out centred on the edge; then the edge would
+    // only bulge out and back, so those go back where they were.
+    const keep = new Set<Item>()
+    for (;;) {
+      const ordered = centreLongEdges(untangled, keep)
+      lay(ordered)
+      const all = ordered.flat()
+      const crooked = all.filter((item) => item.centred && !inLine(item))
+      if (!crooked.length) {
+        if (!all.some((item) => item.centred)) return ordered
+        // Running straight can widen a fan; by one grid step at most, or the
+        // part is laid out as before, its long edges around the outside.
+        const rows = all.map((item) => item.y)
+        const wide = breadth(ordered)
+        for (const item of all) item.centred = false
+        lay(untangled)
+        if (wide > breadth(untangled) + grid + 1e-6) return untangled
+        all.forEach((item, i) => (item.y = rows[i]!))
+        return ordered
+      }
+      for (const item of all) {
+        if (item.centred) item.centred = false
+      }
+      for (const item of crooked) {
+        if (item.whole) keep.add(item)
+        else item.whole = true
+      }
+    }
   }
 
   // Parts of the graph not joined to the rest are laid out on their own,

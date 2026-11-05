@@ -48,6 +48,6 @@ const { props } = useDashboardWidget()
 }
 .schedule__place {
   color: var(--dou-color-text-tertiary);
-  font-size: var(--dou-font-size-xs);
+  font-size: var(--dou-font-size-sm);
 }
 </style>

@@ -1687,7 +1687,7 @@
     }
     &[aria-pressed='true'] {
       box-shadow:
-        0 0 0 2px var(--dou-color-bg-elevated, var(--dou-color-bg-surface)),
+        0 0 0 2px var(--dou-color-bg-surface),
         0 0 0 3px var(--dou-color-text);
     }
 
@@ -2173,7 +2173,7 @@
     background-color: var(--dou-color-bg-surface);
     background-repeat: no-repeat;
     color: var(--dou-color-text);
-    font-size: var(--dou-font-size-xs);
+    font-size: var(--dou-font-size-sm);
     font-variant-numeric: tabular-nums;
 
     &.is-bold {

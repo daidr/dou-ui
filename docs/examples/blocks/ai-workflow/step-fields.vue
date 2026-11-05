@@ -132,7 +132,7 @@ const channels = ['网页', '小程序', '邮件'].map((value) => ({ value, labe
 
 .step-fields__hint {
   color: var(--dou-color-text-tertiary);
-  font-size: var(--dou-font-size-xs);
+  font-size: var(--dou-font-size-sm);
 }
 
 .step-fields__ref {
@@ -143,7 +143,7 @@ const channels = ['网页', '小程序', '邮件'].map((value) => ({ value, labe
   background-color: var(--dou-color-bg-surface);
   color: var(--dou-color-text-secondary);
   font: inherit;
-  font-size: var(--dou-font-size-xs);
+  font-size: var(--dou-font-size-sm);
   cursor: pointer;
 }
 

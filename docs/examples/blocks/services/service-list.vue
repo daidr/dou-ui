@@ -62,7 +62,7 @@ function toggle(service) {
 .services__head {
   margin-bottom: 4px;
   color: var(--dou-color-text-tertiary);
-  font-size: var(--dou-font-size-xs);
+  font-size: var(--dou-font-size-sm);
 }
 .services__head span:nth-child(n + 3) {
   text-align: right;

@@ -4,6 +4,32 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DouChatInput } from '../../../index'
 import { findToken } from '../chat-input'
 
+/** Waits out a `searchDelay` of 100 ms. */
+async function wait() {
+  vi.advanceTimersByTime(100)
+  await nextTick()
+}
+
+/** A chat input whose `@` options are looked up elsewhere. */
+async function remote() {
+  vi.useFakeTimers()
+  const wrapper = mount(DouChatInput, {
+    props: { modelValue: '', filter: { '@': false }, searchDelay: 100, teleport: false },
+    attachTo: document.body,
+  })
+  const textarea = wrapper.get('textarea')
+  const type = async (text: string, caret = text.length) => {
+    await wrapper.setProps({ modelValue: text })
+    ;(textarea.element as HTMLTextAreaElement).setSelectionRange(caret, caret)
+    await textarea.trigger('keyup')
+  }
+  const answer = (...values: string[]) =>
+    wrapper.setProps({ mentions: values.map((value) => ({ value })) })
+  const isStale = () => wrapper.get('[role="listbox"]').classes().includes('is-stale')
+  const enter = () => textarea.trigger('keydown', { key: 'Enter' })
+  return { wrapper, type, answer, isStale, enter }
+}
+
 describe('DouChatInput', () => {
   it('sends on Enter but not on Shift+Enter or while composing', async () => {
     const wrapper = mount(DouChatInput, { props: { modelValue: '你好' } })
@@ -189,35 +215,12 @@ describe('DouChatInput', () => {
   })
 
   describe('results looked up elsewhere', () => {
-    async function remote() {
-      vi.useFakeTimers()
-      const wrapper = mount(DouChatInput, {
-        props: { modelValue: '', filter: { '@': false }, searchDelay: 100, teleport: false },
-        attachTo: document.body,
-      })
-      const textarea = wrapper.get('textarea')
-      const type = async (text: string, caret = text.length) => {
-        await wrapper.setProps({ modelValue: text })
-        ;(textarea.element as HTMLTextAreaElement).setSelectionRange(caret, caret)
-        await textarea.trigger('keyup')
-      }
-      const answer = (...values: string[]) =>
-        wrapper.setProps({ mentions: values.map((value) => ({ value })) })
-      const wait = async () => {
-        vi.advanceTimersByTime(100)
-        await nextTick()
-      }
-      const isStale = () => wrapper.get('[role="listbox"]').classes().includes('is-stale')
-      const enter = () => textarea.trigger('keydown', { key: 'Enter' })
-      return { wrapper, type, answer, wait, isStale, enter }
-    }
-
     afterEach(() => {
       vi.useRealTimers()
     })
 
     it('does not pick from results that answer an older query', async () => {
-      const { wrapper, type, answer, wait, isStale, enter } = await remote()
+      const { wrapper, type, answer, isStale, enter } = await remote()
       await type('@')
       await wait()
       await answer('docs/需求.md', 'src/set.ts')
@@ -236,7 +239,7 @@ describe('DouChatInput', () => {
     })
 
     it('takes a late answer for the query it was asked for', async () => {
-      const { wrapper, type, answer, wait, isStale, enter } = await remote()
+      const { wrapper, type, answer, isStale, enter } = await remote()
       await type('@s')
       await wait()
       // "se" is typed, its search still waits, and the answer for "s" arrives
@@ -249,7 +252,7 @@ describe('DouChatInput', () => {
     })
 
     it('asks again for the same text at another trigger', async () => {
-      const { wrapper, type, answer, wait, isStale } = await remote()
+      const { wrapper, type, answer, isStale } = await remote()
       await type('@a x @a', 2)
       await wait()
       await answer('a.ts')

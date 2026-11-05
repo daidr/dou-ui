@@ -950,7 +950,14 @@ function onCellKeydown(event: KeyboardEvent, column: number, line: number) {
   const press = gutterColumns.value[column]?.onPress
   if (!press || props.disabled) return
   event.preventDefault()
+  const cell = event.currentTarget as HTMLElement
   press(line, event)
+  // A press that takes its marker away (removing a breakpoint) would drop the focus on the page: back to the text.
+  void nextTick(() => {
+    const where = document.activeElement
+    const gone = !cell.isConnected || cell.getAttribute('role') !== 'button'
+    if (gone && (!where || where === document.body || where === cell)) focusInput()
+  })
 }
 
 /** Columns already warned about markers without a name, while developing. */

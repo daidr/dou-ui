@@ -502,6 +502,9 @@
     &[data-gutter-cell] {
       cursor: pointer;
     }
+    .dou-code-editor.is-disabled &[data-gutter-cell] {
+      cursor: default;
+    }
     &[role='button'] {
       border-radius: var(--dou-radius-control);
 
@@ -525,7 +528,10 @@
     opacity: 0;
     transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
 
-    .dou-code-editor__number:is(:hover, .is-hovered) > .dou-code-editor__cells > &,
+    .dou-code-editor:not(.is-disabled)
+      .dou-code-editor__number:is(:hover, .is-hovered)
+      > .dou-code-editor__cells
+      > &,
     .dou-code-editor.is-focused .dou-code-editor__number.is-active > .dou-code-editor__cells > &,
     &:focus-visible {
       opacity: 1;

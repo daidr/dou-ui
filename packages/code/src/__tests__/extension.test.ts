@@ -366,6 +366,33 @@ describe('extensions', () => {
     expect(down('Tab', true).defaultPrevented).toBe(false)
   })
 
+  it('puts the focus back in the text when a key press takes its marker away', async () => {
+    const marked = ref(new Set([1]))
+    const { wrapper, input } = setup([
+      defineCodeExtension({
+        name: 'breakpoints',
+        gutters: [
+          {
+            name: 'breakpoints',
+            markers: () => [...marked.value].map((line) => ({ line, text: '●', title: '断点' })),
+            onPress: (line) => {
+              const next = new Set(marked.value)
+              next.delete(line)
+              marked.value = next
+            },
+          },
+        ],
+      }),
+    ])
+    await nextTick()
+    const cell = wrapper.find('[data-gutter-cell][data-line="1"]')
+    ;(cell.element as HTMLElement).focus()
+    await cell.trigger('keydown', { key: 'Enter' })
+    await nextTick()
+    expect(cell.attributes('role')).toBeUndefined()
+    expect(document.activeElement).toBe(input)
+  })
+
   it('warns once about a pressable marker without a name', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     setup([

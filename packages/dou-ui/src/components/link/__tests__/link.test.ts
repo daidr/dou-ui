@@ -13,6 +13,25 @@ describe('DouLink', () => {
     )
   })
 
+  it('drops the underline for a chip unless one is asked for', () => {
+    const chip = mount(DouLink, { props: { href: '/a', variant: 'chip' } })
+    expect(chip.classes()).toEqual(
+      expect.arrayContaining(['dou-link--chip', 'dou-link--underline-none']),
+    )
+    const underlined = mount(DouLink, {
+      props: { href: '/a', variant: 'chip', underline: 'hover' },
+    })
+    expect(underlined.classes()).toContain('dou-link--underline-hover')
+  })
+
+  it('trims the spaces a label on its own lines brings', () => {
+    const wrapper = mount(DouLink, {
+      props: { href: '/a' },
+      slots: { default: '\n  周会纪要\n  ' },
+    })
+    expect(wrapper.get('.dou-link__label').element.textContent).toBe('周会纪要')
+  })
+
   it('opens external links safely in a new tab', () => {
     const wrapper = mount(DouLink, { props: { href: 'https://example.com', external: true } })
     expect(wrapper.attributes('target')).toBe('_blank')

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ArrowUpRightIcon } from '@dou-ui/icons'
-import { computed, onMounted, useTemplateRef, watchEffect } from 'vue'
+import { Text, computed, createTextVNode, onMounted, useTemplateRef, watchEffect } from 'vue'
+import type { VNode } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { devWarn } from '../../utils/status-check'
 import type { LinkEmits, LinkProps, LinkSlots } from './link'
@@ -9,7 +10,8 @@ defineOptions({ name: 'DouLink' })
 
 const props = withDefaults(defineProps<LinkProps>(), {
   tone: 'neutral',
-  underline: 'always',
+  variant: 'text',
+  underline: undefined,
   disabled: false,
   external: false,
 })
@@ -41,10 +43,27 @@ if (process.env.NODE_ENV !== 'production')
       )
   })
 
+// A label written on its own lines in a template starts and ends with a
+// space, which would show inside a chip's fill or under the underline.
+function trimmed(nodes: VNode[] | undefined) {
+  if (!nodes?.length) return nodes
+  const out = [...nodes]
+  const trim = (index: number, how: 'trimStart' | 'trimEnd') => {
+    const node = out[index]!
+    if (node.type === Text && typeof node.children === 'string')
+      out[index] = createTextVNode(node.children[how]())
+  }
+  trim(0, 'trimStart')
+  trim(out.length - 1, 'trimEnd')
+  return out
+}
+const Label = () => trimmed(slots.default?.() as VNode[] | undefined)
+
 const classes = computed(() => [
   ns.b(),
   ns.m(props.tone),
-  ns.m(`underline-${props.underline}`),
+  ns.m(props.variant),
+  ns.m(`underline-${props.underline ?? (props.variant === 'chip' ? 'none' : 'always')}`),
   ns.is('disabled', props.disabled),
 ])
 
@@ -79,7 +98,7 @@ function onClick(event: MouseEvent) {
     <span v-if="slots.leading" :class="ns.e('icon')">
       <slot name="leading" />
     </span>
-    <span :class="ns.e('label')"><slot /></span>
+    <span :class="ns.e('label')"><Label /></span>
     <span v-if="slots.trailing" :class="ns.e('icon')">
       <slot name="trailing" />
     </span>

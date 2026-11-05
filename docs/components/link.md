@@ -12,6 +12,12 @@
 
 <DocDemo src="link/underline" />
 
+## 胶囊
+
+`variant="chip"` 让链接落在一块浅色底上，适合消息里的引用，比如合并请求、讨论或文档，和周围的文字区分开。底色取自 `tone`，悬停时略深；默认不带下划线，需要时仍可以设 `underline`。胶囊和文字一样随行折断，每一行都有自己的圆角底色。`leading` 放图标。
+
+<DocDemo src="link/chip" />
+
 ## 外部链接
 
 `external` 会在新标签页打开，自动加上 `rel="noopener noreferrer"`，并在末尾标记一个箭头。
@@ -55,7 +61,8 @@
 | ----------- | ------------------------------------------------------ | -------------------------------------------------------------- | ----------- |
 | `href`      | 目标地址；不传时渲染为按钮                             | `string`                                                       | —           |
 | `tone`      | 语义                                                   | `'neutral' \| 'primary' \| 'success' \| 'warning' \| 'danger'` | `'neutral'` |
-| `underline` | 下划线出现的时机                                       | `'always' \| 'hover' \| 'none'`                                | `'always'`  |
+| `variant`   | 外观：`text` 为行内文字，`chip` 为浅色底的胶囊         | `'text' \| 'chip'`                                             | `'text'`    |
+| `underline` | 下划线出现的时机；`chip` 默认 `none`                   | `'always' \| 'hover' \| 'none'`                                | `'always'`  |
 | `disabled`  | 禁用                                                   | `boolean`                                                      | `false`     |
 | `external`  | 在新标签页打开，并加上安全的 `rel` 与箭头，需要 `href` | `boolean`                                                      | `false`     |
 
@@ -80,3 +87,5 @@
 | `--dou-link-tone`            | 文字颜色         |
 | `--dou-link-underline`       | 静止时下划线颜色 |
 | `--dou-link-underline-hover` | 悬停时下划线颜色 |
+| `--dou-link-fill`            | 胶囊的底色       |
+| `--dou-link-fill-hover`      | 胶囊悬停时的底色 |

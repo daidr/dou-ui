@@ -2,6 +2,8 @@ import type { Tone } from '../../utils/types'
 
 export type LinkTone = Tone
 export type LinkUnderline = 'always' | 'hover' | 'none'
+/** `text` is ink in the running text; `chip` sits on a faint fill, for a reference set apart from the words around it. */
+export type LinkVariant = 'text' | 'chip'
 
 export interface LinkProps {
   /**
@@ -11,7 +13,15 @@ export interface LinkProps {
   href?: string
   /** What the link means. */
   tone?: LinkTone
-  /** When the underline shows. A resting underline is faint and deepens on hover. */
+  /**
+   * How it is set apart. A `chip` breaks with the line like text, its fill
+   * drawn on each line, and deepens on hover.
+   */
+  variant?: LinkVariant
+  /**
+   * When the underline shows. A resting underline is faint and deepens on
+   * hover. Defaults to `always`, or `none` for a `chip`.
+   */
   underline?: LinkUnderline
   /**
    * Removes the `href` (or disables the button), so the link can neither be

@@ -133,6 +133,21 @@ describe('DouChatInput', () => {
       )
     })
 
+    it('matches the description too', async () => {
+      const mentions = [
+        { value: 'a.md', description: 'docs/上海' },
+        { value: 'b.md', description: 'src' },
+      ]
+      expect(await typed('@上海', { mentions })).toEqual(['@a.mddocs/上海'])
+    })
+
+    it('sets the filter apart per trigger', async () => {
+      const mentions = [{ value: 'zhou.md' }, { value: 'dai.md' }]
+      const filter = { '@': false }
+      expect(await typed('@x', { mentions, filter })).toHaveLength(2)
+      expect(await typed('/周', { mentions, filter })).toEqual(['/周报模板'])
+    })
+
     it('takes a filter, or shows everything with `filter: false`', async () => {
       expect(await typed('/x', { filter: false })).toHaveLength(3)
       expect(
@@ -169,6 +184,93 @@ describe('DouChatInput', () => {
     await type('/')
     vi.advanceTimersByTime(200)
     expect(wrapper.emitted('search')![1]).toEqual(['', '/'])
+    wrapper.unmount()
+    vi.useRealTimers()
+  })
+
+  it('does not pick from results that answer an older query', async () => {
+    const wrapper = mount(DouChatInput, {
+      props: { modelValue: '', filter: { '@': false }, teleport: false },
+      attachTo: document.body,
+    })
+    const textarea = wrapper.get('textarea')
+    const type = async (text: string) => {
+      await wrapper.setProps({ modelValue: text })
+      ;(textarea.element as HTMLTextAreaElement).setSelectionRange(text.length, text.length)
+      await textarea.trigger('keyup')
+    }
+    await type('@')
+    await wrapper.setProps({ mentions: [{ value: 'docs/需求.md' }, { value: 'src/set.ts' }] })
+    await type('@set')
+    expect(wrapper.get('[role="listbox"]').classes()).toContain('is-stale')
+    await textarea.trigger('keydown', { key: 'Enter' })
+    expect(wrapper.emitted('mention')).toBeUndefined()
+    expect(wrapper.emitted('submit')).toBeUndefined()
+    await wrapper.setProps({ mentions: [{ value: 'src/set.ts' }] })
+    expect(wrapper.get('[role="listbox"]').classes()).not.toContain('is-stale')
+    await textarea.trigger('keydown', { key: 'Enter' })
+    expect(wrapper.emitted('mention')).toEqual([[{ value: 'src/set.ts' }]])
+    wrapper.unmount()
+  })
+
+  it('never treats a list that is not replaced as stale', async () => {
+    const wrapper = mount(DouChatInput, {
+      props: { modelValue: '', mentions: [{ value: '戴兜' }], filter: false, teleport: false },
+      attachTo: document.body,
+    })
+    const textarea = wrapper.get('textarea')
+    await wrapper.setProps({ modelValue: '@x' })
+    ;(textarea.element as HTMLTextAreaElement).setSelectionRange(2, 2)
+    await textarea.trigger('keyup')
+    await textarea.trigger('keydown', { key: 'Enter' })
+    expect(wrapper.emitted('mention')).toEqual([[{ value: '戴兜' }]])
+    wrapper.unmount()
+  })
+
+  it('waits for an input method to finish and stays quiet once dismissed', async () => {
+    vi.useFakeTimers()
+    const wrapper = mount(DouChatInput, {
+      props: {
+        modelValue: '',
+        mentions: [{ value: '戴兜' }],
+        teleport: false,
+        'onUpdate:modelValue': (value: unknown): void => {
+          void wrapper.setProps({ modelValue: value as string })
+        },
+      },
+      attachTo: document.body,
+    })
+    const textarea = wrapper.get('textarea')
+    const el = textarea.element as HTMLTextAreaElement
+    const type = async (text: string) => {
+      await wrapper.setProps({ modelValue: text })
+      el.setSelectionRange(text.length, text.length)
+      await textarea.trigger('keyup')
+    }
+    // an input method spells "@hu" before it puts down "@戴"
+    await textarea.trigger('compositionstart')
+    for (const text of ['@h', '@hu']) {
+      el.value = text
+      await textarea.trigger('input')
+      await textarea.trigger('keyup', { keyCode: 229 })
+    }
+    vi.advanceTimersByTime(400)
+    expect(wrapper.emitted('search')).toBeUndefined()
+    el.value = '@戴'
+    el.setSelectionRange(2, 2)
+    await textarea.trigger('compositionend')
+    vi.advanceTimersByTime(400)
+    expect(wrapper.emitted('search')).toEqual([['戴', '@']])
+    await textarea.trigger('keydown', { key: 'Escape' })
+    await type('@戴兜')
+    vi.advanceTimersByTime(400)
+    expect(wrapper.emitted('search')).toHaveLength(1)
+    await type('@戴兜 @')
+    vi.advanceTimersByTime(400)
+    expect(wrapper.emitted('search')).toEqual([
+      ['戴', '@'],
+      ['', '@'],
+    ])
     wrapper.unmount()
     vi.useRealTimers()
   })

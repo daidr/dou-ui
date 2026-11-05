@@ -155,6 +155,11 @@
     box-shadow: var(--dou-shadow-md);
     list-style: none;
     cursor: default;
+
+    /* answers an older query while the new results are on their way */
+    &.is-stale > * {
+      opacity: 0.6;
+    }
   }
 
   .dou-chat-input__option {

@@ -1,7 +1,9 @@
 import { mount } from '@vue/test-utils'
 import { defineComponent, h, nextTick } from 'vue'
+import type { ComponentPublicInstance } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import { DouChatList } from '../../../index'
+import type { ChatListExpose } from '../chat-list'
 
 function sized(el: HTMLElement, scrollHeight: number, clientHeight = 100) {
   Object.defineProperty(el, 'scrollHeight', { configurable: true, get: () => scrollHeight })
@@ -78,6 +80,13 @@ describe('DouChatList', () => {
     const exposed = wrapper.vm as unknown as { scrollToMessage: (target: unknown) => void }
     sized(el, 1000)
     exposed.scrollToMessage(document.createElement('p'))
+    // the ref of a message no longer shown: ignored like a key not found, without a warning
+    exposed.scrollToMessage(null)
+    exposed.scrollToMessage(undefined)
+    // the value a function ref receives, as Vue types it, is accepted as is
+    const fromRef: Element | ComponentPublicInstance | null = document.createElement('p')
+    ;(exposed as ChatListExpose).scrollToMessage(fromRef)
+    expect(warn).not.toHaveBeenCalled()
     exposed.scrollToMessage('m1')
     expect(warn).toHaveBeenCalledTimes(1)
     grow?.()

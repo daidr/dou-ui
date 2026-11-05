@@ -186,7 +186,12 @@ watch(() => props.items?.length, observeContent, { flush: 'post' })
 
 // Jump straight to the message, by key or by element alike: a virtual list
 // only knows where an item is once it is rendered, so it cannot glide there.
-function scrollToMessage(target: ChatListTarget, align: VirtualListAlign = 'center') {
+function scrollToMessage(
+  target: ChatListTarget | null | undefined,
+  align: VirtualListAlign = 'center',
+) {
+  // nothing there, e.g. the ref of a message no longer shown: like a key not found
+  if (target == null) return
   if (isTarget(target)) {
     const el = viewportRef.value
     const node = elementOf(target)

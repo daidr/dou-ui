@@ -23,16 +23,36 @@
 `scrollToMessage` 直接跳到一条消息，把它放在视野中间，比如搜索点中的那一条。传了 `items` 时，参数是这条消息的键（`itemKey` 给出的值，没有 `itemKey` 时是下标）；用默认插槽时，传它的元素，或者绑在 DouChatMessage 上的 `ref`：
 
 ```vue
-<DouChatList ref="list">
-  <DouChatMessage v-for="m in messages" :key="m.id" :ref="(c) => (refs[m.id] = c)" v-bind="m" />
-</DouChatList>
+<script setup>
+import { ref } from 'vue'
+
+const messages = ref([
+  { id: 'm1', sender: 'user', content: '帮我订周五去上海的车票' },
+  { id: 'm2', sender: 'assistant', content: '周五上午有三班，要哪一班？' },
+])
+
+const list = ref()
+// 每条消息的组件，按 id 存放；消息移除时 ref 收到 null，一并删掉
+const refs = {}
+function keep(id, c) {
+  if (c) refs[id] = c
+  else delete refs[id]
+}
+
+// 比如搜索结果里点中了某条消息
+function locate(id) {
+  list.value.scrollToMessage(refs[id])
+}
+</script>
+
+<template>
+  <DouChatList ref="list">
+    <DouChatMessage v-for="m in messages" :key="m.id" :ref="(c) => keep(m.id, c)" v-bind="m" />
+  </DouChatList>
+</template>
 ```
 
-```ts
-list.value.scrollToMessage(refs[id])
-```
-
-两种写法都是直接跳过去，不做平滑滚动：虚拟列表要等消息渲染出来才知道它的确切位置。找不到的键、不在列表里的元素会被忽略，列表保持原样。
+两种写法都是直接跳过去，不做平滑滚动：虚拟列表要等消息渲染出来才知道它的确切位置。找不到的键、不在列表里的元素，以及 `null`、`undefined`（比如已经移除的消息的 `ref`）都会被忽略，列表保持原样。
 
 跳过去之后列表停止跟随新内容，免得新消息把读者拉回底部；定位到最后几条、列表已经在底部时，会照常继续跟随。
 
@@ -74,9 +94,9 @@ list.value.scrollToMessage(refs[id])
 
 ### Exposes
 
-| 名称              | 说明                                                                                                                       | 类型                                                                                                                            |
-| ----------------- | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `viewport`        | 滚动的元素                                                                                                                 | `HTMLElement \| null`                                                                                                           |
-| `scrollToBottom`  | 滚动到底部并重新开始跟随                                                                                                   | `(behavior?: ScrollBehavior) => void`                                                                                           |
-| `scrollToMessage` | 直接跳到一条消息并停止跟随；传了 `items` 时传键，否则传元素或 DouChatMessage 的 `ref`；找不到时忽略；`align` 默认 `center` | `(target: VirtualListKey \| HTMLElement \| ComponentPublicInstance, align?: 'start' \| 'center' \| 'end' \| 'nearest') => void` |
-| `atBottom`        | 当前是否在底部                                                                                                             | `boolean`                                                                                                                       |
+| 名称              | 说明                                                                                                                                                | 类型                                                                                                                                             |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `viewport`        | 滚动的元素                                                                                                                                          | `HTMLElement \| null`                                                                                                                            |
+| `scrollToBottom`  | 滚动到底部并重新开始跟随                                                                                                                            | `(behavior?: ScrollBehavior) => void`                                                                                                            |
+| `scrollToMessage` | 直接跳到一条消息并停止跟随；传了 `items` 时传键，否则传元素或 DouChatMessage 的 `ref`；找不到或传 `null`、`undefined` 时忽略；`align` 默认 `center` | `(target: VirtualListKey \| Element \| ComponentPublicInstance \| null \| undefined, align?: 'start' \| 'center' \| 'end' \| 'nearest') => void` |
+| `atBottom`        | 当前是否在底部                                                                                                                                      | `boolean`                                                                                                                                        |

@@ -188,6 +188,45 @@
   }
 
   .dou-menu__group + .dou-menu__group,
+  /*
+   * An item's own buttons sit over the end of its row, as siblings of the
+   * item, and the item keeps clear of them with an end padding as wide as
+   * they are (measured into --dou-menu-actions-width). With `hover` they
+   * wait for the row to be hovered, focused or current; hidden, they keep
+   * their size so it can be measured, and leave the item its full width.
+   */
+  .dou-menu__entry:has(> .dou-menu__actions) {
+    position: relative;
+  }
+
+  .dou-menu__actions {
+    position: absolute;
+    top: 0;
+    inset-inline-end: 6px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: var(--dou-menu-item-height);
+  }
+
+  .dou-menu__entry:has(> .dou-menu__actions) > .dou-menu__item {
+    padding-inline-end: calc(var(--dou-menu-actions-width, 0px) + 12px);
+  }
+
+  @media (hover: hover) {
+    .dou-menu--actions-hover
+      .dou-menu__entry:not(:hover, :focus-within, .is-current)
+      > .dou-menu__actions {
+      visibility: hidden;
+    }
+
+    .dou-menu--actions-hover
+      .dou-menu__entry:not(:hover, :focus-within, .is-current):has(> .dou-menu__actions)
+      > .dou-menu__item {
+      padding-inline-end: var(--dou-menu-padding-x);
+    }
+  }
+
   .dou-menu__entry + .dou-menu__group {
     margin-top: 8px;
   }

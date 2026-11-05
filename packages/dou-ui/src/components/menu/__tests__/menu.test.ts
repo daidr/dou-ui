@@ -81,6 +81,35 @@ describe('DouMenu', () => {
     expect(item(wrapper, '首页').find('.icon').exists()).toBe(true)
   })
 
+  it('draws an item’s actions beside it, never inside it', async () => {
+    const wrapper = mount(DouMenu, {
+      props: {
+        items: [
+          { key: 'a', label: '上海门店排班' },
+          { key: 'b', label: '十月周报' },
+        ],
+        modelValue: 'b',
+      },
+      slots: {
+        actions: (scope: { item: MenuItemOption }) =>
+          scope.item.key === 'a' ? h('button', { class: 'approve' }, '看完了') : null,
+      },
+      attachTo: document.body,
+    })
+    const entries = wrapper.findAll('.dou-menu__entry')
+    const actions = entries[0]!.get('.dou-menu__actions')
+    expect(actions.element.parentElement).toBe(entries[0]!.element)
+    expect(entries[0]!.find('.dou-menu__item .approve').exists()).toBe(false)
+    expect(entries[1]!.find('.dou-menu__actions').exists()).toBe(false)
+    expect(entries[1]!.classes()).toContain('is-current')
+    await actions.get('.approve').trigger('click')
+    expect(wrapper.emitted('select')).toBeUndefined()
+    expect(wrapper.classes()).toContain('dou-menu--actions-hover')
+    await wrapper.setProps({ actionsVisible: 'always' })
+    expect(wrapper.classes()).toContain('dou-menu--actions-always')
+    wrapper.unmount()
+  })
+
   it('opens the submenus around the current item and marks it', () => {
     const { wrapper } = make({ modelValue: 'members' })
     expect(item(wrapper, '项目').attributes('aria-expanded')).toBe('true')

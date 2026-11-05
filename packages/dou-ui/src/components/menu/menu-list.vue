@@ -4,6 +4,7 @@ import { useNamespace } from '../../utils/namespace'
 import { DouCollapseTransition as CollapseTransition } from '../collapse/collapse-transition'
 import { isDivider, isGroup, menuKey } from './menu'
 import type { MenuOption } from './menu'
+import MenuActions from './menu-actions.vue'
 import MenuItem from './menu-item.vue'
 
 defineOptions({ name: 'DouMenuList' })
@@ -31,6 +32,7 @@ const menu = inject(menuKey)!
     </li>
     <li v-else-if="option.children?.length" :class="ns.e('entry')">
       <MenuItem :item="option" :level="level" kind="submenu" stacked />
+      <MenuActions :item="option" :selected="false" />
       <CollapseTransition>
         <ul
           v-show="menu.isExpanded(option.key)"
@@ -41,8 +43,9 @@ const menu = inject(menuKey)!
         </ul>
       </CollapseTransition>
     </li>
-    <li v-else :class="ns.e('entry')">
+    <li v-else :class="[ns.e('entry'), ns.is('current', menu.selected.value === option.key)]">
       <MenuItem :item="option" :level="level" stacked />
+      <MenuActions :item="option" :selected="menu.selected.value === option.key" />
     </li>
   </template>
 </template>

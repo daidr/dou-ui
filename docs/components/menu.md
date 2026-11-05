@@ -45,6 +45,14 @@
 </DouMenu>
 ```
 
+## 项上的操作
+
+`actions` 插槽给某一项加上它自己的按钮，比如“看完了”“还要改”，参数为 `{ item, selected }`；不需要按钮的项什么都不返回即可。按钮放在项的旁边、盖在这一行的末尾，而不是放进项里面：按钮里不能再放按钮，读屏也会把它们读成一个整体。所以它们能用 Tab 单独聚焦，点它们也不会选中这一项；这一项的文字会给按钮让出位置。
+
+`actions-visible` 控制按钮什么时候显示：`hover`（默认）在悬停、键盘焦点进入这一行，或者这一项是当前项时显示；`always` 始终显示。无法悬停的设备上始终显示。只在竖向菜单里显示，折叠后和弹出的子菜单里没有。
+
+<DocDemo src="menu/actions" />
+
 ## 右键菜单
 
 用 [ContextMenu](./context-menu) 包住菜单，在 `itemContextmenu` 事件里记下是哪一项，再在右键菜单的 `select` 里处理。事件的参数是该项的 `MenuItemOption` 和原生事件。右键和聚焦时按菜单键都会触发；在 ContextMenu 的触发区域里，触摸屏上长按也会触发。子菜单的开关、禁用的项也一样。
@@ -92,14 +100,15 @@ function onItemContextmenu(item: MenuItemOption, event: MouseEvent) {
 
 ### Props
 
-| 名称         | 说明                                  | 类型                         | 默认值       |
-| ------------ | ------------------------------------- | ---------------------------- | ------------ |
-| `items`      | 菜单数据                              | `MenuOption[]`               | `[]`         |
-| `modelValue` | 当前项的 `key`，配合 `v-model`        | `string \| number`           | —            |
-| `expanded`   | 展开的子菜单，配合 `v-model:expanded` | `(string \| number)[]`       | 当前项的上级 |
-| `mode`       | 方向                                  | `'vertical' \| 'horizontal'` | `'vertical'` |
-| `collapsed`  | 竖向时收成一列图标                    | `boolean`                    | `false`      |
-| `accordion`  | 同一层最多展开一个子菜单              | `boolean`                    | `false`      |
+| 名称             | 说明                                  | 类型                         | 默认值       |
+| ---------------- | ------------------------------------- | ---------------------------- | ------------ |
+| `items`          | 菜单数据                              | `MenuOption[]`               | `[]`         |
+| `modelValue`     | 当前项的 `key`，配合 `v-model`        | `string \| number`           | —            |
+| `expanded`       | 展开的子菜单，配合 `v-model:expanded` | `(string \| number)[]`       | 当前项的上级 |
+| `mode`           | 方向                                  | `'vertical' \| 'horizontal'` | `'vertical'` |
+| `collapsed`      | 竖向时收成一列图标                    | `boolean`                    | `false`      |
+| `accordion`      | 同一层最多展开一个子菜单              | `boolean`                    | `false`      |
+| `actionsVisible` | `actions` 插槽的按钮何时显示          | `'always' \| 'hover'`        | `'hover'`    |
 
 ### MenuOption
 
@@ -122,10 +131,11 @@ function onItemContextmenu(item: MenuItemOption, event: MouseEvent) {
 
 ### Slots
 
-| 名称          | 说明                                                           |
-| ------------- | -------------------------------------------------------------- |
-| `label`       | 替换每一项的文字，参数为 `{ item, selected }`                  |
-| `description` | 替换写了 `description` 的项的说明，参数为 `{ item, selected }` |
+| 名称          | 说明                                                                      |
+| ------------- | ------------------------------------------------------------------------- |
+| `label`       | 替换每一项的文字，参数为 `{ item, selected }`                             |
+| `description` | 替换写了 `description` 的项的说明，参数为 `{ item, selected }`            |
+| `actions`     | 项自己的按钮，放在项旁边，参数为 `{ item, selected }`；只在竖向菜单里显示 |
 
 ### CSS 变量
 

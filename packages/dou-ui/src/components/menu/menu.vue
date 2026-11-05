@@ -28,6 +28,7 @@ const props = withDefaults(defineProps<MenuProps>(), {
   mode: 'vertical',
   collapsed: false,
   accordion: false,
+  actionsVisible: 'hover',
 })
 const model = defineModel<MenuKey>()
 const expandedModel = defineModel<MenuKey[]>('expanded')
@@ -84,6 +85,7 @@ provide(menuKey, {
   },
   labelSlot: () => slots.label,
   descriptionSlot: () => slots.description,
+  actionsSlot: () => slots.actions,
   subId: (key) => `${id}-sub-${String(key).replace(/\s+/g, '-')}`,
 })
 
@@ -251,7 +253,12 @@ function onKeydown(event: KeyboardEvent) {
 <template>
   <nav
     ref="nav"
-    :class="[ns.b(), ns.m(mode), ns.is('collapsed', collapsed && mode === 'vertical')]"
+    :class="[
+      ns.b(),
+      ns.m(mode),
+      ns.m(`actions-${actionsVisible}`),
+      ns.is('collapsed', collapsed && mode === 'vertical'),
+    ]"
     data-dou-menu-root=""
     @keydown="onKeydown"
   >

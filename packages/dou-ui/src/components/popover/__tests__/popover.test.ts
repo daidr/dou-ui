@@ -107,6 +107,42 @@ describe('DouPopover', () => {
     wrapper.unmount()
   })
 
+  it('closes when Tab leaves the trigger and the panel has nothing to focus', async () => {
+    const wrapper = mount(DouPopover, {
+      props: {
+        open: true,
+        'onUpdate:open': (value: boolean) => wrapper.setProps({ open: value }),
+        content: '只有文字',
+      },
+      slots: { default: () => h('button', { id: 'trigger' }, '打开') },
+      attachTo: document.body,
+    })
+    await nextTick()
+    const tab = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true })
+    wrapper.get('#trigger').element.dispatchEvent(tab)
+    // the browser moves the focus on as usual
+    expect(tab.defaultPrevented).toBe(false)
+    await nextTick()
+    expect(wrapper.props('open')).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('closes when Shift+Tab leaves the trigger', async () => {
+    const wrapper = withModel({ open: true })
+    await nextTick()
+    const tab = new KeyboardEvent('keydown', {
+      key: 'Tab',
+      shiftKey: true,
+      bubbles: true,
+      cancelable: true,
+    })
+    wrapper.get('#trigger').element.dispatchEvent(tab)
+    expect(tab.defaultPrevented).toBe(false)
+    await nextTick()
+    expect(wrapper.props('open')).toBe(false)
+    wrapper.unmount()
+  })
+
   it('opens a hover card on a tap or Enter and marks it expanded then', async () => {
     const wrapper = withModel({ trigger: 'hover' })
     const trigger = wrapper.get('#trigger')

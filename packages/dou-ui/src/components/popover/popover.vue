@@ -42,11 +42,13 @@ const { triggerRef, panelRef, rendered, theme, placement, panelStyle, panelListe
 // The panel lives at the end of <body>, away from the trigger in tab
 // order. `Tab` from the trigger steps into the panel, and stepping out of
 // either end of the panel lands back on the trigger, from where the
-// browser carries on as usual.
+// browser carries on as usual. Leaving the trigger any other way (`Tab`
+// with nothing to focus in the panel, or `Shift+Tab`) closes the panel, so
+// it doesn't stay open away from the focus.
 function onTriggerKeydown(event: KeyboardEvent) {
-  if (event.key !== 'Tab' || event.shiftKey || !open.value || !panelRef.value) return
-  const first = getTabbable(panelRef.value)[0]
-  if (!first) return
+  if (event.key !== 'Tab' || !open.value || !panelRef.value) return
+  const first = event.shiftKey ? undefined : getTabbable(panelRef.value)[0]
+  if (!first) return popup.hide()
   event.preventDefault()
   first.focus()
 }

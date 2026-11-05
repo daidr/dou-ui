@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { MessageCircleIcon } from '@dou-ui/icons'
-import { DouButton, DouTooltip } from 'dou-ui'
+import { DouButton, DouTooltip, type Placement } from 'dou-ui'
 import { computed } from 'vue'
 import { format, type DashboardMessages } from '../locale'
 import type { DashboardComments } from './comments'
@@ -10,11 +10,16 @@ import type { DashboardComments } from './comments'
  * with how many open threads there are, opening them or the box to start one.
  */
 
-const props = defineProps<{
-  id: string
-  comments: DashboardComments
-  messages: DashboardMessages
-}>()
+const props = withDefaults(
+  defineProps<{
+    id: string
+    comments: DashboardComments
+    messages: DashboardMessages
+    /** Where the tooltip goes: in the full screen view, clear of the dialog's close button above. */
+    tooltipPlacement?: Placement
+  }>(),
+  { tooltipPlacement: 'top' },
+)
 
 const count = computed(() => props.comments.openOn.value.get(props.id)?.length ?? 0)
 /** Shown with something to open, or a thread to start. */
@@ -35,7 +40,7 @@ function toggle(event: MouseEvent) {
 </script>
 
 <template>
-  <DouTooltip v-if="shown" :content="label">
+  <DouTooltip v-if="shown" :content="label" :placement="tooltipPlacement">
     <DouButton
       size="sm"
       variant="ghost"

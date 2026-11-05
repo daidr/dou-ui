@@ -285,8 +285,10 @@ describe('DouDashboard comments', () => {
       bubbles: true,
       cancelable: true,
     })
+    // just opened, the focus is on the dialog itself: the shortcut works from there too
+    const panel = inside.closest<HTMLElement>('[role="dialog"]')!
     later()
-    inside.dispatchEvent(event)
+    panel.dispatchEvent(event)
     await ticks()
     expect(active.value).toBe('t1')
     expect(event.defaultPrevented).toBe(true)

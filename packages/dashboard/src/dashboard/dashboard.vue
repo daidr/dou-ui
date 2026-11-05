@@ -1232,15 +1232,16 @@ defineExpose<DashboardExpose>({
       fullscreen
       @update:open="(open) => !open && (fullscreenId = undefined)"
       @closed="restoreFocus"
+      @keydown="onFullscreenKeydown"
     >
-      <div
-        v-if="fullscreenWidget"
-        ref="fullscreenBody"
-        class="dou-dashboard__fullscreen"
-        @keydown="onFullscreenKeydown"
-      >
+      <div v-if="fullscreenWidget" ref="fullscreenBody" class="dou-dashboard__fullscreen">
         <div v-if="comments.enabled.value" class="dou-dashboard__fullscreen-bar">
-          <CommentButton :id="fullscreenWidget.id" :comments="comments" :messages="messages" />
+          <CommentButton
+            :id="fullscreenWidget.id"
+            :comments="comments"
+            :messages="messages"
+            tooltip-placement="left"
+          />
         </div>
         <WidgetBody
           class="is-fullscreen"

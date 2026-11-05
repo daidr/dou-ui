@@ -502,9 +502,33 @@
     &[data-gutter-cell] {
       cursor: pointer;
     }
+    &[role='button'] {
+      border-radius: var(--dou-radius-control);
+
+      &:focus-visible {
+        outline: 2px solid var(--dou-color-focus);
+        outline-offset: -2px;
+      }
+    }
     & > svg {
       width: 14px;
       height: 14px;
+    }
+  }
+
+  /*
+   * A marker offered on every line waits out of sight: it shows on the line
+   * the mouse is over (in the gutter or the text), on the cursor's line while
+   * the editor has the focus, and while it has the focus itself.
+   */
+  .dou-code-editor__cell.is-reveal {
+    opacity: 0;
+    transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    .dou-code-editor__number:is(:hover, .is-hovered) > .dou-code-editor__cells > &,
+    .dou-code-editor.is-focused .dou-code-editor__number.is-active > .dou-code-editor__cells > &,
+    &:focus-visible {
+      opacity: 1;
     }
   }
   .dou-code-editor__problem-icon {

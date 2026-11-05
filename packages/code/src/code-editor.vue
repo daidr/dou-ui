@@ -892,7 +892,7 @@ const gutterColumns = computed(() => {
     name: string
     width: number
     markers: () => CodeGutterMarker[]
-    onPress?: (line: number, event: PointerEvent) => void
+    onPress?: (line: number, event: PointerEvent | KeyboardEvent) => void
   }> = []
   if (!props.gutter) return columns
   // Kept while anything may report problems, so the text doesn't jump when the first one comes.
@@ -936,6 +936,23 @@ function problemMarkers(): CodeGutterMarker[] {
 }
 
 /** The markers of each column, by line, for the lines in view. */
+/** The line the mouse is over in the text, so the gutter can show markers waiting for it. */
+const hoveredLine = ref<number | null>(null)
+function lineAtY(y: number) {
+  const rect = content.value?.getBoundingClientRect()
+  if (!rect) return null
+  return doc.value.lineAt(posAtCoords({ x: rect.left + 1, y })).number
+}
+
+/** A marker in a pressable column is a button: Enter or Space presses it. */
+function onCellKeydown(event: KeyboardEvent, column: number, line: number) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  const press = gutterColumns.value[column]?.onPress
+  if (!press || props.disabled) return
+  event.preventDefault()
+  press(line, event)
+}
+
 const gutterMarkers = computed(() =>
   gutterColumns.value.map((column) => {
     const byLine = new Map<number, CodeGutterMarker>()
@@ -2311,6 +2328,7 @@ function problemKey(name: string) {
  * the mouse events a browser makes up after it would only close it again.
  */
 function onContentHover(event: PointerEvent) {
+  if (event.pointerType === 'mouse') hoveredLine.value = lineAtY(event.clientY)
   if (event.pointerType !== 'mouse' || drag || problemBox.value?.keyboard) return
   const rect = content.value?.getBoundingClientRect()
   if (!rect) return
@@ -2339,6 +2357,7 @@ function keepProblems() {
 }
 
 function onContentLeave(event: PointerEvent) {
+  hoveredLine.value = null
   if (event.pointerType !== 'mouse' || problemBox.value?.keyboard) return
   clearTimeout(problemTimer)
   problemTimer = window.setTimeout(closeProblems, 250)
@@ -3358,6 +3377,7 @@ const keymap = computed(() =>
 )
 /** After Escape, Tab leaves the editor instead of indenting, so keyboard users are never stuck. */
 let tabLeaves = false
+const MODIFIERS = new Set(['Shift', 'Control', 'Alt', 'Meta'])
 
 /** When Enter last confirmed a composition; some browsers also put a line break into the textarea for it, right after. */
 let confirmEnter = -Infinity
@@ -3389,7 +3409,8 @@ function onKeydown(event: KeyboardEvent) {
     return
   }
   const leaving = tabLeaves && (name === 'tab' || name === 'shift+tab')
-  tabLeaves = name === 'escape'
+  // Shift pressed on its way to Shift+Tab comes down on its own first
+  if (!MODIFIERS.has(event.key)) tabLeaves = name === 'escape'
   if (leaving) {
     // Tab goes on to the bar of keys first, which sits elsewhere in the page.
     const first =
@@ -4984,7 +5005,6 @@ defineExpose<CodeEditorExpose>(api)
           <div
             v-if="gutter && (lineNumbers || foldable || gutterCells)"
             :class="ns.e('gutter')"
-            aria-hidden="true"
             @pointerdown="onPointerDown($event, 'gutter')"
             @pointermove="onPointerMove"
             @pointerup="onPointerUp($event, 'gutter')"
@@ -5000,7 +5020,11 @@ defineExpose<CodeEditorExpose>(api)
               <div
                 v-for="row in rows"
                 :key="row.n"
-                :class="[ns.e('number'), ns.is('active', row.n === activeLineNumber)]"
+                :class="[
+                  ns.e('number'),
+                  ns.is('active', row.n === activeLineNumber),
+                  ns.is('hovered', row.n === hoveredLine),
+                ]"
                 :style="{
                   height: row.wrapped.breaks.length
                     ? `${(row.wrapped.breaks.length + 1) * lineHeight}px`
@@ -5012,11 +5036,26 @@ defineExpose<CodeEditorExpose>(api)
                   <span
                     v-for="(column, c) in gutterColumns"
                     :key="column.name"
-                    :class="[ns.e('cell'), gutterMarkers[c]?.get(row.n)?.class]"
+                    :class="[
+                      ns.e('cell'),
+                      ns.is('reveal', gutterMarkers[c]?.get(row.n)?.reveal === 'hover'),
+                      gutterMarkers[c]?.get(row.n)?.class,
+                    ]"
                     :style="{ width: `${column.width}px` }"
                     :title="gutterMarkers[c]?.get(row.n)?.title"
                     :data-gutter-cell="column.onPress ? c : undefined"
                     :data-line="row.n"
+                    v-bind="
+                      column.onPress && gutterMarkers[c]?.get(row.n) && !disabled
+                        ? {
+                            role: 'button',
+                            // one stop in the tab order: the marker on the cursor's line
+                            tabindex: row.n === activeLineNumber ? 0 : -1,
+                            'aria-label': gutterMarkers[c]!.get(row.n)!.title,
+                          }
+                        : { 'aria-hidden': 'true' }
+                    "
+                    @keydown="onCellKeydown($event, c, row.n)"
                   >
                     <template v-if="gutterMarkers[c]?.get(row.n)">
                       <component
@@ -5027,11 +5066,12 @@ defineExpose<CodeEditorExpose>(api)
                     </template>
                   </span>
                 </span>
-                <template v-if="lineNumbers">{{ row.n }}</template>
+                <span v-if="lineNumbers" aria-hidden="true">{{ row.n }}</span>
                 <span
                   v-if="foldable && (row.folded || foldableLines.has(row.n))"
                   :class="[ns.e('fold-toggle'), ns.is('folded', row.folded)]"
                   :data-fold="row.n"
+                  aria-hidden="true"
                 >
                   <ChevronRightIcon v-if="row.folded" />
                   <ChevronDownIcon v-else />

@@ -314,6 +314,58 @@ describe('extensions', () => {
     expect(cell().text()).toBe('')
   })
 
+  it('makes markers in a pressable column buttons, one in the tab order', async () => {
+    const pressed: Array<[number, string]> = []
+    const { wrapper, editor, input } = setup([
+      defineCodeExtension({
+        name: 'comment',
+        gutters: [
+          {
+            name: 'comment',
+            markers: (context) =>
+              Array.from({ length: context.doc.lines }, (_, index) => ({
+                line: index + 1,
+                text: '+',
+                title: '批注',
+                reveal: 'hover' as const,
+              })),
+            onPress: (line, event) => pressed.push([line, event.type]),
+          },
+        ],
+      }),
+    ])
+    await nextTick()
+    const cell = (line: number) => wrapper.find(`[data-gutter-cell][data-line="${line}"]`)
+    expect(cell(1).attributes('role')).toBe('button')
+    expect(cell(1).attributes('aria-label')).toBe('批注')
+    expect(cell(1).classes()).toContain('is-reveal')
+    // only the cursor's line takes a Tab
+    expect(cell(1).attributes('tabindex')).toBe('0')
+    expect(cell(2).attributes('tabindex')).toBe('-1')
+    editor.value!.select(editor.value!.doc.line(2).from)
+    await nextTick()
+    expect(cell(1).attributes('tabindex')).toBe('-1')
+    expect(cell(2).attributes('tabindex')).toBe('0')
+    await cell(2).trigger('keydown', { key: 'Enter' })
+    await cell(2).trigger('keydown', { key: ' ' })
+    await cell(2).trigger('keydown', { key: 'a' })
+    expect(pressed).toEqual([
+      [2, 'keydown'],
+      [2, 'keydown'],
+    ])
+    // the line numbers are not read out
+    expect(wrapper.get('.dou-code-editor__gutter').attributes('aria-hidden')).toBeUndefined()
+    // Escape, then Shift+Tab (Shift comes down first) leaves the text for the marker
+    const down = (key: string, shiftKey = false) => {
+      const event = new KeyboardEvent('keydown', { key, shiftKey, bubbles: true, cancelable: true })
+      input.dispatchEvent(event)
+      return event
+    }
+    down('Escape')
+    down('Shift', true)
+    expect(down('Tab', true).defaultPrevented).toBe(false)
+  })
+
   it('draws panels that reach the editor with useCodeEditor', async () => {
     const Count = defineComponent(() => {
       const editor = useCodeEditor()

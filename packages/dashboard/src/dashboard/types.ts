@@ -99,7 +99,10 @@ export interface DashboardSaveOptions<Options = any> extends DashboardExportOpti
   fileName?: string
 }
 
-/** A widget's export from its menu failed. */
+/**
+ * A widget's component threw while setting up or drawing its content or
+ * settings form; that part shows an error with a retry button instead.
+ */
 export interface DashboardWidgetErrorEvent {
   /** The widget's id. */
   widget: string
@@ -108,6 +111,7 @@ export interface DashboardWidgetErrorEvent {
   error: unknown
 }
 
+/** A widget's export from its menu failed. */
 export interface DashboardExportErrorEvent {
   /** The widget's id. */
   widget: string

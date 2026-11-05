@@ -42,6 +42,27 @@ PNG 是位图，适合直接发送或插入文档。
 
 浏览器对画布的尺寸有限制：每边 16384 像素，总像素数在 iPhone 和 iPad 上约 1677 万，其他设备上是 16384 × 16384。图片很大时 `exportPNG()` 会自动降低 `pixelRatio`，降到 1 仍然放不下时会抛出 `RangeError`，不会生成一张模糊的图。这时可以用 `range: 'view'` 或 `range: 'selection'` 分几次导出，或者改用 `exportSVG()`。
 
+## 不挂编辑器导出
+
+`renderFlowSVG(document, options?)` 和 `renderFlowPNG(document, options?)` 直接把一份文档画成图片，页面上不需要有编辑器，适合产物列表里的缩略图、分享前的预览。两者都返回 Promise。
+
+```ts
+import { renderFlowSVG } from '@dou-ui/flow'
+
+const svg = await renderFlowSVG(doc, { theme: 'light', padding: 12 })
+```
+
+画法和 `exportSVG` 完全相同：函数在页面外临时挂一个只读、不可见的编辑器，等节点排好、量好尺寸后导出，然后立即移除。所以：
+
+- 节点形状、文字、端口、曲线连线、分组都和画布上一致，自定义节点组件放的端口也在原位。
+- 要传入和显示这份文档的编辑器相同的 `extensions`、`nodeTypes`、`edgeTypes`、`portTypes`，否则用不到的类型会按默认节点画。
+- 需要浏览器环境，在服务端调用会抛出错误。
+- 一次只画一份。十几张缩略图依次调用即可，每次结束后不留下任何东西；文档没变时，可以把结果缓存起来。
+
+<DocDemo src="flow/render" column />
+
+`theme` 设为 `'light'` 或 `'dark'` 时按这套颜色画，不设时跟随页面当前的主题。节点组件用到应用里注册的插件或 `provide` 时，传入 `appContext`，例如 `getCurrentInstance()!.appContext`。
+
 ## 自定义节点
 
 节点类型可以提供 `draw`，返回节点的 SVG 标记，坐标以节点左上角为原点。没有 `draw` 的节点画成一张带名称和端口的卡片。
@@ -97,10 +118,25 @@ const noteNode = defineNodeType<{ text?: string }>({
 
 ### 函数
 
-| 名称                       | 说明                                                  | 类型                                                                              |
-| -------------------------- | ----------------------------------------------------- | --------------------------------------------------------------------------------- |
-| `drawCard(draw, classes?)` | 画出编辑器默认的卡片，`classes` 是卡片上额外的类名    | `(draw: FlowDrawContext, classes?: string[]) => string`                           |
-| `drawLayer`                | 扩展的选项：返回画在所有节点上方的 SVG 标记，画布坐标 | `(ctx: FlowExtensionContext, draw: FlowDrawContext, nodes: FlowNode[]) => string` |
+| 名称                                | 说明                                                  | 类型                                                                              |
+| ----------------------------------- | ----------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `renderFlowSVG(document, options?)` | 不挂编辑器，把文档画成 SVG 文本                       | `(document: FlowDocument, options?: RenderFlowOptions) => Promise<string>`        |
+| `renderFlowPNG(document, options?)` | 不挂编辑器，把文档画成 PNG                            | `(document: FlowDocument, options?: RenderFlowImageOptions) => Promise<Blob>`     |
+| `drawCard(draw, classes?)`          | 画出编辑器默认的卡片，`classes` 是卡片上额外的类名    | `(draw: FlowDrawContext, classes?: string[]) => string`                           |
+| `drawLayer`                         | 扩展的选项：返回画在所有节点上方的 SVG 标记，画布坐标 | `(ctx: FlowExtensionContext, draw: FlowDrawContext, nodes: FlowNode[]) => string` |
+
+### RenderFlowOptions / RenderFlowImageOptions
+
+`renderFlowSVG` 的选项是 `RenderFlowOptions`；`renderFlowPNG` 的 `RenderFlowImageOptions` 多一个 `pixelRatio`。
+
+| 选项                                                                                     | 说明                                | 类型                 | 默认值 |
+| ---------------------------------------------------------------------------------------- | ----------------------------------- | -------------------- | ------ |
+| `extensions`、`nodeTypes`、`edgeTypes`、`edgeType`、`portTypes`、`direction`、`messages` | 与编辑器的同名属性相同              | —                    | —      |
+| `theme`                                                                                  | 按浅色或深色主题画；不设时跟随页面  | `'light' \| 'dark'`  | —      |
+| `padding`                                                                                | 四周留白，单位 px                   | `number`             | `24`   |
+| `background`                                                                             | 是否铺上画布的底色                  | `boolean`            | `true` |
+| `appContext`                                                                             | 节点组件渲染时使用的应用上下文      | `AppContext \| null` | —      |
+| `pixelRatio`                                                                             | 仅 PNG：每个 CSS 像素对应的图片像素 | `number`             | `2`    |
 
 ### FlowDrawContext
 

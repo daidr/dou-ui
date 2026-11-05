@@ -1,7 +1,14 @@
 import { mount } from '@vue/test-utils'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
-import { drawCard, DouFlowEditor, defineNodeType, flowKit, type FlowEditorExpose } from '../index'
+import {
+  drawCard,
+  DouFlowEditor,
+  defineNodeType,
+  flowKit,
+  renderFlowSVG,
+  type FlowEditorExpose,
+} from '../index'
 import type { FlowDocument, FlowExtension, FlowSelection } from '../index'
 import { whiteboardKit } from '../whiteboard'
 import { cutText, wrapText } from '../export/context'
@@ -114,6 +121,31 @@ const doc = (): FlowDocument => ({
       label: '摘要',
     },
   ],
+})
+
+describe('renderFlowSVG', () => {
+  it('draws a document without an editor on the page, and leaves nothing behind', async () => {
+    const given = doc()
+    const before = JSON.stringify(given)
+    const svg = await renderFlowSVG(given, { theme: 'dark', padding: 0, background: false })
+    expect(svg.startsWith('<svg xmlns="http://www.w3.org/2000/svg"')).toBe(true)
+    expect(svg).toContain('读取 &lt;笔记&gt;')
+    expect(svg).toContain('摘要')
+    expect(svg).toContain('translate(300 0)')
+    expect(svg.match(/<path d="M/g)?.length).toBe(1)
+    expect(svg).not.toContain('<rect x="-')
+    expect(document.body.children).toHaveLength(0)
+    expect(JSON.stringify(given)).toBe(before)
+  })
+
+  it('uses the node types given', async () => {
+    const box = defineNodeType({ type: 'box', draw: () => '<circle r="5" data-test="box"/>' })
+    const svg = await renderFlowSVG(
+      { version: 1, nodes: [{ id: 'x', type: 'box', x: 0, y: 0 }], edges: [] },
+      { nodeTypes: [box] },
+    )
+    expect(svg).toContain('data-test="box"')
+  })
 })
 
 describe('exportSVG', () => {

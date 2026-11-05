@@ -39,11 +39,13 @@
 - 并排时，标记画在它那一侧；小部件画在它那一侧，另一侧在对齐的位置留出同样高的空白，两侧不会错位。`span: 'both'` 的小部件横跨两栏，适合写给整段改动的说明。
 - `inline` 时，标记和小部件都放在这一行所在的位置；两侧共有的行上，修改后一侧的标记优先显示。
 
+想在每一行都提供入口（比如悬停时出现“+”，点击开始写评论），给列加 `hoverMarker`，不必为每一行写一个标记：没有自己标记的行都会显示它，平时隐藏，悬停在这一行、光标在这一行或标记获得焦点时出现。`hoverMarker.side` 可以只放在一侧。
+
 点击 `gutters` 的列，或用键盘在标记上按 `Enter`、`Space` 时，触发 `onPress(line, event, side)`：`event` 是这次的 `PointerEvent` 或 `KeyboardEvent`，`side` 是被点的那一侧。标记的键盘操作和 `title` 必填的规则同[编辑器的行号栏](/code/extensions#行号栏)。在 `inline` 视图中，两侧共有的行算作那里标记所在的一侧，没有标记时算作 `modified`。
 
 几点需要注意：
 
-- 带标记或小部件的行不会被收起，前后同样保留 `context` 行，和改动一样留在视野里。
+- 带标记或小部件的行不会被收起，前后同样保留 `context` 行，和改动一样留在视野里。只在悬停时显示的标记（`visible: 'hover'` 和 `hoverMarker`）不算，未改动的行照常收起。
 - 行号由应用维护，不会随文本修改移动。允许编辑时，文本改动后需要自己更新批注的行号；只做审阅时建议不开 `editable`。超出那一侧行数的标记和小部件不会显示。
 - 小部件的 `id` 在全部 `widgets` 中唯一，两侧共用一套：组件按 `id` 记录测得的高度，两侧重复会让两栏错位，开发环境下会给出警告。
 - 在触屏上拖动横跨两栏的小部件不会滚动代码，需要在代码区域拖动。
@@ -90,12 +92,13 @@ const hunks = diffText('上海\n戴兜\n', '上海\n阿青\n')
 
 ### CodeDiffGutter
 
-| 名称      | 说明                                                                                                                      | 类型                                                                               |
-| --------- | ------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `name`    | 列名，各列不能重复                                                                                                        | `string`                                                                           |
-| `width`   | 宽度，单位 px，默认 16                                                                                                    | `number`                                                                           |
-| `markers` | 标记 `{ side, line, icon?, text?, class?, title?, visible? }`，其余字段同编辑器的行号栏标记；有 `onPress` 时 `title` 必填 | `CodeDiffGutterMarker[]`                                                           |
-| `onPress` | 点击这一列，或在标记上按 `Enter`、`Space`                                                                                 | `(line: number, event: PointerEvent \| KeyboardEvent, side: CodeDiffSide) => void` |
+| 名称          | 说明                                                                                                                      | 类型                                                                               |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `name`        | 列名，各列不能重复                                                                                                        | `string`                                                                           |
+| `width`       | 宽度，单位 px，默认 16                                                                                                    | `number`                                                                           |
+| `markers`     | 标记 `{ side, line, icon?, text?, class?, title?, visible? }`，其余字段同编辑器的行号栏标记；有 `onPress` 时 `title` 必填 | `CodeDiffGutterMarker[]`                                                           |
+| `hoverMarker` | 没有自己标记的每一行都显示的标记，悬停时出现；`side` 只放在一侧，不写时两侧都有；有 `onPress` 时 `title` 必填             | `{ icon?, text?, class?, title?, side? }`                                          |
+| `onPress`     | 点击这一列，或在标记上按 `Enter`、`Space`                                                                                 | `(line: number, event: PointerEvent \| KeyboardEvent, side: CodeDiffSide) => void` |
 
 ### CodeDiffWidget
 

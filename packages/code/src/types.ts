@@ -298,12 +298,27 @@ export interface CodeDiffGutterMarker extends CodeGutterMarker {
   side: CodeDiffSide
 }
 
+/**
+ * The marker a `DouCodeDiff` column shows on every line without one of its
+ * own, out of sight until the line is hovered (`visible: 'hover'`), e.g. a
+ * "comment" mark offered on every line.
+ */
+export interface CodeDiffHoverMarker extends Pick<
+  CodeGutterMarker,
+  'icon' | 'text' | 'class' | 'title'
+> {
+  /** Only on the lines of this side; on both when left out. */
+  side?: CodeDiffSide
+}
+
 /** A column of `DouCodeDiff`'s gutter, left of the line numbers. */
 export interface CodeDiffGutter {
   name: string
   /** In px. Defaults to 16. */
   width?: number
-  markers: CodeDiffGutterMarker[]
+  markers?: CodeDiffGutterMarker[]
+  /** A marker on every other line, shown on hover. */
+  hoverMarker?: CodeDiffHoverMarker
   /**
    * A press on the column, on line `line` of `side`. Inline, a row both
    * texts share counts as the marker's side there, else as `modified`.

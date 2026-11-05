@@ -39,6 +39,7 @@ export type {
   CodeDiffEmits,
   CodeDiffGutter,
   CodeDiffGutterMarker,
+  CodeDiffHoverMarker,
   CodeDiffProps,
   CodeDiffSide,
   CodeDiffWidget,

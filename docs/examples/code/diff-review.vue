@@ -1,6 +1,6 @@
 <script setup>
 import { DouCodeDiff, javascript } from '@dou-ui/code'
-import { MessageCircleIcon } from '@dou-ui/icons'
+import { MessageCircleIcon, PlusIcon } from '@dou-ui/icons'
 import { DouAvatar, DouButton } from 'dou-ui'
 import { computed, h, ref } from 'vue'
 
@@ -34,7 +34,7 @@ const comments = ref([
 ])
 let nextId = 3
 
-// 点击行号左侧的格子，在那一侧的那一行加一条评论
+// 悬停在任意一行时出现“+”，点击在那一侧的那一行加一条评论
 const gutters = computed(() => [
   {
     name: 'comments',
@@ -44,6 +44,7 @@ const gutters = computed(() => [
       icon: MessageCircleIcon,
       title: `${comment.author}的评论`,
     })),
+    hoverMarker: { icon: PlusIcon, title: '添加评论' },
     onPress(line, event, side) {
       comments.value = [
         ...comments.value,

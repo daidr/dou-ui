@@ -461,6 +461,64 @@ describe('DouCodeDiff widget heights', () => {
   })
 })
 
+describe('DouCodeDiff hoverMarker', () => {
+  it('offers a marker on every other line of its side, shown on hover', async () => {
+    const pressed: unknown[] = []
+    const { wrapper } = setup({
+      original: 'a\nb\nc',
+      modelValue: 'a\nB\nc',
+      collapseUnchanged: false,
+      gutters: [
+        {
+          name: 'comments',
+          markers: [{ side: 'modified', line: 1, text: 'm', title: '戴兜的评论' }],
+          hoverMarker: { text: '+', title: '加评论', side: 'modified' },
+          onPress: (line: number, _event: Event, side: string) => pressed.push([line, side]),
+        },
+      ],
+    })
+    await nextTick()
+    await nextTick()
+    const [a, b] = wrapper.findAll('.dou-code-diff__side')
+    const cell = (side: typeof a, line: number) =>
+      side!.find(`[data-gutter-cell][data-line="${line}"]`)
+    // its own marker wins; the others show on hover; the original side has none
+    expect([1, 2, 3].map((line) => cell(b, line).text())).toEqual(['m', '+', '+'])
+    expect(cell(b, 1).classes()).not.toContain('is-on-hover')
+    expect(cell(b, 2).classes()).toContain('is-on-hover')
+    expect([1, 2, 3].map((line) => cell(a, line).text())).toEqual(['', '', ''])
+    await cell(b, 2).trigger('keydown', { key: 'Enter' })
+    expect(pressed).toEqual([[2, 'modified']])
+  })
+
+  it('puts it on each row inline, counting a row as the side it marks', async () => {
+    const pressed: unknown[] = []
+    const { wrapper } = setup({
+      mode: 'inline',
+      original: 'a\nb\nc',
+      modelValue: 'a\nB\nc',
+      gutters: [
+        {
+          name: 'comments',
+          hoverMarker: { text: '+', title: '加评论' },
+          onPress: (line: number, _event: Event, side: string) => pressed.push([line, side]),
+        },
+      ],
+    })
+    await nextTick()
+    await nextTick()
+    const cell = (row: number) => wrapper.find(`[data-gutter-cell][data-line="${row}"]`)
+    // Rows: a, b (removed), B (added), c
+    expect([1, 2, 3, 4].map((row) => cell(row).text())).toEqual(['+', '+', '+', '+'])
+    for (const row of [1, 2, 3]) await cell(row).trigger('pointerdown', { button: 0 })
+    expect(pressed).toEqual([
+      [1, 'modified'],
+      [2, 'original'],
+      [2, 'modified'],
+    ])
+  })
+})
+
 describe('DouCodeDiff annotations and collapsing', () => {
   it('keeps lines with a marker or widget in view, with context around them', async () => {
     const many = Array.from({ length: 20 }, (_, i) => `line ${i + 1}`)
@@ -480,6 +538,29 @@ describe('DouCodeDiff annotations and collapsing', () => {
     expect(bars.map((bar) => bar.text())).toEqual(['4 行未改动', '5 行未改动', '5 行未改动'])
     expect(wrapper.find('.dou-code-editor__cell[data-line="8"]').text()).toBe('o')
     expect(wrapper.find('.dou-code-diff__widget').text()).toBe('戴兜')
+  })
+
+  it('leaves lines with a marker shown only on hover to collapse', async () => {
+    const many = Array.from({ length: 200 }, (_, i) => `line ${i + 1}`)
+    const changedMany = [...many]
+    changedMany[100] = 'LINE 101'
+    const everyLine = (['original', 'modified'] as const).flatMap((side) =>
+      many.map((_, i) => ({ side, line: i + 1, text: '+', visible: 'hover' as const })),
+    )
+    const bars = async (gutters: unknown) => {
+      const { wrapper } = setup({
+        original: many.join('\n'),
+        modelValue: changedMany.join('\n'),
+        gutters,
+      })
+      await nextTick()
+      await nextTick()
+      const count = wrapper.findAll('.dou-code-diff__side.is-modified .dou-code-diff__bar').length
+      wrapper.unmount()
+      return count
+    }
+    expect(await bars([{ name: 'comments', markers: everyLine }])).toBe(2)
+    expect(await bars([{ name: 'comments', hoverMarker: { text: '+', title: '评论' } }])).toBe(2)
   })
 
   it('warns once about a widget id used on both sides', async () => {

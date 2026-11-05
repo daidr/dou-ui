@@ -15,10 +15,11 @@ export interface ImageProps {
   width?: string | number
   height?: string | number
   /**
-   * Without `width` and `height` the picture keeps its own size and
-   * proportions: these cap it, and the box follows the picture. A number is
-   * in px, e.g. `maxWidth="100%"` and `:max-height="320"` for a picture in a
-   * message. While it loads, or when it fails, the box takes these sizes.
+   * The largest the box may be. A number is in px. Without `width` and
+   * `height` the picture keeps its own size and proportions, scaled down
+   * to fit under these, e.g. `maxWidth="100%"` and `:max-height="320"` for
+   * a picture in a message; while it loads, or when it fails, the box takes
+   * these sizes.
    */
   maxWidth?: string | number
   maxHeight?: string | number

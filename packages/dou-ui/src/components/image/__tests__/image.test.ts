@@ -128,6 +128,9 @@ describe('DouImage without a size of its own', () => {
       props: { src: 'a.png', width: 120, height: 80, maxWidth: '100%' },
     })
     expect(wrapper.get('.dou-image').classes()).not.toContain('is-natural')
-    expect(wrapper.get('.dou-image').attributes('style')).not.toContain('--dou-image-max-width')
+    const style = wrapper.get('.dou-image').attributes('style')
+    expect(style).not.toContain('--dou-image-max-width')
+    // still a cap on the box
+    expect(style).toContain('max-width: 100%')
   })
 })

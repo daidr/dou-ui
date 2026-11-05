@@ -77,6 +77,16 @@
     }
   }
 
+  /*
+   * A box given one side and a cap on the other (`width` and `max-height`)
+   * is as tall as the picture up to the cap: the picture follows the cap
+   * and fills the box by `fit`, rather than running past its edge.
+   */
+  .dou-image:not(.is-natural) > .dou-image__inner {
+    max-width: inherit;
+    max-height: inherit;
+  }
+
   .dou-image.is-loading .dou-image__inner {
     opacity: 0;
   }

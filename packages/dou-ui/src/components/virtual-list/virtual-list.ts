@@ -1,6 +1,17 @@
 export type VirtualListKey = string | number
 export type VirtualListAlign = 'start' | 'center' | 'end' | 'nearest'
 
+/** The key of an item as `itemKey` gives it: a property, a function, or the index. */
+export function virtualItemKey<T>(
+  itemKey: VirtualListProps<T>['itemKey'],
+  item: T,
+  index: number,
+): VirtualListKey {
+  if (typeof itemKey === 'function') return itemKey(item, index)
+  if (itemKey) return (item as Record<string, VirtualListKey>)[itemKey]!
+  return index
+}
+
 export interface VirtualListProps<T = any> {
   /** The items. Only those in or near the viewport are rendered. */
   items: T[]

@@ -4,13 +4,22 @@ import type { ForwardedAttributes } from '../../utils/install'
 import { ArrowDownIcon } from '@dou-ui/icons'
 import { onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { DouVirtualList } from '../virtual-list'
-import type { VirtualListExpose } from '../virtual-list'
+import type { VirtualListAlign, VirtualListExpose } from '../virtual-list'
+import { virtualItemKey } from '../virtual-list/virtual-list'
 import { useReducedMotion } from '../../composables/use-motion'
 import { useTouchScroll } from '../../composables/use-touch-scroll'
 import { scrollPositionOf } from '../../utils/scroll'
 import { useNamespace } from '../../utils/namespace'
+import { devWarn } from '../../utils/status-check'
 import { useLocale } from '../config-provider/use-config'
-import type { ChatListEmits, ChatListExpose, ChatListProps, ChatListSlots } from './chat-list'
+import type {
+  ChatListEmits,
+  ChatListExpose,
+  ChatListProps,
+  ChatListSlots,
+  ChatListTarget,
+} from './chat-list'
+import { elementOf, isTarget } from './chat-list'
 
 defineOptions({ name: 'DouChatList' })
 
@@ -175,11 +184,49 @@ function observeContent() {
 }
 watch(() => props.items?.length, observeContent, { flush: 'post' })
 
+// Jump straight to the message, by key or by element alike: a virtual list
+// only knows where an item is once it is rendered, so it cannot glide there.
+function scrollToMessage(target: ChatListTarget, align: VirtualListAlign = 'center') {
+  if (isTarget(target)) {
+    const el = viewportRef.value
+    const node = elementOf(target)
+    if (!el || !node || !el.contains(node)) return
+    const box = el.getBoundingClientRect()
+    const item = node.getBoundingClientRect()
+    const top = item.top - box.top + el.scrollTop
+    const offsets = { start: top, end: top + item.height - el.clientHeight }
+    let to = top - (el.clientHeight - item.height) / 2
+    if (align === 'start') to = offsets.start
+    else if (align === 'end') to = offsets.end
+    else if (align === 'nearest')
+      to =
+        item.top < box.top ? offsets.start : item.bottom > box.bottom ? offsets.end : el.scrollTop
+    // the reader asked to look elsewhere: new content must not pull them away
+    following = false
+    el.scrollTop = Math.max(0, to)
+    return
+  }
+  if (!props.items) {
+    if (process.env.NODE_ENV !== 'production')
+      devWarn(
+        '[dou-ui] DouChatList: `scrollToMessage` takes a key only with `items`; with the default slot, pass the message’s element or component.',
+      )
+    return
+  }
+  const index = props.items.findIndex(
+    (item, at) => virtualItemKey(props.itemKey, item, at) === target,
+  )
+  if (index < 0) return
+  following = false
+  listRef.value?.scrollToIndex(index, align)
+}
+
 defineExpose<ChatListExpose>({
   get viewport() {
     return viewportRef.value
   },
   scrollToBottom,
+  scrollToMessage,
   get atBottom() {
     return atBottom.value
   },

@@ -1,4 +1,21 @@
-import type { VirtualListKey } from '../virtual-list/virtual-list'
+import type { ComponentPublicInstance } from 'vue'
+import type { VirtualListAlign, VirtualListKey } from '../virtual-list/virtual-list'
+
+/**
+ * A message to scroll to: its key with `items`; otherwise its element, or
+ * the component that renders it (a `ref` on DouChatMessage).
+ */
+export type ChatListTarget = VirtualListKey | HTMLElement | ComponentPublicInstance
+
+/** @internal Whether the target is an element or a component, not a key. */
+export const isTarget = (target: ChatListTarget): target is HTMLElement | ComponentPublicInstance =>
+  typeof target === 'object' && target !== null
+
+/** @internal The element of a target: a component gives its root element. */
+export function elementOf(target: HTMLElement | ComponentPublicInstance): HTMLElement | null {
+  const el = '$el' in target ? (target.$el as unknown) : target
+  return el instanceof HTMLElement ? el : null
+}
 
 export interface ChatListProps<T = any> {
   /**
@@ -44,6 +61,14 @@ export interface ChatListExpose {
   viewport: HTMLElement | null
   /** Scroll to the end and follow new content again. */
   scrollToBottom: (behavior?: ScrollBehavior) => void
+  /**
+   * Jump to one message, e.g. one found by a search, and stop following
+   * new content. With `items` give its key (as `itemKey` makes it, or its
+   * index without one); otherwise its element or its DouChatMessage. Pair
+   * it with the message's `highlighted` to show which one it is. A target
+   * not in the list is ignored. `align` defaults to `center`.
+   */
+  scrollToMessage: (target: ChatListTarget, align?: VirtualListAlign) => void
   /** Whether the list is at the bottom now. */
   readonly atBottom: boolean
 }

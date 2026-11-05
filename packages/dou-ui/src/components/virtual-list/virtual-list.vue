@@ -15,7 +15,7 @@ import { useMeasuredSizes } from '../../composables/use-measured-sizes'
 import { useTouchScroll } from '../../composables/use-touch-scroll'
 import { scrollPositionOf } from '../../utils/scroll'
 import { useNamespace } from '../../utils/namespace'
-import { createOffsets } from './virtual-list'
+import { createOffsets, virtualItemKey } from './virtual-list'
 import type {
   VirtualListAlign,
   VirtualListEmits,
@@ -89,12 +89,7 @@ const range = computed(() => {
   }
 })
 
-const keyOf = (item: T, index: number): VirtualListKey => {
-  const { itemKey } = props
-  if (typeof itemKey === 'function') return itemKey(item, index)
-  if (itemKey) return (item as Record<string, VirtualListKey>)[itemKey]!
-  return index
-}
+const keyOf = (item: T, index: number) => virtualItemKey(props.itemKey, item, index)
 
 const visible = computed(() => {
   const { from, to } = range.value

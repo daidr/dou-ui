@@ -193,8 +193,10 @@ const rest = (part: AnyPart) => {
       ns.m(`actions-${actionsShow}`),
       ns.is('loading', loading),
       ns.is('editing', editing),
+      ns.is('highlighted', highlighted),
     ]"
     :aria-busy="busy || undefined"
+    :aria-current="highlighted || undefined"
   >
     <div v-if="files.length && !editing" :class="ns.e('files')">
       <template v-for="(part, index) in files" :key="`f${index}`">

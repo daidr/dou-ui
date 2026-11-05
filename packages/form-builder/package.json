@@ -1,6 +1,6 @@
 {
   "name": "@dou-ui/form-builder",
-  "version": "0.1.0-alpha.4",
+  "version": "0.1.0-alpha.5",
   "description": "DouUI 的表单设计器：用一份 JSON 描述搭建、渲染和校验表单",
   "keywords": [
     "vue",

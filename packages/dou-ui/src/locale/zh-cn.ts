@@ -477,6 +477,7 @@ export const zhCN: Locale = {
     deny: '拒绝',
     approved: '已允许',
     denied: '已拒绝',
+    answered: '已回答',
     withdrawn: '已撤回',
     generating: '正在生成…',
     generateError: '生成失败',

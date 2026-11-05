@@ -29,6 +29,7 @@ const iconSources = import.meta.glob<string>(
   [
     '../../../packages/icons/icons/alert-circle.stroke.svg',
     '../../../packages/icons/icons/alert-triangle.stroke.svg',
+    '../../../packages/icons/icons/message-question.stroke.svg',
     '../../../packages/icons/icons/arrow-up-right.stroke.svg',
     '../../../packages/icons/icons/minus.stroke.svg',
     '../../../packages/icons/icons/close.stroke.svg',
@@ -1252,6 +1253,15 @@ const arts: Record<string, string | ((id: string) => string)> = {
     bar(50, 57, 60, 't') +
     button(88, 74, 32, 'p', 14) +
     button(124, 74, 32, 'k', 14),
+  // the question, then two framed answers to pick from, the first one hovered
+  'chat-question':
+    rect(32, 18, 136, 84, 'p', 10) +
+    icon('message-question', 48, 32, 14, 'ico-2') +
+    bar(60, 30, 72, 'k') +
+    rect(60, 44, 96, 22, 'pm', 5) +
+    bar(68, 53, 44) +
+    rect(60, 72, 96, 22, 'p', 5) +
+    bar(68, 81, 56),
   'chat-suggestions': [0, 1, 2]
     .map((i) => {
       const w = [104, 88, 96][i]!

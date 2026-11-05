@@ -34,6 +34,7 @@
 | [ChatSources](./chat-sources)            | 引用来源与正文角标                                 |
 | [ChatArtifact](./chat-artifact)          | 生成的文档、代码等产物                             |
 | [ChatConfirm](./chat-confirm)            | 执行操作前的确认                                   |
+| [ChatQuestion](./chat-question)          | 请用户从几个选项里选一个回答                       |
 | [ChatSuggestions](./chat-suggestions)    | 可点击的提示建议                                   |
 | [ChatAttachments](./chat-attachments)    | 消息附带的文件                                     |
 | [ChatContextMeter](./chat-context-meter) | 上下文用量                                         |

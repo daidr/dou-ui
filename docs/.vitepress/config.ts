@@ -499,6 +499,7 @@ export default defineConfig({
             { text: 'ChatSources 引用来源', link: '/components/chat-sources' },
             { text: 'ChatArtifact 产物卡片', link: '/components/chat-artifact' },
             { text: 'ChatConfirm 操作确认', link: '/components/chat-confirm' },
+            { text: 'ChatQuestion 选项提问', link: '/components/chat-question' },
             { text: 'ChatSuggestions 提示建议', link: '/components/chat-suggestions' },
             { text: 'ChatAttachments 附件列表', link: '/components/chat-attachments' },
             { text: 'ChatContextMeter 上下文用量', link: '/components/chat-context-meter' },

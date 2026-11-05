@@ -26,10 +26,23 @@
 <script setup>
 import { ref } from 'vue'
 
+const messages = ref([
+  { id: 'm1', sender: 'user', content: '帮我订周五去上海的车票' },
+  { id: 'm2', sender: 'assistant', content: '周五上午有三班，要哪一班？' },
+])
+
 const list = ref()
 // 每条消息的组件，按 id 存放；消息移除时 ref 收到 null，一并删掉
 const refs = {}
-const keep = (id, c) => (c ? (refs[id] = c) : delete refs[id])
+function keep(id, c) {
+  if (c) refs[id] = c
+  else delete refs[id]
+}
+
+// 比如搜索结果里点中了某条消息
+function locate(id) {
+  list.value.scrollToMessage(refs[id])
+}
 </script>
 
 <template>
@@ -37,10 +50,6 @@ const keep = (id, c) => (c ? (refs[id] = c) : delete refs[id])
     <DouChatMessage v-for="m in messages" :key="m.id" :ref="(c) => keep(m.id, c)" v-bind="m" />
   </DouChatList>
 </template>
-```
-
-```ts
-list.value.scrollToMessage(refs[id])
 ```
 
 两种写法都是直接跳过去，不做平滑滚动：虚拟列表要等消息渲染出来才知道它的确切位置。找不到的键、不在列表里的元素，以及 `null`、`undefined`（比如已经移除的消息的 `ref`）都会被忽略，列表保持原样。
@@ -85,9 +94,9 @@ list.value.scrollToMessage(refs[id])
 
 ### Exposes
 
-| 名称              | 说明                                                                                                                                   | 类型                                                                                                                                             |
-| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `viewport`        | 滚动的元素                                                                                                                             | `HTMLElement \| null`                                                                                                                            |
-| `scrollToBottom`  | 滚动到底部并重新开始跟随                                                                                                               | `(behavior?: ScrollBehavior) => void`                                                                                                            |
-| `scrollToMessage` | 直接跳到一条消息并停止跟随；传了 `items` 时传键，否则传元素或 DouChatMessage 的 `ref`；找不到或传 `null` 时忽略；`align` 默认 `center` | `(target: VirtualListKey \| Element \| ComponentPublicInstance \| null \| undefined, align?: 'start' \| 'center' \| 'end' \| 'nearest') => void` |
-| `atBottom`        | 当前是否在底部                                                                                                                         | `boolean`                                                                                                                                        |
+| 名称              | 说明                                                                                                                                                | 类型                                                                                                                                             |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `viewport`        | 滚动的元素                                                                                                                                          | `HTMLElement \| null`                                                                                                                            |
+| `scrollToBottom`  | 滚动到底部并重新开始跟随                                                                                                                            | `(behavior?: ScrollBehavior) => void`                                                                                                            |
+| `scrollToMessage` | 直接跳到一条消息并停止跟随；传了 `items` 时传键，否则传元素或 DouChatMessage 的 `ref`；找不到或传 `null`、`undefined` 时忽略；`align` 默认 `center` | `(target: VirtualListKey \| Element \| ComponentPublicInstance \| null \| undefined, align?: 'start' \| 'center' \| 'end' \| 'nearest') => void` |
+| `atBottom`        | 当前是否在底部                                                                                                                                      | `boolean`                                                                                                                                        |

@@ -305,20 +305,29 @@ describe('layoutGraph', () => {
     expect(layout.width).toBe(436)
   })
 
-  it('runs a long edge down the middle only where it comes out straight', () => {
-    // The fan centres on the edge between its nodes: straight through.
+  it('runs a long edge straight down the middle where the graph grows a grid step at most', () => {
+    const straight = (layout: ReturnType<typeof layoutGraph>, xs: number[], x: number) => {
+      const [b, c] = layout.ranks[1]!.map((id) => layout.nodes.get(id)!)
+      expect(xs).toEqual([x, x])
+      expect(middle(layout, 'a')).toBe(x)
+      expect(middle(layout, 'd')).toBe(x)
+      expect(x).toBeGreaterThan(b!.x + b!.width)
+      expect(x).toBeLessThan(c!.x)
+    }
+    // The fan centres on the edge between its nodes, at no cost.
     const through = fanWithLongEdge(92, 64, 200, 60)
-    const [b, c] = through.layout.ranks[1]!.map((id) => through.layout.nodes.get(id)!)
-    expect(through.xs).toEqual([172, 172])
-    expect(middle(through.layout, 'a')).toBe(172)
-    expect(middle(through.layout, 'd')).toBe(172)
-    expect(through.xs[0]).toBeGreaterThan(b!.x + b!.width)
-    expect(through.xs[0]).toBeLessThan(c!.x)
-    // On this grid it would come out 29px off the middle and bulge out and
-    // back, so it stays outside, mirroring the nodes, and the source sits
-    // in the middle of all three.
-    const outside = fanWithLongEdge(92, 98, 98, 60)
+    straight(through.layout, through.xs, 172)
+    // A plan sized to its text: on this grid (59px) the edge in the middle
+    // would be half a step off the nodes, so the nodes move a step apart.
+    // Around the outside it was 285 wide.
+    const plan = fanWithLongEdge(92, 98, 98, 60)
+    straight(plan.layout, plan.xs, 167)
+    expect(plan.layout.width).toBe(334)
+    // Here that would take 310, more than a step (30px) over 260: the edge
+    // stays outside, mirroring the nodes, the source in the middle of all three.
+    const outside = fanWithLongEdge(40, 40, 160, 40)
     const [e, f] = outside.layout.ranks[1]!.map((id) => outside.layout.nodes.get(id)!)
+    expect(outside.layout.width).toBe(260)
     expect(outside.xs[0]).toBeGreaterThan(f!.x + f!.width)
     expect(middle(outside.layout, 'a')).toBe(
       (e!.x + e!.width / 2 + f!.x + f!.width / 2 + outside.xs[0]!) / 3,

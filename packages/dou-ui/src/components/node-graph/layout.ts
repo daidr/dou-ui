@@ -112,6 +112,8 @@ interface Item {
   y: number
   /** A long edge `centreLongEdges` moved into the middle of a fan. */
   centred?: boolean
+  /** Such an edge that takes whole grid steps on either side. */
+  whole?: boolean
 }
 
 /** Topological order plus the edges that had to be dropped to get one. */
@@ -428,13 +430,17 @@ function spacing(layer: Item[], gap: (a: Item, b: Item) => number, grid: number)
       const now = steps.slice(from, to).reduce((sum, n) => sum + n, 0)
       const total = Math.ceil((2 * side + between) / grid - 1e-6)
       const lead = Math.floor((total * grid - between) / 2)
-      // Only where centring fits in no more room than before; otherwise
-      // (nodes of different sizes, say) the steps stay as they are.
-      if (total <= now && lead >= a.height - a.anchor + gap(a, inner[0]!)) {
+      if (!inner[0]!.whole && total <= now && lead >= a.height - a.anchor + gap(a, inner[0]!)) {
         steps[from] = lead / grid
         for (let k = 1; k < inner.length; k++)
           steps[from + k] = gap(inner[k - 1]!, inner[k]!) / grid
         steps[to - 1] = total - (lead + between) / grid
+      } else if (inner.length === 1) {
+        // Where that leaves it off the middle of the fan, a single edge takes
+        // as many whole steps on either side, so it is on the grid in the
+        // very middle, even if the fan grows; `arrange` keeps that only
+        // while the graph grows by one step at most.
+        steps[from] = steps[to - 1] = Math.max(Math.ceil(side / grid - 1e-6), Math.ceil(now / 2))
       }
     }
     from = to
@@ -521,6 +527,19 @@ function lineUp(item: Item, neighbours: Item[], straight: boolean) {
   if (!straight || item.edge >= 0) return neighbours
   const nodes = neighbours.filter((n) => n.edge < 0)
   return nodes.length === 1 ? nodes : neighbours
+}
+
+/** How far a laid out part spans across the flow. */
+function breadth(part: Item[][]) {
+  let lo = Infinity
+  let hi = -Infinity
+  for (const layer of part) {
+    for (const item of layer) {
+      lo = Math.min(lo, item.y - item.anchor)
+      hi = Math.max(hi, item.y - item.anchor + item.height)
+    }
+  }
+  return hi - lo
 }
 
 /** Whether a long edge runs straight from its source to its target. */
@@ -661,20 +680,35 @@ export function layoutGraph(
   /** Orders and places the columns of one part of the graph. */
   const arrange = (part: Item[][]) => {
     const untangled = untangle(part)
-    // Long edges run down the middle of a fan where that costs nothing. But
-    // where the nodes either side differ in size, or the grid is coarse,
+    // Long edges run down the middle of a fan where they come out straight.
+    // Where the nodes either side differ in size, or the grid is coarse,
     // the fan may not come out centred on the edge; then the edge would
     // only bulge out and back, so those go back where they were.
     const keep = new Set<Item>()
     for (;;) {
       const ordered = centreLongEdges(untangled, keep)
       lay(ordered)
-      const crooked = ordered.flat().filter((item) => item.centred && !inLine(item))
-      if (!crooked.length) return ordered
-      for (const item of ordered.flat()) {
+      const all = ordered.flat()
+      const crooked = all.filter((item) => item.centred && !inLine(item))
+      if (!crooked.length) {
+        if (!all.some((item) => item.centred)) return ordered
+        // Running straight can widen a fan; by one grid step at most, or the
+        // part is laid out as before, its long edges around the outside.
+        const rows = all.map((item) => item.y)
+        const wide = breadth(ordered)
+        for (const item of all) item.centred = false
+        lay(untangled)
+        if (wide > breadth(untangled) + grid + 1e-6) return untangled
+        all.forEach((item, i) => (item.y = rows[i]!))
+        return ordered
+      }
+      for (const item of all) {
         if (item.centred) item.centred = false
       }
-      for (const item of crooked) keep.add(item)
+      for (const item of crooked) {
+        if (item.whole) keep.add(item)
+        else item.whole = true
+      }
     }
   }
 

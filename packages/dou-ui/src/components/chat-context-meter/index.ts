@@ -5,6 +5,7 @@ export const DouChatContextMeter = withInstall(ChatContextMeter)
 export default DouChatContextMeter
 
 export type * from './chat-context-meter'
+export { compactNumber } from './chat-context-meter'
 export type ChatContextMeterInstance = InstanceType<typeof ChatContextMeter>
 
 declare module 'vue' {

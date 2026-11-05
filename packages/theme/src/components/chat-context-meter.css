@@ -3,7 +3,8 @@
  *
  * How full the model's context is, as a small ring for the composer's
  * bottom bar. Neutral until it nears the limit, then the warning and
- * danger tones; the numbers are in the tooltip.
+ * danger tones. Only the ring: the app puts the numbers in a tooltip or
+ * popover around it, often inside a ghost button, so it adds no padding.
  */
 @layer dou.components {
   .dou-chat-context-meter {
@@ -12,13 +13,9 @@
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    height: 28px;
-    padding: 0 6px;
-    border-radius: var(--dou-radius-control);
     color: var(--dou-color-text-tertiary);
     font-size: 12px;
     font-variant-numeric: tabular-nums;
-    cursor: default;
 
     &:focus-visible {
       outline: 2px solid var(--dou-color-focus);

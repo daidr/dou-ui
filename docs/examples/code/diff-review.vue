@@ -44,7 +44,7 @@ const gutters = computed(() => [
       icon: MessageCircleIcon,
       title: `${comment.author}的评论`,
     })),
-    onPress(line, side) {
+    onPress(line, event, side) {
       comments.value = [
         ...comments.value,
         { id: nextId++, side, line, author: '戴兜', text: `第 ${line} 行的新评论。` },
@@ -65,20 +65,22 @@ const widgets = computed(() =>
       h('div', { class: 'demo-comment' }, [
         h(DouAvatar, { name: comment.author, size: 'sm' }),
         h('div', { class: 'demo-comment-body' }, [
-          h('div', { class: 'demo-comment-author' }, comment.author),
+          h('div', { class: 'demo-comment-head' }, [
+            h('span', { class: 'demo-comment-author' }, comment.author),
+            h(
+              DouButton,
+              {
+                size: 'xs',
+                variant: 'ghost',
+                onClick: () => {
+                  comments.value = comments.value.filter((c) => c.id !== comment.id)
+                },
+              },
+              () => '解决',
+            ),
+          ]),
           h('div', comment.text),
         ]),
-        h(
-          DouButton,
-          {
-            size: 'sm',
-            variant: 'outline',
-            onClick: () => {
-              comments.value = comments.value.filter((c) => c.id !== comment.id)
-            },
-          },
-          () => '解决',
-        ),
       ]),
   })),
 )
@@ -111,8 +113,14 @@ const widgets = computed(() =>
   min-width: 0;
   color: var(--dou-color-text);
 }
+:deep(.demo-comment-head) {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
 :deep(.demo-comment-author) {
   color: var(--dou-color-text-secondary);
-  font-size: var(--dou-font-size-xs);
+  font-size: var(--dou-font-size-sm);
 }
 </style>

@@ -1,5 +1,5 @@
 import { type DOMWrapper, mount } from '@vue/test-utils'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { DouCodeDiff, DouCodeEditor, defineCodeExtension, diffText } from '../index'
 
@@ -251,7 +251,7 @@ describe('DouCodeDiff gutters and widgets', () => {
             { side: 'original', line: 2, text: 'o' },
             { side: 'modified', line: 3, text: 'm' },
           ],
-          onPress: (line: number, side: string) => pressed.push([line, side]),
+          onPress: (line: number, _event: PointerEvent, side: string) => pressed.push([line, side]),
         },
       ],
     })
@@ -322,7 +322,7 @@ describe('DouCodeDiff gutters and widgets', () => {
             { side: 'original', line: 3, text: 'x' },
             { side: 'modified', line: 3, text: 'y' },
           ],
-          onPress: (line: number, side: string) => pressed.push([line, side]),
+          onPress: (line: number, _event: PointerEvent, side: string) => pressed.push([line, side]),
         },
       ],
       widgets: [
@@ -372,6 +372,150 @@ describe('DouCodeDiff gutters and widgets', () => {
     expect(span.text()).toBe('戴兜')
     expect(span.attributes('aria-label')).toBe('戴兜的评论')
     expect(span.classes()).toContain('is-placed')
+  })
+})
+
+/** Resize observers that report when told to, as a browser does after layout. */
+function observers() {
+  const all: { callback: ResizeObserverCallback; els: Set<Element> }[] = []
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      own: { callback: ResizeObserverCallback; els: Set<Element> }
+      constructor(callback: ResizeObserverCallback) {
+        this.own = { callback, els: new Set() }
+        all.push(this.own)
+      }
+      observe(el: Element) {
+        this.own.els.add(el)
+      }
+      unobserve(el: Element) {
+        this.own.els.delete(el)
+      }
+      disconnect() {
+        this.own.els.clear()
+      }
+    },
+  )
+  return () => {
+    for (const { callback, els } of all)
+      callback(
+        [...els].map(
+          (target) => ({ target, contentRect: { width: 800, height: 400 } }) as ResizeObserverEntry,
+        ),
+        {} as ResizeObserver,
+      )
+  }
+}
+
+// Lays out the editors' widgets only: a widget's content at its data-h, a blank at its own height.
+function layOut() {
+  Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
+    configurable: true,
+    get(this: HTMLElement) {
+      if (!this.isConnected || !this.classList.contains('dou-code-editor__widget')) return 0
+      const own = this.querySelector<HTMLElement>('[data-h]')
+      if (own) return Number(own.dataset.h)
+      const blank = this.querySelector<HTMLElement>('.dou-code-diff__spacer')
+      return blank ? Number.parseInt(blank.style.height, 10) : 0
+    },
+  })
+}
+
+describe('DouCodeDiff widget heights', () => {
+  const offsetHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight')!
+  afterEach(() => {
+    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', offsetHeight)
+    vi.unstubAllGlobals()
+  })
+  it('leaves a blank as high as the editor measured the widget, line for line', async () => {
+    layOut()
+    const report = observers()
+    const { wrapper } = setup({
+      original: 'a\nb\nc\nd\ne',
+      modelValue: 'a\nb\nC\nd\ne',
+      collapseUnchanged: false,
+      widgets: [
+        // no height given: the editor finds 40 when it draws them
+        { id: 'one', side: 'original', line: 1, render: () => h('div', { 'data-h': 40 }) },
+        { id: 'two', side: 'modified', line: 4, render: () => h('div', { 'data-h': 64 }) },
+      ],
+    })
+    await nextTick()
+    await nextTick()
+    report()
+    for (let i = 0; i < 4; i++) await nextTick()
+    const [a, b] = wrapper.findAll('.dou-code-diff__side')
+    const blanks = (side: typeof a) =>
+      side!.findAll('.dou-code-diff__spacer').map((blank) => blank.attributes('style'))
+    expect(blanks(a)).toEqual(['height: 64px;'])
+    expect(blanks(b)).toEqual(['height: 40px;'])
+    // Each widget and the blank across from it start at the same y, so the lines after them line up.
+    expect(tops(a!)).toEqual(tops(b!))
+    const lines = (side: typeof a) =>
+      side!.findAll('.dou-code-editor__line').map((line) => line.attributes('style'))
+    expect(lines(a)).toEqual(lines(b))
+  })
+})
+
+describe('DouCodeDiff annotations and collapsing', () => {
+  it('keeps lines with a marker or widget in view, with context around them', async () => {
+    const many = Array.from({ length: 20 }, (_, i) => `line ${i + 1}`)
+    const changedMany = [...many]
+    changedMany[0] = 'LINE 1'
+    const { wrapper } = setup({
+      original: many.join('\n'),
+      modelValue: changedMany.join('\n'),
+      collapseUnchanged: { context: 1, minLines: 2 },
+      gutters: [{ name: 'notes', markers: [{ side: 'original', line: 8, text: 'o' }] }],
+      widgets: [{ id: 'w', side: 'modified', line: 15, render: () => h('p', '戴兜') }],
+    })
+    await nextTick()
+    await nextTick()
+    const bars = wrapper.findAll('.dou-code-diff__side.is-modified .dou-code-diff__bar')
+    // 1 changed, 2 context, 3–6 hidden, 7–8 around 8, 9–13 hidden, 14–15 around 15, 16–20 hidden
+    expect(bars.map((bar) => bar.text())).toEqual(['4 行未改动', '5 行未改动', '5 行未改动'])
+    expect(wrapper.find('.dou-code-editor__cell[data-line="8"]').text()).toBe('o')
+    expect(wrapper.find('.dou-code-diff__widget').text()).toBe('戴兜')
+  })
+
+  it('warns once about a widget id used on both sides', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    setup({
+      widgets: [
+        { id: 'dup', side: 'original', line: 1, render: () => h('p', '戴兜') },
+        { id: 'dup', side: 'modified', line: 1, render: () => h('p', '上海') },
+      ],
+    })
+    await nextTick()
+    expect(warn.mock.calls.filter(([m]) => String(m).includes('"dup"'))).toHaveLength(1)
+    expect(String(warn.mock.calls[0]![0])).toMatch(/^\[@dou-ui\/code\] DouCodeDiff/)
+    warn.mockRestore()
+  })
+
+  it('reads out a widget across both sides on its own side too', async () => {
+    const { wrapper } = setup({
+      original: 'a\nb\nc',
+      modelValue: 'a\nB\nc',
+      widgets: [
+        {
+          id: 'both',
+          side: 'modified',
+          line: 3,
+          span: 'both',
+          label: '戴兜的评论',
+          render: () => h('p', '戴兜'),
+        },
+      ],
+    })
+    await nextTick()
+    await nextTick()
+    const [a, b] = wrapper.findAll('.dou-code-diff__side')
+    const own = b!.find('.dou-code-editor__widget:has([data-diff-span])')
+    expect(own.attributes('aria-label')).toBe('戴兜的评论')
+    expect(a!.find('.dou-code-editor__widget:has([data-diff-span])').attributes('aria-label')).toBe(
+      undefined,
+    )
   })
 })
 

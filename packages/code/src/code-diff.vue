@@ -15,6 +15,7 @@ import {
   nextTick,
   onBeforeUnmount,
   onMounted,
+  provide,
   reactive,
   ref,
   watch,
@@ -31,6 +32,7 @@ import {
   type CodeGutterMarker,
   type CodeWidget,
   defineCodeExtension,
+  WIDGET_HEIGHT_KEY,
 } from './extension'
 import { format, useCodeMessages } from './locale'
 import type {
@@ -166,6 +168,16 @@ const collapse = computed(() => {
 const opened = reactive(new Set<number>())
 const allOpen = ref(false)
 
+/** The lines with a marker or widget on each side, which collapsing leaves in view. */
+const annotatedLines = computed(() => {
+  const out = { a: new Set<number>(), b: new Set<number>() }
+  const add = (side: CodeDiffSide, line: number) => out[side === 'original' ? 'a' : 'b'].add(line)
+  for (const gutter of props.gutters ?? [])
+    for (const marker of gutter.markers) add(marker.side, marker.line)
+  for (const widget of props.widgets ?? []) add(widget.side, widget.line)
+  return out
+})
+
 const unchanged = computed<Unchanged[]>(() => {
   const list = hunks.value
   const total = originalLines.value.length
@@ -185,15 +197,26 @@ const unchanged = computed<Unchanged[]>(() => {
     }
     out.push({ a, b, count, hideFrom, hideCount, key: a })
   }
+  // A line with a marker or widget stays in view, with context around it, like a change.
+  const kept = annotatedLines.value
+  const cut = (a: number, b: number, count: number, before: boolean, after: boolean) => {
+    let from = 0
+    for (let i = 0; i < count; i++) {
+      if (!kept.a.has(a + i) && !kept.b.has(b + i)) continue
+      if (i > from) push(a + from, b + from, i - from, from > 0 || before, true)
+      from = Math.max(from, i)
+    }
+    push(a + from, b + from, count - from, from > 0 || before, after)
+  }
   let a = 1
   let b = 1
   for (let i = 0; i < list.length; i++) {
     const hunk = list[i]!
-    push(a, b, hunk.originalStart - a, i > 0, true)
+    cut(a, b, hunk.originalStart - a, i > 0, true)
     a = hunk.originalStart + hunk.originalCount
     b = hunk.modifiedStart + hunk.modifiedCount
   }
-  push(a, b, total - a + 1, list.length > 0, false)
+  cut(a, b, total - a + 1, list.length > 0, false)
   return out
 })
 const hiddenCount = computed(() => unchanged.value.reduce((sum, run) => sum + run.hideCount, 0))
@@ -310,7 +333,8 @@ function sideExtension(side: Side): CodeExtension {
         const last = startOf(hunk) - 1 + countOf(hunk)
         const blanks = fills.get(i) ?? []
         out.push({
-          id: `fill-${i}`,
+          // the height in the id: the editor never keeps a size measured before blanks changed
+          id: `fill-${i}-${missing}-${blanks.map((blank) => blank.height).join('.')}`,
           ...(last >= 1 ? { line: last } : { line: 1, position: 'above' as const }),
           height: missing * LINE + blanks.reduce((sum, blank) => sum + blank.height, 0),
           render: () => filler(missing, blanks),
@@ -617,25 +641,41 @@ const sideName = (side: Side): CodeDiffSide => (side === 'a' ? 'original' : 'mod
 /** The widgets' measured heights, by id, for the blank left beside each. */
 const heights = reactive(new Map<string, number>())
 let heightObserver: ResizeObserver | undefined
-const measured = new Map<Element, string>()
+/** The element each widget's content is drawn in now, by id, and back. */
+const measuredEls = new Map<string, Element>()
+const measuredIds = new Map<Element, string>()
+function readHeight(box: Element, entry?: ResizeObserverEntry) {
+  const id = measuredIds.get(box)
+  // The size the observer saw: by the time it says so, the editor may have
+  // moved on and taken the widget away, which leaves nothing to measure.
+  const size = entry?.borderBoxSize?.[0]?.blockSize ?? entry?.contentRect.height
+  const height = size === undefined ? (box as HTMLElement).offsetHeight : Math.round(size)
+  // Nothing measured means no layout (hidden): keep the guess.
+  if (id && height && heights.get(id) !== height) heights.set(id, height)
+}
+function forget(box: Element) {
+  heightObserver?.unobserve(box)
+  measuredIds.delete(box)
+}
+/** Measures a widget across both sides as drawn, now and whenever it resizes; `null` once it is gone. */
 function measure(el: Element | null, id: string) {
-  for (const [known] of measured)
-    if (!known.isConnected) {
-      heightObserver?.unobserve(known)
-      measured.delete(known)
+  const had = measuredEls.get(id)
+  if (!el) {
+    // the old element going after a new one came, e.g. on switching views, keeps the new one
+    if (had && !had.isConnected) {
+      forget(had)
+      measuredEls.delete(id)
     }
-  if (!el || measured.get(el) === id) return
-  measured.set(el, id)
-  const read = (box: Element) => {
-    const key = measured.get(box)
-    const height = (box as HTMLElement).offsetHeight
-    // Nothing measured means no layout (hidden): keep the guess.
-    if (key && height && heights.get(key) !== height) heights.set(key, height)
+    return
   }
-  read(el)
+  if (had === el) return
+  if (had) forget(had)
+  measuredEls.set(id, el)
+  measuredIds.set(el, id)
+  readHeight(el)
   if (typeof ResizeObserver === 'undefined') return
   heightObserver ??= new ResizeObserver((entries) => {
-    for (const entry of entries) read(entry.target)
+    for (const entry of entries) readHeight(entry.target, entry)
   })
   heightObserver.observe(el)
 }
@@ -643,13 +683,17 @@ onBeforeUnmount(() => heightObserver?.disconnect())
 
 const heightOf = (widget: CodeDiffWidget) => heights.get(widget.id) ?? widget.height ?? LINE
 
-/** A widget's own content, measured. */
+// The editors measure the widgets they draw and say so here: one height for the widget and its blank.
+const widgetIds = computed(() => new Set((props.widgets ?? []).map((widget) => widget.id)))
+provide(WIDGET_HEIGHT_KEY, (key, height) => {
+  if (!key.startsWith('diff-widgets')) return
+  const id = key.slice(key.indexOf('/') + 1)
+  if (widgetIds.value.has(id) && heights.get(id) !== height) heights.set(id, height)
+})
+
+/** A widget's own content. */
 const content = (widget: CodeDiffWidget) => () =>
-  h(
-    'div',
-    { class: ns.e('widget'), ref: (el: unknown) => measure(el as Element | null, widget.id) },
-    [widget.render()],
-  )
+  h('div', { class: ns.e('widget') }, [widget.render()])
 
 /** The blank across from a widget; `span` marks where a widget across both sides is drawn. */
 const spacer = (height: number, span?: string) => () =>
@@ -705,6 +749,27 @@ function across(
 }
 
 /** Side by side: each widget on its side, a blank of its height on the other. */
+// Heights are kept by id across both sides, so one id twice mixes them up.
+if (process.env.NODE_ENV !== 'production') {
+  const warned = new Set<string>()
+  watch(
+    () => props.widgets,
+    (widgets) => {
+      const seen = new Set<string>()
+      for (const widget of widgets ?? []) {
+        if (seen.has(widget.id) && !warned.has(widget.id)) {
+          warned.add(widget.id)
+          console.warn(
+            `[@dou-ui/code] DouCodeDiff: widget id "${widget.id}" is used more than once; ids must be unique across both sides.`,
+          )
+        }
+        seen.add(widget.id)
+      }
+    },
+    { immediate: true },
+  )
+}
+
 const splitPlan = computed(() => {
   const plan: Record<Side, SidePlan> = {
     a: { below: [], above: [], fills: new Map() },
@@ -719,9 +784,16 @@ const splitPlan = computed(() => {
     const above = widget.position === 'above'
     const height = heightOf(widget)
     const span = widget.span === 'both' ? widget.id : undefined
-    const put = (side: Side, line: number, render: () => VNodeChild, label?: string) =>
+    const put = (
+      side: Side,
+      line: number,
+      render: () => VNodeChild,
+      label?: string,
+      blank = false,
+    ) =>
       plan[side][above ? 'above' : 'below'].push({
-        id: widget.id,
+        // A blank's height is known: in its id, so the editor never keeps one it measured before.
+        id: blank ? `${widget.id}~${height}` : widget.id,
         line,
         position: above ? 'above' : 'below',
         height,
@@ -729,7 +801,7 @@ const splitPlan = computed(() => {
         render,
       })
     // Across both sides, the widget itself is drawn over the blanks, with its label.
-    if (span) put(own, widget.line, spacer(height, span))
+    if (span) put(own, widget.line, spacer(height, span), widget.label, true)
     else put(own, widget.line, content(widget), widget.label)
     const spot = across(own, widget.line, above)
     if (!spot) continue
@@ -738,7 +810,7 @@ const splitPlan = computed(() => {
       const blanks = fills.get(spot.fill) ?? []
       blanks.push({ offset: spot.offset, above, height, span })
       fills.set(spot.fill, blanks)
-    } else put(other, spot.line, spacer(height, span))
+    } else put(other, spot.line, spacer(height, span), undefined, true)
   }
   return plan
 })
@@ -760,7 +832,7 @@ function sideGutter(gutter: CodeDiffGutter, side: Side) {
           marker.side === name && marker.line >= visible.from && marker.line <= visible.to,
       ),
     onPress:
-      gutter.onPress && ((line: number, event: PointerEvent) => gutter.onPress!(line, name, event)),
+      gutter.onPress && ((line: number, event: PointerEvent) => gutter.onPress!(line, event, name)),
   }
 }
 
@@ -818,8 +890,8 @@ function inlineAnnotations(end = false): CodeExtension {
             const has = (side: CodeDiffSide, line: number) =>
               line > 0 && gutter.markers.some((m) => m.side === side && m.line === line)
             if (has('modified', b) || (b && !has('original', a)))
-              gutter.onPress!(b, 'modified', event)
-            else gutter.onPress!(a, 'original', event)
+              gutter.onPress!(b, event, 'modified')
+            else gutter.onPress!(a, event, 'original')
           }),
       }))
     },
@@ -903,12 +975,43 @@ watch(() => spans.value.length > 0 && view.value, startPlacing, { flush: 'post' 
 onMounted(startPlacing)
 onBeforeUnmount(() => stopPlacing?.())
 
+/**
+ * While the text scrolls, the widgets across both sides are hidden: placed a
+ * frame late, they would trail behind it. They come back once it rests.
+ */
+const spansScrolling = ref(false)
+let restTimer: ReturnType<typeof setTimeout> | undefined
+function onSideScroll() {
+  if (!spans.value.length) return
+  spansScrolling.value = true
+  clearTimeout(restTimer)
+  restTimer = setTimeout(() => {
+    spansScrolling.value = false
+    placeSpans()
+  }, 120)
+}
+onBeforeUnmount(() => clearTimeout(restTimer))
+
 /** A wheel over a widget across both sides scrolls the text under it. */
 function onSpanWheel(event: WheelEvent) {
   const scroller = sideB.value?.querySelector<HTMLElement>('.dou-code-editor__scroller')
-  if (!scroller || !event.deltaY) return
+  if (!scroller) return
   const unit = event.deltaMode === 1 ? LINE : event.deltaMode === 2 ? scroller.clientHeight : 1
-  scroller.scrollTop += event.deltaY * unit
+  const dy = event.deltaY * unit
+  const dx = event.deltaX * unit
+  const canY =
+    dy < 0
+      ? scroller.scrollTop > 0
+      : dy > 0 && scroller.scrollTop + scroller.clientHeight < scroller.scrollHeight - 1
+  const canX =
+    dx < 0
+      ? scroller.scrollLeft > 0
+      : dx > 0 && scroller.scrollLeft + scroller.clientWidth < scroller.scrollWidth - 1
+  // At the end, the page scrolls on as it would over the text.
+  if (!canY && !canX) return
+  event.preventDefault()
+  if (canY) scroller.scrollTop += dy
+  if (canX) scroller.scrollLeft += dx
 }
 
 // ---------------------------------------------------------------- hidden lines a cursor reaches
@@ -1097,7 +1200,11 @@ defineExpose({
     <div v-if="view === 'split'" :class="ns.e('body')" @scroll.capture="onScroll">
       <div :class="ns.e('label')">{{ messages.diffOriginal }}</div>
       <div :class="ns.e('label')">{{ messages.diffModified }}</div>
-      <div ref="sideA" :class="[ns.e('side'), 'is-original']">
+      <div
+        ref="sideA"
+        @scroll.capture.passive="onSideScroll"
+        :class="[ns.e('side'), 'is-original']"
+      >
         <CodeEditor
           ref="editorA"
           :model-value="original"
@@ -1114,7 +1221,11 @@ defineExpose({
           @transaction="revealAt('a', $event)"
         />
       </div>
-      <div ref="sideB" :class="[ns.e('side'), 'is-modified']">
+      <div
+        ref="sideB"
+        @scroll.capture.passive="onSideScroll"
+        :class="[ns.e('side'), 'is-modified']"
+      >
         <CodeEditor
           ref="editorB"
           :model-value="modified"
@@ -1142,11 +1253,11 @@ defineExpose({
           v-for="widget in spans"
           :key="widget.id"
           :ref="(el) => measure(el as Element | null, widget.id)"
-          :class="[ns.e('span'), ns.is('placed', widget.id in spanTops)]"
+          :class="[ns.e('span'), ns.is('placed', widget.id in spanTops && !spansScrolling)]"
           :style="{ transform: `translateY(${spanTops[widget.id] ?? 0}px)` }"
           :role="widget.label ? 'group' : undefined"
           :aria-label="widget.label"
-          @wheel.passive="onSpanWheel"
+          @wheel="onSpanWheel"
         >
           <RenderPart :render="widget.render" />
         </div>

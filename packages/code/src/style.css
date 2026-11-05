@@ -1562,8 +1562,12 @@
     font-size: var(--dou-font-size-sm);
     line-height: 20px;
     pointer-events: auto;
+    /* back after a scroll: fades in, leaves at once */
+    transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
     &:not(.is-placed) {
       visibility: hidden;
+      opacity: 0;
+      transition: none;
     }
   }
 

@@ -343,6 +343,13 @@ export function defineCodeExtension(extension: CodeExtension): CodeExtension {
 
 export const CODE_EDITOR_KEY: InjectionKey<CodeExtensionContext> = Symbol('DouCodeEditor')
 
+/**
+ * Internal: told each widget height an editor measures, by `extension/id`;
+ * DouCodeDiff leaves a blank of the same height across from it.
+ */
+export const WIDGET_HEIGHT_KEY: InjectionKey<((key: string, height: number) => void) | null> =
+  Symbol('DouCodeWidgetHeight')
+
 /** The editor a panel or gutter component is drawn in. */
 export function useCodeEditor(): CodeExtensionContext {
   const context = inject(CODE_EDITOR_KEY, null)

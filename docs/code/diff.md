@@ -34,16 +34,23 @@
 
 ## 批注
 
-`gutters` 在行号左侧加列，`widgets` 在行与行之间放组件，适合做审阅评论、断点这类需要标在某一侧某一行上的东西。每个标记和小部件都用 `side`（`'original'` 或 `'modified'`）和 `line` 指明位置，行号是那一侧文本自己的行号。两种显示方式下，组件都会把它们放到对应的行上：
+`gutters` 在行号左侧加列，`widgets` 在行与行之间放[小部件](/code/extensions#行间小部件)，适合做审阅评论、断点这类需要标在某一侧某一行上的内容。每个标记和小部件都用 `side`（`'original'` 或 `'modified'`）和 `line` 指明位置，行号是那一侧文本自己的行号。两种显示方式下，组件都会把它们放到对应的行上：
 
 - 并排时，标记画在它那一侧；小部件画在它那一侧，另一侧在对齐的位置留出同样高的空白，两侧不会错位。`span: 'both'` 的小部件横跨两栏，适合写给整段改动的说明。
 - `inline` 时，标记和小部件都放在这一行所在的位置；两侧共有的行上，修改后一侧的标记优先显示。
 
-点击 `gutters` 的列时触发 `onPress(line, side, event)`，`side` 是被点的那一侧。在 `inline` 视图中，两侧共有的行算作那里标记所在的一侧，没有标记时算作 `modified`。
+点击 `gutters` 的列时触发 `onPress(line, event, side)`，`side` 是被点的那一侧。在 `inline` 视图中，两侧共有的行算作那里标记所在的一侧，没有标记时算作 `modified`。
+
+几点需要注意：
+
+- 带标记或小部件的行不会被收起，前后同样保留 `context` 行，和改动一样留在视野里。
+- 行号由应用维护，不会随文本修改移动。允许编辑时，文本改动后需要自己更新批注的行号；只做审阅时建议不开 `editable`。超出那一侧行数的标记和小部件不会显示。
+- 小部件的 `id` 在全部 `widgets` 中唯一，两侧共用一套：组件按 `id` 记录测得的高度，两侧重复会让两栏错位，开发环境下会给出警告。
+- 在触屏上拖动横跨两栏的小部件不会滚动代码，需要在代码区域拖动。
 
 <DocDemo src="code/diff-review" column />
 
-`extensions` 只作用于并排时修改后的一侧，用于语言服务、检查这类读取文本的扩展；标在两侧行上的东西用 `gutters` 和 `widgets`。
+`extensions` 只作用于并排时修改后的一侧，用于语言服务、检查这类读取文本的扩展；标在两侧行上的内容用 `gutters` 和 `widgets`。
 
 ## 只计算差异
 
@@ -75,7 +82,7 @@ const hunks = diffText('上海\n戴兜\n', '上海\n阿青\n')
 | `wrap`              | `inline` 视图中自动换行                                                                        | `boolean`                                            | `false`  |
 | `extensions`        | 右侧编辑器的扩展，只在并排时使用                                                               | `CodeExtension[]`                                    | —        |
 | `gutters`           | 行号左侧的列，标记可以在任一侧，见[批注](#批注)                                                | `CodeDiffGutter[]`                                   | —        |
-| `widgets`           | 行间的组件，可以在任一侧或横跨两栏，见[批注](#批注)                                            | `CodeDiffWidget[]`                                   | —        |
+| `widgets`           | 行间小部件，可以在任一侧或横跨两栏，见[批注](#批注)                                            | `CodeDiffWidget[]`                                   | —        |
 | `toolbar`           | 显示工具栏                                                                                     | `boolean`                                            | `true`   |
 | `bordered`          | 整体的外框和圆角；关闭后去掉外框和圆角，聚焦时也不再画出边框，工具栏和左右两栏之间的分隔线保留 | `boolean`                                            | `true`   |
 | `tabSize`           | 制表位宽度                                                                                     | `number`                                             | `2`      |
@@ -88,20 +95,20 @@ const hunks = diffText('上海\n戴兜\n', '上海\n阿青\n')
 | `name`    | 列名，各列不能重复                                                                | `string`                                                          |
 | `width`   | 宽度，单位 px，默认 16                                                            | `number`                                                          |
 | `markers` | 标记 `{ side, line, icon?, text?, class?, title? }`，其余字段同编辑器的行号栏标记 | `CodeDiffGutterMarker[]`                                          |
-| `onPress` | 点击这一列                                                                        | `(line: number, side: CodeDiffSide, event: PointerEvent) => void` |
+| `onPress` | 点击这一列                                                                        | `(line: number, event: PointerEvent, side: CodeDiffSide) => void` |
 
 ### CodeDiffWidget
 
-| 名称       | 说明                                               | 类型                       |
-| ---------- | -------------------------------------------------- | -------------------------- |
-| `id`       | 区分各个小部件，测得的高度按它保存                 | `string`                   |
-| `side`     | 在哪一侧                                           | `'original' \| 'modified'` |
-| `line`     | 在这一行下方，行号从 1 开始                        | `number`                   |
-| `position` | `above` 时放在这一行上方，默认 `below`             | `'above' \| 'below'`       |
-| `render`   | 渲染内容                                           | `() => VNodeChild`         |
-| `height`   | 测量前的估计高度，单位 px，默认一行                | `number`                   |
-| `label`    | 光标移到这一行时读出的名称，例如“戴兜的评论”       | `string`                   |
-| `span`     | 并排时 `both` 横跨两栏，默认 `side` 只占自己那一栏 | `'side' \| 'both'`         |
+| 名称       | 说明                                                     | 类型                       |
+| ---------- | -------------------------------------------------------- | -------------------------- |
+| `id`       | 区分各个小部件，在两侧之间也不能重复，测得的高度按它保存 | `string`                   |
+| `side`     | 在哪一侧                                                 | `'original' \| 'modified'` |
+| `line`     | 在这一行下方，行号从 1 开始                              | `number`                   |
+| `position` | `above` 时放在这一行上方，默认 `below`                   | `'above' \| 'below'`       |
+| `render`   | 渲染内容                                                 | `() => VNodeChild`         |
+| `height`   | 测量前的估计高度，单位 px，默认一行                      | `number`                   |
+| `label`    | 光标移到这一行时读出的名称，例如“戴兜的评论”             | `string`                   |
+| `span`     | 并排时 `both` 横跨两栏，默认 `side` 只占自己那一栏       | `'side' \| 'both'`         |
 
 ### CodeDiff Exposes
 

@@ -37,6 +37,7 @@ import {
 import {
   computed,
   getCurrentInstance,
+  inject,
   markRaw,
   nextTick,
   onBeforeUnmount,
@@ -102,6 +103,7 @@ import { format, useCodeMessages } from './locale'
 import CodeKeys from './code-keys.vue'
 import {
   CODE_EDITOR_KEY,
+  WIDGET_HEIGHT_KEY,
   type CodeCompletion,
   type CodeCompletionKind,
   type CodeCompletionResult,
@@ -615,6 +617,7 @@ const layout = computed<LineLayout>((previous) => {
 
 /** The widgets' heights as last measured, by key. */
 const widgetHeights = shallowReactive(new Map<string, number>())
+const onWidgetHeight = inject(WIDGET_HEIGHT_KEY, null)
 
 interface PlacedWidget {
   key: string
@@ -772,7 +775,11 @@ function observeWidget(el: Element | null, key: string) {
     if (!id || !target.isConnected) return
     const height = (target as HTMLElement).offsetHeight
     // Nothing measured means no layout (a hidden editor): keep the guess.
-    if (height && widgetHeights.get(id) !== height) widgetHeights.set(id, height)
+    if (height && widgetHeights.get(id) !== height) {
+      // first, so whoever listens has it before the new layout takes the widget away
+      onWidgetHeight?.(id, height)
+      widgetHeights.set(id, height)
+    }
   }
   measureNow(el)
   if (typeof ResizeObserver === 'undefined') return
@@ -4894,6 +4901,8 @@ const api: CodeExtensionContext = {
 }
 context = api
 provide(CODE_EDITOR_KEY, api)
+// only for this editor's own widgets: an editor inside one of them reports to no one
+provide(WIDGET_HEIGHT_KEY, null)
 defineExpose<CodeEditorExpose>(api)
 </script>
 

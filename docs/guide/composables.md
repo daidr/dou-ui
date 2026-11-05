@@ -32,8 +32,9 @@ DouUI 的组件建立在一组组合式函数上。下面这些已经导出，�
 | `createScrollLink`                                | 让几个滚动区域同步滚动，不互相拉回                     | [下文](#createscrolllink)                                          |
 | `svgToPNG` / `fitPixelRatio`                      | 把 SVG 画成 PNG，超出画布上限时抛出 `RangeError`       | [下文](#svgtopng)                                                  |
 | `downloadBlob`                                    | 把 `Blob` 存成下载的文件                               | [下文](#downloadblob)                                              |
+| `installedAppContext`                             | 取得调用过 `app.use(DouUI)` 的应用上下文               | [下文](#installedappcontext)                                       |
 
-除 `holdPointer`、`scrollPositionOf`、`createScrollLink`、`svgToPNG`、`fitPixelRatio`、`downloadBlob` 外，这些函数都要在 `setup` 中调用，组件卸载时自动清理监听。
+除 `holdPointer`、`scrollPositionOf`、`createScrollLink`、`svgToPNG`、`fitPixelRatio`、`downloadBlob`、`installedAppContext` 外，这些函数都要在 `setup` 中调用，组件卸载时自动清理监听。
 
 ## 自己写一个浮层
 
@@ -259,3 +260,16 @@ downloadBlob(new Blob([csv], { type: 'text/csv' }), '门店.csv')
 ```
 
 `downloadBlob(blob, fileName)` 让浏览器把 `blob` 下载成名为 `fileName` 的文件，30 秒后释放临时地址：部分浏览器在点击结束后才读取地址，立即释放会让下载失败或丢掉文件名。它只在调用时用到 `document`，所以可以放心地在服务端渲染的组件里引入。
+
+## installedAppContext
+
+```ts
+import { installedAppContext } from 'dou-ui'
+import { h, render } from 'vue'
+
+const vnode = h(MyCard)
+vnode.appContext = installedAppContext()
+render(vnode, container)
+```
+
+`installedAppContext()` 返回调用过 `app.use(DouUI)` 的应用的上下文，没有调用过时返回 `null`。用函数在组件树之外渲染组件时，把它设为 vnode 的 `appContext`，组件就能沿用应用的语言包和全局配置。流程图的 `renderFlowSVG` 默认就这样做。

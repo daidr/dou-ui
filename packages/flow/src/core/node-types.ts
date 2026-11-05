@@ -135,3 +135,13 @@ export function labelOf(
 export function nodeBounds(spec: NodeTypeSpec, node: FlowNode, rect: Rect): Rect {
   return spec.bounds?.(node, rect) ?? turnedBox(rect, spec.rotation?.(node) ?? 0)
 }
+
+const unknownWarned = new Set<string>()
+/** Warns once per page about a node type no one registered. Call only while developing. */
+export function warnUnknownNodeType(type: string) {
+  if (unknownWarned.has(type)) return
+  unknownWarned.add(type)
+  console.warn(
+    `[@dou-ui/flow] node type "${type}" is not registered, so it is drawn as a default node: pass it in nodeTypes (or an extension)`,
+  )
+}

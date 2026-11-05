@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { renderFlowSVG, type FlowDocument } from '@dou-ui/flow'
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 
 // 两个画板，只有文档，页面上没有编辑器
 const boards: { name: string; doc: FlowDocument }[] = [
@@ -62,52 +62,63 @@ const boards: { name: string; doc: FlowDocument }[] = [
   },
 ]
 
-const theme = ref<'light' | 'dark'>('light')
+// 不设颜色模式时跟随页面
+const mode = ref<'page' | 'light' | 'dark'>('page')
+const modes = [
+  { label: '跟随页面', value: 'page' },
+  { label: '浅色', value: 'light' },
+  { label: '深色', value: 'dark' },
+]
 const images = ref<string[]>([])
 
+let latest = 0
 async function draw() {
+  // 连续切换时只采用最后一次的结果
+  const run = ++latest
+  const colorMode = mode.value === 'page' ? undefined : mode.value
   const out: string[] = []
   // 一次画一张，画完就移除，不在页面上留下编辑器
   for (const board of boards) {
-    const svg = await renderFlowSVG(board.doc, { theme: theme.value, padding: 16 })
+    const svg = await renderFlowSVG(board.doc, { colorMode, padding: 16 })
     out.push(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`)
   }
-  images.value = out
+  if (run === latest) images.value = out
 }
 onMounted(draw)
-
-function toggle() {
-  theme.value = theme.value === 'light' ? 'dark' : 'light'
-  void draw()
-}
+watch(mode, draw)
 </script>
 
 <template>
+  <DouSegmentedControl
+    v-model="mode"
+    :options="modes"
+    size="sm"
+    aria-label="缩略图的颜色模式"
+    class="demo-modes"
+  />
   <div class="demo-boards">
-    <!-- each card follows its thumbnail's theme -->
-    <figure
+    <!-- 卡片和缩略图用同一种颜色模式 -->
+    <div
       v-for="(board, i) in boards"
       :key="board.name"
       class="demo-board"
-      :data-dou-theme="theme"
+      :data-dou-theme="mode === 'page' ? undefined : mode"
     >
       <img v-if="images[i]" :src="images[i]" :alt="`${board.name}的缩略图`" />
-      <figcaption>{{ board.name }}</figcaption>
-    </figure>
-  </div>
-  <div>
-    <DouButton size="sm" @click="toggle">
-      {{ theme === 'light' ? '改用深色' : '改用浅色' }}
-    </DouButton>
+      <div class="demo-board-name">{{ board.name }}</div>
+    </div>
   </div>
 </template>
 
 <style scoped>
+.demo-modes {
+  align-self: flex-start;
+  margin-bottom: 12px;
+}
 .demo-boards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 16px;
-  margin-bottom: 12px;
 }
 .demo-board {
   margin: 0;
@@ -123,12 +134,13 @@ function toggle() {
   height: 140px;
   object-fit: contain;
 }
-.demo-board figcaption {
-  margin: 0;
-  padding: 8px 12px;
-  text-align: start;
+.demo-board-name {
+  /* with the 1px line above: 36px */
+  padding: 7px 12px 8px;
   background-color: var(--dou-color-bg-surface);
   border-top: 1px solid var(--dou-color-border);
+  color: var(--dou-color-text);
   font-size: var(--dou-font-size-sm);
+  line-height: 20px;
 }
 </style>

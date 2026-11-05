@@ -1,11 +1,14 @@
 import { mount } from '@vue/test-utils'
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
-import { defineComponent, h, nextTick, ref } from 'vue'
+import { DouUI, en } from 'dou-ui'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { createApp, defineComponent, h, nextTick, ref } from 'vue'
+import { setInstalledAppContext } from '../../../dou-ui/src/utils/app-context'
 import {
   drawCard,
   DouFlowEditor,
   defineNodeType,
   flowKit,
+  renderFlowPNG,
   renderFlowSVG,
   type FlowEditorExpose,
 } from '../index'
@@ -124,10 +127,22 @@ const doc = (): FlowDocument => ({
 })
 
 describe('renderFlowSVG', () => {
+  // the flow's styles, as `@dou-ui/flow/style` loads them
+  let styles: HTMLStyleElement
+  beforeEach(() => {
+    styles = document.createElement('style')
+    styles.textContent = '.dou-flow-editor { --dou-flow-editor-node-bg: #fff; }'
+    document.head.append(styles)
+  })
+  afterEach(() => {
+    styles.remove()
+    setInstalledAppContext(null)
+  })
+
   it('draws a document without an editor on the page, and leaves nothing behind', async () => {
     const given = doc()
     const before = JSON.stringify(given)
-    const svg = await renderFlowSVG(given, { theme: 'dark', padding: 0, background: false })
+    const svg = await renderFlowSVG(given, { colorMode: 'dark', padding: 0, background: false })
     expect(svg.startsWith('<svg xmlns="http://www.w3.org/2000/svg"')).toBe(true)
     expect(svg).toContain('读取 &lt;笔记&gt;')
     expect(svg).toContain('摘要')
@@ -145,6 +160,43 @@ describe('renderFlowSVG', () => {
       { nodeTypes: [box] },
     )
     expect(svg).toContain('data-test="box"')
+  })
+
+  it('says to import the styles when they are not on the page', async () => {
+    styles.remove()
+    await expect(renderFlowPNG(doc())).rejects.toThrow(
+      "[@dou-ui/flow] renderFlowPNG needs the flow styles, which load with <DouFlowEditor> only: import '@dou-ui/flow/style'",
+    )
+    expect(document.body.children).toHaveLength(0)
+  })
+
+  it('takes the locale of the app DouUI was installed in', async () => {
+    const group = {
+      version: 1,
+      edges: [],
+      nodes: [{ id: 'g', type: 'group', x: 0, y: 0, width: 300, height: 200 }],
+    } as FlowDocument
+    expect(await renderFlowSVG(group)).toContain('分组')
+    createApp({ render: () => null }).use(DouUI, { locale: en })
+    expect(await renderFlowSVG(group)).toContain('Group')
+    // given, its own wins
+    expect(await renderFlowSVG(group, { appContext: null })).toContain('分组')
+  })
+
+  it('warns once about a node type no one registered', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const lost = {
+      version: 1,
+      edges: [],
+      nodes: [{ id: 'x', type: 'nope', x: 0, y: 0 }],
+    } as FlowDocument
+    await renderFlowSVG(lost)
+    await renderFlowSVG(lost)
+    expect(warn.mock.calls.filter(([m]) => String(m).includes('"nope"'))).toHaveLength(1)
+    expect(String(warn.mock.calls[0]![0])).toMatch(
+      /^\[@dou-ui\/flow\] node type "nope" is not registered/,
+    )
+    warn.mockRestore()
   })
 })
 

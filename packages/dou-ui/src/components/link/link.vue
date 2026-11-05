@@ -98,7 +98,9 @@ function walk(nodes: unknown[], edge: Edge, take: boolean): Walk {
   }
   return { nodes: out, done: false, char: '' }
 }
-const Content = () => {
+// Called in this component's own render, so it follows slots that come
+// and go; `Nodes` only puts the result down.
+const parts = () => {
   const label = (slots.default?.() ?? []) as unknown[]
   const soft = props.variant === 'soft'
   const leading = slots.leading?.()
@@ -123,12 +125,16 @@ const Content = () => {
   const after = trailing ? icon(trailing, external) : undefined
   const body = h('span', { class: ns.e('label') }, tail.nodes as VNode[])
   if (!soft) return [before, body, after]
+  // a single character between two icons: all three break as one
+  if (before && after && head.char && !tail.char)
+    return [h('span', { class: [ns.e('lead'), ns.e('trail')] }, [before, head.char, body, after])]
   return [
     before && h('span', { class: ns.e('lead') }, [before, head.char]),
     body,
     after && h('span', { class: ns.e('trail') }, [tail.char, after]),
   ]
 }
+const Nodes = (nodes: { nodes: unknown }) => nodes.nodes as VNode[]
 
 const classes = computed(() => [
   ns.b(),
@@ -166,6 +172,6 @@ function onClick(event: MouseEvent) {
     v-bind="attrs"
     @click="onClick"
   >
-    <Content />
+    <Nodes :nodes="parts()" />
   </component>
 </template>

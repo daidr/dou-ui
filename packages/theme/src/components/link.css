@@ -116,11 +116,11 @@
       vertical-align: -0.125em;
     }
 
-    & .dou-link__lead > .dou-link__icon {
+    & .dou-link__lead > .dou-link__icon:first-child {
       margin-inline-end: 0.25em;
     }
 
-    & .dou-link__trail > .dou-link__icon {
+    & .dou-link__trail > .dou-link__icon:last-child {
       margin-inline-start: 0.25em;
     }
   }

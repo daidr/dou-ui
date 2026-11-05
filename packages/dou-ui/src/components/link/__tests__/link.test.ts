@@ -1,6 +1,14 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
-import { Fragment, createCommentVNode, createTextVNode, defineComponent, h } from 'vue'
+import {
+  Fragment,
+  createCommentVNode,
+  createTextVNode,
+  defineComponent,
+  h,
+  nextTick,
+  ref,
+} from 'vue'
 import { DouLink } from '../../../index'
 
 describe('DouLink', () => {
@@ -69,6 +77,18 @@ describe('DouLink', () => {
     expect(plain.get('.dou-link__label').text()).toBe('文档')
   })
 
+  it('keeps a single character and both icons together', () => {
+    const wrapper = mount(DouLink, {
+      props: { href: '/a', variant: 'soft', external: true },
+      slots: { leading: '<i>i</i>', default: ' 文 ' },
+    })
+    const edges = wrapper.findAll('.dou-link__lead')
+    expect(edges).toHaveLength(1)
+    expect(edges[0]!.classes()).toContain('dou-link__trail')
+    expect(edges[0]!.findAll('.dou-link__icon')).toHaveLength(2)
+    expect(wrapper.element.textContent).toBe('i文')
+  })
+
   it('looks past a fragment that holds only spaces', () => {
     const Wrapper = defineComponent({
       setup(_, { slots }) {
@@ -89,6 +109,29 @@ describe('DouLink', () => {
     })
     expect(wrapper.get('.dou-link__lead').text()).toBe('i周')
     expect(wrapper.get('.dou-link__label').element.textContent).toBe('会')
+  })
+
+  it('shows an icon slot that comes later', async () => {
+    for (const variant of ['text', 'soft'] as const) {
+      const on = ref(false)
+      const wrapper = mount(
+        defineComponent({
+          setup: () => () =>
+            h(
+              DouLink,
+              { href: '/a', variant },
+              on.value
+                ? { leading: () => h('i', 'l'), trailing: () => h('i', 't'), default: () => '文档' }
+                : { default: () => '文档' },
+            ),
+        }),
+      )
+      expect(wrapper.findAll('.dou-link__icon')).toHaveLength(0)
+      on.value = true
+      await nextTick()
+      expect(wrapper.findAll('.dou-link__icon')).toHaveLength(2)
+      expect(wrapper.text()).toBe('l文档t')
+    }
   })
 
   it('trims the spaces a label on its own lines brings', () => {

@@ -1,4 +1,4 @@
-import type { VirtualListKey } from '../virtual-list/virtual-list'
+import type { VirtualListAlign, VirtualListKey } from '../virtual-list/virtual-list'
 
 export interface ChatListProps<T = any> {
   /**
@@ -44,6 +44,14 @@ export interface ChatListExpose {
   viewport: HTMLElement | null
   /** Scroll to the end and follow new content again. */
   scrollToBottom: (behavior?: ScrollBehavior) => void
+  /**
+   * Bring one message into view, e.g. one found by a search, and stop
+   * following new content. With `items` give its key (as `itemKey` makes
+   * it, or its index without one); otherwise its element. Pair it with the
+   * message's `highlighted` to show which one it is. `align` defaults to
+   * `center`.
+   */
+  scrollToMessage: (target: VirtualListKey | HTMLElement, align?: VirtualListAlign) => void
   /** Whether the list is at the bottom now. */
   readonly atBottom: boolean
 }

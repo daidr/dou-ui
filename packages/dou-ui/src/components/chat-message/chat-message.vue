@@ -189,6 +189,7 @@ const rest = (part: AnyPart) => {
       ns.m(`actions-${actionsShow}`),
       ns.is('loading', loading),
       ns.is('editing', editing),
+      ns.is('highlighted', highlighted),
     ]"
     :aria-busy="busy || undefined"
   >

@@ -60,6 +60,10 @@ app.use(DouUI, {
 
 <DocDemo src="chat-message/actions-hover" column />
 
+## 高亮
+
+`highlighted` 给消息加上主题色的描边：用户消息贴着气泡，助手消息框在文字外侧一点。打开时一直显示，关掉后淡出（减少动效时直接消失），所以通常过一两秒再关掉。配合 DouChatList 的 [`scrollToMessage`](./chat-list#定位到某条消息) 使用。
+
 ## Markdown
 
 设置 `markdown` 后，文字和思考过程片段用 [Markdown](./markdown) 渲染，流式输出同样适用；正文中的 `[1]` 显示为消息里 `sources` 片段对应来源的角标。
@@ -80,18 +84,19 @@ app.use(DouUI, {
 
 ### Props
 
-| 名称              | 说明                                                     | 类型                                | 默认值                              |
-| ----------------- | -------------------------------------------------------- | ----------------------------------- | ----------------------------------- |
-| `sender`          | 发送方                                                   | `'user' \| 'assistant' \| 'system'` | `'assistant'`                       |
-| `parts`           | 片段数组                                                 | `ChatMessagePart[]`                 | —                                   |
-| `content`         | 只有一段文字时的简写                                     | `string`                            | —                                   |
-| `loading`         | 还没有收到内容，显示等待圆点                             | `boolean`                           | `false`                             |
-| `copyable`        | 显示复制按钮                                             | `boolean`                           | `true`                              |
-| `actions-visible` | 操作何时显示，无法悬停的设备始终显示                     | `'always' \| 'hover'`               | 用户消息 `'hover'`，其余 `'always'` |
-| `markdown`        | 文字和思考过程片段按 Markdown 渲染，对象为 Markdown 选项 | `boolean \| ChatMessageMarkdown`    | `false`                             |
-| `editable`        | 用户消息显示编辑按钮                                     | `boolean`                           | `false`                             |
-| `versions`        | 共有几个版本，大于 1 时显示切换器                        | `number`                            | `1`                                 |
-| `version`         | 当前版本，从 1 开始，配合 `v-model:version`              | `number`                            | 最后一个版本                        |
+| 名称              | 说明                                                                           | 类型                                | 默认值                              |
+| ----------------- | ------------------------------------------------------------------------------ | ----------------------------------- | ----------------------------------- |
+| `sender`          | 发送方                                                                         | `'user' \| 'assistant' \| 'system'` | `'assistant'`                       |
+| `parts`           | 片段数组                                                                       | `ChatMessagePart[]`                 | —                                   |
+| `content`         | 只有一段文字时的简写                                                           | `string`                            | —                                   |
+| `loading`         | 还没有收到内容，显示等待圆点                                                   | `boolean`                           | `false`                             |
+| `copyable`        | 显示复制按钮                                                                   | `boolean`                           | `true`                              |
+| `actions-visible` | 操作何时显示，无法悬停的设备始终显示                                           | `'always' \| 'hover'`               | 用户消息 `'hover'`，其余 `'always'` |
+| `markdown`        | 文字和思考过程片段按 Markdown 渲染，对象为 Markdown 选项                       | `boolean \| ChatMessageMarkdown`    | `false`                             |
+| `editable`        | 用户消息显示编辑按钮                                                           | `boolean`                           | `false`                             |
+| `versions`        | 共有几个版本，大于 1 时显示切换器                                              | `number`                            | `1`                                 |
+| `version`         | 当前版本，从 1 开始，配合 `v-model:version`                                    | `number`                            | 最后一个版本                        |
+| `highlighted`     | 用主题色的描边框住这条消息，比如搜索定位到它时；关掉后淡出，减少动效时直接消失 | `boolean`                           | `false`                             |
 
 ### Events
 

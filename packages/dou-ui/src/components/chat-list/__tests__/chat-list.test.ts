@@ -1,6 +1,6 @@
 import { mount } from '@vue/test-utils'
-import { nextTick } from 'vue'
-import { describe, expect, it } from 'vitest'
+import { defineComponent, h, nextTick } from 'vue'
+import { describe, expect, it, vi } from 'vitest'
 import { DouChatList } from '../../../index'
 
 function sized(el: HTMLElement, scrollHeight: number, clientHeight = 100) {
@@ -54,5 +54,46 @@ describe('DouChatList', () => {
     await viewport.trigger('scroll')
     expect(wrapper.emitted('topReached')).toHaveLength(2)
     await nextTick()
+  })
+
+  it('scrolls a message into view by its element, and by its key with items', async () => {
+    const wrapper = mount(DouChatList, {
+      slots: { default: '<p>一</p><p id="two">二</p>' },
+      attachTo: document.body,
+    })
+    const viewport = wrapper.get('.dou-chat-list__viewport').element as HTMLElement
+    const scrollTo = vi.fn()
+    viewport.scrollTo = scrollTo as typeof viewport.scrollTo
+    const exposed = wrapper.vm as unknown as {
+      scrollToMessage: (target: unknown, align?: string) => void
+    }
+    exposed.scrollToMessage(wrapper.get('#two').element, 'start')
+    expect(scrollTo).toHaveBeenCalledTimes(1)
+    // an element from elsewhere is left alone
+    exposed.scrollToMessage(document.createElement('p'))
+    expect(scrollTo).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+
+    const items = Array.from({ length: 50 }, (_, index) => ({ id: `m${index}` }))
+    const scrollToIndex = vi.fn()
+    const VirtualList = defineComponent({
+      name: 'DouVirtualList',
+      setup(_, { expose }) {
+        expose({ scrollToIndex, el: () => null })
+        return () => h('div')
+      },
+    })
+    const list = mount(DouChatList, {
+      props: { items, itemKey: 'id' },
+      global: { stubs: { DouVirtualList: VirtualList } },
+    })
+    await nextTick()
+    const scrollToMessage = (list.vm as unknown as { scrollToMessage: (key: string) => void })
+      .scrollToMessage
+    scrollToMessage('m30')
+    scrollToMessage('nope')
+    expect(scrollToIndex).toHaveBeenCalledTimes(1)
+    expect(scrollToIndex).toHaveBeenCalledWith(30, 'center')
+    list.unmount()
   })
 })

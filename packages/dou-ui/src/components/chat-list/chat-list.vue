@@ -4,7 +4,7 @@ import type { ForwardedAttributes } from '../../utils/install'
 import { ArrowDownIcon } from '@dou-ui/icons'
 import { onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { DouVirtualList } from '../virtual-list'
-import type { VirtualListExpose } from '../virtual-list'
+import type { VirtualListAlign, VirtualListExpose, VirtualListKey } from '../virtual-list'
 import { useReducedMotion } from '../../composables/use-motion'
 import { useTouchScroll } from '../../composables/use-touch-scroll'
 import { scrollPositionOf } from '../../utils/scroll'
@@ -175,11 +175,44 @@ function observeContent() {
 }
 watch(() => props.items?.length, observeContent, { flush: 'post' })
 
+function keyOf(item: T, index: number): VirtualListKey {
+  const { itemKey } = props
+  if (typeof itemKey === 'function') return itemKey(item, index)
+  if (itemKey) return (item as Record<string, VirtualListKey>)[itemKey]!
+  return index
+}
+
+function scrollToMessage(target: VirtualListKey | HTMLElement, align: VirtualListAlign = 'center') {
+  // the reader asked to look elsewhere: new content must not pull them away
+  following = false
+  if (typeof target === 'object') {
+    const el = viewportRef.value
+    if (!el || !el.contains(target)) return
+    const box = el.getBoundingClientRect()
+    const item = target.getBoundingClientRect()
+    const top = item.top - box.top + el.scrollTop
+    const offsets = { start: top, end: top + item.height - el.clientHeight }
+    let to = top - (el.clientHeight - item.height) / 2
+    if (align === 'start') to = offsets.start
+    else if (align === 'end') to = offsets.end
+    else if (align === 'nearest')
+      to =
+        item.top < box.top ? offsets.start : item.bottom > box.bottom ? offsets.end : el.scrollTop
+    const behavior = reducedMotion.value ? 'auto' : 'smooth'
+    if (el.scrollTo) el.scrollTo({ top: Math.max(0, to), behavior })
+    else el.scrollTop = Math.max(0, to)
+    return
+  }
+  const index = props.items?.findIndex((item, at) => keyOf(item, at) === target) ?? -1
+  if (index >= 0) listRef.value?.scrollToIndex(index, align)
+}
+
 defineExpose<ChatListExpose>({
   get viewport() {
     return viewportRef.value
   },
   scrollToBottom,
+  scrollToMessage,
   get atBottom() {
     return atBottom.value
   },

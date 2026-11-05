@@ -140,6 +140,13 @@ export interface ChatMessageProps {
   versions?: number
   /** Which version is shown, from 1. Bound with `v-model:version`. */
   version?: number
+  /**
+   * Mark this message with a ring in the primary color that hugs the
+   * bubble, e.g. after a search jumped to it. It stays while set and fades
+   * once turned off (at once with reduced motion): turn it off after a
+   * moment. Pair it with ChatList's `scrollToMessage`.
+   */
+  highlighted?: boolean
 }
 
 export interface ChatMessageEmits {

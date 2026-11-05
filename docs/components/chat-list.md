@@ -18,6 +18,12 @@
 
 <DocDemo src="chat-list/many" column />
 
+## 定位到某条消息
+
+`scrollToMessage` 把一条消息滚到视野中间，比如搜索点中的那一条，并停止跟随新内容，免得新消息把读者拉回底部。传了 `items` 时参数是这条消息的键（`itemKey` 给出的值，没有 `itemKey` 时是下标）；用默认插槽时传它的元素。配合 DouChatMessage 的 `highlighted` 短暂高亮，让读者知道是哪一条。
+
+<DocDemo src="chat-list/locate" column />
+
 ## 读屏
 
 滚动区域带 `role="log"` 和 `tabindex="0"`，可以用键盘聚焦后上下滚动。
@@ -52,8 +58,9 @@
 
 ### Exposes
 
-| 名称             | 说明                     | 类型                                  |
-| ---------------- | ------------------------ | ------------------------------------- |
-| `viewport`       | 滚动的元素               | `HTMLElement \| null`                 |
-| `scrollToBottom` | 滚动到底部并重新开始跟随 | `(behavior?: ScrollBehavior) => void` |
-| `atBottom`       | 当前是否在底部           | `boolean`                             |
+| 名称              | 说明                                                                              | 类型                                                                                                 |
+| ----------------- | --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `viewport`        | 滚动的元素                                                                        | `HTMLElement \| null`                                                                                |
+| `scrollToBottom`  | 滚动到底部并重新开始跟随                                                          | `(behavior?: ScrollBehavior) => void`                                                                |
+| `scrollToMessage` | 把一条消息滚到视野里并停止跟随；`items` 时传键，否则传元素，`align` 默认 `center` | `(target: VirtualListKey \| HTMLElement, align?: 'start' \| 'center' \| 'end' \| 'nearest') => void` |
+| `atBottom`        | 当前是否在底部                                                                    | `boolean`                                                                                            |

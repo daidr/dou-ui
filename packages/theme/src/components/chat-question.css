@@ -150,9 +150,9 @@
       cursor: not-allowed;
     }
 
-    /* a one-line option is 38px: a finger needs 40 */
+    /* a one-line option is 38px: a finger needs 40, with the text still centred */
     @media (pointer: coarse) {
-      min-height: 40px;
+      padding-block: 9px;
     }
   }
 

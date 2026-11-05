@@ -55,6 +55,10 @@ export interface DashboardMessages {
   /** A widget's status. */
   loading: string
   error: string
+  /** A widget that failed to show, e.g. for props it can't use. */
+  renderError: string
+  /** A widget's settings form that failed to show. */
+  settingsError: string
   empty: string
   retry: string
   /** A dashboard without widgets, while editing. */
@@ -143,6 +147,8 @@ const zhCN: DashboardMessages = {
   unknownType: '没有注册类型为 {type} 的格子',
   loading: '加载中',
   error: '加载失败',
+  renderError: '无法显示',
+  settingsError: '无法显示设置',
   empty: '暂无数据',
   retry: '重试',
   emptyTitle: '还没有格子',
@@ -218,6 +224,8 @@ const zhTW: DashboardMessages = {
   unknownType: '沒有註冊類型為 {type} 的格子',
   loading: '載入中',
   error: '載入失敗',
+  renderError: '無法顯示',
+  settingsError: '無法顯示設定',
   empty: '暫無資料',
   retry: '重試',
   emptyTitle: '還沒有格子',
@@ -294,6 +302,8 @@ const en: DashboardMessages = {
   unknownType: 'No widget type “{type}” is registered',
   loading: 'Loading',
   error: 'Couldn’t load',
+  renderError: 'Couldn’t display',
+  settingsError: 'Couldn’t display the settings',
   empty: 'No data',
   retry: 'Retry',
   emptyTitle: 'No widgets yet',

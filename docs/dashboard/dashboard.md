@@ -82,10 +82,11 @@ wide: true
 
 ### Dashboard Events
 
-| 名称               | 说明                                              | 参数                         |
-| ------------------ | ------------------------------------------------- | ---------------------------- |
-| `change`           | 每次修改之后，见[文档与事务](./document#修改文档) | `(tr: DashboardTransaction)` |
-| `breakpointChange` | 断点变化时                                        | `(breakpoint: string)`       |
+| 名称               | 说明                                                                          | 参数                                 |
+| ------------------ | ----------------------------------------------------------------------------- | ------------------------------------ |
+| `change`           | 每次修改之后，见[文档与事务](./document#修改文档)                             | `(tr: DashboardTransaction)`         |
+| `breakpointChange` | 断点变化时                                                                    | `(breakpoint: string)`               |
+| `widgetError`      | 格子的内容或设置面板出错时，见[自定义格子](./custom-widgets#加载、出错与空态) | `(event: DashboardWidgetErrorEvent)` |
 
 ### Dashboard Exposes
 

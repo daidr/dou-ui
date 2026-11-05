@@ -10,23 +10,33 @@ import type {
 import { computed, shallowRef, watch } from 'vue'
 import { useDashboardWidget } from '../widget/context'
 import { filterValueOf, rowsOf } from '../widgets/shared'
-import type { PivotWidgetProps } from './types'
+import { pivotPropsOf } from './read-props'
 
 defineOptions({ name: 'DouDashboardPivotWidget' })
 
 defineProps<{ fields?: readonly PivotField[] }>()
 
-const { props, data, size, setFilter, ownFilters, editing, setProps, setWorkbook } =
-  useDashboardWidget<PivotWidgetProps>()
+const {
+  props: raw,
+  data,
+  size,
+  setFilter,
+  ownFilters,
+  editing,
+  setProps,
+  setWorkbook,
+} = useDashboardWidget()
+const props = computed(() => pivotPropsOf(raw.value))
 const pivot = shallowRef<PivotExpose>()
 // the export menu writes the table as it shows: merged heads, totals, number formats
 setWorkbook(() => pivot.value?.toSheet({ name: '' }))
 const rows = computed(() => rowsOf(data.value, props.value.path))
 // sorting in the table works while viewing too; only while editing is it saved
 const config = shallowRef<PivotConfig | undefined>(props.value.config)
+// only a new config from the props replaces it, not a change to another prop
 watch(
-  () => props.value.config,
-  (next) => (config.value = next),
+  () => raw.value.config,
+  () => (config.value = props.value.config),
 )
 function onConfig(next: PivotConfig) {
   config.value = next

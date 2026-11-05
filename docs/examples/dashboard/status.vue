@@ -30,6 +30,14 @@ const doc = ref({
       props: { points: [] },
       place: { lg: { x: 6, y: 0, w: 6, h: 3 } },
     },
+    {
+      id: 'old',
+      type: 'orders',
+      title: '旧仓订单',
+      // 旧格式的设置：points 写成了文字
+      props: { points: '8,12,10' },
+      place: { lg: { x: 0, y: 3, w: 12, h: 3 } },
+    },
   ],
 })
 // 换一个 key 让格子重新挂载，再取一次数

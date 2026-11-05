@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useDashboardWidget } from '../widget/context'
-import type { TextWidgetProps } from './types'
+import { textPropsOf } from './read-props'
 
 defineOptions({ name: 'DouDashboardTextWidget' })
 
-const { props } = useDashboardWidget<TextWidgetProps>()
+const { props: raw } = useDashboardWidget()
+const props = computed(() => textPropsOf(raw.value))
 </script>
 
 <template>

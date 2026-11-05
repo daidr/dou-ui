@@ -8,7 +8,7 @@ wide: true
 
 ## 基础用法
 
-下面两个格子是同一种自己写的类型“订单趋势”：组件用 `useDashboardWidget()` 读到格子的设置和大小画出迷你图，取数时用 `setStatus` 显示加载、出错和空态。左边的格子第一次取数会失败，点“重试”后成功；右边的格子没有数据，显示空态。
+下面两个格子是同一种自己写的类型“订单趋势”：组件用 `useDashboardWidget()` 读到格子的设置和大小画出迷你图，取数时用 `setStatus` 显示加载、出错和空态。左边的格子第一次取数会失败，点“重试”后成功；右边的格子没有数据，显示空态；下面的格子设置是旧格式，组件绘制时抛错，显示“无法显示”。
 
 <DocDemo src="dashboard/status" />
 
@@ -94,6 +94,20 @@ try {
 - `error` 传了 `retry` 时显示“重试”按钮。
 - 用[数据源](./data)取数的格子，加载中和出错的状态跟着数据源走，只需要在没有数据时设为 `'empty'`。
 
+格子的组件抛出错误时（比如拿到用不了的 `props`），只有这个格子显示“无法显示”和“重试”按钮，其他格子照常显示。开发环境下控制台会输出错误和格子的 `id`。格子的 `props` 或数据变化后会重新渲染。设置面板出错时同样只在设置抽屉里显示“无法显示设置”。这两句可以用 `DouDashboard` 的 `messages` 中的 `renderError`、`settingsError` 替换。
+
+只有组件初始化、渲染和挂载、更新前后的钩子里抛出的错误会让格子进入这个状态；事件处理函数、`watch` 回调里的错误不会拆掉格子，照常交给应用的 `errorHandler`。进入这个状态的错误不会再传到 `errorHandler`，而是触发 DouDashboard 的 `widgetError` 事件（`{ widget, part, error }`，`part` 是 `'content'` 或 `'settings'`），可以在这里上报到错误监控。同一个格子连续以相同的错误失败时只报一次。
+
+`props` 是普通 JSON，常由程序或 AI 生成，类型可能不对。`@dou-ui/dashboard/widgets` 导出了内置格子读 `props` 用的几个函数，类型不对时都返回“没有设置”：
+
+| 函数       | 说明                                                       |
+| ---------- | ---------------------------------------------------------- |
+| `textOf`   | 文字，否则 `undefined`                                     |
+| `textsOf`  | 数组里的文字项，不是数组时返回 `[]`                        |
+| `numberOf` | 有限的数字，或能转成数字的文字（`'12'`），否则 `undefined` |
+| `flagOf`   | 只有 `true` 算开                                           |
+| `recordOf` | 普通对象（不是数组），否则 `undefined`                     |
+
 ## API
 
 ### defineDashboardWidget
@@ -145,3 +159,13 @@ try {
 | `state`   | 状态                       | `'ready' \| 'loading' \| 'error' \| 'empty'` |
 | `message` | 出错或空态时显示的文字     | `string`                                     |
 | `retry`   | 出错时“重试”按钮调用的函数 | `() => void`                                 |
+
+### DashboardWidgetErrorEvent
+
+DouDashboard 的 `widgetError` 事件的参数。
+
+| 名称     | 说明                               | 类型                      |
+| -------- | ---------------------------------- | ------------------------- |
+| `widget` | 格子的 id                          | `string`                  |
+| `part`   | 出错的部分：格子的内容，或设置面板 | `'content' \| 'settings'` |
+| `error`  | 抛出的错误                         | `unknown`                 |

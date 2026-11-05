@@ -11,44 +11,44 @@ import type { ChartPointEvent } from '@dou-ui/chart'
 import { computed, watch } from 'vue'
 import { useDashboardWidget } from '../widget/context'
 import { filterValueOf, rowsOf, rowsToWorkbook } from '../widgets/shared'
-import type { ChartWidgetProps } from './types'
+import { chartPropsOf } from './read-props'
 
 defineOptions({ name: 'DouDashboardChartWidget' })
 
-const { props, data, size, setFilter, ownFilters, widget, setWorkbook } =
-  useDashboardWidget<ChartWidgetProps>()
+const { props: raw, data, size, setFilter, ownFilters, widget, setWorkbook } = useDashboardWidget()
+const props = computed(() => chartPropsOf(raw.value))
 const rows = computed(() => rowsOf(data.value, props.value.path))
 const kind = computed(() => props.value.kind ?? 'line')
 const ys = computed(() => props.value.y ?? [])
+const x = computed(() => props.value.x)
+const filter = computed(() => props.value.filter)
 const nameOf = (key: string) => props.value.labels?.[key] ?? key
 /** The x this widget filters by, if any: the other bars fade. */
-const picked = computed(() =>
-  props.value.filter ? ownFilters.value[props.value.filter] : undefined,
-)
+const picked = computed(() => (filter.value ? ownFilters.value[filter.value] : undefined))
 /** Bars other than the picked one turn gray; a new function when the pick changes, so they draw again. */
 const barColor = computed(() => {
   const value = picked.value
-  const x = props.value.x ?? ''
-  if (!props.value.filter || value === undefined) return undefined
+  const field = x.value ?? ''
+  if (!filter.value || value === undefined) return undefined
   return (row: Record<string, unknown>) =>
-    filterValueOf(row[x]) === value ? undefined : 'var(--dou-color-border-strong)'
+    filterValueOf(row[field]) === value ? undefined : 'var(--dou-color-border-strong)'
 })
 
 // the export menu writes the chart's data: a column for x, one for each series;
 // a chart without its fields has no menu
 const seriesKeys = computed(() => (kind.value === 'pie' ? ys.value.slice(0, 1) : ys.value))
-const exportable = computed(() => !!props.value.x && seriesKeys.value.length > 0)
+const exportable = computed(() => !!x.value && seriesKeys.value.length > 0)
 watch(
   exportable,
   (ok) =>
     setWorkbook(
       ok
         ? () => {
-            const x = props.value.x!
+            const field = x.value!
             return rowsToWorkbook(
               '',
               [
-                { key: x, title: nameOf(x) },
+                { key: field, title: nameOf(field) },
                 ...seriesKeys.value.map((key) => ({ key, title: nameOf(key) })),
               ],
               rows.value,
@@ -60,7 +60,7 @@ watch(
 )
 
 function onSelect(event: ChartPointEvent) {
-  const key = props.value.filter
+  const key = filter.value
   if (!key) return
   const value = filterValueOf(event.x)
   if (value === picked.value) setFilter(key, undefined)
@@ -72,12 +72,12 @@ function onSelect(event: ChartPointEvent) {
   <DouChart
     class="dou-dashboard-chart"
     :data="rows"
-    :x="props.x"
+    :x="x"
     :height="size.height.value || 160"
     :horizontal="kind === 'bar' && props.horizontal"
     :legend="kind === 'pie' || ys.length > 1"
     :aria-label="widget.title"
-    v-on="props.filter ? { select: onSelect } : {}"
+    v-on="filter ? { select: onSelect } : {}"
   >
     <DouChartPie
       v-if="kind === 'pie'"

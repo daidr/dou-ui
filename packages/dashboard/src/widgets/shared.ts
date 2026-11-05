@@ -1,8 +1,13 @@
 import type { SheetValue, SheetWorkbook } from '@dou-ui/sheet/core'
 
-/** The value at a dotted path, e.g. `total.amount`; the data itself for an empty path. */
-export function valueAt(data: unknown, path: string | undefined): unknown {
-  if (!path) return data
+/**
+ * The value at a dotted path, e.g. `total.amount`; the data itself for an
+ * empty path. A path that isn't text, e.g. a number in JSON written by hand
+ * or by a program, finds nothing.
+ */
+export function valueAt(data: unknown, path: unknown): unknown {
+  if (path === undefined || path === null || path === '') return data
+  if (typeof path !== 'string') return undefined
   let value = data
   for (const key of path.split('.')) {
     if (value == null || typeof value !== 'object') return undefined
@@ -11,11 +16,51 @@ export function valueAt(data: unknown, path: string | undefined): unknown {
   return value
 }
 
-/** The rows of a source's data: the data when it is a list, or the list at `path`. */
-export function rowsOf(data: unknown, path?: string): Record<string, unknown>[] {
+/** The rows of a source's data: the data when it is a list, or the list at `path`. Items that aren't objects are left out. */
+export function rowsOf(data: unknown, path?: unknown): Record<string, unknown>[] {
   const value = valueAt(data, path)
-  return Array.isArray(value) ? (value as Record<string, unknown>[]) : []
+  if (!Array.isArray(value)) return []
+  return value.every(isRecord) ? value : value.filter(isRecord)
 }
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === 'object'
+
+/*
+ * A widget's props come from JSON that types don't check, often written by a
+ * program or an AI. These read one prop as the type it is meant to be; any
+ * other value counts as not set, so a widget never throws on it.
+ */
+
+/** Text, or not set. */
+export const textOf = (value: unknown): string | undefined =>
+  typeof value === 'string' ? value : undefined
+
+/** A list of texts: the texts in it, or none. */
+export const textsOf = (value: unknown): string[] =>
+  Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
+
+/** A finite number, or text that is one (`'12'`, as a number read from data); otherwise not set. */
+export function numberOf(value: unknown): number | undefined {
+  const n =
+    typeof value === 'number'
+      ? value
+      : typeof value === 'string' && value.trim()
+        ? Number(value)
+        : Number.NaN
+  return Number.isFinite(n) ? n : undefined
+}
+
+/** On only for `true`: `'no'` or `1` don't turn a switch on. */
+export const flagOf = (value: unknown): boolean => value === true
+
+/** A plain object, not a list; otherwise not set. */
+export const recordOf = (value: unknown): Record<string, unknown> | undefined =>
+  isRecord(value) && !Array.isArray(value) ? value : undefined
+
+/** One of the values listed, or not set. */
+export const oneOf = <T extends string>(value: unknown, values: readonly T[]): T | undefined =>
+  values.includes(value as T) ? (value as T) : undefined
 
 /** The keys of the first row of a list, or of an object: the fields to pick from in settings. */
 export function fieldsOf(data: unknown): string[] {

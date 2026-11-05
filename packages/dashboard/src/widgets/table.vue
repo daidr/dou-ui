@@ -3,12 +3,14 @@ import { DouTable } from 'dou-ui'
 import type { TableColumn } from 'dou-ui'
 import { computed, onMounted, ref } from 'vue'
 import { useDashboardWidget } from '../widget/context'
+import { tablePropsOf } from './read-props'
 import { fieldsOf, rowsToWorkbook, rowsOf } from './shared'
-import type { TableWidgetColumn, TableWidgetProps } from './types'
+import type { TableWidgetColumn } from './types'
 
 defineOptions({ name: 'DouDashboardTableWidget' })
 
-const { props, data, size, setWorkbook } = useDashboardWidget<TableWidgetProps>()
+const { props: raw, data, size, setWorkbook } = useDashboardWidget()
+const props = computed(() => tablePropsOf(raw.value))
 const rows = computed(() => rowsOf(data.value, props.value.path))
 /** Each row's key: its `rowKey` field, or its place in the list. */
 const keys = computed(() => {

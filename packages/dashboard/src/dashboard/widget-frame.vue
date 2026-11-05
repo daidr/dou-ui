@@ -233,6 +233,7 @@ function onSelect(value: DropdownValue | undefined) {
       :messages="messages"
       :set-props="frame.setProps"
       :set-workbook="frame.setWorkbook"
+      :report-error="frame.reportError"
     />
   </div>
 </template>

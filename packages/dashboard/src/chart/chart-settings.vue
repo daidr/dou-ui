@@ -8,20 +8,23 @@ import SettingsField from '../widgets/settings-field.vue'
 import { fieldsOf, numberFieldsOf, rowsOf } from '../widgets/shared'
 import SourceField from '../widgets/source-field.vue'
 import type { ChartWidgetProps } from './types'
+import { chartPropsOf } from './read-props'
 
 defineOptions({ name: 'DouDashboardChartSettings' })
 
 const model = defineModel<ChartWidgetProps>({ required: true })
+// the props as saved may have the wrong types: read them as the widget does
+const view = computed(() => chartPropsOf(model.value as Record<string, unknown>))
 const messages = useDashboardMessages()
 const { data } = useDashboardWidget()
-const rows = computed(() => rowsOf(data.value, model.value.path))
+const rows = computed(() => rowsOf(data.value, view.value.path))
 const set = (patch: Partial<ChartWidgetProps>) => (model.value = { ...model.value, ...patch })
-const kind = computed(() => model.value.kind ?? 'line')
+const kind = computed(() => view.value.kind ?? 'line')
 </script>
 
 <template>
   <div class="dou-dashboard__settings">
-    <SourceField :model-value="model.source" @update:model-value="(source) => set({ source })" />
+    <SourceField :model-value="view.source" @update:model-value="(source) => set({ source })" />
     <SettingsField :label="messages.chartKind">
       <DouSegmentedControl
         :model-value="kind"
@@ -36,13 +39,13 @@ const kind = computed(() => model.value.kind ?? 'line')
       />
     </SettingsField>
     <FieldSelect
-      :model-value="model.x"
+      :model-value="view.x"
       :label="messages.xField"
       :fields="fieldsOf(rows)"
       @update:model-value="(x) => set({ x: x as string | undefined })"
     />
     <FieldSelect
-      :model-value="kind === 'pie' ? (model.y ?? []).slice(0, 1) : model.y"
+      :model-value="kind === 'pie' ? (view.y ?? []).slice(0, 1) : view.y"
       :label="messages.yFields"
       :fields="numberFieldsOf(rows)"
       :multiple="kind !== 'pie'"
@@ -52,14 +55,14 @@ const kind = computed(() => model.value.kind ?? 'line')
     />
     <div v-if="kind === 'bar' || kind === 'area'" class="dou-dashboard__field-row">
       <DouSwitch
-        :model-value="!!model.stacked"
+        :model-value="!!view.stacked"
         @update:model-value="(stacked) => set({ stacked: stacked || undefined })"
       >
         {{ messages.stacked }}
       </DouSwitch>
       <DouSwitch
         v-if="kind === 'bar'"
-        :model-value="!!model.horizontal"
+        :model-value="!!view.horizontal"
         @update:model-value="(horizontal) => set({ horizontal: horizontal || undefined })"
       >
         {{ messages.horizontal }}
@@ -67,7 +70,7 @@ const kind = computed(() => model.value.kind ?? 'line')
     </div>
     <SettingsField :label="messages.chartFilter" :hint="messages.chartFilterHint">
       <DouInput
-        :model-value="model.filter ?? ''"
+        :model-value="view.filter ?? ''"
         :aria-label="messages.chartFilter"
         @update:model-value="(key) => set({ filter: key.trim() || undefined })"
       />

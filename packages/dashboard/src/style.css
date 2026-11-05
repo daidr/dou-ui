@@ -332,7 +332,6 @@
     }
   }
 
-  /* full screen: the comment button above the content, on the right */
   /* fills the dialog: the comment button on top, the widget below taking the rest */
   .dou-dashboard__fullscreen {
     display: flex;
@@ -346,6 +345,7 @@
     }
   }
 
+  /* full screen: the comment button above the content, on the right */
   .dou-dashboard__fullscreen-bar {
     display: flex;
     justify-content: flex-end;

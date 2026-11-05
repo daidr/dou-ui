@@ -1,6 +1,6 @@
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { DouChatInput } from '../../../index'
 import { findToken } from '../chat-input'
 
@@ -65,8 +65,8 @@ describe('DouChatInput', () => {
       attachTo: document.body,
     })
     const textarea = wrapper.get('textarea')
-    await textarea.setValue('/tr')
-    ;(textarea.element as HTMLTextAreaElement).setSelectionRange(3, 3)
+    await textarea.setValue('/翻')
+    ;(textarea.element as HTMLTextAreaElement).setSelectionRange(2, 2)
     await textarea.trigger('keyup')
     const options = wrapper.findAll('[role="option"]')
     expect(options).toHaveLength(1)
@@ -99,6 +99,78 @@ describe('DouChatInput', () => {
     expect(wrapper.props('modelValue')).toBe('看下 @周报.md ')
     expect(wrapper.emitted('mention')).toEqual([[{ value: '周报.md' }]])
     wrapper.unmount()
+  })
+
+  describe('matching', () => {
+    const snippets = [
+      { value: 's_01', label: '周报模板' },
+      { value: 's_02', label: '会议纪要', keywords: ['huiyi'] },
+      { value: ':manage', label: '管理片段' },
+    ]
+    async function typed(text: string, props: Record<string, unknown> = {}) {
+      const wrapper = mount(DouChatInput, {
+        props: { modelValue: text, teleport: false, commands: snippets, ...props },
+        attachTo: document.body,
+      })
+      const textarea = wrapper.get('textarea')
+      ;(textarea.element as HTMLTextAreaElement).setSelectionRange(text.length, text.length)
+      await textarea.trigger('keyup')
+      const labels = wrapper.findAll('[role="option"]').map((option) => option.text())
+      wrapper.unmount()
+      return labels
+    }
+
+    it('matches the label and keywords, not a value that has a label', async () => {
+      expect(await typed('/s')).toEqual([])
+      expect(await typed('/m')).toEqual([])
+      expect(await typed('/hui')).toEqual(['/会议纪要'])
+      expect(await typed('/周')).toEqual(['/周报模板'])
+    })
+
+    it('matches the value when there is no label', async () => {
+      expect(await typed('@zh', { mentions: [{ value: 'zhou.md' }, { value: 'dai.md' }] })).toEqual(
+        ['@zhou.md'],
+      )
+    })
+
+    it('takes a filter, or shows everything with `filter: false`', async () => {
+      expect(await typed('/x', { filter: false })).toHaveLength(3)
+      expect(
+        await typed('/s_', {
+          filter: (option: { value: string }, query: string, trigger: string) =>
+            trigger === '/' && option.value.startsWith(query),
+        }),
+      ).toEqual(['/周报模板', '/会议纪要'])
+    })
+  })
+
+  it('emits search with the typed query once typing pauses', async () => {
+    vi.useFakeTimers()
+    const wrapper = mount(DouChatInput, {
+      props: { modelValue: '', searchDelay: 200 },
+      attachTo: document.body,
+    })
+    const textarea = wrapper.get('textarea')
+    const type = async (text: string) => {
+      await wrapper.setProps({ modelValue: text })
+      ;(textarea.element as HTMLTextAreaElement).setSelectionRange(text.length, text.length)
+      await textarea.trigger('keyup')
+    }
+    await type('看 @')
+    await type('看 @sr')
+    vi.advanceTimersByTime(100)
+    await type('看 @src')
+    expect(wrapper.emitted('search')).toBeUndefined()
+    vi.advanceTimersByTime(200)
+    expect(wrapper.emitted('search')).toEqual([['src', '@']])
+    await type('看 @src 好')
+    vi.advanceTimersByTime(300)
+    expect(wrapper.emitted('search')).toHaveLength(1)
+    await type('/')
+    vi.advanceTimersByTime(200)
+    expect(wrapper.emitted('search')![1]).toEqual(['', '/'])
+    wrapper.unmount()
+    vi.useRealTimers()
   })
 
   it('closes the menu on Escape', async () => {
@@ -254,7 +326,7 @@ describe('DouChatInput', () => {
     it('starts again from the first option when the list changes', async () => {
       const { wrapper, textarea, press, active } = await open()
       await press('ArrowDown')
-      await textarea.setValue('/p')
+      await textarea.setValue('/计')
       ;(textarea.element as HTMLTextAreaElement).setSelectionRange(2, 2)
       await textarea.trigger('keyup')
       expect(wrapper.findAll('[role="option"]').map((o) => o.text())).toEqual(['/计划'])

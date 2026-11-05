@@ -6,9 +6,27 @@ const text = ref('')
 const mode = ref(null)
 
 const commands = [
-  { value: 'summarize', label: '总结', description: '概括对话要点', icon: TextSparkleIcon },
-  { value: 'translate', label: '翻译', description: '翻译上一条回复', icon: GlobeIcon },
-  { value: 'plan', label: '计划', description: '先列计划再动手', icon: ListChecksIcon },
+  {
+    value: 'summarize',
+    label: '总结',
+    keywords: ['summarize'],
+    description: '概括对话要点',
+    icon: TextSparkleIcon,
+  },
+  {
+    value: 'translate',
+    label: '翻译',
+    keywords: ['translate'],
+    description: '翻译上一条回复',
+    icon: GlobeIcon,
+  },
+  {
+    value: 'plan',
+    label: '计划',
+    keywords: ['plan'],
+    description: '先列计划再动手',
+    icon: ListChecksIcon,
+  },
 ]
 const mentions = [
   { value: '需求文档.md', description: '文件', icon: FileTextIcon },

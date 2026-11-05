@@ -1,6 +1,16 @@
 <script setup lang="ts">
 import { ArrowUpIcon, StopIcon } from '@dou-ui/icons'
-import { computed, nextTick, onMounted, ref, useAttrs, useId, useTemplateRef, watch } from 'vue'
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  useAttrs,
+  useId,
+  useTemplateRef,
+  watch,
+} from 'vue'
 import type { StyleValue } from 'vue'
 import { useFloating } from '../../composables/use-floating'
 import { useLayer } from '../../composables/use-layer'
@@ -33,6 +43,8 @@ const props = withDefaults(defineProps<ChatInputProps>(), {
   canSubmit: undefined,
   commands: () => [],
   mentions: () => [],
+  filter: true,
+  searchDelay: 300,
   teleport: undefined,
 })
 const emit = defineEmits<ChatInputEmits>()
@@ -116,13 +128,35 @@ const options = computed<ChatInputOption[]>(() => {
   const current = token.value
   if (!current || dismissed.value === current.start) return []
   const source = current.trigger === '/' ? props.commands : props.mentions
+  const filter = props.filter
+  if (filter === false || (filter === true && !current.query)) return source
+  if (typeof filter === 'function')
+    return source.filter((option) => filter(option, current.query, current.trigger))
+  // what the person sees: the label, and for a mention the value it inserts
   const query = current.query.toLowerCase()
-  return source.filter(
-    (option) =>
-      option.value.toLowerCase().includes(query) ||
-      (option.label ?? '').toLowerCase().includes(query),
-  )
+  const texts = (option: ChatInputOption) => [
+    option.label ?? option.value,
+    ...(current.trigger === '@' && option.label ? [option.value] : []),
+    ...(option.keywords ?? []),
+  ]
+  return source.filter((option) => texts(option).some((text) => text.toLowerCase().includes(query)))
 })
+
+// Each new query is handed out once typing pauses, to look options up elsewhere.
+let searchTimer: ReturnType<typeof setTimeout> | undefined
+watch(
+  () => (token.value ? `${token.value.trigger}${token.value.query}` : null),
+  (key) => {
+    clearTimeout(searchTimer)
+    const current = token.value
+    if (key === null || !current) return
+    searchTimer = setTimeout(
+      () => emit('search', current.query, current.trigger),
+      props.searchDelay,
+    )
+  },
+)
+onBeforeUnmount(() => clearTimeout(searchTimer))
 const menuOpen = computed(() => !disabled.value && options.value.length > 0)
 
 // The menu is a popup like any other: rendered on top of the page, above

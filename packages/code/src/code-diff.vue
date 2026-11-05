@@ -8,8 +8,19 @@ import {
   UnfoldVerticalIcon,
 } from '@dou-ui/icons'
 import { DouButton, DouTooltip, createScrollLink, useNamespace } from 'dou-ui'
-import { computed, h, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import {
+  type VNodeChild,
+  computed,
+  h,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  reactive,
+  ref,
+  watch,
+} from 'vue'
 import CodeEditor from './code-editor.vue'
+import RenderPart from './render-part'
 import { type CodeDiffHunk, diffText, lineStarts } from './core/diff'
 import type { CodeKeymap } from './core/keymap'
 import type { CodeTransactionResult } from './core/transaction'
@@ -22,7 +33,14 @@ import {
   defineCodeExtension,
 } from './extension'
 import { format, useCodeMessages } from './locale'
-import type { CodeDiffEmits, CodeDiffProps, CodeEditorExpose } from './types'
+import type {
+  CodeDiffEmits,
+  CodeDiffGutter,
+  CodeDiffProps,
+  CodeDiffSide,
+  CodeDiffWidget,
+  CodeEditorExpose,
+} from './types'
 
 /**
  * Two texts compared: side by side, or the changes in one column. Changed
@@ -42,6 +60,8 @@ const props = withDefaults(defineProps<CodeDiffProps>(), {
   words: true,
   wrap: false,
   extensions: undefined,
+  gutters: undefined,
+  widgets: undefined,
   tabSize: 2,
   toolbar: true,
   bordered: true,
@@ -283,19 +303,17 @@ function sideExtension(side: Side): CodeExtension {
     ],
     widgets() {
       const out: CodeWidget[] = []
+      const fills = splitPlan.value[side].fills
       hunks.value.forEach((hunk, i) => {
         const missing = otherCountOf(hunk) - countOf(hunk)
         if (missing <= 0) return
         const last = startOf(hunk) - 1 + countOf(hunk)
+        const blanks = fills.get(i) ?? []
         out.push({
           id: `fill-${i}`,
           ...(last >= 1 ? { line: last } : { line: 1, position: 'above' as const }),
-          height: missing * 20,
-          render: () =>
-            h('div', {
-              class: ns.e('filler'),
-              style: { height: `calc(${missing} * var(--dou-code-editor-line-height))` },
-            }),
+          height: missing * LINE + blanks.reduce((sum, blank) => sum + blank.height, 0),
+          render: () => filler(missing, blanks),
         })
       })
       const total = side === 'a' ? originalLines.value.length : modifiedLines.value.length
@@ -324,19 +342,47 @@ function sideExtension(side: Side): CodeExtension {
   })
 }
 
+/** Rows of filler, or rows split by the blanks of widgets on the other side. */
+const block = (count: number) =>
+  h('div', {
+    class: ns.e('filler'),
+    style: { height: `calc(${count} * var(--dou-code-editor-line-height))` },
+  })
+function filler(rows: number, blanks: Blank[]) {
+  if (!blanks.length) return block(rows)
+  const children = []
+  let at = 0
+  // oxlint-disable-next-line unicorn/no-array-sort -- sorts a fresh array
+  for (const blank of [...blanks].sort((x, y) => x.offset - y.offset || +x.above - +y.above)) {
+    if (blank.offset > at) children.push(block(blank.offset - at))
+    children.push(spacer(blank.height, blank.span)())
+    at = Math.max(at, blank.offset)
+  }
+  if (rows > at) children.push(block(rows - at))
+  return h('div', children)
+}
+
 const modifiedOwn = sideExtension('b')
-const modifiedExtensions = computed(() => [modifiedOwn, ...(props.extensions ?? [])])
+const modifiedExtensions = computed(() => [
+  annotationsB,
+  modifiedOwn,
+  annotationsEndB,
+  ...(props.extensions ?? []),
+])
 
 const editorA = ref<CodeEditorExpose>()
 const editorB = ref<CodeEditorExpose>()
 const sideA = ref<HTMLElement>()
 const sideB = ref<HTMLElement>()
-const extensionsA = [sideExtension('a')]
+const extensionsA = [annotations('a'), sideExtension('a'), annotations('a', true)]
+const annotationsB = annotations('b')
+const annotationsEndB = annotations('b', true)
 
 // Both sides scroll together; they are the same height, line for line.
 const link = createScrollLink()
 function onScroll(event: Event) {
   if (view.value !== 'split') return
+  if (spans.value.length) schedulePlace()
   const from = (event.target as HTMLElement).closest(`.${ns.e('side')}`)
   const source = from?.querySelector<HTMLElement>('.dou-code-editor__scroller')
   if (!source || source !== event.target) return
@@ -360,6 +406,9 @@ interface Unified {
   /** Line numbers on each side, 0 where the line isn't there. */
   aNums: Int32Array
   bNums: Int32Array
+  /** Where each line of each side is, from 1, by its number. */
+  aRows: Int32Array
+  bRows: Int32Array
   /** Where each change starts, from 1. */
   hunkLines: number[]
   /** Where each unchanged run starts, from 1, by key. */
@@ -378,12 +427,16 @@ const unified = computed<Unified | null>(() => {
   const hunkLines: number[] = []
   const runLines = new Map<number, number>()
   const marks: Unified['marks'] = []
+  const aRows = new Int32Array(a.length + 1)
+  const bRows = new Int32Array(b.length + 1)
   let pos = 0
   const push = (text: string, kind: Kind, an: number, bn: number) => {
     lines.push(text)
     kinds.push(kind)
     aNums.push(an)
     bNums.push(bn)
+    if (an) aRows[an] = lines.length
+    if (bn) bRows[bn] = lines.length
     pos += text.length + 1
   }
   const runs = unchanged.value
@@ -430,6 +483,8 @@ const unified = computed<Unified | null>(() => {
     kinds: Uint8Array.from(kinds),
     aNums: Int32Array.from(aNums),
     bNums: Int32Array.from(bNums),
+    aRows,
+    bRows,
     hunkLines,
     runLines,
     marks,
@@ -549,9 +604,312 @@ const inlineExtension = defineCodeExtension({
     return out
   },
 })
-const inlineExtensions = [inlineExtension]
+const inlineExtensions = [inlineAnnotations(), inlineExtension, inlineAnnotations(true)]
 const editorInline = ref<CodeEditorExpose>()
 const inlineBox = ref<HTMLElement>()
+
+// ---------------------------------------------------------------- markers and widgets of both texts
+
+/** One line's height, before the editors have measured theirs. */
+const LINE = 20
+const sideName = (side: Side): CodeDiffSide => (side === 'a' ? 'original' : 'modified')
+
+/** The widgets' measured heights, by id, for the blank left beside each. */
+const heights = reactive(new Map<string, number>())
+let heightObserver: ResizeObserver | undefined
+const measured = new Map<Element, string>()
+function measure(el: Element | null, id: string) {
+  for (const [known] of measured)
+    if (!known.isConnected) {
+      heightObserver?.unobserve(known)
+      measured.delete(known)
+    }
+  if (!el || measured.get(el) === id) return
+  measured.set(el, id)
+  const read = (box: Element) => {
+    const key = measured.get(box)
+    const height = (box as HTMLElement).offsetHeight
+    // Nothing measured means no layout (hidden): keep the guess.
+    if (key && height && heights.get(key) !== height) heights.set(key, height)
+  }
+  read(el)
+  if (typeof ResizeObserver === 'undefined') return
+  heightObserver ??= new ResizeObserver((entries) => {
+    for (const entry of entries) read(entry.target)
+  })
+  heightObserver.observe(el)
+}
+onBeforeUnmount(() => heightObserver?.disconnect())
+
+const heightOf = (widget: CodeDiffWidget) => heights.get(widget.id) ?? widget.height ?? LINE
+
+/** A widget's own content, measured. */
+const content = (widget: CodeDiffWidget) => () =>
+  h(
+    'div',
+    { class: ns.e('widget'), ref: (el: unknown) => measure(el as Element | null, widget.id) },
+    [widget.render()],
+  )
+
+/** The blank across from a widget; `span` marks where a widget across both sides is drawn. */
+const spacer = (height: number, span?: string) => () =>
+  h('div', {
+    class: ns.e('spacer'),
+    style: { height: `${height}px` },
+    'data-diff-span': span,
+  })
+
+/** A blank inside a filler: `offset` rows into it. */
+interface Blank {
+  offset: number
+  above: boolean
+  height: number
+  span?: string
+}
+interface SidePlan {
+  /** Widgets below lines, drawn before the diff's own; above lines, after them. */
+  below: CodeWidget[]
+  above: CodeWidget[]
+  /** Blanks inside the fillers, by change. */
+  fills: Map<number, Blank[]>
+}
+
+/**
+ * Where a spot beside line `line` of `side` is on the other side: beside
+ * a line there, or inside the filler of a change.
+ */
+function across(
+  side: Side,
+  line: number,
+  above: boolean,
+): { line: number } | { fill: number; offset: number } | null {
+  const list = hunks.value
+  for (let i = 0; i < list.length; i++) {
+    const hunk = list[i]!
+    const start = side === 'a' ? hunk.originalStart : hunk.modifiedStart
+    const count = side === 'a' ? hunk.originalCount : hunk.modifiedCount
+    if (line < start) break
+    if (line >= start + count) continue
+    const otherStart = side === 'a' ? hunk.modifiedStart : hunk.originalStart
+    const otherCount = side === 'a' ? hunk.modifiedCount : hunk.originalCount
+    const index = line - start
+    if (index < otherCount) return { line: otherStart + index }
+    return { fill: i, offset: index - otherCount + (above ? 0 : 1) }
+  }
+  for (const run of unchanged.value) {
+    const start = side === 'a' ? run.a : run.b
+    if (line >= start && line < start + run.count)
+      return { line: line - start + (side === 'a' ? run.b : run.a) }
+  }
+  return null
+}
+
+/** Side by side: each widget on its side, a blank of its height on the other. */
+const splitPlan = computed(() => {
+  const plan: Record<Side, SidePlan> = {
+    a: { below: [], above: [], fills: new Map() },
+    b: { below: [], above: [], fills: new Map() },
+  }
+  if (view.value !== 'split') return plan
+  for (const widget of props.widgets ?? []) {
+    const own: Side = widget.side === 'original' ? 'a' : 'b'
+    const other: Side = own === 'a' ? 'b' : 'a'
+    const lines = own === 'a' ? originalLines.value.length : modifiedLines.value.length
+    if (!(widget.line >= 1 && widget.line <= lines)) continue
+    const above = widget.position === 'above'
+    const height = heightOf(widget)
+    const span = widget.span === 'both' ? widget.id : undefined
+    const put = (side: Side, line: number, render: () => VNodeChild, label?: string) =>
+      plan[side][above ? 'above' : 'below'].push({
+        id: widget.id,
+        line,
+        position: above ? 'above' : 'below',
+        height,
+        label,
+        render,
+      })
+    // Across both sides, the widget itself is drawn over the blanks, with its label.
+    if (span) put(own, widget.line, spacer(height, span))
+    else put(own, widget.line, content(widget), widget.label)
+    const spot = across(own, widget.line, above)
+    if (!spot) continue
+    if ('fill' in spot) {
+      const fills = plan[other].fills
+      const blanks = fills.get(spot.fill) ?? []
+      blanks.push({ offset: spot.offset, above, height, span })
+      fills.set(spot.fill, blanks)
+    } else put(other, spot.line, spacer(height, span))
+  }
+  return plan
+})
+
+/** The widgets drawn across both sides, over them. */
+const spans = computed(() =>
+  view.value === 'split' ? (props.widgets ?? []).filter((widget) => widget.span === 'both') : [],
+)
+
+/** A column of `gutters` as one side's editor draws it. */
+function sideGutter(gutter: CodeDiffGutter, side: Side) {
+  const name = sideName(side)
+  return {
+    name: gutter.name,
+    width: gutter.width,
+    markers: ({ visible }: { visible: { from: number; to: number } }) =>
+      gutter.markers.filter(
+        (marker) =>
+          marker.side === name && marker.line >= visible.from && marker.line <= visible.to,
+      ),
+    onPress:
+      gutter.onPress && ((line: number, event: PointerEvent) => gutter.onPress!(line, name, event)),
+  }
+}
+
+/**
+ * The `gutters` and `widgets` of one side. Two of them go around the
+ * diff's own: widgets below a line come before its filler or bar, those
+ * above a line after them.
+ */
+function annotations(side: Side, end = false): CodeExtension {
+  return defineCodeExtension({
+    name: end ? 'diff-widgets-end' : 'diff-widgets',
+    get gutters() {
+      return end ? [] : (props.gutters ?? []).map((gutter) => sideGutter(gutter, side))
+    },
+    widgets: () => splitPlan.value[side][end ? 'above' : 'below'],
+  })
+}
+
+/** Where line `line` of `side` is inline, from 1; 0 when it isn't there. */
+function inlineRow(u: Unified, side: CodeDiffSide, line: number) {
+  const rows = side === 'original' ? u.aRows : u.bRows
+  return line >= 1 && line < rows.length ? rows[line]! : 0
+}
+
+/** The `gutters` and `widgets` inline, on the rows of their lines. */
+function inlineAnnotations(end = false): CodeExtension {
+  return defineCodeExtension({
+    name: end ? 'diff-widgets-end' : 'diff-widgets',
+    get gutters() {
+      if (end) return []
+      return (props.gutters ?? []).map((gutter) => ({
+        name: gutter.name,
+        width: gutter.width,
+        markers: ({ visible }: { visible: { from: number; to: number } }) => {
+          const u = unified.value
+          if (!u) return []
+          const out: CodeGutterMarker[] = []
+          // The modified side's marker wins on a row both share.
+          for (const side of ['original', 'modified'] as const)
+            for (const marker of gutter.markers) {
+              if (marker.side !== side) continue
+              const row = inlineRow(u, side, marker.line)
+              if (row && row >= visible.from && row <= visible.to)
+                out.push({ ...marker, line: row })
+            }
+          return out
+        },
+        onPress:
+          gutter.onPress &&
+          ((row: number, event: PointerEvent) => {
+            const u = unified.value
+            if (!u) return
+            const a = u.aNums[row - 1] ?? 0
+            const b = u.bNums[row - 1] ?? 0
+            const has = (side: CodeDiffSide, line: number) =>
+              line > 0 && gutter.markers.some((m) => m.side === side && m.line === line)
+            if (has('modified', b) || (b && !has('original', a)))
+              gutter.onPress!(b, 'modified', event)
+            else gutter.onPress!(a, 'original', event)
+          }),
+      }))
+    },
+    widgets() {
+      const u = unified.value
+      if (!u) return []
+      const out: CodeWidget[] = []
+      for (const widget of props.widgets ?? []) {
+        if ((widget.position === 'above') !== end) continue
+        const row = inlineRow(u, widget.side, widget.line)
+        if (!row) continue
+        out.push({
+          id: widget.id,
+          line: row,
+          position: widget.position,
+          height: heightOf(widget),
+          label: widget.label,
+          render: content(widget),
+        })
+      }
+      return out
+    },
+  })
+}
+
+// ---------------------------------------------------------------- widgets across both sides
+
+const spanLayer = ref<HTMLElement>()
+/** Where the layer of widgets across both sides is: over the text of the sides. */
+const spanBox = ref({ top: 0, height: 0 })
+/** Each widget's y in the layer, by id; left out while its blank isn't drawn. */
+const spanTops = ref<Record<string, number>>({})
+
+let placeFrame = 0
+function schedulePlace() {
+  if (!placeFrame && typeof requestAnimationFrame !== 'undefined')
+    placeFrame = requestAnimationFrame(placeSpans)
+}
+/** Puts each widget across both sides over its blank. */
+function placeSpans() {
+  placeFrame = 0
+  const body = spanLayer.value?.parentElement
+  const scroller = sideA.value?.querySelector<HTMLElement>('.dou-code-editor__scroller')
+  if (!body || !scroller) return
+  const frame = scroller.getBoundingClientRect()
+  const top = frame.top - body.getBoundingClientRect().top
+  if (spanBox.value.top !== top || spanBox.value.height !== frame.height)
+    spanBox.value = { top, height: frame.height }
+  const tops: Record<string, number> = {}
+  for (const box of [sideA.value, sideB.value])
+    for (const el of box?.querySelectorAll<HTMLElement>('[data-diff-span]') ?? []) {
+      const id = el.dataset.diffSpan!
+      if (!(id in tops)) tops[id] = el.getBoundingClientRect().top - frame.top
+    }
+  const had = spanTops.value
+  const keys = Object.keys(tops)
+  if (keys.length !== Object.keys(had).length || keys.some((id) => had[id] !== tops[id]))
+    spanTops.value = tops
+}
+
+// Blanks move when the text scrolls, a widget above grows, or the box resizes.
+let stopPlacing: (() => void) | undefined
+function startPlacing() {
+  stopPlacing?.()
+  stopPlacing = undefined
+  if (!spans.value.length || !sideA.value) return
+  placeSpans()
+  const moved = typeof MutationObserver === 'undefined' ? null : new MutationObserver(schedulePlace)
+  for (const side of [sideA.value, sideB.value])
+    if (side) moved?.observe(side, { subtree: true, childList: true, attributeFilter: ['style'] })
+  const resized = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(schedulePlace)
+  if (root.value) resized?.observe(root.value)
+  stopPlacing = () => {
+    moved?.disconnect()
+    resized?.disconnect()
+    if (placeFrame) cancelAnimationFrame(placeFrame)
+    placeFrame = 0
+  }
+}
+watch(() => spans.value.length > 0 && view.value, startPlacing, { flush: 'post' })
+onMounted(startPlacing)
+onBeforeUnmount(() => stopPlacing?.())
+
+/** A wheel over a widget across both sides scrolls the text under it. */
+function onSpanWheel(event: WheelEvent) {
+  const scroller = sideB.value?.querySelector<HTMLElement>('.dou-code-editor__scroller')
+  if (!scroller || !event.deltaY) return
+  const unit = event.deltaMode === 1 ? LINE : event.deltaMode === 2 ? scroller.clientHeight : 1
+  scroller.scrollTop += event.deltaY * unit
+}
 
 // ---------------------------------------------------------------- hidden lines a cursor reaches
 
@@ -773,6 +1131,25 @@ defineExpose({
           @update:model-value="onModifiedInput"
           @transaction="revealAt('b', $event)"
         />
+      </div>
+      <div
+        v-if="spans.length"
+        ref="spanLayer"
+        :class="ns.e('spans')"
+        :style="{ top: `${spanBox.top}px`, height: `${spanBox.height}px` }"
+      >
+        <div
+          v-for="widget in spans"
+          :key="widget.id"
+          :ref="(el) => measure(el as Element | null, widget.id)"
+          :class="[ns.e('span'), ns.is('placed', widget.id in spanTops)]"
+          :style="{ transform: `translateY(${spanTops[widget.id] ?? 0}px)` }"
+          :role="widget.label ? 'group' : undefined"
+          :aria-label="widget.label"
+          @wheel.passive="onSpanWheel"
+        >
+          <RenderPart :render="widget.render" />
+        </div>
       </div>
     </div>
     <div v-else ref="inlineBox" :class="ns.e('body')">

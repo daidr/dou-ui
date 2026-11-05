@@ -1,5 +1,5 @@
-import type { Component } from 'vue'
-import type { CodeDiagnostic, CodeExtension } from './extension'
+import type { Component, VNodeChild } from 'vue'
+import type { CodeDiagnostic, CodeExtension, CodeGutterMarker } from './extension'
 import type { CodeCommand } from './core/commands'
 import type { CodeKeymap } from './core/keymap'
 import type { CodeSearchQuery } from './core/search'
@@ -261,8 +261,22 @@ export interface CodeDiffProps {
   words?: boolean
   /** Wraps long lines in the inline view; side by side, lines never wrap, to stay aligned. */
   wrap?: boolean
-  /** Extensions of the modified side, side by side only. */
+  /**
+   * Extensions of the modified side, side by side only: for things that
+   * read the text, such as a language service or a linter. Markers and
+   * widgets for both sides go in `gutters` and `widgets`.
+   */
   extensions?: CodeExtension[]
+  /**
+   * Columns left of the line numbers, with markers on either text's lines;
+   * drawn on both sides side by side, and on the matching rows inline.
+   */
+  gutters?: CodeDiffGutter[]
+  /**
+   * Components between lines of either text, e.g. review comments. The
+   * other side leaves a blank of the same height, so the two stay lined up.
+   */
+  widgets?: CodeDiffWidget[]
   tabSize?: number
   /** The toolbar above: change count, previous and next, expand, and the view toggle. On by default. */
   toolbar?: boolean
@@ -274,6 +288,48 @@ export interface CodeDiffProps {
    */
   bordered?: boolean
   messages?: Partial<CodeMessages>
+}
+
+/** Which of the two texts a line is counted in. */
+export type CodeDiffSide = 'original' | 'modified'
+
+/** A marker in a column of `DouCodeDiff`, on line `line` (from 1) of side `side`. */
+export interface CodeDiffGutterMarker extends CodeGutterMarker {
+  side: CodeDiffSide
+}
+
+/** A column of `DouCodeDiff`'s gutter, left of the line numbers. */
+export interface CodeDiffGutter {
+  name: string
+  /** In px. Defaults to 16. */
+  width?: number
+  markers: CodeDiffGutterMarker[]
+  /**
+   * A press on the column, on line `line` of `side`. Inline, a row both
+   * texts share counts as the marker's side there, else as `modified`.
+   */
+  onPress?: (line: number, side: CodeDiffSide, event: PointerEvent) => void
+}
+
+/** A component drawn between lines of `DouCodeDiff`. */
+export interface CodeDiffWidget {
+  /** Tells widgets apart; its measured height is kept by it. */
+  id: string
+  side: CodeDiffSide
+  /** Below line `line` (from 1) of `side`; above with `position: 'above'`. */
+  line: number
+  /** Defaults to `below`. */
+  position?: 'above' | 'below'
+  render: () => VNodeChild
+  /** Its height in px before it has been drawn and measured; defaults to one line. */
+  height?: number
+  /** What it is, read out when the cursor moves onto its line. */
+  label?: string
+  /**
+   * Side by side: `side` (the default) draws it in its own column, `both`
+   * across the two. Inline, it always takes the one column.
+   */
+  span?: 'side' | 'both'
 }
 
 export interface CodeDiffEmits {

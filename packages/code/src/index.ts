@@ -37,7 +37,11 @@ export default DouCodeEditor
 
 export type {
   CodeDiffEmits,
+  CodeDiffGutter,
+  CodeDiffGutterMarker,
   CodeDiffProps,
+  CodeDiffSide,
+  CodeDiffWidget,
   CodeEditorEmits,
   CodeEditorExpose,
   CodeEditorProps,

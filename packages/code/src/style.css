@@ -1535,6 +1535,38 @@
     }
   }
 
+  /* widgets from `widgets`; a margin of their own counts in their height */
+  .dou-code-diff__widget {
+    display: flow-root;
+  }
+  /* widgets across both sides, drawn over the blanks left for them */
+  .dou-code-diff--split > .dou-code-diff__body {
+    position: relative;
+  }
+  .dou-code-diff__spans {
+    position: absolute;
+    right: 0;
+    left: 0;
+    z-index: 3;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .dou-code-diff__span {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    display: flow-root;
+    box-sizing: border-box;
+    font-family: var(--dou-font-family);
+    font-size: var(--dou-font-size-sm);
+    line-height: 20px;
+    pointer-events: auto;
+    &:not(.is-placed) {
+      visibility: hidden;
+    }
+  }
+
   .dou-code-diff__filler {
     background-image: repeating-linear-gradient(
       -45deg,

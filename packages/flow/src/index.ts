@@ -12,6 +12,7 @@ export default DouFlowEditor
 
 export { useFlowEditor } from './context'
 export type {
+  FlowCommentAnchor,
   FlowControlsProps,
   FlowEditorContext,
   FlowEditorEmits,

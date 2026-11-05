@@ -29,6 +29,11 @@ export interface FlowNode<Data extends FlowData = FlowData> {
    * top. Nodes without it count as `0`; equal ones keep the document order.
    */
   z?: number
+  /**
+   * The ids of the comment threads about this node, see the editor's
+   * `comments`. Kept when the node is deleted and brought back by undo.
+   */
+  comments?: string[]
 }
 
 export interface FlowEndpoint {
@@ -54,6 +59,8 @@ export interface FlowEdge<Data extends FlowData = FlowData> {
    */
   points?: Point[]
   data?: Data
+  /** The ids of the comment threads about this edge, see the editor's `comments`. */
+  comments?: string[]
 }
 
 export interface FlowDocument {

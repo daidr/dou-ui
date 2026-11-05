@@ -31,12 +31,15 @@ import {
 import type { CSSProperties } from 'vue'
 import NodeView from './components/node-view.vue'
 import FlowMenu from './components/flow-menu.vue'
+import FlowComments, { type FlowCommentMarker } from './components/flow-comments.vue'
+import { useFlowComments } from './comments'
 import FlowQuickAdd from './components/flow-quick-add.vue'
 import FlowToolbar from './components/flow-toolbar.vue'
 import { defaultNode } from './components/default-node'
 import {
   flowEditorKey,
   type FlowEditorContext,
+  type FlowCommentAnchor,
   type FlowEditorEmits,
   type FlowEditorExpose,
   type FlowEditorProps,
@@ -125,6 +128,10 @@ const props = withDefaults(defineProps<FlowEditorProps>(), {
   edgeType: undefined,
   simpleZoom: 0.4,
   bordered: true,
+  comments: undefined,
+  author: undefined,
+  activeComment: undefined,
+  commentable: true,
 })
 const model = defineModel<FlowDocument>({ default: emptyDocument })
 /** The `v-model`, with a wrongly shaped one read as well as it can be. */
@@ -161,7 +168,18 @@ const same = (a: string[], b: string[]) => a.length === b.length && a.every((id,
 
 // Node types --------------------------------------------------------------------
 
-const resolved = computed(() => resolveFlowExtensions(props.extensions ?? flowKit()))
+// Comments: their keys and menu items come as one more extension, while there are comments.
+const {
+  comments,
+  extension: commentsExtension,
+  anchors: getCommentAnchors,
+  anchorOf: commentAnchorOf,
+} = useFlowComments({ props, emit, doc, selection, messages, transact })
+
+const resolved = computed(() => {
+  const own = props.extensions ?? flowKit()
+  return resolveFlowExtensions(comments.enabled.value ? [...own, commentsExtension] : own)
+})
 
 // Types given as props add to the extensions' and win over them.
 const types = computed(() => {
@@ -872,7 +890,7 @@ function fitInsets() {
   const box = root.value!.getBoundingClientRect()
   const insets = { top: FIT_PADDING, bottom: FIT_PADDING, left: FIT_PADDING, right: FIT_PADDING }
   for (const panel of root.value!.querySelectorAll(
-    '.dou-flow-editor__panels > :not(.dou-flow-toolbar)',
+    '.dou-flow-editor__panels > :not(.dou-flow-toolbar, .dou-flow-editor__comments, .dou-flow-editor__comment-card)',
   )) {
     const rect = panel.getBoundingClientRect()
     if (!rect.height) continue
@@ -1113,7 +1131,11 @@ function centerNode(id: string) {
 /** Keeps a node in view, e.g. when it gets keyboard focus. */
 function reveal(id: string) {
   const rect = getNodeRect(id)
-  if (!rect || !root.value) return
+  if (rect) revealRect(rect)
+}
+/** Pans the least that brings `rect`, in canvas coordinates, into view. */
+function revealRect(rect: Rect) {
+  if (!root.value) return
   const { x, y, zoom } = viewport.value
   const pad = 16
   const left = rect.x * zoom + x
@@ -2161,6 +2183,8 @@ function paste(data: FlowDocument, at?: Point | null) {
       x,
       y,
       locked: undefined,
+      // a copy starts without the original's discussions
+      comments: undefined,
       parent: copied ?? containerAt(centre, containers),
     }
   })
@@ -2174,6 +2198,7 @@ function paste(data: FlowDocument, at?: Point | null) {
         ...edge,
         points: edge.points?.map((p) => ({ x: p.x + shift.x, y: p.y + shift.y })),
         id: createId('e'),
+        comments: undefined,
         source: { ...edge.source, node: source },
         target: { ...edge.target, node: target },
       })
@@ -3693,6 +3718,67 @@ async function exportPNG(options: FlowImageOptions = {}) {
   return svgToPNG(svg, { width, height, pixelRatio: options.pixelRatio, ...PNG_SOURCE })
 }
 
+// Comments over the canvas ------------------------------------------------------------
+
+/** Half an edge label's height, in canvas px. */
+const EDGE_LABEL_HALF = 10
+/** A marker at the top right of each node, and on each edge's middle, with open threads. */
+const commentMarkers = computed<FlowCommentMarker[]>(() => {
+  if (!comments.enabled.value) return []
+  const { x: vx, y: vy, zoom } = viewport.value
+  const hidden = hiddenIn.value
+  const { nodes, edges } = comments.openOn.value
+  const out: FlowCommentMarker[] = []
+  const add = (on: FlowCommentAnchor, threads: string[]) => {
+    const key = 'node' in on ? `n:${on.node}` : `e:${on.edge}`
+    if (out.some((m) => m.key === key)) return
+    let at: Point | undefined
+    if ('node' in on) {
+      const node = nodeById.value.get(on.node)
+      if (!node || hidden.has(node.id)) return
+      const box = nodeBounds(specOf(node), node, rectOf(node))
+      at = { x: box.x + box.width, y: box.y }
+    } else {
+      const item = edgeRoutes.value.find((route) => route.edge.id === on.edge)
+      // above the edge's label, if it has one, not over it
+      if (item)
+        at = item.edge.label
+          ? { x: item.route.label.x, y: item.route.label.y - EDGE_LABEL_HALF - 14 / zoom }
+          : item.route.label
+    }
+    if (at) out.push({ key, anchor: on, threads, x: at.x * zoom + vx, y: at.y * zoom + vy })
+  }
+  for (const [id, threads] of nodes) add({ node: id }, threads)
+  for (const [id, threads] of edges) add({ edge: id }, threads)
+  // a thread being started, or a resolved one opened from outside
+  const starting = comments.pending.value
+  if (starting) add(starting, [])
+  const active = comments.active.value
+  const where = active ? commentAnchorOf(active) : null
+  if (active && where) add(where, [active])
+  return out
+})
+
+// A thread opened from outside, e.g. a list beside the editor: bring what it is about into view.
+watch(
+  () => props.activeComment,
+  (id) => {
+    const on = id && !comments.openedHere(id) ? commentAnchorOf(id) : null
+    if (!on) return
+    if ('node' in on) return reveal(on.node)
+    const at = edgeRoutes.value.find((item) => item.edge.id === on.edge)?.route.label
+    if (at) revealRect({ x: at.x - 16, y: at.y - 16, width: 32, height: 32 })
+  },
+)
+
+function restoreCommentFocus(on: FlowCommentAnchor | null) {
+  const el =
+    on && 'node' in on
+      ? root.value?.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(on.node)}"]`)
+      : null
+  ;(el ?? root.value)?.focus({ preventScroll: true })
+}
+
 defineExpose<FlowEditorExpose>({
   setViewport,
   openSearch,
@@ -3721,6 +3807,8 @@ defineExpose<FlowEditorExpose>({
     return [...staleEdges.value]
   },
   removeStaleEdges,
+  comment: () => comments.start(),
+  getCommentAnchors,
   insertNode,
   startInsertDrag,
   editLabel,
@@ -3928,6 +4016,13 @@ defineExpose<FlowEditorExpose>({
     <div ref="panelsLayer" class="dou-flow-editor__panels">
       <slot />
       <component :is="overlay" v-for="(overlay, i) in resolved.overlays" :key="i" />
+      <FlowComments
+        v-if="comments.enabled.value"
+        :comments="comments"
+        :markers="commentMarkers"
+        :messages="messages"
+        :restore="restoreCommentFocus"
+      />
       <FlowToolbar
         v-if="toolbarItems.length && toolbarAnchor"
         :groups="toolbarItems"

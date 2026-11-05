@@ -33,6 +33,8 @@ interface FlowNode {
   parent?: string
   /** 层级：大的画在上面，不写算 0，一样时按文档里的顺序；分组不参与 */
   z?: number
+  /** 这个节点上的讨论 id，见[评论](./comments) */
+  comments?: string[]
 }
 ```
 
@@ -50,6 +52,8 @@ interface FlowEdge {
   /** 途经的点，整理时写入，见连线 */
   points?: { x: number; y: number }[]
   data?: Record<string, unknown>
+  /** 这条连线上的讨论 id，见[评论](./comments) */
+  comments?: string[]
 }
 ```
 

@@ -100,6 +100,10 @@ export interface FlowMessages {
   noTarget: string
   /** `{count}` edges no longer fit their ports. */
   stale: string
+  /** Starts a discussion about a node or an edge. */
+  comment: string
+  /** The marker of the discussions on a node or an edge; `{count}` of them are open. */
+  comments: string
   /** Why an edge was refused, announced when it is dropped. */
   refused: {
     direction: string
@@ -229,6 +233,8 @@ const zhCN: FlowMessages = {
   connectTo: '连接到 {node} 的 {port}，方向键换一个，Enter 确认',
   noTarget: '没有可以连接的端口',
   stale: '{count} 条连线的端口类型已经对不上',
+  comment: '评论',
+  comments: '{count} 条评论',
   refused: {
     direction: '只能从输出连到输入',
     self: '不能连到同一个节点',
@@ -344,6 +350,8 @@ const zhTW: FlowMessages = {
   connectTo: '連接到 {node} 的 {port}，方向鍵換一個，Enter 確認',
   noTarget: '沒有可以連接的連接埠',
   stale: '{count} 條連線的連接埠類型已經對不上',
+  comment: '評論',
+  comments: '{count} 則評論',
   refused: {
     direction: '只能從輸出連到輸入',
     self: '不能連到同一個節點',
@@ -459,6 +467,8 @@ const en: FlowMessages = {
   connectTo: 'Connect to {port} of {node}; arrow keys pick another, Enter confirms',
   noTarget: 'No port to connect to',
   stale: '{count} edges no longer match their ports',
+  comment: 'Comment',
+  comments: '{count} comments',
   refused: {
     direction: 'Edges go from an output to an input',
     self: 'A node can’t connect to itself',

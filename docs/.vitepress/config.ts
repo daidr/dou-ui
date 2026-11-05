@@ -66,6 +66,7 @@ const flowSidebar = ecosystem('流程编辑器', [
   { text: '连线', link: '/flow/edges' },
   { text: '分组', link: '/flow/groups' },
   { text: '编辑交互', link: '/flow/editing' },
+  { text: '评论', link: '/flow/comments' },
   { text: '扩展', link: '/flow/extensions' },
   { text: '协同编辑', link: '/flow/collaboration' },
   { text: '白板', link: '/flow/whiteboard' },

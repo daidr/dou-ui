@@ -201,7 +201,7 @@ const cardSpotOf = (id: string) =>
 /** The comment shortcut in the full screen view, which is outside the dashboard. */
 function onFullscreenKeydown(event: KeyboardEvent) {
   const id = fullscreenId.value
-  if (!id || event.defaultPrevented || !comments.enabled.value) return
+  if (!id || event.defaultPrevented || !comments.enabled.value || isTyping(event.target)) return
   if (matchesHotkey(event, 'mod+alt+m') && comments.start(id)) event.preventDefault()
 }
 // A thread opened from outside, e.g. a list beside the dashboard: bring its widget into view.

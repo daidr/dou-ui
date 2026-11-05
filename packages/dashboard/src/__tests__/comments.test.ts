@@ -285,6 +285,23 @@ describe('DouDashboard comments', () => {
       bubbles: true,
       cancelable: true,
     })
+    // typing in a field, the keys are the field's (Ctrl+Alt types characters on some layouts)
+    const field = document.createElement('input')
+    inside.closest('.dou-dashboard__fullscreen')!.append(field)
+    const typed = new KeyboardEvent('keydown', {
+      key: 'm',
+      code: 'KeyM',
+      ctrlKey: true,
+      altKey: true,
+      bubbles: true,
+      cancelable: true,
+    })
+    later()
+    field.dispatchEvent(typed)
+    await ticks()
+    expect(active.value).toBeNull()
+    expect(typed.defaultPrevented).toBe(false)
+    field.remove()
     // just opened, the focus is on the dialog itself: the shortcut works from there too
     const panel = inside.closest<HTMLElement>('[role="dialog"]')!
     later()

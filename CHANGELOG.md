@@ -7,6 +7,20 @@ DouUI 的所有包（`dou-ui`、`@dou-ui/theme`、`@dou-ui/icons` 以及生态�
 
 这个文件由发版脚本生成：改动先以碎片文件记在 [`.changes/`](./.changes/README.md) 里，发布时汇总到这里。
 
+## 0.1.0-alpha.6 · 2026-11-05
+
+### 新增
+
+- **@dou-ui/code**：DouCodeEditor 的 `CodeGutter` 和 DouCodeDiff 的 `CodeDiffGutter` 新增 `hoverMarker`：没有自己标记的每一行都显示这个标记，悬停时出现，适合“每一行都能点 + 写评论、加断点”这样的入口，不用再为每一行写一个标记。DouCodeDiff 里可以用 `side` 限定只显示在一侧，另一侧的空格子也不再响应点击。两者的 `markers` 都改为可选。`CodeGutter` 和 `CodeDiffGutter` 另加 `pressOn: 'markers'`，只让标记响应点击，空格子不显示手形光标。`hoverMarker.title` 可以写成函数，按行（DouCodeDiff 里还有一侧）给每个标记取名。 ([#361](https://github.com/daidr/dou-ui/pull/361))
+
+### 改进
+
+- **@dou-ui/code**：DouCodeEditor 和 DouCodeDiff 行号栏里可点的列，在触屏和触控笔上改为手指抬起且没有移动时才触发 `onPress`，从行号栏开始拖动只滚动，不会误触。点一个还看不见的悬停标记时，第一下先把光标移到这一行让标记出现，再点一下才触发。 ([#361](https://github.com/daidr/dou-ui/pull/361))
+
+### 修复
+
+- **@dou-ui/code**：DouCodeDiff：只在悬停时显示的 gutter 标记（`visible: 'hover'`）不再阻止未改动的行收起。之前给每一行都放一个悬停标记后，`collapseUnchanged` 就不再收起任何行。 ([#361](https://github.com/daidr/dou-ui/pull/361))
+
 ## 0.1.0-alpha.5 · 2026-11-05
 
 ### 不兼容

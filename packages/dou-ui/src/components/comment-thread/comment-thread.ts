@@ -22,6 +22,12 @@ export interface CommentThreadProps {
   author?: CommentAuthor
   /** Show the discussion without the reply box, the resolve button or the menus. */
   readonly?: boolean
+  /**
+   * Offer the resolve button. `false` hides only that button, e.g. for a
+   * draft comment that has no resolved state; replies and the menus stay.
+   * A thread that is resolved anyway still says so and can be reopened.
+   */
+  resolvable?: boolean
   /** The hint in the box that starts a thread (`thread` is `null`). Replies always read "Reply". */
   placeholder?: string
   /** Focus the box once mounted, e.g. when the thread opens beside the text it is about. */

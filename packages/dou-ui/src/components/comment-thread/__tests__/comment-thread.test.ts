@@ -157,6 +157,29 @@ describe('DouCommentThread', () => {
     expect(wrapper.find('textarea').exists()).toBe(false)
     expect(wrapper.find('.dou-comment-thread__actions').exists()).toBe(false)
   })
+
+  it('resolvable false hides only the resolve button', () => {
+    const wrapper = mount(DouCommentThread, {
+      props: { thread: thread(), author: dai, resolvable: false },
+    })
+    expect(wrapper.find('textarea').exists()).toBe(true)
+    expect(wrapper.find('[aria-label="解决"]').exists()).toBe(false)
+    // the menu on dai's own comment stays
+    expect(wrapper.find('[aria-label="更多操作"]').exists()).toBe(true)
+  })
+
+  it('resolvable false still lets a resolved thread be reopened', async () => {
+    const resolved = { ...thread(), resolved: { by: dai, at: '2026-11-02T08:00:00.000Z' } }
+    const wrapper = mount(DouCommentThread, {
+      props: { thread: resolved, author: dai, resolvable: false },
+    })
+    expect(wrapper.text()).toContain('戴兜 已解决')
+    const reopen = wrapper.findAll('button').find((button) => button.text() === '重新打开')!
+    await reopen.trigger('click')
+    expect(wrapper.emitted('action')).toEqual([[{ type: 'reopen', threadId: 't1' }]])
+    expect(wrapper.find('textarea').exists()).toBe(true)
+  })
+
   it('keeps the thread itself when not bound', async () => {
     const wrapper = mount(DouCommentThread, { props: { author: dai } })
     await wrapper.get('textarea').setValue('第一条')

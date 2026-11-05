@@ -497,6 +497,32 @@ describe('DouCodeDiff hoverMarker', () => {
     expect(pressed).toEqual([[2, 'modified']])
   })
 
+  it('answers only on markers with pressOn: markers', async () => {
+    const pressed: unknown[] = []
+    const { wrapper } = setup({
+      original: 'a\nb\nc',
+      modelValue: 'a\nB\nc',
+      collapseUnchanged: false,
+      gutters: [
+        {
+          name: 'comments',
+          markers: [{ side: 'modified', line: 3, text: 'm', title: '戴兜的评论' }],
+          pressOn: 'markers',
+          onPress: (line: number, _event: Event, side: string) => pressed.push([line, side]),
+        },
+      ],
+    })
+    await nextTick()
+    await nextTick()
+    const [a, b] = wrapper.findAll('.dou-code-diff__side')
+    expect(a!.find('[data-gutter-cell]').exists()).toBe(false)
+    expect(b!.findAll('[data-gutter-cell]').map((c) => c.attributes('data-line'))).toEqual(['3'])
+    await b!
+      .get('[data-gutter-cell][data-line="3"]')
+      .trigger('pointerdown', { button: 0, pointerType: 'mouse' })
+    expect(pressed).toEqual([[3, 'modified']])
+  })
+
   it('counts a shared row inline as the side of the marker drawn there, over the hover one', async () => {
     const pressed: unknown[] = []
     const { wrapper } = setup({

@@ -327,6 +327,11 @@ export interface CodeDiffGutter {
    */
   hoverMarker?: CodeDiffHoverMarker
   /**
+   * Where `onPress` answers: `any` cell of the column (the default), or only
+   * its markers. With a `hoverMarker` on one side, only markers anyway.
+   */
+  pressOn?: 'any' | 'markers'
+  /**
    * A press on the column, on line `line` of `side`. Inline, a row both
    * texts share counts as the marker's side there, else as `modified`.
    */

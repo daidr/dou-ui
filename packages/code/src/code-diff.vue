@@ -870,7 +870,7 @@ function sideGutter(gutter: CodeDiffGutter, side: Side) {
       ),
     hoverMarker: hoversOn(gutter, name) ? hoverMarkerOf(gutter.hoverMarker!, name) : undefined,
     // on one side only, the other side's empty cells take no press
-    pressOn: gutter.hoverMarker?.side ? ('markers' as const) : undefined,
+    pressOn: gutter.hoverMarker?.side ? ('markers' as const) : gutter.pressOn,
     onPress:
       gutter.onPress &&
       ((line: number, event: PointerEvent | KeyboardEvent) => {
@@ -910,7 +910,7 @@ function inlineAnnotations(end = false): CodeExtension {
         name: gutter.name,
         width: gutter.width,
         // on one side only, rows of just the other side take no press
-        pressOn: gutter.hoverMarker?.side ? ('markers' as const) : undefined,
+        pressOn: gutter.hoverMarker?.side ? ('markers' as const) : gutter.pressOn,
         markers: ({ visible }: { visible: { from: number; to: number } }) => {
           const u = unified.value
           if (!u) return []

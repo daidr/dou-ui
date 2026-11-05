@@ -92,13 +92,14 @@ const hunks = diffText('上海\n戴兜\n', '上海\n阿青\n')
 
 ### CodeDiffGutter
 
-| 名称          | 说明                                                                                                                      | 类型                                                                               |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `name`        | 列名，各列不能重复                                                                                                        | `string`                                                                           |
-| `width`       | 宽度，单位 px，默认 16                                                                                                    | `number`                                                                           |
-| `markers`     | 标记 `{ side, line, icon?, text?, class?, title?, visible? }`，其余字段同编辑器的行号栏标记；有 `onPress` 时 `title` 必填 | `CodeDiffGutterMarker[]`                                                           |
-| `hoverMarker` | 没有自己标记的每一行都显示的标记，悬停时出现；有 `onPress` 时 `title` 必填                                                | `CodeDiffHoverMarker`                                                              |
-| `onPress`     | 点击这一列，或在标记上按 `Enter`、`Space`                                                                                 | `(line: number, event: PointerEvent \| KeyboardEvent, side: CodeDiffSide) => void` |
+| 名称          | 说明                                                                                                                                                              | 类型                                                                               |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `name`        | 列名，各列不能重复                                                                                                                                                | `string`                                                                           |
+| `width`       | 宽度，单位 px，默认 16                                                                                                                                            | `number`                                                                           |
+| `markers`     | 标记 `{ side, line, icon?, text?, class?, title?, visible? }`，其余字段同编辑器的行号栏标记；有 `onPress` 时 `title` 必填                                         | `CodeDiffGutterMarker[]`                                                           |
+| `pressOn`     | `onPress` 在哪里响应：默认 `any`，这一列的任何格子都能点；`markers` 时只有标记能点，空格子不显示手形光标。设了 `hoverMarker.side` 时，另一侧总是按 `markers` 处理 | `'any' \| 'markers'`                                                               |
+| `hoverMarker` | 没有自己标记的每一行都显示的标记，悬停时出现；有 `onPress` 时 `title` 必填                                                                                        | `CodeDiffHoverMarker`                                                              |
+| `onPress`     | 点击这一列，或在标记上按 `Enter`、`Space`                                                                                                                         | `(line: number, event: PointerEvent \| KeyboardEvent, side: CodeDiffSide) => void` |
 
 ### CodeDiffHoverMarker
 

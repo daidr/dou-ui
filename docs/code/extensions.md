@@ -147,13 +147,14 @@ defineCodeExtension({
 
 ### CodeGutter
 
-| 名称          | 说明                                                                                                                                                               | 类型                                                            |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------- |
-| `name`        | 列的名称                                                                                                                                                           | `string`                                                        |
-| `width`       | 宽度（px），默认 `16`                                                                                                                                              | `number`                                                        |
-| `markers`     | 可见行上的标记 `{ line, icon?, text?, class?, title?, visible? }`；有 `onPress` 时 `title` 必填；`visible: 'hover'` 时只在指着这一行、光标在这一行或它有焦点时显示 | `(context) => CodeGutterMarker[]`                               |
-| `hoverMarker` | 没有自己标记的每一行都显示的标记 `{ icon?, text?, class?, title? }`，悬停时出现；有 `onPress` 时 `title` 必填                                                      | `CodeGutterHoverMarker`                                         |
-| `onPress`     | 点击某一行的这一列，或在标记上按 `Enter`、`Space`                                                                                                                  | `(line, event: PointerEvent \| KeyboardEvent, context) => void` |
+| 名称          | 说明                                                                                                                                                                                                                                  | 类型                                                            |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `name`        | 列的名称                                                                                                                                                                                                                              | `string`                                                        |
+| `width`       | 宽度（px），默认 `16`                                                                                                                                                                                                                 | `number`                                                        |
+| `markers`     | 可见行上的标记 `{ line, icon?, text?, class?, title?, visible? }`；有 `onPress` 时 `title` 必填；`visible: 'hover'` 时只在指着这一行、光标在这一行或它有焦点时显示                                                                    | `(context) => CodeGutterMarker[]`                               |
+| `pressOn`     | `onPress` 在哪里响应：默认 `any`，这一列的任何格子都能点（比如在空行上加断点）；`markers` 时只有标记能点，空格子不显示手形光标                                                                                                        | `'any' \| 'markers'`                                            |
+| `hoverMarker` | 没有自己标记的每一行都显示的标记 `{ icon?, text?, class?, title? }`，悬停时出现；有 `onPress` 时 `title` 必填。`title` 可以是 `(line) => string`，给每一行一个名称，比如“在第 3 行加断点”；它会对可见的每一行频繁调用，不要做耗时操作 | `CodeGutterHoverMarker`                                         |
+| `onPress`     | 点击某一行的这一列，或在标记上按 `Enter`、`Space`                                                                                                                                                                                     | `(line, event: PointerEvent \| KeyboardEvent, context) => void` |
 
 ### CodeWidget
 

@@ -304,7 +304,13 @@ export interface CodeDiffGutterMarker extends CodeGutterMarker {
 }
 
 /** `DouCodeDiff`'s `hoverMarker`: on the lines of one side only, with `side`. */
-export interface CodeDiffHoverMarker extends CodeGutterHoverMarker {
+export interface CodeDiffHoverMarker extends Omit<CodeGutterHoverMarker, 'title'> {
+  /**
+   * Its name; a function names the marker of each line, with the line and
+   * side `onPress` gets there, e.g. "Comment on line 3 of the new text".
+   * It is called for every line in view, often: keep it quick.
+   */
+  title?: string | ((line: number, side: CodeDiffSide) => string)
   /** Only on the lines of this side; on both when left out. */
   side?: CodeDiffSide
 }

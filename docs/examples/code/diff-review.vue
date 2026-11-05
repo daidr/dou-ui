@@ -45,7 +45,10 @@ const gutters = computed(() => [
       icon: MessageCircleIcon,
       title: `${comment.author}的评论`,
     })),
-    hoverMarker: { icon: PlusIcon, title: '添加评论' },
+    hoverMarker: {
+      icon: PlusIcon,
+      title: (line, side) => `在${side === 'original' ? '原文' : '修改后'}第 ${line} 行添加评论`,
+    },
     onPress(line, event, side) {
       const existing = comments.value.find((c) => c.side === side && c.line === line)
       if (existing) return boxes.get(existing.id)?.focus()

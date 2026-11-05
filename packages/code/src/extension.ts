@@ -112,7 +112,14 @@ export interface CodeGutterMarker {
  * sight until the line is hovered (as `visible: 'hover'`), e.g. "add a
  * breakpoint" offered on every line.
  */
-export type CodeGutterHoverMarker = Pick<CodeGutterMarker, 'icon' | 'text' | 'class' | 'title'>
+export interface CodeGutterHoverMarker extends Pick<CodeGutterMarker, 'icon' | 'text' | 'class'> {
+  /**
+   * Its name, as a marker's `title`; a function names the marker of each
+   * line, e.g. "Add a breakpoint on line 3". It is called for every line in
+   * view, often: keep it quick.
+   */
+  title?: string | ((line: number) => string)
+}
 
 /** A column of the gutter, left of the line numbers. */
 export interface CodeGutter {
@@ -123,6 +130,11 @@ export interface CodeGutter {
   markers?: (context: CodeExtensionContext) => CodeGutterMarker[]
   /** A marker on every other line, shown on hover. */
   hoverMarker?: CodeGutterHoverMarker
+  /**
+   * Where `onPress` answers: `any` cell of the column (the default), e.g. to
+   * set a breakpoint on an empty line, or only its `markers`.
+   */
+  pressOn?: 'any' | 'markers'
   /**
    * A press on the column, on line `line`, e.g. to set a breakpoint. A
    * marker in such a column is a button: the one on the cursor's line is

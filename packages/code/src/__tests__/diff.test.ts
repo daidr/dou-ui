@@ -472,7 +472,11 @@ describe('DouCodeDiff hoverMarker', () => {
         {
           name: 'comments',
           markers: [{ side: 'modified', line: 1, text: 'm', title: '戴兜的评论' }],
-          hoverMarker: { text: '+', title: '加评论', side: 'modified' },
+          hoverMarker: {
+            text: '+',
+            title: (line: number, side: string) => `${side} ${line}`,
+            side: 'modified',
+          },
           onPress: (line: number, _event: Event, side: string) => pressed.push([line, side]),
         },
       ],
@@ -486,7 +490,9 @@ describe('DouCodeDiff hoverMarker', () => {
     expect([1, 2, 3].map((line) => cell(b, line).text())).toEqual(['m', '+', '+'])
     expect(cell(b, 1).classes()).not.toContain('is-on-hover')
     expect(cell(b, 2).classes()).toContain('is-on-hover')
-    expect([1, 2, 3].map((line) => cell(a, line).text())).toEqual(['', '', ''])
+    expect(cell(b, 2).attributes('aria-label')).toBe('modified 2')
+    expect(a!.findAll('.dou-code-editor__cell').map((c) => c.text())).not.toContain('+')
+    expect(a!.find('[data-gutter-cell]').exists()).toBe(false)
     await cell(b, 2).trigger('keydown', { key: 'Enter' })
     expect(pressed).toEqual([[2, 'modified']])
   })
@@ -501,7 +507,10 @@ describe('DouCodeDiff hoverMarker', () => {
         {
           name: 'comments',
           markers: [{ side: 'original', line: 1, text: 'o', title: '阿青的评论' }],
-          hoverMarker: { text: '+', title: '加评论' },
+          hoverMarker: {
+            text: '+',
+            title: (line: number, side: string) => `${side} 第 ${line} 行`,
+          },
           onPress: (line: number, _event: Event, side: string) => pressed.push([line, side]),
         },
       ],
@@ -510,6 +519,12 @@ describe('DouCodeDiff hoverMarker', () => {
     await nextTick()
     const cell = (row: number) => wrapper.find(`[data-gutter-cell][data-line="${row}"]`)
     expect(cell(1).text()).toBe('o')
+    // named for the line and side a press there goes to, not the inline row
+    expect([2, 3, 4].map((row) => cell(row).attributes('aria-label'))).toEqual([
+      'original 第 2 行',
+      'modified 第 2 行',
+      'modified 第 3 行',
+    ])
     await cell(1).trigger('pointerdown', { button: 0, pointerType: 'mouse' })
     await cell(4).trigger('pointerdown', { button: 0, pointerType: 'mouse' })
     expect(pressed).toEqual([
@@ -541,7 +556,9 @@ describe('DouCodeDiff hoverMarker', () => {
       side!
         .find(`[data-gutter-cell][data-line="${line}"]`)
         .trigger('pointerdown', { button: 0, pointerType: 'mouse' })
-    await press(a, 2)
+    // the original side's empty cells aren't pressable: no pointer over them
+    expect(a!.find('[data-gutter-cell][data-line="2"]').exists()).toBe(false)
+    expect(a!.find('[data-gutter-cell][data-line="3"]').exists()).toBe(true)
     await press(a, 3)
     await press(b, 2)
     expect(pressed).toEqual([
@@ -567,9 +584,10 @@ describe('DouCodeDiff hoverMarker', () => {
     await nextTick()
     const cell = (row: number) => inline.find(`[data-gutter-cell][data-line="${row}"]`)
     // Rows: a, b (removed), B (added), c
-    expect([1, 2, 3, 4].map((row) => cell(row).text())).toEqual(['+', '+', '', '+'])
-    for (const row of [2, 3])
-      await cell(row).trigger('pointerdown', { button: 0, pointerType: 'mouse' })
+    const any = (row: number) => inline.find(`.dou-code-editor__cell[data-line="${row}"]`)
+    expect([1, 2, 3, 4].map((row) => any(row).text())).toEqual(['+', '+', '', '+'])
+    expect(cell(3).exists()).toBe(false)
+    await cell(2).trigger('pointerdown', { button: 0, pointerType: 'mouse' })
     expect(pressed).toEqual([[2, 'original']])
   })
 

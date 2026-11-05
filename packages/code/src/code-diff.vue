@@ -29,6 +29,7 @@ import { splitLines } from './core/text'
 import {
   type CodeDecoration,
   type CodeExtension,
+  type CodeGutterHoverMarker,
   type CodeGutterMarker,
   type CodeWidget,
   defineCodeExtension,
@@ -38,6 +39,7 @@ import { format, useCodeMessages } from './locale'
 import type {
   CodeDiffEmits,
   CodeDiffGutter,
+  CodeDiffHoverMarker,
   CodeDiffProps,
   CodeDiffSide,
   CodeDiffWidget,
@@ -844,6 +846,17 @@ function pressedOn(gutter: CodeDiffGutter, side: CodeDiffSide, line: number): Co
   return null
 }
 
+/** The column's `hoverMarker` as the editor of one side takes it, named for that side. */
+function hoverMarkerOf(hover: CodeDiffHoverMarker, side: CodeDiffSide): CodeGutterHoverMarker {
+  const { title } = hover
+  return {
+    icon: hover.icon,
+    text: hover.text,
+    class: hover.class,
+    title: typeof title === 'function' ? (line: number) => title(line, side) : title,
+  }
+}
+
 /** A column of `gutters` as one side's editor draws it. */
 function sideGutter(gutter: CodeDiffGutter, side: Side) {
   const name = sideName(side)
@@ -855,7 +868,9 @@ function sideGutter(gutter: CodeDiffGutter, side: Side) {
         (marker) =>
           marker.side === name && marker.line >= visible.from && marker.line <= visible.to,
       ),
-    hoverMarker: hoversOn(gutter, name) ? gutter.hoverMarker : undefined,
+    hoverMarker: hoversOn(gutter, name) ? hoverMarkerOf(gutter.hoverMarker!, name) : undefined,
+    // on one side only, the other side's empty cells take no press
+    pressOn: gutter.hoverMarker?.side ? ('markers' as const) : undefined,
     onPress:
       gutter.onPress &&
       ((line: number, event: PointerEvent | KeyboardEvent) => {
@@ -894,6 +909,8 @@ function inlineAnnotations(end = false): CodeExtension {
       return (props.gutters ?? []).map((gutter) => ({
         name: gutter.name,
         width: gutter.width,
+        // on one side only, rows of just the other side take no press
+        pressOn: gutter.hoverMarker?.side ? ('markers' as const) : undefined,
         markers: ({ visible }: { visible: { from: number; to: number } }) => {
           const u = unified.value
           if (!u) return []
@@ -913,8 +930,23 @@ function inlineAnnotations(end = false): CodeExtension {
               if (taken.has(row)) continue
               const b = u.bNums[row - 1] ?? 0
               const a = u.aNums[row - 1] ?? 0
-              if ((b && hoversOn(gutter, 'modified')) || (a && hoversOn(gutter, 'original')))
-                out.push({ ...gutter.hoverMarker, line: row, visible: 'hover' })
+              // named for the line and side a press here goes to
+              const at: [number, CodeDiffSide] | null =
+                b && hoversOn(gutter, 'modified')
+                  ? [b, 'modified']
+                  : a && hoversOn(gutter, 'original')
+                    ? [a, 'original']
+                    : null
+              if (!at) continue
+              const { icon, text, class: className, title } = gutter.hoverMarker
+              out.push({
+                icon,
+                text,
+                class: className,
+                title: typeof title === 'function' ? title(at[0], at[1]) : title,
+                line: row,
+                visible: 'hover',
+              })
             }
           return out
         },

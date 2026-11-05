@@ -375,7 +375,7 @@ describe('extensions', () => {
           {
             name: 'breakpoints',
             markers: () => [{ line: 3, text: '●', title: '移除断点' }],
-            hoverMarker: { text: '○', title: '加断点' },
+            hoverMarker: { text: '○', title: (line) => `在第 ${line} 行加断点` },
             onPress: (line) => pressed.push(line),
           },
         ],
@@ -385,7 +385,7 @@ describe('extensions', () => {
     const cell = (line: number) => wrapper.find(`[data-gutter-cell][data-line="${line}"]`)
     expect([1, 2, 3].map((line) => cell(line).text())).toEqual(['○', '○', '●'])
     expect(cell(2).classes()).toContain('is-on-hover')
-    expect(cell(2).attributes('aria-label')).toBe('加断点')
+    expect(cell(2).attributes('aria-label')).toBe('在第 2 行加断点')
     expect(cell(3).classes()).not.toContain('is-on-hover')
     const tap = async (line: number, moveBy = 0) => {
       const at = { button: 0, pointerType: 'touch', pointerId: 7, clientX: 4, clientY: 4 }

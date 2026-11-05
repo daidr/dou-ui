@@ -901,6 +901,7 @@ const gutterColumns = computed(() => {
     width: number
     markers: () => CodeGutterMarker[]
     onPress?: (line: number, event: PointerEvent | KeyboardEvent) => void
+    pressOn?: 'any' | 'markers'
   }> = []
   if (!props.gutter) return columns
   // Kept while anything may report problems, so the text doesn't jump when the first one comes.
@@ -913,6 +914,7 @@ const gutterColumns = computed(() => {
         width: gutter.width ?? 16,
         markers: () => withHoverMarker(gutter.markers?.(context) ?? [], gutter.hoverMarker),
         onPress: gutter.onPress && ((line, event) => gutter.onPress!(line, event, context)),
+        pressOn: gutter.pressOn,
       })
   return columns
 })
@@ -926,7 +928,15 @@ function withHoverMarker(own: CodeGutterMarker[], hover: CodeGutterHoverMarker |
   const taken = new Set(own.map((marker) => marker.line))
   const out = [...own]
   for (let line = visibleFrom.value; line <= visibleTo.value; line++)
-    if (!taken.has(line)) out.push({ ...hover, line, visible: 'hover' })
+    if (!taken.has(line))
+      out.push({
+        icon: hover.icon,
+        text: hover.text,
+        class: hover.class,
+        title: typeof hover.title === 'function' ? hover.title(line) : hover.title,
+        line,
+        visible: 'hover',
+      })
   return out
 }
 
@@ -5119,7 +5129,12 @@ defineExpose<CodeEditorExpose>(api)
                     ]"
                     :style="{ width: `${column.width}px` }"
                     :title="gutterMarkers[c]?.get(row.n)?.title"
-                    :data-gutter-cell="column.onPress ? c : undefined"
+                    :data-gutter-cell="
+                      column.onPress &&
+                      (column.pressOn !== 'markers' || gutterMarkers[c]?.has(row.n))
+                        ? c
+                        : undefined
+                    "
                     :data-line="row.n"
                     v-bind="
                       column.onPress && gutterMarkers[c]?.get(row.n) && !disabled

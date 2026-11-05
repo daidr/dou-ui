@@ -61,7 +61,7 @@ const breakpoint = defineCodeExtension({
           class: 'demo-breakpoint',
           title: `移除第 ${line} 行的断点`,
         })),
-      hoverMarker: { class: 'demo-breakpoint is-ghost', title: '加断点' },
+      hoverMarker: { class: 'demo-breakpoint is-ghost', title: (line) => `在第 ${line} 行加断点` },
       onPress(line) {
         const next = new Set(breakpoints.value)
         if (next.has(line)) next.delete(line)

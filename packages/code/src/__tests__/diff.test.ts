@@ -491,6 +491,88 @@ describe('DouCodeDiff hoverMarker', () => {
     expect(pressed).toEqual([[2, 'modified']])
   })
 
+  it('counts a shared row inline as the side of the marker drawn there, over the hover one', async () => {
+    const pressed: unknown[] = []
+    const { wrapper } = setup({
+      mode: 'inline',
+      original: 'a\nb\nc',
+      modelValue: 'a\nB\nc',
+      gutters: [
+        {
+          name: 'comments',
+          markers: [{ side: 'original', line: 1, text: 'o', title: '阿青的评论' }],
+          hoverMarker: { text: '+', title: '加评论' },
+          onPress: (line: number, _event: Event, side: string) => pressed.push([line, side]),
+        },
+      ],
+    })
+    await nextTick()
+    await nextTick()
+    const cell = (row: number) => wrapper.find(`[data-gutter-cell][data-line="${row}"]`)
+    expect(cell(1).text()).toBe('o')
+    await cell(1).trigger('pointerdown', { button: 0, pointerType: 'mouse' })
+    await cell(4).trigger('pointerdown', { button: 0, pointerType: 'mouse' })
+    expect(pressed).toEqual([
+      [1, 'original'],
+      [3, 'modified'],
+    ])
+  })
+
+  it('leaves the other side to its own markers when it is on one side only', async () => {
+    const pressed: unknown[] = []
+    const onPress = (line: number, _event: Event, side: string) => pressed.push([line, side])
+    const { wrapper } = setup({
+      original: 'a\nb\nc',
+      modelValue: 'a\nB\nc',
+      collapseUnchanged: false,
+      gutters: [
+        {
+          name: 'comments',
+          markers: [{ side: 'original', line: 3, text: 'o', title: '阿青的评论' }],
+          hoverMarker: { text: '+', title: '加评论', side: 'modified' },
+          onPress,
+        },
+      ],
+    })
+    await nextTick()
+    await nextTick()
+    const [a, b] = wrapper.findAll('.dou-code-diff__side')
+    const press = (side: typeof a, line: number) =>
+      side!
+        .find(`[data-gutter-cell][data-line="${line}"]`)
+        .trigger('pointerdown', { button: 0, pointerType: 'mouse' })
+    await press(a, 2)
+    await press(a, 3)
+    await press(b, 2)
+    expect(pressed).toEqual([
+      [3, 'original'],
+      [2, 'modified'],
+    ])
+    wrapper.unmount()
+    pressed.length = 0
+    // inline: an added row has no place for an original-only marker
+    const inline = setup({
+      mode: 'inline',
+      original: 'a\nb\nc',
+      modelValue: 'a\nB\nc',
+      gutters: [
+        {
+          name: 'comments',
+          hoverMarker: { text: '+', title: '加评论', side: 'original' },
+          onPress,
+        },
+      ],
+    }).wrapper
+    await nextTick()
+    await nextTick()
+    const cell = (row: number) => inline.find(`[data-gutter-cell][data-line="${row}"]`)
+    // Rows: a, b (removed), B (added), c
+    expect([1, 2, 3, 4].map((row) => cell(row).text())).toEqual(['+', '+', '', '+'])
+    for (const row of [2, 3])
+      await cell(row).trigger('pointerdown', { button: 0, pointerType: 'mouse' })
+    expect(pressed).toEqual([[2, 'original']])
+  })
+
   it('puts it on each row inline, counting a row as the side it marks', async () => {
     const pressed: unknown[] = []
     const { wrapper } = setup({

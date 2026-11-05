@@ -1,5 +1,10 @@
 import type { Component, VNodeChild } from 'vue'
-import type { CodeDiagnostic, CodeExtension, CodeGutterMarker } from './extension'
+import type {
+  CodeDiagnostic,
+  CodeExtension,
+  CodeGutterHoverMarker,
+  CodeGutterMarker,
+} from './extension'
 import type { CodeCommand } from './core/commands'
 import type { CodeKeymap } from './core/keymap'
 import type { CodeSearchQuery } from './core/search'
@@ -298,15 +303,8 @@ export interface CodeDiffGutterMarker extends CodeGutterMarker {
   side: CodeDiffSide
 }
 
-/**
- * The marker a `DouCodeDiff` column shows on every line without one of its
- * own, out of sight until the line is hovered (`visible: 'hover'`), e.g. a
- * "comment" mark offered on every line.
- */
-export interface CodeDiffHoverMarker extends Pick<
-  CodeGutterMarker,
-  'icon' | 'text' | 'class' | 'title'
-> {
+/** `DouCodeDiff`'s `hoverMarker`: on the lines of one side only, with `side`. */
+export interface CodeDiffHoverMarker extends CodeGutterHoverMarker {
   /** Only on the lines of this side; on both when left out. */
   side?: CodeDiffSide
 }
@@ -317,7 +315,10 @@ export interface CodeDiffGutter {
   /** In px. Defaults to 16. */
   width?: number
   markers?: CodeDiffGutterMarker[]
-  /** A marker on every other line, shown on hover. */
+  /**
+   * A marker on every other line, shown on hover. With `side`, the other
+   * side's column only answers presses on its own markers.
+   */
   hoverMarker?: CodeDiffHoverMarker
   /**
    * A press on the column, on line `line` of `side`. Inline, a row both

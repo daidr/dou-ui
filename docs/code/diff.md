@@ -39,7 +39,7 @@
 - 并排时，标记画在它那一侧；小部件画在它那一侧，另一侧在对齐的位置留出同样高的空白，两侧不会错位。`span: 'both'` 的小部件横跨两栏，适合写给整段改动的说明。
 - `inline` 时，标记和小部件都放在这一行所在的位置；两侧共有的行上，修改后一侧的标记优先显示。
 
-想在每一行都提供入口（比如悬停时出现“+”，点击开始写评论），给列加 `hoverMarker`，不必为每一行写一个标记：没有自己标记的行都会显示它，平时隐藏，悬停在这一行、光标在这一行或标记获得焦点时出现。`hoverMarker.side` 可以只放在一侧。
+需要在每一行提供入口时（比如悬停出现“+”、点击开始写评论），可以给列设置 `hoverMarker`，不必为每一行写一个标记：没有自己标记的行都会显示它，平时隐藏，规则同[编辑器的悬停标记](/code/extensions#行号栏)：触屏上第一下点击先把光标移到这一行让它出现，再点一下才触发 `onPress`。用 `hoverMarker.side` 限定只显示在一侧时，点击也只在这一侧的空格子上触发；另一侧只有点它自己的标记才会触发 `onPress`。
 
 点击 `gutters` 的列，或用键盘在标记上按 `Enter`、`Space` 时，触发 `onPress(line, event, side)`：`event` 是这次的 `PointerEvent` 或 `KeyboardEvent`，`side` 是被点的那一侧。标记的键盘操作和 `title` 必填的规则同[编辑器的行号栏](/code/extensions#行号栏)。在 `inline` 视图中，两侧共有的行算作那里标记所在的一侧，没有标记时算作 `modified`。
 
@@ -97,8 +97,15 @@ const hunks = diffText('上海\n戴兜\n', '上海\n阿青\n')
 | `name`        | 列名，各列不能重复                                                                                                        | `string`                                                                           |
 | `width`       | 宽度，单位 px，默认 16                                                                                                    | `number`                                                                           |
 | `markers`     | 标记 `{ side, line, icon?, text?, class?, title?, visible? }`，其余字段同编辑器的行号栏标记；有 `onPress` 时 `title` 必填 | `CodeDiffGutterMarker[]`                                                           |
-| `hoverMarker` | 没有自己标记的每一行都显示的标记，悬停时出现；`side` 只放在一侧，不写时两侧都有；有 `onPress` 时 `title` 必填             | `{ icon?, text?, class?, title?, side? }`                                          |
+| `hoverMarker` | 没有自己标记的每一行都显示的标记，悬停时出现；有 `onPress` 时 `title` 必填                                                | `CodeDiffHoverMarker`                                                              |
 | `onPress`     | 点击这一列，或在标记上按 `Enter`、`Space`                                                                                 | `(line: number, event: PointerEvent \| KeyboardEvent, side: CodeDiffSide) => void` |
+
+### CodeDiffHoverMarker
+
+| 名称                                | 说明                                                           | 类型                       |
+| ----------------------------------- | -------------------------------------------------------------- | -------------------------- |
+| `icon` / `text` / `class` / `title` | 同编辑器的[悬停标记](/code/extensions#codegutter)              | —                          |
+| `side`                              | 只显示在这一侧，点击也只在这一侧的空格子上触发；不写时两侧都有 | `'original' \| 'modified'` |
 
 ### CodeDiffWidget
 

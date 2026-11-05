@@ -824,30 +824,24 @@ const spans = computed(() =>
   view.value === 'split' ? (props.widgets ?? []).filter((widget) => widget.span === 'both') : [],
 )
 
-/** The column's `hoverMarker` as a marker on line `line` of `side`, if it goes there. */
-function hoverMarkerOn(
-  gutter: CodeDiffGutter,
-  side: CodeDiffSide,
-  line: number,
-): CodeGutterMarker | undefined {
-  const hover = gutter.hoverMarker
-  if (!hover || line < 1 || (hover.side && hover.side !== side)) return
-  return {
-    icon: hover.icon,
-    text: hover.text,
-    class: hover.class,
-    title: hover.title,
-    line,
-    visible: 'hover',
-  }
+/** Whether a column's `hoverMarker` goes on the lines of `side`. */
+function hoversOn(gutter: CodeDiffGutter, side: CodeDiffSide) {
+  return !!gutter.hoverMarker && (!gutter.hoverMarker.side || gutter.hoverMarker.side === side)
 }
 
-/** Whether a column has a marker, its own or the hover one, on line `line` of `side`. */
-function markedOn(gutter: CodeDiffGutter, side: CodeDiffSide, line: number) {
-  if (line < 1) return false
-  if (gutter.hoverMarker && (!gutter.hoverMarker.side || gutter.hoverMarker.side === side))
-    return true
-  return (gutter.markers ?? []).some((m) => m.side === side && m.line === line)
+/** Whether a column has a marker of its own on line `line` of `side`. */
+function ownMarkerOn(gutter: CodeDiffGutter, side: CodeDiffSide, line: number) {
+  return line > 0 && (gutter.markers ?? []).some((m) => m.side === side && m.line === line)
+}
+
+/**
+ * Which line of which side a press on a column goes to, or `null` for none.
+ * A column whose `hoverMarker` is on one side only answers presses on the
+ * other side's own markers, not on its empty cells.
+ */
+function pressedOn(gutter: CodeDiffGutter, side: CodeDiffSide, line: number): CodeDiffSide | null {
+  if (!gutter.hoverMarker || hoversOn(gutter, side) || ownMarkerOn(gutter, side, line)) return side
+  return null
 }
 
 /** A column of `gutters` as one side's editor draws it. */
@@ -856,27 +850,17 @@ function sideGutter(gutter: CodeDiffGutter, side: Side) {
   return {
     name: gutter.name,
     width: gutter.width,
-    markers: ({ visible }: { visible: { from: number; to: number } }) => {
-      const out: CodeGutterMarker[] = []
-      const taken = new Set<number>()
-      for (const marker of gutter.markers ?? [])
-        if (marker.side === name && marker.line >= visible.from && marker.line <= visible.to) {
-          out.push(marker)
-          taken.add(marker.line)
-        }
-      if (gutter.hoverMarker) {
-        const total = side === 'a' ? originalLines.value.length : modifiedLines.value.length
-        for (let line = visible.from; line <= visible.to && line <= total; line++) {
-          if (taken.has(line)) continue
-          const marker = hoverMarkerOn(gutter, name, line)
-          if (marker) out.push(marker)
-        }
-      }
-      return out
-    },
+    markers: ({ visible }: { visible: { from: number; to: number } }) =>
+      (gutter.markers ?? []).filter(
+        (marker) =>
+          marker.side === name && marker.line >= visible.from && marker.line <= visible.to,
+      ),
+    hoverMarker: hoversOn(gutter, name) ? gutter.hoverMarker : undefined,
     onPress:
       gutter.onPress &&
-      ((line: number, event: PointerEvent | KeyboardEvent) => gutter.onPress!(line, event, name)),
+      ((line: number, event: PointerEvent | KeyboardEvent) => {
+        if (pressedOn(gutter, name, line)) gutter.onPress!(line, event, name)
+      }),
   }
 }
 
@@ -927,10 +911,10 @@ function inlineAnnotations(end = false): CodeExtension {
           if (gutter.hoverMarker)
             for (let row = visible.from; row <= visible.to && row <= u.kinds.length; row++) {
               if (taken.has(row)) continue
-              const marker =
-                hoverMarkerOn(gutter, 'modified', u.bNums[row - 1] ?? 0) ??
-                hoverMarkerOn(gutter, 'original', u.aNums[row - 1] ?? 0)
-              if (marker) out.push({ ...marker, line: row })
+              const b = u.bNums[row - 1] ?? 0
+              const a = u.aNums[row - 1] ?? 0
+              if ((b && hoversOn(gutter, 'modified')) || (a && hoversOn(gutter, 'original')))
+                out.push({ ...gutter.hoverMarker, line: row, visible: 'hover' })
             }
           return out
         },
@@ -941,10 +925,13 @@ function inlineAnnotations(end = false): CodeExtension {
             if (!u) return
             const a = u.aNums[row - 1] ?? 0
             const b = u.bNums[row - 1] ?? 0
-            const has = (side: CodeDiffSide, line: number) => markedOn(gutter, side, line)
-            if (has('modified', b) || (b && !has('original', a)))
-              gutter.onPress!(b, event, 'modified')
-            else gutter.onPress!(a, event, 'original')
+            const press = (side: CodeDiffSide, line: number) => gutter.onPress!(line, event, side)
+            if (ownMarkerOn(gutter, 'modified', b)) return press('modified', b)
+            if (ownMarkerOn(gutter, 'original', a)) return press('original', a)
+            if (!gutter.hoverMarker) return b ? press('modified', b) : press('original', a)
+            // with a hoverMarker on one side, an empty row of the other side isn't one to press
+            if (b && hoversOn(gutter, 'modified')) press('modified', b)
+            else if (a && hoversOn(gutter, 'original')) press('original', a)
           }),
       }))
     },

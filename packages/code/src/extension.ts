@@ -107,17 +107,28 @@ export interface CodeGutterMarker {
   visible?: 'always' | 'hover'
 }
 
+/**
+ * The marker a column shows on every line without one of its own, out of
+ * sight until the line is hovered (as `visible: 'hover'`), e.g. "add a
+ * breakpoint" offered on every line.
+ */
+export type CodeGutterHoverMarker = Pick<CodeGutterMarker, 'icon' | 'text' | 'class' | 'title'>
+
 /** A column of the gutter, left of the line numbers. */
 export interface CodeGutter {
   name: string
   /** In px. Defaults to 16. */
   width?: number
   /** The markers on the lines in view; reactive state read here updates them. */
-  markers: (context: CodeExtensionContext) => CodeGutterMarker[]
+  markers?: (context: CodeExtensionContext) => CodeGutterMarker[]
+  /** A marker on every other line, shown on hover. */
+  hoverMarker?: CodeGutterHoverMarker
   /**
    * A press on the column, on line `line`, e.g. to set a breakpoint. A
    * marker in such a column is a button: the one on the cursor's line is
-   * reached with Escape then Shift+Tab, and Enter or Space presses it.
+   * reached with Escape then Shift+Tab, and Enter or Space presses it. A
+   * finger or pen presses when it lifts in place; a tap on a marker still
+   * out of sight first moves the cursor to its line, which shows it.
    */
   onPress?: (
     line: number,

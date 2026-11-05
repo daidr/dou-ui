@@ -34,7 +34,8 @@ const comments = ref([
 ])
 let nextId = 3
 
-// 悬停在任意一行时出现“+”，点击在那一侧的那一行加一条评论
+// 悬停在任意一行时出现“+”，点击在那一侧的那一行加一条评论；点已有评论的图标跳到那条评论
+const boxes = new Map()
 const gutters = computed(() => [
   {
     name: 'comments',
@@ -46,6 +47,8 @@ const gutters = computed(() => [
     })),
     hoverMarker: { icon: PlusIcon, title: '添加评论' },
     onPress(line, event, side) {
+      const existing = comments.value.find((c) => c.side === side && c.line === line)
+      if (existing) return boxes.get(existing.id)?.focus()
       comments.value = [
         ...comments.value,
         { id: nextId++, side, line, author: '戴兜', text: `第 ${line} 行的新评论。` },
@@ -63,26 +66,34 @@ const widgets = computed(() =>
     height: 58,
     label: `${comment.author}的评论：${comment.text}`,
     render: () =>
-      h('div', { class: 'demo-comment' }, [
-        h(DouAvatar, { name: comment.author, size: 'sm' }),
-        h('div', { class: 'demo-comment-body' }, [
-          h('div', { class: 'demo-comment-head' }, [
-            h('span', { class: 'demo-comment-author' }, comment.author),
-            h(
-              DouButton,
-              {
-                size: 'xs',
-                variant: 'ghost',
-                onClick: () => {
-                  comments.value = comments.value.filter((c) => c.id !== comment.id)
+      h(
+        'div',
+        {
+          class: 'demo-comment',
+          tabindex: -1,
+          ref: (el) => (el ? boxes.set(comment.id, el) : boxes.delete(comment.id)),
+        },
+        [
+          h(DouAvatar, { name: comment.author, size: 'sm' }),
+          h('div', { class: 'demo-comment-body' }, [
+            h('div', { class: 'demo-comment-head' }, [
+              h('span', { class: 'demo-comment-author' }, comment.author),
+              h(
+                DouButton,
+                {
+                  size: 'xs',
+                  variant: 'ghost',
+                  onClick: () => {
+                    comments.value = comments.value.filter((c) => c.id !== comment.id)
+                  },
                 },
-              },
-              () => '解决',
-            ),
+                () => '解决',
+              ),
+            ]),
+            h('div', comment.text),
           ]),
-          h('div', comment.text),
-        ]),
-      ]),
+        ],
+      ),
   })),
 )
 </script>
@@ -108,6 +119,10 @@ const widgets = computed(() =>
   border: 1px solid var(--dou-color-border);
   border-radius: var(--dou-radius-control);
   background-color: var(--dou-color-bg-surface);
+}
+:deep(.demo-comment:focus) {
+  outline: 2px solid var(--dou-color-focus);
+  outline-offset: -1px;
 }
 :deep(.demo-comment-body) {
   flex: 1;

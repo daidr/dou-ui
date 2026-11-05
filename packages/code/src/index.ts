@@ -20,6 +20,7 @@ export type {
   CodeExtension,
   CodeExtensionContext,
   CodeGutter,
+  CodeGutterHoverMarker,
   CodeGutterMarker,
   CodeHistoryHandler,
   CodeCompletion,

@@ -366,6 +366,50 @@ describe('extensions', () => {
     expect(down('Tab', true).defaultPrevented).toBe(false)
   })
 
+  it('offers a hoverMarker on every line without a marker, pressed by a tap in place', async () => {
+    const pressed: number[] = []
+    const { wrapper, editor } = setup([
+      defineCodeExtension({
+        name: 'breakpoints',
+        gutters: [
+          {
+            name: 'breakpoints',
+            markers: () => [{ line: 3, text: '●', title: '移除断点' }],
+            hoverMarker: { text: '○', title: '加断点' },
+            onPress: (line) => pressed.push(line),
+          },
+        ],
+      }),
+    ])
+    await nextTick()
+    const cell = (line: number) => wrapper.find(`[data-gutter-cell][data-line="${line}"]`)
+    expect([1, 2, 3].map((line) => cell(line).text())).toEqual(['○', '○', '●'])
+    expect(cell(2).classes()).toContain('is-on-hover')
+    expect(cell(2).attributes('aria-label')).toBe('加断点')
+    expect(cell(3).classes()).not.toContain('is-on-hover')
+    const tap = async (line: number, moveBy = 0) => {
+      const at = { button: 0, pointerType: 'touch', pointerId: 7, clientX: 4, clientY: 4 }
+      await cell(line).trigger('pointerdown', at)
+      if (moveBy) await cell(line).trigger('pointermove', { ...at, clientY: 4 + moveBy })
+      await cell(line).trigger('pointerup', { ...at, clientY: 4 + moveBy })
+    }
+    // a finger can't hover: the first tap moves the cursor there, which shows the marker
+    await tap(2)
+    expect(pressed).toEqual([])
+    expect(
+      editor.value!.doc.lineAt(editor.value!.selection.ranges[editor.value!.selection.main]!.head)
+        .number,
+    ).toBe(2)
+    await tap(2)
+    expect(pressed).toEqual([2])
+    // dragging from the gutter scrolls, it doesn't press
+    await tap(2, 20)
+    expect(pressed).toEqual([2])
+    // a marker in sight is pressed by the first tap
+    await tap(3)
+    expect(pressed).toEqual([2, 3])
+  })
+
   it('puts the focus back in the text when a key press takes its marker away', async () => {
     const marked = ref(new Set([1]))
     const { wrapper, input } = setup([

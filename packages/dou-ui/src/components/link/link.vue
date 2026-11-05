@@ -71,8 +71,8 @@ function cut(text: string, edge: Edge, take: boolean): [rest: string, char: stri
   if (!take || !trimmed) return [trimmed, '']
   const chars = Array.from(trimmed)
   return edge === 'start'
-    ? [chars.slice(1).join(''), chars[0]]
-    : [chars.slice(0, -1).join(''), chars[chars.length - 1]]
+    ? [chars.slice(1).join(''), chars[0] ?? '']
+    : [chars.slice(0, -1).join(''), chars[chars.length - 1] ?? '']
 }
 function walk(nodes: unknown[], edge: Edge, take: boolean): Walk {
   const out = [...nodes]
@@ -119,8 +119,8 @@ const Content = () => {
       content as VNode[],
     )
   const external = !slots.trailing
-  const before = leading && icon(leading)
-  const after = trailing && icon(trailing, external)
+  const before = leading ? icon(leading) : undefined
+  const after = trailing ? icon(trailing, external) : undefined
   const body = h('span', { class: ns.e('label') }, tail.nodes as VNode[])
   if (!soft) return [before, body, after]
   return [

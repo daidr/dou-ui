@@ -15,7 +15,11 @@
       var(--dou-color-text) 5%,
       var(--dou-color-bg-surface)
     );
-    --dou-chat-message-highlight: color-mix(in oklab, var(--dou-color-primary-text) 70%, transparent);
+    --dou-chat-message-highlight: color-mix(
+      in oklab,
+      var(--dou-color-primary-text) 70%,
+      transparent
+    );
 
     display: flex;
     flex-direction: column;
@@ -63,20 +67,18 @@
     /*
      * A highlighted message, e.g. one a search jumped to, gets a ring in the
      * primary color: around the bubble for the person, a little outside the
-     * text for the assistant, whose turn has no bubble. Turned off, it fades.
+     * text for the assistant, whose turn has no bubble. It comes on quickly
+     * and fades out; reduced motion shortens both through the tokens.
      */
     border-radius: var(--dou-radius-control);
     outline: 2px solid transparent;
     outline-offset: 4px;
-    transition: outline-color var(--dou-motion-duration-slow, 320ms) var(--dou-motion-easing);
+    transition: outline-color var(--dou-motion-duration-normal) var(--dou-motion-easing-exit);
 
     .dou-chat-message.is-highlighted > & {
       outline-color: var(--dou-chat-message-highlight);
       transition-duration: var(--dou-motion-duration-fast);
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      transition: none;
+      transition-timing-function: var(--dou-motion-easing-enter);
     }
 
     .dou-chat-message--user > & {

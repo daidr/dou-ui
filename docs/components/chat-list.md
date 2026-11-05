@@ -20,7 +20,23 @@
 
 ## 定位到某条消息
 
-`scrollToMessage` 把一条消息滚到视野中间，比如搜索点中的那一条，并停止跟随新内容，免得新消息把读者拉回底部。传了 `items` 时参数是这条消息的键（`itemKey` 给出的值，没有 `itemKey` 时是下标）；用默认插槽时传它的元素。配合 DouChatMessage 的 `highlighted` 短暂高亮，让读者知道是哪一条。
+`scrollToMessage` 直接跳到一条消息，把它放在视野中间，比如搜索点中的那一条。传了 `items` 时，参数是这条消息的键（`itemKey` 给出的值，没有 `itemKey` 时是下标）；用默认插槽时，传它的元素，或者绑在 DouChatMessage 上的 `ref`：
+
+```vue
+<DouChatList ref="list">
+  <DouChatMessage v-for="m in messages" :key="m.id" :ref="(c) => (refs[m.id] = c)" v-bind="m" />
+</DouChatList>
+```
+
+```ts
+list.value.scrollToMessage(refs[id])
+```
+
+两种写法都是直接跳过去，不做平滑滚动：虚拟列表要等消息渲染出来才知道它的确切位置。找不到的键、不在列表里的元素会被忽略，列表保持原样。
+
+跳过去之后列表停止跟随新内容，免得新消息把读者拉回底部；定位到最后几条、列表已经在底部时，会照常继续跟随。
+
+配合 DouChatMessage 的 `highlighted` 短暂高亮，让读者看出是哪一条。高亮的消息带 `aria-current="true"`；焦点不会移动，读屏用户需要的提示（比如“已定位到第 7 条”）由应用自己播报。
 
 <DocDemo src="chat-list/locate" column />
 
@@ -58,9 +74,9 @@
 
 ### Exposes
 
-| 名称              | 说明                                                                              | 类型                                                                                                 |
-| ----------------- | --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `viewport`        | 滚动的元素                                                                        | `HTMLElement \| null`                                                                                |
-| `scrollToBottom`  | 滚动到底部并重新开始跟随                                                          | `(behavior?: ScrollBehavior) => void`                                                                |
-| `scrollToMessage` | 把一条消息滚到视野里并停止跟随；`items` 时传键，否则传元素，`align` 默认 `center` | `(target: VirtualListKey \| HTMLElement, align?: 'start' \| 'center' \| 'end' \| 'nearest') => void` |
-| `atBottom`        | 当前是否在底部                                                                    | `boolean`                                                                                            |
+| 名称              | 说明                                                                                                                       | 类型                                                                                                                            |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `viewport`        | 滚动的元素                                                                                                                 | `HTMLElement \| null`                                                                                                           |
+| `scrollToBottom`  | 滚动到底部并重新开始跟随                                                                                                   | `(behavior?: ScrollBehavior) => void`                                                                                           |
+| `scrollToMessage` | 直接跳到一条消息并停止跟随；传了 `items` 时传键，否则传元素或 DouChatMessage 的 `ref`；找不到时忽略；`align` 默认 `center` | `(target: VirtualListKey \| HTMLElement \| ComponentPublicInstance, align?: 'start' \| 'center' \| 'end' \| 'nearest') => void` |
+| `atBottom`        | 当前是否在底部                                                                                                             | `boolean`                                                                                                                       |

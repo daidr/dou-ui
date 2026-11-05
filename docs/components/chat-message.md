@@ -62,7 +62,7 @@ app.use(DouUI, {
 
 ## 高亮
 
-`highlighted` 给消息加上主题色的描边：用户消息贴着气泡，助手消息框在文字外侧一点。打开时一直显示，关掉后淡出（减少动效时直接消失），所以通常过一两秒再关掉。配合 DouChatList 的 [`scrollToMessage`](./chat-list#定位到某条消息) 使用。
+`highlighted` 给消息加上主题色的描边：用户消息的描边贴着气泡，助手消息的描边在文字外侧 4px。打开时一直显示，关掉后淡出（减少动效时很快消失），所以通常过一两秒再关掉。高亮的消息带 `aria-current="true"`。配合 DouChatList 的 [`scrollToMessage`](./chat-list#定位到某条消息) 使用。
 
 ## Markdown
 
@@ -96,7 +96,7 @@ app.use(DouUI, {
 | `editable`        | 用户消息显示编辑按钮                                                           | `boolean`                           | `false`                             |
 | `versions`        | 共有几个版本，大于 1 时显示切换器                                              | `number`                            | `1`                                 |
 | `version`         | 当前版本，从 1 开始，配合 `v-model:version`                                    | `number`                            | 最后一个版本                        |
-| `highlighted`     | 用主题色的描边框住这条消息，比如搜索定位到它时；关掉后淡出，减少动效时直接消失 | `boolean`                           | `false`                             |
+| `highlighted`     | 用主题色的描边框住这条消息，比如搜索定位到它时；关掉后淡出，减少动效时很快消失 | `boolean`                           | `false`                             |
 
 ### Events
 

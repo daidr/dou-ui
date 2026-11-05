@@ -1,5 +1,5 @@
 <script setup>
-import { ref, useTemplateRef } from 'vue'
+import { onBeforeUnmount, ref, useTemplateRef } from 'vue'
 
 const lines = [
   '上海门店下周的排班表发我看看？',
@@ -24,6 +24,7 @@ function locate(id) {
   clearTimeout(timer)
   timer = setTimeout(() => (highlighted.value = null), 1600)
 }
+onBeforeUnmount(() => clearTimeout(timer))
 </script>
 
 <template>

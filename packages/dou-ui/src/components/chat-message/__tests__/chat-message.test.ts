@@ -188,7 +188,9 @@ describe('DouChatMessage', () => {
   it('marks a highlighted message', async () => {
     const wrapper = mount(DouChatMessage, { props: { content: '上海', highlighted: true } })
     expect(wrapper.classes()).toContain('is-highlighted')
+    expect(wrapper.attributes('aria-current')).toBe('true')
     await wrapper.setProps({ highlighted: false })
     expect(wrapper.classes()).not.toContain('is-highlighted')
+    expect(wrapper.attributes('aria-current')).toBeUndefined()
   })
 })

@@ -37,6 +37,7 @@ defineOptions({ name: 'DouCommentThread' })
 const props = withDefaults(defineProps<CommentThreadProps>(), {
   author: undefined,
   readonly: false,
+  resolvable: true,
   placeholder: undefined,
   autofocus: false,
 })
@@ -236,7 +237,10 @@ defineExpose<CommentThreadExpose>({ focus })
             t('commentThread.edited')
           }}</span>
           <div v-if="writer" :class="ns.e('actions')">
-            <DouTooltip v-if="index === 0 && !resolved" :content="t('commentThread.resolve')">
+            <DouTooltip
+              v-if="index === 0 && resolvable && !resolved"
+              :content="t('commentThread.resolve')"
+            >
               <DouButton
                 variant="ghost"
                 size="sm"

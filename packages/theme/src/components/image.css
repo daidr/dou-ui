@@ -78,13 +78,13 @@
   }
 
   /*
-   * A box given one side and a cap on the other (`width` and `max-height`)
-   * is as tall as the picture up to the cap: the picture follows the cap
-   * and fills the box by `fit`, rather than running past its edge.
+   * A box given a width and only a cap on its height is as tall as the
+   * picture up to the cap: the picture takes the same cap and fills the
+   * box by `fit`, rather than running past its edge. Its height has nothing
+   * definite to resolve 100% against, so the cap comes as a variable.
    */
   .dou-image:not(.is-natural) > .dou-image__inner {
-    max-width: inherit;
-    max-height: inherit;
+    max-height: var(--dou-image-cap-height, none);
   }
 
   .dou-image.is-loading .dou-image__inner {

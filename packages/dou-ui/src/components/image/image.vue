@@ -63,6 +63,8 @@ const style = computed(() => ({
   '--dou-image-fit': props.fit,
   '--dou-image-max-width': natural.value ? px(props.maxWidth) : undefined,
   '--dou-image-max-height': natural.value ? px(props.maxHeight) : undefined,
+  '--dou-image-cap-height':
+    !natural.value && props.height === undefined ? px(props.maxHeight) : undefined,
 }))
 
 /* preview */

@@ -132,5 +132,11 @@ describe('DouImage without a size of its own', () => {
     expect(style).not.toContain('--dou-image-max-width')
     // still a cap on the box
     expect(style).toContain('max-width: 100%')
+    expect(style).not.toContain('--dou-image-cap-height')
+  })
+
+  it('hands a height cap to the picture when only the width is given', () => {
+    const wrapper = mount(DouImage, { props: { src: 'a.png', width: 200, maxHeight: 100 } })
+    expect(wrapper.get('.dou-image').attributes('style')).toContain('--dou-image-cap-height: 100px')
   })
 })

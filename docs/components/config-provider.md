@@ -87,13 +87,15 @@ import DouUI, { en } from 'dou-ui'
 app.use(DouUI, { size: 'sm', locale: en, zIndex: 3000 })
 ```
 
-按需引入组件时，在根组件的 `setup` 中调用 `provideGlobalConfig` 效果相同：
+按需引入组件时，在创建应用的地方调用 `provideGlobalConfig` 效果相同：
 
 ```ts
-import { provideGlobalConfig } from 'dou-ui'
+import { en, provideGlobalConfig } from 'dou-ui'
 
-provideGlobalConfig({ size: 'sm' })
+provideGlobalConfig({ size: 'sm', locale: en }, app)
 ```
+
+传入 `app` 时，`dialog()`、`toast()`、流程图的 `renderFlowSVG` 这类在组件树之外渲染的内容也会沿用这份配置（见 [installedAppContext](../guide/composables#installedappcontext)）。也可以不传 `app`、在根组件的 `setup` 中调用，这时只作用于组件树里的组件。
 
 ## 在自己的组件中读取
 

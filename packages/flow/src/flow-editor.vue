@@ -98,7 +98,14 @@ import {
 } from './core/model'
 import { readDocument } from './document'
 import { containerAt, FlowTree } from './core/groups'
-import { labelOf, nodeBounds, portsOf, resizeOf, type NodeTypeSpec } from './core/node-types'
+import {
+  labelOf,
+  nodeBounds,
+  portsOf,
+  resizeOf,
+  warnUnknownNodeType,
+  type NodeTypeSpec,
+} from './core/node-types'
 import { FlowTransaction, type FlowTransactionMeta } from './core/transaction'
 import { format, useFlowMessages } from './locale'
 import { drawTools, type DrawTools, type FlowDrawContext } from './export/context'
@@ -207,6 +214,15 @@ const edgeTypeOf = (type?: string) =>
   edgeTypes.value.get(type ?? defaultEdgeType.value) ??
   edgeTypes.value.get(defaultEdgeType.value) ??
   bezierEdge
+// A node of a type no one registered is drawn as a default card: say so while developing.
+if (process.env.NODE_ENV !== 'production')
+  watch(
+    () => [doc.value.nodes, types.value] as const,
+    ([nodes, map]) => {
+      for (const node of nodes) if (node.type && !map.has(node.type)) warnUnknownNodeType(node.type)
+    },
+    { immediate: true },
+  )
 const specOf = (node: FlowNode) =>
   types.value.get(node.type ?? 'default') ??
   types.value.get('default') ??

@@ -2,7 +2,8 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { h, nextTick } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DouConfigProvider, DouToastViewport, en, toast } from '../../../index'
-import { setToastContext, toastState } from '../store'
+import { setInstalledAppContext } from '../../../utils/app-context'
+import { toastState } from '../store'
 
 const items = () => [...document.querySelectorAll<HTMLElement>('.dou-toast__item')]
 
@@ -10,7 +11,7 @@ beforeEach(() => vi.useFakeTimers())
 afterEach(() => {
   toast.closeAll()
   vi.useRealTimers()
-  setToastContext(null)
+  setInstalledAppContext(null)
 })
 
 describe('toast', () => {

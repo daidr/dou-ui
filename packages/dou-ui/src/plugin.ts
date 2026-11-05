@@ -1,4 +1,5 @@
 import type { App, Plugin } from 'vue'
+import { setInstalledAppContext } from './utils/app-context'
 import {
   DouAffix,
   DouAlert,
@@ -342,6 +343,8 @@ export const DouUI: Plugin<[GlobalConfig?]> = {
   install(app: App, config?: GlobalConfig) {
     for (const component of components) app.use(component)
     if (config) provideGlobalConfig(config, app)
+    // oxlint-disable-next-line no-underscore-dangle -- the public way to reach an app's context
+    setInstalledAppContext(app._context)
     // popups render outside the app root, so motion is set on the page
     if (config?.motion) setMotionMode(config.motion)
   },

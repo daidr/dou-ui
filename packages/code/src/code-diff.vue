@@ -832,7 +832,8 @@ function sideGutter(gutter: CodeDiffGutter, side: Side) {
           marker.side === name && marker.line >= visible.from && marker.line <= visible.to,
       ),
     onPress:
-      gutter.onPress && ((line: number, event: PointerEvent) => gutter.onPress!(line, event, name)),
+      gutter.onPress &&
+      ((line: number, event: PointerEvent | KeyboardEvent) => gutter.onPress!(line, event, name)),
   }
 }
 
@@ -882,7 +883,7 @@ function inlineAnnotations(end = false): CodeExtension {
         },
         onPress:
           gutter.onPress &&
-          ((row: number, event: PointerEvent) => {
+          ((row: number, event: PointerEvent | KeyboardEvent) => {
             const u = unified.value
             if (!u) return
             const a = u.aNums[row - 1] ?? 0

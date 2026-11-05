@@ -39,7 +39,7 @@
 - 并排时，标记画在它那一侧；小部件画在它那一侧，另一侧在对齐的位置留出同样高的空白，两侧不会错位。`span: 'both'` 的小部件横跨两栏，适合写给整段改动的说明。
 - `inline` 时，标记和小部件都放在这一行所在的位置；两侧共有的行上，修改后一侧的标记优先显示。
 
-点击 `gutters` 的列时触发 `onPress(line, event, side)`，`side` 是被点的那一侧。在 `inline` 视图中，两侧共有的行算作那里标记所在的一侧，没有标记时算作 `modified`。
+点击 `gutters` 的列，或用键盘在标记上按 `Enter`、`Space` 时，触发 `onPress(line, event, side)`：`event` 是这次的 `PointerEvent` 或 `KeyboardEvent`，`side` 是被点的那一侧。标记的键盘操作和 `title` 必填的规则同[编辑器的行号栏](/code/extensions#行号栏)。在 `inline` 视图中，两侧共有的行算作那里标记所在的一侧，没有标记时算作 `modified`。
 
 几点需要注意：
 
@@ -90,12 +90,12 @@ const hunks = diffText('上海\n戴兜\n', '上海\n阿青\n')
 
 ### CodeDiffGutter
 
-| 名称      | 说明                                                                              | 类型                                                              |
-| --------- | --------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| `name`    | 列名，各列不能重复                                                                | `string`                                                          |
-| `width`   | 宽度，单位 px，默认 16                                                            | `number`                                                          |
-| `markers` | 标记 `{ side, line, icon?, text?, class?, title? }`，其余字段同编辑器的行号栏标记 | `CodeDiffGutterMarker[]`                                          |
-| `onPress` | 点击这一列                                                                        | `(line: number, event: PointerEvent, side: CodeDiffSide) => void` |
+| 名称      | 说明                                                                                                                      | 类型                                                                               |
+| --------- | ------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `name`    | 列名，各列不能重复                                                                                                        | `string`                                                                           |
+| `width`   | 宽度，单位 px，默认 16                                                                                                    | `number`                                                                           |
+| `markers` | 标记 `{ side, line, icon?, text?, class?, title?, visible? }`，其余字段同编辑器的行号栏标记；有 `onPress` 时 `title` 必填 | `CodeDiffGutterMarker[]`                                                           |
+| `onPress` | 点击这一列，或在标记上按 `Enter`、`Space`                                                                                 | `(line: number, event: PointerEvent \| KeyboardEvent, side: CodeDiffSide) => void` |
 
 ### CodeDiffWidget
 

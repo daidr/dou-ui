@@ -248,10 +248,10 @@ describe('DouCodeDiff gutters and widgets', () => {
         {
           name: 'notes',
           markers: [
-            { side: 'original', line: 2, text: 'o' },
-            { side: 'modified', line: 3, text: 'm' },
+            { side: 'original', line: 2, text: 'o', title: '原文的标记' },
+            { side: 'modified', line: 3, text: 'm', title: '修改后的标记' },
           ],
-          onPress: (line: number, _event: PointerEvent, side: string) => pressed.push([line, side]),
+          onPress: (line: number, _event: Event, side: string) => pressed.push([line, side]),
         },
       ],
     })
@@ -265,9 +265,12 @@ describe('DouCodeDiff gutters and widgets', () => {
     expect(cell(b, 3).text()).toBe('m')
     await cell(a, 1).trigger('pointerdown', { button: 0 })
     await cell(b, 2).trigger('pointerdown', { button: 0 })
+    // a marker is a button: Enter presses it, with the side it is on
+    await cell(b, 3).trigger('keydown', { key: 'Enter' })
     expect(pressed).toEqual([
       [1, 'original'],
       [2, 'modified'],
+      [3, 'modified'],
     ])
   })
 
@@ -322,7 +325,7 @@ describe('DouCodeDiff gutters and widgets', () => {
             { side: 'original', line: 3, text: 'x' },
             { side: 'modified', line: 3, text: 'y' },
           ],
-          onPress: (line: number, _event: PointerEvent, side: string) => pressed.push([line, side]),
+          onPress: (line: number, _event: Event, side: string) => pressed.push([line, side]),
         },
       ],
       widgets: [

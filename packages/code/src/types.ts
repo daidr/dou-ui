@@ -308,7 +308,7 @@ export interface CodeDiffGutter {
    * A press on the column, on line `line` of `side`. Inline, a row both
    * texts share counts as the marker's side there, else as `modified`.
    */
-  onPress?: (line: number, event: PointerEvent, side: CodeDiffSide) => void
+  onPress?: (line: number, event: PointerEvent | KeyboardEvent, side: CodeDiffSide) => void
 }
 
 /** A component drawn between lines of `DouCodeDiff`. */

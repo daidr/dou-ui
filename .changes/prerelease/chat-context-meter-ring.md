@@ -1,6 +1,8 @@
 ---
 type: 不兼容
 packages: [dou-ui, theme]
+pr: 357
+version: 0.1.0-alpha.5
 ---
 
 DouChatContextMeter 收窄为纯圆环：去掉内置的提示和 `tabindex`，移除 `format`，根元素也不再有内边距和固定高度。提示和用量明细由应用用 DouTooltip、DouPopover 自己组合，通常把圆环放进 ghost 按钮里，写法见文档。新增从 `dou-ui` 导出的 `compactNumber` 和 `contextUsage`，写提示时可以得到和圆环一致的数字；`used`、`total` 为负数或不是有限数时按 0 处理。

@@ -7,6 +7,27 @@ DouUI 的所有包（`dou-ui`、`@dou-ui/theme`、`@dou-ui/icons` 以及生态�
 
 这个文件由发版脚本生成：改动先以碎片文件记在 [`.changes/`](./.changes/README.md) 里，发布时汇总到这里。
 
+## 0.1.0-alpha.5 · 2026-11-05
+
+### 不兼容
+
+- **dou-ui、@dou-ui/theme**：DouChatContextMeter 收窄为纯圆环：去掉内置的提示和 `tabindex`，移除 `format`，根元素也不再有内边距和固定高度。提示和用量明细由应用用 DouTooltip、DouPopover 自己组合，通常把圆环放进 ghost 按钮里，写法见文档。新增从 `dou-ui` 导出的 `compactNumber` 和 `contextUsage`，写提示时可以得到和圆环一致的数字；`used`、`total` 为负数或不是有限数时按 0 处理。
+
+  迁移：想保留原来的悬停提示，先用 `const u = contextUsage(used, total)` 算出用量，再把圆环包进 `<DouTooltip :content="t('chat.context', { used: compactNumber(u.used), total: compactNumber(u.total), percent: u.percent })">` 并加上 `tabindex="0"`；需要点击打开明细时，把圆环放进按钮。 ([#357](https://github.com/daidr/dou-ui/pull/357))
+
+### 新增
+
+- **@dou-ui/dashboard**：DouDashboard 新增 `widgetError` 事件：格子的内容或设置面板出错时触发，参数是 `{ widget, part, error }`，用来上报错误监控。`@dou-ui/dashboard/widgets` 导出 `textOf`、`textsOf`、`numberOf`、`flagOf`、`recordOf`，自定义格子可以用它们读取类型不可靠的 `props`。 ([#356](https://github.com/daidr/dou-ui/pull/356))
+
+### 改进
+
+- **dou-ui**：DouTooltip 的提示和触发器的 `aria-valuetext` 相同时（比如包着进度、上下文用量这类读出数值的元素），不再挂 `aria-describedby`，读屏不会把同一句话读两遍。 ([#357](https://github.com/daidr/dou-ui/pull/357))
+
+### 修复
+
+- **@dou-ui/dashboard**：内置格子和它们的设置面板遇到类型不对的 `props`（比如 `delta` 写成数字、`columns` 不是数组、透视表 `config.rows` 不是数组、开关写成 `'yes'`）时，按没有设置处理，不再抛错；统计数字的固定值写成 `'12'` 这样的文字时，和从数据读到的值一样按数字显示。格子的组件在初始化或渲染时抛出的错误只影响这个格子：它显示“无法显示”和“重试”，其他格子照常显示，`props` 或数据变化后重新渲染；设置面板出错时只在设置抽屉里提示。 ([#356](https://github.com/daidr/dou-ui/pull/356))
+- **dou-ui**：DouPopover 打开时，焦点在触发器上按 `Tab` 而弹层里没有可聚焦的内容，或者按 `Shift+Tab` 往前离开时，弹层会关闭，不再留在页面上而焦点已经去了别处。 ([#358](https://github.com/daidr/dou-ui/pull/358))
+
 ## 0.1.0-alpha.4 · 2026-11-05
 
 ### 不兼容

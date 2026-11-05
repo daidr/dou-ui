@@ -94,7 +94,7 @@ const runFromHere = defineFlowExtension({
 
 ## 工具栏
 
-选中节点后，上方会出现一排按钮：复制一份、删除和打开节点菜单的“更多”。扩展用 `toolbarItems` 加按钮，拖动和连线时不显示。只读时只显示写了 `readonly: true` 的按钮（如内置的“评论”），没有这样的按钮时整个工具栏都不出现。不需要内置按钮时用 `flowKit({ toolbar: false })`。
+选中节点后，上方会出现一排按钮：复制一份、删除和打开节点菜单的“更多”。扩展用 `toolbarItems` 加按钮，拖动和连线时不显示。只读时只显示写了 `showWhenReadonly: true` 的按钮（如内置的“评论”），没有这样的按钮时整个工具栏都不出现。不需要内置按钮时用 `flowKit({ toolbar: false })`。
 
 只选中连线时，工具栏出现在连线上方，内置一个删除按钮，并尽量不盖住旁边的节点；扩展用 `edgeToolbarItems(ctx, edges)` 加按钮。
 
@@ -220,14 +220,14 @@ moveLayer(ctx, 'front') // 'front' | 'forward' | 'backward' | 'back'
 
 ### FlowToolbarItem
 
-| 名称       | 说明                                                                                            | 类型                |
-| ---------- | ----------------------------------------------------------------------------------------------- | ------------------- |
-| `key`      | 工具栏里唯一                                                                                    | `string`            |
-| `label`    | 提示文字，也是读屏器读的名字                                                                    | `string`            |
-| `icon`     | 图标                                                                                            | `Component`         |
-| `run`      | 点击时调用                                                                                      | `() => void`        |
-| `disabled` | 禁用                                                                                            | `boolean`           |
-| `pressed`  | 开关一类的按钮是否打开                                                                          | `boolean`           |
-| `shortcut` | 做同样事情的快捷键，显示在提示里，写法和 `useHotkey` 一样；只用于显示，按键要在 `keymap` 里绑定 | `string`            |
-| `children` | 代替 `run`：点击时在按钮下方弹出这些菜单项。既没有 `run` 也没有菜单项时，开发环境会警告一次     | `ContextMenuItem[]` |
-| `readonly` | 只读时也显示，用于不修改流程的操作，如评论                                                      | `boolean`           |
+| 名称               | 说明                                                                                            | 类型                |
+| ------------------ | ----------------------------------------------------------------------------------------------- | ------------------- |
+| `key`              | 工具栏里唯一                                                                                    | `string`            |
+| `label`            | 提示文字，也是读屏器读的名字                                                                    | `string`            |
+| `icon`             | 图标                                                                                            | `Component`         |
+| `run`              | 点击时调用                                                                                      | `() => void`        |
+| `disabled`         | 禁用                                                                                            | `boolean`           |
+| `pressed`          | 开关一类的按钮是否打开                                                                          | `boolean`           |
+| `shortcut`         | 做同样事情的快捷键，显示在提示里，写法和 `useHotkey` 一样；只用于显示，按键要在 `keymap` 里绑定 | `string`            |
+| `children`         | 代替 `run`：点击时在按钮下方弹出这些菜单项。既没有 `run` 也没有菜单项时，开发环境会警告一次     | `ContextMenuItem[]` |
+| `showWhenReadonly` | 只读时也显示，用于不修改流程的操作，如评论                                                      | `boolean`           |

@@ -56,8 +56,10 @@ export function useFlowComments(options: {
   transact: (fn: (tr: FlowTransaction) => void, meta?: FlowTransactionMeta) => FlowTransaction
   /** Keeps a change kept out of undo on a node or edge as undo and redo bring it back. */
   carry: (anchor: FlowCommentAnchor, patch: { comments: string[] | undefined }) => void
+  /** The open threads a node's marker counts: a collapsed container's take in those inside it. */
+  shownOn: (anchor: FlowCommentAnchor) => string[] | undefined
 }) {
-  const { props, emit, doc, selection, messages, transact, carry } = options
+  const { props, emit, doc, selection, messages, transact, carry, shownOn } = options
 
   const threads = computed<readonly CommentThread[]>(() => props.comments ?? [])
   const enabled = computed(() => props.comments !== undefined)
@@ -98,6 +100,9 @@ export function useFlowComments(options: {
       ? openOn.value.nodes.get(anchor.node)
       : openOn.value.edges.get(anchor.edge)) ?? []
 
+  /** The open threads on a node or edge, with those its marker shows for what it hides. */
+  const openThere = (anchor: FlowCommentAnchor) => shownOn(anchor) ?? threadsOf(anchor)
+
   /** The one node or edge selected. */
   function selected(): FlowCommentAnchor | null {
     const { nodes, edges } = selection.value
@@ -125,8 +130,8 @@ export function useFlowComments(options: {
         ? doc.value.nodes.some((n) => n.id === anchor.node)
         : doc.value.edges.some((e) => e.id === anchor.edge)
     if (!there) return false
-    // one already there: open it
-    const [first] = threadsOf(anchor)
+    // one already there, or shown there: open it
+    const [first] = openThere(anchor)
     if (first) {
       show(first, focus)
       return true
@@ -192,14 +197,14 @@ export function useFlowComments(options: {
 
   /** Whether `anchor` has something to offer: a thread to open, or one to start. */
   const offered = (anchor: FlowCommentAnchor) =>
-    enabled.value && (writable.value || threadsOf(anchor).length > 0)
+    enabled.value && (writable.value || openThere(anchor).length > 0)
 
   const item = (anchor: FlowCommentAnchor): FlowToolbarItem & ContextMenuItem => ({
     key: 'comment',
     label: messages.value.comment,
     icon: MessagePlusIcon,
     shortcut: KEY,
-    readonly: true,
+    showWhenReadonly: true,
     run: () => void start(anchor),
   })
 

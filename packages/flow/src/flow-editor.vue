@@ -189,6 +189,9 @@ const {
   messages,
   transact,
   carry: (on, patch) => !customHistory && history.carry(on, patch),
+  shownOn: (on) =>
+    commentSpots.value.find((spot) => spot.key === ('node' in on ? `n:${on.node}` : `e:${on.edge}`))
+      ?.threads,
 })
 
 const resolved = computed(() => {
@@ -2488,7 +2491,7 @@ onBeforeUnmount(() => {
 /** The toolbar's groups with something in; while read-only, only what is offered then too, such as comments. */
 function offeredItems(lists: FlowToolbarItem[][], readonly: boolean) {
   return lists
-    .map((list) => (readonly ? list.filter((item) => item.readonly) : list))
+    .map((list) => (readonly ? list.filter((item) => item.showWhenReadonly) : list))
     .filter((list) => list.length)
 }
 
@@ -2547,9 +2550,13 @@ const toolbarAnchor = computed(() => {
         .map((node) => rectOf(node))
         .filter((rect) => intersects(rect, band))
         .map(screen)
+  // clear of the comment markers on what is selected, which sit just above it
+  const keys = new Set([...nodes.map((id) => `n:${id}`), ...edges.map((id) => `e:${id}`)])
+  const marked = commentMarkers.value.filter((marker) => keys.has(marker.key))
+  const top = Math.min(bounds.y * zoom + y, ...marked.map(markerTop))
   return {
     x: (bounds.x + bounds.width / 2) * zoom + x,
-    top: bounds.y * zoom + y,
+    top,
     bottom: (bounds.y + bounds.height) * zoom + y,
     avoid,
   }
@@ -3759,8 +3766,21 @@ async function exportPNG(options: FlowImageOptions = {}) {
 
 /** Half an edge label's height, in canvas px. */
 const EDGE_LABEL_HALF = 10
-/** How far above an edge's label its marker sits, in screen px. */
+/** How far above an edge's label its marker sits, in screen px; a finger's target adds 8 (style.css). */
 const EDGE_MARKER_LIFT = 14
+/** A marker's size, and how far apart two markers' middles keep, so a finger's 40px targets don't overlap. */
+const MARKER_SIZE = 24
+const MARKER_GAP = 32
+
+/** A marker's middle, in px within the editor: a node's sits off its top right corner (style.css). */
+const markerCenter = (marker: FlowCommentMarker): Point =>
+  'node' in marker.anchor
+    ? { x: marker.x + 6 + MARKER_SIZE / 2, y: marker.y - 6 - MARKER_SIZE / 2 }
+    : { x: marker.x, y: marker.y }
+
+/** The top of a marker with a finger's target around it, in px within the editor. */
+const markerTop = (marker: FlowCommentMarker) =>
+  markerCenter(marker).y - MARKER_SIZE / 2 - 8 - (marker.lifted ? 8 : 0)
 
 /** Where a node or edge shows its comments: a collapsed container hiding it shows them instead. */
 function commentSpotOf(on: FlowCommentAnchor): FlowCommentAnchor | null {
@@ -3786,7 +3806,10 @@ const edgeRouteById = computed(() => new Map(edgeRoutes.value.map((item) => [ite
 const commentSpots = computed(() => {
   if (!comments.enabled.value) return []
   const { nodes, edges } = comments.openOn.value
-  const spots = new Map<string, Omit<FlowCommentMarker, 'x' | 'y'> & Point & { lift: number }>()
+  const spots = new Map<
+    string,
+    Omit<FlowCommentMarker, 'x' | 'y' | 'lifted'> & Point & { lift: number }
+  >()
   const add = (on: FlowCommentAnchor, threads: string[], extra: { pending?: boolean } = {}) => {
     const spot = commentSpotOf(on)
     if (!spot) return
@@ -3848,14 +3871,32 @@ const commentSpots = computed(() => {
   return list
 })
 
-/** The markers in px within the editor: only this follows the view as it pans and zooms. */
+/**
+ * The markers in px within the editor: only this follows the view as it
+ * pans and zooms. An edge's marker that would sit on another one moves
+ * aside, so each can be tapped.
+ */
 const commentMarkers = computed<FlowCommentMarker[]>(() => {
   const { x: vx, y: vy, zoom } = viewport.value
-  return commentSpots.value.map(({ x, y, lift, ...spot }) => ({
+  const markers = commentSpots.value.map(({ x, y, lift, ...spot }) => ({
     ...spot,
     x: x * zoom + vx,
     y: y * zoom + vy - lift,
+    lifted: lift > 0,
   }))
+  const placed = markers.filter((marker) => 'node' in marker.anchor).map(markerCenter)
+  for (const marker of markers) {
+    if ('node' in marker.anchor) continue
+    for (let tries = 0; tries < 8; tries++) {
+      const other = placed.find(
+        (p) => Math.abs(p.x - marker.x) < MARKER_GAP && Math.abs(p.y - marker.y) < MARKER_GAP,
+      )
+      if (!other) break
+      marker.x = other.x + (marker.x < other.x ? -MARKER_GAP : MARKER_GAP)
+    }
+    placed.push(markerCenter(marker))
+  }
+  return markers
 })
 
 // A thread opened from outside, e.g. a list beside the editor: bring what it is about into view.

@@ -571,6 +571,7 @@
 
     /* off a node's top right corner, clear of the corner's resize handle */
     &.is-node {
+      z-index: 1;
       transform: translate(6px, calc(-100% - 6px));
     }
 
@@ -588,12 +589,15 @@
       outline: 2px solid var(--dou-color-focus);
       outline-offset: 2px;
     }
-    /* a 40px target for a finger */
+    /* a 40px target for a finger, kept off the label below */
     @media (pointer: coarse) {
       &::after {
         position: absolute;
         inset: -8px;
         content: '';
+      }
+      &.is-lifted {
+        transform: translate(-50%, calc(-50% - 8px));
       }
     }
   }

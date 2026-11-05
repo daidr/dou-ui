@@ -32,8 +32,8 @@ export interface FlowToolbarItem {
    */
   children?: ContextMenuItem[]
   /**
-   * Offered while the editor is `readonly` too, such as commenting; the
-   * others are left out then.
+   * Shown while the editor is `readonly` too, for what doesn't change the
+   * flow, such as commenting; the other buttons are left out then.
    */
-  readonly?: boolean
+  showWhenReadonly?: boolean
 }

@@ -295,10 +295,12 @@ describe('DouFlowEditor comments', () => {
       edges: [],
     })
     const active = ref<string | null>(null)
+    const editor = ref<FlowEditorExpose>()
     const wrapper = mount(
       defineComponent(
         () => () =>
           h(DouFlowEditor, {
+            ref: editor,
             modelValue: flow.value,
             comments: [thread('t1', '复核要不要限时？')],
             activeComment: active.value,
@@ -316,5 +318,44 @@ describe('DouFlowEditor comments', () => {
     expect(document.querySelector('.dou-flow-editor__comment-card')!.textContent).toContain(
       '复核要不要限时？',
     )
+    // commenting on the group opens what its marker shows
+    active.value = null
+    await ticks()
+    expect(editor.value!.comment({ node: 'g' })).toBe(true)
+    await ticks()
+    expect(active.value).toBe('t1')
+  })
+
+  it('moves an edge marker aside from one it would cover', async () => {
+    const { wrapper, flow } = setup()
+    flow.value = {
+      ...flow.value,
+      edges: [...flow.value.edges, { ...flow.value.edges[0]!, id: 'f', comments: ['t1'] }],
+    }
+    await ticks()
+    const xs = wrapper
+      .findAll('.dou-flow-editor__comment:not(.is-node)')
+      .map((m) => Number.parseFloat(m.attributes('style')!.match(/translate:\s*([-\d.]+)px/)![1]!))
+    expect(xs).toHaveLength(2)
+    expect(Math.abs(xs[0]! - xs[1]!)).toBeGreaterThanOrEqual(32)
+  })
+
+  it('gives the focus back to the card when it is panned back into view', async () => {
+    const { wrapper, editor } = setup()
+    await ticks()
+    const marker = wrapper.findAll('.dou-flow-editor__comment')[0]!.element
+    marker.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 0 }))
+    await ticks()
+    await new Promise((resolve) => setTimeout(resolve))
+    await ticks()
+    expect(card()!.contains(document.activeElement)).toBe(true)
+    editor.value!.setViewport({ x: -5000, y: 0, zoom: 1 })
+    await ticks()
+    expect(card()!.classList.contains('is-away')).toBe(true)
+    // hidden, the card loses the focus
+    ;(document.activeElement as HTMLElement).blur()
+    editor.value!.setViewport({ x: 0, y: 0, zoom: 1 })
+    await ticks()
+    expect(card()!.contains(document.activeElement)).toBe(true)
   })
 })

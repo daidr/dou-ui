@@ -31,6 +31,8 @@ export interface FlowCommentMarker {
   /** Where it goes, in px within the editor. */
   x: number
   y: number
+  /** Above an edge's label: a finger's target keeps clear of the label. */
+  lifted: boolean
 }
 
 const props = defineProps<{
@@ -69,6 +71,21 @@ const away = computed(() => {
   const el = layer.value
   if (!marker || !el) return false
   return marker.x < 0 || marker.y < 0 || marker.x > el.clientWidth || marker.y > el.clientHeight
+})
+
+// Hiding the card drops the focus in it: give it back when the card returns.
+let awayFocus: HTMLElement | null = null
+watch(away, async (now) => {
+  if (now) {
+    const el = document.activeElement
+    awayFocus = el instanceof HTMLElement && panel.value?.contains(el) ? el : null
+    return
+  }
+  const el = awayFocus
+  awayFocus = null
+  await nextTick()
+  const at = document.activeElement
+  if (el?.isConnected && (!at || at === document.body)) el.focus({ preventScroll: true })
 })
 
 const anchor: VirtualElement = {
@@ -162,6 +179,7 @@ const label = (marker: FlowCommentMarker) =>
         'is-active': current?.key === marker.key,
         'is-new': !marker.threads.length,
         'is-node': 'node' in marker.anchor,
+        'is-lifted': marker.lifted,
       }"
       :style="{ translate: `${marker.x}px ${marker.y}px` }"
       :aria-label="marker.threads.length ? label(marker) : messages.comment"

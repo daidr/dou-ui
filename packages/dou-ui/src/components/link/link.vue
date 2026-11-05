@@ -60,8 +60,8 @@ if (process.env.NODE_ENV !== 'production')
 type Trim = 'trimStart' | 'trimEnd'
 function trimEdge(nodes: unknown[], how: Trim): unknown[] {
   const out = [...nodes]
-  const order = how === 'trimStart' ? out.keys() : [...out.keys()].reverse()
-  for (const index of order) {
+  const step = how === 'trimStart' ? 1 : -1
+  for (let index = step > 0 ? 0 : out.length - 1; index >= 0 && index < out.length; index += step) {
     const node = out[index]
     if (!isVNode(node)) {
       if (typeof node === 'string') {

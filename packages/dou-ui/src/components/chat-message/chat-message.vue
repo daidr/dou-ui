@@ -308,7 +308,7 @@ const rest = (part: AnyPart) => {
             :options="asQuestion(part).options"
             :status="asQuestion(part).status"
             :answer="asQuestion(part).answer"
-            @answer="emit('question', asQuestion(part), $event)"
+            @select="(value, option) => emit('question', asQuestion(part), value, option)"
           />
           <slot
             v-else-if="!known.has(part.type)"

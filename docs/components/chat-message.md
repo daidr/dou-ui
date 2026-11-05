@@ -96,13 +96,13 @@ app.use(DouUI, {
 
 ### Events
 
-| 名称             | 说明               | 参数                                                                 |
-| ---------------- | ------------------ | -------------------------------------------------------------------- |
-| `update:version` | 切换了版本         | `(version: number)`                                                  |
-| `edit`           | 保存了编辑后的消息 | `(text: string)`                                                     |
-| `confirm`        | 回答了确认片段     | `(part: ChatConfirmPart, decision: 'approve' \| 'always' \| 'deny')` |
-| `artifact`       | 点击了产物片段     | `(part: ChatArtifactPart)`                                           |
-| `question`       | 回答了选项提问片段 | `(part: ChatQuestionPart, value: string \| number)`                  |
+| 名称             | 说明                       | 参数                                                                            |
+| ---------------- | -------------------------- | ------------------------------------------------------------------------------- |
+| `update:version` | 切换了版本                 | `(version: number)`                                                             |
+| `edit`           | 保存了编辑后的消息         | `(text: string)`                                                                |
+| `confirm`        | 回答了确认片段             | `(part: ChatConfirmPart, decision: 'approve' \| 'always' \| 'deny')`            |
+| `artifact`       | 点击了产物片段             | `(part: ChatArtifactPart)`                                                      |
+| `question`       | 在选项提问片段中点选了一项 | `(part: ChatQuestionPart, value: string \| number, option: ChatQuestionOption)` |
 
 ### Slots
 

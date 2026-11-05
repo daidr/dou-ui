@@ -23,7 +23,7 @@ function toggle() {
     :options="options"
     :status="status"
     :answer="answer"
-    @answer="(value) => ((answer = value), (status = 'answered'))"
+    @select="(value) => ((answer = value), (status = 'answered'))"
   />
   <div>
     <DouButton size="sm" :variant="status === 'waiting' ? 'outline' : 'ghost'" @click="toggle">

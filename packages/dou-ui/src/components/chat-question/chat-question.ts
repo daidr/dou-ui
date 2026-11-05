@@ -8,7 +8,7 @@ import type { Component } from 'vue'
 export type ChatQuestionStatus = 'waiting' | 'answered' | 'withdrawn'
 
 export interface ChatQuestionOption {
-  /** Handed to `answer`, and what `answer` names to show the choice. */
+  /** Handed to `select`, and what `answer` names to show the choice; unique among the options. */
   value: string | number
   label: string
   /** A second line under the label. */
@@ -32,8 +32,8 @@ export interface ChatQuestionProps {
 }
 
 export interface ChatQuestionEmits {
-  /** An option was chosen. Updating `status` and `answer` is up to you. */
-  answer: [value: string | number, option: ChatQuestionOption]
+  /** An option was pressed. Setting `answer` and `status` to `answered` is up to you. */
+  select: [value: string | number, option: ChatQuestionOption]
 }
 
 export interface ChatQuestionSlots {

@@ -1,6 +1,6 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
-import { nextTick } from 'vue'
+import { describe, expect, it, vi } from 'vitest'
+import { defineComponent, h, nextTick, ref } from 'vue'
 import { DouChatMessage, DouChatQuestion } from '../../../index'
 import type { ChatQuestionOption } from '../../../index'
 
@@ -29,7 +29,7 @@ describe('DouChatQuestion', () => {
     expect(buttons[2]!.attributes('disabled')).toBeDefined()
     await first.trigger('click')
     await buttons[2]!.trigger('click')
-    expect(wrapper.emitted('answer')).toEqual([['sh', options[0]]])
+    expect(wrapper.emitted('select')).toEqual([['sh', options[0]]])
   })
 
   it('shows the answer once answered', () => {
@@ -81,6 +81,45 @@ describe('DouChatQuestion', () => {
     const question = wrapper.getComponent(DouChatQuestion)
     expect(question.attributes('id')).toBeUndefined()
     await question.get('.dou-chat-question__option').trigger('click')
-    expect(wrapper.emitted('question')).toEqual([[part, 'sh']])
+    expect(wrapper.emitted('question')).toEqual([[part, 'sh', options[0]]])
+  })
+
+  it('warns about options sharing a value, and about waiting with none', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    mount(DouChatQuestion, {
+      props: {
+        options: [
+          { value: 'twice', label: '一' },
+          { value: 'twice', label: '二' },
+        ],
+      },
+    })
+    mount(DouChatQuestion, { props: { title: '排哪些门店？' } })
+    const messages = warn.mock.calls.map(([message]) => String(message))
+    expect(messages.some((m) => m.includes('share the value "twice"'))).toBe(true)
+    expect(messages.some((m) => m.includes('waiting with no options'))).toBe(true)
+    // answered without options is fine: the answer may name an option no longer listed
+    warn.mockClear()
+    mount(DouChatQuestion, { props: { status: 'answered', answer: 'x' } })
+    expect(warn).not.toHaveBeenCalled()
+    warn.mockRestore()
+  })
+
+  it('takes its name from a title slot that appears later', async () => {
+    const shown = ref(false)
+    const wrapper = mount(
+      defineComponent(
+        () => () =>
+          h(DouChatQuestion, { options }, shown.value ? { title: () => '排哪些门店？' } : {}),
+      ),
+    )
+    expect(wrapper.find('.dou-chat-question__title').exists()).toBe(false)
+    shown.value = true
+    await nextTick()
+    const title = wrapper.get('.dou-chat-question__title')
+    expect(title.text()).toBe('排哪些门店？')
+    expect(wrapper.get('.dou-chat-question').attributes('aria-labelledby')).toBe(
+      title.attributes('id'),
+    )
   })
 })

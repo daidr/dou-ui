@@ -149,6 +149,11 @@
       color: var(--dou-color-text-disabled);
       cursor: not-allowed;
     }
+
+    /* a one-line option is 38px: a finger needs 40 */
+    @media (pointer: coarse) {
+      min-height: 40px;
+    }
   }
 
   .dou-chat-question__option-icon {

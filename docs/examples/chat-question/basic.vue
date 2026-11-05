@@ -2,7 +2,7 @@
 import { LayersIcon, StoreIcon } from '@dou-ui/icons'
 import { ref } from 'vue'
 
-// 选项里带着图标组件，不要放进响应式数据，这里只读，用普通数组
+// 选项里有图标组件，放在普通数组里，不放进 ref
 const options = [
   {
     value: 'sh',
@@ -15,7 +15,7 @@ const options = [
 const status = ref('waiting')
 const answer = ref()
 
-function onAnswer(value) {
+function onSelect(value) {
   answer.value = value
   status.value = 'answered'
 }
@@ -27,7 +27,7 @@ function onAnswer(value) {
     :options="options"
     :status="status"
     :answer="answer"
-    @answer="onAnswer"
+    @select="onSelect"
   />
   <div v-if="status !== 'waiting'">
     <DouButton size="sm" variant="ghost" @click="status = 'waiting'">重置</DouButton>

@@ -163,8 +163,8 @@ export interface ChatMessageEmits {
   confirm: [part: ChatConfirmPart, decision: ChatConfirmDecision]
   /** An artifact part was pressed. */
   artifact: [part: ChatArtifactPart]
-  /** A question part was answered, with the `value` of the option chosen. */
-  question: [part: ChatQuestionPart, value: string | number]
+  /** An option of a question part was pressed, with its `value` and the option itself. */
+  question: [part: ChatQuestionPart, value: string | number, option: ChatQuestionOption]
 }
 
 export interface ChatMessageSlots {

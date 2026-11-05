@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
-import { DouDashboard } from '..'
+import { DouDashboard, defineDashboardWidget, useDashboardWidget } from '..'
 import type { DashboardDocument, DashboardExpose, DashboardFilters, DashboardSources } from '..'
 import { chartWidget } from '../chart'
 import { pivotWidget } from '../pivot'
@@ -63,6 +63,10 @@ describe('shared helpers', () => {
   it('reads dotted paths and turns dates into day text', () => {
     expect(valueAt({ total: { amount: 3 } }, 'total.amount')).toBe(3)
     expect(valueAt({ a: 1 }, 'a.b')).toBeUndefined()
+    // a path that isn't text, as in JSON written by a program, finds nothing
+    expect(valueAt({ a: 1 }, 0.012)).toBeUndefined()
+    expect(valueAt({ a: 1 }, ['a'])).toBeUndefined()
+    expect(valueAt({ a: 1 }, null)).toEqual({ a: 1 })
     expect(filterValueOf(new Date(2026, 9, 31))).toBe('2026-10-31')
     expect(filterValueOf('上海')).toBe('上海')
   })
@@ -186,6 +190,104 @@ describe('built-in widgets', () => {
     pivot.vm.$emit('cellClick', cell([]))
     await flush()
     expect(filters.value).toEqual({})
+    wrapper.unmount()
+  })
+})
+
+describe('props of the wrong type', () => {
+  it('leaves out what built-in widgets can’t use, without throwing', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { wrapper } = setup(
+      [
+        {
+          id: 's',
+          type: 'stat',
+          props: { source: 'rows', field: 'n', delta: 0.012, trend: 3, precision: 'x', prefix: 1 },
+          place: place(0),
+        },
+        {
+          id: 't',
+          type: 'table',
+          props: { source: 'rows', path: 'list', columns: { key: 'city' }, rowKey: 1 },
+          place: place(3),
+        },
+        {
+          id: 'c',
+          type: 'chart',
+          props: { source: 'rows', path: 'list', x: 1, y: 'amount', labels: 2 },
+          place: place(6),
+        },
+        { id: 'x', type: 'text', props: { text: { a: 1 }, size: 'huge' }, place: place(9) },
+      ],
+      { rows: () => ({ n: 7, list: [...rows, null, 3] }) },
+    )
+    await flush()
+    expect(wrapper.find('.dou-dashboard-stat').text()).toContain('7')
+    // columns that aren't a list: every field, as with none given
+    expect(wrapper.find('.dou-dashboard-table').text()).toContain('上海')
+    expect(wrapper.find('.dou-dashboard-text').classes()).toContain('is-md')
+    expect(wrapper.findAll('.dou-dashboard__status.is-error')).toHaveLength(0)
+    expect(error).not.toHaveBeenCalled()
+    error.mockRestore()
+    warn.mockRestore()
+    wrapper.unmount()
+  })
+
+  it('shows a widget that throws as an error in its own card, and tries again when its props change', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const broken = defineDashboardWidget<{ ok?: boolean }>({
+      type: 'broken',
+      label: '会出错的格子',
+      component: defineComponent(() => {
+        const { props } = useDashboardWidget<{ ok?: boolean }>()
+        return () => {
+          if (!props.value.ok) throw new Error('boom')
+          return h('p', { class: 'fixed' }, '好了')
+        }
+      }),
+    })
+    const doc = ref<DashboardDocument>({
+      version: 1,
+      widgets: [
+        { id: 'b', type: 'broken', props: {}, place: place(0) },
+        { id: 't', type: 'text', props: { text: '戴兜' }, place: place(3) },
+      ],
+    })
+    const appError = vi.fn<(error: unknown) => void>()
+    const wrapper = mount(
+      defineComponent({
+        setup: () => () =>
+          h(DouDashboard, {
+            modelValue: doc.value,
+            'onUpdate:modelValue': (next: DashboardDocument) => (doc.value = next),
+            widgets: [broken, textWidget()],
+          }),
+      }),
+      { attachTo: document.body, global: { config: { errorHandler: appError } } },
+    )
+    await flush()
+    // the other widget shows; the error stays in the card and doesn't reach the app
+    expect(wrapper.find('.dou-dashboard-text').text()).toContain('戴兜')
+    const alert = wrapper.find('.dou-dashboard__status.is-error')
+    expect(alert.attributes('role')).toBe('alert')
+    expect(alert.text()).toContain('这个格子显示出错')
+    expect(appError).not.toHaveBeenCalled()
+    expect(error).toHaveBeenCalledWith(expect.stringContaining('"b" (broken)'), expect.any(Error))
+    // retrying with the same props fails again, still in the card
+    await alert.find('button').trigger('click')
+    await flush()
+    expect(wrapper.find('.dou-dashboard__status.is-error').exists()).toBe(true)
+    // fixed props: shown again
+    doc.value = {
+      ...doc.value,
+      widgets: doc.value.widgets.map((w) => (w.id === 'b' ? { ...w, props: { ok: true } } : w)),
+    }
+    await flush()
+    expect(wrapper.find('.fixed').exists()).toBe(true)
+    expect(wrapper.find('.dou-dashboard__status.is-error').exists()).toBe(false)
+    expect(appError).not.toHaveBeenCalled()
+    error.mockRestore()
     wrapper.unmount()
   })
 })

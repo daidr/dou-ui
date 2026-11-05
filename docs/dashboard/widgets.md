@@ -22,7 +22,7 @@ const widgets = [statWidget(), textWidget(), tableWidget(), chartWidget(), pivot
 - 内置格子都带有图标，显示在添加格子的面板里，也可以用 `icon` 换成别的。
 - 图表和透视表格子还需要引入它们自己的样式：和全量的 `dou-ui/style.css` 一起用时引入 `@dou-ui/chart/style.css`、`@dou-ui/pivot/style.css`；按需引入时引入 `@dou-ui/chart/style`、`@dou-ui/pivot/style`，它们会带上用到的 `dou-ui` 组件样式。
 
-下面各类型的设置都保存在格子的 `props` 里，是普通的 JSON。字段名写成 `total.amount` 这样的路径时，按层级读取数据。
+下面各类型的设置都保存在格子的 `props` 里，是普通的 JSON。字段名写成 `total.amount` 这样的路径时，按层级读取数据。`props` 常由程序或 AI 生成，类型不对的设置（比如该写字段路径的地方写了数字、`columns` 不是数组）按没有设置处理，不会报错；保存前最好按下面的类型自己校验一遍。
 
 ## 统计数字
 

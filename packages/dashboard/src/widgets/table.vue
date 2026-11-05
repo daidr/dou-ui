@@ -3,7 +3,7 @@ import { DouTable } from 'dou-ui'
 import type { TableColumn } from 'dou-ui'
 import { computed, onMounted, ref } from 'vue'
 import { useDashboardWidget } from '../widget/context'
-import { fieldsOf, rowsToWorkbook, rowsOf } from './shared'
+import { fieldsOf, rowsToWorkbook, rowsOf, textOf } from './shared'
 import type { TableWidgetColumn, TableWidgetProps } from './types'
 
 defineOptions({ name: 'DouDashboardTableWidget' })
@@ -13,7 +13,7 @@ const rows = computed(() => rowsOf(data.value, props.value.path))
 /** Each row's key: its `rowKey` field, or its place in the list. */
 const keys = computed(() => {
   const map = new WeakMap<object, string | number>()
-  const field = props.value.rowKey
+  const field = textOf(props.value.rowKey)
   rows.value.forEach((row, index) => map.set(row, field ? (row[field] as string | number) : index))
   return map
 })
@@ -45,10 +45,17 @@ function minWidthOf(title: string, texts: unknown[]) {
   for (const text of texts) widest = Math.max(widest, textWidth(String(text ?? '')))
   return Math.min(240, Math.ceil(widest) + 28)
 }
+/** The columns given, those with a text `key`; none given, or not a list, shows every field. */
+function columnsOf(value: unknown): TableWidgetColumn[] | undefined {
+  if (!Array.isArray(value)) return undefined
+  return value
+    .filter((column) => typeof column?.key === 'string')
+    .map((column) => ({ key: column.key, title: textOf(column.title) }))
+}
 const columns = computed<TableColumn[]>(() => {
   const first = rows.value[0]
   const list: TableWidgetColumn[] =
-    props.value.columns ?? fieldsOf(rows.value).map((key) => ({ key }))
+    columnsOf(props.value.columns) ?? fieldsOf(rows.value).map((key) => ({ key }))
   return list.map(({ key, title }) => {
     const numeric = typeof first?.[key] === 'number'
     // numbers with digit groups, as in the stat widget

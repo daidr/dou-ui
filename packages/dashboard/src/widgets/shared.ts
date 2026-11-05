@@ -1,8 +1,13 @@
 import type { SheetValue, SheetWorkbook } from '@dou-ui/sheet/core'
 
-/** The value at a dotted path, e.g. `total.amount`; the data itself for an empty path. */
-export function valueAt(data: unknown, path: string | undefined): unknown {
-  if (!path) return data
+/**
+ * The value at a dotted path, e.g. `total.amount`; the data itself for an
+ * empty path. A path that isn't text, e.g. a number in JSON written by hand
+ * or by a program, finds nothing.
+ */
+export function valueAt(data: unknown, path: unknown): unknown {
+  if (path === undefined || path === null || path === '') return data
+  if (typeof path !== 'string') return undefined
   let value = data
   for (const key of path.split('.')) {
     if (value == null || typeof value !== 'object') return undefined
@@ -11,11 +16,26 @@ export function valueAt(data: unknown, path: string | undefined): unknown {
   return value
 }
 
-/** The rows of a source's data: the data when it is a list, or the list at `path`. */
-export function rowsOf(data: unknown, path?: string): Record<string, unknown>[] {
+/** The rows of a source's data: the data when it is a list, or the list at `path`. Items that aren't objects are left out. */
+export function rowsOf(data: unknown, path?: unknown): Record<string, unknown>[] {
   const value = valueAt(data, path)
-  return Array.isArray(value) ? (value as Record<string, unknown>[]) : []
+  if (!Array.isArray(value)) return []
+  return value.every(isRecord) ? value : value.filter(isRecord)
 }
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === 'object'
+
+/**
+ * A widget's props come from JSON that types don't check: a prop meant to be
+ * text is used only when it is text, otherwise it counts as not set.
+ */
+export const textOf = (value: unknown): string | undefined =>
+  typeof value === 'string' ? value : undefined
+
+/** A prop meant to be a list of texts: the texts in it, or none. */
+export const textsOf = (value: unknown): string[] =>
+  Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
 
 /** The keys of the first row of a list, or of an object: the fields to pick from in settings. */
 export function fieldsOf(data: unknown): string[] {

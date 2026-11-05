@@ -3,7 +3,7 @@ import { DouSparkline, DouStatistic } from 'dou-ui'
 import { computed } from 'vue'
 import { format, useDashboardMessages } from '../locale'
 import { useDashboardWidget } from '../widget/context'
-import { valueAt } from './shared'
+import { textOf, valueAt } from './shared'
 import type { StatWidgetProps } from './types'
 
 defineOptions({ name: 'DouDashboardStatWidget' })
@@ -13,7 +13,7 @@ const messages = useDashboardMessages()
 
 const value = computed(() => {
   const { field, value: fixed } = props.value
-  if (!field) return fixed ?? null
+  if (!field) return typeof fixed === 'number' && Number.isFinite(fixed) ? fixed : null
   const read = Number(valueAt(data.value, field))
   return Number.isFinite(read) ? read : null
 })
@@ -30,6 +30,10 @@ const points = computed(() => {
   const list = props.value.trend ? valueAt(data.value, props.value.trend) : undefined
   return Array.isArray(list) ? list.map(Number).filter(Number.isFinite) : []
 })
+const precision = computed(() => {
+  const digits = props.value.precision
+  return Number.isInteger(digits) && digits! >= 0 && digits! <= 20 ? digits : undefined
+})
 /** The sparkline takes what the number leaves of the height, out to the card's edges. */
 const sparkHeight = computed(() => Math.max(0, Math.floor(size.height.value - 56)))
 </script>
@@ -38,9 +42,9 @@ const sparkHeight = computed(() => Math.max(0, Math.floor(size.height.value - 56
   <div class="dou-dashboard-stat">
     <DouStatistic
       :value="value"
-      :precision="props.precision"
-      :prefix="props.prefix"
-      :suffix="props.suffix"
+      :precision="precision"
+      :prefix="textOf(props.prefix)"
+      :suffix="textOf(props.suffix)"
       :trend="delta === undefined || delta === 0 ? undefined : delta > 0 ? 'up' : 'down'"
     >
       <template v-if="deltaText" #footer>{{ deltaText }}</template>

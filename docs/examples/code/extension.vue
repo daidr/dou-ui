@@ -65,7 +65,7 @@ const breakpoint = defineCodeExtension({
                   line,
                   class: 'demo-breakpoint is-ghost',
                   title: `在第 ${line} 行加断点`,
-                  reveal: 'hover',
+                  visible: 'hover',
                 },
           )
         return out

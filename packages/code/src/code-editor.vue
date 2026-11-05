@@ -953,10 +953,21 @@ function onCellKeydown(event: KeyboardEvent, column: number, line: number) {
   press(line, event)
 }
 
+/** Columns already warned about markers without a name, while developing. */
+const unnamed = new Set<string>()
 const gutterMarkers = computed(() =>
   gutterColumns.value.map((column) => {
     const byLine = new Map<number, CodeGutterMarker>()
-    for (const marker of column.markers()) byLine.set(marker.line, marker)
+    for (const marker of column.markers()) {
+      byLine.set(marker.line, marker)
+      if (process.env.NODE_ENV !== 'production' && column.onPress && !marker.title) {
+        if (!unnamed.has(column.name))
+          console.warn(
+            `[@dou-ui/code] gutter "${column.name}": a marker in a column with \`onPress\` is a button and needs a \`title\` to name it.`,
+          )
+        unnamed.add(column.name)
+      }
+    }
     return byLine
   }),
 )
@@ -5038,7 +5049,7 @@ defineExpose<CodeEditorExpose>(api)
                     :key="column.name"
                     :class="[
                       ns.e('cell'),
-                      ns.is('reveal', gutterMarkers[c]?.get(row.n)?.reveal === 'hover'),
+                      ns.is('on-hover', gutterMarkers[c]?.get(row.n)?.visible === 'hover'),
                       gutterMarkers[c]?.get(row.n)?.class,
                     ]"
                     :style="{ width: `${column.width}px` }"

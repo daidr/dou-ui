@@ -327,7 +327,7 @@ describe('extensions', () => {
                 line: index + 1,
                 text: '+',
                 title: '批注',
-                reveal: 'hover' as const,
+                visible: 'hover' as const,
               })),
             onPress: (line, event) => pressed.push([line, event.type]),
           },
@@ -338,7 +338,7 @@ describe('extensions', () => {
     const cell = (line: number) => wrapper.find(`[data-gutter-cell][data-line="${line}"]`)
     expect(cell(1).attributes('role')).toBe('button')
     expect(cell(1).attributes('aria-label')).toBe('批注')
-    expect(cell(1).classes()).toContain('is-reveal')
+    expect(cell(1).classes()).toContain('is-on-hover')
     // only the cursor's line takes a Tab
     expect(cell(1).attributes('tabindex')).toBe('0')
     expect(cell(2).attributes('tabindex')).toBe('-1')
@@ -364,6 +364,29 @@ describe('extensions', () => {
     down('Escape')
     down('Shift', true)
     expect(down('Tab', true).defaultPrevented).toBe(false)
+  })
+
+  it('warns once about a pressable marker without a name', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    setup([
+      defineCodeExtension({
+        name: 'comment',
+        gutters: [
+          {
+            name: 'comment',
+            markers: () => [
+              { line: 1, text: '+' },
+              { line: 2, text: '+' },
+            ],
+            onPress: () => {},
+          },
+        ],
+      }),
+    ])
+    await nextTick()
+    const calls = warn.mock.calls.filter(([message]) => String(message).includes('needs a `title`'))
+    expect(calls).toHaveLength(1)
+    warn.mockRestore()
   })
 
   it('draws panels that reach the editor with useCodeEditor', async () => {

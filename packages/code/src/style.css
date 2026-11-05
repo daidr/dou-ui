@@ -521,7 +521,7 @@
    * the mouse is over (in the gutter or the text), on the cursor's line while
    * the editor has the focus, and while it has the focus itself.
    */
-  .dou-code-editor__cell.is-reveal {
+  .dou-code-editor__cell.is-on-hover {
     opacity: 0;
     transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
 

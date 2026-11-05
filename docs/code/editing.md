@@ -115,6 +115,6 @@ replacementFor(doc, matches[0], query) // 'const a'
 | 下一个 / 上一个问题       | `F8` / `Shift` + `F8`                             |                                                     |
 | 显示修复办法              | `Mod` + `.`                                       |                                                     |
 
-编辑器中 `Tab` 用于缩进。只用键盘时，先按 `Esc` 再按 `Tab`，焦点会移到页面上的下一个元素。不需要用 `Tab` 缩进时，把 `tabIndents` 设为 `false`。
+编辑器中 `Tab` 用于缩进。只用键盘时，先按 `Esc` 再按 `Tab`，焦点会移到页面上的下一个元素；先按 `Esc` 再按 `Shift` + `Tab`，焦点会移到光标所在行的行号栏标记上（如果有），见扩展的[行号栏](./extensions#行号栏)。不需要用 `Tab` 缩进时，把 `tabIndents` 设为 `false`。
 
 每个快捷键对应 `codeCommands` 中的一个命令，可以用 `keymap` 修改，见[用代码修改](./transactions#命令)。

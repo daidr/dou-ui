@@ -94,14 +94,17 @@ export interface CodeGutterMarker {
   /** Short text, when there is no icon. */
   text?: string
   class?: string
-  /** Shown on hover, and the name of the marker's button when its column has `onPress`. */
+  /**
+   * Shown on hover. Required when the column has `onPress`: the marker is
+   * then a button, and this is its name.
+   */
   title?: string
   /**
-   * `hover` keeps the marker out of sight until its line is hovered, holds
-   * the cursor, or the marker has the focus: e.g. a "comment" mark offered
-   * on every line. Defaults to `always`.
+   * When the marker shows: `always`, or `hover`, out of sight until its
+   * line is hovered, holds the cursor, or the marker has the focus, e.g. a
+   * "comment" mark offered on every line. Defaults to `always`.
    */
-  reveal?: 'always' | 'hover'
+  visible?: 'always' | 'hover'
 }
 
 /** A column of the gutter, left of the line numbers. */

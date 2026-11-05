@@ -95,6 +95,8 @@ function setup(props: Record<string, unknown> = {}, selected: string[] = []) {
   return { wrapper, editor, flow, threads, active, actions, selection }
 }
 
+const card = () => document.querySelector('.dou-flow-editor__comment-card')
+
 const ticks = async () => {
   for (let i = 0; i < 4; i++) await nextTick()
 }
@@ -109,8 +111,8 @@ describe('DouFlowEditor comments', () => {
     await markers[1]!.trigger('click')
     await ticks()
     expect(active.value).toBe('t2')
-    const card = document.querySelector('.dou-flow-editor__comment-card')!
-    expect(card.textContent).toContain('5000 元以下直接打款？')
+    const shown = card()!
+    expect(shown.textContent).toContain('5000 元以下直接打款？')
     expect(markers[1]!.attributes('aria-expanded')).toBe('true')
   })
 
@@ -205,10 +207,10 @@ describe('DouFlowEditor comments', () => {
     await ticks()
     active.value = 'done'
     await ticks()
-    const card = document.querySelector('.dou-flow-editor__comment-card')!
-    expect(card.textContent).toContain('已经定了')
+    const shown = card()!
+    expect(shown.textContent).toContain('已经定了')
     // the open one there is shown with it, but only it is counted
-    expect(card.textContent).toContain('5000 元以下直接打款？')
+    expect(shown.textContent).toContain('5000 元以下直接打款？')
     const marker = document.querySelectorAll('.dou-flow-editor__comment')[1]!
     expect(marker.getAttribute('aria-label')).toBe('1 条评论')
   })
@@ -258,7 +260,6 @@ describe('DouFlowEditor comments', () => {
     const marker = () => wrapper.findAll('.dou-flow-editor__comment')[0]!.element
     marker().dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }))
     await ticks()
-    const card = () => document.querySelector('.dou-flow-editor__comment-card')
     expect(card()!.contains(document.activeElement)).toBe(false)
     marker().dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }))
     await ticks()

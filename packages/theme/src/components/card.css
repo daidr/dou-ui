@@ -32,6 +32,12 @@
     /* a card rendered as a button: none of the browser's button look */
     &:is(button) {
       appearance: none;
+      /*
+       * A button shrinks to its content where a div fills the line: fill it.
+       * In a flex row the basis comes from the content instead, so it sizes
+       * like a div card there rather than taking the whole row.
+       */
+      flex-basis: content;
       width: 100%;
       margin: 0;
       padding: 0;
@@ -51,12 +57,18 @@
       transition-duration: var(--dou-motion-duration-fast);
       transition-timing-function: var(--dou-motion-easing);
 
-      &:hover {
+      &:hover:not(:disabled) {
         --dou-card-border: var(--dou-color-border-strong);
       }
 
-      &.is-raised:hover {
+      &.is-raised:hover:not(:disabled) {
         --dou-card-shadow: var(--dou-shadow-lg);
+      }
+
+      /* a disabled button card, as a disabled button */
+      &:disabled {
+        cursor: not-allowed;
+        opacity: 0.45;
       }
 
       &:focus-visible {

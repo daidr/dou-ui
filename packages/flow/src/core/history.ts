@@ -88,6 +88,31 @@ export class FlowHistory {
     return { tr, selection: entry.selectionAfter }
   }
 
+  /**
+   * Gives a change kept out of undo to a node or edge as undo and redo
+   * bring it back, too: comments started on a new node stay on it when its
+   * adding is undone and redone.
+   */
+  carry(target: { node: string } | { edge: string }, patch: Record<string, unknown>) {
+    const merge = <T extends object>(item: T): T => {
+      const next: Record<string, unknown> = { ...item, ...patch }
+      for (const [key, value] of Object.entries(patch)) if (value === undefined) delete next[key]
+      return next as T
+    }
+    const fix = (steps: FlowStep[]) =>
+      steps.map((step) =>
+        'node' in target && step.type === 'addNode' && step.node.id === target.node
+          ? { ...step, node: merge(step.node) }
+          : 'edge' in target && step.type === 'addEdge' && step.edge.id === target.edge
+            ? { ...step, edge: merge(step.edge) }
+            : step,
+      )
+    for (const entry of [...this.done, ...this.undone]) {
+      entry.steps = fix(entry.steps)
+      entry.inverse = fix(entry.inverse)
+    }
+  }
+
   clear() {
     this.done = []
     this.undone = []

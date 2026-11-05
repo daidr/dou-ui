@@ -82,11 +82,12 @@ export class FlowTransaction {
    * editor fires `transactionCancel` and says why. For an extension's `transaction`
    * hook, e.g. to keep people from changing what they may not; hooks after
    * it don't run. A change kept out of the history (`meta.history: false`),
-   * such as undo, redo or another person's, can't be cancelled and goes ahead.
+   * such as undo, redo, another person's or a comment's (`meta.origin`
+   * tells which), can't be cancelled and goes ahead.
    */
   cancel(reason?: string) {
     if (this.meta.history !== false) this.stopped = { reason }
-    else warnUncancellable()
+    else warnUncancellable(this.meta.origin)
     return this
   }
 
@@ -385,11 +386,11 @@ export function compactFlowSteps(steps: readonly FlowStep[]): FlowStep[] {
 
 let warnedUncancellable = false
 /** Says once that cancelling a change kept out of the history does nothing. */
-function warnUncancellable() {
+function warnUncancellable(origin: unknown) {
   // the app's bundler replaces this, as for Vue's own warnings
   if (process.env.NODE_ENV === 'production' || warnedUncancellable) return
   warnedUncancellable = true
   console.warn(
-    "[@dou-ui/flow] a change kept out of the history (undo, redo or another person's) can't be cancelled; it goes ahead",
+    `[@dou-ui/flow] a change kept out of the history can't be cancelled; it goes ahead (meta.origin: ${JSON.stringify(origin ?? null)}). Undo, redo, other people's changes and the marks of comments are such changes: skip them in the hook by meta.origin`,
   )
 }

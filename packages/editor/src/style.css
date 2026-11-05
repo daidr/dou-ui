@@ -674,7 +674,7 @@
   .dou-editor-comment {
     box-sizing: border-box;
     width: min(340px, calc(100vw - 32px));
-    max-height: min(480px, calc(100vh - 32px));
+    max-height: min(var(--dou-floating-available, 100vh), 480px, calc(100vh - 32px));
     padding: 12px;
     overflow-y: auto;
     overscroll-behavior: contain;

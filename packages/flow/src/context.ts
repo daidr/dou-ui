@@ -1,4 +1,4 @@
-import type { ContextMenuItem } from 'dou-ui'
+import type { CommentAction, CommentAuthor, CommentThread, ContextMenuItem } from 'dou-ui'
 import type { FlowExportOptions, FlowImageOptions } from './export/draw'
 import type { FlowTree } from './core/groups'
 import { inject, type ComputedRef, type InjectionKey, type Ref, type ShallowRef } from 'vue'
@@ -108,7 +108,22 @@ export interface FlowEditorProps {
   ariaLabel?: string
   /** Texts to change; only the ones given are replaced. */
   messages?: FlowMessagesOverride
+  /**
+   * The comment threads, bound with `v-model:comments`. The node or edge a
+   * thread is about keeps the thread's id in its `comments`. Left out,
+   * there are no comments.
+   */
+  comments?: CommentThread[]
+  /** Who is commenting. Without it comments can be read but not written. */
+  author?: CommentAuthor
+  /** The thread open now, bound with `v-model:activeComment`. */
+  activeComment?: string | null
+  /** Threads can be started and replied to; also while `readonly`. On by default. */
+  commentable?: boolean
 }
+
+/** What a comment thread is about: a node or an edge. */
+export type FlowCommentAnchor = { node: string } | { edge: string }
 
 export interface FlowEditorEmits {
   /** Every change to the document, with its steps; `update:modelValue` follows. */
@@ -118,6 +133,10 @@ export interface FlowEditorEmits {
    * says why, and the editor shows it and reads it out.
    */
   transactionCancel: [tr: FlowTransaction]
+  'update:comments': [threads: CommentThread[]]
+  'update:activeComment': [id: string | null]
+  /** A change to the comments made here: to send to a server, notify people, keep a log. */
+  commentAction: [action: CommentAction]
   nodeClick: [node: FlowNode, event: MouseEvent]
   nodeDblclick: [node: FlowNode, event: MouseEvent]
   nodeContextmenu: [node: FlowNode, event: MouseEvent]
@@ -189,6 +208,14 @@ export interface FlowEditorExpose {
   readonly staleEdges: string[]
   /** Removes the stale edges as one undo step; returns how many. */
   removeStaleEdges: () => number
+  /**
+   * Opens the open thread on a node or edge (the selected one when left
+   * out), ready to reply, or starts one there; `false` when there is no such
+   * node or edge, or nothing to open and comments can't be written.
+   */
+  comment: (anchor?: FlowCommentAnchor) => boolean
+  /** What each thread is about; `null` when its node or edge is gone. Not reactive. */
+  getCommentAnchors: () => Record<string, FlowCommentAnchor | null>
   /**
    * Adds a node of a type with its defaults and selects it, as one undo
    * step; returns its id. See `FlowInsertOptions` for where it goes.

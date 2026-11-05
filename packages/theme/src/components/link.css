@@ -2,13 +2,18 @@
  * Link
  *
  * Links are ink, like the text around them. What marks them is a faint
- * underline that deepens to full strength on hover.
+ * underline that deepens to full strength on hover. The soft variant sets
+ * a reference apart on the soft fill of its tone instead, and stays inline
+ * so it breaks with the line, each line keeping its own rounded fill. It
+ * has no border, unlike other filled parts: a frame around words in a
+ * running line reads as a control and crowds the lines above and below.
  */
 @layer dou.components {
   .dou-link {
     --dou-link-tone: var(--dou-color-text);
     --dou-link-underline: color-mix(in oklab, var(--dou-link-tone) 28%, transparent);
     --dou-link-underline-hover: var(--dou-link-tone);
+    --dou-link-soft: var(--dou-color-neutral-soft);
 
     display: inline-flex;
     align-items: baseline;
@@ -61,27 +66,81 @@
     text-decoration-line: underline;
     text-decoration-color: var(--dou-link-underline);
 
-    &:hover:not(.is-disabled) {
+    @media (hover: hover) {
+      &:hover:not(.is-disabled) {
+        text-decoration-color: var(--dou-link-underline-hover);
+      }
+    }
+  }
+  @media (hover: hover) {
+    .dou-link--underline-hover:hover:not(.is-disabled) {
+      text-decoration-line: underline;
       text-decoration-color: var(--dou-link-underline-hover);
     }
   }
-  .dou-link--underline-hover:hover:not(.is-disabled) {
-    text-decoration-line: underline;
-    text-decoration-color: var(--dou-link-underline-hover);
+
+  .dou-link--soft {
+    --dou-link-fill: var(--dou-link-soft);
+    --dou-link-fill-hover: color-mix(in oklab, var(--dou-link-tone) 6%, var(--dou-link-soft));
+
+    display: inline;
+    padding-inline: 4px;
+    border-radius: calc(var(--dou-radius-control) - 2px);
+    background-color: var(--dou-link-fill);
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+    transition-property: color, text-decoration-color, background-color;
+
+    @media (hover: hover) {
+      &:hover:not(.is-disabled) {
+        background-color: var(--dou-link-fill-hover);
+      }
+    }
+
+    /* a button never breaks across lines and stands as tall as its line
+       height: take the height of the text itself, as the inline <a> does */
+    &:is(button) {
+      line-height: normal;
+    }
+
+    /* each icon and the character beside it break as one, so an icon is
+       never left alone at the end of a line */
+    & > .dou-link__lead,
+    & > .dou-link__trail {
+      white-space: nowrap;
+    }
+
+    /* inline, so no gap: the icons keep their distance with a margin */
+    & .dou-link__icon {
+      display: inline-flex;
+      vertical-align: -0.125em;
+    }
+
+    & .dou-link__lead > .dou-link__icon:first-child {
+      margin-inline-end: 0.25em;
+    }
+
+    & .dou-link__trail > .dou-link__icon:last-child {
+      margin-inline-start: 0.25em;
+    }
   }
 
   /* tones */
   .dou-link--primary {
     --dou-link-tone: var(--dou-color-primary-text);
+    --dou-link-soft: var(--dou-color-primary-soft);
   }
   .dou-link--success {
     --dou-link-tone: var(--dou-color-success-text);
+    --dou-link-soft: var(--dou-color-success-soft);
   }
   .dou-link--warning {
     --dou-link-tone: var(--dou-color-warning-text);
+    --dou-link-soft: var(--dou-color-warning-soft);
   }
   .dou-link--danger {
     --dou-link-tone: var(--dou-color-danger-text);
+    --dou-link-soft: var(--dou-color-danger-soft);
   }
 
   .dou-link__icon {

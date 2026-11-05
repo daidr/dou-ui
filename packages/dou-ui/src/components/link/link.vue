@@ -1,6 +1,18 @@
 <script setup lang="ts">
 import { ArrowUpRightIcon } from '@dou-ui/icons'
-import { computed, onMounted, useTemplateRef, watchEffect } from 'vue'
+import {
+  Comment,
+  Fragment,
+  Text,
+  computed,
+  createTextVNode,
+  h,
+  isVNode,
+  onMounted,
+  useTemplateRef,
+  watchEffect,
+} from 'vue'
+import type { VNode } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { devWarn } from '../../utils/status-check'
 import type { LinkEmits, LinkProps, LinkSlots } from './link'
@@ -9,7 +21,8 @@ defineOptions({ name: 'DouLink' })
 
 const props = withDefaults(defineProps<LinkProps>(), {
   tone: 'neutral',
-  underline: 'always',
+  variant: 'text',
+  underline: undefined,
   disabled: false,
   external: false,
 })
@@ -41,10 +54,93 @@ if (process.env.NODE_ENV !== 'production')
       )
   })
 
+// A label written on its own lines in a template starts and ends with a
+// space, which would show under the underline or inside a soft fill. Slots
+// passed on by a wrapper come as fragments, and a `v-if` leaves a comment:
+// look through both for the first and last text. A fragment that holds
+// nothing but spaces is passed over for the next node.
+//
+// A soft link breaks with the line, and an icon must not be left alone at
+// the end of one: the first and last characters of the label are taken out
+// to sit beside the icons in a span that never breaks. A character inside
+// an element of its own (`<strong>`) stays where it is.
+type Edge = 'start' | 'end'
+type Walk = { nodes: unknown[]; done: boolean; char: string }
+function cut(text: string, edge: Edge, take: boolean): [rest: string, char: string] {
+  const trimmed = edge === 'start' ? text.trimStart() : text.trimEnd()
+  if (!take || !trimmed) return [trimmed, '']
+  const chars = Array.from(trimmed)
+  return edge === 'start'
+    ? [chars.slice(1).join(''), chars[0] ?? '']
+    : [chars.slice(0, -1).join(''), chars[chars.length - 1] ?? '']
+}
+function walk(nodes: unknown[], edge: Edge, take: boolean): Walk {
+  const out = [...nodes]
+  const step = edge === 'start' ? 1 : -1
+  for (let index = step > 0 ? 0 : out.length - 1; index >= 0 && index < out.length; index += step) {
+    const node = out[index]
+    if (typeof node === 'string' || (isVNode(node) && node.type === Text)) {
+      const text = typeof node === 'string' ? node : node.children
+      if (typeof text !== 'string') return { nodes: out, done: true, char: '' }
+      const [rest, char] = cut(text, edge, take)
+      out[index] = typeof node === 'string' ? rest : createTextVNode(rest)
+      if (char || rest) return { nodes: out, done: true, char }
+      continue
+    }
+    if (!isVNode(node) || node.type === Comment) continue
+    if (node.type === Fragment && Array.isArray(node.children)) {
+      const inner = walk(node.children, edge, take)
+      out[index] = { ...node, children: inner.nodes } as VNode
+      if (inner.done) return { ...inner, nodes: out }
+      continue
+    }
+    return { nodes: out, done: true, char: '' }
+  }
+  return { nodes: out, done: false, char: '' }
+}
+// Called in this component's own render, so it follows slots that come
+// and go; `Nodes` only puts the result down.
+const parts = () => {
+  const label = (slots.default?.() ?? []) as unknown[]
+  const soft = props.variant === 'soft'
+  const leading = slots.leading?.()
+  const trailing = slots.trailing
+    ? slots.trailing()
+    : props.external && !isButton.value
+      ? h(ArrowUpRightIcon)
+      : undefined
+  const head = walk(label, 'start', soft && !!leading)
+  const tail = walk(head.nodes, 'end', soft && !!trailing)
+  const icon = (content: unknown, external = false) =>
+    h(
+      'span',
+      {
+        class: [ns.e('icon'), external && ns.e('external')],
+        'aria-hidden': external ? 'true' : undefined,
+      },
+      content as VNode[],
+    )
+  const external = !slots.trailing
+  const before = leading ? icon(leading) : undefined
+  const after = trailing ? icon(trailing, external) : undefined
+  const body = h('span', { class: ns.e('label') }, tail.nodes as VNode[])
+  if (!soft) return [before, body, after]
+  // a single character between two icons: all three break as one
+  if (before && after && head.char && !tail.char)
+    return [h('span', { class: [ns.e('lead'), ns.e('trail')] }, [before, head.char, body, after])]
+  return [
+    before && h('span', { class: ns.e('lead') }, [before, head.char]),
+    body,
+    after && h('span', { class: ns.e('trail') }, [tail.char, after]),
+  ]
+}
+const Nodes = (nodes: { nodes: unknown }) => nodes.nodes as VNode[]
+
 const classes = computed(() => [
   ns.b(),
   ns.m(props.tone),
-  ns.m(`underline-${props.underline}`),
+  ns.m(props.variant),
+  ns.m(`underline-${props.underline ?? (props.variant === 'soft' ? 'none' : 'always')}`),
   ns.is('disabled', props.disabled),
 ])
 
@@ -76,19 +172,6 @@ function onClick(event: MouseEvent) {
     v-bind="attrs"
     @click="onClick"
   >
-    <span v-if="slots.leading" :class="ns.e('icon')">
-      <slot name="leading" />
-    </span>
-    <span :class="ns.e('label')"><slot /></span>
-    <span v-if="slots.trailing" :class="ns.e('icon')">
-      <slot name="trailing" />
-    </span>
-    <span
-      v-else-if="external && !isButton"
-      :class="[ns.e('icon'), ns.e('external')]"
-      aria-hidden="true"
-    >
-      <ArrowUpRightIcon />
-    </span>
+    <Nodes :nodes="parts()" />
   </component>
 </template>

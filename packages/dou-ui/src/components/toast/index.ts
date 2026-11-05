@@ -1,15 +1,8 @@
 import { h, render } from 'vue'
 import type { App } from 'vue'
+import { installedAppContext, setInstalledAppContext } from '../../utils/app-context'
 import { withInstall } from '../../utils/install'
-import {
-  addToast,
-  clearToasts,
-  getToastContext,
-  removeToast,
-  setToastContext,
-  toastState,
-  updateToast,
-} from './store'
+import { addToast, clearToasts, removeToast, toastState, updateToast } from './store'
 import ToastViewport from './toast-viewport.vue'
 import type {
   ToastHandle,
@@ -25,14 +18,14 @@ const installViewport = DouToastViewport.install
 DouToastViewport.install = (app: App) => {
   installViewport?.(app)
   // oxlint-disable-next-line no-underscore-dangle -- the public way to reach an app's context
-  setToastContext(app._context)
+  setInstalledAppContext(app._context)
 }
 
 function ensureViewport() {
   if (toastState.viewports.length > 0 || typeof document === 'undefined') return
   const container = document.createElement('div')
   const vnode = h(ToastViewport)
-  vnode.appContext = getToastContext()
+  vnode.appContext = installedAppContext()
   render(vnode, container)
 }
 
@@ -120,7 +113,6 @@ export const toast: ToastApi = Object.assign(
   },
 )
 
-export { setToastContext }
 export type * from './toast'
 export type ToastViewportInstance = InstanceType<typeof ToastViewport>
 

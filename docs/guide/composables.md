@@ -32,7 +32,7 @@ DouUI 的组件建立在一组组合式函数上。下面这些已经导出，�
 | `createScrollLink`                                | 让几个滚动区域同步滚动，不互相拉回                     | [下文](#createscrolllink)                                          |
 | `svgToPNG` / `fitPixelRatio`                      | 把 SVG 画成 PNG，超出画布上限时抛出 `RangeError`       | [下文](#svgtopng)                                                  |
 | `downloadBlob`                                    | 把 `Blob` 存成下载的文件                               | [下文](#downloadblob)                                              |
-| `installedAppContext`                             | 取得调用过 `app.use(DouUI)` 的应用上下文               | [下文](#installedappcontext)                                       |
+| `installedAppContext`                             | 取得配置了 DouUI 的应用的上下文                        | [下文](#installedappcontext)                                       |
 
 除 `holdPointer`、`scrollPositionOf`、`createScrollLink`、`svgToPNG`、`fitPixelRatio`、`downloadBlob`、`installedAppContext` 外，这些函数都要在 `setup` 中调用，组件卸载时自动清理监听。
 
@@ -272,4 +272,8 @@ vnode.appContext = installedAppContext()
 render(vnode, container)
 ```
 
-`installedAppContext()` 返回调用过 `app.use(DouUI)` 的应用的上下文，没有调用过时返回 `null`。用函数在组件树之外渲染组件时，把它设为 vnode 的 `appContext`，组件就能沿用应用的语言包和全局配置。流程图的 `renderFlowSVG` 默认就这样做。
+`installedAppContext()` 返回配置了 DouUI 的应用的上下文，还没有时返回 `null`。用函数在组件树之外渲染组件时，把它设为 vnode 的 `appContext`，组件就能沿用应用的语言包和全局配置。`dialog()`、`toast()` 和流程图的 `renderFlowSVG` 默认都这样做。
+
+下面几种做法都会记下应用：`app.use(DouUI)`、单独注册 `DouDialog` 或 `DouToastViewport`、`provideGlobalConfig(config, app)`（Nuxt 模块用的就是它）。在根组件 `setup` 里不传 `app` 调用 `provideGlobalConfig` 时不会记下。
+
+一个页面里有多个应用时，记下的是最后一个。需要指定时调用 `setInstalledAppContext(app._context)`，或者在调用处单独传入应用上下文（例如 `useDialog()`、`renderFlowSVG` 的 `appContext`）。

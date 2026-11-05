@@ -72,7 +72,7 @@ onMounted(async () => {
 
 `colorMode` 设为 `'light'` 或 `'dark'` 时按这种颜色模式画，不设时跟随页面当前的颜色模式。
 
-节点组件默认在调用过 `app.use(DouUI)` 的应用里渲染，沿用它的语言包和全局配置。节点组件还要用到别的插件或 `provide`，或者有多个应用时，传入 `appContext`，例如 `getCurrentInstance()!.appContext`。`DouConfigProvider` 这类写在组件树里的设置带不过去，需要时用 `messages` 改写文字。
+节点组件默认在配置了 DouUI 的应用里渲染（`app.use(DouUI)`、`provideGlobalConfig(config, app)` 或 Nuxt 模块，见 [installedAppContext](/guide/composables#installedappcontext)），沿用它的语言包和全局配置。节点组件还要用到别的插件或 `provide`，或者有多个应用时，传入 `appContext`，例如 `getCurrentInstance()!.appContext`。`DouConfigProvider` 这类写在组件树里的设置带不过去，需要时用 `messages` 改写文字。
 
 ## 自定义节点
 
@@ -140,14 +140,14 @@ const noteNode = defineNodeType<{ text?: string }>({
 
 `renderFlowSVG` 的选项是 `RenderFlowOptions`；`renderFlowPNG` 的 `RenderFlowImageOptions` 多一个 `pixelRatio`。
 
-| 选项                                                                                     | 说明                                | 类型                 | 默认值                         |
-| ---------------------------------------------------------------------------------------- | ----------------------------------- | -------------------- | ------------------------------ |
-| `extensions`、`nodeTypes`、`edgeTypes`、`edgeType`、`portTypes`、`direction`、`messages` | 与编辑器的同名属性相同              | —                    | —                              |
-| `colorMode`                                                                              | 按浅色或深色画；不设时跟随页面      | `'light' \| 'dark'`  | —                              |
-| `padding`                                                                                | 四周留白，单位 px                   | `number`             | `24`                           |
-| `background`                                                                             | 是否铺上画布的底色                  | `boolean`            | `true`                         |
-| `appContext`                                                                             | 节点组件渲染时使用的应用上下文      | `AppContext \| null` | 调用过 `app.use(DouUI)` 的应用 |
-| `pixelRatio`                                                                             | 仅 PNG：每个 CSS 像素对应的图片像素 | `number`             | `2`                            |
+| 选项                                                                                     | 说明                                | 类型                 | 默认值              |
+| ---------------------------------------------------------------------------------------- | ----------------------------------- | -------------------- | ------------------- |
+| `extensions`、`nodeTypes`、`edgeTypes`、`edgeType`、`portTypes`、`direction`、`messages` | 与编辑器的同名属性相同              | —                    | —                   |
+| `colorMode`                                                                              | 按浅色或深色画；不设时跟随页面      | `'light' \| 'dark'`  | —                   |
+| `padding`                                                                                | 四周留白，单位 px                   | `number`             | `24`                |
+| `background`                                                                             | 是否铺上画布的底色                  | `boolean`            | `true`              |
+| `appContext`                                                                             | 节点组件渲染时使用的应用上下文      | `AppContext \| null` | 配置了 DouUI 的应用 |
+| `pixelRatio`                                                                             | 仅 PNG：每个 CSS 像素对应的图片像素 | `number`             | `2`                 |
 
 ### FlowDrawContext
 

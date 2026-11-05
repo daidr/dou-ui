@@ -165,44 +165,44 @@ const options = computed<ChatInputOption[]>(() => {
   return source.filter((option) => texts(option).some((text) => text.toLowerCase().includes(query)))
 })
 
-// Without local matching, a list that the parent replaces is what it looked
-// up for the query typed at that moment. Until a new list arrives for the
-// query typed now, the one shown answers an older query: it stays in view,
-// but Enter and Tab must not pick from it. A list never replaced is fixed,
-// never stale.
-type Answer = { start: number; query: string } | null
-const answered = reactive<{ '/': Answer | undefined; '@': Answer | undefined }>({
-  '/': undefined,
-  '@': undefined,
-})
-const answer = (trigger: '/' | '@') => () => {
-  const current = token.value
-  answered[trigger] =
-    current?.trigger === trigger ? { start: current.start, query: current.query } : null
-}
-watch(() => props.commands, answer('/'))
-watch(() => props.mentions, answer('@'))
+// Without local matching, a list the parent puts in after a `search` is the
+// answer to the last query handed out. While what is typed now differs from
+// that query (its search still waits for `searchDelay`, or its answer is on
+// the way), the list shown answers an older one: it stays in view, but
+// Enter and Tab must not pick from it. A list put in before any search,
+// e.g. loaded once after mounting, is fixed and never stale.
+type Query = { start: number; query: string }
+const asked: { '/'?: Query; '@'?: Query } = {}
+const answered = reactive<{ '/'?: Query; '@'?: Query }>({})
+watch(
+  () => props.commands,
+  () => (answered['/'] = asked['/']),
+)
+watch(
+  () => props.mentions,
+  () => (answered['@'] = asked['@']),
+)
 const stale = computed(() => {
   const current = token.value
   if (!current || filterOf(current.trigger) !== false) return false
   const last = answered[current.trigger]
-  if (last === undefined) return false
-  return last?.start !== current.start || last.query !== current.query
+  return !!last && (last.start !== current.start || last.query !== current.query)
 })
 
-// Each new query is handed out once typing pauses, to look options up elsewhere.
+// Each new query is handed out once typing pauses, to look options up
+// elsewhere; the same text at another `@` is a new query too.
 let searchTimer: ReturnType<typeof setTimeout> | undefined
 watch(
-  () => (token.value ? `${token.value.trigger}${token.value.query}` : null),
+  () => (token.value ? `${token.value.start}${token.value.trigger}${token.value.query}` : null),
   (key) => {
     clearTimeout(searchTimer)
     const current = token.value
     // Escape closed this one: nothing to look up until another is typed
     if (key === null || !current || dismissed.value === current.start) return
-    searchTimer = setTimeout(
-      () => emit('search', current.query, current.trigger),
-      props.searchDelay,
-    )
+    searchTimer = setTimeout(() => {
+      asked[current.trigger] = { start: current.start, query: current.query }
+      emit('search', current.query, current.trigger)
+    }, props.searchDelay)
   },
 )
 onBeforeUnmount(() => clearTimeout(searchTimer))

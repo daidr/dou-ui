@@ -1,6 +1,6 @@
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DouChatInput } from '../../../index'
 import { findToken } from '../chat-input'
 
@@ -188,29 +188,92 @@ describe('DouChatInput', () => {
     vi.useRealTimers()
   })
 
-  it('does not pick from results that answer an older query', async () => {
-    const wrapper = mount(DouChatInput, {
-      props: { modelValue: '', filter: { '@': false }, teleport: false },
-      attachTo: document.body,
-    })
-    const textarea = wrapper.get('textarea')
-    const type = async (text: string) => {
-      await wrapper.setProps({ modelValue: text })
-      ;(textarea.element as HTMLTextAreaElement).setSelectionRange(text.length, text.length)
-      await textarea.trigger('keyup')
+  describe('results looked up elsewhere', () => {
+    async function remote() {
+      vi.useFakeTimers()
+      const wrapper = mount(DouChatInput, {
+        props: { modelValue: '', filter: { '@': false }, searchDelay: 100, teleport: false },
+        attachTo: document.body,
+      })
+      const textarea = wrapper.get('textarea')
+      const type = async (text: string, caret = text.length) => {
+        await wrapper.setProps({ modelValue: text })
+        ;(textarea.element as HTMLTextAreaElement).setSelectionRange(caret, caret)
+        await textarea.trigger('keyup')
+      }
+      const answer = (...values: string[]) =>
+        wrapper.setProps({ mentions: values.map((value) => ({ value })) })
+      const wait = async () => {
+        vi.advanceTimersByTime(100)
+        await nextTick()
+      }
+      const isStale = () => wrapper.get('[role="listbox"]').classes().includes('is-stale')
+      const enter = () => textarea.trigger('keydown', { key: 'Enter' })
+      return { wrapper, type, answer, wait, isStale, enter }
     }
-    await type('@')
-    await wrapper.setProps({ mentions: [{ value: 'docs/需求.md' }, { value: 'src/set.ts' }] })
-    await type('@set')
-    expect(wrapper.get('[role="listbox"]').classes()).toContain('is-stale')
-    await textarea.trigger('keydown', { key: 'Enter' })
-    expect(wrapper.emitted('mention')).toBeUndefined()
-    expect(wrapper.emitted('submit')).toBeUndefined()
-    await wrapper.setProps({ mentions: [{ value: 'src/set.ts' }] })
-    expect(wrapper.get('[role="listbox"]').classes()).not.toContain('is-stale')
-    await textarea.trigger('keydown', { key: 'Enter' })
-    expect(wrapper.emitted('mention')).toEqual([[{ value: 'src/set.ts' }]])
-    wrapper.unmount()
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('does not pick from results that answer an older query', async () => {
+      const { wrapper, type, answer, wait, isStale, enter } = await remote()
+      await type('@')
+      await wait()
+      await answer('docs/需求.md', 'src/set.ts')
+      expect(isStale()).toBe(false)
+      await type('@set')
+      expect(isStale()).toBe(true)
+      await enter()
+      expect(wrapper.emitted('mention')).toBeUndefined()
+      expect(wrapper.emitted('submit')).toBeUndefined()
+      await wait()
+      await answer('src/set.ts')
+      expect(isStale()).toBe(false)
+      await enter()
+      expect(wrapper.emitted('mention')).toEqual([[{ value: 'src/set.ts' }]])
+      wrapper.unmount()
+    })
+
+    it('takes a late answer for the query it was asked for', async () => {
+      const { wrapper, type, answer, wait, isStale, enter } = await remote()
+      await type('@s')
+      await wait()
+      // "se" is typed, its search still waits, and the answer for "s" arrives
+      await type('@se')
+      await answer('src/a.ts', 'docs/se.md')
+      expect(isStale()).toBe(true)
+      await enter()
+      expect(wrapper.emitted('mention')).toBeUndefined()
+      wrapper.unmount()
+    })
+
+    it('asks again for the same text at another trigger', async () => {
+      const { wrapper, type, answer, wait, isStale } = await remote()
+      await type('@a x @a', 2)
+      await wait()
+      await answer('a.ts')
+      await type('@a x @a')
+      expect(isStale()).toBe(true)
+      await wait()
+      expect(wrapper.emitted('search')).toEqual([
+        ['a', '@'],
+        ['a', '@'],
+      ])
+      await answer('a.ts')
+      expect(isStale()).toBe(false)
+      wrapper.unmount()
+    })
+
+    it('treats a list put in before any search as fixed', async () => {
+      const { wrapper, type, answer, enter } = await remote()
+      await answer('戴兜', '上海')
+      await type('@d')
+      expect(wrapper.get('[role="listbox"]').classes()).not.toContain('is-stale')
+      await enter()
+      expect(wrapper.emitted('mention')).toEqual([[{ value: '戴兜' }]])
+      wrapper.unmount()
+    })
   })
 
   it('never treats a list that is not replaced as stale', async () => {

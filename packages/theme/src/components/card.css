@@ -29,6 +29,18 @@
     /* keeps the footer tint inside the rounded corners */
     overflow: hidden;
 
+    /* a card rendered as a button: none of the browser's button look */
+    &:is(button) {
+      appearance: none;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      font-family: inherit;
+      font-weight: inherit;
+      letter-spacing: inherit;
+      text-align: start;
+    }
+
     &.is-raised {
       --dou-card-shadow: var(--dou-shadow-md);
     }
@@ -76,11 +88,13 @@
   }
 
   .dou-card__heading {
+    display: block;
     flex: 1 1 auto;
     min-width: 0;
   }
 
   .dou-card__title {
+    display: block;
     color: var(--dou-color-text);
     font-size: var(--dou-font-size-lg);
     font-weight: var(--dou-font-weight-bold);
@@ -88,6 +102,7 @@
   }
 
   .dou-card__description {
+    display: block;
     margin-top: 2px;
     color: var(--dou-color-text-secondary);
     font-size: var(--dou-font-size-md);
@@ -101,6 +116,7 @@
   }
 
   .dou-card__body {
+    display: block;
     flex: 1 1 auto;
     padding: var(--dou-card-padding);
   }

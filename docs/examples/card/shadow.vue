@@ -9,4 +9,5 @@
     title="可点击"
     description="悬停时描边加深"
   />
+  <DouCard style="width: 220px" as="button" title="按钮卡片" description="点击打开详情" />
 </template>

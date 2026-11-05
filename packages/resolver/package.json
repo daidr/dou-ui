@@ -1,6 +1,6 @@
 {
   "name": "@dou-ui/resolver",
-  "version": "0.1.0-alpha.3",
+  "version": "0.1.0-alpha.4",
   "description": "DouUI 的按需自动导入解析器：组件、图标、指令、函数与样式入口",
   "keywords": [
     "vue",

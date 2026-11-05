@@ -296,8 +296,9 @@ const indexOf = (layer: Item[] | undefined) => new Map(layer?.map((item, i) => [
  * joined to the same places, the long edges move to the middle of the
  * nodes. A fan around a long edge to the node its nodes merge into then
  * lets that edge run straight through, instead of around the outside.
+ * A run holding an item of `keep` stays as it is.
  */
-export function centreLongEdges(layers: Item[][]) {
+export function centreLongEdges(layers: Item[][], keep: ReadonlySet<Item> = new Set()) {
   const result = layers.map((layer) => [...layer])
   result.forEach((layer, c) => {
     const before = indexOf(result[c - 1])
@@ -324,7 +325,12 @@ export function centreLongEdges(layers: Item[][]) {
       // Only into an even number of nodes: with an odd one the middle is a
       // node, so the edge could not run straight and would only wedge the
       // fan apart on one side.
-      if (edges.length && nodes.length >= 2 && nodes.length % 2 === 0) {
+      if (
+        edges.length &&
+        nodes.length >= 2 &&
+        nodes.length % 2 === 0 &&
+        !edges.some((item) => keep.has(item))
+      ) {
         if (count < 0) count = local()
         const half = nodes.length / 2
         layer.splice(start, end - start, ...nodes.slice(0, half), ...edges, ...nodes.slice(half))
@@ -517,6 +523,18 @@ function lineUp(item: Item, neighbours: Item[], straight: boolean) {
   return nodes.length === 1 ? nodes : neighbours
 }
 
+/** Whether a long edge runs straight from its source to its target. */
+function inLine(item: Item) {
+  let from = item
+  while (from.edge >= 0) from = from.preds[0]!
+  let to = item
+  while (to.edge >= 0) to = to.succs[0]!
+  const ys = [from.y, to.y]
+  for (let at = from.succs.find((n) => n.edge === item.edge)!; at !== to; at = at.succs[0]!)
+    ys.push(at.y)
+  return ys.every((y) => Math.abs(y - from.y) < 1e-6)
+}
+
 function mean(values: number[], fallback: number) {
   return values.length ? values.reduce((a, b) => a + b, 0) / values.length : fallback
 }
@@ -573,10 +591,8 @@ export function layoutGraph(
   const gap = (a: Item, b: Item) => (a.edge >= 0 && b.edge >= 0 ? edgeGap : laneGap)
 
   /** Orders and places the columns of one part of the graph. */
-  const arrange = (part: Item[][]) => {
-    // Long edges run down the middle of a fan where that costs nothing.
-    const ordered = centreLongEdges(untangle(part))
-
+  /** Places the ordered columns of one part of the graph. */
+  const lay = (ordered: Item[][]) => {
     // Start each column stacked around the middle, then relax.
     for (const layer of ordered)
       place(
@@ -641,7 +657,26 @@ export function layoutGraph(
           centre(layer, (item) => (item.preds.length > item.succs.length ? item.preds : [])) ||
           moved
     }
-    return ordered
+  }
+
+  /** Orders and places the columns of one part of the graph. */
+  const arrange = (part: Item[][]) => {
+    const untangled = untangle(part)
+    // Long edges run down the middle of a fan where that costs nothing. But
+    // where the nodes either side differ in size, or the grid is coarse,
+    // the fan may not come out centred on the edge; then the edge would
+    // only bulge out and back, so those go back where they were.
+    const keep = new Set<Item>()
+    for (;;) {
+      const ordered = centreLongEdges(untangled, keep)
+      lay(ordered)
+      const crooked = ordered.flat().filter((item) => item.centred && !inLine(item))
+      if (!crooked.length) return ordered
+      for (const item of ordered.flat()) {
+        if (item.centred) item.centred = false
+      }
+      for (const item of crooked) keep.add(item)
+    }
   }
 
   // Parts of the graph not joined to the rest are laid out on their own,

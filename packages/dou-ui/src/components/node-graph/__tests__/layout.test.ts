@@ -43,6 +43,33 @@ const smallGraph = (spec: string, straightChains: boolean) => {
   )
 }
 
+// As vertical NodeGraph lays out nodes sized to their text: lanes of the
+// usual width, half a lane apart.
+const fanWithLongEdge = (a: number, b: number, c: number, d: number) => {
+  const nodes = [
+    { id: 'a', width: a, height: 32 },
+    { id: 'b', width: b, height: 32 },
+    { id: 'c', width: c, height: 32 },
+    { id: 'd', width: d, height: 32 },
+  ]
+  const widths = nodes.map((n) => n.width).toSorted((p, q) => p - q)
+  const usual = widths[(widths.length - 1) >> 1]!
+  const lane = Math.max(usual, ...widths.filter((w) => w <= usual * 1.5))
+  const layout = layoutGraph(
+    nodes,
+    ['a>b', 'a>c', 'b>d', 'c>d', 'a>d'].map((pair) => ({ from: pair[0]!, to: pair[2]! })),
+    {
+      direction: 'vertical',
+      rankGap: 56,
+      laneGap: 20,
+      grid: (lane + 20) / 2,
+      equalWidth: false,
+    },
+  )
+  const long = layout.edges.find((e) => e.from === 'a' && e.to === 'd')!
+  return { layout, xs: long.points.map((p) => p.x) }
+}
+
 const middle = (layout: ReturnType<typeof layoutGraph>, id: string) => {
   const n = layout.nodes.get(id)!
   return n.x + n.width / 2
@@ -276,6 +303,26 @@ describe('layoutGraph', () => {
     expect(middle(layout, 'r')).toBe(long.points[0]!.x)
     expect(middle(layout, 'join')).toBe(long.points[0]!.x)
     expect(layout.width).toBe(436)
+  })
+
+  it('runs a long edge down the middle only where it comes out straight', () => {
+    // The fan centres on the edge between its nodes: straight through.
+    const through = fanWithLongEdge(92, 64, 200, 60)
+    const [b, c] = through.layout.ranks[1]!.map((id) => through.layout.nodes.get(id)!)
+    expect(through.xs).toEqual([172, 172])
+    expect(middle(through.layout, 'a')).toBe(172)
+    expect(middle(through.layout, 'd')).toBe(172)
+    expect(through.xs[0]).toBeGreaterThan(b!.x + b!.width)
+    expect(through.xs[0]).toBeLessThan(c!.x)
+    // On this grid it would come out 29px off the middle and bulge out and
+    // back, so it stays outside, mirroring the nodes, and the source sits
+    // in the middle of all three.
+    const outside = fanWithLongEdge(92, 98, 98, 60)
+    const [e, f] = outside.layout.ranks[1]!.map((id) => outside.layout.nodes.get(id)!)
+    expect(outside.xs[0]).toBeGreaterThan(f!.x + f!.width)
+    expect(middle(outside.layout, 'a')).toBe(
+      (e!.x + e!.width / 2 + f!.x + f!.width / 2 + outside.xs[0]!) / 3,
+    )
   })
 
   it('keeps a long edge at least a lane gap from the nodes beside it', () => {

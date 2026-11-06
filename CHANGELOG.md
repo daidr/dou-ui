@@ -7,6 +7,27 @@ DouUI 的所有包（`dou-ui`、`@dou-ui/theme`、`@dou-ui/icons` 以及生态�
 
 这个文件由发版脚本生成：改动先以碎片文件记在 [`.changes/`](./.changes/README.md) 里，发布时汇总到这里。
 
+## 0.1.0-alpha.7 · 2026-11-06
+
+### 不兼容
+
+- **dou-ui**：DouChatArtifact 在 `status="running"` 时，传了 `description` 就带扫光显示它（比如“找报表数据从哪来 · 1/3”），没传才显示“正在生成”。之前运行中会忽略 `description`。完成后请把 `description` 换成结果的说明。运行中想显示“正在生成”，就不要传 `description`。 ([#368](https://github.com/daidr/dou-ui/pull/368))
+- **@dou-ui/theme**：DouChatContextMeter 的进度色变量 `--dou-chat-context-meter-color` 改名为 `--dou-chat-context-meter-tone`，和其他组件的 `-tone` 一致。覆盖过旧变量的地方请换成新名字。 ([#369](https://github.com/daidr/dou-ui/pull/369))
+
+### 新增
+
+- **dou-ui**：DouSplitter 新增 `minEnd`，限制第二个面板的最小尺寸，支持像素。像素限制在容器大小变化时也会保持，嵌套的 Splitter 会把自己的像素限制算进外层；容器放不下两边的最小尺寸时，按比例分配。 ([#370](https://github.com/daidr/dou-ui/pull/370))
+- **dou-ui、@dou-ui/theme**：`DouTabs` 支持拖动排序：`draggable` 后可以用指针拖动标签（触屏先按住），也可以按 `Alt` 加方向键挪动；`group` 相同的几组标签之间可以互相拖，`name` 区分各组，统一发出 `move` 事件。新增 `DouDock` 停靠面板：`v-model` 是可以存成 JSON 的布局树，把标签拖到一组的边缘拆出新组、拖到中间并入，空组自动合并，没被拖动的组在拆分、合并时保持原样，尺寸用分隔线调整；另导出 `moveDockTab`、`splitDockTab`、`removeDockTab` 等函数用来做菜单。 ([#371](https://github.com/daidr/dou-ui/pull/371))
+
+### 改进
+
+- **dou-ui、@dou-ui/theme**：DouChatArtifact 选中（`active`）时不再用文字色加 1px 外阴影叠成的粗框，改为加深一档的边框和一层浅底色。 ([#368](https://github.com/daidr/dou-ui/pull/368))
+- **@dou-ui/theme**：DouChatContextMeter 的底色轨道更清楚，进度两端改为平头，用量很低时不再像加载中的转圈。 ([#369](https://github.com/daidr/dou-ui/pull/369))
+
+### 修复
+
+- **dou-ui**：`DouTabs` 的面板顺序改变后（比如重排 `v-for` 的数据），标签的顺序会跟着变，之前只在面板挂载时排一次。 ([#371](https://github.com/daidr/dou-ui/pull/371))
+
 ## 0.1.0-alpha.6 · 2026-11-05
 
 ### 新增

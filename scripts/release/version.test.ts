@@ -6,6 +6,7 @@ import {
   compareVersions,
   distTagFor,
   formatVersion,
+  nextPrerelease,
   parseVersion,
 } from './version'
 import { sorted } from './sorted'
@@ -67,5 +68,19 @@ describe('distTagFor', () => {
     expect(distTagFor(v('0.1.0'), v('0.1.0-alpha.3'))).toBe('latest')
     expect(distTagFor(v('0.3.0'), v('0.2.4'))).toBe('latest')
     expect(distTagFor(v('0.2.5'), v('0.3.0'))).toBe('latest-0.2')
+  })
+})
+
+const next = (text: string) => formatVersion(nextPrerelease(v(text)))
+
+describe('nextPrerelease', () => {
+  it('continues the current alpha or beta line', () => {
+    expect(next('0.1.0-alpha.7')).toBe('0.1.0-alpha.8')
+    expect(next('0.2.0-beta.0')).toBe('0.2.0-beta.1')
+  })
+
+  it('starts the next minor alpha after a release', () => {
+    expect(next('0.1.0')).toBe('0.2.0-alpha.0')
+    expect(next('1.4.2')).toBe('1.5.0-alpha.0')
   })
 })

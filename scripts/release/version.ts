@@ -91,3 +91,18 @@ export function distTagFor(version: Version, currentLatest: Version | null): str
     ? `latest-${version.major}.${version.minor}`
     : 'latest'
 }
+
+/**
+ * The version the automatic prerelease publishes after `current`: the next
+ * number on the same alpha or beta line, or the next minor's first alpha
+ * once `current` is a release.
+ */
+export function nextPrerelease(current: Version): Version {
+  if (current.pre) return { ...current, pre: { ...current.pre, number: current.pre.number + 1 } }
+  return {
+    major: current.major,
+    minor: current.minor + 1,
+    patch: 0,
+    pre: { channel: 'alpha', number: 0 },
+  }
+}

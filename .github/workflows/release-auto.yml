@@ -1,0 +1,112 @@
+# Publish a prerelease every day without anyone stepping in: when `.changes/`
+# has unreleased fragments and main's latest commit passed CI, bump to the
+# next alpha (or beta) number, update the changelog and push the
+# "release: vX.Y.Z" commit straight to main. That push starts release.yml,
+# which publishes it. Releases (`latest`) are still prepared by hand with
+# release-prepare.yml.
+#
+# The push uses a deploy key (secret RELEASE_DEPLOY_KEY) that the main
+# ruleset lets bypass: pushes made with the workflow's own token cannot pass
+# the ruleset and would not start release.yml anyway. See RELEASING.md.
+name: Auto prerelease
+
+on:
+  schedule:
+    # 04:00 in Shanghai, after the day's merges have settled
+    - cron: '0 20 * * *'
+  workflow_dispatch:
+
+# shared with "Prepare release" so the two never bump the version at once
+concurrency:
+  group: release-prepare
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          # the changelog script reads which pull request added each fragment,
+          # and the plan checks the previous version's tag
+          fetch-depth: 0
+          ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
+
+      - name: Check the deploy key
+        env:
+          KEY: ${{ secrets.RELEASE_DEPLOY_KEY }}
+        run: |
+          if [ -z "$KEY" ]; then
+            echo "::error title=缺少 RELEASE_DEPLOY_KEY::自动发版要用 deploy key 推送到 main，按 RELEASING.md「一次性设置」里 GitHub 的第 6 步设置。"
+            exit 1
+          fi
+
+      - name: Check that main passed CI
+        id: ci
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const sha = (await exec.getExecOutput('git', ['rev-parse', 'HEAD'])).stdout.trim()
+            const { data } = await github.rest.actions.listWorkflowRuns({
+              ...context.repo,
+              workflow_id: 'ci.yml',
+              head_sha: sha,
+              event: 'push',
+              per_page: 1,
+            })
+            const run = data.workflow_runs[0]
+            if (run?.conclusion === 'success') {
+              core.setOutput('green', 'true')
+            } else {
+              const state = run ? (run.conclusion ?? run.status) : '没有运行'
+              core.warning(`main 的最新提交 ${sha.slice(0, 7)} 的 CI 是「${state}」，这次不发版，下一次再试。`)
+              core.setOutput('green', 'false')
+            }
+
+      - uses: actions/setup-node@v4
+        if: steps.ci.outputs.green == 'true'
+        with:
+          node-version: 22
+
+      - uses: oven-sh/setup-bun@v2
+        if: steps.ci.outputs.green == 'true'
+        with:
+          bun-version-file: package.json
+
+      - if: steps.ci.outputs.green == 'true'
+        run: bun install --frozen-lockfile
+
+      - name: Plan
+        id: plan
+        if: steps.ci.outputs.green == 'true'
+        run: bun scripts/release/auto.ts
+
+      - name: Bump versions and write the changelog
+        if: steps.plan.outputs.version != ''
+        env:
+          GITHUB_REF_NAME: main
+        run: bun run release "${{ steps.plan.outputs.version }}"
+
+      - name: Push the release commit
+        if: steps.plan.outputs.version != ''
+        env:
+          VERSION: ${{ steps.plan.outputs.version }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A packages bun.lock CHANGELOG.md .changes
+          git commit -m "release: v$VERSION"
+          # Not forced: if main moved on, the new commits have not passed CI
+          # yet, so leave this version to the next run.
+          git fetch origin main
+          if [ "$(git rev-parse origin/main)" != "$(git rev-parse HEAD~1)" ]; then
+            echo "::warning title=main 有新提交::准备期间 main 又合并了新的提交，这次不发版，下一次再试。"
+            exit 0
+          fi
+          git push origin HEAD:main
+          echo "已推送 release: v$VERSION，Release 工作流会接着发布。" >> "$GITHUB_STEP_SUMMARY"

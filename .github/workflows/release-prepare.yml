@@ -1,6 +1,7 @@
 # Prepare a release: bump the versions, turn .changes/ into the changelog and
 # open a "release: vX.Y.Z" pull request. Merging it starts release.yml, which
-# waits for approval before anything reaches npm.
+# publishes it to npm; the merge is the approval. Prereleases are also
+# published daily by release-auto.yml without a pull request.
 name: Prepare release
 
 on:
@@ -71,7 +72,7 @@ jobs:
               base: context.ref.replace('refs/heads/', ''),
               title: `release: v${version}`,
               body: [
-                `合并后，发版工作流会构建并等待批准，批准后把 ${version} 发布到 npm。`,
+                `合并后，发版工作流会构建并把 ${version} 发布到 npm，不需要再批准。`,
                 '下面是这一版的更新日志，可以在这个 PR 里直接修改 CHANGELOG.md。',
                 '检查与构建已在准备发版的工作流里通过，CI 会跳过这个 PR 的检查和基准测试。',
                 '',

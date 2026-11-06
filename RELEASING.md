@@ -12,17 +12,30 @@
 
 标签由版本号决定，不能手填。版本只能前进：同一个 `x.y.z` 按 alpha → beta → 正式版推进。
 
-`main` 不对应任何发布版本：它的版本号停在上一次发布，只有发版 PR 会改。文档的正式版站点 ui.daidr.me 部署自 `stable` 分支，`stable` 只由发版工作流在正式版发布后移动；next.ui.daidr.me 部署自 `main`。
+`main` 不对应任何发布版本：它的版本号停在上一次发布，只有发版提交会改。文档的正式版站点 ui.daidr.me 部署自 `stable` 分支，`stable` 只由发版工作流在正式版发布后移动；next.ui.daidr.me 部署自 `main`。
 
-## 发一个版本
+## 自动发预览版
+
+预览版不需要人工操作。「Auto prerelease」工作流每天北京时间 04:00 运行一次（也可以在 Actions 里手动运行），满足下面全部条件时才发版：
+
+- `.changes/` 里有还没发布过的改动记录。没有就跳过，不会发出空版本。
+- `main` 最新提交的 CI 已经通过。没通过或者还在跑就跳过，下一次再试。
+- 上一个版本的 tag 已经存在，也就是上一次发布完整结束了。否则工作流报错停下，先把那次发布补完（见下文“某个包发布失败时”），之后自动发版才会继续。
+
+满足后它在当前预发布线上取下一个号（`0.1.0-alpha.7` → `0.1.0-alpha.8`，`beta` 同理；当前是正式版 `x.y.z` 时从 `x.(y+1).0-alpha.0` 开始），做和发版 PR 一样的改动，然后把「release: vX.Y.Z」提交直接推到 `main`，「Release」工作流随即发布。准备期间 `main` 又合并了新提交时不推送，留到下一次，保证发出去的就是 CI 测过的代码。
+
+要进入 beta 或发正式版，还是按下一节手动发一次；之后自动发版会接着这个号往下走。
+
+## 手动发一个版本
+
+正式版、beta 的第一个版本，或者想马上发一个预览版时用这个流程。
 
 1. 在 Actions 里运行「Prepare release」，填版本号。它会改好所有包的版本号（连同 bun.lock）、把 `.changes/` 汇总进 CHANGELOG.md，跑完检查和构建，然后开一个「release: vX.Y.Z」PR。
 
    这个 PR 由 github-actions[bot] 创建，GitHub 会把它当作外部贡献者，PR 页面上要先点一次 Approve and run workflows。CI 对 `release-pr/` 分支会跳过检查和基准测试（「Prepare release」已经在同一份代码上跑过检查和构建），被跳过的 job 在必需检查里算通过；Changelog 检查照常运行，对发版 PR 自动放行。
 
 2. 看一遍 PR 里的更新日志，需要的话直接在 PR 里改 CHANGELOG.md，然后合并。
-3. 合并后「Release」工作流在 GitHub 托管的机器上构建、打包并演练发布，然后停在 `npm` 环境等待批准。在工作流页面点 Review deployments → Approve。
-4. 批准后它依次发布所有包、打 tag、创建 GitHub Release；正式版还会把 `stable` 移到这个提交。
+3. 合并就是确认。合并后「Release」工作流在 GitHub 托管的机器上构建、打包并演练发布，然后依次发布所有包、打 tag、创建 GitHub Release；正式版还会把 `stable` 移到这个提交。
 
 发布后它还会移动 dist-tag：正式版把落后的 `beta`、`alpha` 指到这个版本；某个包还没有正式版时，`latest` 跟着最新的预发布版本走（npm 只在包第一次发布时自动设置 `latest`）。移动失败不会让工作流变红，但运行的摘要页会出现“dist-tag 未移动”的警告，按里面列出的命令在本地手动运行即可，例如：
 
@@ -52,7 +65,7 @@ bun run changelog preview          # 看待发布的改动
 
 ## 一次性设置
 
-按下面的顺序做。`npm` 环境一定要在第一次运行「Release」之前建好：工作流引用了一个不存在的环境时，GitHub 会自动建出一个没有审批人的同名环境，发布就不再等待批准。
+按下面的顺序做。`npm` 环境一定要在第一次运行「Release」之前建好并限制好分支：工作流引用了一个不存在的环境时，GitHub 会自动建出一个不限分支的同名环境。
 
 ### GitHub
 
@@ -60,9 +73,14 @@ bun run changelog preview          # 看待发布的改动
 2. Settings → Actions → General：
    - Fork pull request workflows from outside collaborators 选 Require approval for all external contributors。工作流里自托管 runner 上的 job 本来就跳过 fork 的 PR，这一项是第二道保险。
    - Workflow permissions 勾选 Allow GitHub Actions to create and approve pull requests，「Prepare release」要开 PR。
-3. Settings → Environments 新建 `npm`：Required reviewers 加上自己；Deployment branches and tags 只允许 `main` 与 `release/*`。
+3. Settings → Environments 新建 `npm`：不设 Required reviewers；Deployment branches and tags 只允许 `main` 与 `release/*`。npm 的可信发布绑定这个环境名，不要改名。
 4. Settings → Rules → Rulesets：保护 `v*` tag 与 `stable` 分支，禁止删除和强推，只允许 GitHub Actions 绕过。
 5. 新建标签「无需记录」，给不需要改动说明的 PR 用。
+6. 给「Auto prerelease」一个能推送到 `main` 的 deploy key。工作流自带的 token 过不了 `main` 的规则，用它推送也不会触发「Release」，所以要用 deploy key：
+   - 本地生成一对没有密码的密钥：`ssh-keygen -t ed25519 -N "" -C dou-ui-release -f dou-ui-release`。
+   - Settings → Deploy keys → Add deploy key，粘贴 `dou-ui-release.pub`，勾选 Allow write access。
+   - Settings → Secrets and variables → Actions 新建仓库 secret `RELEASE_DEPLOY_KEY`，粘贴私钥 `dou-ui-release` 的全部内容，然后删掉本地这两个文件。
+   - Settings → Rules → Rulesets 里保护 `main` 的那条规则，Bypass list 加上 Deploy keys（Always allow）。`main` 还在用旧的 Branch protection rules 时，先换成 ruleset，旧规则不能让 deploy key 绕过。
 
 ### npm
 

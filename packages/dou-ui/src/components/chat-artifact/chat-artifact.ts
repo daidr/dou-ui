@@ -6,7 +6,11 @@ export interface ChatArtifactProps {
   /** The name of what was made, e.g. "Trip plan.md". */
   title?: string
   kind?: ChatArtifactKind
-  /** A short line under the title, e.g. "Markdown · 1,200 words". */
+  /**
+   * A short line under the title, e.g. "Markdown · 1,200 words". While
+   * `running`, it shimmers, e.g. "Finding the data · 1/3"; left out, the
+   * line reads "Generating".
+   */
   description?: string
   /** `running` while it is still being made. */
   status?: ChatArtifactStatus

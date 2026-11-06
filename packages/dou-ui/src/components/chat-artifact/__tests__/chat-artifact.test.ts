@@ -24,4 +24,11 @@ describe('DouChatArtifact', () => {
     expect(wrapper.find('.dou-chat-artifact__arrow').exists()).toBe(false)
     expect(wrapper.get('.dou-chat-artifact__actions').text()).toBe('下载')
   })
+
+  it('shimmers its description while running, when it has one', () => {
+    const wrapper = mount(DouChatArtifact, {
+      props: { title: '报表来源', status: 'running', description: '找报表数据从哪来 · 1/3' },
+    })
+    expect(wrapper.find('.dou-shimmer.is-active').text()).toBe('找报表数据从哪来 · 1/3')
+  })
 })

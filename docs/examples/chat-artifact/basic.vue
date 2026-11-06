@@ -25,5 +25,11 @@ const active = ref('plan')
     </template>
   </DouChatArtifact>
   <DouChatArtifact kind="image" title="路线图.png" status="running" />
+  <DouChatArtifact
+    kind="document"
+    title="上海周末骑行攻略.md"
+    status="running"
+    description="整理路线 · 2/3"
+  />
   <DouChatArtifact kind="web" title="活动报名页" status="error" />
 </template>

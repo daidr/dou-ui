@@ -3,7 +3,7 @@
  *
  * Something the model made, as a card in the conversation: an icon
  * tile, the name and a short line. Pressing it opens the artifact,
- * usually in a side panel; the card that is open there is outlined.
+ * usually in a side panel; the card that is open there is tinted.
  */
 @layer dou.components {
   .dou-chat-artifact {
@@ -20,15 +20,24 @@
     line-height: 20px;
     transition:
       border-color var(--dou-motion-duration-fast) var(--dou-motion-easing),
-      box-shadow var(--dou-motion-duration-fast) var(--dou-motion-easing);
+      background-color var(--dou-motion-duration-fast) var(--dou-motion-easing);
 
     &:hover {
       border-color: var(--dou-color-border-strong);
     }
 
+    /* the open one: a stronger edge and a faint wash, quieter than the conversation around it */
     &.is-active {
-      border-color: var(--dou-color-text);
-      box-shadow: 0 0 0 1px var(--dou-color-text);
+      border-color: var(--dou-color-border-strong);
+      background-color: color-mix(in oklab, var(--dou-color-text) 5%, var(--dou-color-bg-surface));
+
+      &:hover {
+        background-color: color-mix(
+          in oklab,
+          var(--dou-color-text) 8%,
+          var(--dou-color-bg-surface)
+        );
+      }
     }
   }
 
@@ -67,6 +76,11 @@
     font-size: 20px;
   }
 
+  /* on the open card's wash the tile turns light, so it still stands apart */
+  .dou-chat-artifact.is-active .dou-chat-artifact__icon {
+    background-color: var(--dou-color-bg-surface);
+  }
+
   .dou-chat-artifact__text {
     display: flex;
     flex: 1 1 auto;
@@ -81,10 +95,8 @@
     white-space: nowrap;
   }
 
+  /* a block, so a long line ends in an ellipsis: text-overflow skips flex items */
   .dou-chat-artifact__description {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
     overflow-x: clip;
     color: var(--dou-color-text-tertiary);
     font-size: 12px;
@@ -92,7 +104,11 @@
     text-overflow: ellipsis;
     white-space: nowrap;
 
+    /* only the short failure line sits beside an icon */
     .dou-chat-artifact.is-error & {
+      display: flex;
+      align-items: center;
+      gap: 4px;
       color: var(--dou-color-danger-text);
     }
   }

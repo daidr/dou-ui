@@ -17,6 +17,7 @@ export const zhTW: Locale = {
     scrollNext: '向後捲動分頁',
     close: '關閉',
     add: '新增分頁',
+    moved: '{label}移到位置 {position}，共 {total} 項',
   },
   input: {
     clear: '清除',

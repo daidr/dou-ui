@@ -17,6 +17,7 @@ export const zhCN: Locale = {
     add: '新建标签页',
     scrollPrev: '向前滚动标签',
     scrollNext: '向后滚动标签',
+    moved: '{label}移到位置 {position}，共 {total} 项',
   },
   input: {
     clear: '清空',

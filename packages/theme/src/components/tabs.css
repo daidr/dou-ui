@@ -449,4 +449,68 @@
       padding-inline: 4px 20px;
     }
   }
+
+  /*
+   * Dragging a tab: it stays in place, faded, while a raised copy follows
+   * the pointer; a short accent line between two tabs marks where it drops.
+   */
+  .dou-tabs__tab.is-draggable {
+    -webkit-touch-callout: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .dou-tabs__tab.is-dragging {
+    opacity: 0.4;
+  }
+
+  .dou-tabs__marker {
+    position: absolute;
+    top: 4px;
+    left: -1px;
+    width: 2px;
+    height: var(--dou-tabs-height);
+    border-radius: 1px;
+    background-color: var(--dou-color-primary);
+    pointer-events: none;
+  }
+
+  .dou-tabs.is-vertical .dou-tabs__marker {
+    top: -1px;
+    left: 0;
+    width: calc(100% - 6px);
+    height: 2px;
+  }
+
+  .dou-tabs.is-placement-end .dou-tabs__marker {
+    left: 6px;
+  }
+
+  /* raised like a popover: on dark themes the surface is lifted a step and the edge carries it */
+  .dou-tabs-ghost {
+    border: 1px solid var(--dou-color-border);
+    background-color: color-mix(
+      in oklab,
+      var(--dou-color-text) calc(4% * var(--dou-scheme-dark)),
+      var(--dou-color-bg-surface)
+    );
+    box-shadow: var(--dou-shadow-md);
+    color: var(--dou-color-text);
+  }
+
+  /* while a tab is dragged, the others are not something to click */
+  .dou-tabs-dragging .dou-tabs__tab:hover:not(.is-disabled) {
+    background-color: transparent;
+    color: var(--dou-color-text-secondary);
+
+    &.is-selected {
+      color: var(--dou-color-text);
+    }
+  }
+
+  .dou-tabs-dragging,
+  .dou-tabs-dragging * {
+    cursor: grabbing !important;
+    user-select: none !important;
+  }
 }

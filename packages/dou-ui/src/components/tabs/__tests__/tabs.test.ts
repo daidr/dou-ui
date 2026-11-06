@@ -231,6 +231,20 @@ describe('DouTabs overflow', () => {
     wrapper.unmount()
   })
 
+  it('has no arrows in a row too narrow to show a tab beside them', async () => {
+    const wrapper = manyTabs('t0')
+    const header = wrapper.get('.dou-tabs__header').element as HTMLElement
+    Object.defineProperty(header, 'clientWidth', { configurable: true, value: 120 })
+    const list = wrapper.get('[role="tablist"]').element as HTMLElement
+    const { scrollTo } = layout(list)
+    scrollTo(0)
+    await nextTick()
+    // the row still scrolls and fades, by swiping, the wheel or the arrow keys
+    expect(list.classList).toContain('is-fade-end')
+    expect(wrapper.find('.dou-tabs__scroll').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
   it('has no arrows when the tabs fit', async () => {
     const wrapper = make()
     await nextTick()

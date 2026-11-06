@@ -35,6 +35,8 @@ export interface Locale {
     close: string
     /** The button that adds a tab. */
     add: string
+    /** Read out after a tab was moved with the keyboard; positions are 1-based. */
+    moved: string
   }
   input: {
     /** Label of the clear button. */

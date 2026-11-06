@@ -18,6 +18,7 @@ defineOptions({ name: 'DouTabPanel' })
 const props = withDefaults(defineProps<TabPanelProps>(), {
   disabled: false,
   closable: undefined,
+  draggable: undefined,
   eager: false,
 })
 const slots = defineSlots<TabPanelSlots>()

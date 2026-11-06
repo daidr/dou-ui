@@ -12,9 +12,10 @@ concurrency:
 jobs:
   check:
     # Pull requests from forks never run on the self-hosted machine. Release
-    # pull requests only change versions and the changelog, and "Prepare
-    # release" already checked and built that tree; a skipped job still
-    # counts as passing for required checks.
+    # pull requests only change versions and the changelog on top of a main
+    # that CI already checked, and release.yml builds and packs them again
+    # before publishing; a skipped job still counts as passing for required
+    # checks.
     if: >-
       github.event_name != 'pull_request' ||
       (github.event.pull_request.head.repo.full_name == github.repository &&
@@ -70,9 +71,10 @@ jobs:
 
   bench:
     # Pull requests from forks never run on the self-hosted machine. Release
-    # pull requests only change versions and the changelog, and "Prepare
-    # release" already checked and built that tree; a skipped job still
-    # counts as passing for required checks.
+    # pull requests only change versions and the changelog on top of a main
+    # that CI already checked, and release.yml builds and packs them again
+    # before publishing; a skipped job still counts as passing for required
+    # checks.
     if: >-
       github.event_name != 'pull_request' ||
       (github.event.pull_request.head.repo.full_name == github.repository &&

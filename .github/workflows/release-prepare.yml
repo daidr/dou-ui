@@ -1,7 +1,7 @@
 # Prepare a release: bump the versions, turn .changes/ into the changelog and
 # open a "release: vX.Y.Z" pull request. Merging it starts release.yml, which
-# publishes it to npm; the merge is the approval. Prereleases are also
-# published daily by release-auto.yml without a pull request.
+# publishes it to npm; the merge is the approval. Used for releases and the
+# first beta; release-pr.yml keeps a prerelease pull request open by itself.
 name: Prepare release
 
 on:

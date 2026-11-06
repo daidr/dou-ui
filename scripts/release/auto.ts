@@ -1,6 +1,7 @@
 /**
- * Decide what the automatic prerelease publishes, for release-auto.yml.
- * Prints `version=<x>` (or nothing to publish) to $GITHUB_OUTPUT.
+ * Decide which prerelease the release pull request kept by release-pr.yml
+ * proposes. Writes `version=<x>` to $GITHUB_OUTPUT, empty when there is
+ * nothing to release, and `waiting=true` while the last release is unfinished.
  *
  *   bun scripts/release/auto.ts
  */
@@ -9,13 +10,14 @@ import { changesDir, git, readFragments, root } from './repo'
 import { formatVersion, nextPrerelease, parseVersion } from './version'
 import { readPackages } from './workspace'
 
-function output(version: string) {
-  if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `version=${version}\n`)
+function output(version: string, waiting = false) {
+  if (!process.env.GITHUB_OUTPUT) return
+  appendFileSync(process.env.GITHUB_OUTPUT, `version=${version}\nwaiting=${waiting}\n`)
 }
 
-function skip(message: string): never {
+function skip(message: string, waiting = false): never {
   process.stdout.write(`${message}\n`)
-  output('')
+  output('', waiting)
   process.exit(0)
 }
 
@@ -25,13 +27,10 @@ if (!parsed) {
   console.error(`当前版本号 ${current} 不合法。`)
   process.exit(1)
 }
-// A release commit whose publish has not finished: publishing on top of it
-// would leave that version half released.
+// main carries a release commit whose publish has not finished yet (the
+// Release run is usually still going): the next version waits for its tag.
 if (current !== '0.0.0' && !git('tag', '--list', `v${current}`)) {
-  console.error(
-    `::error title=上一版还没发完::main 上的版本是 ${current}，但没有 v${current} 这个 tag。先在那次 Release 运行里重跑失败的 job，发完后自动发版才会继续。`,
-  )
-  process.exit(1)
+  skip(`::notice title=等待上一版发布::v${current} 还没有 tag，等它发布完成后再准备下一版。`, true)
 }
 const pending = readFragments(changesDir)
 if (!pending.length) skip(`v${current} 之后没有新的改动记录，不发版。`)

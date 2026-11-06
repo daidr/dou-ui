@@ -14,25 +14,26 @@
 
 `main` 不对应任何发布版本：它的版本号停在上一次发布，只有发版提交会改。文档的正式版站点 ui.daidr.me 部署自 `stable` 分支，`stable` 只由发版工作流在正式版发布后移动；next.ui.daidr.me 部署自 `main`。
 
-## 自动发预览版
+## 预览版：合并发版 PR
 
-预览版不需要人工操作。「Auto prerelease」工作流每天北京时间 04:00 运行一次（也可以在 Actions 里手动运行），满足下面全部条件时才发版：
+「Release PR」工作流一直维护着一个「release: vX.Y.Z-alpha.N」PR（分支 `release-pr/next`）：
 
-- `.changes/` 里有还没发布过的改动记录。没有就跳过，不会发出空版本。
-- `main` 最新提交的 CI 已经通过。没通过或者还在跑就跳过，下一次再试。
-- 上一个版本的 tag 已经存在，也就是上一次发布完整结束了。否则工作流报错停下，先把那次发布补完（见下文“某个包发布失败时”），之后自动发版才会继续。
+- `main` 每次更新，它都在最新的 `main` 上重新生成这个 PR：取当前预发布线的下一个号（`0.1.0-alpha.7` → `0.1.0-alpha.8`，`beta` 同理；当前是正式版 `x.y.z` 时从 `x.(y+1).0-alpha.0` 开始），改好版本号、bun.lock 和 CHANGELOG.md，强制推送到同一个分支，更新同一个 PR 的标题和说明。PR 里的手动修改会被覆盖，要改更新日志就改 `.changes/` 里的文件。
+- `.changes/` 里没有待发布的改动时不开 PR，已经开着的会被关掉。
+- 想发预览版时合并它（合并前看一眼 `main` 的 CI 是否通过），「Release」随即发布；不合并就什么都不发生，改动继续累积。
+- 上一版还在发布（tag 还没打）时它会等着；「Release」跑完后它自己再运行一次，开出下一版的 PR。
 
-满足后它在当前预发布线上取下一个号（`0.1.0-alpha.7` → `0.1.0-alpha.8`，`beta` 同理；当前是正式版 `x.y.z` 时从 `x.(y+1).0-alpha.0` 开始），做和发版 PR 一样的改动，然后把「release: vX.Y.Z」提交直接推到 `main`，「Release」工作流随即发布。准备期间 `main` 又合并了新提交时不推送，留到下一次，保证发出去的就是 CI 测过的代码。
+这个 PR 由 github-actions[bot] 推送，GitHub 会要求在 PR 页面点 Approve and run workflows，必需检查才会运行。CI 对 `release-pr/` 分支会跳过检查和基准测试（这些代码在 `main` 上已经检查过，「Release」发布前还会再构建、打包、演练一遍），被跳过的 job 在必需检查里算通过；Changelog 检查对发版 PR 自动放行。
 
-要进入 beta 或发正式版，还是按下一节手动发一次；之后自动发版会接着这个号往下走。
+要进入 beta 或发正式版，按下一节手动发一次；之后「Release PR」会接着这个号往下走。两个发版 PR 同时开着时，合并其中一个，另一个的版本号就过时了：预览版的 PR 会自动重新生成，手动准备的 PR 要关掉重新准备。
 
 ## 手动发一个版本
 
-正式版、beta 的第一个版本，或者想马上发一个预览版时用这个流程。
+正式版和 beta 的第一个版本用这个流程。
 
 1. 在 Actions 里运行「Prepare release」，填版本号。它会改好所有包的版本号（连同 bun.lock）、把 `.changes/` 汇总进 CHANGELOG.md，跑完检查和构建，然后开一个「release: vX.Y.Z」PR。
 
-   这个 PR 由 github-actions[bot] 创建，GitHub 会把它当作外部贡献者，PR 页面上要先点一次 Approve and run workflows。CI 对 `release-pr/` 分支会跳过检查和基准测试（「Prepare release」已经在同一份代码上跑过检查和构建），被跳过的 job 在必需检查里算通过；Changelog 检查照常运行，对发版 PR 自动放行。
+   和预览版的 PR 一样，可能要先点一次 Approve and run workflows。
 
 2. 看一遍 PR 里的更新日志，需要的话直接在 PR 里改 CHANGELOG.md，然后合并。
 3. 合并就是确认。合并后「Release」工作流在 GitHub 托管的机器上构建、打包并演练发布，然后依次发布所有包、打 tag、创建 GitHub Release；正式版还会把 `stable` 移到这个提交。
@@ -74,13 +75,8 @@ bun run changelog preview          # 看待发布的改动
    - Fork pull request workflows from outside collaborators 选 Require approval for all external contributors。工作流里自托管 runner 上的 job 本来就跳过 fork 的 PR，这一项是第二道保险。
    - Workflow permissions 勾选 Allow GitHub Actions to create and approve pull requests，「Prepare release」要开 PR。
 3. Settings → Environments 新建 `npm`：不设 Required reviewers；Deployment branches and tags 只允许 `main` 与 `release/*`。npm 的可信发布绑定这个环境名，不要改名。
-4. Settings → Rules → Rulesets：保护 `v*` tag 与 `stable` 分支，禁止删除和强推，只允许 GitHub Actions 绕过。
+4. Settings → Rules → Rulesets：保护 `v*` tag 与 `stable` 分支，禁止删除和强推，只允许 GitHub Actions 绕过。再为 `release/**` 建一条规则，限制创建和更新（Restrict creations / Restrict updates），只允许仓库管理员绕过：发布不再需要批准，往这些分支推一个改了版本号的提交就会直接发布。
 5. 新建标签「无需记录」，给不需要改动说明的 PR 用。
-6. 给「Auto prerelease」一个能推送到 `main` 的 deploy key。工作流自带的 token 过不了 `main` 的规则，用它推送也不会触发「Release」，所以要用 deploy key：
-   - 本地生成一对没有密码的密钥：`ssh-keygen -t ed25519 -N "" -C dou-ui-release -f dou-ui-release`。
-   - Settings → Deploy keys → Add deploy key，粘贴 `dou-ui-release.pub`，勾选 Allow write access。
-   - Settings → Secrets and variables → Actions 新建仓库 secret `RELEASE_DEPLOY_KEY`，粘贴私钥 `dou-ui-release` 的全部内容，然后删掉本地这两个文件。
-   - Settings → Rules → Rulesets 里保护 `main` 的那条规则，Bypass list 加上 Deploy keys（Always allow）。`main` 还在用旧的 Branch protection rules 时，先换成 ruleset，旧规则不能让 deploy key 绕过。
 
 ### npm
 

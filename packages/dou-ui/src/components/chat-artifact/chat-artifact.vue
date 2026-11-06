@@ -64,7 +64,9 @@ const Icon = computed(() => icons[props.kind])
       <span :class="ns.e('text')">
         <span :class="ns.e('title')">{{ title }}</span>
         <span :class="ns.e('description')">
-          <DouShimmer v-if="status === 'running'">{{ t('chat.generating') }}</DouShimmer>
+          <DouShimmer v-if="status === 'running'">{{
+            description || t('chat.generating')
+          }}</DouShimmer>
           <template v-else-if="status === 'error'">
             <AlertCircleIcon aria-hidden="true" />{{ t('chat.generateError') }}
           </template>

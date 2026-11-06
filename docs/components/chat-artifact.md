@@ -4,9 +4,9 @@
 
 ## 基础用法
 
-`kind` 决定图标：`document`、`code`、`image`、`web`、`data`、`file`，需要别的图标时用 `icon` 插槽。点击卡片触发 `open`；`active` 表示这个产物正在侧边面板里显示，卡片会加深边框。
+`kind` 决定图标：`document`、`code`、`image`、`web`、`data`、`file`，需要别的图标时用 `icon` 插槽。点击卡片触发 `open`；`active` 表示这个产物正在侧边面板里显示，卡片的边框加深，并带一层浅底色。
 
-`status` 为 `running` 时说明文字显示“正在生成”并带扫光效果，`error` 时显示生成失败。`actions` 插槽放在卡片右侧，比如下载按钮。
+`status` 为 `running` 时说明文字带扫光效果：传了 `description` 就显示它，适合写当前进度，比如“找报表数据从哪来 · 1/3”；没传时显示“正在生成”。完成后记得把 `description` 换成结果的说明。`error` 时显示生成失败。`actions` 插槽放在卡片右侧，比如下载按钮。
 
 <DocDemo src="chat-artifact/basic" column />
 

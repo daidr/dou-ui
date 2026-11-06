@@ -423,7 +423,15 @@ function measure() {
 const overflow = ref({ start: false, end: false })
 const reduced = useReducedMotion()
 
+// Arrows in a narrow row would leave no room for a single tab: there the
+// row scrolls by swiping, the wheel or the keyboard alone.
+const ARROWS_MIN_WIDTH = 160
+const arrows = ref(true)
+
 function updateOverflow() {
+  // a header not laid out yet has no width to go by
+  const width = headerRef.value?.clientWidth || Infinity
+  arrows.value = width >= ARROWS_MIN_WIDTH
   const list = listRef.value
   if (!list) {
     overflow.value = { start: false, end: false }
@@ -539,7 +547,7 @@ const indicatorStyle = computed(() => {
   >
     <div ref="header" :class="ns.e('header')">
       <button
-        v-if="!vertical && (overflow.start || overflow.end)"
+        v-if="!vertical && arrows && (overflow.start || overflow.end)"
         type="button"
         tabindex="-1"
         :class="[ns.e('scroll'), ns.is('start', true)]"
@@ -614,7 +622,7 @@ const indicatorStyle = computed(() => {
         <span v-if="draggable" :class="ns.e('marker')" :style="markerStyle" aria-hidden="true" />
       </div>
       <button
-        v-if="!vertical && (overflow.start || overflow.end)"
+        v-if="!vertical && arrows && (overflow.start || overflow.end)"
         type="button"
         tabindex="-1"
         :class="[ns.e('scroll'), ns.is('end', true)]"

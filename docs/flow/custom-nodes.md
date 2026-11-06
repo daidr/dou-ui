@@ -22,14 +22,14 @@ const promptNode = defineNodeType<{ title: string }>({
 
 ## 节点组件收到的属性
 
-| 名称         | 说明                                                                                                                    | 类型                                                    |
-| ------------ | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| `node`       | 节点本身                                                                                                                | `FlowNode`                                              |
-| `data`       | 节点的数据，等于 `node.data`                                                                                            | `object`                                                |
-| `ports`      | 端口，固定的列表，或根据节点算出；`'sides'` 是四边中点各一个起点和终点，接哪个都一样，见[白板的整理](./whiteboard#整理) | `FlowPortSpec[] \| 'sides' \| (node) => FlowPortSpec[]` |
-| `selected`   | 是否选中                                                                                                                | `boolean`                                               |
-| `readonly`   | 编辑器是否只读                                                                                                          | `boolean`                                               |
-| `updateData` | 把修改合并进 `data`，连续的修改算作一步撤销                                                                             | `(patch) => void`                                       |
+| 名称         | 说明                                                    | 类型              |
+| ------------ | ------------------------------------------------------- | ----------------- |
+| `node`       | 节点本身                                                | `FlowNode`        |
+| `data`       | 节点的数据，等于 `node.data`                            | `object`          |
+| `ports`      | 这个节点的端口；节点类型写 `'sides'` 时就是 `sidePorts` | `FlowPortSpec[]`  |
+| `selected`   | 是否选中                                                | `boolean`         |
+| `readonly`   | 编辑器是否只读                                          | `boolean`         |
+| `updateData` | 把修改合并进 `data`，连续的修改算作一步撤销             | `(patch) => void` |
 
 ## 放置端口
 
@@ -53,7 +53,7 @@ const promptNode = defineNodeType<{ title: string }>({
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------- |
 | `type`      | 类型名，对应节点的 `type`                                                                                                                                                                                                                                                | `string`                                                |
 | `component` | 渲染节点内容的组件                                                                                                                                                                                                                                                       | `Component`                                             |
-| `ports`     | 端口，固定的列表，或根据节点算出；`'sides'` 是四边中点各一个起点和终点，接哪个都一样，见[白板的整理](./whiteboard#整理)                                                                                                                                                  | `FlowPortSpec[] \| 'sides' \| (node) => FlowPortSpec[]` |
+| `ports`     | 端口，固定的列表，或根据节点算出；`'sides'` 是四边中点各一个起点和终点，接哪个都一样，展开后就是导出的 `sidePorts`（起点 `top`、`right`、`bottom`、`left`，终点 `top-in`、`right-in` 等），自己写连线数据时用这些 id，见[白板的整理](./whiteboard#整理)                  | `FlowPortSpec[] \| 'sides' \| (node) => FlowPortSpec[]` |
 | `defaults`  | 新节点的默认数据                                                                                                                                                                                                                                                         | `() => object`                                          |
 | `label`     | 节点的无障碍名称，默认取 `data.label`；`messages` 是编辑器当前语言的文案                                                                                                                                                                                                 | `(node, messages) => string`                            |
 | `container` | 能装下其他节点，见[自定义分组](./groups#自定义分组)                                                                                                                                                                                                                      | `boolean`                                               |

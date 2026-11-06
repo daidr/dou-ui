@@ -1,0 +1,85 @@
+/*
+ * Dock
+ *
+ * Groups of tabs split by hairlines. Each group is a plain row of tabs
+ * over its panel, with no frame of its own: the splitter lines are the
+ * only borders. While a tab is dragged over a group, the part it would
+ * take is tinted, with a thin accent outline: an edge for a new group,
+ * all of it to join this one.
+ */
+@layer dou.components {
+  .dou-dock {
+    position: relative;
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .dou-dock__split > .dou-splitter__pane {
+    overflow: hidden;
+  }
+
+  .dou-dock__group {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    padding: 0 12px 4px;
+
+    & > .dou-tabs {
+      flex: 1 1 auto;
+    }
+  }
+
+  .dou-dock__empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    pointer-events: none;
+  }
+
+  .dou-dock__drop {
+    position: absolute;
+    inset: 4px;
+    z-index: 2;
+    box-sizing: border-box;
+    border: 1px solid color-mix(in oklab, var(--dou-color-primary) 45%, transparent);
+    border-radius: var(--dou-radius-control);
+    background-color: color-mix(in oklab, var(--dou-color-primary) 10%, transparent);
+    opacity: 0;
+    pointer-events: none;
+    transition:
+      opacity var(--dou-motion-duration-fast) var(--dou-motion-easing),
+      inset calc(var(--dou-motion-duration-fast) * var(--dou-motion-travel))
+        var(--dou-motion-easing);
+
+    &.is-shown {
+      opacity: 1;
+    }
+
+    &.is-left {
+      inset: 4px 50% 4px 4px;
+    }
+
+    &.is-right {
+      inset: 4px 4px 4px 50%;
+    }
+
+    &.is-top {
+      inset: 4px 4px 50% 4px;
+    }
+
+    &.is-bottom {
+      inset: 50% 4px 4px 4px;
+    }
+  }
+}

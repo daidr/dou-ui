@@ -280,6 +280,28 @@ const arts: Record<string, string | ((id: string) => string)> = {
     rect(85, 50, 6, 20, 'p', 3) +
     lines(42, 38, [32, 24, 28], 10) +
     lines(100, 38, [56, 48, 52, 36], 10),
+  dock:
+    rect(28, 18, 144, 84, 'p', 8) +
+    path('M94 18v84M94 62h78', 'lb') +
+    // a group on the left: its tabs, the selected one underlined, and its content
+    bar(36, 28, 22, 'k') +
+    bar(64, 28, 18, 't') +
+    path('M28 39h66', 'lb') +
+    rect(34, 38, 26, 2, 'k', 1) +
+    lines(36, 50, [48, 40, 44], 9) +
+    // two groups stacked on the right
+    bar(102, 28, 22, 'k') +
+    path('M94 39h78', 'lb') +
+    rect(100, 38, 26, 2, 'k', 1) +
+    lines(102, 50, [52], 9) +
+    bar(102, 72, 22, 'k') +
+    path('M94 83h78', 'lb') +
+    rect(100, 82, 26, 2, 'k', 1) +
+    // a tab dragged onto the right edge of the bottom group: the half it would take
+    rect(135, 66, 33, 32, 'as', 4) +
+    rect(135, 66, 33, 32, 'la', 4) +
+    rect(116, 84, 30, 14, 'p f', 4) +
+    bar(123, 91, 16, 'k'),
   layout:
     rect(32, 22, 136, 76, 'p', 8) +
     path('M32 40h136M66 40v58', 'lb') +

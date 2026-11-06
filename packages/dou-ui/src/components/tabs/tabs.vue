@@ -5,6 +5,7 @@ import {
   nextTick,
   onBeforeUnmount,
   onMounted,
+  onUpdated,
   provide,
   ref,
   shallowRef,
@@ -16,15 +17,18 @@ import {
 } from 'vue'
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, PlusIcon } from '@dou-ui/icons'
 import { useReducedMotion } from '../../composables/use-motion'
+import { announce } from '../../utils/announce'
 import { useNamespace } from '../../utils/namespace'
 import { scrollPositionOf } from '../../utils/scroll'
 import { devWarn } from '../../utils/status-check'
 import { useLocale } from '../config-provider/use-config'
 import { useFormSize } from '../form/use-form-item'
 import { DouTooltip } from '../tooltip'
+import { pressTab, registerTabDropZone } from './tab-drag'
 import { tabsKey } from './tabs'
 import type { FunctionalComponent, VNode } from 'vue'
-import type { TabPanelEntry, TabsProps, TabsSlots, TabsValue } from './tabs'
+import type { TabDrag } from './tab-drag'
+import type { TabPanelEntry, TabsMoveEvent, TabsProps, TabsSlots, TabsValue } from './tabs'
 
 defineOptions({ name: 'DouTabs' })
 
@@ -34,9 +38,15 @@ const props = withDefaults(defineProps<TabsProps>(), {
   closable: false,
   addable: false,
   iconOnly: false,
+  draggable: false,
 })
 const model = defineModel<TabsValue>()
-const emit = defineEmits<{ change: [value: TabsValue]; remove: [value: TabsValue]; add: [] }>()
+const emit = defineEmits<{
+  change: [value: TabsValue]
+  remove: [value: TabsValue]
+  add: []
+  move: [event: TabsMoveEvent]
+}>()
 const slots = defineSlots<TabsSlots>()
 
 const ns = useNamespace('tabs')
@@ -55,7 +65,8 @@ function register(entry: TabPanelEntry) {
 function unregister(uid: number) {
   panels.value = panels.value.filter((entry) => entry.uid !== uid)
 }
-function reorder() {
+/** Put the panels in their order on the page; whether that changed anything. */
+function sync() {
   // oxlint-disable-next-line unicorn/no-array-sort -- sorts a copy
   const sorted = [...panels.value].sort((a, b) => {
     if (!a.el.value || !b.el.value) return 0
@@ -63,9 +74,15 @@ function reorder() {
       ? -1
       : 1
   })
-  if (sorted.some((entry, index) => entry !== panels.value[index])) panels.value = sorted
-  else triggerRef(panels)
+  if (!sorted.some((entry, index) => entry !== panels.value[index])) return false
+  panels.value = sorted
+  return true
 }
+function reorder() {
+  if (!sync()) triggerRef(panels)
+}
+// The panels may have been put in a new order, e.g. after a `move`.
+onUpdated(sync)
 
 const firstEnabled = computed(() => panels.value.find((entry) => !entry.props.disabled))
 const selected = computed(() => model.value ?? firstEnabled.value?.props.value)
@@ -84,8 +101,11 @@ provide(tabsKey, {
 })
 
 async function select(entry: TabPanelEntry) {
-  if (entry.props.disabled || entry.props.value === selected.value) return
-  const next = entry.props.value
+  if (entry.props.disabled) return
+  await selectValue(entry.props.value)
+}
+async function selectValue(next: TabsValue) {
+  if (next === selected.value) return
   if (props.beforeLeave && !(await props.beforeLeave(next, selected.value))) return
   model.value = next
   emit('change', next)
@@ -99,6 +119,7 @@ function remove(entry: TabPanelEntry) {
 }
 
 const listRef = useTemplateRef<HTMLElement>('list')
+const headerRef = useTemplateRef<HTMLElement>('header')
 const tabElements = new Map<number, HTMLElement>()
 
 function setTabElement(uid: number, el: unknown) {
@@ -145,6 +166,7 @@ const TabTip: FunctionalComponent<{ entry: TabPanelEntry }> = ({ entry }, { slot
     : tip.default?.()
 
 function onKeydown(event: KeyboardEvent, entry: TabPanelEntry) {
+  if (event.altKey && isDraggable(entry) && moveByKey(event, entry)) return
   const enabled = panels.value.filter((panel) => !panel.props.disabled)
   const index = enabled.indexOf(entry)
   let target: TabPanelEntry | undefined
@@ -180,6 +202,192 @@ function onKeydown(event: KeyboardEvent, entry: TabPanelEntry) {
   event.preventDefault()
   tabElement(target)?.focus()
   if (props.activation === 'auto') void select(target)
+}
+
+/* dragging */
+
+const isDraggable = (entry: TabPanelEntry) =>
+  !entry.props.disabled && (entry.props.draggable ?? props.draggable)
+
+/** This instance, to tell a move within the tabs from one that comes from other tabs. */
+const self = {}
+const draggingUid = ref<number | null>(null)
+let clickBlocked = false
+
+function onClick(entry: TabPanelEntry) {
+  // the press that ended a drag is not a click on the tab
+  if (clickBlocked) return
+  void select(entry)
+}
+
+function onPointerdown(event: PointerEvent, entry: TabPanelEntry) {
+  if (!isDraggable(entry) || (event.target as Element).closest(`.${ns.e('close')}`)) return
+  const el = tabElement(entry)
+  if (!el) return
+  pressTab(event, {
+    el,
+    root: listRef.value,
+    drag: () => ({
+      value: entry.props.value,
+      label: labelText(entry),
+      group: props.group,
+      name: props.name,
+      index: panels.value.indexOf(entry),
+      source: self,
+    }),
+    onStart: () => (draggingUid.value = entry.uid),
+    onEnd: () => {
+      draggingUid.value = null
+      clickBlocked = true
+      setTimeout(() => (clickBlocked = false))
+    },
+  })
+}
+
+/** Where a tab dropped now would go: before the tab at `index`, or after the last. */
+const marker = ref<{ index: number; at: number } | null>(null)
+
+function insertionAt(x: number, y: number) {
+  const entries = panels.value
+  const index = entries.findIndex((entry) => {
+    const rect = tabElement(entry)?.getBoundingClientRect()
+    if (!rect) return false
+    return vertical.value ? y < rect.top + rect.height / 2 : x < rect.left + rect.width / 2
+  })
+  return index < 0 ? entries.length : index
+}
+
+/** Whether dropping there leaves the tab where it is. */
+const stays = (drag: TabDrag, index: number) =>
+  drag.source === self && (index === drag.index || index === drag.index + 1)
+
+function markerOffset(index: number) {
+  const entries = panels.value
+  const style = getComputedStyle(listRef.value!)
+  const gap = Number.parseFloat(vertical.value ? style.rowGap : style.columnGap) || 0
+  const before = entries[index] && tabElement(entries[index])
+  if (before) return (vertical.value ? before.offsetTop : before.offsetLeft) - gap / 2
+  const last = entries.at(-1)
+  const after = last && tabElement(last)
+  if (!after) return 0
+  return vertical.value
+    ? after.offsetTop + after.offsetHeight + gap / 2
+    : after.offsetLeft + after.offsetWidth + gap / 2
+}
+
+/** Scroll a row that does not fit while the pointer is near one of its ends. */
+function scrollNearEdge(x: number, y: number) {
+  const list = listRef.value
+  if (!list) return
+  const rect = list.getBoundingClientRect()
+  const EDGE = 32
+  const speed = (d: number) => Math.ceil(((EDGE - Math.max(0, d)) / EDGE) * 10)
+  const [pos, startEdge, endEdge] = vertical.value
+    ? [y, rect.top, rect.bottom]
+    : [x, rect.left, rect.right]
+  let delta = 0
+  if (pos - startEdge < EDGE) delta = -speed(pos - startEdge)
+  else if (endEdge - pos < EDGE) delta = speed(endEdge - pos)
+  if (!delta) return
+  if (vertical.value) list.scrollTop += delta
+  else list.scrollLeft += delta
+}
+
+const dropZone = registerTabDropZone({
+  el: () => headerRef.value,
+  accepts: (drag) =>
+    props.draggable && (drag.source === self || (!!props.group && drag.group === props.group)),
+  over(drag, x, y) {
+    scrollNearEdge(x, y)
+    const index = insertionAt(x, y)
+    if (stays(drag, index)) {
+      marker.value = null
+      return
+    }
+    // kept inside the row, which cuts off what sticks out
+    const list = listRef.value!
+    const end = (vertical.value ? list.scrollHeight : list.scrollWidth) - 2
+    const at = Math.min(Math.max(markerOffset(index), 1), end)
+    if (marker.value?.index !== index || marker.value.at !== at) marker.value = { index, at }
+  },
+  leave: () => (marker.value = null),
+  drop(drag) {
+    const index = marker.value?.index
+    marker.value = null
+    if (index === undefined) return
+    const within = drag.source === self
+    emit('move', {
+      value: drag.value,
+      from: { name: drag.name, index: drag.index },
+      to: { name: props.name, index: within && index > drag.index ? index - 1 : index },
+    })
+    // dragging a tab is using it
+    void selectValue(drag.value)
+  },
+})
+onMounted(() => dropZone.update())
+onUpdated(() => dropZone.update())
+onBeforeUnmount(() => dropZone.remove())
+
+const markerStyle = computed(() => {
+  const at = marker.value?.at
+  if (at === undefined) return { display: 'none' }
+  return { transform: vertical.value ? `translateY(${at}px)` : `translateX(${at}px)` }
+})
+
+/** A tab moved with the keyboard keeps the focus once it is in its new place. */
+let focusAfterMove: TabsValue | undefined
+
+function moveByKey(event: KeyboardEvent, entry: TabPanelEntry) {
+  const [prev, next] = vertical.value ? ['ArrowUp', 'ArrowDown'] : ['ArrowLeft', 'ArrowRight']
+  const entries = panels.value
+  const index = entries.indexOf(entry)
+  const last = entries.length - 1
+  const target =
+    event.key === prev
+      ? index - 1
+      : event.key === next
+        ? index + 1
+        : event.key === 'Home'
+          ? 0
+          : event.key === 'End'
+            ? last
+            : null
+  if (target === null) return false
+  event.preventDefault()
+  if (target < 0 || target > last || target === index) return true
+  focusAfterMove = entry.props.value
+  emit('move', {
+    value: entry.props.value,
+    from: { name: props.name, index },
+    to: { name: props.name, index: target },
+  })
+  announce(
+    t('tabs.moved', { label: labelText(entry), position: target + 1, total: entries.length }),
+  )
+  return true
+}
+
+watch(
+  panels,
+  () => {
+    if (focusAfterMove === undefined) return
+    const entry = panels.value.find((panel) => panel.props.value === focusAfterMove)
+    focusAfterMove = undefined
+    const el = entry && tabElement(entry)
+    if (el && document.activeElement !== el) el.focus()
+  },
+  { flush: 'post' },
+)
+
+const moveKeys = computed(() =>
+  vertical.value
+    ? 'Alt+ArrowUp Alt+ArrowDown Alt+Home Alt+End'
+    : 'Alt+ArrowLeft Alt+ArrowRight Alt+Home Alt+End',
+)
+function keyShortcuts(entry: TabPanelEntry) {
+  const keys = [isClosable(entry) && 'Delete', isDraggable(entry) && moveKeys.value].filter(Boolean)
+  return keys.length ? keys.join(' ') : undefined
 }
 
 // The underline slides between the tabs. It is measured from the
@@ -318,10 +526,11 @@ const indicatorStyle = computed(() => {
       vertical && ns.is(`placement-${placement}`, true),
       ns.is('fixed', height !== undefined),
       ns.is('icon-only', iconOnly),
+      ns.is('drop-target', !!marker),
     ]"
     :style="rootStyle"
   >
-    <div :class="ns.e('header')">
+    <div ref="header" :class="ns.e('header')">
       <button
         v-if="!vertical && (overflow.start || overflow.end)"
         type="button"
@@ -357,14 +566,17 @@ const indicatorStyle = computed(() => {
                 ns.is('disabled', !!entry.props.disabled),
                 ns.is('closable', isClosable(entry)),
                 ns.is('icon-alone', iconAlone(entry)),
+                ns.is('draggable', isDraggable(entry)),
+                ns.is('dragging', draggingUid === entry.uid),
               ]"
               :aria-selected="entry.props.value === selected"
               :aria-controls="panelId(entry.props.value)"
               :aria-label="iconAlone(entry) ? labelText(entry) : undefined"
               :aria-disabled="entry.props.disabled || undefined"
               :tabindex="entry.props.value === selected ? 0 : -1"
-              :aria-keyshortcuts="isClosable(entry) ? 'Delete' : undefined"
-              @click="select(entry)"
+              :aria-keyshortcuts="keyShortcuts(entry)"
+              @click="onClick(entry)"
+              @pointerdown="onPointerdown($event, entry)"
               @keydown="onKeydown($event, entry)"
             >
               <component
@@ -392,6 +604,7 @@ const indicatorStyle = computed(() => {
           </TabTip>
         </template>
         <span :class="ns.e('indicator')" :style="indicatorStyle" aria-hidden="true" />
+        <span v-if="draggable" :class="ns.e('marker')" :style="markerStyle" aria-hidden="true" />
       </div>
       <button
         v-if="!vertical && (overflow.start || overflow.end)"

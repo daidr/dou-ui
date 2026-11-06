@@ -37,6 +37,15 @@ const required: Record<string, Record<string, unknown>> = {
   DouTreeSelect: { data: [] },
   DouNodeGraph: { nodes: [], edges: [] },
   DouSortable: { modelValue: [] },
+  DouDock: {
+    modelValue: {
+      type: 'split',
+      direction: 'horizontal',
+      start: { type: 'group', id: 'a', tabs: ['x'] },
+      end: { type: 'group', id: 'b', tabs: ['y'] },
+    },
+    panels: [{ value: 'x' }, { value: 'y' }],
+  },
   DouTour: { open: true, steps: [{ title: 'a' }] },
 }
 

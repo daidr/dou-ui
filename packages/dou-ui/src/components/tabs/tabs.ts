@@ -37,6 +37,29 @@ export interface TabsProps {
    * `false`, to stay on the current one, e.g. while a form has unsaved changes.
    */
   beforeLeave?: (next: TabsValue, current: TabsValue | undefined) => boolean | Promise<boolean>
+  /**
+   * Let the tabs be dragged to a new place, and take tabs dropped here.
+   * `Alt` with the arrow keys moves the focused tab. The tabs only emit
+   * `move`; put the panels in the new order yourself.
+   */
+  draggable?: boolean
+  /** Tabs with the same group take each other's tabs. */
+  group?: string
+  /** Names these tabs in `move` events, to tell the tabs of a group apart. */
+  name?: string
+}
+
+/** Where a tab is: the `name` of its tabs and its index there. */
+export interface TabsLocation {
+  name: string | undefined
+  index: number
+}
+
+export interface TabsMoveEvent {
+  value: TabsValue
+  from: TabsLocation
+  /** Where the tab ends up, its index counted once the move is done. */
+  to: TabsLocation
 }
 
 export interface TabsEmits {
@@ -47,6 +70,11 @@ export interface TabsEmits {
   remove: [value: TabsValue]
   /** The add button was pressed. */
   add: []
+  /**
+   * A tab was dragged, or moved with `Alt` and an arrow key. Sent by the
+   * tabs it lands in, also when it comes from other tabs of the group.
+   */
+  move: [event: TabsMoveEvent]
 }
 
 export interface TabsSlots {
@@ -65,6 +93,8 @@ export interface TabPanelProps {
   disabled?: boolean
   /** Show a close button on this tab, overriding the tabs' `closable`. */
   closable?: boolean
+  /** Whether this tab can be dragged, overriding the tabs' `draggable`. */
+  draggable?: boolean
   /**
    * Render the content before the panel is first shown, instead of on
    * first show. For content that must exist while hidden, e.g. form

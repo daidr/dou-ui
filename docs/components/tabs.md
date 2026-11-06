@@ -22,6 +22,20 @@
 
 关闭按钮不在 `Tab` 顺序里（标签本身已经是按钮，里面不能再放按钮）；焦点在可关闭的标签上时按 `Delete` 或 `Backspace` 关闭它，标签通过 `aria-keyshortcuts` 告诉读屏这个快捷键。
 
+## 拖动排序
+
+`draggable` 让标签可以拖动：按住标签移动一段距离后开始拖，原来的位置留一个变淡的标签，落点用两个标签之间的竖线表示，放下后选中被拖的标签。触屏上要先按住片刻再拖，这样手指滑动仍然是横向滚动标签行；`Esc` 放弃这次拖动。焦点在标签上时按 `Alt` + `←` / `→`（竖排时 `↑` / `↓`）把它前后挪一位，`Alt` + `Home` / `End` 挪到首尾，挪完读屏会播报新位置。
+
+和增删一样，组件只发出 `move`，参数是 `{ value, from, to }`，`from` 和 `to` 各有 `name` 和 `index`；`to.index` 是挪完以后的位置，按它把数据挪过去即可。面板自己的 `draggable` 优先，适合固定某个标签。
+
+<DocDemo src="tabs/draggable" column />
+
+## 在几组标签之间拖动
+
+`group` 相同的几个 `DouTabs` 之间可以互相拖标签，每组用 `name` 区分。`move` 由标签落入的那一组发出，`from.name` 和 `to.name` 告诉你从哪组移到哪组，数据由你来挪；标签移走时如果它正被选中，原来那组选中哪个也由你决定，和关闭时一样。键盘只能在一组之内挪动，跨组请提供菜单之类的入口。要拖到边缘拆出新的一组，用 [Dock 停靠面板](./dock)。
+
+<DocDemo src="tabs/group" column />
+
 ## 标签较多时
 
 放不下的标签行可以横向滚动：有更多标签的一侧边缘渐隐，两端出现箭头按钮，点击翻过大约一屏。选中的标签（包括用方向键切换、或从外部改 `v-model`）总会滚进可见范围。箭头不在 `Tab` 顺序里，键盘用方向键在标签之间移动即可。
@@ -64,32 +78,38 @@
 
 标签行带 `role="tablist"`，每个标签是 `role="tab"` 的按钮，通过 `aria-controls` 指向自己的 `role="tabpanel"` 面板。只有选中的标签在 `Tab` 顺序里；`←` `→` 在标签之间移动并跳过禁用项，到头后回绕，`Home` / `End` 跳到首尾；竖排时方向键是 `↑` `↓`，标签行带 `aria-orientation="vertical"`。
 
+`draggable` 时每个可拖动的标签通过 `aria-keyshortcuts` 声明 `Alt` 加方向键的挪动快捷键。
+
 默认 `activation="auto"`：方向键移到哪个标签就立即选中它。面板渲染较慢时用 `activation="manual"`，方向键只移动焦点，按 `Enter` 或 `Space` 才选中。
 
 ## API
 
 ### Tabs Props
 
-| 名称          | 说明                                 | 类型                                             | 默认值         |
-| ------------- | ------------------------------------ | ------------------------------------------------ | -------------- |
-| `modelValue`  | 选中面板的值，配合 `v-model`         | `string \| number`                               | 第一个可用面板 |
-| `size`        | 尺寸，默认取表单或全局配置           | `'sm' \| 'md' \| 'lg'`                           | `'md'`         |
-| `activation`  | 方向键移到标签时立即选中，还是等确认 | `'auto' \| 'manual'`                             | `'auto'`       |
-| `placement`   | 标签的位置                           | `'top' \| 'start' \| 'end'`                      | `'top'`        |
-| `height`      | 固定高度，数字为 px；面板在其中滚动  | `number \| string`                               | —              |
-| `iconOnly`    | 标签只显示面板的图标                 | `boolean`                                        | `false`        |
-| `closable`    | 每个标签显示关闭按钮                 | `boolean`                                        | `false`        |
-| `addable`     | 标签行末尾显示新增按钮               | `boolean`                                        | `false`        |
-| `beforeLeave` | 切换前调用，返回 `false` 时不切换    | `(next, current) => boolean \| Promise<boolean>` | —              |
+| 名称          | 说明                                   | 类型                                             | 默认值         |
+| ------------- | -------------------------------------- | ------------------------------------------------ | -------------- |
+| `modelValue`  | 选中面板的值，配合 `v-model`           | `string \| number`                               | 第一个可用面板 |
+| `size`        | 尺寸，默认取表单或全局配置             | `'sm' \| 'md' \| 'lg'`                           | `'md'`         |
+| `activation`  | 方向键移到标签时立即选中，还是等确认   | `'auto' \| 'manual'`                             | `'auto'`       |
+| `placement`   | 标签的位置                             | `'top' \| 'start' \| 'end'`                      | `'top'`        |
+| `height`      | 固定高度，数字为 px；面板在其中滚动    | `number \| string`                               | —              |
+| `iconOnly`    | 标签只显示面板的图标                   | `boolean`                                        | `false`        |
+| `closable`    | 每个标签显示关闭按钮                   | `boolean`                                        | `false`        |
+| `addable`     | 标签行末尾显示新增按钮                 | `boolean`                                        | `false`        |
+| `beforeLeave` | 切换前调用，返回 `false` 时不切换      | `(next, current) => boolean \| Promise<boolean>` | —              |
+| `draggable`   | 标签可以拖动排序，也接收同组拖来的标签 | `boolean`                                        | `false`        |
+| `group`       | 同名的几组标签之间可以互相拖标签       | `string`                                         | —              |
+| `name`        | 在 `move` 事件里标识这一组             | `string`                                         | —              |
 
 ### Tabs Events
 
-| 名称                | 说明                                        | 参数                        |
-| ------------------- | ------------------------------------------- | --------------------------- |
-| `update:modelValue` | 选中的面板变化                              | `(value: string \| number)` |
-| `change`            | 用户选了另一个标签                          | `(value: string \| number)` |
-| `remove`            | 点击关闭按钮，或在可关闭的标签上按 `Delete` | `(value: string \| number)` |
-| `add`               | 点击新增按钮                                | —                           |
+| 名称                | 说明                                                              | 参数                                                             |
+| ------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `update:modelValue` | 选中的面板变化                                                    | `(value: string \| number)`                                      |
+| `change`            | 用户选了另一个标签                                                | `(value: string \| number)`                                      |
+| `remove`            | 点击关闭按钮，或在可关闭的标签上按 `Delete`                       | `(value: string \| number)`                                      |
+| `add`               | 点击新增按钮                                                      | —                                                                |
+| `move`              | 标签被拖到新位置，或用 `Alt` 加方向键挪动；由标签落入的那一组发出 | `(event: { value, from: { name, index }, to: { name, index } })` |
 
 ### Tabs Slots
 
@@ -100,14 +120,15 @@
 
 ### TabPanel Props
 
-| 名称       | 说明                                  | 类型               | 默认值  |
-| ---------- | ------------------------------------- | ------------------ | ------- |
-| `value`    | 面板的值                              | `string \| number` | —       |
-| `label`    | 标签文字                              | `string`           | `value` |
-| `icon`     | 标签文字前的图标组件                  | `Component`        | —       |
-| `disabled` | 禁用                                  | `boolean`          | `false` |
-| `closable` | 显示关闭按钮，覆盖 Tabs 的 `closable` | `boolean`          | —       |
-| `eager`    | 一开始就渲染内容，不等第一次显示      | `boolean`          | `false` |
+| 名称        | 说明                                  | 类型               | 默认值  |
+| ----------- | ------------------------------------- | ------------------ | ------- |
+| `value`     | 面板的值                              | `string \| number` | —       |
+| `label`     | 标签文字                              | `string`           | `value` |
+| `icon`      | 标签文字前的图标组件                  | `Component`        | —       |
+| `disabled`  | 禁用                                  | `boolean`          | `false` |
+| `closable`  | 显示关闭按钮，覆盖 Tabs 的 `closable` | `boolean`          | —       |
+| `draggable` | 能否拖动，覆盖 Tabs 的 `draggable`    | `boolean`          | —       |
+| `eager`     | 一开始就渲染内容，不等第一次显示      | `boolean`          | `false` |
 
 ### TabPanel Slots
 

@@ -17,6 +17,7 @@ export const en: Locale = {
     scrollNext: 'Scroll tabs forward',
     close: 'Close',
     add: 'New tab',
+    moved: '{label} moved to position {position} of {total}',
   },
   input: {
     clear: 'Clear',

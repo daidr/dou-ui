@@ -95,10 +95,8 @@
     white-space: nowrap;
   }
 
+  /* a block, so a long line ends in an ellipsis: text-overflow skips flex items */
   .dou-chat-artifact__description {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
     overflow-x: clip;
     color: var(--dou-color-text-tertiary);
     font-size: 12px;
@@ -106,7 +104,11 @@
     text-overflow: ellipsis;
     white-space: nowrap;
 
+    /* only the short failure line sits beside an icon */
     .dou-chat-artifact.is-error & {
+      display: flex;
+      align-items: center;
+      gap: 4px;
       color: var(--dou-color-danger-text);
     }
   }

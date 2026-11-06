@@ -10,7 +10,7 @@
  */
 @layer dou.components {
   .dou-chat-context-meter {
-    --dou-chat-context-meter-color: var(--dou-color-text-secondary);
+    --dou-chat-context-meter-tone: var(--dou-color-text-secondary);
     --dou-chat-context-meter-track: color-mix(in oklab, var(--dou-color-text) 18%, transparent);
 
     display: inline-flex;
@@ -29,11 +29,11 @@
   }
 
   .dou-chat-context-meter--warning {
-    --dou-chat-context-meter-color: var(--dou-color-warning);
+    --dou-chat-context-meter-tone: var(--dou-color-warning);
   }
 
   .dou-chat-context-meter--danger {
-    --dou-chat-context-meter-color: var(--dou-color-danger);
+    --dou-chat-context-meter-tone: var(--dou-color-danger);
   }
 
   .dou-chat-context-meter__ring {
@@ -53,7 +53,7 @@
   }
 
   .dou-chat-context-meter__bar {
-    stroke: var(--dou-chat-context-meter-color);
+    stroke: var(--dou-chat-context-meter-tone);
     /* square ends, unlike DouProgress: at 16px a round-capped short arc is
        the shape of a loading spinner, which a share of 2% must not look like */
     stroke-linecap: butt;

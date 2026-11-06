@@ -1,6 +1,6 @@
 {
   "name": "@dou-ui/pivot",
-  "version": "0.1.0-alpha.6",
+  "version": "0.1.0-alpha.7",
   "description": "DouUI 的数据透视表：按行列维度分组汇总明细数据",
   "keywords": [
     "vue",

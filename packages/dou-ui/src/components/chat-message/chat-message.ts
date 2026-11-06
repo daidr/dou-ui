@@ -73,6 +73,7 @@ export interface ChatArtifactPart {
   id?: string | number
   title: string
   kind?: ChatArtifactKind
+  /** Below the title; shimmers while running, which shows "Generating" without it. */
   description?: string
   status?: ChatArtifactStatus
   active?: boolean

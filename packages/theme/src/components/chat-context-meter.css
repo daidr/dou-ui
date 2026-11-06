@@ -5,6 +5,8 @@
  * bottom bar. Neutral until it nears the limit, then the warning and
  * danger tones. Only the ring: the app puts the numbers in a tooltip or
  * popover around it, often inside a ghost button, so it adds no padding.
+ * The track is a full, clearly visible ring and the bar has square ends,
+ * so a low share reads as a gauge, not as a spinning loader.
  */
 @layer dou.components {
   .dou-chat-context-meter {
@@ -46,12 +48,12 @@
   }
 
   .dou-chat-context-meter__track {
-    stroke: var(--dou-color-border);
+    stroke: color-mix(in oklab, var(--dou-color-text) 18%, transparent);
   }
 
   .dou-chat-context-meter__bar {
     stroke: var(--dou-chat-context-meter-color);
-    stroke-linecap: round;
+    stroke-linecap: butt;
     transition: stroke-dasharray var(--dou-motion-duration-normal) var(--dou-motion-easing);
   }
 }

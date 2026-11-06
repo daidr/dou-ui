@@ -385,6 +385,22 @@ describe('connector', () => {
     expect(connectorEdge.style!(edge({}))).toBeUndefined()
   })
 
+  it('runs through the points tidying lays, its arrow along the last run', () => {
+    const s = { x: 0, y: 0, side: 'bottom' } as const
+    const t = { x: 200, y: 300, side: 'top' } as const
+    const through = {
+      ...edge({}),
+      points: [
+        { x: 200, y: 100 },
+        { x: 200, y: 200 },
+      ],
+    }
+    const route = connectorEdge.route(s, t, through)
+    expect(route.path).toBe('M0 0L200 100L200 200L200 300')
+    // straight down into the top, not along the slant from the source
+    expect(route.marks).toBe('M204.35 291L200 300L195.65 291')
+  })
+
   it('offers route, dash and arrows over the selected connectors', async () => {
     const { root, flow, selection } = setup({
       version: 1,
@@ -541,6 +557,148 @@ const card = (id: string, x: number, z?: number) => ({
 const order = (root: {
   findAll: (s: string) => { attributes: (n: string) => string | undefined }[]
 }) => root.findAll('.dou-flow-editor__node').map((n) => n.attributes('data-node-id'))
+
+const shapeAt = (id: string, x: number, y: number) => ({
+  id,
+  type: 'shape',
+  x,
+  y,
+  width: 160,
+  height: 80,
+  data: { shape: 'rect', text: id },
+})
+const joined = (id: string, from: string, out: string, to: string, into: string) => ({
+  id,
+  type: 'connector',
+  source: { node: from, port: out },
+  target: { node: to, port: into },
+})
+
+describe('tidy', () => {
+  it('lays a board drawn top to bottom out top to bottom, its connectors meeting face to face', async () => {
+    // Side by side now, but joined bottom to top: drawn as a column.
+    const { wrapper, flow } = setup({
+      version: 1,
+      nodes: [
+        shapeAt('a', 0, 0),
+        shapeAt('b', 400, 0),
+        shapeAt('c', 800, 0),
+        shapeAt('d', 1200, 0),
+      ],
+      edges: [
+        joined('ab', 'a', 'bottom', 'b', 'top-in'),
+        joined('bc', 'b', 'bottom', 'c', 'top-in'),
+        // one drawn from a side: it turns to face down the column
+        joined('cd', 'c', 'right', 'd', 'left-in'),
+      ],
+    })
+    await ticks()
+    ;(wrapper.findComponent(DouFlowEditor).vm as any).tidy()
+    await ticks()
+    const at = (id: string) => flow.value.nodes.find((n) => n.id === id)!
+    const xs = ['a', 'b', 'c', 'd'].map((id) => at(id).x)
+    const ys = ['a', 'b', 'c', 'd'].map((id) => at(id).y)
+    expect(new Set(xs).size).toBe(1)
+    for (let i = 1; i < ys.length; i++) expect(ys[i]! - ys[i - 1]!).toBeGreaterThan(80)
+    for (const each of flow.value.edges) {
+      expect(each.source.port).toBe('bottom')
+      expect(each.target.port).toBe('top-in')
+    }
+  })
+
+  it('takes a connector back up the column round the outside, not through the nodes', async () => {
+    const { wrapper, flow } = setup({
+      version: 1,
+      nodes: [shapeAt('a', 0, 0), shapeAt('b', 0, 200), shapeAt('c', 0, 400)],
+      edges: [
+        joined('ab', 'a', 'bottom', 'b', 'top-in'),
+        joined('bc', 'b', 'bottom', 'c', 'top-in'),
+        // back past b
+        joined('ca', 'c', 'top', 'a', 'bottom-in'),
+        // back alongside a → b
+        joined('ba', 'b', 'top', 'a', 'bottom-in'),
+      ],
+    })
+    await ticks()
+    ;(wrapper.findComponent(DouFlowEditor).vm as any).tidy()
+    await ticks()
+    for (const id of ['ca', 'ba']) {
+      const back = flow.value.edges.find((e) => e.id === id)!
+      expect(back.source.port).toBe('right')
+      expect(back.target.port).toBe('right-in')
+      expect(back.points).toBeUndefined()
+    }
+    const ab = flow.value.edges.find((e) => e.id === 'ab')!
+    expect([ab.source.port, ab.target.port]).toEqual(['bottom', 'top-in'])
+  })
+
+  it('leaves notes without connectors out, moving one with the shape it touches', async () => {
+    const { wrapper, flow } = setup({
+      version: 1,
+      nodes: [
+        shapeAt('a', 0, 0),
+        shapeAt('b', 400, 300),
+        // just under b, as if underlining it
+        { id: 'line', type: 'text', x: 400, y: 390, width: 160, data: { text: '注' } },
+        // far from both
+        {
+          id: 'far',
+          type: 'sticky',
+          x: 900,
+          y: 900,
+          width: 160,
+          height: 160,
+          data: { text: '远' },
+        },
+      ],
+      edges: [joined('ab', 'a', 'right', 'b', 'left-in')],
+    })
+    await ticks()
+    ;(wrapper.findComponent(DouFlowEditor).vm as any).tidy()
+    await ticks()
+    const at = (id: string) => flow.value.nodes.find((n) => n.id === id)!
+    expect(at('b').y).toBe(at('a').y)
+    expect(at('line').x - at('b').x).toBe(0)
+    expect(at('line').y - at('b').y).toBe(90)
+    expect(at('far')).toMatchObject({ x: 900, y: 900 })
+    expect(wrapper.find('[aria-live]').text()).toBe('已整理 1 个节点')
+  })
+
+  it('does not count turned shapes towards which way to lay out', async () => {
+    const turned = (id: string, x: number) => ({
+      ...shapeAt(id, x, 0),
+      data: { shape: 'rect', text: id, rotation: 90 },
+    })
+    const { wrapper, flow } = setup({
+      version: 1,
+      nodes: [shapeAt('a', 0, 0), turned('b', 300), turned('c', 600), shapeAt('d', 900, 0)],
+      edges: [
+        joined('ab', 'a', 'right', 'b', 'left-in'),
+        // drawn top to bottom on turned shapes: on screen they run sideways
+        joined('bc', 'b', 'bottom', 'c', 'top-in'),
+        joined('cd', 'c', 'bottom', 'd', 'top-in'),
+      ],
+    })
+    await ticks()
+    ;(wrapper.findComponent(DouFlowEditor).vm as any).tidy()
+    await ticks()
+    const ys = flow.value.nodes.map((n) => n.y)
+    expect(new Set(ys).size).toBe(1)
+  })
+
+  it('keeps a board drawn left to right as it is', async () => {
+    const doc = {
+      version: 1 as const,
+      nodes: [shapeAt('a', 0, 0), shapeAt('b', 240, 0)],
+      edges: [joined('ab', 'a', 'right', 'b', 'left-in')],
+    }
+    const { wrapper, flow } = setup(structuredClone(doc))
+    await ticks()
+    ;(wrapper.findComponent(DouFlowEditor).vm as any).tidy()
+    await ticks()
+    expect(flow.value).toEqual(doc)
+  })
+})
 
 describe('pen and eraser', () => {
   it('draws a stroke that becomes an ink node, and keeps the pen', async () => {

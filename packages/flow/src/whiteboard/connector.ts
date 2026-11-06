@@ -15,7 +15,13 @@ import {
 } from '@dou-ui/icons'
 import type { Component } from 'vue'
 import type { FlowEditorContext } from '../context'
-import { bezierEdge, defineEdgeType, stepEdge, type EdgeAnchor } from '../core/edge-types'
+import {
+  bezierEdge,
+  defineEdgeType,
+  stepEdge,
+  straightEdge,
+  type EdgeAnchor,
+} from '../core/edge-types'
 import type { FlowToolbarItem } from '../core/menu'
 import type { FlowEdge, Point, PortSide } from '../core/model'
 import { format } from '../locale'
@@ -73,16 +79,16 @@ export const connectorEdge = defineEdgeType<WhiteboardConnectorData>({
     const data = edge?.data ?? {}
     const route = data.route ?? 'straight'
     const straight = route === 'straight'
+    // Tidying lays points between the nodes in the way of a long connector.
+    const points = edge?.points ?? []
     const base = straight
-      ? {
-          path: `M${p(source)}L${p(target)}`,
-          label: { x: (source.x + target.x) / 2, y: (source.y + target.y) / 2 },
-        }
+      ? straightEdge.route(source, target, edge as FlowEdge)
       : (route === 'elbow' ? stepEdge : bezierEdge).route(source, target, edge as FlowEdge)
     const arrow = data.arrow ?? 'end'
     let marks = ''
-    if (arrow !== 'none') marks += arrowhead(target, arrival(target, source, straight))
-    if (arrow === 'both') marks += arrowhead(source, arrival(source, target, straight))
+    if (arrow !== 'none')
+      marks += arrowhead(target, arrival(target, points.at(-1) ?? source, straight))
+    if (arrow === 'both') marks += arrowhead(source, arrival(source, points[0] ?? target, straight))
     return { ...base, marks: marks || undefined }
   },
   style(edge) {

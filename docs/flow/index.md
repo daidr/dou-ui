@@ -99,7 +99,7 @@ app.use(DouFlowEditor)
 
 `DouFlowControls` 放在编辑器的默认插槽里，提供撤销、重做、缩放、适应画布和整理。`placement` 决定它在哪个角，`:history="false"` 隐藏撤销和重做，`:tidy="false"` 隐藏整理。
 
-“整理”沿连线按 `direction` 把节点一层一层排开：选中了两个以上的节点时只整理它们，否则整理全部。一条直链上的节点上下（或左右）对齐，跨层的长连线从各层的空隙里绕过去，见[长连线](./edges#长连线)；彼此不相连的几组节点分开排列，不会互相穿插。整理后节点群的左上角不动，锁定的节点不动，整个过程算作一步撤销，读屏会播报整理了几个节点；排好后超出视野时会缩放到能看到它们。也可以调用 `tidy()` 方法。
+“整理”沿连线按 `direction` 把节点一层一层排开（[白板](./whiteboard#整理)这类 `ports: 'sides'` 的节点按连线画的方向排）：选中了两个以上的节点时只整理它们，否则整理全部。一条直链上的节点上下（或左右）对齐，跨层的长连线从各层的空隙里绕过去，见[长连线](./edges#长连线)；彼此不相连的几组节点分开排列，不会互相穿插。整理后节点群的左上角不动，锁定的节点不动，整个过程算作一步撤销，读屏会播报整理了几个节点；排好后超出视野时会缩放到能看到它们。也可以调用 `tidy()` 方法。
 
 ## 小地图
 
@@ -117,31 +117,31 @@ app.use(DouFlowEditor)
 
 ### FlowEditor Props
 
-| 名称                  | 说明                                                                                                        | 类型                                     | 默认值                                 |
-| --------------------- | ----------------------------------------------------------------------------------------------------------- | ---------------------------------------- | -------------------------------------- |
-| `v-model`             | 文档数据                                                                                                    | `FlowDocument`                           | `{ version: 1, nodes: [], edges: [] }` |
-| `v-model:selection`   | 选中的节点和连线                                                                                            | `FlowSelection`                          | `{ nodes: [], edges: [] }`             |
-| `v-model:viewport`    | 画布的位置和缩放                                                                                            | `FlowViewport`                           | `{ x: 0, y: 0, zoom: 1 }`              |
-| `extensions`          | 扩展，见[扩展](./extensions)                                                                                | `(FlowExtension \| FlowExtension[])[]`   | `[flowKit()]`                          |
-| `nodeTypes`           | 节点类型，见[自定义节点](./custom-nodes)                                                                    | `NodeTypeSpec[]`                         | —                                      |
-| `grid`                | 吸附网格和方向键的步长，`0` 关闭网格吸附                                                                    | `number`                                 | `8`                                    |
-| `guides`              | 拖动时与其他节点对齐、端口吸附                                                                              | `boolean`                                | `true`                                 |
-| `minZoom` / `maxZoom` | 缩放范围                                                                                                    | `number`                                 | `0.1` / `4`                            |
-| `direction`           | 流程的方向，“整理”按它排列：`horizontal` 从左到右，`vertical` 从上到下                                      | `'horizontal' \| 'vertical'`             | `'horizontal'`                         |
-| `fitView`             | 节点测量完成后缩放到能看到全部节点                                                                          | `boolean`                                | `false`                                |
-| `fitMinZoom`          | `fitView` 最多缩小到多少，`0` 表示总是显示全部                                                              | `number`                                 | `0.5`                                  |
-| `edgeType`            | 没写 `type` 的连线用哪种画法，不设时用扩展的 `edgeType`，见[连线](./edges)                                  | `string`                                 | —                                      |
-| `edgeTypes`           | 扩展之外的连线类型                                                                                          | `EdgeTypeSpec[]`                         | —                                      |
-| `simpleZoom`          | 低于这个缩放比例时只画节点的外框和名字，见[大型流程](./performance)                                         | `number`                                 | `0.4`                                  |
-| `portTypes`           | 端口类型的外观和连接规则，见[端口类型与连接规则](./ports)                                                   | `PortTypes`                              | —                                      |
-| `acyclic`             | 不允许连出环                                                                                                | `boolean`                                | `false`                                |
-| `canConnect`          | 连线前的最后一道检查，返回 `false` 或一段说明拒绝                                                           | `(connection, doc) => boolean \| string` | —                                      |
-| `searchable`          | 内置的查找框（`Ctrl` / `⌘` + `F`），关闭后按键留给页面，见[查找节点](#查找节点)                             | `boolean`                                | `true`                                 |
-| `readonly`            | 只读                                                                                                        | `boolean`                                | `false`                                |
-| `bordered`            | 外框和圆角；关闭后去掉外框和圆角，用于放进已有边框的容器，见[去掉外框](/guide/theming#去掉外框与调整内边距) | `boolean`                                | `true`                                 |
-| `panOnScroll`         | 滚轮平移画布；关闭后只有 `Ctrl` / `⌘` + 滚轮缩放                                                            | `boolean`                                | `true`                                 |
-| `ariaLabel`           | 画布的无障碍名称                                                                                            | `string`                                 | —                                      |
-| `messages`            | 覆盖编辑器的文案，只需写要改的部分                                                                          | `FlowMessagesOverride`                   | —                                      |
+| 名称                  | 说明                                                                                                                                                           | 类型                                     | 默认值                                 |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- | -------------------------------------- |
+| `v-model`             | 文档数据                                                                                                                                                       | `FlowDocument`                           | `{ version: 1, nodes: [], edges: [] }` |
+| `v-model:selection`   | 选中的节点和连线                                                                                                                                               | `FlowSelection`                          | `{ nodes: [], edges: [] }`             |
+| `v-model:viewport`    | 画布的位置和缩放                                                                                                                                               | `FlowViewport`                           | `{ x: 0, y: 0, zoom: 1 }`              |
+| `extensions`          | 扩展，见[扩展](./extensions)                                                                                                                                   | `(FlowExtension \| FlowExtension[])[]`   | `[flowKit()]`                          |
+| `nodeTypes`           | 节点类型，见[自定义节点](./custom-nodes)                                                                                                                       | `NodeTypeSpec[]`                         | —                                      |
+| `grid`                | 吸附网格和方向键的步长，`0` 关闭网格吸附                                                                                                                       | `number`                                 | `8`                                    |
+| `guides`              | 拖动时与其他节点对齐、端口吸附                                                                                                                                 | `boolean`                                | `true`                                 |
+| `minZoom` / `maxZoom` | 缩放范围                                                                                                                                                       | `number`                                 | `0.1` / `4`                            |
+| `direction`           | 流程的方向，“整理”按它排列：`horizontal` 从左到右，`vertical` 从上到下；端口是 `'sides'` 的节点（例如白板）按连线画的方向排，见[白板的整理](./whiteboard#整理) | `'horizontal' \| 'vertical'`             | `'horizontal'`                         |
+| `fitView`             | 节点测量完成后缩放到能看到全部节点                                                                                                                             | `boolean`                                | `false`                                |
+| `fitMinZoom`          | `fitView` 最多缩小到多少，`0` 表示总是显示全部                                                                                                                 | `number`                                 | `0.5`                                  |
+| `edgeType`            | 没写 `type` 的连线用哪种画法，不设时用扩展的 `edgeType`，见[连线](./edges)                                                                                     | `string`                                 | —                                      |
+| `edgeTypes`           | 扩展之外的连线类型                                                                                                                                             | `EdgeTypeSpec[]`                         | —                                      |
+| `simpleZoom`          | 低于这个缩放比例时只画节点的外框和名字，见[大型流程](./performance)                                                                                            | `number`                                 | `0.4`                                  |
+| `portTypes`           | 端口类型的外观和连接规则，见[端口类型与连接规则](./ports)                                                                                                      | `PortTypes`                              | —                                      |
+| `acyclic`             | 不允许连出环                                                                                                                                                   | `boolean`                                | `false`                                |
+| `canConnect`          | 连线前的最后一道检查，返回 `false` 或一段说明拒绝                                                                                                              | `(connection, doc) => boolean \| string` | —                                      |
+| `searchable`          | 内置的查找框（`Ctrl` / `⌘` + `F`），关闭后按键留给页面，见[查找节点](#查找节点)                                                                                | `boolean`                                | `true`                                 |
+| `readonly`            | 只读                                                                                                                                                           | `boolean`                                | `false`                                |
+| `bordered`            | 外框和圆角；关闭后去掉外框和圆角，用于放进已有边框的容器，见[去掉外框](/guide/theming#去掉外框与调整内边距)                                                    | `boolean`                                | `true`                                 |
+| `panOnScroll`         | 滚轮平移画布；关闭后只有 `Ctrl` / `⌘` + 滚轮缩放                                                                                                               | `boolean`                                | `true`                                 |
+| `ariaLabel`           | 画布的无障碍名称                                                                                                                                               | `string`                                 | —                                      |
+| `messages`            | 覆盖编辑器的文案，只需写要改的部分                                                                                                                             | `FlowMessagesOverride`                   | —                                      |
 
 ### CSS 变量
 

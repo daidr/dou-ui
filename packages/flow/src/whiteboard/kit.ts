@@ -10,7 +10,6 @@ import BoardNode from './board-node.vue'
 import BoardDraft from './board-draft.vue'
 import WhiteboardToolbar from './whiteboard-toolbar.vue'
 import {
-  anchorPorts,
   imageKey,
   type WhiteboardImageData,
   type WhiteboardInkData,
@@ -48,7 +47,7 @@ const turnedBy = (node: FlowNode<WhiteboardNodeData>) => node.data?.rotation ?? 
 export const shapeNode = defineNodeType<WhiteboardShapeData>({
   type: 'shape',
   component: BoardNode,
-  ports: anchorPorts,
+  ports: 'sides',
   frame: false,
   resizable: { minWidth: 24, minHeight: 24 },
   rotation: turnedBy,
@@ -62,7 +61,7 @@ export const shapeNode = defineNodeType<WhiteboardShapeData>({
 export const stickyNode = defineNodeType<WhiteboardStickyData>({
   type: 'sticky',
   component: BoardNode,
-  ports: anchorPorts,
+  ports: 'sides',
   frame: false,
   resizable: { minWidth: 64, minHeight: 64 },
   rotation: turnedBy,
@@ -76,7 +75,7 @@ export const stickyNode = defineNodeType<WhiteboardStickyData>({
 export const textNode = defineNodeType<WhiteboardTextData>({
   type: 'text',
   component: BoardNode,
-  ports: anchorPorts,
+  ports: 'sides',
   frame: false,
   resizable: { minWidth: 24, minHeight: 24 },
   rotation: turnedBy,
@@ -102,7 +101,7 @@ export const inkNode = defineNodeType<WhiteboardInkData>({
 export const imageNode = defineNodeType<WhiteboardImageData>({
   type: 'image',
   component: BoardNode,
-  ports: anchorPorts,
+  ports: 'sides',
   frame: false,
   resizable: { minWidth: 24, minHeight: 24 },
   rotation: turnedBy,

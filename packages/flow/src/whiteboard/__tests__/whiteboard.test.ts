@@ -606,22 +606,84 @@ describe('tidy', () => {
     }
   })
 
-  it('turns a connector against the flow to leave by the top', async () => {
+  it('takes a connector back up the column round the outside, not through the nodes', async () => {
     const { wrapper, flow } = setup({
       version: 1,
       nodes: [shapeAt('a', 0, 0), shapeAt('b', 0, 200), shapeAt('c', 0, 400)],
       edges: [
         joined('ab', 'a', 'bottom', 'b', 'top-in'),
         joined('bc', 'b', 'bottom', 'c', 'top-in'),
-        joined('ca', 'c', 'right', 'a', 'right-in'),
+        // back past b
+        joined('ca', 'c', 'top', 'a', 'bottom-in'),
+        // back alongside a → b
+        joined('ba', 'b', 'top', 'a', 'bottom-in'),
       ],
     })
     await ticks()
     ;(wrapper.findComponent(DouFlowEditor).vm as any).tidy()
     await ticks()
-    const back = flow.value.edges.find((e) => e.id === 'ca')!
-    expect(back.source.port).toBe('top')
-    expect(back.target.port).toBe('bottom-in')
+    for (const id of ['ca', 'ba']) {
+      const back = flow.value.edges.find((e) => e.id === id)!
+      expect(back.source.port).toBe('right')
+      expect(back.target.port).toBe('right-in')
+      expect(back.points).toBeUndefined()
+    }
+    const ab = flow.value.edges.find((e) => e.id === 'ab')!
+    expect([ab.source.port, ab.target.port]).toEqual(['bottom', 'top-in'])
+  })
+
+  it('leaves notes without connectors out, moving one with the shape it touches', async () => {
+    const { wrapper, flow } = setup({
+      version: 1,
+      nodes: [
+        shapeAt('a', 0, 0),
+        shapeAt('b', 400, 300),
+        // just under b, as if underlining it
+        { id: 'line', type: 'text', x: 400, y: 390, width: 160, data: { text: '注' } },
+        // far from both
+        {
+          id: 'far',
+          type: 'sticky',
+          x: 900,
+          y: 900,
+          width: 160,
+          height: 160,
+          data: { text: '远' },
+        },
+      ],
+      edges: [joined('ab', 'a', 'right', 'b', 'left-in')],
+    })
+    await ticks()
+    ;(wrapper.findComponent(DouFlowEditor).vm as any).tidy()
+    await ticks()
+    const at = (id: string) => flow.value.nodes.find((n) => n.id === id)!
+    expect(at('b').y).toBe(at('a').y)
+    expect(at('line').x - at('b').x).toBe(0)
+    expect(at('line').y - at('b').y).toBe(90)
+    expect(at('far')).toMatchObject({ x: 900, y: 900 })
+    expect(wrapper.find('[aria-live]').text()).toBe('已整理 1 个节点')
+  })
+
+  it('does not count turned shapes towards which way to lay out', async () => {
+    const turned = (id: string, x: number) => ({
+      ...shapeAt(id, x, 0),
+      data: { shape: 'rect', text: id, rotation: 90 },
+    })
+    const { wrapper, flow } = setup({
+      version: 1,
+      nodes: [shapeAt('a', 0, 0), turned('b', 300), turned('c', 600), shapeAt('d', 900, 0)],
+      edges: [
+        joined('ab', 'a', 'right', 'b', 'left-in'),
+        // drawn top to bottom on turned shapes: on screen they run sideways
+        joined('bc', 'b', 'bottom', 'c', 'top-in'),
+        joined('cd', 'c', 'bottom', 'd', 'top-in'),
+      ],
+    })
+    await ticks()
+    ;(wrapper.findComponent(DouFlowEditor).vm as any).tidy()
+    await ticks()
+    const ys = flow.value.nodes.map((n) => n.y)
+    expect(new Set(ys).size).toBe(1)
   })
 
   it('keeps a board drawn left to right as it is', async () => {

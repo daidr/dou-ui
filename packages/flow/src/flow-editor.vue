@@ -973,12 +973,15 @@ function fitRect(bounds: Rect, animate: boolean, floor: number) {
   )
 }
 
+/** How near a note on a board is to a node, in px, to move along with it when tidying. */
+const TIDY_NEAR = 24
+
 /** Room between ranks (along the flow) and between nodes in a rank when tidying. */
 const TIDY_GAP = { horizontal: { rank: 80, row: 40 }, vertical: { rank: 56, row: 40 } }
 
 /**
  * Which way tidying runs: the flow's `direction`, unless most edges between
- * anchors (see `NodeTypeSpec.anchors`) leave their nodes by the other
+ * nodes with `ports: 'sides'` leave their nodes by the other
  * sides, e.g. a whiteboard drawn top to bottom. Laying that out the other
  * way would undo how it was drawn. Fixed ports say nothing about it.
  */
@@ -992,7 +995,7 @@ function tidiesVertically(blocks: Set<string>, blockOf: (id: string) => string |
     if (!from || !to || from === to || !blocks.has(from) || !blocks.has(to)) continue
     const port = portSpec(edge.source)
     const node = nodeById.value.get(edge.source.node)
-    if (!port || !node || !specOf(node).anchors) continue
+    if (!port || !node || specOf(node).ports !== 'sides' || specOf(node).rotation?.(node)) continue
     const side = portSide(port)
     if ((side === 'top' || side === 'bottom') === vertical) along++
     else across++
@@ -1009,13 +1012,13 @@ const OPPOSITE: Record<PortSide, PortSide> = {
 
 /**
  * The port an edge end moves to when tidying, on a node whose ports are
- * `anchors`: on the side facing the other end along the flow.
+ * `ports: 'sides'`: on the side facing the other end along the flow.
  */
 function anchorFor(end: FlowEndpoint, kind: 'input' | 'output', side: PortSide) {
   const node = nodeById.value.get(end.node)
   if (!node) return undefined
   const spec = specOf(node)
-  if (!spec.anchors || spec.rotation?.(node)) return undefined
+  if (spec.ports !== 'sides' || spec.rotation?.(node)) return undefined
   const port = portsOf(spec, node).find((p) => p.kind === kind && portSide(p) === side)
   return port && port.id !== end.port ? { ...end, port: port.id } : undefined
 }
@@ -1040,7 +1043,26 @@ function tidy(ids?: string[]) {
     return at
   }
   const blocks = new Set([...chosen].flatMap((id) => blockOf(id) ?? []))
-  const nodes = doc.value.nodes.filter((node) => blocks.has(node.id))
+  // On a board (nodes with ports on their sides) notes, strokes and shapes
+  // without edges stay out of the layout: they mark what is beside them,
+  // so they go along with the node they touch, or stay where they are.
+  const board = [...blocks].some((id) => {
+    const node = nodeById.value.get(id)
+    return node && specOf(node).ports === 'sides'
+  })
+  const linked = new Set<string>()
+  if (board)
+    for (const edge of doc.value.edges) {
+      const a = blockOf(edge.source.node)
+      const b = blockOf(edge.target.node)
+      if (!a || !b || a === b || !blocks.has(a) || !blocks.has(b)) continue
+      linked.add(a)
+      linked.add(b)
+    }
+  const loose = board ? doc.value.nodes.filter((n) => blocks.has(n.id) && !linked.has(n.id)) : []
+  const nodes = doc.value.nodes.filter(
+    (node) => blocks.has(node.id) && (!board || linked.has(node.id)),
+  )
   const bounds = boundsOf(nodes.map(rectOf))
   if (!bounds || nodes.length < 2) return
   const vertical = tidiesVertically(blocks, blockOf)
@@ -1094,6 +1116,39 @@ function tidy(ids?: string[]) {
       : { x: origin.x + snap(placed.x), y: origin.y + snap(placed.y + offset) - offset }
     if (to.x !== node.x || to.y !== node.y) moved.set(node.id, to)
   }
+  // What marks a laid out node, touching it or nearly, moves with it.
+  for (const note of loose) {
+    if (note.locked) continue
+    const rect = rectOf(note)
+    let host: FlowNode | undefined
+    let best = Infinity
+    for (const node of nodes) {
+      const other = rectOf(node)
+      const apart = Math.max(
+        other.x - (rect.x + rect.width),
+        rect.x - (other.x + other.width),
+        other.y - (rect.y + rect.height),
+        rect.y - (other.y + other.height),
+        0,
+      )
+      if (apart > TIDY_NEAR) continue
+      // Nearest first, then the one whose middle is closest.
+      const score =
+        apart * 1e6 +
+        Math.hypot(
+          other.x + other.width / 2 - (rect.x + rect.width / 2),
+          other.y + other.height / 2 - (rect.y + rect.height / 2),
+        )
+      if (score < best) {
+        best = score
+        host = node
+      }
+    }
+    const to = host && moved.get(host.id)
+    if (!host || !to) continue
+    from.set(note.id, { x: note.x, y: note.y })
+    moved.set(note.id, { x: note.x + to.x - host.x, y: note.y + to.y - host.y })
+  }
   // Edges spanning several ranks run between the nodes in their way.
   const through = new Map(layout.edges.map((e) => [`${e.from}\u0000${e.to}`, e.points]))
   const locked = new Set(nodes.filter((node) => node.locked).map((node) => node.id))
@@ -1121,7 +1176,7 @@ function tidy(ids?: string[]) {
       routes.set(edge.id, next)
     })
   }
-  // Edges between anchors move onto the sides that face each other along
+  // Edges between side ports move onto the sides that face each other along
   // the flow, so they don't leave a node by one side only to turn back.
   const rankOf = new Map(layout.ranks.flatMap((rank, i) => rank.map((id) => [id, i] as const)))
   const centre = (id: string) => {
@@ -1134,6 +1189,15 @@ function tidy(ids?: string[]) {
     return { x: rect.x + dx + rect.width / 2, y: rect.y + dy + rect.height / 2 }
   }
   const ends = new Map<string, Pick<FlowEdge, 'source' | 'target'>>()
+  // Pairs joined along the flow, so an edge back between them doesn't run on top.
+  const joined = new Set<string>()
+  for (const edge of doc.value.edges) {
+    const a = blockOf(edge.source.node)
+    const b = blockOf(edge.target.node)
+    if (a && b) joined.add(`${a}\u0000${b}`)
+  }
+  // The middle of the layout across the flow: edges back go round the nearer outside.
+  const middle = (vertical ? origin.x + layout.width / 2 : origin.y + layout.height / 2) - 0.5
   for (const edge of doc.value.edges) {
     const a = blockOf(edge.source.node)
     const b = blockOf(edge.target.node)
@@ -1161,8 +1225,19 @@ function tidy(ids?: string[]) {
         : aside >= 0
           ? 'bottom'
           : 'top'
-    const source = anchorFor(edge.source, 'output', out)
-    const target = anchorFor(edge.target, 'input', OPPOSITE[out])
+    // Back against the flow past other nodes, or alongside an edge the other
+    // way: both ends on the same outer side, so it goes round the outside
+    // rather than through the nodes in between.
+    const round = along < 0 && (along < -1 || joined.has(`${b}\u0000${a}`))
+    const outer: PortSide = vertical
+      ? (s.x + t.x) / 2 >= middle
+        ? 'right'
+        : 'left'
+      : (s.y + t.y) / 2 >= middle
+        ? 'bottom'
+        : 'top'
+    const source = anchorFor(edge.source, 'output', round ? outer : out)
+    const target = anchorFor(edge.target, 'input', round ? outer : OPPOSITE[out])
     if (source || target)
       ends.set(edge.id, { source: source ?? edge.source, target: target ?? edge.target })
   }
@@ -1173,9 +1248,20 @@ function tidy(ids?: string[]) {
         routes.has(edge.id) && JSON.stringify(routes.get(edge.id)) !== JSON.stringify(edge.points),
     )
   if (!moved.size && !rerouted) return
-  const count = moved.size
+  // Nodes moved, or whose edges now meet them on other sides.
+  const edgesBefore = new Map(doc.value.edges.map((e) => [e.id, e]))
+  const count = new Set([
+    ...[...moved.keys()].filter((id) => !linked.size || linked.has(id)),
+    ...[...ends].flatMap(([id, end]) => {
+      const was = edgesBefore.get(id)
+      return [
+        ...(was?.source.port !== end.source.port ? [end.source.node] : []),
+        ...(was?.target.port !== end.target.port ? [end.target.node] : []),
+      ]
+    }),
+  ]).size
   // What is inside a moved container moves the same way.
-  for (const { id } of nodes) {
+  for (const { id } of [...nodes, ...loose]) {
     const to = moved.get(id)
     if (!to) continue
     const block = from.get(id)!
@@ -1198,7 +1284,10 @@ function tidy(ids?: string[]) {
   animateTidy(from, moved)
   // A tidier layout can be wider or taller; bring it back into view if so.
   const after = boundsOf(
-    nodes.map((node) => ({ ...rectOf(node), ...(moved.get(node.id) ?? from.get(node.id)) })),
+    [...nodes, ...loose].map((node) => ({
+      ...rectOf(node),
+      ...(moved.get(node.id) ?? { x: node.x, y: node.y }),
+    })),
   )!
   const { x, y, zoom } = viewport.value
   const { width, height } = size.value

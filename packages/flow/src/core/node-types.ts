@@ -23,14 +23,13 @@ export interface NodeTypeSpec<Data extends FlowData = FlowData> {
    * component does not place are spread along their sides.
    */
   component?: Component
-  /** The node's ports, fixed or worked out from its data. */
-  ports?: FlowPortSpec[] | ((node: FlowNode<Data>) => FlowPortSpec[])
   /**
-   * The ports are only places on the sides for edges to meet the node, an
-   * output and an input on each side, all alike. Tidying then moves an
-   * edge's ends onto the sides that face each other along the flow.
+   * The node's ports, fixed or worked out from its data. `'sides'`: an
+   * output and an input in the middle of each side, all alike (see
+   * `sidePorts`); tidying lays such nodes out the way their edges are
+   * drawn and moves the edges' ends onto the sides that face each other.
    */
-  anchors?: boolean
+  ports?: FlowPortSpec[] | 'sides' | ((node: FlowNode<Data>) => FlowPortSpec[])
   /** Data for a new node of this type. */
   defaults?: () => Data
   /**
@@ -107,9 +106,30 @@ export function defineNodeType<Data extends FlowData = FlowData>(
 export const portSide = (port: FlowPortSpec): PortSide =>
   port.side ?? (port.kind === 'input' ? 'left' : 'right')
 
+/**
+ * The ports of `ports: 'sides'`: an output and an input in the middle of
+ * each side. Edges go from an output (`right`) to an input (`left-in`).
+ * `right` and `left-in` come first, so a node added after another joins it
+ * left to right.
+ */
+export const sidePorts: readonly FlowPortSpec[] = [
+  ...(['right', 'bottom', 'left', 'top'] as const).map((side) => ({
+    id: side,
+    kind: 'output' as const,
+    side,
+  })),
+  ...(['left', 'top', 'right', 'bottom'] as const).map((side) => ({
+    id: `${side}-in`,
+    kind: 'input' as const,
+    side,
+    max: Number.POSITIVE_INFINITY,
+  })),
+]
+
 export function portsOf(spec: NodeTypeSpec | undefined, node: FlowNode): FlowPortSpec[] {
   const ports = spec?.ports
   if (!ports) return []
+  if (ports === 'sides') return sidePorts as FlowPortSpec[]
   return typeof ports === 'function' ? ports(node) : ports
 }
 

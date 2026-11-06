@@ -5,10 +5,13 @@
  * bottom bar. Neutral until it nears the limit, then the warning and
  * danger tones. Only the ring: the app puts the numbers in a tooltip or
  * popover around it, often inside a ghost button, so it adds no padding.
+ * The track is a full, clearly visible ring and the bar has square ends,
+ * so a low share reads as a gauge, not as a spinning loader.
  */
 @layer dou.components {
   .dou-chat-context-meter {
-    --dou-chat-context-meter-color: var(--dou-color-text-secondary);
+    --dou-chat-context-meter-tone: var(--dou-color-text-secondary);
+    --dou-chat-context-meter-track: color-mix(in oklab, var(--dou-color-text) 18%, transparent);
 
     display: inline-flex;
     align-items: center;
@@ -26,11 +29,11 @@
   }
 
   .dou-chat-context-meter--warning {
-    --dou-chat-context-meter-color: var(--dou-color-warning);
+    --dou-chat-context-meter-tone: var(--dou-color-warning);
   }
 
   .dou-chat-context-meter--danger {
-    --dou-chat-context-meter-color: var(--dou-color-danger);
+    --dou-chat-context-meter-tone: var(--dou-color-danger);
   }
 
   .dou-chat-context-meter__ring {
@@ -46,12 +49,14 @@
   }
 
   .dou-chat-context-meter__track {
-    stroke: var(--dou-color-border);
+    stroke: var(--dou-chat-context-meter-track);
   }
 
   .dou-chat-context-meter__bar {
-    stroke: var(--dou-chat-context-meter-color);
-    stroke-linecap: round;
+    stroke: var(--dou-chat-context-meter-tone);
+    /* square ends, unlike DouProgress: at 16px a round-capped short arc is
+       the shape of a loading spinner, which a share of 2% must not look like */
+    stroke-linecap: butt;
     transition: stroke-dasharray var(--dou-motion-duration-normal) var(--dou-motion-easing);
   }
 }

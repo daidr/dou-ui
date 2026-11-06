@@ -11,7 +11,8 @@ export interface DockContext {
   size: () => TabsSize | undefined
   closable: () => boolean
   addable: () => boolean
-  minSize: () => SplitterLimit
+  min: () => SplitterLimit
+  draggable: () => boolean
   panel: (value: TabsValue) => DockPanel | undefined
   slots: DockSlots
   resize: (node: DockSplit, size: number) => void
@@ -22,6 +23,8 @@ export interface DockContext {
   drop: (drag: TabDrag, group: DockGroup, side: DockSide | 'center') => void
   remove: (value: TabsValue, group: DockGroup) => void
   add: (group: DockGroup) => void
+  /** The place in the layout a group is shown in. */
+  setCell: (id: string, el: unknown) => void
 }
 
 export const dockKey: InjectionKey<DockContext> = Symbol('DouDock')

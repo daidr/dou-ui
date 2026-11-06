@@ -295,8 +295,9 @@ function scrollNearEdge(x: number, y: number) {
 
 const dropZone = registerTabDropZone({
   el: () => headerRef.value,
+  // its own tabs always come back; tabs from others only when these take drops
   accepts: (drag) =>
-    props.draggable && (drag.source === self || (!!props.group && drag.group === props.group)),
+    drag.source === self || (props.draggable && !!props.group && drag.group === props.group),
   over(drag, x, y) {
     scrollNearEdge(x, y)
     const index = insertionAt(x, y)
@@ -325,7 +326,13 @@ const dropZone = registerTabDropZone({
     void selectValue(drag.value)
   },
 })
-onMounted(() => dropZone.update())
+onMounted(() => {
+  dropZone.update()
+  if (process.env.NODE_ENV !== 'production' && props.group && props.name === undefined)
+    devWarn(
+      `[dou-ui] DouTabs: tabs in the group "${props.group}" need a \`name\`; \`move\` cannot tell which tabs a tab came from without it.`,
+    )
+})
 onUpdated(() => dropZone.update())
 onBeforeUnmount(() => dropZone.remove())
 

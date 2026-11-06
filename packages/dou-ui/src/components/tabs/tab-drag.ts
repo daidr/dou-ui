@@ -94,7 +94,8 @@ export function pressTab(event: PointerEvent, options: StartTabDragOptions) {
 
   function makeGhost(e: PointerEvent) {
     const rect = options.el.getBoundingClientRect()
-    offset = { x: e.clientX - rect.left, y: e.clientY - rect.top }
+    // below the pointer, off the row it moves along, so the mark where it drops stays in sight
+    offset = { x: Math.min(e.clientX - rect.left, 16), y: -16 }
     const clone = options.el.cloneNode(true) as HTMLElement
     clone.removeAttribute('id')
     clone.classList.remove('is-dragging')

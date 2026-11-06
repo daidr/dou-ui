@@ -13,6 +13,8 @@ export interface DockPanel {
   /** Show a close button, overriding the dock's `closable`. */
   closable?: boolean
   disabled?: boolean
+  /** Whether the tab can be dragged; `false` keeps it in its place. Defaults to `true`. */
+  draggable?: boolean
 }
 
 export interface DockProps {
@@ -28,26 +30,36 @@ export interface DockProps {
   closable?: boolean
   /** Put a button after the tabs of each group that emits `add`. */
   addable?: boolean
-  /** The smallest a part may get when resizing, numbers in percent. */
-  minSize?: SplitterLimit
+  /**
+   * Let tabs be dragged within and between the groups, and split off at
+   * their edges. Defaults to `true`; a panel's own `draggable` wins.
+   */
+  draggable?: boolean
+  /**
+   * The smallest each side of a split may get, as `DouSplitter`'s `min`
+   * and `minEnd`: numbers in percent, `'120px'` in px.
+   */
+  min?: SplitterLimit
   /** Makes the id of a group split off. Defaults to `group-1`, `group-2`… */
   createId?: (layout: DockNode) => string
 }
 
+/** Where a tab is: the id of its group and its index there. */
+export interface DockLocation {
+  group: string
+  index: number
+}
+
 export interface DockMoveEvent {
   value: TabsValue
-  /** The group it came from. */
-  from: string
-  /** The group it went to. */
-  to: string
-  /** Its index there. */
-  index: number
+  from: DockLocation
+  /** Where it ends up, its index counted once the move is done. */
+  to: DockLocation
 }
 
 export interface DockSplitEvent {
   value: TabsValue
-  /** The group it came from. */
-  from: string
+  from: DockLocation
   /** The group it was dropped on the edge of. */
   target: string
   side: DockSide
@@ -61,9 +73,12 @@ export interface DockEmits {
   move: [event: DockMoveEvent]
   /** A tab was dropped on the edge of a group and split off into a new group. */
   split: [event: DockSplitEvent]
-  /** The close button of a tab was pressed, or `Delete`. Remove it, e.g. with `removeDockTab`. */
+  /**
+   * The close button of a tab was pressed, or `Delete`. Remove it, e.g.
+   * with `removeDockTab`. The same as `DouTabs`' `remove`, with the group.
+   */
   remove: [value: TabsValue, group: string]
-  /** The add button of a group was pressed. */
+  /** The add button of a group was pressed. The same as `DouTabs`' `add`, with the group. */
   add: [group: string]
 }
 

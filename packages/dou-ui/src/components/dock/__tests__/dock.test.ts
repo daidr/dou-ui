@@ -2,6 +2,7 @@ import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { DouDock } from '../../../index'
+import { splitDockTab } from '../layout'
 import type { DockNode } from '../layout'
 
 const panels = [
@@ -72,7 +73,9 @@ describe('DouDock', () => {
     expect(layout.value.type === 'split' && layout.value.start).toMatchObject({
       tabs: ['plan', 'thread'],
     })
-    expect(events).toEqual([['move', { value: 'thread', from: 'a', to: 'a', index: 1 }]])
+    expect(events).toEqual([
+      ['move', { value: 'thread', from: { group: 'a', index: 0 }, to: { group: 'a', index: 1 } }],
+    ])
     wrapper.unmount()
   })
 
@@ -85,6 +88,58 @@ describe('DouDock', () => {
     await tabs[2]!.trigger('keydown', { key: 'Delete' })
     expect(events).toEqual([['remove', 'thread', 'a']])
     expect(layout.value.type).toBe('split')
+    wrapper.unmount()
+  })
+
+  it('builds on the layout the parent keeps when it turns a change down', async () => {
+    const layout = ref<DockNode>({ type: 'group', id: 'a', tabs: ['x', 'y', 'z'] })
+    let refuse = true
+    const wrapper = mount(
+      defineComponent({
+        setup: () => () =>
+          h(DouDock, {
+            modelValue: layout.value,
+            panels: [{ value: 'x' }, { value: 'y' }, { value: 'z' }],
+            'onUpdate:modelValue': (value: DockNode) => {
+              if (!refuse) layout.value = value
+            },
+          }),
+      }),
+      { attachTo: document.body },
+    )
+    await nextTick()
+    await wrapper.find('[role="tab"]').trigger('keydown', { key: 'ArrowRight', altKey: true })
+    await nextTick()
+    refuse = false
+    await wrapper.findAll('[role="tab"]')[2]!.trigger('click')
+    // the refused move does not come back with the next change
+    expect(layout.value).toMatchObject({ tabs: ['x', 'y', 'z'], active: 'z' })
+    wrapper.unmount()
+  })
+
+  it('keeps a group where it is when the layout around it changes', async () => {
+    const { wrapper, layout } = make()
+    await nextTick()
+    await nextTick()
+    const panel = wrapper.find('[data-dock-group="b"] [role="tabpanel"]').element
+    // split a tab of the first group off to the right of the second
+    layout.value = splitDockTab(layout.value, 'plan', 'b', 'right', 'c')
+    await nextTick()
+    await nextTick()
+    expect(panel.isConnected).toBe(true)
+    expect(wrapper.find('[data-dock-group="b"] [role="tabpanel"]').element).toBe(panel)
+    expect(wrapper.find('[data-dock-group="c"]').exists()).toBe(true)
+    // the split has a smallest size on both sides
+    const bars = wrapper.findAll('.dou-splitter__bar')
+    expect(bars).toHaveLength(2)
+    wrapper.unmount()
+  })
+
+  it('turns dragging off', async () => {
+    const { wrapper, events } = make({ draggable: false })
+    await nextTick()
+    await wrapper.find('[role="tab"]').trigger('keydown', { key: 'ArrowRight', altKey: true })
+    expect(events).toEqual([])
     wrapper.unmount()
   })
 

@@ -20,6 +20,14 @@
     overflow: hidden;
   }
 
+  /* where a group sits in the layout; the group itself is moved in */
+  .dou-dock__cell {
+    box-sizing: border-box;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+  }
+
   .dou-dock__group {
     position: relative;
     display: flex;

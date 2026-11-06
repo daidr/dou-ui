@@ -486,13 +486,26 @@
     left: 6px;
   }
 
+  /* raised like a popover: on dark themes the surface is lifted a step and the edge carries it */
   .dou-tabs-ghost {
-    background-color: var(--dou-color-bg-surface);
-    box-shadow:
-      var(--dou-shadow-lg),
-      0 0 0 1px color-mix(in oklab, var(--dou-color-text) 8%, transparent);
+    border: 1px solid var(--dou-color-border);
+    background-color: color-mix(
+      in oklab,
+      var(--dou-color-text) calc(4% * var(--dou-scheme-dark)),
+      var(--dou-color-bg-surface)
+    );
+    box-shadow: var(--dou-shadow-md);
     color: var(--dou-color-text);
-    opacity: 0.96;
+  }
+
+  /* while a tab is dragged, the others are not something to click */
+  .dou-tabs-dragging .dou-tabs__tab:hover:not(.is-disabled) {
+    background-color: transparent;
+    color: var(--dou-color-text-secondary);
+
+    &.is-selected {
+      color: var(--dou-color-text);
+    }
   }
 
   .dou-tabs-dragging,

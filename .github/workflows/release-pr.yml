@@ -22,6 +22,7 @@ concurrency:
 permissions:
   contents: write
   pull-requests: write
+  actions: read
 
 env:
   BRANCH: release-pr/next
@@ -100,9 +101,25 @@ jobs:
             }
             const notes = fs.readFileSync('.release/notes.md', 'utf8')
             const sha = (await exec.getExecOutput('git', ['rev-parse', 'HEAD~1'])).stdout.trim()
+            const { data: runs } = await github.rest.actions.listWorkflowRuns({
+              ...context.repo,
+              workflow_id: 'ci.yml',
+              head_sha: sha,
+              event: 'push',
+              per_page: 1,
+            })
+            const run = runs.workflow_runs[0]
+            const ci = !run
+              ? 'CI 还没有运行'
+              : run.status !== 'completed'
+                ? `CI [还在运行](${run.html_url})`
+                : run.conclusion === 'success'
+                  ? `CI [已通过](${run.html_url})`
+                  : `CI [没有通过（${run.conclusion}）](${run.html_url})，先别合并`
             const body = [
               `合并后，发版工作流会构建并把 ${version} 发布到 npm（预览版，npm 标签 \`alpha\`/\`beta\`）。`,
-              `这个 PR 由工作流维护：main 每次更新都会在最新的 main（当前 ${sha.slice(0, 7)}）上重新生成，并覆盖这里的修改。想改更新日志，请改 \`.changes/\` 里的文件。`,
+              `基于 main 的 ${sha.slice(0, 7)}，${ci}（这里只在生成 PR 时记录一次，以 main 上的结果为准）。`,
+              '这个 PR 由工作流维护：main 每次更新都会在最新的 main 上重新生成，并覆盖这里的修改。想改更新日志，请改 `.changes/` 里的文件。',
               '不想发布就不用管它，改动会继续累积到下一次合并。',
               '',
               '---',

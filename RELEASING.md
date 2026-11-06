@@ -20,10 +20,10 @@
 
 - `main` 每次更新，它都在最新的 `main` 上重新生成这个 PR：取当前预发布线的下一个号（`0.1.0-alpha.7` → `0.1.0-alpha.8`，`beta` 同理；当前是正式版 `x.y.z` 时从 `x.(y+1).0-alpha.0` 开始），改好版本号、bun.lock 和 CHANGELOG.md，强制推送到同一个分支，更新同一个 PR 的标题和说明。PR 里的手动修改会被覆盖，要改更新日志就改 `.changes/` 里的文件。
 - `.changes/` 里没有待发布的改动时不开 PR，已经开着的会被关掉。
-- 想发预览版时合并它（合并前看一眼 `main` 的 CI 是否通过），「Release」随即发布；不合并就什么都不发生，改动继续累积。
+- 想发预览版时合并它，「Release」随即发布；不合并就什么都不发生，改动继续累积。PR 说明里写着它基于的 `main` 提交和那时的 CI 结论，合并前确认 CI 已通过。
 - 上一版还在发布（tag 还没打）时它会等着；「Release」跑完后它自己再运行一次，开出下一版的 PR。
 
-这个 PR 由 github-actions[bot] 推送，GitHub 会要求在 PR 页面点 Approve and run workflows，必需检查才会运行。CI 对 `release-pr/` 分支会跳过检查和基准测试（这些代码在 `main` 上已经检查过，「Release」发布前还会再构建、打包、演练一遍），被跳过的 job 在必需检查里算通过；Changelog 检查对发版 PR 自动放行。
+这个 PR 由 github-actions[bot] 推送，GitHub 会要求在 PR 页面点 Approve and run workflows，必需检查才会运行。CI 对 `release-pr/` 分支会跳过检查和基准测试（这些代码在 `main` 上已经检查过，「Release」发布前还会再构建、打包、演练一遍），被跳过的 job 在必需检查里算通过；Changelog 检查对发版 PR 改为检查它只改了版本号、bun.lock、CHANGELOG.md 和 `.changes/`，并且基于当前的 `main`，否则失败：发版 PR 不经过 CI，不能夹带代码。
 
 要进入 beta 或发正式版，按下一节手动发一次；之后「Release PR」会接着这个号往下走。两个发版 PR 同时开着时，合并其中一个，另一个的版本号就过时了：预览版的 PR 会自动重新生成，手动准备的 PR 要关掉重新准备。
 

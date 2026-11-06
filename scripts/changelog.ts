@@ -18,6 +18,7 @@ import {
   type ChangeType,
 } from './release/changelog'
 import { changesDir, git, prereleaseDir, readFragments, renderContext, root } from './release/repo'
+import { checkReleaseChanges } from './release/release-pr'
 
 const print = (text: string) => process.stdout.write(`${text}\n`)
 
@@ -100,6 +101,12 @@ switch (command) {
       const release = (process.env.GITHUB_HEAD_REF ?? '').startsWith('release-pr/')
       if (!release && !skip && changed.includes('CHANGELOG.md')) {
         problems.push('不要直接改 CHANGELOG.md：改动记在 .changes/ 里，发版时会自动汇总。')
+      }
+      if (release) {
+        const onTop =
+          Bun.spawnSync(['git', 'merge-base', '--is-ancestor', values.base, 'HEAD'], { cwd: root })
+            .exitCode === 0
+        problems.push(...checkReleaseChanges(changed, onTop))
       }
       const source = changed.filter(isPackageSource)
       const touched = new Set(source.map((path) => path.split('/')[1]))

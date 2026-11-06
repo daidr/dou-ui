@@ -94,6 +94,7 @@ import {
   type FlowSelection,
   type FlowViewport,
   type Point,
+  type PortSide,
   type Rect,
 } from './core/model'
 import { readDocument } from './document'
@@ -101,6 +102,7 @@ import { containerAt, FlowTree } from './core/groups'
 import {
   labelOf,
   nodeBounds,
+  portSide,
   portsOf,
   resizeOf,
   warnUnknownNodeType,
@@ -975,6 +977,50 @@ function fitRect(bounds: Rect, animate: boolean, floor: number) {
 const TIDY_GAP = { horizontal: { rank: 80, row: 40 }, vertical: { rank: 56, row: 40 } }
 
 /**
+ * Which way tidying runs: the flow's `direction`, unless most edges between
+ * anchors (see `NodeTypeSpec.anchors`) leave their nodes by the other
+ * sides, e.g. a whiteboard drawn top to bottom. Laying that out the other
+ * way would undo how it was drawn. Fixed ports say nothing about it.
+ */
+function tidiesVertically(blocks: Set<string>, blockOf: (id: string) => string | undefined) {
+  const vertical = props.direction === 'vertical'
+  let along = 0
+  let across = 0
+  for (const edge of doc.value.edges) {
+    const from = blockOf(edge.source.node)
+    const to = blockOf(edge.target.node)
+    if (!from || !to || from === to || !blocks.has(from) || !blocks.has(to)) continue
+    const port = portSpec(edge.source)
+    const node = nodeById.value.get(edge.source.node)
+    if (!port || !node || !specOf(node).anchors) continue
+    const side = portSide(port)
+    if ((side === 'top' || side === 'bottom') === vertical) along++
+    else across++
+  }
+  return across > along ? !vertical : vertical
+}
+
+const OPPOSITE: Record<PortSide, PortSide> = {
+  top: 'bottom',
+  bottom: 'top',
+  left: 'right',
+  right: 'left',
+}
+
+/**
+ * The port an edge end moves to when tidying, on a node whose ports are
+ * `anchors`: on the side facing the other end along the flow.
+ */
+function anchorFor(end: FlowEndpoint, kind: 'input' | 'output', side: PortSide) {
+  const node = nodeById.value.get(end.node)
+  if (!node) return undefined
+  const spec = specOf(node)
+  if (!spec.anchors || spec.rotation?.(node)) return undefined
+  const port = portsOf(spec, node).find((p) => p.kind === kind && portSide(p) === side)
+  return port && port.id !== end.port ? { ...end, port: port.id } : undefined
+}
+
+/**
  * Lays the given nodes, or the selected ones when two or more are selected,
  * or all, out in ranks along their edges in the flow's `direction`, as one
  * undo step. The group keeps its top left corner; locked nodes stay put.
@@ -997,7 +1043,7 @@ function tidy(ids?: string[]) {
   const nodes = doc.value.nodes.filter((node) => blocks.has(node.id))
   const bounds = boundsOf(nodes.map(rectOf))
   if (!bounds || nodes.length < 2) return
-  const vertical = props.direction === 'vertical'
+  const vertical = tidiesVertically(blocks, blockOf)
   const gap = TIDY_GAP[vertical ? 'vertical' : 'horizontal']
   const across = vertical ? (['top', 'bottom'] as const) : (['left', 'right'] as const)
   // Where each node's edges meet it across the flow, from its top (left) edge.
@@ -1024,7 +1070,7 @@ function tidy(ids?: string[]) {
       return from && to && from !== to && blocks.has(from) && blocks.has(to) ? [{ from, to }] : []
     }),
     {
-      direction: props.direction,
+      direction: vertical ? 'vertical' : 'horizontal',
       rankGap: gap.rank,
       laneGap: gap.row,
       equalWidth: false,
@@ -1075,10 +1121,57 @@ function tidy(ids?: string[]) {
       routes.set(edge.id, next)
     })
   }
-  const rerouted = doc.value.edges.some(
-    (edge) =>
-      routes.has(edge.id) && JSON.stringify(routes.get(edge.id)) !== JSON.stringify(edge.points),
-  )
+  // Edges between anchors move onto the sides that face each other along
+  // the flow, so they don't leave a node by one side only to turn back.
+  const rankOf = new Map(layout.ranks.flatMap((rank, i) => rank.map((id) => [id, i] as const)))
+  const centre = (id: string) => {
+    const rect = rectOf(nodeById.value.get(id)!)
+    const block = blockOf(id)!
+    const to = moved.get(block)
+    const was = from.get(block)!
+    const dx = to ? to.x - was.x : 0
+    const dy = to ? to.y - was.y : 0
+    return { x: rect.x + dx + rect.width / 2, y: rect.y + dy + rect.height / 2 }
+  }
+  const ends = new Map<string, Pick<FlowEdge, 'source' | 'target'>>()
+  for (const edge of doc.value.edges) {
+    const a = blockOf(edge.source.node)
+    const b = blockOf(edge.target.node)
+    if (!a || !b || a === b || !blocks.has(a) || !blocks.has(b)) continue
+    const s = centre(edge.source.node)
+    const t = centre(edge.target.node)
+    // By rank, as laid out; locked nodes stay where they are, so by place.
+    const ranked = !locked.has(a) && !locked.has(b)
+    const along = ranked
+      ? (rankOf.get(b) ?? 0) - (rankOf.get(a) ?? 0)
+      : Math.round(vertical ? t.y - s.y : t.x - s.x)
+    const aside = vertical ? t.x - s.x : t.y - s.y
+    const out: PortSide = along
+      ? vertical
+        ? along > 0
+          ? 'bottom'
+          : 'top'
+        : along > 0
+          ? 'right'
+          : 'left'
+      : vertical
+        ? aside >= 0
+          ? 'right'
+          : 'left'
+        : aside >= 0
+          ? 'bottom'
+          : 'top'
+    const source = anchorFor(edge.source, 'output', out)
+    const target = anchorFor(edge.target, 'input', OPPOSITE[out])
+    if (source || target)
+      ends.set(edge.id, { source: source ?? edge.source, target: target ?? edge.target })
+  }
+  const rerouted =
+    ends.size > 0 ||
+    doc.value.edges.some(
+      (edge) =>
+        routes.has(edge.id) && JSON.stringify(routes.get(edge.id)) !== JSON.stringify(edge.points),
+    )
   if (!moved.size && !rerouted) return
   const count = moved.size
   // What is inside a moved container moves the same way.
@@ -1095,6 +1188,7 @@ function tidy(ids?: string[]) {
   }
   transact((tr) => {
     for (const [id, to] of moved) tr.moveNode(id, to.x, to.y)
+    for (const [id, end] of ends) tr.updateEdge(id, end)
     // After the moves, which carry points along with edges whose ends moved together.
     for (const [id, points] of routes)
       if (JSON.stringify(points) !== JSON.stringify(tr.getEdge(id)?.points))

@@ -385,6 +385,22 @@ describe('connector', () => {
     expect(connectorEdge.style!(edge({}))).toBeUndefined()
   })
 
+  it('runs through the points tidying lays, its arrow along the last run', () => {
+    const s = { x: 0, y: 0, side: 'bottom' } as const
+    const t = { x: 200, y: 300, side: 'top' } as const
+    const through = {
+      ...edge({}),
+      points: [
+        { x: 200, y: 100 },
+        { x: 200, y: 200 },
+      ],
+    }
+    const route = connectorEdge.route(s, t, through)
+    expect(route.path).toBe('M0 0L200 100L200 200L200 300')
+    // straight down into the top, not along the slant from the source
+    expect(route.marks).toBe('M204.35 291L200 300L195.65 291')
+  })
+
   it('offers route, dash and arrows over the selected connectors', async () => {
     const { root, flow, selection } = setup({
       version: 1,
@@ -541,6 +557,86 @@ const card = (id: string, x: number, z?: number) => ({
 const order = (root: {
   findAll: (s: string) => { attributes: (n: string) => string | undefined }[]
 }) => root.findAll('.dou-flow-editor__node').map((n) => n.attributes('data-node-id'))
+
+const shapeAt = (id: string, x: number, y: number) => ({
+  id,
+  type: 'shape',
+  x,
+  y,
+  width: 160,
+  height: 80,
+  data: { shape: 'rect', text: id },
+})
+const joined = (id: string, from: string, out: string, to: string, into: string) => ({
+  id,
+  type: 'connector',
+  source: { node: from, port: out },
+  target: { node: to, port: into },
+})
+
+describe('tidy', () => {
+  it('lays a board drawn top to bottom out top to bottom, its connectors meeting face to face', async () => {
+    // Side by side now, but joined bottom to top: drawn as a column.
+    const { wrapper, flow } = setup({
+      version: 1,
+      nodes: [
+        shapeAt('a', 0, 0),
+        shapeAt('b', 400, 0),
+        shapeAt('c', 800, 0),
+        shapeAt('d', 1200, 0),
+      ],
+      edges: [
+        joined('ab', 'a', 'bottom', 'b', 'top-in'),
+        joined('bc', 'b', 'bottom', 'c', 'top-in'),
+        // one drawn from a side: it turns to face down the column
+        joined('cd', 'c', 'right', 'd', 'left-in'),
+      ],
+    })
+    await ticks()
+    ;(wrapper.findComponent(DouFlowEditor).vm as any).tidy()
+    await ticks()
+    const at = (id: string) => flow.value.nodes.find((n) => n.id === id)!
+    const xs = ['a', 'b', 'c', 'd'].map((id) => at(id).x)
+    const ys = ['a', 'b', 'c', 'd'].map((id) => at(id).y)
+    expect(new Set(xs).size).toBe(1)
+    for (let i = 1; i < ys.length; i++) expect(ys[i]! - ys[i - 1]!).toBeGreaterThan(80)
+    for (const each of flow.value.edges) {
+      expect(each.source.port).toBe('bottom')
+      expect(each.target.port).toBe('top-in')
+    }
+  })
+
+  it('turns a connector against the flow to leave by the top', async () => {
+    const { wrapper, flow } = setup({
+      version: 1,
+      nodes: [shapeAt('a', 0, 0), shapeAt('b', 0, 200), shapeAt('c', 0, 400)],
+      edges: [
+        joined('ab', 'a', 'bottom', 'b', 'top-in'),
+        joined('bc', 'b', 'bottom', 'c', 'top-in'),
+        joined('ca', 'c', 'right', 'a', 'right-in'),
+      ],
+    })
+    await ticks()
+    ;(wrapper.findComponent(DouFlowEditor).vm as any).tidy()
+    await ticks()
+    const back = flow.value.edges.find((e) => e.id === 'ca')!
+    expect(back.source.port).toBe('top')
+    expect(back.target.port).toBe('bottom-in')
+  })
+
+  it('keeps a board drawn left to right as it is', async () => {
+    const doc = {
+      version: 1 as const,
+      nodes: [shapeAt('a', 0, 0), shapeAt('b', 240, 0)],
+      edges: [joined('ab', 'a', 'right', 'b', 'left-in')],
+    }
+    const { wrapper, flow } = setup(structuredClone(doc))
+    await ticks()
+    ;(wrapper.findComponent(DouFlowEditor).vm as any).tidy()
+    await ticks()
+    expect(flow.value).toEqual(doc)
+  })
+})
 
 describe('pen and eraser', () => {
   it('draws a stroke that becomes an ink node, and keeps the pen', async () => {

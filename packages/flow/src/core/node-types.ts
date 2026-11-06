@@ -25,6 +25,12 @@ export interface NodeTypeSpec<Data extends FlowData = FlowData> {
   component?: Component
   /** The node's ports, fixed or worked out from its data. */
   ports?: FlowPortSpec[] | ((node: FlowNode<Data>) => FlowPortSpec[])
+  /**
+   * The ports are only places on the sides for edges to meet the node, an
+   * output and an input on each side, all alike. Tidying then moves an
+   * edge's ends onto the sides that face each other along the flow.
+   */
+  anchors?: boolean
   /** Data for a new node of this type. */
   defaults?: () => Data
   /**

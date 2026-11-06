@@ -1,7 +1,8 @@
 # Publish a release once its "release: vX.Y.Z" pull request is merged.
-# Builds on a GitHub-hosted runner, waits for approval in the `npm`
-# environment, then publishes every package with provenance, tags the commit
-# and creates the GitHub release. Publishing uses npm trusted publishing;
+# Release pull requests come from release-pr.yml (prereleases, kept up to
+# date automatically) or release-prepare.yml (by hand). Builds on a GitHub-hosted
+# runner, then publishes every package with provenance from the `npm`
+# environment, tags the commit and creates the GitHub release. Publishing uses npm trusted publishing;
 # only the very first release, before the packages exist on npm, uses a
 # short-lived token stored as the environment's NPM_TOKEN secret.
 # A release on `latest` also moves the `stable` branch, which the docs at
@@ -89,7 +90,8 @@ jobs:
     needs: [plan, build]
     if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/')
     runs-on: ubuntu-latest
-    # the environment's required reviewer approves every publish
+    # npm's trusted publisher is tied to this environment; it has no
+    # required reviewers, so publishing needs no approval
     environment: npm
     permissions:
       contents: write

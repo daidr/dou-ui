@@ -103,5 +103,5 @@ writeFileSync(join(root, '.release/notes.md'), `${notes}\n`)
 
 process.stdout
   .write(`已准备 ${version}（${channelOf(parseVersion(version)!)}）：${packages.length} 个包，${pending.length + (isPre ? 0 : prereleased.length)} 条改动。
-发布说明写在 .release/notes.md。合并这个改动后，发版工作流会等你批准再发布到 npm。
+发布说明写在 .release/notes.md。合并这个改动后，发版工作流会把它发布到 npm。
 `)

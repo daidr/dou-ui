@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, useId, useTemplateRef } from 'vue'
+import { useElementSize } from '../../composables/use-element-size'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import type { SplitterLimit, SplitterProps, SplitterSlots } from './splitter'
@@ -10,6 +11,7 @@ const props = withDefaults(defineProps<SplitterProps>(), {
   direction: 'horizontal',
   min: 0,
   max: 100,
+  minEnd: 0,
   collapsible: false,
   step: 1,
   disabled: false,
@@ -25,10 +27,9 @@ const startId = `dou-splitter-${useId()}-start`
 const root = useTemplateRef<HTMLElement>('root')
 
 const horizontal = computed(() => props.direction === 'horizontal')
-const length = () => {
-  const rect = root.value?.getBoundingClientRect()
-  return (horizontal.value ? rect?.width : rect?.height) || 0
-}
+// Kept up to date, so px limits still hold when the container resizes
+const box = useElementSize(root, { box: 'border-box' })
+const length = () => (horizontal.value ? box.width.value : box.height.value)
 function toPercent(limit: SplitterLimit) {
   if (typeof limit === 'number') return limit
   const total = length()
@@ -36,7 +37,13 @@ function toPercent(limit: SplitterLimit) {
 }
 const bounds = () => {
   const min = Math.max(0, toPercent(props.min))
-  return { min, max: Math.max(min, Math.min(100, toPercent(props.max))) }
+  const end = Math.max(0, toPercent(props.minEnd))
+  // Too narrow for both minimums: they share the room in proportion
+  if (min + end > 100) {
+    const at = (min / (min + end)) * 100
+    return { min: at, max: at }
+  }
+  return { min, max: Math.max(min, Math.min(100 - end, toPercent(props.max))) }
 }
 const round = (value: number) => Math.round(value * 100) / 100
 function clamp(value: number) {
@@ -87,7 +94,7 @@ function onKeydown(event: KeyboardEvent) {
   const step = props.step * (event.shiftKey ? 10 : 1)
   const back = horizontal.value ? 'ArrowLeft' : 'ArrowUp'
   const forth = horizontal.value ? 'ArrowRight' : 'ArrowDown'
-  const current = collapsed.value ? 0 : size.value
+  const current = shown.value
   let next: number | undefined
   if (event.key === back) next = current - step
   else if (event.key === forth) next = current + step
@@ -102,7 +109,13 @@ function onKeydown(event: KeyboardEvent) {
   emit('change', size.value)
 }
 
-const shown = computed(() => (collapsed.value ? 0 : size.value))
+// What is on screen: the model value kept within the limits, which can
+// tighten as the container resizes. The model itself only changes when
+// someone moves the divider.
+const shown = computed(() => {
+  if (collapsed.value) return 0
+  return clamp(size.value)
+})
 const template = computed(
   () => `minmax(0, ${shown.value}fr) auto minmax(0, ${round(100 - shown.value)}fr)`,
 )
@@ -110,9 +123,8 @@ const style = computed(() =>
   horizontal.value ? { gridTemplateColumns: template.value } : { gridTemplateRows: template.value },
 )
 const limits = computed(() => {
-  // Read the px limits only once mounted; before that they count as 0.
-  void size.value
-  const { min, max } = root.value ? bounds() : { min: 0, max: 100 }
+  // px limits count as 0 until the container is measured
+  const { min, max } = bounds()
   return { min: Math.round(min), max: Math.round(max) }
 })
 </script>

@@ -10,11 +10,13 @@
 
 ## 尺寸限制
 
-`min` 和 `max` 限制第一个面板：数字是百分比，`'240px'` 这样的字符串是像素。第二个面板的最小尺寸由 `max` 间接决定。
+`min` 和 `max` 限制第一个面板，`minEnd` 是第二个面板的最小尺寸。数字是百分比，`'240px'` 这样的字符串是像素。嵌套拆分时百分比是相对上一层的，层数多了会越分越窄，这时用像素限制更可靠。
 
 ```vue
-<DouSplitter v-model="size" min="200px" :max="70">…</DouSplitter>
+<DouSplitter v-model="size" min="200px" min-end="240px">…</DouSplitter>
 ```
+
+容器变大变小时，像素限制会跟着重新计算，面板按限制显示，但 `v-model` 的值不变，直到拖动或用键盘调整分隔线。容器比 `min` 和 `minEnd` 加起来还小时，两个面板按这两个值的比例分配，比如两边都是 `'240px'` 时各占一半。
 
 ## 折叠
 
@@ -41,6 +43,7 @@
 | `direction`   | 左右排列还是上下排列               | `'horizontal' \| 'vertical'` | `'horizontal'` |
 | `min`         | 第一个面板的最小尺寸               | `number \| '${number}px'`    | `0`            |
 | `max`         | 第一个面板的最大尺寸               | `number \| '${number}px'`    | `100`          |
+| `minEnd`      | 第二个面板的最小尺寸               | `number \| '${number}px'`    | `0`            |
 | `collapsible` | 可以折叠第一个面板                 | `boolean`                    | `false`        |
 | `collapsed`   | 是否折叠，配合 `v-model:collapsed` | `boolean`                    | `false`        |
 | `step`        | 方向键每次移动的百分比             | `number`                     | `1`            |

@@ -6,7 +6,7 @@ const collapsed = ref(false)
 </script>
 
 <template>
-  <DouSplitter v-model="size" :min="15" :max="70" collapsible v-model:collapsed="collapsed">
+  <DouSplitter v-model="size" :min="15" min-end="240px" collapsible v-model:collapsed="collapsed">
     <template #start>
       <div class="split-pane">文件列表 · {{ size }}%</div>
     </template>

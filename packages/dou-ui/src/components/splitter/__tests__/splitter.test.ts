@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DouSplitter } from '../../../index'
 
 const make = (props: Record<string, unknown> = {}) => {
@@ -70,5 +70,83 @@ describe('DouSplitter', () => {
     await bar.trigger('dblclick')
     expect(wrapper.emitted('update:modelValue')).toBeUndefined()
     expect(wrapper.emitted('update:collapsed')).toBeUndefined()
+  })
+
+  describe('with a measured width', () => {
+    let resize: (width: number) => void = () => {}
+    const measure = (width: number) => {
+      let current = width
+      vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(
+        () => ({ width: current, height: 300 }) as DOMRect,
+      )
+      let callback: ResizeObserverCallback | undefined
+      vi.stubGlobal(
+        'ResizeObserver',
+        class {
+          constructor(cb: ResizeObserverCallback) {
+            callback = cb
+          }
+          observe() {}
+          disconnect() {}
+        },
+      )
+      resize = (next) => {
+        current = next
+        callback?.(
+          [
+            {
+              borderBoxSize: [{ inlineSize: next, blockSize: 300 }],
+              contentRect: { width: next, height: 300 },
+            } as unknown as ResizeObserverEntry,
+          ],
+          {} as ResizeObserver,
+        )
+      }
+    }
+    afterEach(() => {
+      vi.restoreAllMocks()
+      vi.unstubAllGlobals()
+    })
+
+    it('keeps the second pane at least `minEnd`', async () => {
+      measure(1000)
+      const wrapper = make({ modelValue: 90, minEnd: '240px' })
+      await wrapper.vm.$nextTick()
+      const bar = wrapper.get('[role="separator"]')
+      expect(bar.attributes('aria-valuemax')).toBe('76')
+      expect(bar.attributes('aria-valuenow')).toBe('76')
+      expect(wrapper.attributes('style')).toContain('minmax(0, 76fr) auto minmax(0, 24fr)')
+      // shown within the limit, the model untouched until the divider moves
+      expect(wrapper.props('modelValue')).toBe(90)
+      await bar.trigger('keydown', { key: 'End' })
+      expect(wrapper.props('modelValue')).toBe(76)
+    })
+
+    it('holds px limits as the container resizes', async () => {
+      measure(1000)
+      const wrapper = make({ modelValue: 50, min: '240px', minEnd: '240px' })
+      await wrapper.vm.$nextTick()
+      expect(wrapper.attributes('style')).toContain('minmax(0, 50fr)')
+      resize(400)
+      await wrapper.vm.$nextTick()
+      // 400px is less than 240 + 240: the panes share it in proportion
+      expect(wrapper.attributes('style')).toContain('minmax(0, 50fr) auto minmax(0, 50fr)')
+      resize(600)
+      await wrapper.vm.$nextTick()
+      const bar = wrapper.get('[role="separator"]')
+      expect(bar.attributes('aria-valuemin')).toBe('40')
+      expect(bar.attributes('aria-valuemax')).toBe('60')
+    })
+
+    it('shares a container too small for both minimums in proportion', async () => {
+      measure(400)
+      const wrapper = make({ modelValue: 20, min: '300px', minEnd: '100px' })
+      await wrapper.vm.$nextTick()
+      // just fits: the first pane at its minimum
+      expect(wrapper.attributes('style')).toContain('minmax(0, 75fr) auto minmax(0, 25fr)')
+      await wrapper.setProps({ modelValue: 20, min: '300px', minEnd: '200px' })
+      await wrapper.vm.$nextTick()
+      expect(wrapper.attributes('style')).toContain('minmax(0, 60fr) auto minmax(0, 40fr)')
+    })
   })
 })

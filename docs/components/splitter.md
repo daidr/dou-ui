@@ -10,11 +10,15 @@
 
 ## 尺寸限制
 
-`min` 和 `max` 限制第一个面板：数字是百分比，`'240px'` 这样的字符串是像素。第二个面板的最小尺寸由 `max` 间接决定。
+`min` 和 `max` 限制第一个面板的大小，`minEnd` 限制第二个面板的最小尺寸。数字是百分比，`'240px'` 这样的字符串是像素。百分比相对 Splitter 自身的大小计算，嵌套时里层的面板会越来越小，需要保证最小宽度时用像素。
 
 ```vue
-<DouSplitter v-model="size" min="200px" :max="70">…</DouSplitter>
+<DouSplitter v-model="size" min="200px" min-end="240px">…</DouSplitter>
 ```
+
+嵌套时，里层 Splitter 的像素限制会自动算进外层：外层第二个面板里放着一个两边都是 `'240px'` 的 Splitter，外层的第二个面板就至少留出 481px（两个面板加 1px 分隔线），不用在外层手动加起来。百分比限制不会这样往外算。
+
+容器大小变化时，像素限制会重新计算，面板按限制显示，但 `v-model` 的值不变，直到拖动或用键盘调整分隔线。容器比两边的最小尺寸加起来还小时，两个面板按这两个值的比例分配，比如两边都是 `'240px'` 时各占一半。
 
 ## 折叠
 
@@ -41,6 +45,7 @@
 | `direction`   | 左右排列还是上下排列               | `'horizontal' \| 'vertical'` | `'horizontal'` |
 | `min`         | 第一个面板的最小尺寸               | `number \| '${number}px'`    | `0`            |
 | `max`         | 第一个面板的最大尺寸               | `number \| '${number}px'`    | `100`          |
+| `minEnd`      | 第二个面板的最小尺寸               | `number \| '${number}px'`    | `0`            |
 | `collapsible` | 可以折叠第一个面板                 | `boolean`                    | `false`        |
 | `collapsed`   | 是否折叠，配合 `v-model:collapsed` | `boolean`                    | `false`        |
 | `step`        | 方向键每次移动的百分比             | `number`                     | `1`            |

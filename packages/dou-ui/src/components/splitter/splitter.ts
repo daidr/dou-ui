@@ -12,6 +12,11 @@ export interface SplitterProps {
   min?: SplitterLimit
   /** The largest the first pane may get; the second pane keeps the rest. */
   max?: SplitterLimit
+  /**
+   * The smallest the second pane may get. When the splitter is too small
+   * for both `min` and `minEnd`, the two panes share it in proportion.
+   */
+  minEnd?: SplitterLimit
   /** Let the first pane fold away with `Enter` or a double click on the divider. */
   collapsible?: boolean
   /** Whether the first pane is folded away, bound with `v-model:collapsed`. */

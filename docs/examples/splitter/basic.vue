@@ -8,7 +8,7 @@ const collapsed = ref(false)
 <template>
   <DouSplitter v-model="size" :min="15" min-end="240px" collapsible v-model:collapsed="collapsed">
     <template #start>
-      <div class="split-pane">文件列表 · {{ size }}%</div>
+      <div class="split-pane">文件列表</div>
     </template>
     <template #end>
       <DouSplitter direction="vertical" :model-value="65">

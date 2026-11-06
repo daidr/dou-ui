@@ -15,6 +15,36 @@ const make = (props: Record<string, unknown> = {}) => {
   return wrapper
 }
 
+// every element measures `width` wide; `resize` tells the last observer
+let width = 0
+let observed: ResizeObserverCallback | undefined
+class FakeResizeObserver {
+  constructor(callback: ResizeObserverCallback) {
+    observed = callback
+  }
+  observe() {}
+  disconnect() {}
+}
+function measure(next: number) {
+  width = next
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(
+    () => ({ width, height: 300 }) as DOMRect,
+  )
+  vi.stubGlobal('ResizeObserver', FakeResizeObserver)
+}
+function resize(next: number) {
+  width = next
+  observed?.(
+    [
+      {
+        borderBoxSize: [{ inlineSize: next, blockSize: 300 }],
+        contentRect: { width: next, height: 300 },
+      } as unknown as ResizeObserverEntry,
+    ],
+    {} as ResizeObserver,
+  )
+}
+
 describe('DouSplitter', () => {
   it('lays out two panes with a separator between', () => {
     const wrapper = make({ modelValue: 30 })
@@ -73,36 +103,6 @@ describe('DouSplitter', () => {
   })
 
   describe('with a measured width', () => {
-    let resize: (width: number) => void = () => {}
-    const measure = (width: number) => {
-      let current = width
-      vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(
-        () => ({ width: current, height: 300 }) as DOMRect,
-      )
-      let callback: ResizeObserverCallback | undefined
-      vi.stubGlobal(
-        'ResizeObserver',
-        class {
-          constructor(cb: ResizeObserverCallback) {
-            callback = cb
-          }
-          observe() {}
-          disconnect() {}
-        },
-      )
-      resize = (next) => {
-        current = next
-        callback?.(
-          [
-            {
-              borderBoxSize: [{ inlineSize: next, blockSize: 300 }],
-              contentRect: { width: next, height: 300 },
-            } as unknown as ResizeObserverEntry,
-          ],
-          {} as ResizeObserver,
-        )
-      }
-    }
     afterEach(() => {
       vi.restoreAllMocks()
       vi.unstubAllGlobals()
@@ -115,11 +115,13 @@ describe('DouSplitter', () => {
       const bar = wrapper.get('[role="separator"]')
       expect(bar.attributes('aria-valuemax')).toBe('76')
       expect(bar.attributes('aria-valuenow')).toBe('76')
-      expect(wrapper.attributes('style')).toContain('minmax(0, 76fr) auto minmax(0, 24fr)')
+      // the panes share 999px beside the 1px divider: 24.03% of it is 240.06px, never under 240
+      expect(wrapper.attributes('style')).toContain('minmax(0, 75.97fr) auto minmax(0, 24.03fr)')
+      expect((24.03 / 100) * 999).toBeGreaterThanOrEqual(240)
       // shown within the limit, the model untouched until the divider moves
       expect(wrapper.props('modelValue')).toBe(90)
       await bar.trigger('keydown', { key: 'End' })
-      expect(wrapper.props('modelValue')).toBe(76)
+      expect(wrapper.props('modelValue')).toBe(75.97)
     })
 
     it('holds px limits as the container resizes', async () => {
@@ -148,5 +150,49 @@ describe('DouSplitter', () => {
       await wrapper.vm.$nextTick()
       expect(wrapper.attributes('style')).toContain('minmax(0, 60fr) auto minmax(0, 40fr)')
     })
+
+    it('keeps the bottom pane at least `minEnd` when vertical', async () => {
+      measure(1000)
+      const wrapper = make({ direction: 'vertical', modelValue: 90, minEnd: '120px' })
+      await wrapper.vm.$nextTick()
+      // 300px tall, 299 for the panes: 40.14% of it is 120.02px
+      expect(wrapper.attributes('style')).toContain(
+        'grid-template-rows: minmax(0, 59.86fr) auto minmax(0, 40.14fr)',
+      )
+      expect((40.14 / 100) * 299).toBeGreaterThanOrEqual(120)
+    })
+
+    it('makes room for the px limits of a splitter inside a pane', async () => {
+      measure(1000)
+      const wrapper = mount(
+        {
+          components: { DouSplitter },
+          template: `
+            <DouSplitter :model-value="80" min="240px" min-end="240px">
+              <template #start><p>左</p></template>
+              <template #end>
+                <DouSplitter min="240px" min-end="240px">
+                  <template #start><p>中</p></template>
+                  <template #end><p>右</p></template>
+                </DouSplitter>
+              </template>
+            </DouSplitter>`,
+        },
+        { attachTo: document.body },
+      )
+      await wrapper.vm.$nextTick()
+      // the inner one needs 240 + 1 + 240 px of the outer 999, so the outer first pane stops at 51.85%
+      const bar = wrapper.get('[role="separator"]')
+      expect(bar.attributes('aria-valuemax')).toBe('52')
+      expect(wrapper.get('.dou-splitter').attributes('style')).toContain('minmax(0, 51.85fr)')
+      wrapper.unmount()
+    })
+  })
+
+  it('warns about a string limit that is not px', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    make({ min: '20%' })
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('`min` is "20%"'))
+    warn.mockRestore()
   })
 })

@@ -4,7 +4,7 @@
 
 ## 基础用法
 
-`used` 是已用的 token 数，`total` 是上限。超过 80% 时圆环变成警告色，超过 95% 时变成危险色，阈值可以用 `warnAt` 和 `dangerAt` 调整。`showLabel` 会在圆环旁显示百分比。圆环的底色轨道始终完整可见，进度两端是平的，用量很低时也不会看起来像正在加载。
+`used` 是已用的 token 数，`total` 是上限。超过 80% 时圆环变成警告色，超过 95% 时变成危险色，阈值可以用 `warnAt` 和 `dangerAt` 调整。`showLabel` 会在圆环旁显示百分比。
 
 <DocDemo src="chat-context-meter/basic" />
 

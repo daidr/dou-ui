@@ -11,6 +11,7 @@
 @layer dou.components {
   .dou-chat-context-meter {
     --dou-chat-context-meter-color: var(--dou-color-text-secondary);
+    --dou-chat-context-meter-track: color-mix(in oklab, var(--dou-color-text) 18%, transparent);
 
     display: inline-flex;
     align-items: center;
@@ -48,11 +49,13 @@
   }
 
   .dou-chat-context-meter__track {
-    stroke: color-mix(in oklab, var(--dou-color-text) 18%, transparent);
+    stroke: var(--dou-chat-context-meter-track);
   }
 
   .dou-chat-context-meter__bar {
     stroke: var(--dou-chat-context-meter-color);
+    /* square ends, unlike DouProgress: at 16px a round-capped short arc is
+       the shape of a loading spinner, which a share of 2% must not look like */
     stroke-linecap: butt;
     transition: stroke-dasharray var(--dou-motion-duration-normal) var(--dou-motion-easing);
   }

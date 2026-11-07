@@ -9,7 +9,11 @@ import type { DockGroup, DockSide } from './layout'
 
 defineOptions({ name: 'DouDockGroup' })
 
-const props = defineProps<{ group: DockGroup }>()
+const props = defineProps<{
+  group: DockGroup
+  /** Which slots the dock has; read in its render, so a slot that comes later shows up. */
+  slotted: { label: boolean; extra: boolean; empty: boolean }
+}>()
 const dock = inject(dockKey)!
 const ns = useNamespace('dock')
 
@@ -69,8 +73,8 @@ const label = (value: string | number) => dock.panel(value)?.label ?? String(val
     ref="el"
     :class="[ns.e('group'), ns.is('empty', !group.tabs.length)]"
     :data-dock-group="group.id"
-    @pointerdown.capture="dock.activate(group)"
-    @focusin="dock.activate(group)"
+    @pointerdown.capture="dock.use(group.id)"
+    @focusin="dock.use(group.id)"
   >
     <DouTabs
       :model-value="group.active ?? group.tabs[0]"
@@ -96,16 +100,18 @@ const label = (value: string | number) => dock.panel(value)?.label ?? String(val
         :disabled="dock.panel(value)?.disabled"
         :draggable="dock.panel(value)?.draggable"
       >
-        <template v-if="dock.slots.label" #label="{ selected }">
+        <template v-if="slotted.label" #label="{ selected }">
           <Outlet :render="() => dock.slots.label?.({ value, selected })" />
         </template>
         <Outlet :render="() => dock.slots.default?.({ value })" />
       </DouTabPanel>
-      <template v-if="dock.slots.extra" #extra>
-        <Outlet :render="() => dock.slots.extra?.({ group })" />
+      <template v-if="slotted.extra" #extra>
+        <Outlet
+          :render="() => dock.slots.extra?.({ group, active: group.active ?? group.tabs[0] })"
+        />
       </template>
     </DouTabs>
-    <div v-if="!group.tabs.length && dock.slots.empty" :class="ns.e('empty')">
+    <div v-if="!group.tabs.length && slotted.empty" :class="ns.e('empty')">
       <Outlet :render="() => dock.slots.empty?.()" />
     </div>
     <div

@@ -1,5 +1,5 @@
 <script setup>
-import { LayoutColumnsIcon, LayoutRowsIcon } from '@dou-ui/icons'
+import { MoreHorizontalIcon } from '@dou-ui/icons'
 import { ref } from 'vue'
 import { moveDockTab, removeDockTab, splitDockTab } from 'dou-ui'
 
@@ -12,9 +12,14 @@ const panels = ref([
 
 const layout = ref({ type: 'group', id: 'main', tabs: ['thread', 'plan', 'api', 'log'] })
 
+const sides = [
+  { side: 'right', label: '向右拆分' },
+  { side: 'bottom', label: '向下拆分' },
+]
+
 // splits the selected tab of a group off; a group of one tab has nothing to split from
-function split(group, side) {
-  layout.value = splitDockTab(layout.value, group.active ?? group.tabs[0], group.id, side)
+function split(group, active, side) {
+  layout.value = splitDockTab(layout.value, active, group.id, side)
 }
 function remove(value) {
   layout.value = removeDockTab(layout.value, value)
@@ -32,29 +37,22 @@ function add(group) {
     <template #default="{ value }">{{
       panels.find((panel) => panel.value === value).label
     }}</template>
-    <template #extra="{ group }">
-      <DouTooltip content="向右拆分">
-        <DouButton
-          variant="ghost"
-          size="sm"
-          aria-label="向右拆分"
-          :disabled="group.tabs.length < 2"
-          @click="split(group, 'right')"
-        >
-          <LayoutColumnsIcon />
+    <template #extra="{ group, active }">
+      <DouDropdown placement="bottom-end" @select="split(group, active, $event)">
+        <DouButton variant="ghost" size="sm" aria-label="这一组的更多操作">
+          <MoreHorizontalIcon />
         </DouButton>
-      </DouTooltip>
-      <DouTooltip content="向下拆分">
-        <DouButton
-          variant="ghost"
-          size="sm"
-          aria-label="向下拆分"
-          :disabled="group.tabs.length < 2"
-          @click="split(group, 'bottom')"
-        >
-          <LayoutRowsIcon />
-        </DouButton>
-      </DouTooltip>
+        <template #menu>
+          <DouDropdownItem
+            v-for="item in sides"
+            :key="item.side"
+            :value="item.side"
+            :disabled="group.tabs.length < 2"
+          >
+            {{ item.label }}
+          </DouDropdownItem>
+        </template>
+      </DouDropdown>
     </template>
     <template #empty>没有打开的标签</template>
   </DouDock>

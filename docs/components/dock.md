@@ -24,7 +24,7 @@
 
 ## 用菜单或按钮拆分
 
-拖动之外，也可以用导出的函数改布局，比如做“向右拆分”“移到…”菜单，或者给键盘用户一个跨组移动的入口。每组的按钮放在 `extra` 插槽里，它在每组标签行的末尾，参数 `{ group }` 是这一组，可以按 `group.active` 显示随当前标签变化的操作。这些函数返回新的布局，不改动传入的那个：
+拖动之外，也可以用导出的函数改布局，比如做“向右拆分”“移到…”菜单，或者给键盘用户一个跨组移动的入口。这些函数返回新的布局，不改动传入的那个：
 
 | 函数                                                 | 作用                                                                                   |
 | ---------------------------------------------------- | -------------------------------------------------------------------------------------- |
@@ -40,7 +40,18 @@
 
 <DocDemo src="dock/actions" style="padding: 0; height: 360px; overflow: hidden" />
 
-想把新打开的标签放进最近用过的那一组时，监听 `activate`：在某组里按下指针或焦点移进某组时发出，参数是组的 id，换到另一组时才发一次。
+## 每组的操作
+
+`extra` 插槽放在每组标签行的末尾，适合放这一组的操作，比如上面例子里的“更多”菜单。参数 `group` 是这一组，`active` 是它当前选中的标签（组里没有标签时为 `undefined`），可以按它显示随当前标签变化的操作。标签行不宽，按钮多时建议收进一个下拉菜单。
+
+## 最近用过的组
+
+`v-model:active-group` 记着最近用过的那一组的 id：在某组里按下指针、焦点移进某组，或者把标签拖进某组、拆出新组时，都会更新为那一组。挂载时不会自动设置，初始值由你给，不给就是 `undefined`。这一组被拖空或关掉而从布局里消失时，会变回 `undefined`；拆出的新组可能复用以前用过的 id，所以只认它当前是否在布局里。点开新标签时，可以放进这一组，没有时放进第一组：
+
+```ts
+const target = activeGroup.value ?? dockGroups(layout.value)[0].id
+layout.value = moveDockTab(layout.value, value, target)
+```
 
 ## 键盘与读屏
 
@@ -50,38 +61,39 @@
 
 ### Dock Props
 
-| 名称         | 说明                                                                                     | 类型                           | 默认值            |
-| ------------ | ---------------------------------------------------------------------------------------- | ------------------------------ | ----------------- |
-| `modelValue` | 布局，配合 `v-model`                                                                     | `DockNode`                     | —                 |
-| `panels`     | 每个标签的文字、图标和选项                                                               | `DockPanel[]`                  | `[]`              |
-| `size`       | 标签的尺寸，默认取表单或全局配置                                                         | `'sm' \| 'md' \| 'lg'`         | `'md'`            |
-| `closable`   | 每个标签显示关闭按钮                                                                     | `boolean`                      | `false`           |
-| `addable`    | 每组的标签行末尾显示新增按钮                                                             | `boolean`                      | `false`           |
-| `draggable`  | 标签可以拖动、拆分；面板自己的 `draggable` 优先                                          | `boolean`                      | `true`            |
-| `min`        | 每个分割两侧的最小尺寸，同 Splitter 的 `min` 和 `minEnd`：数字为百分比，`'120px'` 为像素 | `number \| string`             | `'120px'`         |
-| `createId`   | 拆出新组时生成它的 id                                                                    | `(layout: DockNode) => string` | `nextDockGroupId` |
+| 名称          | 说明                                                                                     | 类型                           | 默认值            |
+| ------------- | ---------------------------------------------------------------------------------------- | ------------------------------ | ----------------- |
+| `modelValue`  | 布局，配合 `v-model`                                                                     | `DockNode`                     | —                 |
+| `panels`      | 每个标签的文字、图标和选项                                                               | `DockPanel[]`                  | `[]`              |
+| `size`        | 标签的尺寸，默认取表单或全局配置                                                         | `'sm' \| 'md' \| 'lg'`         | `'md'`            |
+| `closable`    | 每个标签显示关闭按钮                                                                     | `boolean`                      | `false`           |
+| `addable`     | 每组的标签行末尾显示新增按钮                                                             | `boolean`                      | `false`           |
+| `draggable`   | 标签可以拖动、拆分；面板自己的 `draggable` 优先                                          | `boolean`                      | `true`            |
+| `min`         | 每个分割两侧的最小尺寸，同 Splitter 的 `min` 和 `minEnd`：数字为百分比，`'120px'` 为像素 | `number \| string`             | `'120px'`         |
+| `activeGroup` | 最近用过的组的 id，配合 `v-model:active-group`                                           | `string`                       | —                 |
+| `createId`    | 拆出新组时生成它的 id                                                                    | `(layout: DockNode) => string` | `nextDockGroupId` |
 
 ### Dock Events
 
-| 名称                | 说明                                 | 参数                                                               |
-| ------------------- | ------------------------------------ | ------------------------------------------------------------------ |
-| `update:modelValue` | 布局变化                             | `(layout: DockNode)`                                               |
-| `move`              | 标签被拖到组内的新位置，或另一组里   | `(event: { value, from: { group, index }, to: { group, index } })` |
-| `split`             | 标签被拖到某组边缘，拆出了新的一组   | `(event: { value, from, target, side, group })`                    |
-| `remove`            | 点击关闭按钮，或按 `Delete`          | `(value: string \| number, group: string)`                         |
-| `add`               | 点击某组的新增按钮                   | `(group: string)`                                                  |
-| `activate`          | 在另一组里按下指针，或焦点移进另一组 | `(group: string)`                                                  |
+| 名称                 | 说明                               | 参数                                                               |
+| -------------------- | ---------------------------------- | ------------------------------------------------------------------ |
+| `update:modelValue`  | 布局变化                           | `(layout: DockNode)`                                               |
+| `move`               | 标签被拖到组内的新位置，或另一组里 | `(event: { value, from: { group, index }, to: { group, index } })` |
+| `split`              | 标签被拖到某组边缘，拆出了新的一组 | `(event: { value, from, target, side, group })`                    |
+| `remove`             | 点击关闭按钮，或按 `Delete`        | `(value: string \| number, group: string)`                         |
+| `add`                | 点击某组的新增按钮                 | `(group: string)`                                                  |
+| `update:activeGroup` | 最近用过的组变化                   | `(group: string \| undefined)`                                     |
 
 `move` 的 `from` 和 `to` 各有组的 id 和标签在那一组里的位置，`to.index` 是挪完以后的位置，和 Tabs 的 `move` 对应；`split` 的 `from` 也一样，`target` 是被拖到边缘的那一组，`group` 是新组的 id。`move` 和 `split` 带的信息多，用一个对象；`remove` 和 `add` 与 Tabs 的同名事件参数一致，只在最后多了组的 id。
 
 ### Dock Slots
 
-| 名称      | 说明                                       |
-| --------- | ------------------------------------------ |
-| `default` | 标签的内容，参数为 `{ value }`             |
-| `label`   | 替换标签文字，参数为 `{ value, selected }` |
-| `extra`   | 每组标签行的末尾，参数为 `{ group }`       |
-| `empty`   | 没有任何标签时显示                         |
+| 名称      | 说明                                         |
+| --------- | -------------------------------------------- |
+| `default` | 标签的内容，参数为 `{ value }`               |
+| `label`   | 替换标签文字，参数为 `{ value, selected }`   |
+| `extra`   | 每组标签行的末尾，参数为 `{ group, active }` |
+| `empty`   | 没有任何标签时显示                           |
 
 ### 类型
 

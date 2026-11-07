@@ -40,6 +40,12 @@ export interface DockProps {
    * and `minEnd`: numbers in percent, `'120px'` in px.
    */
   min?: SplitterLimit
+  /**
+   * The group last used, bound with `v-model:active-group`: the one a
+   * pointer pressed in or the focus moved into last, or where a tab was
+   * dropped or split off to. `undefined` once that group is gone.
+   */
+  activeGroup?: string
   /** Makes the id of a group split off. Defaults to `group-1`, `group-2`… */
   createId?: (layout: DockNode) => string
 }
@@ -80,11 +86,7 @@ export interface DockEmits {
   remove: [value: TabsValue, group: string]
   /** The add button of a group was pressed. The same as `DouTabs`' `add`, with the group. */
   add: [group: string]
-  /**
-   * A pointer pressed in another group than before, or the focus moved
-   * into one: e.g. to open new tabs in the group last used.
-   */
-  activate: [group: string]
+  'update:activeGroup': [group: string | undefined]
 }
 
 export interface DockSlots {
@@ -92,8 +94,11 @@ export interface DockSlots {
   default?: (props: { value: TabsValue }) => unknown
   /** Replaces the text of a tab. */
   label?: (props: { value: TabsValue; selected: boolean }) => unknown
-  /** At the end of each group's tab row, as `DouTabs`' `extra`: e.g. actions for that group. */
-  extra?: (props: { group: DockGroup }) => unknown
+  /**
+   * At the end of each group's tab row, as `DouTabs`' `extra`: e.g. actions
+   * for that group. `active` is its selected tab, `undefined` when it has none.
+   */
+  extra?: (props: { group: DockGroup; active: TabsValue | undefined }) => unknown
   /** Shown when there is no tab left. */
   empty?: () => unknown
 }

@@ -71,6 +71,7 @@ function move(event: TabsMoveEvent) {
   if (!from || to === undefined) return
   commit(moveDockTab(latest, event.value, to, event.to.index))
   emit('move', { value: event.value, from, to: { group: to, index: event.to.index } })
+  use(to)
 }
 
 function canDrop(drag: TabDrag, target: DockGroup, side: DockSide | 'center') {
@@ -88,20 +89,33 @@ function drop(drag: TabDrag, target: DockGroup, side: DockSide | 'center') {
     const index = target.tabs.length
     commit(moveDockTab(latest, drag.value, target.id, index))
     emit('move', { value: drag.value, from, to: { group: target.id, index } })
+    use(target.id)
     return
   }
   const id = props.createId?.(latest) ?? nextDockGroupId(latest)
   commit(splitDockTab(latest, drag.value, target.id, side, id))
   emit('split', { value: drag.value, from, target: target.id, side, group: id })
+  use(id)
 }
 
-// the group last pressed or focused, told once each time it changes
-let activated: string | undefined
+/* the group last used */
+
+function use(id: string | undefined) {
+  if (id !== props.activeGroup) emit('update:activeGroup', id)
+}
+// a group dragged empty or closed is gone: it is no longer the one to open things in
+watch(
+  () => props.activeGroup !== undefined && !findGroup(props.modelValue, props.activeGroup),
+  (gone) => gone && use(undefined),
+)
 
 // Each group is rendered here, in one flat list, and teleported into its
 // place in the layout: splitting or merging the parts around a group moves
 // it, and its content (state, scroll position) stays as it is.
 const groups = computed(() => dockGroups(props.modelValue))
+function findGroup(layout: DockNode, id: string) {
+  return dockGroups(layout).some((item) => item.id === id)
+}
 const cells = shallowReactive(new Map<string, HTMLElement>())
 function setCell(id: string, el: unknown) {
   if (el instanceof HTMLElement) {
@@ -160,11 +174,7 @@ provide(dockKey, {
   drop,
   remove: (value, target) => emit('remove', value, target.id),
   add: (target) => emit('add', target.id),
-  activate(target) {
-    if (target.id === activated) return
-    activated = target.id
-    emit('activate', target.id)
-  },
+  use,
   setCell,
 })
 </script>
@@ -179,7 +189,10 @@ provide(dockKey, {
       :to="cells.get(item.id) ?? 'body'"
       :disabled="!cells.get(item.id)"
     >
-      <DockGroupView :group="item" />
+      <DockGroupView
+        :group="item"
+        :slotted="{ label: !!$slots.label, extra: !!$slots.extra, empty: !!$slots.empty }"
+      />
     </Teleport>
   </div>
 </template>

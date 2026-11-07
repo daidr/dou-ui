@@ -23,8 +23,8 @@ export interface DockContext {
   drop: (drag: TabDrag, group: DockGroup, side: DockSide | 'center') => void
   remove: (value: TabsValue, group: DockGroup) => void
   add: (group: DockGroup) => void
-  /** A pointer pressed or the focus moved into a group. */
-  activate: (group: DockGroup) => void
+  /** A pointer pressed or the focus moved into a group, or a tab was dropped on it. */
+  use: (group: string) => void
   /** The place in the layout a group is shown in. */
   setCell: (id: string, el: unknown) => void
 }

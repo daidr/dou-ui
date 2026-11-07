@@ -95,6 +95,9 @@ function drop(drag: TabDrag, target: DockGroup, side: DockSide | 'center') {
   emit('split', { value: drag.value, from, target: target.id, side, group: id })
 }
 
+// the group last pressed or focused, told once each time it changes
+let activated: string | undefined
+
 // Each group is rendered here, in one flat list, and teleported into its
 // place in the layout: splitting or merging the parts around a group moves
 // it, and its content (state, scroll position) stays as it is.
@@ -157,6 +160,11 @@ provide(dockKey, {
   drop,
   remove: (value, target) => emit('remove', value, target.id),
   add: (target) => emit('add', target.id),
+  activate(target) {
+    if (target.id === activated) return
+    activated = target.id
+    emit('activate', target.id)
+  },
   setCell,
 })
 </script>

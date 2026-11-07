@@ -1,6 +1,7 @@
 <script setup>
+import { LayoutColumnsIcon, LayoutRowsIcon } from '@dou-ui/icons'
 import { ref } from 'vue'
-import { findDockGroup, moveDockTab, removeDockTab, splitDockTab } from 'dou-ui'
+import { moveDockTab, removeDockTab, splitDockTab } from 'dou-ui'
 
 const panels = ref([
   { value: 'thread', label: '需求讨论' },
@@ -11,11 +12,9 @@ const panels = ref([
 
 const layout = ref({ type: 'group', id: 'main', tabs: ['thread', 'plan', 'api', 'log'] })
 
-// a tab alone in its group has nothing to split from
-const alone = (value) => findDockGroup(layout.value, value).tabs.length === 1
-
-function split(value, side) {
-  layout.value = splitDockTab(layout.value, value, findDockGroup(layout.value, value).id, side)
+// splits the selected tab of a group off; a group of one tab has nothing to split from
+function split(group, side) {
+  layout.value = splitDockTab(layout.value, group.active ?? group.tabs[0], group.id, side)
 }
 function remove(value) {
   layout.value = removeDockTab(layout.value, value)
@@ -30,15 +29,32 @@ function add(group) {
 
 <template>
   <DouDock v-model="layout" :panels="panels" closable addable @remove="remove" @add="add">
-    <template #default="{ value }">
-      <DouSpace>
-        <DouButton size="sm" :disabled="alone(value)" @click="split(value, 'right')">
-          向右拆分
+    <template #default="{ value }">{{
+      panels.find((panel) => panel.value === value).label
+    }}</template>
+    <template #extra="{ group }">
+      <DouTooltip content="向右拆分">
+        <DouButton
+          variant="ghost"
+          size="sm"
+          aria-label="向右拆分"
+          :disabled="group.tabs.length < 2"
+          @click="split(group, 'right')"
+        >
+          <LayoutColumnsIcon />
         </DouButton>
-        <DouButton size="sm" :disabled="alone(value)" @click="split(value, 'bottom')">
-          向下拆分
+      </DouTooltip>
+      <DouTooltip content="向下拆分">
+        <DouButton
+          variant="ghost"
+          size="sm"
+          aria-label="向下拆分"
+          :disabled="group.tabs.length < 2"
+          @click="split(group, 'bottom')"
+        >
+          <LayoutRowsIcon />
         </DouButton>
-      </DouSpace>
+      </DouTooltip>
     </template>
     <template #empty>没有打开的标签</template>
   </DouDock>

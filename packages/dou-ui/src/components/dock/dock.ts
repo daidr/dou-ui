@@ -1,7 +1,7 @@
 import type { Component } from 'vue'
 import type { SplitterLimit } from '../splitter/splitter'
 import type { TabsSize, TabsValue } from '../tabs/tabs'
-import type { DockNode, DockSide } from './layout'
+import type { DockGroup, DockNode, DockSide } from './layout'
 
 export type { DockGroup, DockNode, DockSide, DockSplit } from './layout'
 
@@ -80,6 +80,11 @@ export interface DockEmits {
   remove: [value: TabsValue, group: string]
   /** The add button of a group was pressed. The same as `DouTabs`' `add`, with the group. */
   add: [group: string]
+  /**
+   * A pointer pressed in another group than before, or the focus moved
+   * into one: e.g. to open new tabs in the group last used.
+   */
+  activate: [group: string]
 }
 
 export interface DockSlots {
@@ -87,6 +92,8 @@ export interface DockSlots {
   default?: (props: { value: TabsValue }) => unknown
   /** Replaces the text of a tab. */
   label?: (props: { value: TabsValue; selected: boolean }) => unknown
+  /** At the end of each group's tab row, as `DouTabs`' `extra`: e.g. actions for that group. */
+  extra?: (props: { group: DockGroup }) => unknown
   /** Shown when there is no tab left. */
   empty?: () => unknown
 }

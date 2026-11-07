@@ -69,6 +69,8 @@ const label = (value: string | number) => dock.panel(value)?.label ?? String(val
     ref="el"
     :class="[ns.e('group'), ns.is('empty', !group.tabs.length)]"
     :data-dock-group="group.id"
+    @pointerdown.capture="dock.activate(group)"
+    @focusin="dock.activate(group)"
   >
     <DouTabs
       :model-value="group.active ?? group.tabs[0]"
@@ -99,6 +101,9 @@ const label = (value: string | number) => dock.panel(value)?.label ?? String(val
         </template>
         <Outlet :render="() => dock.slots.default?.({ value })" />
       </DouTabPanel>
+      <template v-if="dock.slots.extra" #extra>
+        <Outlet :render="() => dock.slots.extra?.({ group })" />
+      </template>
     </DouTabs>
     <div v-if="!group.tabs.length && dock.slots.empty" :class="ns.e('empty')">
       <Outlet :render="() => dock.slots.empty?.()" />

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { DouDock } from '../../../index'
 import { splitDockTab } from '../layout'
-import type { DockNode } from '../layout'
+import type { DockGroup, DockNode } from '../layout'
 
 const panels = [
   { value: 'thread', label: '需求讨论' },
@@ -149,6 +149,37 @@ describe('DouDock', () => {
       slots: { empty: () => '没有打开的标签' },
     })
     expect(wrapper.find('.dou-dock__empty').text()).toBe('没有打开的标签')
+    wrapper.unmount()
+  })
+
+  it('puts the `extra` slot at the end of each tab row, with its group', async () => {
+    const activated: string[] = []
+    const wrapper = mount(DouDock, {
+      props: {
+        panels,
+        modelValue: {
+          type: 'split',
+          direction: 'horizontal',
+          start: { type: 'group', id: 'a', tabs: ['thread', 'plan'], active: 'plan' },
+          end: { type: 'group', id: 'b', tabs: ['api'] },
+        } satisfies DockNode,
+        onActivate: (group: string) => activated.push(group),
+      },
+      slots: {
+        extra: ({ group }: { group: DockGroup }) =>
+          h('button', `${group.id}:${group.active ?? '-'}`),
+      },
+      attachTo: document.body,
+    })
+    await nextTick()
+    const groups = wrapper.findAll('[data-dock-group]')
+    expect(groups.map((group) => group.find('.dou-tabs__extra').text())).toEqual(['a:plan', 'b:-'])
+
+    // pressed or focused: told once each time it moves to another group
+    await groups[1]!.find('button').trigger('pointerdown')
+    await groups[1]!.find('button').trigger('focusin')
+    await groups[0]!.find('[role="tab"]').trigger('pointerdown')
+    expect(activated).toEqual(['b', 'a'])
     wrapper.unmount()
   })
 })

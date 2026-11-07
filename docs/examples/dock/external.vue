@@ -43,7 +43,7 @@ function open(value) {
 <style scoped>
 .workspace {
   display: grid;
-  grid-template-columns: minmax(96px, 160px) minmax(0, 1fr);
+  grid-template-columns: clamp(96px, 30%, 160px) minmax(0, 1fr);
   width: 100%;
   height: 100%;
 }

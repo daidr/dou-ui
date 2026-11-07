@@ -17,6 +17,12 @@ export interface DockPanel {
   draggable?: boolean
 }
 
+/** The smallest a group may get, by direction: `width` across a side-by-side split, `height` across a stacked one. */
+export interface DockMinSize {
+  width?: SplitterLimit
+  height?: SplitterLimit
+}
+
 export interface DockProps {
   /**
    * The layout, bound with `v-model`: splits of two parts and groups of
@@ -37,9 +43,11 @@ export interface DockProps {
   draggable?: boolean
   /**
    * The smallest each side of a split may get, as `DouSplitter`'s `min`
-   * and `minEnd`: numbers in percent, `'120px'` in px.
+   * and `minEnd`: numbers in percent, `'120px'` in px. An object gives
+   * `width` and `height` apart; a direction left out takes `'120px'`.
+   * The edge of a group too small to hold two of these splits nothing off.
    */
-  min?: SplitterLimit
+  min?: SplitterLimit | DockMinSize
   /** Makes the id of a group split off. Defaults to `group-1`, `group-2`… */
   createId?: (layout: DockNode) => string
 }
@@ -89,4 +97,13 @@ export interface DockSlots {
   label?: (props: { value: TabsValue; selected: boolean }) => unknown
   /** Shown when there is no tab left. */
   empty?: () => unknown
+}
+
+export interface DockExpose {
+  /**
+   * Whether a group has room for two `min`s in the direction of `side`:
+   * when not, dropping a tab on that edge does not split it. Reactive,
+   * so it can be read while rendering.
+   */
+  canSplit: (groupId: string, side: DockSide) => boolean
 }

@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, useTemplateRef } from 'vue'
 import { findDockGroup, moveDockTab, removeDockTab, splitDockTab } from 'dou-ui'
 
 const panels = ref([
@@ -11,9 +11,13 @@ const panels = ref([
 
 const layout = ref({ type: 'group', id: 'main', tabs: ['thread', 'plan', 'api', 'log'] })
 
-// a tab alone in its group has nothing to split from
-const alone = (value) => findDockGroup(layout.value, value).tabs.length === 1
+const dock = useTemplateRef('dock')
 
+// a tab alone in its group has nothing to split from, and a small group has no room
+function canSplit(value, side) {
+  const group = findDockGroup(layout.value, value)
+  return group.tabs.length > 1 && !!dock.value?.canSplit(group.id, side)
+}
 function split(value, side) {
   layout.value = splitDockTab(layout.value, value, findDockGroup(layout.value, value).id, side)
 }
@@ -29,13 +33,21 @@ function add(group) {
 </script>
 
 <template>
-  <DouDock v-model="layout" :panels="panels" closable addable @remove="remove" @add="add">
+  <DouDock
+    ref="dock"
+    v-model="layout"
+    :panels="panels"
+    closable
+    addable
+    @remove="remove"
+    @add="add"
+  >
     <template #default="{ value }">
       <DouSpace>
-        <DouButton size="sm" :disabled="alone(value)" @click="split(value, 'right')">
+        <DouButton size="sm" :disabled="!canSplit(value, 'right')" @click="split(value, 'right')">
           向右拆分
         </DouButton>
-        <DouButton size="sm" :disabled="alone(value)" @click="split(value, 'bottom')">
+        <DouButton size="sm" :disabled="!canSplit(value, 'bottom')" @click="split(value, 'bottom')">
           向下拆分
         </DouButton>
       </DouSpace>

@@ -1,7 +1,7 @@
 import type { Component } from 'vue'
 import type { SplitterLimit } from '../splitter/splitter'
 import type { TabsSize, TabsValue } from '../tabs/tabs'
-import type { DockNode, DockSide } from './layout'
+import type { DockGroup, DockNode, DockSide } from './layout'
 
 export type { DockGroup, DockNode, DockSide, DockSplit } from './layout'
 
@@ -15,6 +15,12 @@ export interface DockPanel {
   disabled?: boolean
   /** Whether the tab can be dragged; `false` keeps it in its place. Defaults to `true`. */
   draggable?: boolean
+}
+
+/** The smallest a group may get, by direction: `width` across a side-by-side split, `height` across a stacked one. */
+export interface DockMinSize {
+  width?: SplitterLimit
+  height?: SplitterLimit
 }
 
 export interface DockProps {
@@ -37,9 +43,17 @@ export interface DockProps {
   draggable?: boolean
   /**
    * The smallest each side of a split may get, as `DouSplitter`'s `min`
-   * and `minEnd`: numbers in percent, `'120px'` in px.
+   * and `minEnd`: numbers in percent, `'120px'` in px. An object gives
+   * `width` and `height` apart; a direction left out takes `'120px'`.
+   * The edge of a group too small to hold two of these splits nothing off.
    */
-  min?: SplitterLimit
+  min?: SplitterLimit | DockMinSize
+  /**
+   * The group last used, bound with `v-model:active-group`: the one a
+   * pointer pressed in or the focus moved into last, or where a tab was
+   * dropped or split off to. `undefined` once that group is gone.
+   */
+  activeGroup?: string
   /** Makes the id of a group split off. Defaults to `group-1`, `group-2`… */
   createId?: (layout: DockNode) => string
 }
@@ -90,6 +104,7 @@ export interface DockEmits {
   remove: [value: TabsValue, group: string]
   /** The add button of a group was pressed. The same as `DouTabs`' `add`, with the group. */
   add: [group: string]
+  'update:activeGroup': [group: string | undefined]
 }
 
 export interface DockSlots {
@@ -97,11 +112,22 @@ export interface DockSlots {
   default?: (props: { value: TabsValue }) => unknown
   /** Replaces the text of a tab. */
   label?: (props: { value: TabsValue; selected: boolean }) => unknown
+  /**
+   * At the end of each group's tab row, as `DouTabs`' `extra`: e.g. actions
+   * for that group. `active` is its selected tab, `undefined` when it has none.
+   */
+  extra?: (props: { group: DockGroup; active: TabsValue | undefined }) => unknown
   /** Shown when there is no tab left. */
   empty?: () => unknown
 }
 
 export interface DockExpose {
+  /**
+   * Whether a group has room for two `min`s in the direction of `side`:
+   * when not, dropping a tab on that edge does not split it. Reactive,
+   * so it can be read while rendering.
+   */
+  canSplit: (groupId: string, side: DockSide) => boolean
   /**
    * Call in the `pointerdown` of an element outside the dock to drag it in
    * as a tab: dropped on a tab row, the middle or an edge of a group, it

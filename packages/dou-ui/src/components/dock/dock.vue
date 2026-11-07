@@ -1,8 +1,19 @@
 <script setup lang="ts">
-import { computed, nextTick, provide, shallowReactive, useId, useTemplateRef, watch } from 'vue'
+import {
+  computed,
+  nextTick,
+  provide,
+  shallowReactive,
+  useId,
+  useTemplateRef,
+  watch,
+  watchEffect,
+} from 'vue'
+import { useResizeObserver } from '../../composables/use-element-size'
 import { useNamespace } from '../../utils/namespace'
 import { devWarn } from '../../utils/status-check'
 import { dockKey } from './context'
+import { roomForSplit } from './drop-side'
 import DockGroupView from './dock-group.vue'
 import DockNodeView from './dock-node.vue'
 import {
@@ -15,6 +26,7 @@ import {
   splitDockTab,
 } from './layout'
 import { pressTab } from '../tabs/tab-drag'
+import type { SplitterLimit } from '../splitter/splitter'
 import type { TabDrag } from '../tabs/tab-drag'
 import type { TabsMoveEvent, TabsValue } from '../tabs/tabs'
 import type { DockDropItem, DockEmits, DockExpose, DockPanel, DockProps, DockSlots } from './dock'
@@ -22,14 +34,17 @@ import type { DockGroup, DockNode, DockSide } from './layout'
 
 defineOptions({ name: 'DouDock' })
 
+const DEFAULT_MIN = '120px'
+
 const props = withDefaults(defineProps<DockProps>(), {
   panels: () => [],
   closable: false,
   addable: false,
   draggable: true,
-  min: '120px',
+  min: DEFAULT_MIN,
 })
-const emit = defineEmits<DockEmits>()
+const emit = defineEmits<Omit<DockEmits, 'update:activeGroup'>>()
+const activeGroup = defineModel<string>('activeGroup')
 const slots = defineSlots<DockSlots>()
 
 const ns = useNamespace('dock')
@@ -73,6 +88,7 @@ function move(event: TabsMoveEvent) {
   const index = event.to.index
   commit(moveDockTab(latest, event.value, to, index))
   emit('move', { value: event.value, from, to: { group: to, index } })
+  use(to)
 }
 
 function canDrop(drag: TabDrag, target: DockGroup, side: DockSide | 'center') {
@@ -91,22 +107,46 @@ function drop(drag: TabDrag, target: DockGroup, side: DockSide | 'center') {
     const index = target.tabs.length
     commit(moveDockTab(latest, drag.value, target.id, index))
     emit('move', { value: drag.value, from, to: { group: target.id, index } })
+    use(target.id)
     return
   }
   const id = props.createId?.(latest) ?? nextDockGroupId(latest)
   commit(splitDockTab(latest, drag.value, target.id, side, id))
   emit('split', { value: drag.value, from, target: target.id, side, group: id })
+  use(id)
 }
+
+/* the group last used */
+
+function use(id: string | undefined) {
+  // also unbound, it emits only a change
+  if (id !== activeGroup.value) activeGroup.value = id
+}
+// a group dragged empty or closed, or one never in the layout, is not the one to open things in
+watch(
+  () =>
+    activeGroup.value !== undefined && !findGroup(props.modelValue, activeGroup.value)
+      ? activeGroup.value
+      : undefined,
+  (stale) => stale !== undefined && use(undefined),
+  { immediate: true },
+)
 
 // Each group is rendered here, in one flat list, and teleported into its
 // place in the layout: splitting or merging the parts around a group moves
 // it, and its content (state, scroll position) stays as it is.
 const groups = computed(() => dockGroups(props.modelValue))
+function findGroup(layout: DockNode, id: string) {
+  return dockGroups(layout).some((item) => item.id === id)
+}
 const cells = shallowReactive(new Map<string, HTMLElement>())
 function setCell(id: string, el: unknown) {
   if (el instanceof HTMLElement) {
     if (cells.get(id) !== el) cells.set(id, el)
-  } else if (cells.has(id) && !cells.get(id)!.isConnected) cells.delete(id)
+  } else if (cells.has(id) && !cells.get(id)!.isConnected) {
+    cells.delete(id)
+    sizes.delete(id)
+  }
 }
 
 // Moving a group in the page resets what scrolled inside it: note the
@@ -205,14 +245,61 @@ const swallow = (click: Event) => {
   click.stopPropagation()
   click.preventDefault()
 }
-defineExpose<DockExpose>({ startDrop })
+
+function minFor(direction: 'horizontal' | 'vertical'): SplitterLimit {
+  const min = props.min
+  if (typeof min !== 'object') return min
+  return (direction === 'horizontal' ? min.width : min.height) ?? DEFAULT_MIN
+}
+
+if (process.env.NODE_ENV !== 'production')
+  watchEffect(() => {
+    for (const direction of ['horizontal', 'vertical'] as const) {
+      const min = minFor(direction)
+      if (typeof min === 'number' && min > 50)
+        devWarn(
+          `[dou-ui] DouDock: \`min\` of ${min} is a percent, so no group can be split ${direction === 'horizontal' ? 'side by side' : 'top to bottom'}. Write '${min}px' for px.`,
+        )
+    }
+  })
+
+// the size of each group's place, kept up to date so `canSplit` can be read in a render
+const sizes = shallowReactive(new Map<string, { width: number; height: number }>())
+useResizeObserver(
+  () => [...cells.values()],
+  (entries) => {
+    for (const entry of entries)
+      for (const [id, el] of cells)
+        if (el === entry.target) {
+          const box = entry.borderBoxSize?.[0]
+          sizes.set(id, {
+            width: box ? box.inlineSize : entry.contentRect.width,
+            height: box ? box.blockSize : entry.contentRect.height,
+          })
+        }
+  },
+  { box: 'border-box' },
+)
+
+/**
+ * Whether a group has room to split a tab off to `side`: two parts of
+ * `min` beside the divider, as dragging to its edge checks. Reactive.
+ */
+function canSplit(groupId: string, side: DockSide) {
+  const el = cells.get(groupId)
+  if (!el) return false
+  const across = side === 'left' || side === 'right'
+  const size = sizes.get(groupId) ?? el.getBoundingClientRect()
+  return roomForSplit(across ? size.width : size.height, minFor(across ? 'horizontal' : 'vertical'))
+}
+defineExpose<DockExpose>({ canSplit, startDrop })
 
 provide(dockKey, {
   group,
   size: () => props.size,
   closable: () => props.closable,
   addable: () => props.addable,
-  min: () => props.min,
+  min: minFor,
   draggable: () => props.draggable,
   panel,
   slots,
@@ -225,6 +312,7 @@ provide(dockKey, {
   drop,
   remove: (value, target) => emit('remove', value, target.id),
   add: (target) => emit('add', target.id),
+  use,
   setCell,
 })
 </script>
@@ -239,7 +327,10 @@ provide(dockKey, {
       :to="cells.get(item.id) ?? 'body'"
       :disabled="!cells.get(item.id)"
     >
-      <DockGroupView :group="item" />
+      <DockGroupView
+        :group="item"
+        :slotted="{ label: !!$slots.label, extra: !!$slots.extra, empty: !!$slots.empty }"
+      />
     </Teleport>
   </div>
 </template>

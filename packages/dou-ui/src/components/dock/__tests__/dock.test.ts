@@ -1,9 +1,11 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { DouDock } from '../../../index'
 import { splitDockTab } from '../layout'
-import type { DockNode } from '../layout'
+import type { DockContext } from '../context'
+import type { DockExpose } from '../dock'
+import type { DockGroup, DockNode } from '../layout'
 
 const panels = [
   { value: 'thread', label: '需求讨论' },
@@ -167,5 +169,198 @@ describe('DouDock', () => {
       { value: 'log', from: null, to: { group: 'a', index: 1 } },
     ])
     wrapper.unmount()
+  })
+
+  it('puts the `extra` slot at the end of each tab row, with its group', async () => {
+    const shown = ref(false)
+    const wrapper = mount(
+      defineComponent({
+        setup: () => () =>
+          h(
+            DouDock,
+            {
+              panels,
+              modelValue: {
+                type: 'split',
+                direction: 'horizontal',
+                start: { type: 'group', id: 'a', tabs: ['thread', 'plan'], active: 'plan' },
+                end: { type: 'group', id: 'b', tabs: ['api'] },
+              } satisfies DockNode,
+            },
+            shown.value
+              ? {
+                  extra: ({ group, active }: { group: DockGroup; active?: string }) =>
+                    h('button', `${group.id}:${active}`),
+                }
+              : {},
+          ),
+      }),
+      { attachTo: document.body },
+    )
+    await nextTick()
+    expect(wrapper.find('.dou-tabs__extra').exists()).toBe(false)
+    // a slot that comes later shows up; `active` falls back to the first tab
+    shown.value = true
+    await nextTick()
+    const groups = wrapper.findAll('[data-dock-group]')
+    expect(groups.map((group) => group.find('.dou-tabs__extra').text())).toEqual([
+      'a:plan',
+      'b:api',
+    ])
+    wrapper.unmount()
+  })
+
+  it('keeps the group last used in `v-model:active-group`', async () => {
+    const layout = ref<DockNode>({
+      type: 'split',
+      direction: 'horizontal',
+      start: { type: 'group', id: 'a', tabs: ['thread', 'plan'] },
+      end: { type: 'group', id: 'b', tabs: ['api'] },
+    })
+    const active = ref<string | undefined>()
+    const updates: (string | undefined)[] = []
+    const wrapper = mount(
+      defineComponent({
+        setup: () => () =>
+          h(DouDock, {
+            panels,
+            modelValue: layout.value,
+            'onUpdate:modelValue': (value: DockNode) => (layout.value = value),
+            activeGroup: active.value,
+            'onUpdate:activeGroup': (value: string | undefined) => {
+              updates.push(value)
+              active.value = value
+            },
+          }),
+      }),
+      { attachTo: document.body },
+    )
+    await nextTick()
+    // not on mount
+    expect(updates).toEqual([])
+    const groups = () => wrapper.findAll('[data-dock-group]')
+    await groups()[1]!.find('[role="tab"]').trigger('pointerdown')
+    await groups()[1]!.find('[role="tab"]').trigger('focusin')
+    expect(updates).toEqual(['b'])
+
+    // a tab moved into a group makes it the one last used
+    const [first] = wrapper.findAllComponents({ name: 'DouTabs' })
+    first!.vm.$emit('move', {
+      value: 'plan',
+      from: { name: 'a', index: 1 },
+      to: { name: 'a', index: 0 },
+    })
+    await nextTick()
+    expect(active.value).toBe('a')
+
+    // split off to a new group: that one
+    const group = wrapper.findAllComponents({ name: 'DouDockGroup' })[0]!
+    const { dock } = (group.vm.$ as unknown as { setupState: { dock: DockContext } }).setupState
+    const drag = { value: 'thread', label: '需求讨论', group: dock.group, name: 'a', index: 1 }
+    dock.drop({ ...drag, source: {} }, group.props('group'), 'right')
+    await nextTick()
+    expect(active.value).toBe('group-1')
+
+    // dragged empty and gone: cleared
+    first!.vm.$emit('move', {
+      value: 'plan',
+      from: { name: 'a', index: 0 },
+      to: { name: 'b', index: 1 },
+    })
+    await nextTick()
+    expect(active.value).toBe('b')
+    active.value = 'a'
+    await nextTick()
+    expect(active.value).toBeUndefined()
+    // from one id not in the layout straight to another
+    active.value = 'x'
+    await nextTick()
+    expect(active.value).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('clears an active group given at first that is not in the layout', async () => {
+    const wrapper = mount(DouDock, {
+      props: { modelValue: { type: 'group', id: 'a', tabs: ['thread'] }, activeGroup: 'gone' },
+    })
+    expect(wrapper.emitted('update:activeGroup')).toEqual([[undefined]])
+    wrapper.unmount()
+  })
+
+  it('emits the group last used only when it changes, also without binding it', async () => {
+    const updates: unknown[] = []
+    const wrapper = mount(DouDock, {
+      props: {
+        panels,
+        modelValue: {
+          type: 'split',
+          direction: 'horizontal',
+          start: { type: 'group', id: 'a', tabs: ['thread', 'plan'] },
+          end: { type: 'group', id: 'b', tabs: ['api'] },
+        },
+        'onUpdate:activeGroup': (value: string | undefined) => updates.push(value),
+      },
+      attachTo: document.body,
+    })
+    await nextTick()
+    const [a, b] = wrapper.findAll('[data-dock-group]')
+    await a!.find('[role="tab"]').trigger('pointerdown')
+    await a!.find('[role="tab"]').trigger('focusin')
+    await a!.find('[role="tab"]').trigger('pointerdown')
+    await b!.find('[role="tab"]').trigger('pointerdown')
+    await a!.find('[role="tab"]').trigger('focusin')
+    expect(updates).toEqual(['a', 'b', 'a'])
+    wrapper.unmount()
+  })
+
+  it('takes `min` apart by direction', async () => {
+    const wrapper = mount(DouDock, {
+      props: {
+        panels,
+        min: { width: '220px' },
+        modelValue: {
+          type: 'split',
+          direction: 'horizontal',
+          start: { type: 'group', id: 'a', tabs: ['thread'] },
+          end: {
+            type: 'split',
+            direction: 'vertical',
+            start: { type: 'group', id: 'b', tabs: ['plan'] },
+            end: { type: 'group', id: 'c', tabs: ['api'] },
+          },
+        } satisfies DockNode,
+      },
+    })
+    await nextTick()
+    const [across, down] = wrapper.findAllComponents({ name: 'DouSplitter' })
+    expect(across!.props()).toMatchObject({ min: '220px', minEnd: '220px' })
+    // left out: the default
+    expect(down!.props()).toMatchObject({ min: '120px', minEnd: '120px' })
+    wrapper.unmount()
+  })
+
+  it('tells whether a group has room to split, and warns of a percent too big to split', async () => {
+    const rect = vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockReturnValue({ width: 441, height: 300 } as DOMRect)
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const wrapper = mount(DouDock, {
+      props: {
+        panels,
+        min: { width: '220px', height: 60 },
+        modelValue: { type: 'group', id: 'a', tabs: ['thread', 'plan'] } satisfies DockNode,
+      },
+      attachTo: document.body,
+    })
+    await nextTick()
+    const dock: DockExpose = wrapper.vm
+    // 441 holds 220 + 1 + 220; 60% twice does not fit
+    expect(dock.canSplit('a', 'right')).toBe(true)
+    expect(dock.canSplit('a', 'bottom')).toBe(false)
+    expect(dock.canSplit('missing', 'right')).toBe(false)
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("Write '60px' for px"))
+    wrapper.unmount()
+    rect.mockRestore()
+    warn.mockRestore()
   })
 })

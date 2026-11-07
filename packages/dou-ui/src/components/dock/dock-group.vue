@@ -4,12 +4,17 @@ import { useNamespace } from '../../utils/namespace'
 import { DouTabPanel, DouTabs } from '../tabs'
 import { registerTabDropZone } from '../tabs/tab-drag'
 import { dockKey } from './context'
+import { dockDropSide } from './drop-side'
 import type { FunctionalComponent } from 'vue'
 import type { DockGroup, DockSide } from './layout'
 
 defineOptions({ name: 'DouDockGroup' })
 
-const props = defineProps<{ group: DockGroup }>()
+const props = defineProps<{
+  group: DockGroup
+  /** Which slots the dock has; read in its render, so a slot that comes later shows up. */
+  slotted: { label: boolean; extra: boolean; empty: boolean }
+}>()
 const dock = inject(dockKey)!
 const ns = useNamespace('dock')
 
@@ -18,25 +23,11 @@ const ns = useNamespace('dock')
 const el = useTemplateRef<HTMLElement>('el')
 const target = ref<DockSide | 'center' | null>(null)
 
-function sideAt(x: number, y: number): DockSide | 'center' {
-  const rect = el.value!.getBoundingClientRect()
-  const edgeX = Math.max(24, rect.width / 4)
-  const edgeY = Math.max(24, rect.height / 4)
-  // the nearest edge within reach, measured relative to its reach
-  const reach = [
-    ['left', (x - rect.left) / edgeX],
-    ['right', (rect.right - x) / edgeX],
-    ['top', (y - rect.top) / edgeY],
-    ['bottom', (rect.bottom - y) / edgeY],
-  ] as const
-  let best: DockSide | 'center' = 'center'
-  let nearest = 1
-  for (const [side, d] of reach)
-    if (d < nearest) {
-      nearest = d
-      best = side
-    }
-  return best
+function sideAt(x: number, y: number) {
+  return dockDropSide(el.value!.getBoundingClientRect(), x, y, {
+    width: dock.min('horizontal'),
+    height: dock.min('vertical'),
+  })
 }
 
 const zone = registerTabDropZone({
@@ -69,6 +60,8 @@ const label = (value: string | number) => dock.panel(value)?.label ?? String(val
     ref="el"
     :class="[ns.e('group'), ns.is('empty', !group.tabs.length)]"
     :data-dock-group="group.id"
+    @pointerdown.capture="dock.use(group.id)"
+    @focusin="dock.use(group.id)"
   >
     <DouTabs
       :model-value="group.active ?? group.tabs[0]"
@@ -94,13 +87,18 @@ const label = (value: string | number) => dock.panel(value)?.label ?? String(val
         :disabled="dock.panel(value)?.disabled"
         :draggable="dock.panel(value)?.draggable"
       >
-        <template v-if="dock.slots.label" #label="{ selected }">
+        <template v-if="slotted.label" #label="{ selected }">
           <Outlet :render="() => dock.slots.label?.({ value, selected })" />
         </template>
         <Outlet :render="() => dock.slots.default?.({ value })" />
       </DouTabPanel>
+      <template v-if="slotted.extra" #extra>
+        <Outlet
+          :render="() => dock.slots.extra?.({ group, active: group.active ?? group.tabs[0] })"
+        />
+      </template>
     </DouTabs>
-    <div v-if="!group.tabs.length && dock.slots.empty" :class="ns.e('empty')">
+    <div v-if="!group.tabs.length && slotted.empty" :class="ns.e('empty')">
       <Outlet :render="() => dock.slots.empty?.()" />
     </div>
     <div

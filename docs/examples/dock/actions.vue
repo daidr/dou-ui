@@ -1,6 +1,7 @@
 <script setup>
-import { ref } from 'vue'
-import { findDockGroup, moveDockTab, removeDockTab, splitDockTab } from 'dou-ui'
+import { MoreHorizontalIcon } from '@dou-ui/icons'
+import { ref, useTemplateRef } from 'vue'
+import { moveDockTab, removeDockTab, splitDockTab } from 'dou-ui'
 
 const panels = ref([
   { value: 'thread', label: '需求讨论' },
@@ -11,11 +12,19 @@ const panels = ref([
 
 const layout = ref({ type: 'group', id: 'main', tabs: ['thread', 'plan', 'api', 'log'] })
 
-// a tab alone in its group has nothing to split from
-const alone = (value) => findDockGroup(layout.value, value).tabs.length === 1
+const sides = [
+  { side: 'right', label: '向右拆分' },
+  { side: 'bottom', label: '向下拆分' },
+]
 
-function split(value, side) {
-  layout.value = splitDockTab(layout.value, value, findDockGroup(layout.value, value).id, side)
+const dock = useTemplateRef('dock')
+
+// a group of one tab has nothing to split from, and a small group has no room
+const canSplit = (group, side) => group.tabs.length > 1 && !!dock.value?.canSplit(group.id, side)
+
+// splits the selected tab of a group off
+function split(group, active, side) {
+  layout.value = splitDockTab(layout.value, active, group.id, side)
 }
 function remove(value) {
   layout.value = removeDockTab(layout.value, value)
@@ -29,16 +38,34 @@ function add(group) {
 </script>
 
 <template>
-  <DouDock v-model="layout" :panels="panels" closable addable @remove="remove" @add="add">
-    <template #default="{ value }">
-      <DouSpace>
-        <DouButton size="sm" :disabled="alone(value)" @click="split(value, 'right')">
-          向右拆分
+  <DouDock
+    ref="dock"
+    v-model="layout"
+    :panels="panels"
+    closable
+    addable
+    @remove="remove"
+    @add="add"
+  >
+    <template #default="{ value }">{{
+      panels.find((panel) => panel.value === value).label
+    }}</template>
+    <template #extra="{ group, active }">
+      <DouDropdown placement="bottom-end" @select="split(group, active, $event)">
+        <DouButton variant="ghost" size="sm" aria-label="这一组的更多操作">
+          <MoreHorizontalIcon />
         </DouButton>
-        <DouButton size="sm" :disabled="alone(value)" @click="split(value, 'bottom')">
-          向下拆分
-        </DouButton>
-      </DouSpace>
+        <template #menu>
+          <DouDropdownItem
+            v-for="item in sides"
+            :key="item.side"
+            :value="item.side"
+            :disabled="!canSplit(group, item.side)"
+          >
+            {{ item.label }}
+          </DouDropdownItem>
+        </template>
+      </DouDropdown>
     </template>
     <template #empty>没有打开的标签</template>
   </DouDock>

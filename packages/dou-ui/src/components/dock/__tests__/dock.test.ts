@@ -151,4 +151,30 @@ describe('DouDock', () => {
     expect(wrapper.find('.dou-dock__empty').text()).toBe('没有打开的标签')
     wrapper.unmount()
   })
+
+  it('takes `min` apart by direction', async () => {
+    const wrapper = mount(DouDock, {
+      props: {
+        panels,
+        min: { width: '220px' },
+        modelValue: {
+          type: 'split',
+          direction: 'horizontal',
+          start: { type: 'group', id: 'a', tabs: ['thread'] },
+          end: {
+            type: 'split',
+            direction: 'vertical',
+            start: { type: 'group', id: 'b', tabs: ['plan'] },
+            end: { type: 'group', id: 'c', tabs: ['api'] },
+          },
+        } satisfies DockNode,
+      },
+    })
+    await nextTick()
+    const [across, down] = wrapper.findAllComponents({ name: 'DouSplitter' })
+    expect(across!.props()).toMatchObject({ min: '220px', minEnd: '220px' })
+    // left out: the default
+    expect(down!.props()).toMatchObject({ min: '120px', minEnd: '120px' })
+    wrapper.unmount()
+  })
 })

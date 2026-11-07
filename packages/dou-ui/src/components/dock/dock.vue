@@ -21,12 +21,14 @@ import type { DockGroup, DockNode, DockSide } from './layout'
 
 defineOptions({ name: 'DouDock' })
 
+const DEFAULT_MIN = '120px'
+
 const props = withDefaults(defineProps<DockProps>(), {
   panels: () => [],
   closable: false,
   addable: false,
   draggable: true,
-  min: '120px',
+  min: DEFAULT_MIN,
 })
 const emit = defineEmits<DockEmits>()
 const slots = defineSlots<DockSlots>()
@@ -144,7 +146,11 @@ provide(dockKey, {
   size: () => props.size,
   closable: () => props.closable,
   addable: () => props.addable,
-  min: () => props.min,
+  min(direction) {
+    const min = props.min
+    if (typeof min !== 'object') return min
+    return (direction === 'horizontal' ? min.width : min.height) ?? DEFAULT_MIN
+  },
   draggable: () => props.draggable,
   panel,
   slots,

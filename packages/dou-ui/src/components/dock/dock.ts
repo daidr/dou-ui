@@ -1,7 +1,7 @@
 import type { Component } from 'vue'
 import type { SplitterLimit } from '../splitter/splitter'
 import type { TabsSize, TabsValue } from '../tabs/tabs'
-import type { DockNode, DockSide } from './layout'
+import type { DockGroup, DockNode, DockSide } from './layout'
 
 export type { DockGroup, DockNode, DockSide, DockSplit } from './layout'
 
@@ -48,6 +48,12 @@ export interface DockProps {
    * The edge of a group too small to hold two of these splits nothing off.
    */
   min?: SplitterLimit | DockMinSize
+  /**
+   * The group last used, bound with `v-model:active-group`: the one a
+   * pointer pressed in or the focus moved into last, or where a tab was
+   * dropped or split off to. `undefined` once that group is gone.
+   */
+  activeGroup?: string
   /** Makes the id of a group split off. Defaults to `group-1`, `group-2`… */
   createId?: (layout: DockNode) => string
 }
@@ -88,6 +94,7 @@ export interface DockEmits {
   remove: [value: TabsValue, group: string]
   /** The add button of a group was pressed. The same as `DouTabs`' `add`, with the group. */
   add: [group: string]
+  'update:activeGroup': [group: string | undefined]
 }
 
 export interface DockSlots {
@@ -95,6 +102,11 @@ export interface DockSlots {
   default?: (props: { value: TabsValue }) => unknown
   /** Replaces the text of a tab. */
   label?: (props: { value: TabsValue; selected: boolean }) => unknown
+  /**
+   * At the end of each group's tab row, as `DouTabs`' `extra`: e.g. actions
+   * for that group. `active` is its selected tab, `undefined` when it has none.
+   */
+  extra?: (props: { group: DockGroup; active: TabsValue | undefined }) => unknown
   /** Shown when there is no tab left. */
   empty?: () => unknown
 }

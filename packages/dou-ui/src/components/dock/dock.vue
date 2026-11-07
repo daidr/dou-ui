@@ -33,7 +33,8 @@ const props = withDefaults(defineProps<DockProps>(), {
   draggable: true,
   min: DEFAULT_MIN,
 })
-const emit = defineEmits<DockEmits>()
+const emit = defineEmits<Omit<DockEmits, 'update:activeGroup'>>()
+const activeGroup = defineModel<string>('activeGroup')
 const slots = defineSlots<DockSlots>()
 
 const ns = useNamespace('dock')
@@ -76,6 +77,7 @@ function move(event: TabsMoveEvent) {
   if (!from || to === undefined) return
   commit(moveDockTab(latest, event.value, to, event.to.index))
   emit('move', { value: event.value, from, to: { group: to, index: event.to.index } })
+  use(to)
 }
 
 function canDrop(drag: TabDrag, target: DockGroup, side: DockSide | 'center') {
@@ -93,17 +95,38 @@ function drop(drag: TabDrag, target: DockGroup, side: DockSide | 'center') {
     const index = target.tabs.length
     commit(moveDockTab(latest, drag.value, target.id, index))
     emit('move', { value: drag.value, from, to: { group: target.id, index } })
+    use(target.id)
     return
   }
   const id = props.createId?.(latest) ?? nextDockGroupId(latest)
   commit(splitDockTab(latest, drag.value, target.id, side, id))
   emit('split', { value: drag.value, from, target: target.id, side, group: id })
+  use(id)
 }
+
+/* the group last used */
+
+function use(id: string | undefined) {
+  // also unbound, it emits only a change
+  if (id !== activeGroup.value) activeGroup.value = id
+}
+// a group dragged empty or closed, or one never in the layout, is not the one to open things in
+watch(
+  () =>
+    activeGroup.value !== undefined && !findGroup(props.modelValue, activeGroup.value)
+      ? activeGroup.value
+      : undefined,
+  (stale) => stale !== undefined && use(undefined),
+  { immediate: true },
+)
 
 // Each group is rendered here, in one flat list, and teleported into its
 // place in the layout: splitting or merging the parts around a group moves
 // it, and its content (state, scroll position) stays as it is.
 const groups = computed(() => dockGroups(props.modelValue))
+function findGroup(layout: DockNode, id: string) {
+  return dockGroups(layout).some((item) => item.id === id)
+}
 const cells = shallowReactive(new Map<string, HTMLElement>())
 function setCell(id: string, el: unknown) {
   if (el instanceof HTMLElement) {
@@ -213,6 +236,7 @@ provide(dockKey, {
   drop,
   remove: (value, target) => emit('remove', value, target.id),
   add: (target) => emit('add', target.id),
+  use,
   setCell,
 })
 </script>
@@ -227,7 +251,10 @@ provide(dockKey, {
       :to="cells.get(item.id) ?? 'body'"
       :disabled="!cells.get(item.id)"
     >
-      <DockGroupView :group="item" />
+      <DockGroupView
+        :group="item"
+        :slotted="{ label: !!$slots.label, extra: !!$slots.extra, empty: !!$slots.empty }"
+      />
     </Teleport>
   </div>
 </template>

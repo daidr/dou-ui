@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { computed, nextTick, provide, shallowReactive, useId, watch } from 'vue'
+import { computed, nextTick, provide, shallowReactive, useId, watch, watchEffect } from 'vue'
+import { useResizeObserver } from '../../composables/use-element-size'
 import { useNamespace } from '../../utils/namespace'
 import { devWarn } from '../../utils/status-check'
 import { dockKey } from './context'
+import { roomForSplit } from './drop-side'
 import DockGroupView from './dock-group.vue'
 import DockNodeView from './dock-node.vue'
 import {
@@ -14,19 +16,22 @@ import {
   selectDockTab,
   splitDockTab,
 } from './layout'
+import type { SplitterLimit } from '../splitter/splitter'
 import type { TabDrag } from '../tabs/tab-drag'
 import type { TabsMoveEvent, TabsValue } from '../tabs/tabs'
-import type { DockEmits, DockPanel, DockProps, DockSlots } from './dock'
+import type { DockEmits, DockExpose, DockPanel, DockProps, DockSlots } from './dock'
 import type { DockGroup, DockNode, DockSide } from './layout'
 
 defineOptions({ name: 'DouDock' })
+
+const DEFAULT_MIN = '120px'
 
 const props = withDefaults(defineProps<DockProps>(), {
   panels: () => [],
   closable: false,
   addable: false,
   draggable: true,
-  min: '120px',
+  min: DEFAULT_MIN,
 })
 const emit = defineEmits<Omit<DockEmits, 'update:activeGroup'>>()
 const activeGroup = defineModel<string>('activeGroup')
@@ -126,7 +131,10 @@ const cells = shallowReactive(new Map<string, HTMLElement>())
 function setCell(id: string, el: unknown) {
   if (el instanceof HTMLElement) {
     if (cells.get(id) !== el) cells.set(id, el)
-  } else if (cells.has(id) && !cells.get(id)!.isConnected) cells.delete(id)
+  } else if (cells.has(id) && !cells.get(id)!.isConnected) {
+    cells.delete(id)
+    sizes.delete(id)
+  }
 }
 
 // Moving a group in the page resets what scrolled inside it: note the
@@ -162,12 +170,60 @@ watch(
   { flush: 'post' },
 )
 
+function minFor(direction: 'horizontal' | 'vertical'): SplitterLimit {
+  const min = props.min
+  if (typeof min !== 'object') return min
+  return (direction === 'horizontal' ? min.width : min.height) ?? DEFAULT_MIN
+}
+
+if (process.env.NODE_ENV !== 'production')
+  watchEffect(() => {
+    for (const direction of ['horizontal', 'vertical'] as const) {
+      const min = minFor(direction)
+      if (typeof min === 'number' && min > 50)
+        devWarn(
+          `[dou-ui] DouDock: \`min\` of ${min} is a percent, so no group can be split ${direction === 'horizontal' ? 'side by side' : 'top to bottom'}. Write '${min}px' for px.`,
+        )
+    }
+  })
+
+// the size of each group's place, kept up to date so `canSplit` can be read in a render
+const sizes = shallowReactive(new Map<string, { width: number; height: number }>())
+useResizeObserver(
+  () => [...cells.values()],
+  (entries) => {
+    for (const entry of entries)
+      for (const [id, el] of cells)
+        if (el === entry.target) {
+          const box = entry.borderBoxSize?.[0]
+          sizes.set(id, {
+            width: box ? box.inlineSize : entry.contentRect.width,
+            height: box ? box.blockSize : entry.contentRect.height,
+          })
+        }
+  },
+  { box: 'border-box' },
+)
+
+/**
+ * Whether a group has room to split a tab off to `side`: two parts of
+ * `min` beside the divider, as dragging to its edge checks. Reactive.
+ */
+function canSplit(groupId: string, side: DockSide) {
+  const el = cells.get(groupId)
+  if (!el) return false
+  const across = side === 'left' || side === 'right'
+  const size = sizes.get(groupId) ?? el.getBoundingClientRect()
+  return roomForSplit(across ? size.width : size.height, minFor(across ? 'horizontal' : 'vertical'))
+}
+defineExpose<DockExpose>({ canSplit })
+
 provide(dockKey, {
   group,
   size: () => props.size,
   closable: () => props.closable,
   addable: () => props.addable,
-  min: () => props.min,
+  min: minFor,
   draggable: () => props.draggable,
   panel,
   slots,

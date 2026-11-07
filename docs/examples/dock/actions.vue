@@ -1,6 +1,6 @@
 <script setup>
 import { MoreHorizontalIcon } from '@dou-ui/icons'
-import { ref } from 'vue'
+import { ref, useTemplateRef } from 'vue'
 import { moveDockTab, removeDockTab, splitDockTab } from 'dou-ui'
 
 const panels = ref([
@@ -17,7 +17,12 @@ const sides = [
   { side: 'bottom', label: '向下拆分' },
 ]
 
-// splits the selected tab of a group off; a group of one tab has nothing to split from
+const dock = useTemplateRef('dock')
+
+// a group of one tab has nothing to split from, and a small group has no room
+const canSplit = (group, side) => group.tabs.length > 1 && !!dock.value?.canSplit(group.id, side)
+
+// splits the selected tab of a group off
 function split(group, active, side) {
   layout.value = splitDockTab(layout.value, active, group.id, side)
 }
@@ -33,7 +38,15 @@ function add(group) {
 </script>
 
 <template>
-  <DouDock v-model="layout" :panels="panels" closable addable @remove="remove" @add="add">
+  <DouDock
+    ref="dock"
+    v-model="layout"
+    :panels="panels"
+    closable
+    addable
+    @remove="remove"
+    @add="add"
+  >
     <template #default="{ value }">{{
       panels.find((panel) => panel.value === value).label
     }}</template>
@@ -47,7 +60,7 @@ function add(group) {
             v-for="item in sides"
             :key="item.side"
             :value="item.side"
-            :disabled="group.tabs.length < 2"
+            :disabled="!canSplit(group, item.side)"
           >
             {{ item.label }}
           </DouDropdownItem>

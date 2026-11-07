@@ -22,8 +22,8 @@ function setCell(el: unknown) {
     :class="ns.e('split')"
     :model-value="node.size ?? 50"
     :direction="node.direction"
-    :min="dock.min()"
-    :min-end="dock.min()"
+    :min="dock.min(node.direction)"
+    :min-end="dock.min(node.direction)"
     @update:model-value="dock.resize(node, $event)"
   >
     <template #start><DouDockNode :node="node.start" /></template>

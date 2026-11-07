@@ -11,7 +11,8 @@ export interface DockContext {
   size: () => TabsSize | undefined
   closable: () => boolean
   addable: () => boolean
-  min: () => SplitterLimit
+  /** The smallest each side of a split in this direction may get. */
+  min: (direction: DockSplit['direction']) => SplitterLimit
   draggable: () => boolean
   panel: (value: TabsValue) => DockPanel | undefined
   slots: DockSlots

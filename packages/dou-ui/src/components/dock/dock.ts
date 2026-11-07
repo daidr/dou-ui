@@ -44,8 +44,8 @@ export interface DockProps {
   createId?: (layout: DockNode) => string
 }
 
-/** What `startDrag` drags in from outside the dock. */
-export interface DockDragItem {
+/** What `startDrop` drags in from outside the dock. */
+export interface DockDropItem {
   /** The tab it opens, or moves when the layout has it already. Give it an entry in `panels`. */
   value: TabsValue
   /** The text of the tab that follows the pointer. Defaults to the label in `panels`. */
@@ -99,4 +99,15 @@ export interface DockSlots {
   label?: (props: { value: TabsValue; selected: boolean }) => unknown
   /** Shown when there is no tab left. */
   empty?: () => unknown
+}
+
+export interface DockExpose {
+  /**
+   * Call in the `pointerdown` of an element outside the dock to drag it in
+   * as a tab: dropped on a tab row, the middle or an edge of a group, it
+   * opens there, as a dragged tab would. A value open already moves from
+   * its group. Does nothing while `draggable` is off, or for a panel that
+   * is disabled or not draggable.
+   */
+  startDrop: (event: PointerEvent, item: DockDropItem) => void
 }

@@ -1,6 +1,6 @@
 <script setup>
 import { ref, useTemplateRef } from 'vue'
-import { dockGroups, moveDockTab } from 'dou-ui'
+import { dockGroups, findDockGroup, moveDockTab, selectDockTab } from 'dou-ui'
 
 const files = [
   { value: 'route', label: '骑行路线.md' },
@@ -11,9 +11,11 @@ const files = [
 
 const dock = useTemplateRef('dock')
 const layout = ref({ type: 'group', id: 'main', tabs: ['route'] })
-// a click opens it in the first group, a drag puts it wherever it lands
+// a click shows it where it is open, or opens it in the first group; a drag puts it wherever it lands
 function open(value) {
-  layout.value = moveDockTab(layout.value, value, dockGroups(layout.value)[0].id)
+  layout.value = findDockGroup(layout.value, value)
+    ? selectDockTab(layout.value, value)
+    : moveDockTab(layout.value, value, dockGroups(layout.value)[0].id)
 }
 </script>
 
@@ -21,7 +23,11 @@ function open(value) {
   <div class="workspace">
     <ul class="files" aria-label="文件">
       <li v-for="file in files" :key="file.value">
-        <button type="button" @click="open(file.value)" @pointerdown="dock.startDrag($event, file)">
+        <button
+          type="button"
+          @click="open(file.value)"
+          @pointerdown="dock?.startDrop($event, file)"
+        >
           {{ file.label }}
         </button>
       </li>
@@ -37,7 +43,7 @@ function open(value) {
 <style scoped>
 .workspace {
   display: grid;
-  grid-template-columns: 160px minmax(0, 1fr);
+  grid-template-columns: minmax(96px, 160px) minmax(0, 1fr);
   width: 100%;
   height: 100%;
 }
@@ -51,6 +57,7 @@ function open(value) {
 
 .files button {
   width: 100%;
+  min-height: 40px;
   padding: 6px 8px;
   border: 0;
   border-radius: var(--dou-radius-control);

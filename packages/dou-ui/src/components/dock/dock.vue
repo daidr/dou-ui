@@ -17,7 +17,7 @@ import {
 import { pressTab } from '../tabs/tab-drag'
 import type { TabDrag } from '../tabs/tab-drag'
 import type { TabsMoveEvent, TabsValue } from '../tabs/tabs'
-import type { DockDragItem, DockEmits, DockPanel, DockProps, DockSlots } from './dock'
+import type { DockDropItem, DockEmits, DockExpose, DockPanel, DockProps, DockSlots } from './dock'
 import type { DockGroup, DockNode, DockSide } from './layout'
 
 defineOptions({ name: 'DouDock' })
@@ -60,9 +60,6 @@ function panel(value: TabsValue): DockPanel | undefined {
   return found
 }
 
-/** The index of a drag that did not start on a tab of this dock. */
-const OUTSIDE = -1
-
 /** Where a tab is now. */
 function locate(value: TabsValue) {
   const found = findDockGroup(latest, value)
@@ -73,9 +70,7 @@ function move(event: TabsMoveEvent) {
   const from = locate(event.value) ?? null
   const to = event.to.name
   if (to === undefined) return
-  let index = event.to.index
-  // a drag from outside counts the row with the tab in it, when it is already there
-  if (event.from.index === OUTSIDE && from?.group === to && from.index < index) index -= 1
+  const index = event.to.index
   commit(moveDockTab(latest, event.value, to, index))
   emit('move', { value: event.value, from, to: { group: to, index } })
 }
@@ -151,25 +146,66 @@ watch(
 
 const root = useTemplateRef<HTMLElement>('root')
 
-function startDrag(event: PointerEvent, item: DockDragItem) {
-  const el = event.currentTarget
-  if (!props.draggable || !(el instanceof HTMLElement)) return
-  const label = item.label ?? panels.value.get(item.value)?.label ?? String(item.value)
+function startDrop(event: PointerEvent, item: DockDropItem) {
+  // `currentTarget` is gone once the handler returns, after an `await`: then the element pressed
+  const target = event.currentTarget ?? event.target
+  if (!(target instanceof HTMLElement || target instanceof SVGElement)) {
+    if (process.env.NODE_ENV !== 'production')
+      devWarn(
+        '[dou-ui] DouDock: `startDrop` needs the `pointerdown` event of an element, to know what was pressed.',
+      )
+    return
+  }
+  const entry = panels.value.get(item.value)
+  if (!props.draggable || entry?.disabled || entry?.draggable === false) {
+    if (process.env.NODE_ENV !== 'production' && props.draggable)
+      devWarn(
+        `[dou-ui] DouDock: \`startDrop\` for "${item.value}" does nothing, as its panel is ${entry?.disabled ? 'disabled' : 'not draggable'}.`,
+      )
+    return
+  }
+  const label = item.label ?? entry?.label ?? String(item.value)
+  // the browser's own drag of a link or an image would take the pointer away
+  target.addEventListener('dragstart', noNativeDrag)
+  const release = () => {
+    target.removeEventListener('dragstart', noNativeDrag)
+    window.removeEventListener('pointerup', release, true)
+    window.removeEventListener('pointercancel', release, true)
+  }
+  window.addEventListener('pointerup', release, true)
+  window.addEventListener('pointercancel', release, true)
+  let dragged = false
   pressTab(event, {
-    el,
-    root: el,
+    el: target as HTMLElement,
+    root: target as HTMLElement,
     ghost: { label, tabs: root.value?.querySelector<HTMLElement>('.dou-tabs') },
-    drag: () => ({
-      value: item.value,
-      label,
-      group,
-      name: undefined,
-      index: OUTSIDE,
-      source: root,
-    }),
+    drag: () => {
+      // open already: a drag of it from its group, so dropping it back in its place does nothing
+      const from = locate(item.value)
+      return {
+        value: item.value,
+        label,
+        group,
+        name: from?.group,
+        index: from?.index ?? -1,
+        source: target,
+      }
+    },
+    onStart: () => (dragged = true),
+    onEnd() {
+      if (!dragged) return
+      // the release that ends a drag is not a click on the element
+      window.addEventListener('click', swallow, { capture: true, once: true })
+      setTimeout(() => window.removeEventListener('click', swallow, { capture: true }), 0)
+    },
   })
 }
-defineExpose({ startDrag })
+const noNativeDrag = (e: Event) => e.preventDefault()
+const swallow = (click: Event) => {
+  click.stopPropagation()
+  click.preventDefault()
+}
+defineExpose<DockExpose>({ startDrop })
 
 provide(dockKey, {
   group,

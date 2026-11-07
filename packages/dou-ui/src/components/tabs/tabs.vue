@@ -257,9 +257,17 @@ function insertionAt(x: number, y: number) {
   return index < 0 ? entries.length : index
 }
 
+/**
+ * Whether the tab comes from these tabs: dragged from them, or from
+ * elsewhere (a list outside a dock) when these tabs hold it already.
+ */
+const fromHere = (drag: TabDrag) =>
+  drag.source === self ||
+  (drag.name !== undefined && drag.name === props.name && drag.group === props.group)
+
 /** Whether dropping there leaves the tab where it is. */
 const stays = (drag: TabDrag, index: number) =>
-  drag.source === self && (index === drag.index || index === drag.index + 1)
+  fromHere(drag) && (index === drag.index || index === drag.index + 1)
 
 function markerOffset(index: number) {
   const entries = panels.value
@@ -316,7 +324,7 @@ const dropZone = registerTabDropZone({
     const index = marker.value?.index
     marker.value = null
     if (index === undefined) return
-    const within = drag.source === self
+    const within = fromHere(drag)
     emit('move', {
       value: drag.value,
       from: { name: drag.name, index: drag.index },

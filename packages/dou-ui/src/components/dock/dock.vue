@@ -28,7 +28,8 @@ const props = withDefaults(defineProps<DockProps>(), {
   draggable: true,
   min: '120px',
 })
-const emit = defineEmits<DockEmits>()
+const emit = defineEmits<Omit<DockEmits, 'update:activeGroup'>>()
+const activeGroup = defineModel<string>('activeGroup')
 const slots = defineSlots<DockSlots>()
 
 const ns = useNamespace('dock')
@@ -101,12 +102,17 @@ function drop(drag: TabDrag, target: DockGroup, side: DockSide | 'center') {
 /* the group last used */
 
 function use(id: string | undefined) {
-  if (id !== props.activeGroup) emit('update:activeGroup', id)
+  // also unbound, it emits only a change
+  if (id !== activeGroup.value) activeGroup.value = id
 }
-// a group dragged empty or closed is gone: it is no longer the one to open things in
+// a group dragged empty or closed, or one never in the layout, is not the one to open things in
 watch(
-  () => props.activeGroup !== undefined && !findGroup(props.modelValue, props.activeGroup),
-  (gone) => gone && use(undefined),
+  () =>
+    activeGroup.value !== undefined && !findGroup(props.modelValue, activeGroup.value)
+      ? activeGroup.value
+      : undefined,
+  (stale) => stale !== undefined && use(undefined),
+  { immediate: true },
 )
 
 // Each group is rendered here, in one flat list, and teleported into its

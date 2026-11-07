@@ -254,6 +254,44 @@ describe('DouDock', () => {
     active.value = 'a'
     await nextTick()
     expect(active.value).toBeUndefined()
+    // from one id not in the layout straight to another
+    active.value = 'x'
+    await nextTick()
+    expect(active.value).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('clears an active group given at first that is not in the layout', async () => {
+    const wrapper = mount(DouDock, {
+      props: { modelValue: { type: 'group', id: 'a', tabs: ['thread'] }, activeGroup: 'gone' },
+    })
+    expect(wrapper.emitted('update:activeGroup')).toEqual([[undefined]])
+    wrapper.unmount()
+  })
+
+  it('emits the group last used only when it changes, also without binding it', async () => {
+    const updates: unknown[] = []
+    const wrapper = mount(DouDock, {
+      props: {
+        panels,
+        modelValue: {
+          type: 'split',
+          direction: 'horizontal',
+          start: { type: 'group', id: 'a', tabs: ['thread', 'plan'] },
+          end: { type: 'group', id: 'b', tabs: ['api'] },
+        },
+        'onUpdate:activeGroup': (value: string | undefined) => updates.push(value),
+      },
+      attachTo: document.body,
+    })
+    await nextTick()
+    const [a, b] = wrapper.findAll('[data-dock-group]')
+    await a!.find('[role="tab"]').trigger('pointerdown')
+    await a!.find('[role="tab"]').trigger('focusin')
+    await a!.find('[role="tab"]').trigger('pointerdown')
+    await b!.find('[role="tab"]').trigger('pointerdown')
+    await a!.find('[role="tab"]').trigger('focusin')
+    expect(updates).toEqual(['a', 'b', 'a'])
     wrapper.unmount()
   })
 })

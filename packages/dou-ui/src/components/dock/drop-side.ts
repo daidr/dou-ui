@@ -13,8 +13,10 @@ interface Box {
  * the 1px divider of a split. A number is a percent of the split.
  */
 export function roomForSplit(length: number, min: SplitterLimit) {
-  const each = typeof min === 'number' ? (length * min) / 100 : Number.parseFloat(min) || 0
-  return length - 1 >= each * 2
+  // the parts share what the divider leaves, as in DouSplitter
+  const room = length - 1
+  const each = typeof min === 'number' ? (room * min) / 100 : Number.parseFloat(min) || 0
+  return room >= each * 2
 }
 
 /**

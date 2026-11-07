@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { DouDock } from '../../../index'
 import { splitDockTab } from '../layout'
@@ -176,5 +176,30 @@ describe('DouDock', () => {
     // left out: the default
     expect(down!.props()).toMatchObject({ min: '120px', minEnd: '120px' })
     wrapper.unmount()
+  })
+
+  it('tells whether a group has room to split, and warns of a percent too big to split', async () => {
+    const rect = vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockReturnValue({ width: 441, height: 300 } as DOMRect)
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const wrapper = mount(DouDock, {
+      props: {
+        panels,
+        min: { width: '220px', height: 60 },
+        modelValue: { type: 'group', id: 'a', tabs: ['thread', 'plan'] } satisfies DockNode,
+      },
+      attachTo: document.body,
+    })
+    await nextTick()
+    const dock = wrapper.vm as unknown as { canSplit: (id: string, side: string) => boolean }
+    // 441 holds 220 + 1 + 220; 60% twice does not fit
+    expect(dock.canSplit('a', 'right')).toBe(true)
+    expect(dock.canSplit('a', 'bottom')).toBe(false)
+    expect(dock.canSplit('missing', 'right')).toBe(false)
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("Write '60px' for px"))
+    wrapper.unmount()
+    rect.mockRestore()
+    warn.mockRestore()
   })
 })

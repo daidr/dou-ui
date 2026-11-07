@@ -27,7 +27,8 @@ describe('dockDropSide', () => {
   it('counts the 1px divider and takes percent of the split', () => {
     expect(roomForSplit(441, '220px')).toBe(true)
     expect(roomForSplit(440, '220px')).toBe(false)
-    expect(roomForSplit(300, 30)).toBe(true)
-    expect(roomForSplit(300, 50)).toBe(false)
+    // percent of what the divider leaves, as in DouSplitter: 50 is two halves
+    expect(roomForSplit(300, 50)).toBe(true)
+    expect(roomForSplit(300, 51)).toBe(false)
   })
 })

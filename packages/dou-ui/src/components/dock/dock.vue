@@ -19,7 +19,7 @@ import {
 import type { SplitterLimit } from '../splitter/splitter'
 import type { TabDrag } from '../tabs/tab-drag'
 import type { TabsMoveEvent, TabsValue } from '../tabs/tabs'
-import type { DockEmits, DockPanel, DockProps, DockSlots } from './dock'
+import type { DockEmits, DockExpose, DockPanel, DockProps, DockSlots } from './dock'
 import type { DockGroup, DockNode, DockSide } from './layout'
 
 defineOptions({ name: 'DouDock' })
@@ -193,7 +193,7 @@ function canSplit(groupId: string, side: DockSide) {
   const size = sizes.get(groupId) ?? el.getBoundingClientRect()
   return roomForSplit(across ? size.width : size.height, minFor(across ? 'horizontal' : 'vertical'))
 }
-defineExpose({ canSplit })
+defineExpose<DockExpose>({ canSplit })
 
 provide(dockKey, {
   group,

@@ -18,19 +18,27 @@
 
 拖动产生的改动由 Dock 自己完成并通过 `v-model` 写回，同时发出 `move` 或 `split` 告诉你发生了什么。组里的标签拖空后，这一组会自动去掉，它让出的位置并给旁边那部分。只剩一个标签的组不能拖到自己的边缘。
 
+拆分、合并时，没有被拖动的组原样保留，内容的状态和滚动位置都不变。被拖动的那个标签换到了另一组，它的内容会重新渲染，需要保留的状态请放在你的数据里。
+
+只能在同一个 Dock 里拖动：不能拖到另一个 Dock，也不能和单独的 `DouTabs` 互相拖。`draggable` 设为 `false` 关掉整个 Dock 的拖动；`panels` 里某个标签的 `draggable: false` 只让这个标签拖不动（也就不能被拆走），别的标签仍可以挪到它前后。
+
 ## 最小尺寸
 
 `min` 是每个分割两侧的最小尺寸，和 Splitter 的 `min`、`minEnd` 一样：数字是百分比，`'120px'` 这样的字符串是像素，默认 `'120px'`。它同时决定一组还能不能拆：放不下两个 `min` 的方向，拖到边缘不会拆分。宽和高要求不同时，写成对象，左右分割用 `width`，上下分割用 `height`，没写的方向用默认值：
 
+<!-- prettier-ignore -->
 ```vue
-<DouDock v-model="layout" :panels="panels" :min="{ width: '220px', height: '200px' }" />
+<DouDock
+  v-model="layout"
+  :panels="panels"
+  :min="{
+    width: '220px',
+    height: '200px',
+  }"
+/>
 ```
 
-对象里的数字也是百分比，`{ width: 220 }` 不是 220px；百分比超过 50 时任何组都拆不开，开发环境会提示。用按钮或菜单拆分时，先用 Dock 实例的 `canSplit(groupId, side)` 判断这一组在那个方向上还放不放得下，放不下就把按钮禁用，下面的例子就是这样做的。
-
-拆分、合并时，没有被拖动的组原样保留，内容的状态和滚动位置都不变。被拖动的那个标签换到了另一组，它的内容会重新渲染，需要保留的状态请放在你的数据里。
-
-只能在同一个 Dock 里拖动：不能拖到另一个 Dock，也不能和单独的 `DouTabs` 互相拖。`draggable` 设为 `false` 关掉整个 Dock 的拖动；`panels` 里某个标签的 `draggable: false` 只让这个标签拖不动（也就不能被拆走），别的标签仍可以挪到它前后。
+对象里的数字也是百分比，`{ width: 220 }` 不是 220px；百分比超过 50 时任何组都拆不开，开发环境会提示。
 
 ## 用菜单或按钮拆分
 
@@ -47,6 +55,8 @@
 | `nextDockGroupId(layout)`                            | 还没用过的组 id：`group-1`、`group-2`……                                                |
 
 和 Tabs 一样，关闭按钮只发出 `remove`，新增按钮只发出 `add`，参数在 Tabs 的基础上多了组的 id：去掉用 `removeDockTab`，新开一个标签就把它加进 `panels`，再用 `moveDockTab` 放进那一组。所有标签都关掉后保留一个空组，显示 `empty` 插槽。
+
+拆分前可以用 Dock 实例的 `canSplit(groupId, side)` 判断这一组在那个方向上还放不放得下两个 `min`，放不下就把按钮禁用，下面的例子就是这样做的。
 
 <DocDemo src="dock/actions" style="padding: 0; height: 360px; overflow: hidden" />
 

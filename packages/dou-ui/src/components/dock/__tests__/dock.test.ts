@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { DouDock } from '../../../index'
 import { splitDockTab } from '../layout'
+import type { DockExpose } from '../dock'
 import type { DockNode } from '../layout'
 
 const panels = [
@@ -192,7 +193,7 @@ describe('DouDock', () => {
       attachTo: document.body,
     })
     await nextTick()
-    const dock = wrapper.vm as unknown as { canSplit: (id: string, side: string) => boolean }
+    const dock: DockExpose = wrapper.vm
     // 441 holds 220 + 1 + 220; 60% twice does not fit
     expect(dock.canSplit('a', 'right')).toBe(true)
     expect(dock.canSplit('a', 'bottom')).toBe(false)

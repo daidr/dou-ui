@@ -98,3 +98,12 @@ export interface DockSlots {
   /** Shown when there is no tab left. */
   empty?: () => unknown
 }
+
+export interface DockExpose {
+  /**
+   * Whether a group has room for two `min`s in the direction of `side`:
+   * when not, dropping a tab on that edge does not split it. Reactive,
+   * so it can be read while rendering.
+   */
+  canSplit: (groupId: string, side: DockSide) => boolean
+}

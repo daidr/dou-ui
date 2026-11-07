@@ -154,6 +154,23 @@ describe('DouDock', () => {
     wrapper.unmount()
   })
 
+  it('opens a tab dragged in from outside', async () => {
+    const { wrapper, layout, events } = make()
+    await nextTick()
+    const [first] = wrapper.findAllComponents({ name: 'DouTabs' })
+    // what a row of tabs reports for a new tab dragged in with `startDrop`
+    first!.vm.$emit('move', { value: 'log', from: { index: -1 }, to: { name: 'a', index: 1 } })
+    expect(layout.value.type === 'split' && layout.value.start).toMatchObject({
+      tabs: ['thread', 'log', 'plan'],
+      active: 'log',
+    })
+    expect(events.at(-1)).toEqual([
+      'move',
+      { value: 'log', from: null, to: { group: 'a', index: 1 } },
+    ])
+    wrapper.unmount()
+  })
+
   it('puts the `extra` slot at the end of each tab row, with its group', async () => {
     const shown = ref(false)
     const wrapper = mount(

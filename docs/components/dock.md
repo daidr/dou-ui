@@ -20,7 +20,7 @@
 
 拆分、合并时，没有被拖动的组原样保留，内容的状态和滚动位置都不变。被拖动的那个标签换到了另一组，它的内容会重新渲染，需要保留的状态请放在你的数据里。
 
-只能在同一个 Dock 里拖动：不能拖到另一个 Dock，也不能和单独的 `DouTabs` 互相拖。`draggable` 设为 `false` 关掉整个 Dock 的拖动；`panels` 里某个标签的 `draggable: false` 只让这个标签拖不动（也就不能被拆走），别的标签仍可以挪到它前后。
+标签只能在同一个 Dock 里拖动：不能拖到另一个 Dock，也不能和单独的 `DouTabs` 互相拖。`draggable` 设为 `false` 关掉整个 Dock 的拖动，也包括从外部拖入；`panels` 里某个标签的 `draggable: false` 只让这个标签拖不动（也就不能被拆走），别的标签仍可以挪到它前后。
 
 ## 最小尺寸
 
@@ -39,6 +39,16 @@
 ```
 
 对象里的数字也是百分比，`{ width: 220 }` 不是 220px；百分比超过 50 时任何组都拆不开，开发环境会提示。
+
+## 从外部拖入
+
+列表项、卡片这类 Dock 之外的元素，也可以拖进 Dock 打开：在它的 `pointerdown` 里调用 Dock 实例的 `startDrop(event, { value, label })`。和拖标签一样，按下后移动一小段才开始拖，触屏上要先按住；放到标签行、中间或边缘的效果也一样，发出的 `move`、`split` 里 `from` 为 `null`，表示这是新开的标签。这个值已经在布局里时，就当作从它所在的组拖出来，放回原处什么也不发生。
+
+`value` 要在 `panels` 里有对应的一项，标签的文字从那里取；`label` 是拖动时跟着指针的文字，不设时也取 `panels` 里的。`panels` 可以先列好所有可能打开的项，Dock 只显示布局里有的。Dock 的 `draggable` 为 `false`，或这一项在 `panels` 里 `disabled`、`draggable: false` 时，`startDrop` 什么也不做。
+
+拖动结束时松开的那一下不算点击，所以元素上的 `click` 可以照常用来打开它，键盘用户按 `Enter` 或空格也是这样打开的。链接和图片在拖动时不会被浏览器自己拖走。在触屏上，给元素设上 `touch-action: pan-y`（竖着排的列表）之类的值，滑动仍然滚动列表，按住才开始拖。只支持页面里的元素，不支持从系统拖文件进来。
+
+<DocDemo src="dock/external" style="padding: 0; height: 320px; overflow: hidden" />
 
 ## 用菜单或按钮拆分
 
@@ -95,22 +105,23 @@ layout.value = moveDockTab(layout.value, value, target)
 
 ### Dock Events
 
-| 名称                 | 说明                               | 参数                                                               |
-| -------------------- | ---------------------------------- | ------------------------------------------------------------------ |
-| `update:modelValue`  | 布局变化                           | `(layout: DockNode)`                                               |
-| `move`               | 标签被拖到组内的新位置，或另一组里 | `(event: { value, from: { group, index }, to: { group, index } })` |
-| `split`              | 标签被拖到某组边缘，拆出了新的一组 | `(event: { value, from, target, side, group })`                    |
-| `remove`             | 点击关闭按钮，或按 `Delete`        | `(value: string \| number, group: string)`                         |
-| `add`                | 点击某组的新增按钮                 | `(group: string)`                                                  |
-| `update:activeGroup` | 最近用过的组变化                   | `(group: string \| undefined)`                                     |
+| 名称                 | 说明                               | 参数                                                                       |
+| -------------------- | ---------------------------------- | -------------------------------------------------------------------------- |
+| `update:modelValue`  | 布局变化                           | `(layout: DockNode)`                                                       |
+| `move`               | 标签被拖到组内的新位置，或另一组里 | `(event: { value, from: { group, index } \| null, to: { group, index } })` |
+| `split`              | 标签被拖到某组边缘，拆出了新的一组 | `(event: { value, from, target, side, group })`                            |
+| `remove`             | 点击关闭按钮，或按 `Delete`        | `(value: string \| number, group: string)`                                 |
+| `add`                | 点击某组的新增按钮                 | `(group: string)`                                                          |
+| `update:activeGroup` | 最近用过的组变化                   | `(group: string \| undefined)`                                             |
 
-`move` 的 `from` 和 `to` 各有组的 id 和标签在那一组里的位置，`to.index` 是挪完以后的位置，和 Tabs 的 `move` 对应；`split` 的 `from` 也一样，`target` 是被拖到边缘的那一组，`group` 是新组的 id。`move` 和 `split` 带的信息多，用一个对象；`remove` 和 `add` 与 Tabs 的同名事件参数一致，只在最后多了组的 id。
+`move` 的 `from` 和 `to` 各有组的 id 和标签在那一组里的位置（从外部拖入的新标签 `from` 为 `null`），`to.index` 是挪完以后的位置，和 Tabs 的 `move` 对应；`split` 的 `from` 也一样，`target` 是被拖到边缘的那一组，`group` 是新组的 id。`move` 和 `split` 带的信息多，用一个对象；`remove` 和 `add` 与 Tabs 的同名事件参数一致，只在最后多了组的 id。
 
 ### Dock Exposes
 
-| 名称       | 说明                                                   | 类型                                                                         |
-| ---------- | ------------------------------------------------------ | ---------------------------------------------------------------------------- |
-| `canSplit` | 某组在这个方向上是否放得下两个 `min`，可以在渲染中读取 | `(groupId: string, side: 'top' \| 'right' \| 'bottom' \| 'left') => boolean` |
+| 名称        | 说明                                                     | 类型                                                                               |
+| ----------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `canSplit`  | 某组在这个方向上是否放得下两个 `min`，可以在渲染中读取   | `(groupId: string, side: 'top' \| 'right' \| 'bottom' \| 'left') => boolean`       |
+| `startDrop` | 在外部元素的 `pointerdown` 里调用，把它当作标签拖进 Dock | `(event: PointerEvent, item: { value: string \| number; label?: string }) => void` |
 
 ### Dock Slots
 

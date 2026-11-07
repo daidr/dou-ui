@@ -58,6 +58,14 @@ export interface DockProps {
   createId?: (layout: DockNode) => string
 }
 
+/** What `startDrop` drags in from outside the dock. */
+export interface DockDropItem {
+  /** The tab it opens, or moves when the layout has it already. Give it an entry in `panels`. */
+  value: TabsValue
+  /** The text of the tab that follows the pointer. Defaults to the label in `panels`. */
+  label?: string
+}
+
 /** Where a tab is: the id of its group and its index there. */
 export interface DockLocation {
   group: string
@@ -66,14 +74,16 @@ export interface DockLocation {
 
 export interface DockMoveEvent {
   value: TabsValue
-  from: DockLocation
+  /** Where it was; `null` when it was dragged in from outside and opens here. */
+  from: DockLocation | null
   /** Where it ends up, its index counted once the move is done. */
   to: DockLocation
 }
 
 export interface DockSplitEvent {
   value: TabsValue
-  from: DockLocation
+  /** Where it was; `null` when it was dragged in from outside and opens here. */
+  from: DockLocation | null
   /** The group it was dropped on the edge of. */
   target: string
   side: DockSide
@@ -118,4 +128,12 @@ export interface DockExpose {
    * so it can be read while rendering.
    */
   canSplit: (groupId: string, side: DockSide) => boolean
+  /**
+   * Call in the `pointerdown` of an element outside the dock to drag it in
+   * as a tab: dropped on a tab row, the middle or an edge of a group, it
+   * opens there, as a dragged tab would. A value open already moves from
+   * its group. Does nothing while `draggable` is off, or for a panel that
+   * is disabled or not draggable.
+   */
+  startDrop: (event: PointerEvent, item: DockDropItem) => void
 }

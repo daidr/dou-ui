@@ -1,5 +1,14 @@
 <script setup lang="ts">
-import { computed, nextTick, provide, shallowReactive, useId, watch, watchEffect } from 'vue'
+import {
+  computed,
+  nextTick,
+  provide,
+  shallowReactive,
+  useId,
+  useTemplateRef,
+  watch,
+  watchEffect,
+} from 'vue'
 import { useResizeObserver } from '../../composables/use-element-size'
 import { useNamespace } from '../../utils/namespace'
 import { devWarn } from '../../utils/status-check'
@@ -16,10 +25,11 @@ import {
   selectDockTab,
   splitDockTab,
 } from './layout'
+import { pressTab } from '../tabs/tab-drag'
 import type { SplitterLimit } from '../splitter/splitter'
 import type { TabDrag } from '../tabs/tab-drag'
 import type { TabsMoveEvent, TabsValue } from '../tabs/tabs'
-import type { DockEmits, DockExpose, DockPanel, DockProps, DockSlots } from './dock'
+import type { DockDropItem, DockEmits, DockExpose, DockPanel, DockProps, DockSlots } from './dock'
 import type { DockGroup, DockNode, DockSide } from './layout'
 
 defineOptions({ name: 'DouDock' })
@@ -72,25 +82,27 @@ function locate(value: TabsValue) {
 }
 
 function move(event: TabsMoveEvent) {
-  const from = locate(event.value)
+  const from = locate(event.value) ?? null
   const to = event.to.name
-  if (!from || to === undefined) return
-  commit(moveDockTab(latest, event.value, to, event.to.index))
-  emit('move', { value: event.value, from, to: { group: to, index: event.to.index } })
+  if (to === undefined) return
+  const index = event.to.index
+  commit(moveDockTab(latest, event.value, to, index))
+  emit('move', { value: event.value, from, to: { group: to, index } })
   use(to)
 }
 
 function canDrop(drag: TabDrag, target: DockGroup, side: DockSide | 'center') {
   const from = findDockGroup(latest, drag.value)
-  if (!from) return false
+  // not in the layout yet: it opens anywhere
+  if (!from) return true
   // the middle of its own group, or an edge of a group it is alone in, leaves it where it is
   if (from.id === target.id) return side !== 'center' && target.tabs.length > 1
   return true
 }
 
 function drop(drag: TabDrag, target: DockGroup, side: DockSide | 'center') {
-  const from = locate(drag.value)
-  if (!from || !canDrop(drag, target, side)) return
+  const from = locate(drag.value) ?? null
+  if (!canDrop(drag, target, side)) return
   if (side === 'center') {
     const index = target.tabs.length
     commit(moveDockTab(latest, drag.value, target.id, index))
@@ -170,6 +182,70 @@ watch(
   { flush: 'post' },
 )
 
+/* dragging something from outside the dock in */
+
+const root = useTemplateRef<HTMLElement>('root')
+
+function startDrop(event: PointerEvent, item: DockDropItem) {
+  // `currentTarget` is gone once the handler returns, after an `await`: then the element pressed
+  const target = event.currentTarget ?? event.target
+  if (!(target instanceof HTMLElement || target instanceof SVGElement)) {
+    if (process.env.NODE_ENV !== 'production')
+      devWarn(
+        '[dou-ui] DouDock: `startDrop` needs the `pointerdown` event of an element, to know what was pressed.',
+      )
+    return
+  }
+  const entry = panels.value.get(item.value)
+  if (!props.draggable || entry?.disabled || entry?.draggable === false) {
+    if (process.env.NODE_ENV !== 'production' && props.draggable)
+      devWarn(
+        `[dou-ui] DouDock: \`startDrop\` for "${item.value}" does nothing, as its panel is ${entry?.disabled ? 'disabled' : 'not draggable'}.`,
+      )
+    return
+  }
+  const label = item.label ?? entry?.label ?? String(item.value)
+  // the browser's own drag of a link or an image would take the pointer away
+  target.addEventListener('dragstart', noNativeDrag)
+  const release = () => {
+    target.removeEventListener('dragstart', noNativeDrag)
+    window.removeEventListener('pointerup', release, true)
+    window.removeEventListener('pointercancel', release, true)
+  }
+  window.addEventListener('pointerup', release, true)
+  window.addEventListener('pointercancel', release, true)
+  let dragged = false
+  pressTab(event, {
+    el: target as HTMLElement,
+    root: target as HTMLElement,
+    ghost: { label, tabs: root.value?.querySelector<HTMLElement>('.dou-tabs') },
+    drag: () => {
+      // open already: a drag of it from its group, so dropping it back in its place does nothing
+      const from = locate(item.value)
+      return {
+        value: item.value,
+        label,
+        group,
+        name: from?.group,
+        index: from?.index ?? -1,
+        source: target,
+      }
+    },
+    onStart: () => (dragged = true),
+    onEnd() {
+      if (!dragged) return
+      // the release that ends a drag is not a click on the element
+      window.addEventListener('click', swallow, { capture: true, once: true })
+      setTimeout(() => window.removeEventListener('click', swallow, { capture: true }), 0)
+    },
+  })
+}
+const noNativeDrag = (e: Event) => e.preventDefault()
+const swallow = (click: Event) => {
+  click.stopPropagation()
+  click.preventDefault()
+}
+
 function minFor(direction: 'horizontal' | 'vertical'): SplitterLimit {
   const min = props.min
   if (typeof min !== 'object') return min
@@ -216,7 +292,7 @@ function canSplit(groupId: string, side: DockSide) {
   const size = sizes.get(groupId) ?? el.getBoundingClientRect()
   return roomForSplit(across ? size.width : size.height, minFor(across ? 'horizontal' : 'vertical'))
 }
-defineExpose<DockExpose>({ canSplit })
+defineExpose<DockExpose>({ canSplit, startDrop })
 
 provide(dockKey, {
   group,
@@ -242,7 +318,7 @@ provide(dockKey, {
 </script>
 
 <template>
-  <div :class="ns.b()">
+  <div ref="root" :class="ns.b()">
     <DockNodeView :node="modelValue" />
     <!-- until its place exists (and on the server) a group renders right here -->
     <Teleport

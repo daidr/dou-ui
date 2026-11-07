@@ -44,6 +44,14 @@ export interface DockProps {
   createId?: (layout: DockNode) => string
 }
 
+/** What `startDrag` drags in from outside the dock. */
+export interface DockDragItem {
+  /** The tab it opens, or moves when the layout has it already. Give it an entry in `panels`. */
+  value: TabsValue
+  /** The text of the tab that follows the pointer. Defaults to the label in `panels`. */
+  label?: string
+}
+
 /** Where a tab is: the id of its group and its index there. */
 export interface DockLocation {
   group: string
@@ -52,14 +60,16 @@ export interface DockLocation {
 
 export interface DockMoveEvent {
   value: TabsValue
-  from: DockLocation
+  /** Where it was; `null` when it was dragged in from outside and opens here. */
+  from: DockLocation | null
   /** Where it ends up, its index counted once the move is done. */
   to: DockLocation
 }
 
 export interface DockSplitEvent {
   value: TabsValue
-  from: DockLocation
+  /** Where it was; `null` when it was dragged in from outside and opens here. */
+  from: DockLocation | null
   /** The group it was dropped on the edge of. */
   target: string
   side: DockSide

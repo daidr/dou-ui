@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, provide, shallowReactive, useId, watch } from 'vue'
+import { computed, nextTick, provide, shallowReactive, useId, useTemplateRef, watch } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { devWarn } from '../../utils/status-check'
 import { dockKey } from './context'
@@ -14,9 +14,10 @@ import {
   selectDockTab,
   splitDockTab,
 } from './layout'
+import { pressTab } from '../tabs/tab-drag'
 import type { TabDrag } from '../tabs/tab-drag'
 import type { TabsMoveEvent, TabsValue } from '../tabs/tabs'
-import type { DockEmits, DockPanel, DockProps, DockSlots } from './dock'
+import type { DockDragItem, DockEmits, DockPanel, DockProps, DockSlots } from './dock'
 import type { DockGroup, DockNode, DockSide } from './layout'
 
 defineOptions({ name: 'DouDock' })
@@ -59,6 +60,9 @@ function panel(value: TabsValue): DockPanel | undefined {
   return found
 }
 
+/** The index of a drag that did not start on a tab of this dock. */
+const OUTSIDE = -1
+
 /** Where a tab is now. */
 function locate(value: TabsValue) {
   const found = findDockGroup(latest, value)
@@ -66,24 +70,28 @@ function locate(value: TabsValue) {
 }
 
 function move(event: TabsMoveEvent) {
-  const from = locate(event.value)
+  const from = locate(event.value) ?? null
   const to = event.to.name
-  if (!from || to === undefined) return
-  commit(moveDockTab(latest, event.value, to, event.to.index))
-  emit('move', { value: event.value, from, to: { group: to, index: event.to.index } })
+  if (to === undefined) return
+  let index = event.to.index
+  // a drag from outside counts the row with the tab in it, when it is already there
+  if (event.from.index === OUTSIDE && from?.group === to && from.index < index) index -= 1
+  commit(moveDockTab(latest, event.value, to, index))
+  emit('move', { value: event.value, from, to: { group: to, index } })
 }
 
 function canDrop(drag: TabDrag, target: DockGroup, side: DockSide | 'center') {
   const from = findDockGroup(latest, drag.value)
-  if (!from) return false
+  // not in the layout yet: it opens anywhere
+  if (!from) return true
   // the middle of its own group, or an edge of a group it is alone in, leaves it where it is
   if (from.id === target.id) return side !== 'center' && target.tabs.length > 1
   return true
 }
 
 function drop(drag: TabDrag, target: DockGroup, side: DockSide | 'center') {
-  const from = locate(drag.value)
-  if (!from || !canDrop(drag, target, side)) return
+  const from = locate(drag.value) ?? null
+  if (!canDrop(drag, target, side)) return
   if (side === 'center') {
     const index = target.tabs.length
     commit(moveDockTab(latest, drag.value, target.id, index))
@@ -139,6 +147,30 @@ watch(
   { flush: 'post' },
 )
 
+/* dragging something from outside the dock in */
+
+const root = useTemplateRef<HTMLElement>('root')
+
+function startDrag(event: PointerEvent, item: DockDragItem) {
+  const el = event.currentTarget
+  if (!props.draggable || !(el instanceof HTMLElement)) return
+  const label = item.label ?? panels.value.get(item.value)?.label ?? String(item.value)
+  pressTab(event, {
+    el,
+    root: el,
+    ghost: { label, tabs: root.value?.querySelector<HTMLElement>('.dou-tabs') },
+    drag: () => ({
+      value: item.value,
+      label,
+      group,
+      name: undefined,
+      index: OUTSIDE,
+      source: root,
+    }),
+  })
+}
+defineExpose({ startDrag })
+
 provide(dockKey, {
   group,
   size: () => props.size,
@@ -162,7 +194,7 @@ provide(dockKey, {
 </script>
 
 <template>
-  <div :class="ns.b()">
+  <div ref="root" :class="ns.b()">
     <DockNodeView :node="modelValue" />
     <!-- until its place exists (and on the server) a group renders right here -->
     <Teleport

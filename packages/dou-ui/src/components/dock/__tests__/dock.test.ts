@@ -151,4 +151,30 @@ describe('DouDock', () => {
     expect(wrapper.find('.dou-dock__empty').text()).toBe('没有打开的标签')
     wrapper.unmount()
   })
+
+  it('opens a tab dragged in from outside, or moves it when it is open already', async () => {
+    const { wrapper, layout, events } = make()
+    await nextTick()
+    const [first] = wrapper.findAllComponents({ name: 'DouTabs' })
+    // what a row of tabs reports for a drag from `startDrag`: no name, index -1
+    first!.vm.$emit('move', { value: 'log', from: { index: -1 }, to: { name: 'a', index: 1 } })
+    expect(layout.value.type === 'split' && layout.value.start).toMatchObject({
+      tabs: ['thread', 'log', 'plan'],
+      active: 'log',
+    })
+    expect(events.at(-1)).toEqual([
+      'move',
+      { value: 'log', from: null, to: { group: 'a', index: 1 } },
+    ])
+    // already open: counted without itself, as a drag of the tab would be
+    first!.vm.$emit('move', { value: 'thread', from: { index: -1 }, to: { name: 'a', index: 3 } })
+    expect(layout.value.type === 'split' && layout.value.start).toMatchObject({
+      tabs: ['log', 'plan', 'thread'],
+    })
+    expect(events.at(-1)).toEqual([
+      'move',
+      { value: 'thread', from: { group: 'a', index: 0 }, to: { group: 'a', index: 2 } },
+    ])
+    wrapper.unmount()
+  })
 })

@@ -65,6 +65,11 @@ function zoneAt(drag: TabDrag, x: number, y: number) {
 export interface StartTabDragOptions {
   /** The tab element: it is copied for the ghost and dimmed while it moves. */
   el: HTMLElement
+  /**
+   * For a drag that starts on something other than a tab: the ghost is a
+   * tab with this text, sized like the tabs of `tabs`, in place of a copy of `el`.
+   */
+  ghost?: { label: string; tabs: HTMLElement | null | undefined }
   /** An element that stays in the page for the whole drag, to capture the pointer. */
   root: HTMLElement | null
   drag: () => TabDrag
@@ -96,31 +101,37 @@ export function pressTab(event: PointerEvent, options: StartTabDragOptions) {
     const rect = options.el.getBoundingClientRect()
     // below the pointer, off the row it moves along, so the mark where it drops stays in sight
     offset = { x: Math.min(e.clientX - rect.left, 16), y: -16 }
-    const clone = options.el.cloneNode(true) as HTMLElement
-    clone.removeAttribute('id')
-    clone.classList.remove('is-dragging')
+    let clone: HTMLElement
+    if (options.ghost) {
+      clone = document.createElement('div')
+      clone.className = 'dou-tabs__tab'
+      clone.textContent = options.ghost.label
+    } else {
+      clone = options.el.cloneNode(true) as HTMLElement
+      clone.removeAttribute('id')
+      clone.classList.remove('is-dragging')
+      Object.assign(clone.style, { width: `${rect.width}px`, height: `${rect.height}px` })
+    }
     clone.classList.add('dou-tabs-ghost')
     clone.setAttribute('aria-hidden', 'true')
     Object.assign(clone.style, {
       position: 'fixed',
       left: '0',
       top: '0',
-      width: `${rect.width}px`,
-      height: `${rect.height}px`,
       margin: '0',
       boxSizing: 'border-box',
       pointerEvents: 'none',
       zIndex: '9999',
     })
     // the copy sits on `body`: keep the size and theme of the tabs it came from
-    const tabs = options.el.closest<HTMLElement>('.dou-tabs')
+    const tabs = options.ghost ? options.ghost.tabs : options.el.closest<HTMLElement>('.dou-tabs')
     if (tabs) {
       const style = getComputedStyle(tabs)
       for (const name of ['--dou-tabs-height', '--dou-tabs-padding-x', '--dou-tabs-icon-size'])
         clone.style.setProperty(name, style.getPropertyValue(name))
       clone.style.fontSize = style.fontSize
     }
-    const theme = options.el.closest<HTMLElement>('[data-dou-theme]')?.dataset.douTheme
+    const theme = (tabs ?? options.el).closest<HTMLElement>('[data-dou-theme]')?.dataset.douTheme
     if (theme) clone.dataset.douTheme = theme
     document.body.append(clone)
     ghost = clone

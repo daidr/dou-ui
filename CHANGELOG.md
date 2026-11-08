@@ -7,6 +7,21 @@ DouUI 的所有包（`dou-ui`、`@dou-ui/theme`、`@dou-ui/icons` 以及生态�
 
 这个文件由发版脚本生成：改动先以碎片文件记在 [`.changes/`](./.changes/README.md) 里，发布时汇总到这里。
 
+## 0.1.0-alpha.9 · 2026-11-07
+
+### 不兼容
+
+- **dou-ui**：DouDock 的 `move`、`split` 事件里 `from` 可能为 `null`，表示从 Dock 外拖进来、新开的标签（类型 `DockLocation | null`）。读 `from.group`、`from.index` 的地方改成先判断，如 `event.from?.group`。 ([#382](https://github.com/daidr/dou-ui/pull/382))
+
+### 新增
+
+- **dou-ui**：DouDock 新增 `extra` 插槽，放在每组标签行的末尾，参数是这一组和它选中的标签；新增 `v-model:active-group`，记着最近用过的组：在某组里按下指针、焦点移进某组，或者把标签拖进某组、拆出新组时更新，这一组从布局里消失时变回 `undefined`。 ([#380](https://github.com/daidr/dou-ui/pull/380))
+- **dou-ui**：DouDock 新增实例方法 `startDrop`：在列表项等外部元素的 `pointerdown` 里调用，就能把它当作标签拖进 Dock，放到标签行、中间或边缘的效果和拖标签相同。 ([#382](https://github.com/daidr/dou-ui/pull/382))
+
+### 改进
+
+- **dou-ui**：DouDock 的组放不下两个 `min` 时，拖到这个方向的边缘不再拆分，而是和拖到中间一样并入这一组；`min` 可以写成 `{ width, height }`，左右分割和上下分割分别用；新增实例方法 `canSplit(groupId, side)`，用按钮拆分时可以先判断放不放得下。 ([#381](https://github.com/daidr/dou-ui/pull/381))
+
 ## 0.1.0-alpha.8 · 2026-11-06
 
 ### 修复

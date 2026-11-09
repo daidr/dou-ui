@@ -1,4 +1,5 @@
 import { keydownHandler } from 'prosemirror-keymap'
+import { Fragment, Slice } from 'prosemirror-model'
 import {
   Plugin,
   PluginKey,
@@ -156,6 +157,25 @@ const blockKeys = keydownHandler({
   },
 })
 
+/** Put the selected blocks on the clipboard, and remove them when cutting. */
+function copyBlocks(view: EditorView, event: ClipboardEvent, cut: boolean): boolean {
+  const range = blockSelectionRange(view.state)
+  const data = event.clipboardData
+  if (!range || !data) return false
+  const blocks = blocksIn(range)
+  const slice = new Slice(Fragment.from(blocks.map((block) => block.node)), 0, 0)
+  const { dom, text } = view.serializeForClipboard(slice)
+  event.preventDefault()
+  data.clearData()
+  data.setData('text/html', dom.innerHTML)
+  data.setData('text/plain', text)
+  if (cut && view.editable) {
+    const tr = deleteBlocks(view.state.tr, blocks).setMeta(blockSelectionKey, null)
+    view.dispatch(tr.scrollIntoView().setMeta('uiEvent', 'cut'))
+  }
+  return true
+}
+
 export function blockSelectionPlugin(): Plugin<BlockSelection | null> {
   return new Plugin<BlockSelection | null>({
     key: blockSelectionKey,
@@ -172,6 +192,12 @@ export function blockSelectionPlugin(): Plugin<BlockSelection | null> {
       },
     },
     props: {
+      // copy and cut take the whole blocks, not the text under them (a
+      // table's would be one cell)
+      handleDOMEvents: {
+        copy: (view, event) => copyBlocks(view, event, false),
+        cut: (view, event) => copyBlocks(view, event, true),
+      },
       decorations(state) {
         const range = blockSelectionRange(state)
         if (!range) return null

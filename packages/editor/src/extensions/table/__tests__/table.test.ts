@@ -328,3 +328,35 @@ describe('selecting the whole table block', () => {
     expect(getBlockSelection(target.state)).toEqual({ anchor: 't', head: 't' })
   })
 })
+
+/** Fire a copy or cut event on the editor; what it put on the clipboard. */
+const clipboard = (target: EditorView, type: 'copy' | 'cut') => {
+  const data = new DataTransfer()
+  const event = new ClipboardEvent(type, { clipboardData: data, bubbles: true, cancelable: true })
+  target.dom.dispatchEvent(event)
+  return data
+}
+
+describe('copying selected blocks', () => {
+  it('copies the whole table, not the text of its first cell', () => {
+    const target = create([grid, { id: 'p', content: '后面' }])
+    selectBlocks('t')(target.state, target.dispatch)
+    const data = clipboard(target, 'copy')
+    expect(data.getData('text/html')).toContain('<table')
+    expect(data.getData('text/html')).toContain('杭州')
+    expect(tableBlock(target).rows).toHaveLength(3)
+  })
+
+  it('cuts a heading and a table as whole blocks', () => {
+    const target = create([
+      { id: 'h', type: 'heading', props: { level: 2 }, content: '名单' },
+      grid,
+      { id: 'p', content: '后面' },
+    ])
+    selectBlocks('h', 't')(target.state, target.dispatch)
+    const data = clipboard(target, 'cut')
+    expect(data.getData('text/html')).toContain('名单')
+    expect(data.getData('text/html')).toContain('<table')
+    expect(docToBlocks(target.state.doc).map((block) => block.id)).toEqual(['p'])
+  })
+})

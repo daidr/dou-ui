@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { DouTabPanel, DouTabs } from '../../../index'
 
@@ -88,6 +88,8 @@ describe('DouTabs', () => {
 
   it('moves with arrow keys, skipping disabled tabs and wrapping around', async () => {
     const wrapper = make({ modelValue: 'logs' })
+    await nextTick()
+    await nextTick()
     await nextTick()
     const tabs = () => wrapper.findAll('[role="tab"]')
     await tabs()[1]!.trigger('keydown', { key: 'ArrowRight' })
@@ -249,5 +251,53 @@ describe('DouTabs overflow', () => {
     const wrapper = make()
     await nextTick()
     expect(wrapper.find('.dou-tabs__scroll').exists()).toBe(false)
+  })
+
+  it('measures the underline again when the selected tab grows on its own', async () => {
+    let callback: ResizeObserverCallback | undefined
+    const observed = new Set<Element>()
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(cb: ResizeObserverCallback) {
+          callback = cb
+        }
+        observe(el: Element) {
+          observed.add(el)
+        }
+        unobserve(el: Element) {
+          observed.delete(el)
+        }
+        disconnect() {
+          observed.clear()
+        }
+      },
+    )
+    const width = { value: 32 }
+    const offset = vi
+      .spyOn(HTMLElement.prototype, 'offsetWidth', 'get')
+      .mockImplementation(() => width.value)
+    const wrapper = make({ modelValue: 'logs' })
+    await nextTick()
+    await nextTick()
+    await nextTick()
+    const tabs = wrapper.findAll('[role="tab"]')
+    expect(observed.has(tabs[1]!.element)).toBe(true)
+    const indicator = wrapper.find('.dou-tabs__indicator')
+    expect(indicator.attributes('style')).toContain('width: 32px')
+    // its label comes in later; the row keeps its size
+    width.value = 135
+    callback!([], {} as ResizeObserver)
+    await nextTick()
+    expect(indicator.attributes('style')).toContain('width: 135px')
+    // only the selected tab is watched
+    await tabs[3]!.trigger('click')
+    await nextTick()
+    await nextTick()
+    expect(observed.has(tabs[1]!.element)).toBe(false)
+    expect(observed.has(tabs[3]!.element)).toBe(true)
+    wrapper.unmount()
+    offset.mockRestore()
+    vi.unstubAllGlobals()
   })
 })

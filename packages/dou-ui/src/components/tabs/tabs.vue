@@ -414,6 +414,7 @@ function measure() {
   const list = listRef.value
   const entry = panels.value.find((panel) => panel.props.value === selected.value)
   const tab = entry && tabElement(entry)
+  watchTab(tab)
   if (!list || !tab) {
     indicator.value = null
     return
@@ -498,6 +499,14 @@ function scrollByPage(direction: 1 | -1) {
 }
 
 let observer: ResizeObserver | undefined
+// the selected tab is watched too: its label can grow while the row keeps its size
+let watchedTab: HTMLElement | undefined
+function watchTab(tab: HTMLElement | undefined) {
+  if (tab === watchedTab) return
+  if (watchedTab) observer?.unobserve(watchedTab)
+  watchedTab = tab
+  if (tab) observer?.observe(tab)
+}
 onMounted(() => {
   measure()
   updateOverflow()
@@ -509,6 +518,7 @@ onMounted(() => {
       updateOverflow()
     })
     observer.observe(listRef.value)
+    if (watchedTab) observer.observe(watchedTab)
   }
 })
 onBeforeUnmount(() => observer?.disconnect())

@@ -144,6 +144,27 @@ describe('DouCodeDiff', () => {
     expect(wrapper.find('.dou-code-diff__hidden-text').text()).toBe('新增 3 行，删除 2 行')
   })
 
+  it('keeps the +/− column last in the gutter, after the columns of `gutters` and `extensions`', async () => {
+    const own = defineCodeExtension({
+      name: 'own',
+      gutters: [{ name: 'own', markers: () => [{ line: 2, text: 'e' }] }],
+    })
+    const { wrapper } = setup({
+      original: 'a\nb\nc',
+      modelValue: 'a\nB\nc',
+      gutters: [{ name: 'note', markers: [{ side: 'modified', line: 2, text: 'n' }] }],
+      extensions: [own],
+    })
+    await nextTick()
+    await nextTick()
+    const [a, b] = wrapper.findAll('.dou-code-diff__side')
+    const row = (side: typeof a) =>
+      side!.findAll('.dou-code-editor__number')[1]!.findAll('.dou-code-editor__cell')
+    expect(row(b).map((cell) => cell.text())).toEqual(['n', 'e', '+'])
+    expect(row(b).at(-1)!.classes()).toContain('dou-code-diff__sign')
+    expect(row(a).at(-1)!.classes()).toContain('dou-code-diff__sign')
+  })
+
   it('marks the words that changed', async () => {
     const { wrapper } = setup()
     await nextTick()

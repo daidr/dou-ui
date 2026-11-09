@@ -1,6 +1,6 @@
 {
   "name": "@dou-ui/code",
-  "version": "0.1.0-alpha.10",
+  "version": "0.1.0-alpha.11",
   "description": "DouUI 的代码编辑器：大文件流畅编辑、输入法友好、多光标与协同",
   "keywords": [
     "vue",

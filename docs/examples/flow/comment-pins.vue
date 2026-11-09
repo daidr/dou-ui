@@ -74,7 +74,7 @@ function read() {
     const on = anchors[thread.id]
     if (thread.resolved || !on || !('node' in on)) return []
     const node = doc.value.nodes.find((n) => n.id === on.node)
-    const name = String(node?.data?.text ?? '节点').split('：')[0]
+    const [name = '节点'] = String(node?.data?.text ?? '').split('：')
     return [
       {
         id: thread.id,

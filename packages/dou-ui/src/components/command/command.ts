@@ -45,9 +45,15 @@ export interface CommandProps {
   maxHeight?: number | string
   /**
    * Render only the items in view. By default this turns on by itself past
-   * 100 items; pass `false` for items of differing heights.
+   * 100 items.
    */
   virtual?: boolean
+  /**
+   * The height of a row in px while `virtual` is on, or one per item. Rows
+   * are this tall then, so an `item` slot taller than one line needs it.
+   * With `virtual` off rows grow to fit and this is unused. Defaults to 36.
+   */
+  itemSize?: number | ((item: CommandItem, index: number) => number)
   /** Names the search box when there is no visible label. */
   ariaLabel?: string
 }

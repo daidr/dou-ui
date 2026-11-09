@@ -51,6 +51,8 @@ const commandProps = computed(() => ({
   filter: props.filter,
   loop: props.loop,
   maxHeight: props.maxHeight,
+  virtual: props.virtual,
+  itemSize: props.itemSize,
   ariaLabel: props.ariaLabel,
 }))
 </script>

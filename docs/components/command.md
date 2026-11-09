@@ -26,9 +26,15 @@
 
 ## 自定义
 
-- `item` 插槽替换一行的内容，参数为 `{ item, active, indices }`，`indices` 是标签中匹配的位置；项上的其他属性会原样保留，可以放图标等。
+- `item` 插槽替换一行的内容，参数为 `{ item, active, indices }`，`indices` 是标签中匹配的位置；项上的其他属性会原样保留，可以放图标等。内容比一行高时，行会跟着长高，高亮底色和滚动定位都按实际高度来。
 - `prefix` 替换放大镜，`empty` 替换无结果时的文字，`footer` 放在列表下方，适合写按键提示。
 - `v-model:query` 绑定搜索词，比如按搜索词从服务器加载 `items`，此时配合 `:filter="(q, item) => ({ score: 0, indices: [] })"` 保留服务器给的顺序。
+
+下面的搜索结果每条排成两行：标题，加上所在位置和时间。
+
+<DocDemo src="command/two-line" column />
+
+开启 `virtual`（超过 100 条时默认开启）后，列表按行高算出每一行的位置，所以这时每一行都固定为 `itemSize` 高，默认 36px，正好放一行。`item` 插槽放两行时传一个合适的高度，例如 `:item-size="52"`；各项高度不同时传函数 `(item, index) => number`。内容超出 `itemSize` 时，开发环境会在控制台提示。
 
 ## 键盘与读屏
 
@@ -38,17 +44,18 @@
 
 ### Command Props
 
-| 名称          | 说明                                          | 类型                                                         | 默认值   |
-| ------------- | --------------------------------------------- | ------------------------------------------------------------ | -------- |
-| `items`       | 命令                                          | `CommandItem[]`                                              | —        |
-| `query`       | 搜索词，配合 `v-model:query`                  | `string`                                                     | `''`     |
-| `placeholder` | 搜索框占位文字                                | `string`                                                     | 语言包   |
-| `emptyText`   | 无结果时的文字                                | `string`                                                     | 语言包   |
-| `filter`      | 自定义匹配与打分                              | `(query: string, item: CommandItem) => CommandMatch \| null` | 模糊匹配 |
-| `loop`        | 方向键到头后回绕                              | `boolean`                                                    | `true`   |
-| `maxHeight`   | 列表最大高度，数字为 px                       | `number \| string`                                           | `320`    |
-| `virtual`     | 只渲染看得见的条目；不传时超过 100 条自动开启 | `boolean`                                                    | —        |
-| `ariaLabel`   | 搜索框与列表的名称                            | `string`                                                     | 占位文字 |
+| 名称          | 说明                                                                                    | 类型                                                         | 默认值   |
+| ------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------ | -------- |
+| `items`       | 命令                                                                                    | `CommandItem[]`                                              | —        |
+| `query`       | 搜索词，配合 `v-model:query`                                                            | `string`                                                     | `''`     |
+| `placeholder` | 搜索框占位文字                                                                          | `string`                                                     | 语言包   |
+| `emptyText`   | 无结果时的文字                                                                          | `string`                                                     | 语言包   |
+| `filter`      | 自定义匹配与打分                                                                        | `(query: string, item: CommandItem) => CommandMatch \| null` | 模糊匹配 |
+| `loop`        | 方向键到头后回绕                                                                        | `boolean`                                                    | `true`   |
+| `maxHeight`   | 列表最大高度，数字为 px                                                                 | `number \| string`                                           | `320`    |
+| `virtual`     | 只渲染看得见的条目；不传时超过 100 条自动开启                                           | `boolean`                                                    | —        |
+| `itemSize`    | 开启 `virtual` 时每一行的高度（px），或按项返回高度的函数；未开启时行按内容长高，不用传 | `number \| (item: CommandItem, index: number) => number`     | `36`     |
+| `ariaLabel`   | 搜索框与列表的名称                                                                      | `string`                                                     | 占位文字 |
 
 ### CommandDialog Props
 
@@ -83,9 +90,9 @@
 
 ### Slots
 
-| 名称     | 说明                                           |
-| -------- | ---------------------------------------------- |
-| `item`   | 一行的内容，参数为 `{ item, active, indices }` |
-| `prefix` | 替换放大镜                                     |
-| `empty`  | 无结果时显示                                   |
-| `footer` | 列表下方                                       |
+| 名称     | 说明                                                                                                         |
+| -------- | ------------------------------------------------------------------------------------------------------------ |
+| `item`   | 一行的内容，参数为 `{ item, active, indices }`；内容比一行高时行跟着长高，开启 `virtual` 时高度为 `itemSize` |
+| `prefix` | 替换放大镜                                                                                                   |
+| `empty`  | 无结果时显示                                                                                                 |
+| `footer` | 列表下方                                                                                                     |

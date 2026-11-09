@@ -125,3 +125,43 @@ describe('DouCommand highlight', () => {
     wrapper.unmount()
   })
 })
+
+const heights = (root: ParentNode) =>
+  [...root.querySelectorAll<HTMLElement>('[role="option"]')].map((row) => row.style.height)
+
+describe('DouCommand row height', () => {
+  const many: CommandItem[] = Array.from({ length: 30 }, (_, index) => ({
+    value: index,
+    label: `第 ${index} 条`,
+    description: index % 2 ? '上海 · 戴兜' : undefined,
+  }))
+
+  it('leaves rows to their content unless the list is virtual', () => {
+    const wrapper = mount(DouCommand, { props: { items, virtual: false } })
+    expect(heights(wrapper.element).every((height) => height === '')).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('gives each virtual row its itemSize, by number or by item', async () => {
+    const wrapper = mount(DouCommand, { props: { items: many, virtual: true } })
+    await nextTick()
+    expect(new Set(heights(wrapper.element))).toEqual(new Set(['36px']))
+    await wrapper.setProps({ itemSize: 52 })
+    expect(new Set(heights(wrapper.element))).toEqual(new Set(['52px']))
+    await wrapper.setProps({
+      itemSize: (item: CommandItem) => (item.description ? 52 : 36),
+    })
+    expect(heights(wrapper.element).slice(0, 2)).toEqual(['36px', '52px'])
+    wrapper.unmount()
+  })
+
+  it('passes virtual and itemSize through the dialog', async () => {
+    const wrapper = mount(DouCommandDialog, {
+      props: { items: many, open: true, virtual: true, itemSize: 48 },
+      attachTo: document.body,
+    })
+    await nextTick()
+    expect(new Set(heights(document))).toEqual(new Set(['48px']))
+    wrapper.unmount()
+  })
+})

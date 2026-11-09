@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { SearchIcon } from '@dou-ui/icons'
-import { computed, nextTick, ref, useId, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, onUpdated, ref, useId, useTemplateRef, watch } from 'vue'
 import { GROUP_START, useGroupedWindow } from '../../composables/use-grouped-window'
 import { ariaHotkey, useApplePlatform } from '../../composables/use-hotkey'
 import { isComposing } from '../../utils/keyboard'
 import { useNamespace } from '../../utils/namespace'
+import { devWarn } from '../../utils/status-check'
 import { useLocale } from '../config-provider/use-config'
 import { DouKbd } from '../kbd'
 import { matchCommand } from './command'
@@ -101,11 +102,16 @@ watch(
 
 const listRef = useTemplateRef<HTMLElement>('list')
 
-// Long lists render only the items in view; every item is one row tall.
+// Long lists render only the items in view, each row exactly `itemSize`
+// tall so its place can be worked out; otherwise rows grow to fit.
+function rowSize(entry: Entry) {
+  const size = props.itemSize ?? 36
+  return typeof size === 'function' ? size(entry.item, entry.index) : size
+}
 const windowing = useGroupedWindow({
   container: () => listRef.value,
   sizes: () => groups.value.map((group) => group.entries.length),
-  itemSize: () => 36,
+  itemSize: (group, index) => rowSize(groups.value[group]!.entries[index]!),
   virtual: () => props.virtual,
 })
 const groupWindows = computed(() =>
@@ -117,6 +123,19 @@ const groupWindows = computed(() =>
 watch(flatKey, () => {
   if (listRef.value) listRef.value.scrollTop = 0
 })
+
+// A row cut to its size overlaps the next one: say so while developing.
+if (process.env.NODE_ENV !== 'production') {
+  onUpdated(() => {
+    if (!windowing.enabled.value || !listRef.value) return
+    for (const row of listRef.value.querySelectorAll<HTMLElement>(`.${ns.e('item')}`)) {
+      if (row.scrollHeight <= row.clientHeight + 1) continue
+      return devWarn(
+        '[dou-ui] DouCommand: an item is taller than `itemSize`. With `virtual` on (by default past 100 items) rows are exactly `itemSize` tall; pass a larger `itemSize`, or `:virtual="false"` to let rows grow.',
+      )
+    }
+  })
+}
 
 watch(active, async (index) => {
   if (windowing.enabled.value && index >= 0) {
@@ -255,6 +274,7 @@ const maxHeight = computed(() =>
             ns.is('active', entry.index === active),
             ns.is('disabled', !!entry.item.disabled),
           ]"
+          :style="windowing.enabled.value ? { height: `${rowSize(entry)}px` } : undefined"
           @mousedown.prevent
           @click="choose(entry.index)"
           @mousemove="enabled(entry.index) && (active = entry.index)"

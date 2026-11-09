@@ -68,6 +68,49 @@ fillMap(doc.getMap('widgets'), dashboard.value)
 
 这一步通常在创建共享文档时在服务器上做一次。`readMap` 反过来从共享文档读出仪表盘，例如在服务器上保存快照。
 
+## 不经过仪表盘修改
+
+在没有仪表盘的地方，比如服务器上，`updateMap` 把共享文档改成新的仪表盘。正在查看这个仪表盘的人会看到格子随之变化。交给程序（比如 AI）改写、过一会儿才写回时，把读到的那一份作为 `base` 传入，只有 `base` 到新仪表盘之间的差别会写进去：
+
+```ts
+import { readMap, updateMap } from '@dou-ui/dashboard/collaboration'
+import type { DashboardDocument } from '@dou-ui/dashboard'
+import * as Y from 'yjs'
+
+async function rewrite(
+  ydoc: Y.Doc,
+  ask: (dashboard: DashboardDocument) => Promise<DashboardDocument>,
+) {
+  const map = ydoc.getMap('widgets')
+  const base = readMap(map)
+  // 交出一份副本，base 要保持读出时的样子
+  const next = await ask(structuredClone(base))
+  updateMap(map, next, { base, origin: 'ai' })
+}
+```
+
+- 只写 `base` 和新仪表盘之间不同的地方：新加和删除的格子、改了的键（标题、`props` 等）、改了位置的断点、挪了顺序的格子。这期间其他人新加的格子、在别的断点上的移动、改的别的键都保留。同一个键两边都改了时，以新仪表盘为准。比较时不看对象里键的顺序，程序只是把键换了顺序，不算改动。
+- `props` 整个算一个键：两边改了 `props` 里不同的项，也以新仪表盘为准。
+- `base` 里有、新仪表盘里没有的格子会被删除；这期间被其他人删掉的格子，即使新仪表盘改了它，也保持删除。
+- 新加的格子和挪了顺序的格子，排在新仪表盘里它前面那个格子的后面；排在新仪表盘最前面的，放到它后面第一个没动的格子前面；排在最后一个没动的格子之后的，放到所有格子的最后。其他格子的顺序不变。比如 `base` 是 a、b、c，这期间别人把 c 挪到了最前面（c、a、b），程序在 b 后面加了 x、在末尾加了 y（a、b、x、c、y）：x 跟在 b 后面，y 放到最后，结果是 c、a、b、x、y。
+- 不要在 `base` 上原地修改再交回：新仪表盘和 `base` 是同一个对象，或者里面的格子是 `base` 里原地改过的那个时，没有差别可写。开发环境下，前一种情况和 `readMap` 读出后又被原地改过的格子会在控制台警告。`base` 里没改的格子原样放进新仪表盘没有问题，即使这期间别人改过它，别人的修改也会保留。
+- 新仪表盘里没有 `type` 的格子、和前面重复的 id 不会写入，开发环境下会在控制台警告。
+- 不传 `base` 时，以共享文档现在的内容为准：新仪表盘里没有的格子都会被删除，这期间其他人的修改也会被改回去。
+- 要让格子一个个出现，就每填好一个调用一次 `updateMap`，每次把上一次写入的仪表盘作为 `base`。
+- `fillMap` 和 `updateMap` 都可以传 `origin`，作为这次 Yjs 事务的来源。
+
+写入的一方也可以像其他人一样出现在仪表盘上：在它的 awareness 里设置 `user` 和 `dashboard` 字段（类型见下面的 `DashboardPresence`），其他人会看到它正在填的格子被框出，上方标出它的名字：
+
+```ts
+awareness.setLocalStateField('user', { name: 'AI 助手', color: '#7c5cff' })
+awareness.setLocalStateField('dashboard', {
+  widget: 'sales',
+  action: 'settings',
+})
+// 写完后
+awareness.setLocalStateField('dashboard', null)
+```
+
 ## 撤销
 
 协同编辑时，撤销和重做只针对当前用户自己的修改，不会撤销其他人的修改。`canUndo`、`canRedo` 也按自己的修改计算。
@@ -112,11 +155,12 @@ interface DashboardPresence {
 
 ### 函数和常量
 
-| 名称                  | 说明                           | 类型                                                 |
-| --------------------- | ------------------------------ | ---------------------------------------------------- |
-| `fillMap`             | 把仪表盘写入共享文档           | `(map: Y.Map, dashboard: DashboardDocument) => void` |
-| `readMap`             | 从共享文档读出仪表盘           | `(map: Y.Map) => DashboardDocument`                  |
-| `collaborationColors` | 不传 `user.color` 时使用的颜色 | `string[]`                                           |
+| 名称                  | 说明                                                 | 类型                                                                               |
+| --------------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `fillMap`             | 把仪表盘写入空的共享文档                             | `(map: Y.Map, dashboard: DashboardDocument, options?: { origin? }) => void`        |
+| `updateMap`           | 把共享文档从 `base` 改成新的仪表盘，只写有差别的地方 | `(map: Y.Map, dashboard: DashboardDocument, options?: { base?, origin? }) => void` |
+| `readMap`             | 从共享文档读出仪表盘                                 | `(map: Y.Map) => DashboardDocument`                                                |
+| `collaborationColors` | 不传 `user.color` 时使用的颜色                       | `string[]`                                                                         |
 
 ### 接入其他同步方式
 

@@ -79,12 +79,14 @@ import * as Y from 'yjs'
 async function rewrite(ydoc: Y.Doc, ask: (flow: FlowDocument) => Promise<FlowDocument>) {
   const maps = { nodes: ydoc.getMap('nodes'), edges: ydoc.getMap('edges') }
   const base = readMaps(maps)
-  const next = await ask(base)
+  // 交出一份副本，base 要保持读出时的样子
+  const next = await ask(structuredClone(base))
   updateMaps(maps, next, { base, origin: 'ai' })
 }
 ```
 
-- 只写 `base` 和新流程之间不同的字段；这期间其他人移动的节点、新加的节点和连线、改的别的字段都保留。同一个字段两边都改了时，以新流程为准。
+- 只写 `base` 和新流程之间不同的字段；这期间其他人移动的节点、新加的节点和连线、改的别的字段都保留。同一个字段两边都改了时，以新流程为准。比较时不看对象里键的顺序，程序只是把键换了顺序，不算改动。
+- 不要在 `base` 上原地修改再交回：新流程和 `base` 是同一个对象，或者里面的节点、连线是 `base` 里原地改过的那个时，没有差别可写。开发环境下，前一种情况和 `readMaps` 读出后又被原地改过的节点、连线会在控制台警告。`base` 里没改的节点和连线原样放进新流程没有问题，即使这期间别人改过它们，别人的修改也会保留。
 - `base` 里有、新流程里没有的节点和连线会被删除；这期间被其他人删掉的，即使新流程改了它，也保持删除。新流程里新加的连线如果连到这期间被删掉的节点，不会写入。
 - 不传 `base` 时，以共享文档现在的内容为准：新流程里没有的节点和连线都会被删除，这期间其他人的修改也会被改回去。
 - `readMaps` 读出的节点和连线顺序不固定，两次读取、两个客户端之间都可能不同。

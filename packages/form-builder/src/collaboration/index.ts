@@ -128,10 +128,16 @@ function writeOrder(map: Shared, parent: string | null, children: readonly FormN
   })
 }
 
+export interface FillMapsOptions {
+  /** The origin of the Yjs transaction, so the others can tell who wrote it. */
+  origin?: unknown
+}
+
 /** Writes a form into empty maps, e.g. when a form so far saved as JSON starts being edited together. */
 export function fillMaps(
   maps: { nodes: Y.Map<unknown>; settings: Y.Map<unknown> },
   document: FormDocument,
+  options: FillMapsOptions = {},
 ) {
   const fill = () => {
     for (const node of walkNodes(document.nodes)) writeNode(maps.nodes, node)
@@ -142,7 +148,7 @@ export function fillMaps(
       if (key !== 'nodes' && key !== 'version' && value !== undefined) maps.settings.set(key, value)
   }
   const ydoc = maps.nodes.doc
-  if (ydoc) ydoc.transact(fill)
+  if (ydoc) ydoc.transact(fill, options.origin ?? null)
   else fill()
 }
 

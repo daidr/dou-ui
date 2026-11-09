@@ -239,7 +239,7 @@ const label = (marker: FlowCommentMarker) =>
           key="new"
           :thread="null"
           :author="comments.author.value"
-          autofocus
+          :autofocus="comments.pendingFocus.value"
           @action="comments.apply"
           @cancel="close"
         />

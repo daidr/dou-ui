@@ -162,7 +162,8 @@ function pinComment(
       const centre = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }
       const local = turn(start, centre, -ctx.nodeRotation(node))
       const at = { x: (local.x - rect.x) / rect.width, y: (local.y - rect.y) / rect.height }
-      ctx.comment({ node, at })
+      // a tap: the card opens without the focus, so a phone's keyboard doesn't come up
+      ctx.comment({ node, at }, { focus: !finger })
     },
   }
 }

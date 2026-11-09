@@ -27,6 +27,8 @@ export interface FlowComments {
   active: ComputedRef<string | null>
   /** What a thread being started is about, until its first comment is sent. */
   pending: ShallowRef<FlowCommentAnchor | null>
+  /** Whether the reply box of the thread being started takes the focus. */
+  pendingFocus: ShallowRef<boolean>
   /** Goes up when the open thread should take the focus, ready for a reply. */
   focusRequest: ShallowRef<number>
   /**
@@ -115,6 +117,7 @@ export function useFlowComments(options: {
   const openedHere = (id: string | null) => id === ownOpen
 
   const pending = shallowRef<FlowCommentAnchor | null>(null)
+  const pendingFocus = shallowRef(true)
   const focusRequest = shallowRef(0)
 
   const openOn = computed(() => {
@@ -179,7 +182,8 @@ export function useFlowComments(options: {
       if (!at || !writable.value || !doc.value.nodes.some((n) => n.id === node)) return false
       open(null)
       pending.value = { node, at }
-      focusRequest.value++
+      pendingFocus.value = focus
+      if (focus) focusRequest.value++
       return true
     }
     anchor = 'node' in anchor ? { node: anchor.node } : { edge: anchor.edge }
@@ -197,7 +201,8 @@ export function useFlowComments(options: {
     if (!writable.value) return false
     open(null)
     pending.value = anchor
-    focusRequest.value++
+    pendingFocus.value = focus
+    if (focus) focusRequest.value++
     return true
   }
 
@@ -308,6 +313,7 @@ export function useFlowComments(options: {
     author: computed(() => props.author),
     active,
     pending,
+    pendingFocus,
     focusRequest,
     openOn,
     start,

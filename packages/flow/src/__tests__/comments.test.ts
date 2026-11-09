@@ -386,6 +386,7 @@ const press = (type: string, x: number, y: number) =>
     clientY: y,
     button: 0,
     pointerId: 5,
+    pointerType: 'mouse',
   })
 
 const touch = (type: string, x: number, y: number) =>
@@ -409,7 +410,7 @@ describe('DouFlowEditor pinned comments', () => {
       el.getAttribute('aria-label'),
     )
     // the node's marker counts only the thread about the whole node
-    expect(labels).toEqual(['1 条评论', '主管审批的评论 1', '主管审批的评论 2', '1 条评论'])
+    expect(labels).toEqual(['1 条评论', '评论 1，主管审批', '评论 2，主管审批', '1 条评论'])
     const [first, second] = pins()
     expect(first!.textContent).toBe('1')
     // on its point: the middle of the 200 × 60 node, and its top right corner
@@ -560,6 +561,46 @@ describe('DouFlowEditor pinned comments', () => {
     pins()[0]!.click()
     await ticks()
     expect(card()).not.toBe(null)
+  })
+
+  it('opens the card of a pin started by a tap without the focus, so no keyboard comes up', async () => {
+    const tool = ref<WhiteboardTool>('comment')
+    const { wrapper } = setup({ extensions: [flowKit(), whiteboardKit({ tool })] })
+    await ticks()
+    const root = wrapper.find('.dou-flow-editor').element
+    const node = wrapper.find('[data-node-id="b"]').element
+    node.dispatchEvent(touch('pointerdown', 350, 15))
+    root.dispatchEvent(touch('pointerup', 350, 15))
+    await ticks()
+    await new Promise((resolve) => setTimeout(resolve))
+    await ticks()
+    expect(card()).not.toBe(null)
+    expect(card()!.contains(document.activeElement)).toBe(false)
+  })
+
+  it('starts a thread on a node without the focus when asked to', async () => {
+    const { editor } = setup()
+    await ticks()
+    expect(editor.value!.comment({ node: 'b' }, { focus: false })).toBe(true)
+    await ticks()
+    await new Promise((resolve) => setTimeout(resolve))
+    await ticks()
+    expect(card()).not.toBe(null)
+    expect(card()!.contains(document.activeElement)).toBe(false)
+  })
+
+  it('puts the focus in the reply box of a pin started with a mouse', async () => {
+    const tool = ref<WhiteboardTool>('comment')
+    const { wrapper } = setup({ extensions: [flowKit(), whiteboardKit({ tool })] })
+    await ticks()
+    const root = wrapper.find('.dou-flow-editor').element
+    const node = wrapper.find('[data-node-id="b"]').element
+    node.dispatchEvent(press('pointerdown', 350, 15))
+    root.dispatchEvent(press('pointerup', 350, 15))
+    await ticks()
+    await new Promise((resolve) => setTimeout(resolve))
+    await ticks()
+    expect(card()!.contains(document.activeElement)).toBe(true)
   })
 
   it('starts a thread on the selected node with Enter under the comment tool', async () => {

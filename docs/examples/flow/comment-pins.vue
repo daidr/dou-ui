@@ -106,8 +106,10 @@ watch([doc, threads], read, { deep: true, flush: 'post' })
       <li v-for="item in places" :key="item.id">
         <button type="button" :aria-pressed="active === item.id" @click="active = item.id">
           <span v-if="item.number" class="comment-pins__number">{{ item.number }}</span>
-          <span class="comment-pins__place">{{ item.place }}</span>
-          {{ item.text }}
+          <span>
+            <span class="comment-pins__place">{{ item.place }}</span>
+            {{ item.text }}
+          </span>
         </button>
       </li>
     </ul>
@@ -127,7 +129,9 @@ watch([doc, threads], read, { deep: true, flush: 'post' })
   list-style: none;
 }
 .comment-pins__list button {
-  display: block;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
   width: 100%;
   padding: 6px 8px;
   border: 0;
@@ -146,9 +150,9 @@ watch([doc, threads], read, { deep: true, flush: 'post' })
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex: none;
   min-width: 20px;
   height: 20px;
-  margin-inline-end: 8px;
   border: 1px solid var(--dou-color-border);
   border-radius: 10px 10px 10px 2px;
   font-size: var(--dou-font-size-sm);

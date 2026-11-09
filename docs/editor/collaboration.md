@@ -107,6 +107,31 @@ async function rewrite(ydoc: Y.Doc, ask: (markdown: string) => Promise<string>) 
 - `base` 要和新版本用同样的方式得到，比如都从 Markdown 读出来，否则 Markdown 带不出的那些差别也会被当成改动。不传 `base` 时，以共享文档现在的内容为准，这期间其他人的修改会被改回去。
 - `origin` 是这次 Yjs 事务的来源，用来区分是谁写的。空的共享文档会直接写入。
 
+### 显示写入方的光标
+
+写入的一方也可以像其他协作者一样，在文档里显示光标和名字。名字和颜色放在 awareness 的 `user` 字段，光标放在 `cursor` 字段，值用 `cursorAt` 得到：给出块的 id 和块内文字的位置，不需要编辑器。
+
+```ts
+import { cursorAt, readMap, updateMap } from '@dou-ui/editor/collaboration'
+
+awareness.setLocalStateField('user', { name: 'AI 助手', color: '#7c5cff' })
+
+// 每写一段之后，把光标放到刚写的地方，比如续写时放在最后一个块的末尾
+updateMap(map, next, { base, extensions, origin: 'ai' })
+const last = readMap(map, { extensions }).blocks.at(-1)
+awareness.setLocalStateField('cursor', last ? cursorAt(map, { block: last.id }) : null)
+
+// 写完后
+awareness.setLocalStateField('cursor', null)
+```
+
+- `offset` 是块内文字的位置，按字符串的 `length` 计算，提及这类行内节点算一个字符；超出文字长度时放在末尾，不传时也放在末尾。
+- 表格的文字在格子里，要再给出 `cell`，格式是 `行 id:列 id`。
+- 传入第三个参数 `anchor` 时显示一段选区，从 `anchor` 到光标所在的位置。
+- 光标记的是文字里的相对位置，之后其他人在它前面输入或删除文字，光标会跟着移动。
+- 块不存在或者没有文字（比如图片、没给 `cell` 的表格）时返回 `null`。
+- 从 Markdown 读出的块没有 id，写入时会对上原来的块或者得到新的 id，所以要在 `updateMap` 之后用 `readMap` 读出 id。
+
 ## 评论
 
 传入 `comments` 后，[评论](./comments)也放在共享文档里，新的讨论和回复会实时出现在每个人那里。这时不用再写 `v-model:comments`，编辑器从共享文档里读取讨论。下面的示例里两个人都可以选中文字发起讨论。
@@ -161,8 +186,35 @@ interface CollaborationUser {
 | `fillMap`   | 把文档写入空的共享 `Y.Map`                            | `(map, doc: EditorDocument<PartialBlock>, options?: { extensions?, origin? }) => void`        |
 | `updateMap` | 把共享 `Y.Map` 从 `base` 改成 `doc`，只写有差别的地方 | `(map, doc: EditorDocument<PartialBlock>, options?: { base?, extensions?, origin? }) => void` |
 | `readMap`   | 从共享 `Y.Map` 读出文档                               | `(map, options?: { extensions? }) => EditorDocument`                                          |
+| `cursorAt`  | 得到放进 awareness `cursor` 字段的光标，不需要编辑器  | `(map, head: CursorTarget, anchor?: CursorTarget) => EditorCursor \| null`                    |
 
 `extensions` 是编辑器用的扩展，默认 `[editorKit()]`；`origin` 是 Yjs 事务的来源。
+
+每个人在 awareness 里的 `cursor` 字段共享自己的光标，类型是 `EditorCursor | null`：
+
+```ts
+interface CursorTarget {
+  block: string
+  /** 表格的格子，`行 id:列 id` */
+  cell?: string
+  /** 块内文字的位置，不传时为末尾 */
+  offset?: number
+}
+
+interface EditorCursorPlace {
+  block: string
+  cell?: string
+  /** Yjs 相对位置的 JSON（Y.relativePositionToJSON） */
+  position: unknown
+}
+
+interface EditorCursor {
+  /** 选区的起点，和 head 相同时只显示光标 */
+  anchor: EditorCursorPlace
+  /** 光标和名字所在的位置 */
+  head: EditorCursorPlace
+}
+```
 
 ### CSS 变量
 

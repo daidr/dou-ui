@@ -16,7 +16,15 @@ import {
 import { blocksToDoc, docToBlocks, type EditorDocument, type PartialBlock } from '../core/model'
 import { editorKit } from '../extensions/editor-kit'
 import { createBinding, readDoc, syncPlugin, updateDoc, writeDoc, type YBlock } from './binding'
-import { cursorsPlugin, positionOf, type AwarenessLike } from './cursors'
+import {
+  cursorAt,
+  cursorsPlugin,
+  positionOf,
+  type AwarenessLike,
+  type CursorTarget,
+  type EditorCursor,
+  type EditorCursorPlace,
+} from './cursors'
 
 /** How the people editing together see each other. */
 export interface CollaborationUser {
@@ -216,4 +224,5 @@ export function readMap(map: Y.Map<unknown>, options: ReadMapOptions = {}): Edit
   return { version: 1, blocks: doc ? docToBlocks(doc) : [] }
 }
 
-export type { AwarenessLike }
+export { cursorAt }
+export type { AwarenessLike, CursorTarget, EditorCursor, EditorCursorPlace }

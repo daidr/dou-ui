@@ -82,6 +82,10 @@
     justify-content: center;
     gap: 8px;
     padding: 8px;
+    /* as wide as the field: a long message wraps instead of widening the list */
+    contain: inline-size;
+    overflow-wrap: anywhere;
+    text-align: center;
     color: var(--dou-color-text-tertiary);
     font-size: var(--dou-font-size-sm);
 

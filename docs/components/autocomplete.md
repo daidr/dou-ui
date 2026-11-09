@@ -20,9 +20,15 @@
 
 <DocDemo src="autocomplete/async" />
 
+## 逐级选择
+
+选中一条建议后列表默认收起。把 `hide-on-select` 设为 `false`，列表会保持打开，并马上按新的值重新 `fetch`，可以一层一层往下选，比如选目录。新的建议回来之前，列表里显示“加载中…”，不会留着上一层的建议。不管是否收起，选中后下次打开列表时，显示的都是按新值取的建议。用静态的 `options` 时也一样：`hide-on-select` 为 `false` 时选中后列表不收起，显示按新值筛选的选项。
+
+<DocDemo src="autocomplete/drill" />
+
 ## 插槽
 
-`prefix` 放在文字前面，`option` 自定义每一条建议（参数 `{ option, query }`），`empty` 在没有建议时显示；不提供 `empty` 时，没有建议就直接收起列表。
+`prefix` 放在文字前面，`option` 自定义每一条建议（参数 `{ option, query }`），`empty` 在没有建议时显示，文字较长时会在列表宽度内换行；不提供 `empty` 时，没有建议就直接收起列表。
 
 ## 键盘与读屏
 
@@ -40,25 +46,26 @@
 
 ### Autocomplete Props
 
-| 名称          | 说明                                                                    | 类型                                           | 默认值           |
-| ------------- | ----------------------------------------------------------------------- | ---------------------------------------------- | ---------------- |
-| `modelValue`  | 文字，配合 `v-model`                                                    | `string`                                       | —                |
-| `options`     | 按文字过滤的建议                                                        | `(AutocompleteOption \| string)[]`             | `[]`             |
-| `fetch`       | 根据文字取建议                                                          | `(query: string) => Source \| Promise<Source>` | —                |
-| `filter`      | `options` 的匹配方式                                                    | `boolean \| (option, query) => boolean`        | `true`           |
-| `debounce`    | `fetch` 前等待的毫秒数                                                  | `number`                                       | `200`            |
-| `minLength`   | 至少输入几个字才给建议                                                  | `number`                                       | `0`              |
-| `highlight`   | 标出命中的部分                                                          | `boolean`                                      | `true`           |
-| `placeholder` | 占位文字                                                                | `string`                                       | —                |
-| `clearable`   | 显示清空按钮                                                            | `boolean`                                      | `false`          |
-| `size`        | 尺寸，默认取表单或全局配置                                              | `'sm' \| 'md' \| 'lg'`                         | `'md'`           |
-| `disabled`    | 禁用                                                                    | `boolean`                                      | `false`          |
-| `readonly`    | 只读：值照常显示、可以聚焦，但不能修改；Form 设置 `readonly` 时自动只读 | `boolean`                                      | `false`          |
-| `invalid`     | 标记为无效                                                              | `boolean`                                      | `false`          |
-| `placement`   | 列表弹出的位置                                                          | `Placement`                                    | `'bottom-start'` |
-| `teleport`    | 列表渲染到哪里，`false` 留在原处                                        | `string \| HTMLElement \| false`               | `'body'`         |
-| `virtual`     | 只渲染看得见的建议；不传时超过 100 条自动开启                           | `boolean`                                      | —                |
-| `multiline`   | 文字可以换行，输入框随内容变高，默认最多 8 行                           | `boolean \| { maxRows?: number }`              | `false`          |
+| 名称           | 说明                                                                                | 类型                                           | 默认值           |
+| -------------- | ----------------------------------------------------------------------------------- | ---------------------------------------------- | ---------------- |
+| `modelValue`   | 文字，配合 `v-model`                                                                | `string`                                       | —                |
+| `options`      | 按文字过滤的建议                                                                    | `(AutocompleteOption \| string)[]`             | `[]`             |
+| `fetch`        | 根据文字取建议                                                                      | `(query: string) => Source \| Promise<Source>` | —                |
+| `filter`       | `options` 的匹配方式                                                                | `boolean \| (option, query) => boolean`        | `true`           |
+| `debounce`     | `fetch` 前等待的毫秒数                                                              | `number`                                       | `200`            |
+| `minLength`    | 至少输入几个字才给建议                                                              | `number`                                       | `0`              |
+| `highlight`    | 标出命中的部分                                                                      | `boolean`                                      | `true`           |
+| `placeholder`  | 占位文字                                                                            | `string`                                       | —                |
+| `clearable`    | 显示清空按钮                                                                        | `boolean`                                      | `false`          |
+| `size`         | 尺寸，默认取表单或全局配置                                                          | `'sm' \| 'md' \| 'lg'`                         | `'md'`           |
+| `disabled`     | 禁用                                                                                | `boolean`                                      | `false`          |
+| `readonly`     | 只读：值照常显示、可以聚焦，但不能修改；Form 设置 `readonly` 时自动只读             | `boolean`                                      | `false`          |
+| `invalid`      | 标记为无效                                                                          | `boolean`                                      | `false`          |
+| `placement`    | 列表弹出的位置                                                                      | `Placement`                                    | `'bottom-start'` |
+| `teleport`     | 列表渲染到哪里，`false` 留在原处                                                    | `string \| HTMLElement \| false`               | `'body'`         |
+| `virtual`      | 只渲染看得见的建议；不传时超过 100 条自动开启                                       | `boolean`                                      | —                |
+| `multiline`    | 文字可以换行，输入框随内容变高，默认最多 8 行                                       | `boolean \| { maxRows?: number }`              | `false`          |
+| `hideOnSelect` | 选中建议后收起列表；`false` 时保持打开，显示新值的建议，`fetch` 和 `options` 都适用 | `boolean`                                      | `true`           |
 
 其余属性（如 `name`、`maxlength`）传给原生输入框。
 

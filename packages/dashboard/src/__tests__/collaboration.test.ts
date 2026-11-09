@@ -282,9 +282,11 @@ describe('updateMap', () => {
     try {
       const { map } = shared()
       const base = readMap(map)
-      // unchanged widgets of base handed on as they are: fine
+      // unchanged widgets of base handed on as they are, though others changed them meanwhile: fine
+      ;(map.get('a') as Y.Map<unknown>).set('title', '别人改的')
       updateMap(map, { ...base, widgets: [...base.widgets, plain('c')] }, { base })
       expect(warn).not.toHaveBeenCalled()
+      expect(widgetIn(map, 'a')!.title).toBe('别人改的')
       const again = readMap(map)
       updateMap(
         map,
@@ -297,7 +299,7 @@ describe('updateMap', () => {
         },
         { base: again },
       )
-      expect(widgetIn(map, 'a')!.title).toBe('订单')
+      expect(widgetIn(map, 'a')!.title).toBe('别人改的')
       expect(warn).toHaveBeenCalledTimes(1)
       expect(warn.mock.calls[0]![0]).toContain('"a"')
     } finally {

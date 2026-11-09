@@ -146,10 +146,12 @@ describe('readMaps and updateMaps', () => {
       const base = readMaps(maps(ydoc))
       updateMaps(maps(ydoc), base, { base })
       expect(warn.mock.calls[0]![0]).toContain('structuredClone')
-      // handed on unchanged: fine; changed in place: warned
+      // handed on unchanged, though someone moved a meanwhile: fine; changed in place: warned
       warn.mockClear()
+      ;(maps(ydoc).nodes.get('a') as Y.Map<unknown>).set('x', 40)
       updateMaps(maps(ydoc), { ...base, nodes: [...base.nodes] }, { base })
       expect(warn).not.toHaveBeenCalled()
+      expect(readMaps(maps(ydoc)).nodes.find((item) => item.id === 'a')!.x).toBe(40)
       const node = base.nodes.find((item) => item.id === 'b')!
       node.x = 999
       updateMaps(maps(ydoc), { ...base, nodes: [...base.nodes] }, { base })

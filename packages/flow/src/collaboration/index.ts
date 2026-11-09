@@ -179,9 +179,18 @@ export function fillMaps(maps: Maps, doc: FlowDocument, options: FillMapsOptions
   transact(maps, fill, options.origin)
 }
 
+/**
+ * While developing: each node and edge `readMaps` gave, as it was then, to
+ * tell one of `base` changed in place from one others changed meanwhile.
+ */
+const asRead = new WeakMap<object, Item>()
+
 /** Every node or edge a map holds. */
-function readAll<T>(map: Shared): T[] {
-  return Array.from(map.keys(), (id) => read<T>(map, id)).filter((item): item is T => !!item)
+function readAll<T extends object>(map: Shared): T[] {
+  const items = Array.from(map.keys(), (id) => read<T>(map, id)).filter((item): item is T => !!item)
+  if (process.env.NODE_ENV !== 'production')
+    for (const item of items) asRead.set(item, structuredClone(item) as Item)
+  return items
 }
 
 /**
@@ -238,13 +247,13 @@ function syncItems(
   }
 }
 
-/** Warns about the first of `items` that is one of `kept` (from base) but no longer what the map holds: likely changed in place. */
-function warnChangedItem(map: Shared, items: readonly (FlowNode | FlowEdge)[], kept: Set<object>) {
+/** Warns about the first of `items` that is one of `kept` (from base) changed in place since it was read. */
+function warnChangedItem(items: readonly (FlowNode | FlowEdge)[], kept: Set<object>) {
   for (const item of items) {
-    const now = kept.has(item) ? read<Item>(map, item.id) : null
-    if (!now || !changedKeys(now, item as unknown as Item).size) continue
+    const snapshot = kept.has(item) ? asRead.get(item) : undefined
+    if (!snapshot || !changedKeys(snapshot, item as unknown as Item).size) continue
     console.warn(
-      `[@dou-ui/flow] updateMaps got "${item.id}" of \`base\` itself in \`doc\`, and it isn't what the map holds: a change made to it in place isn't written. Change a copy of \`base\`, e.g. structuredClone(base).`,
+      `[@dou-ui/flow] updateMaps got "${item.id}" of \`base\` itself in \`doc\`, changed in place: the change isn't written. Change a copy of \`base\`, e.g. structuredClone(base).`,
     )
     return true
   }
@@ -252,15 +261,15 @@ function warnChangedItem(map: Shared, items: readonly (FlowNode | FlowEdge)[], k
 }
 
 /** Warns when `doc` holds `base` itself, or nodes or edges of it changed in place. */
-function warnChangedInPlace(maps: Maps, doc: FlowDocument, base: FlowDocument) {
+function warnChangedInPlace(doc: FlowDocument, base: FlowDocument) {
   if (doc === base || doc.nodes === base.nodes) {
     console.warn(
       '[@dou-ui/flow] updateMaps got the same object as `doc` and `base`, so nothing is written: change a copy of `base`, e.g. structuredClone(base).',
     )
     return
   }
-  if (!warnChangedItem(maps.nodes, doc.nodes, new Set(base.nodes)))
-    warnChangedItem(maps.edges, doc.edges, new Set(base.edges))
+  if (!warnChangedItem(doc.nodes, new Set(base.nodes)))
+    warnChangedItem(doc.edges, new Set(base.edges))
 }
 
 export interface UpdateMapsOptions extends FillMapsOptions {
@@ -282,7 +291,7 @@ export interface UpdateMapsOptions extends FillMapsOptions {
  */
 export function updateMaps(maps: Maps, doc: FlowDocument, options: UpdateMapsOptions = {}) {
   const { base } = options
-  if (process.env.NODE_ENV !== 'production' && base) warnChangedInPlace(maps, doc, base)
+  if (process.env.NODE_ENV !== 'production' && base) warnChangedInPlace(doc, base)
   const update = () => {
     syncItems(maps.nodes, doc.nodes, base?.nodes)
     // a new edge to a node someone removed meanwhile would lead nowhere

@@ -61,7 +61,7 @@ function validate(): string[] {
 
 /** Source files whose change users can notice. */
 const isPackageSource = (path: string) =>
-  /^packages\/[^/]+\/(src|style|styles)\//.test(path) &&
+  /^packages\/([^/]+\/(src|style|styles)|icons\/icons)\//.test(path) &&
   !/(__tests__|\.test\.ts$|\.spec\.ts$)/.test(path)
 
 switch (command) {

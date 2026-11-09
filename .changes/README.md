@@ -32,7 +32,7 @@ bun run changelog add sheet-comments --type 新增 --packages sheet --body "支�
 
 ## 什么时候可以不写
 
-改动了 `packages/*/src` 的 PR 都要有一条，CI 会检查。纯重构、只改测试这类用户感觉不到的改动，给 PR 加上「无需记录」标签即可跳过。
+改动了 `packages/*/src`（以及图标源文件 `packages/icons/icons`）的 PR 都要有一条，CI 会检查。纯重构、只改测试这类用户感觉不到的改动，给 PR 加上「无需记录」标签即可跳过。
 
 ## 发版之后
 

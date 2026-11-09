@@ -194,7 +194,8 @@ export interface ChatMessageSlots {
   /**
    * Content that follows the last word of the last text part on the same
    * line, e.g. an "edited" mark. Unlike `actions` it always shows, whatever
-   * `actionsVisible` is. Without a text part it takes a line after the parts.
+   * `actionsVisible` is. Without a text part it takes a line after the parts,
+   * once `loading` is off.
    */
   trailing?: () => unknown
   /** Replaces all parts, for a message laid out by hand. */

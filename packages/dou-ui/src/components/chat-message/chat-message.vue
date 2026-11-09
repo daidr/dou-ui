@@ -331,7 +331,7 @@ const rest = (part: AnyPart) => {
             :index="index"
           />
         </template>
-        <div v-if="slots.trailing && lastText < 0" :class="ns.e('trailing')">
+        <div v-if="slots.trailing && lastText < 0 && !loading" :class="ns.e('trailing')">
           <slot name="trailing" />
         </div>
       </slot>

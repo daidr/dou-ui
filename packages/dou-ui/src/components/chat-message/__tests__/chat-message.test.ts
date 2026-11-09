@@ -223,6 +223,9 @@ describe('DouChatMessage', () => {
     })
     const content = tools.get('.dou-chat-message__content').element
     expect(content.lastElementChild!.className).toBe('dou-chat-message__trailing')
+    // not before the loading dots: it waits until loading ends
+    const waiting = mount(DouChatMessage, { props: { parts: [], loading: true }, slots: mark })
+    expect(waiting.find('.mark').exists()).toBe(false)
   })
 
   it('keeps the trailing slot off the reasoning in Markdown', () => {

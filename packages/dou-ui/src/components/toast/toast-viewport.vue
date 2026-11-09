@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale, useZIndex } from '../config-provider/use-config'
 import { nextViewportId, removeToast, toastState } from './store'
-import ToastItem from './toast-item.vue'
+import ToastStack from './toast-stack.vue'
 import type { ToastPlacement, ToastViewportProps } from './toast'
 
 defineOptions({ name: 'DouToastViewport', inheritAttrs: false })
 
-const props = withDefaults(defineProps<ToastViewportProps>(), { max: 5 })
+const props = withDefaults(defineProps<ToastViewportProps>(), { max: 5, stacked: true })
 
 const ns = useNamespace('toast')
 const { t } = useLocale()
@@ -30,13 +30,26 @@ const placements: ToastPlacement[] = [
   'bottom-right',
 ]
 
+// A placement stays on screen until its last toast has finished leaving.
+const shown = reactive(new Set<ToastPlacement>())
+watch(
+  () => toastState.items.map((item) => item.placement),
+  (used) => used.forEach((placement) => shown.add(placement)),
+  { immediate: true },
+)
+function settle(placement: ToastPlacement) {
+  if (!toastState.items.some((item) => item.placement === placement)) shown.delete(placement)
+}
+
 const groups = computed(() =>
-  placements
-    .map((placement) => ({
-      placement,
-      items: active.value ? toastState.items.filter((item) => item.placement === placement) : [],
-    }))
-    .filter((group) => group.items.length > 0),
+  active.value
+    ? placements
+        .filter((placement) => shown.has(placement))
+        .map((placement) => ({
+          placement,
+          items: toastState.items.filter((item) => item.placement === placement),
+        }))
+    : [],
 )
 
 // Too many at one placement: the oldest go first.
@@ -78,9 +91,7 @@ onMounted(() => (mounted.value = true))
       :style="{ zIndex }"
       :aria-label="t('toast.region')"
     >
-      <TransitionGroup tag="ol" :class="ns.e('list')" name="dou-toast">
-        <ToastItem v-for="item in group.items" :key="item.id" :toast="item" />
-      </TransitionGroup>
+      <ToastStack :items="group.items" :stacked="stacked" @settled="settle(group.placement)" />
     </section>
   </Teleport>
 </template>

@@ -5,11 +5,18 @@ import { DouConfigProvider, DouToastViewport, en, toast } from '../../../index'
 import { setInstalledAppContext } from '../../../utils/app-context'
 import { toastState } from '../store'
 
-const items = () => [...document.querySelectorAll<HTMLElement>('.dou-toast__item')]
+// Toasts on their way out stay until their transition ends.
+const items = () => [
+  ...document.querySelectorAll<HTMLElement>('.dou-toast__item:not(.dou-toast-leave-active)'),
+]
+const list = () => document.querySelector<HTMLElement>('.dou-toast__list')!
+const pointer = (type: string, pointerType = 'mouse') =>
+  Object.assign(new Event(type, { bubbles: type === 'pointerdown' }), { pointerType })
 
 beforeEach(() => vi.useFakeTimers())
 afterEach(() => {
   toast.closeAll()
+  vi.runAllTimers()
   vi.useRealTimers()
   setInstalledAppContext(null)
 })
@@ -111,10 +118,12 @@ describe('toast', () => {
     toast('稍等', { duration: 1000 })
     await nextTick()
     vi.advanceTimersByTime(600)
-    items()[0]!.dispatchEvent(new MouseEvent('mouseenter'))
+    list().dispatchEvent(pointer('pointerenter'))
+    await nextTick()
     vi.advanceTimersByTime(5000)
     expect(toastState.items).toHaveLength(1)
-    items()[0]!.dispatchEvent(new MouseEvent('mouseleave'))
+    list().dispatchEvent(pointer('pointerleave'))
+    await nextTick()
     vi.advanceTimersByTime(399)
     expect(toastState.items).toHaveLength(1)
     vi.advanceTimersByTime(1)
@@ -150,8 +159,14 @@ describe('toast', () => {
     toast('顶部')
     await nextTick()
     await nextTick()
-    expect(document.querySelectorAll('.dou-toast--bottom-right .dou-toast__item')).toHaveLength(5)
-    expect(document.querySelectorAll('.dou-toast--top .dou-toast__item')).toHaveLength(1)
+    expect(
+      document.querySelectorAll(
+        '.dou-toast--bottom-right .dou-toast__item:not(.dou-toast-leave-active)',
+      ),
+    ).toHaveLength(5)
+    expect(
+      document.querySelectorAll('.dou-toast--top .dou-toast__item:not(.dou-toast-leave-active)'),
+    ).toHaveLength(1)
     expect(toastState.items[0]!.message).toBe('第 2 条')
   })
 
@@ -163,6 +178,128 @@ describe('toast', () => {
     toast('Saved', { closable: true })
     await flushPromises()
     expect(document.querySelector('.dou-toast__close')?.getAttribute('aria-label')).toBe('Close')
+    wrapper.unmount()
+  })
+})
+
+const offsets = () => items().map((el) => el.style.getPropertyValue('--dou-toast-offset'))
+const show = async (count: number) => {
+  for (let index = 0; index < count; index++) toast(`第 ${index} 条`, { duration: 1000 })
+  await nextTick()
+  await nextTick()
+}
+
+describe('toast stack', () => {
+  // jsdom lays nothing out: each toast is 50px tall, 48 inside a 1px border.
+  beforeEach(() => {
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return this.classList.contains('dou-toast__body') ? 48 : 50
+    })
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(48)
+  })
+  afterEach(() => vi.restoreAllMocks())
+
+  it('lays toasts on top of each other, newest in front, three showing', async () => {
+    await show(4)
+    // oldest first in the page, so the newest is last
+    expect(offsets()).toEqual(['24px', '24px', '12px', '0px'])
+    expect(items().map((el) => el.style.getPropertyValue('--dou-toast-scale'))).toEqual([
+      '0.85',
+      '0.9',
+      '0.95',
+      '1',
+    ])
+    expect(items().map((el) => el.classList.contains('is-behind'))).toEqual([
+      true,
+      true,
+      true,
+      false,
+    ])
+    expect(items()[0]!.classList).toContain('is-hidden')
+    expect(items().every((el) => el.style.height === '50px')).toBe(true)
+    expect(list().style.height).toBe('74px')
+    expect(list().classList).not.toContain('is-expanded')
+  })
+
+  it('spreads out and waits while the mouse is over it', async () => {
+    await show(3)
+    list().dispatchEvent(pointer('pointerenter'))
+    await nextTick()
+    expect(list().classList).toContain('is-expanded')
+    expect(offsets()).toEqual(['116px', '58px', '0px'])
+    expect(list().style.height).toBe('166px')
+    vi.advanceTimersByTime(5000)
+    expect(toastState.items).toHaveLength(3)
+
+    list().dispatchEvent(pointer('pointerleave'))
+    await nextTick()
+    expect(offsets()).toEqual(['24px', '12px', '0px'])
+    vi.advanceTimersByTime(1000)
+    expect(toastState.items).toHaveLength(0)
+  })
+
+  it('spreads out while focus is in it', async () => {
+    toast({ message: '已删除', action: { label: '撤销', onClick: () => {} } })
+    toast('已复制')
+    await nextTick()
+    const action = document.querySelector<HTMLButtonElement>('.dou-toast__action')!
+    action.dispatchEvent(new FocusEvent('focusin', { bubbles: true }))
+    await nextTick()
+    expect(list().classList).toContain('is-expanded')
+    vi.advanceTimersByTime(10_000)
+    expect(toastState.items).toHaveLength(2)
+
+    action.dispatchEvent(
+      new FocusEvent('focusout', { bubbles: true, relatedTarget: document.body }),
+    )
+    await nextTick()
+    expect(list().classList).not.toContain('is-expanded')
+  })
+
+  it('opens on a tap and closes on a tap elsewhere, but not on mouse presses', async () => {
+    await show(2)
+    items()[0]!.dispatchEvent(pointer('pointerdown'))
+    await nextTick()
+    expect(list().classList).not.toContain('is-expanded')
+
+    // a finger sends enter and leave with the press; only the press counts
+    list().dispatchEvent(pointer('pointerenter', 'touch'))
+    items()[0]!.dispatchEvent(pointer('pointerdown', 'touch'))
+    list().dispatchEvent(pointer('pointerleave', 'touch'))
+    await nextTick()
+    expect(list().classList).toContain('is-expanded')
+    vi.advanceTimersByTime(5000)
+    expect(toastState.items).toHaveLength(2)
+
+    document.body.dispatchEvent(pointer('pointerdown', 'touch'))
+    await nextTick()
+    expect(list().classList).not.toContain('is-expanded')
+  })
+
+  it('always shows them spread out when not stacked', async () => {
+    const wrapper = mount(DouToastViewport, { props: { stacked: false }, attachTo: document.body })
+    await show(2)
+    expect(offsets()).toEqual(['58px', '0px'])
+    expect(items().some((el) => el.classList.contains('is-behind'))).toBe(false)
+    vi.advanceTimersByTime(1000)
+    expect(toastState.items).toHaveLength(0)
+    wrapper.unmount()
+  })
+
+  it('takes stacked from the configured defaults', async () => {
+    const wrapper = mount(
+      {
+        render: () =>
+          h(DouConfigProvider, { defaults: { DouToastViewport: { stacked: false } } }, () =>
+            h(DouToastViewport),
+          ),
+      },
+      { attachTo: document.body },
+    )
+    await show(2)
+    expect(offsets()).toEqual(['58px', '0px'])
     wrapper.unmount()
   })
 })

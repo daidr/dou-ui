@@ -65,4 +65,10 @@ export interface ToastRecord extends Required<
 export interface ToastViewportProps {
   /** The most toasts shown at one placement; older ones close first. */
   max?: number
+  /**
+   * Stack the toasts at one placement, newest in front, and spread them
+   * out while the pointer or focus is on them. `false` always shows them
+   * spread out.
+   */
+  stacked?: boolean
 }

@@ -67,6 +67,8 @@ const hovered = shallowRef<string | null>(null)
 const position = shallowRef<{ top: number; left: number; height: number } | null>(null)
 /** In a column the handle is only the grip, in the gap before it, leaving room for the resize bar. */
 const compact = shallowRef(false)
+/** The block is a table: its row handles reach out left of it. */
+const beforeTable = shallowRef(false)
 const menuOpen = shallowRef(false)
 useMenuEscape(menuOpen, () => (menuOpen.value = false))
 
@@ -102,6 +104,7 @@ function place(content: HTMLElement) {
   const line = firstLine(content)
   hovered.value = id
   compact.value = !!content.closest(COLUMN_GROUP)
+  beforeTable.value = content.classList.contains('dou-editor__content--table')
   position.value = {
     top: line.top - box.top,
     left: handleLeft(content) - box.left,
@@ -537,7 +540,7 @@ watch(menuOpen, (value) => {
 <template>
   <div
     v-show="visible"
-    :class="['dou-editor__handle', { 'is-compact': compact }]"
+    :class="['dou-editor__handle', { 'is-compact': compact, 'is-before-table': beforeTable }]"
     :style="
       position
         ? {

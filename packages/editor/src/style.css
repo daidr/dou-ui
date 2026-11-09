@@ -859,6 +859,11 @@
   .dou-editor__handle.is-compact {
     transform: translateX(calc(-100% - 2px));
 
+    /* clear of a table's row handles, which reach 7px out of it */
+    &.is-before-table {
+      transform: translateX(calc(-100% - 11px));
+    }
+
     & .dou-editor__add {
       display: none;
     }

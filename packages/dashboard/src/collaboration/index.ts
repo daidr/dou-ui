@@ -7,7 +7,7 @@ import type {
   DashboardPeer,
   DashboardPresence,
 } from '../core/collaboration'
-import type { DashboardTransaction } from '../core/transaction'
+import { sameValue, type DashboardTransaction } from '../core/transaction'
 import type { DashboardDocument, DashboardWidget } from '../core/types'
 import { keptIndexes, orderKeys } from './order'
 
@@ -48,9 +48,8 @@ const ORDER = '$order'
 /** The places by breakpoint, a map of their own, so places on two breakpoints don't overwrite each other. */
 const PLACE = 'place'
 
-const same = (a: unknown, b: unknown) =>
-  a === b ||
-  (typeof a === 'object' && typeof b === 'object' && JSON.stringify(a) === JSON.stringify(b))
+/** Whether two JSON values are the same, whatever the order of their keys. */
+const same = sameValue
 
 /** Where in `value` something JSON can't carry sits, e.g. a component or a function. */
 function unshareable(value: unknown, path: string): string | null {
@@ -197,39 +196,84 @@ function writeDifference(fields: Shared, before: DashboardWidget, after: Dashboa
 }
 
 /**
- * Gives `placing` (widgets added or moved in `next`) order keys right after
- * the widget before them in `next` (those at its start: right before the
- * first widget that stays), among the widgets as they are ordered in the
- * map now; everyone else keeps their key.
+ * Gives `placing` (widgets added or moved in `next`) order keys among the
+ * widgets as they are ordered in the map now: right after the widget before
+ * them in `next`; those before the first widget that stays go right before
+ * it, and those after the last one go after all the others. Everyone else
+ * keeps their key.
  */
 function placeOrder(map: Shared, next: readonly DashboardWidget[], placing: Set<string>) {
   if (!placing.size) return
   const list = readMap(map)
     .widgets.map((widget) => widget.id)
     .filter((id) => !placing.has(id))
-  // those before the first widget that stays go right before it
+  const listed = new Set(list)
+  const stays = (id: string) => listed.has(id)
+  let last = -1
+  next.forEach((widget, index) => {
+    if (stays(widget.id)) last = index
+  })
   const leading: string[] = []
+  const trailing: string[] = []
+  const after = new Map<string, string[]>()
+  let first: string | null = null
   let previous: string | null = null
-  for (const widget of next) {
-    if (!(map.get(widget.id) instanceof Y.Map)) continue
-    if (!placing.has(widget.id)) {
-      if (previous === null) list.splice(list.indexOf(widget.id), 0, ...leading)
-    } else if (previous === null) {
-      leading.push(widget.id)
-      continue
-    } else list.splice(list.indexOf(previous) + 1, 0, widget.id)
-    previous = widget.id
+  next.forEach((widget, index) => {
+    if (stays(widget.id)) {
+      first ??= widget.id
+      previous = widget.id
+    } else if (placing.has(widget.id)) {
+      if (index > last) trailing.push(widget.id)
+      else if (previous === null) leading.push(widget.id)
+      else {
+        const attached = after.get(previous)
+        if (attached) attached.push(widget.id)
+        else after.set(previous, [widget.id])
+      }
+    }
+  })
+  const ordered: string[] = []
+  for (const id of list) {
+    if (id === first) ordered.push(...leading)
+    ordered.push(id, ...(after.get(id) ?? []))
   }
-  // none stays: they go after the others
-  if (previous === null) list.push(...leading)
-  const shared = list.map((id) => map.get(id) as Shared)
+  ordered.push(...trailing)
+  const shared = ordered.map((id) => map.get(id) as Shared)
   const keys = orderKeys(
     shared.map((fields, index) =>
-      placing.has(list[index]!) ? null : ((fields.get(ORDER) as string | undefined) ?? null),
+      placing.has(ordered[index]!) ? null : ((fields.get(ORDER) as string | undefined) ?? null),
     ),
   )
   shared.forEach((fields, index) => {
     if (fields.get(ORDER) !== keys[index]) fields.set(ORDER, keys[index])
+  })
+}
+
+/** The widgets of `next` that can be written: each id once, each with a type. */
+function writable(next: DashboardDocument, base: DashboardDocument | undefined) {
+  const dev = process.env.NODE_ENV !== 'production'
+  if (dev && base && (next === base || next.widgets === base.widgets))
+    console.warn(
+      '[@dou-ui/dashboard] updateMap got the same object as `next` and `base`, so nothing is written: change a copy of `base`, e.g. structuredClone(base).',
+    )
+  const seen = new Set<string>()
+  return next.widgets.filter((widget) => {
+    if (typeof widget.type !== 'string') {
+      if (dev)
+        console.warn(
+          `[@dou-ui/dashboard] updateMap skips "${widget.id}": a widget needs a \`type\`.`,
+        )
+      return false
+    }
+    if (seen.has(widget.id)) {
+      if (dev)
+        console.warn(
+          `[@dou-ui/dashboard] updateMap skips the second widget "${widget.id}": ids must be unique.`,
+        )
+      return false
+    }
+    seen.add(widget.id)
+    return true
   })
 }
 
@@ -257,17 +301,18 @@ export function updateMap(
 ) {
   const update = () => {
     const base = options.base ?? readMap(map)
+    const widgets = writable(next, options.base)
     const before = new Map(base.widgets.map((widget) => [widget.id, widget]))
     const ids = new Set(next.widgets.map((widget) => widget.id))
     for (const id of before.keys()) if (!ids.has(id)) map.delete(id)
 
     // the widgets both have, in `base`'s order: those out of it in `next` moved
     const index = new Map(base.widgets.map((widget, i) => [widget.id, i]))
-    const common = next.widgets.filter((widget) => index.has(widget.id))
+    const common = widgets.filter((widget) => index.has(widget.id))
     const kept = keptIndexes(common.map((widget) => String(index.get(widget.id)).padStart(10, '0')))
     const placing = new Set(common.filter((_, i) => !kept.has(i)).map((widget) => widget.id))
 
-    for (const widget of next.widgets) {
+    for (const widget of widgets) {
       const old = before.get(widget.id)
       const fields = map.get(widget.id)
       if (!old) {
@@ -277,7 +322,7 @@ export function updateMap(
       // removed meanwhile by someone else: it stays removed
       else placing.delete(widget.id)
     }
-    placeOrder(map, next.widgets, placing)
+    placeOrder(map, widgets, placing)
   }
   transact(map, update, options.origin)
 }

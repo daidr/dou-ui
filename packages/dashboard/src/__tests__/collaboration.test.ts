@@ -11,7 +11,7 @@ import {
   replaceWidgets,
   useDashboardWidget,
 } from '..'
-import type { DashboardDocument, DashboardExpose } from '..'
+import type { DashboardDocument, DashboardExpose, DashboardWidget } from '..'
 import { collaboration, fillMap, readMap, updateMap } from '../collaboration'
 import { later } from '../../../../test/later'
 
@@ -139,6 +139,7 @@ describe('fillMap and readMap', () => {
   })
 })
 
+const plain = (id: string) => ({ id, type: 'stat', place: {} })
 const shared = () => {
   const doc = new Y.Doc()
   const map = doc.getMap('widgets')
@@ -206,6 +207,74 @@ describe('updateMap', () => {
     updateMap(map, readMap(map), { base: readMap(map) })
     updateMap(map, readMap(map))
     expect(updates).toEqual([])
+  })
+
+  it('doesn’t take objects with their keys in another order as changed', () => {
+    const { map } = shared()
+    const base = readMap(map)
+    // meanwhile someone moves a and changes its settings
+    const peer = cloneDoc(base)
+    peer.widgets[0]!.place.lg = { x: 6, y: 0, w: 3, h: 2 }
+    peer.widgets[0]!.props = { value: 2, unit: '件' }
+    updateMap(map, peer, { base })
+    // the program only renames a, writing its place and settings with the keys in another order
+    const next = cloneDoc(base)
+    next.widgets[0]!.title = '新订单'
+    next.widgets[0]!.place.lg = { w: 3, h: 2, x: 0, y: 0 }
+    next.widgets[0]!.props = { value: 1 }
+    // a key set to undefined is no key at all, as in JSON
+    const read = cloneDoc(base)
+    read.widgets[0]!.props = { value: 1, extra: undefined }
+    updateMap(map, next, { base: read })
+    expect(widgetIn(map, 'a')).toMatchObject({
+      title: '新订单',
+      props: { value: 2, unit: '件' },
+      place: { lg: { x: 6, y: 0, w: 3, h: 2 } },
+    })
+  })
+
+  it('puts widgets added after the last one that stays at the end', () => {
+    const doc = new Y.Doc()
+    const map = doc.getMap('widgets')
+    fillMap(map, { version: 1, widgets: [plain('a'), plain('b'), plain('c')] })
+    const base = readMap(map)
+    // meanwhile c goes to the top
+    updateMap(map, { version: 1, widgets: [plain('c'), plain('a'), plain('b')] })
+    updateMap(
+      map,
+      { version: 1, widgets: [plain('a'), plain('b'), plain('x'), plain('c'), plain('y')] },
+      { base },
+    )
+    expect(ids(map)).toEqual(['c', 'a', 'b', 'x', 'y'])
+  })
+
+  it('warns about a version it can’t write, and skips widgets without a type or with a taken id', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const { map } = shared()
+      const base = readMap(map)
+      base.widgets[0]!.title = '原地改'
+      updateMap(map, base, { base })
+      expect(widgetIn(map, 'a')!.title).toBe('订单')
+      expect(warn.mock.calls[0]![0]).toContain('structuredClone')
+
+      const next = cloneDoc(start())
+      next.widgets.push({ id: 'n', place: {} } as unknown as DashboardWidget, {
+        ...next.widgets[1]!,
+        title: '重复',
+      })
+      updateMap(map, next, { base: start() })
+      expect(ids(map)).toEqual(['a', 'b'])
+      expect(map.has('n')).toBe(false)
+      expect(widgetIn(map, 'b')!.title).toBeUndefined()
+      expect(warn.mock.calls.map((call) => String(call[0]))).toEqual([
+        expect.stringContaining('structuredClone'),
+        expect.stringContaining('"n"'),
+        expect.stringContaining('second widget "b"'),
+      ])
+    } finally {
+      warn.mockRestore()
+    }
   })
 
   it('without base, makes the map match the new version', () => {

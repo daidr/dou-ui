@@ -65,7 +65,7 @@ import { fillMaps } from '@dou-ui/gantt/collaboration'
 fillMaps({ tasks: doc.getMap('tasks'), links: doc.getMap('links') }, plan)
 ```
 
-这一步通常在创建共享文档时在服务器上做一次。任务和依赖按 id 保存，即使两端同时写入同一份排期，也不会出现重复的任务。`fillMaps` 可以传 `origin`，作为这次 Yjs 事务的来源：`fillMaps(maps, plan, { origin: 'server' })`。
+这一步通常在创建共享文档时在服务器上做一次。任务和依赖按 id 保存，即使两端同时写入同一份排期，也不会出现重复的任务。`fillMaps` 的第三个参数可以传 `{ origin }`，作为这次 Yjs 事务的来源。
 
 ## 撤销
 

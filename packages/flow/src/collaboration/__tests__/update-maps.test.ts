@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import * as Y from 'yjs'
 import { fillMaps, readMaps, updateMaps } from '..'
 import type { FlowDocument } from '../../core/model'
@@ -116,5 +116,38 @@ describe('readMaps and updateMaps', () => {
       { base },
     )
     expect(maps(ydoc).edges.has('f')).toBe(false)
+  })
+
+  it('doesn’t take objects with their keys in another order as changed', () => {
+    const ydoc = new Y.Doc()
+    const node = { ...flow.nodes[0]!, data: { label: 'A', tone: 'info' } }
+    const doc = { ...flow, nodes: [node, flow.nodes[1]!] }
+    fillMaps(maps(ydoc), doc)
+    const base = readMaps(maps(ydoc))
+    // meanwhile someone changes the node's data
+    ;(maps(ydoc).nodes.get('a') as Y.Map<unknown>).set('data', { label: 'A', tone: 'done' })
+    // the program only moves the node, writing its data with the keys in another order
+    updateMaps(
+      maps(ydoc),
+      { ...doc, nodes: [{ ...node, x: 90, data: { tone: 'info', label: 'A' } }, flow.nodes[1]!] },
+      { base },
+    )
+    expect(readMaps(maps(ydoc)).nodes.find((item) => item.id === 'a')).toMatchObject({
+      x: 90,
+      data: { label: 'A', tone: 'done' },
+    })
+  })
+
+  it('warns when given base itself, changed in place', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const ydoc = new Y.Doc()
+      fillMaps(maps(ydoc), flow)
+      const base = readMaps(maps(ydoc))
+      updateMaps(maps(ydoc), base, { base })
+      expect(warn.mock.calls[0]![0]).toContain('structuredClone')
+    } finally {
+      warn.mockRestore()
+    }
   })
 })

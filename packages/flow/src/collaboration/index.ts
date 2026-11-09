@@ -35,8 +35,23 @@ type Touched = Map<string, Set<string> | true>
 /** Whether a group is folded is each person's own view: it stays out of the shared document. */
 const LOCAL_DATA = 'collapsed'
 
-const same = (a: unknown, b: unknown) =>
-  a === b || (typeof a === 'object' && JSON.stringify(a) === JSON.stringify(b))
+/** The keys JSON keeps: those whose value isn't `undefined`. */
+const jsonKeys = (value: object) =>
+  Object.keys(value).filter((key) => (value as Item)[key] !== undefined)
+
+/** Whether two JSON values are the same, whatever the order of their keys. */
+function same(a: unknown, b: unknown): boolean {
+  if (a === b) return true
+  if (!a || !b || typeof a !== 'object' || typeof b !== 'object') return false
+  if (Array.isArray(a) !== Array.isArray(b)) return false
+  if (Array.isArray(a))
+    return (
+      a.length === (b as unknown[]).length && a.every((item, i) => same(item, (b as unknown[])[i]))
+    )
+  const keys = jsonKeys(a)
+  if (keys.length !== jsonKeys(b).length) return false
+  return keys.every((key) => same((a as Item)[key], (b as Item)[key]))
+}
 
 /** `data` as it is shared: without the local fields. */
 function sharedData(data: unknown) {
@@ -242,6 +257,10 @@ export interface UpdateMapsOptions extends FillMapsOptions {
  */
 export function updateMaps(maps: Maps, doc: FlowDocument, options: UpdateMapsOptions = {}) {
   const { base } = options
+  if (process.env.NODE_ENV !== 'production' && base && (doc === base || doc.nodes === base.nodes))
+    console.warn(
+      '[@dou-ui/flow] updateMaps got the same object as `doc` and `base`, so nothing is written: change a copy of `base`, e.g. structuredClone(base).',
+    )
   const update = () => {
     syncItems(maps.nodes, doc.nodes, base?.nodes)
     // a new edge to a node someone removed meanwhile would lead nowhere

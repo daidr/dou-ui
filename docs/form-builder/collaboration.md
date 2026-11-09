@@ -69,7 +69,7 @@ import { fillMaps } from '@dou-ui/form-builder/collaboration'
 fillMaps({ nodes: doc.getMap('nodes'), settings: doc.getMap('settings') }, form)
 ```
 
-这一步通常在创建共享文档时在服务器上做一次。`readMaps` 反过来从共享文档读出表单，例如在服务器上保存快照。`fillMaps` 可以传 `origin`，作为这次 Yjs 事务的来源：`fillMaps(maps, form, { origin: 'server' })`。
+这一步通常在创建共享文档时在服务器上做一次。`readMaps` 反过来从共享文档读出表单，例如在服务器上保存快照。`fillMaps` 的第三个参数可以传 `{ origin }`，作为这次 Yjs 事务的来源。
 
 ## 撤销
 

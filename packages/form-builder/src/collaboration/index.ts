@@ -396,11 +396,7 @@ export function collaboration(options: CollaborationOptions): FormBuilderExtensi
     const map = new Map<string, FormBuilderNodeMark[]>()
     for (const peer of peers.value)
       for (const id of peer.selection) {
-        const mark = {
-          key: `peer-${peer.client}`,
-          label: peer.name,
-          color: peer.color,
-        }
+        const mark = { key: `peer-${peer.client}`, label: peer.name, color: peer.color }
         const list = map.get(id)
         if (list) list.push(mark)
         else map.set(id, [mark])

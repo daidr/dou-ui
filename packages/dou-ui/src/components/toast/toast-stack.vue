@@ -84,24 +84,37 @@ function onAfterLeave() {
   }
 }
 
-const newestFirst = computed(() => props.items.map((_, index, all) => all[all.length - 1 - index]!))
+// A toast just added has no height yet: it is measured as it mounts,
+// which makes the browser work out the styles right then. Leaving it out
+// of the layout until then keeps the others where they are at that moment,
+// so they move from their old places to the new ones in one transition
+// rather than starting from where a height of zero would put them.
+const placed = computed(() => {
+  const result: { id: number; height: number }[] = []
+  for (let index = props.items.length - 1; index >= 0; index--) {
+    const { id } = props.items[index]!
+    const height = heights.get(id)
+    if (height !== undefined) result.push({ id, height })
+  }
+  return result
+})
 
 const layout = computed(() => {
   const result = new Map<number, ToastItemLayout>()
-  const front = heights.get(newestFirst.value[0]?.id ?? -1)
+  const toasts = placed.value
+  const front = toasts[0]?.height
   let offset = 0
-  newestFirst.value.forEach((item, index) => {
-    const height = heights.get(item.id)
-    const zIndex = newestFirst.value.length - index
+  toasts.forEach(({ id, height }, index) => {
+    const zIndex = toasts.length - index
     if (expanded.value) {
-      result.set(item.id, { offset, scale: 1, height, behind: false, hidden: false, zIndex })
-      offset += (height ?? 0) + GAP
+      result.set(id, { offset, scale: 1, height, behind: false, hidden: false, zIndex })
+      offset += height + GAP
       return
     }
     // A closed stack shows the newest toast whole and the edges of the
     // ones behind it, each a little smaller, all at the newest one's height.
     const depth = Math.min(index, VISIBLE - 1)
-    result.set(item.id, {
+    result.set(id, {
       offset: depth * PEEK,
       scale: 1 - Math.min(index, VISIBLE) * SHRINK,
       height: index === 0 ? height : front,
@@ -110,18 +123,24 @@ const layout = computed(() => {
       zIndex,
     })
   })
+  for (const { id } of props.items) {
+    if (!result.has(id)) {
+      const zIndex = toasts.length + 1
+      result.set(id, { offset: 0, scale: 1, behind: false, hidden: false, zIndex })
+    }
+  }
   return result
 })
 
 const height = computed(() => {
-  const items = newestFirst.value
+  const toasts = placed.value
   if (expanded.value) {
     let total = 0
-    for (const item of items) total += (heights.get(item.id) ?? 0) + GAP
+    for (const toast of toasts) total += toast.height + GAP
     return Math.max(0, total - GAP)
   }
-  const front = heights.get(items[0]?.id ?? -1) ?? 0
-  return front + PEEK * Math.max(0, Math.min(items.length, VISIBLE) - 1)
+  const front = toasts[0]?.height ?? 0
+  return front + PEEK * Math.max(0, Math.min(toasts.length, VISIBLE) - 1)
 })
 </script>
 

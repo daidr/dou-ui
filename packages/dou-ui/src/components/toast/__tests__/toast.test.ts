@@ -288,6 +288,31 @@ describe('toast stack', () => {
     wrapper.unmount()
   })
 
+  it('keeps the others in place until a new toast is measured', async () => {
+    toast('第一条')
+    await nextTick()
+    await nextTick()
+    // Measuring makes the browser work out styles, which is where a
+    // transition starts from: the first toast must still be as it was.
+    const seen: string[] = []
+    vi.mocked(
+      Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight')!.get!,
+    ).mockImplementation(function (this: HTMLElement) {
+      if (this.classList.contains('dou-toast__body')) {
+        seen.push(items()[0]!.style.height, list().style.height)
+        return this.textContent?.includes('第二条') ? 68 : 48
+      }
+      return 50
+    })
+    toast({ title: '标题', message: '第二条' })
+    await nextTick()
+    await nextTick()
+    expect(seen.slice(0, 2)).toEqual(['50px', '50px'])
+    // then both move in one go: the first one behind, at the new one's height
+    expect(items()[0]!.style.height).toBe('70px')
+    expect(list().style.height).toBe('82px')
+  })
+
   it('takes stacked from the configured defaults', async () => {
     const wrapper = mount(
       {

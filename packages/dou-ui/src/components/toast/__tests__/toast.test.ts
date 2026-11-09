@@ -287,4 +287,19 @@ describe('toast stack', () => {
     expect(toastState.items).toHaveLength(0)
     wrapper.unmount()
   })
+
+  it('takes stacked from the configured defaults', async () => {
+    const wrapper = mount(
+      {
+        render: () =>
+          h(DouConfigProvider, { defaults: { DouToastViewport: { stacked: false } } }, () =>
+            h(DouToastViewport),
+          ),
+      },
+      { attachTo: document.body },
+    )
+    await show(2)
+    expect(offsets()).toEqual(['58px', '0px'])
+    wrapper.unmount()
+  })
 })

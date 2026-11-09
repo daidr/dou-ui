@@ -83,13 +83,19 @@ onMounted(start)
 onBeforeUnmount(() => clearTimeout(timer))
 
 // The stack sizes every toast itself, so it needs each one's own height:
-// the content's, plus the border around it. Layout sizes, not the
-// bounding box, which the stack's scale would shrink.
+// the content's, plus the border and any padding a custom style put
+// around it. Layout sizes, not the bounding box, which the stack's scale
+// would shrink.
 const root = ref<HTMLElement>()
 const body = ref<HTMLElement>()
 function measure() {
   if (!root.value || !body.value) return
-  emit('resize', body.value.offsetHeight + root.value.offsetHeight - root.value.clientHeight)
+  const style = getComputedStyle(root.value)
+  const padding = Number.parseFloat(style.paddingTop) + Number.parseFloat(style.paddingBottom)
+  emit(
+    'resize',
+    body.value.offsetHeight + root.value.offsetHeight - root.value.clientHeight + (padding || 0),
+  )
 }
 onMounted(measure)
 useResizeObserver(body, measure)

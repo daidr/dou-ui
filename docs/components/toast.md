@@ -17,7 +17,17 @@
 
 <DocDemo src="toast/stack" />
 
-不需要堆叠时，放一个 `stacked` 为 `false` 的 `DouToastViewport`，提示会始终排成一列：
+不需要堆叠时，把 `DouToastViewport` 的 `stacked` 设为 `false`，提示会始终排成一列。可以在安装时设成全局默认值，`toast()` 自动挂载的容器也会沿用：
+
+```ts
+app.use(DouUI, {
+  defaults: {
+    DouToastViewport: { stacked: false },
+  },
+})
+```
+
+也可以自己放一个容器：
 
 ```vue
 <DouToastViewport :stacked="false" />

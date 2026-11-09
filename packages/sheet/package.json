@@ -1,6 +1,6 @@
 {
   "name": "@dou-ui/sheet",
-  "version": "0.1.0-alpha.11",
+  "version": "0.1.0-alpha.12",
   "description": "DouUI 的电子表格：可编辑的单元格网格、公式与协同",
   "keywords": [
     "vue",

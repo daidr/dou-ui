@@ -40,6 +40,13 @@ describe('chat input menu options', () => {
     expect(description).toMatch(/white-space:\s*nowrap/)
   })
 
+  it('keep a description in custom option content to half the row', () => {
+    const custom = css.slice(css.indexOf('&:not(.is-default) {'))
+    const description = custom.slice(custom.indexOf('.dou-chat-input__option-description {'))
+    expect(description.slice(0, description.indexOf('}'))).toMatch(/max-width:\s*50%/)
+    expect(description.slice(0, description.indexOf('}'))).toMatch(/min-width:\s*0/)
+  })
+
   it('never scroll the menu sideways', () => {
     expect(rule('.dou-chat-input__menu')).toMatch(/overflow-x:\s*hidden/)
   })

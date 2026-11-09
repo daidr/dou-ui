@@ -115,10 +115,11 @@
   }
 
   .dou-dialog__body {
-    padding: 8px var(--dou-dialog-padding) var(--dou-dialog-padding);
+    padding: var(--dou-dialog-padding);
     overflow-wrap: break-word;
   }
 
+  /* the gap under the header row; without one, the body keeps the padding all round */
   .dou-dialog__header + .dou-dialog__body {
     padding-top: 8px;
   }

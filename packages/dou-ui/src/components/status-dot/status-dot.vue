@@ -1,18 +1,8 @@
 <script lang="ts">
-import { Comment, Fragment, Text, defineComponent, h, type SlotsType, type VNode } from 'vue'
+import { defineComponent, h, type SlotsType, type VNode } from 'vue'
 import { useNamespace } from '../../utils/namespace'
+import { rendersSomething } from '../../utils/slot'
 import { statusDotProps, type StatusDotSlots } from './status-dot'
-
-/** Whether rendered slot content shows anything: comments, `v-if`s and empty text don't. */
-function hasContent(nodes: VNode[]): boolean {
-  return nodes.some((node) => {
-    if (node.type === Comment) return false
-    if (node.type === Text) return String(node.children ?? '').trim() !== ''
-    if (node.type === Fragment)
-      return Array.isArray(node.children) && hasContent(node.children as VNode[])
-    return true
-  })
-}
 
 // A render function rather than a template: slots and attrs are not reactive,
 // so whether text sits beside the dot is read on every render, from what the
@@ -25,7 +15,7 @@ export default defineComponent({
     const ns = useNamespace('status-dot')
     return () => {
       const content = slots.default?.() as VNode[] | undefined
-      const text = !!content && hasContent(content)
+      const text = rendersSomething(content)
       // With text beside it the text speaks for the dot; a bare dot speaks
       // through `label`, or an `aria-label` written on it directly.
       const label = text ? undefined : (props.label ?? (attrs['aria-label'] as string | undefined))

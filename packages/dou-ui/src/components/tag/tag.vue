@@ -2,6 +2,7 @@
 import { CloseIcon } from '@dou-ui/icons'
 import { computed, ref, useAttrs, useTemplateRef } from 'vue'
 import { useNamespace } from '../../utils/namespace'
+import { SlotNodes, filled } from '../../utils/slot'
 import { useLocale } from '../config-provider/use-config'
 import { useFormSize } from '../form/use-form-item'
 import type { TagEmits, TagProps, TagSlots } from './tag'
@@ -48,9 +49,10 @@ const classes = computed(() => [
 
 <template>
   <span :class="classes">
-    <span v-if="slots.leading" :class="ns.e('icon')">
-      <slot name="leading" />
-    </span>
+    <!-- rendered once: a leading slot that renders nothing leaves no icon -->
+    <template v-for="leading in [filled(slots.leading)]" :key="0">
+      <span v-if="leading" :class="ns.e('icon')"><SlotNodes :nodes="leading" /></span>
+    </template>
     <span ref="label" :class="ns.e('label')" :title="labelTitle" @pointerenter="onLabelEnter">
       <slot />
     </span>

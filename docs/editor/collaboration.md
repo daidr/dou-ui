@@ -65,7 +65,47 @@ import { fillMap } from '@dou-ui/editor/collaboration'
 fillMap(doc.getMap('document'), saved)
 ```
 
-这一步只在创建共享文档时做一次，通常放在服务器上。如果两端同时往同一个空文档里写入，内容会出现两份。使用了自定义块时，把同样的 `extensions` 作为第三个参数传入。
+这一步只在创建共享文档时做一次，通常放在服务器上。如果两端同时往同一个空文档里写入，内容会出现两份。使用了自定义块时，把编辑器用的扩展传给 `extensions` 选项：`fillMap(map, saved, { extensions })`。
+
+### 在服务器上写入新版本
+
+在没有编辑器的地方要改动正在协同编辑的文档时，用 `updateMap`。典型的场景是把文档交给 AI 改写：读出文档、转成 Markdown 交给 AI，几十秒后拿回新的 Markdown 写回去。这期间其他人可能还在编辑，所以要把 AI 读到的那一份作为 `base` 传入，`updateMap` 只把 `base` 到新版本之间的差别写进共享文档：
+
+```ts
+import { editorKit } from '@dou-ui/editor'
+import { readMap, updateMap } from '@dou-ui/editor/collaboration'
+import { blocksToMarkdown, markdownToBlocks } from '@dou-ui/editor/markdown'
+import { Window } from 'happy-dom'
+import * as Y from 'yjs'
+
+const extensions = [editorKit()]
+// 服务器上没有 DOMParser，从 DOM 库里取一个，见“导入和导出”
+const domParser = new new Window().DOMParser()
+
+async function rewrite(ydoc: Y.Doc, ask: (markdown: string) => Promise<string>) {
+  const map = ydoc.getMap('document')
+  const markdown = blocksToMarkdown(readMap(map, { extensions }).blocks, extensions)
+  const answer = await ask(markdown)
+  updateMap(
+    map,
+    { version: 1, blocks: markdownToBlocks(answer, extensions, { domParser }) },
+    {
+      // AI 读到的那一份，和新版本用同样的方式读出来
+      base: { version: 1, blocks: markdownToBlocks(markdown, extensions, { domParser }) },
+      extensions,
+      origin: 'ai',
+    },
+  )
+}
+```
+
+- 只有 `base` 和新版本之间不同的块会被改动、新增或删除，其他人这期间输入的文字、新加的块、移动过的块都保留。同一个块两边都改了时，以新版本为准。
+- 这期间被其他人删掉的块保持删除，即使新版本改了它；被其他人改得面目全非、对应不上的块也不会被再写一份，这时新版本对这一块的修改不会写进去。
+- 改动是按块写的：块保留 id，文字按字符改，所以其他人的光标、撤销和评论都留在原处。
+- 从 Markdown 读出来的块没有原来的 id，会按内容和位置找到对应的块：内容相同的先对上，其余的找同一类型里文字最接近的；都对不上的，当作删掉一块、新加一块，这个块上的光标和评论就不在了。想完全保留，可以让程序带着 `readMap` 读出的块（有 id）去改，改完的块直接传给 `updateMap`。
+- Markdown 带不出评论，文字没变的地方评论会保留；Markdown 带不出的其他格式（比如文字颜色、对齐），在改动过的块里会丢掉。
+- `base` 要和新版本用同样的方式得到，比如都从 Markdown 读出来，否则 Markdown 带不出的那些差别也会被当成改动。不传 `base` 时，以共享文档现在的内容为准，这期间其他人的修改会被改回去。
+- `origin` 是这次 Yjs 事务的来源，用来区分是谁写的。空的共享文档会直接写入。
 
 ## 评论
 
@@ -116,9 +156,13 @@ interface CollaborationUser {
 
 ### 函数
 
-| 名称      | 说明                       | 类型                                                            |
-| --------- | -------------------------- | --------------------------------------------------------------- |
-| `fillMap` | 把文档写入空的共享 `Y.Map` | `(map, doc: EditorDocument<PartialBlock>, extensions?) => void` |
+| 名称        | 说明                                                  | 类型                                                                                          |
+| ----------- | ----------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `fillMap`   | 把文档写入空的共享 `Y.Map`                            | `(map, doc: EditorDocument<PartialBlock>, options?: { extensions?, origin? }) => void`        |
+| `updateMap` | 把共享 `Y.Map` 从 `base` 改成 `doc`，只写有差别的地方 | `(map, doc: EditorDocument<PartialBlock>, options?: { base?, extensions?, origin? }) => void` |
+| `readMap`   | 从共享 `Y.Map` 读出文档                               | `(map, options?: { extensions? }) => EditorDocument`                                          |
+
+`extensions` 是编辑器用的扩展，默认 `[editorKit()]`；`origin` 是 Yjs 事务的来源。
 
 ### CSS 变量
 

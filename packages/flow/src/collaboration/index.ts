@@ -137,22 +137,121 @@ function patchFor<T extends object>(local: T, shared: T, skip?: Set<string>) {
   return Object.keys(patch).length ? (patch as Partial<T>) : null
 }
 
+type Maps = { nodes: Y.Map<unknown>; edges: Y.Map<unknown> }
+
+/** Runs `run` as one transaction of the maps' document, from `origin`. */
+function transact(maps: Maps, run: () => void, origin: unknown) {
+  const ydoc = maps.nodes.doc
+  if (ydoc) ydoc.transact(run, origin ?? null)
+  else run()
+}
+
+export interface FillMapsOptions {
+  /** The origin of the Yjs transaction, so the others can tell who wrote it. */
+  origin?: unknown
+}
+
 /**
  * Writes nodes and edges into empty maps, e.g. when a flow that so far was
  * saved as JSON starts being edited together. Do it once, where the shared
  * document is created.
  */
-export function fillMaps(
-  maps: { nodes: Y.Map<unknown>; edges: Y.Map<unknown> },
-  doc: FlowDocument,
-) {
+export function fillMaps(maps: Maps, doc: FlowDocument, options: FillMapsOptions = {}) {
   const fill = () => {
     for (const node of doc.nodes) write(maps.nodes, node)
     for (const edge of doc.edges) write(maps.edges, edge)
   }
-  const ydoc = maps.nodes.doc
-  if (ydoc) ydoc.transact(fill)
-  else fill()
+  transact(maps, fill, options.origin)
+}
+
+/** Every node or edge a map holds. */
+function readAll<T>(map: Shared): T[] {
+  return Array.from(map.keys(), (id) => read<T>(map, id)).filter((item): item is T => !!item)
+}
+
+/**
+ * The flow the maps hold, read without an editor, e.g. to save a version
+ * on the server. The order of the nodes and edges is not fixed: it may
+ * differ between two reads, and from one client to another.
+ */
+export function readMaps(maps: Maps): FlowDocument {
+  return { version: 1, nodes: readAll<FlowNode>(maps.nodes), edges: readAll<FlowEdge>(maps.edges) }
+}
+
+/** The fields that differ between two versions of a node or edge. */
+function changedKeys(before: Item, after: Item) {
+  const keys = new Set<string>()
+  for (const key of new Set([...Object.keys(before), ...Object.keys(after)])) {
+    if (key === 'id') continue
+    const a = key === 'data' ? sharedData(before[key]) : before[key]
+    const b = key === 'data' ? sharedData(after[key]) : after[key]
+    if (!same(a, b)) keys.add(key)
+  }
+  return keys
+}
+
+/**
+ * Brings the map from `base` to `items`: their changed fields written, those
+ * left out removed. Without `base`, from what the map holds now.
+ */
+function syncItems(
+  map: Shared,
+  items: readonly (FlowNode | FlowEdge)[],
+  base?: readonly (FlowNode | FlowEdge)[],
+  /** Whether a new item can be added, e.g. an edge whose two nodes are there. */
+  fits: (item: FlowNode | FlowEdge) => boolean = () => true,
+) {
+  if (!base) {
+    const ids = new Set(items.map((item) => item.id))
+    for (const id of Array.from(map.keys())) if (!ids.has(id)) map.delete(id)
+    for (const item of items) write(map, item)
+    return
+  }
+  const before = new Map(base.map((item) => [item.id, item]))
+  const ids = new Set(items.map((item) => item.id))
+  for (const id of before.keys()) if (!ids.has(id)) map.delete(id)
+  for (const item of items) {
+    const old = before.get(item.id)
+    if (!old) {
+      if (fits(item)) write(map, item)
+      continue
+    }
+    // removed meanwhile by someone else: it stays removed
+    if (!(map.get(item.id) instanceof Y.Map)) continue
+    const keys = changedKeys(old as unknown as Item, item as unknown as Item)
+    if (keys.size) write(map, item, keys)
+  }
+}
+
+export interface UpdateMapsOptions extends FillMapsOptions {
+  /**
+   * The version `doc` was made from, e.g. the one read with `readMaps` and
+   * given to a program that took a while to write `doc`. Only the fields
+   * that differ between `base` and `doc` are written, and only the nodes
+   * and edges `base` has and `doc` hasn't are removed, so what others
+   * changed meanwhile stays. Left out, the maps as they are now: then
+   * every node and edge not in `doc` is removed.
+   */
+  base?: FlowDocument
+}
+
+/**
+ * Change the maps from `options.base` to `doc`, without an editor, e.g. on
+ * the server when a program wrote a new version while people edit the
+ * flow. Only the fields that differ are written.
+ */
+export function updateMaps(maps: Maps, doc: FlowDocument, options: UpdateMapsOptions = {}) {
+  const { base } = options
+  const update = () => {
+    syncItems(maps.nodes, doc.nodes, base?.nodes)
+    // a new edge to a node someone removed meanwhile would lead nowhere
+    const there = (end: { node: string }) => maps.nodes.get(end.node) instanceof Y.Map
+    syncItems(maps.edges, doc.edges, base?.edges, (item) => {
+      const edge = item as FlowEdge
+      return there(edge.source) && there(edge.target)
+    })
+  }
+  transact(maps, update, options.origin)
 }
 
 /** The fields `touched` holds for an item, when it holds only some. */

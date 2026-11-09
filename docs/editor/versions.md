@@ -29,7 +29,7 @@ import { readMap } from '@dou-ui/editor/collaboration'
 const doc = readMap(ydoc.getMap('doc')) // { version: 1, blocks }
 ```
 
-`readMap` 的第二个参数是编辑器用的扩展，默认 `[editorKit()]`；用了自定义块时要传入同样的扩展。
+用了自定义块时，把编辑器用的扩展传给 `extensions` 选项：`readMap(map, { extensions })`，默认 `[editorKit()]`。
 
 ## 对比
 

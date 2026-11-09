@@ -15,7 +15,7 @@ import {
 } from '../core/extension'
 import { blocksToDoc, docToBlocks, type EditorDocument, type PartialBlock } from '../core/model'
 import { editorKit } from '../extensions/editor-kit'
-import { createBinding, readDoc, syncPlugin, writeDoc, type YBlock } from './binding'
+import { createBinding, readDoc, syncPlugin, updateDoc, writeDoc, type YBlock } from './binding'
 import { cursorsPlugin, positionOf, type AwarenessLike } from './cursors'
 
 /** How the people editing together see each other. */
@@ -122,6 +122,25 @@ export function collaboration(options: CollaborationOptions): EditorExtension {
   })
 }
 
+type ExtensionList = (EditorExtension | EditorExtension[])[]
+
+/** The extensions the editors of the shared document use; `[editorKit()]` when left out. */
+const schemaOf = (extensions: ExtensionList = [editorKit()]) =>
+  resolveEditorExtensions(extensions).schema
+
+/** Runs `write` as one transaction of the map's document, from `origin`. */
+function transact(map: Y.Map<unknown>, write: () => void, origin: unknown) {
+  if (map.doc) map.doc.transact(write, origin ?? null)
+  else write()
+}
+
+export interface FillMapOptions {
+  /** The extensions the editors use, for custom blocks. Defaults to `[editorKit()]`. */
+  extensions?: ExtensionList
+  /** The origin of the Yjs transaction, so the others can tell who wrote it. */
+  origin?: unknown
+}
+
 /**
  * Write a document into an empty map, e.g. when a document that so far was
  * saved as JSON starts being edited together. Do it once, where the
@@ -131,23 +150,69 @@ export function collaboration(options: CollaborationOptions): EditorExtension {
 export function fillMap(
   map: Y.Map<unknown>,
   doc: EditorDocument<PartialBlock>,
-  extensions: (EditorExtension | EditorExtension[])[] = [editorKit()],
+  options: FillMapOptions = {},
 ) {
-  const schema = resolveEditorExtensions(extensions).schema
-  writeDoc(map as Y.Map<YBlock>, blocksToDoc(schema, doc.blocks))
+  const schema = schemaOf(options.extensions)
+  transact(
+    map,
+    () => writeDoc(map as Y.Map<YBlock>, blocksToDoc(schema, doc.blocks)),
+    options.origin,
+  )
+}
+
+export interface UpdateMapOptions extends FillMapOptions {
+  /**
+   * The version `doc` was made from, e.g. the one read with `readMap` and
+   * given to a program that took a while to write `doc`. Only what differs
+   * between `base` and `doc` is written, so what others changed in the map
+   * meanwhile stays. Get it the same way as `doc`: when `doc` is read from
+   * Markdown, read `base` from the Markdown the program was given. Left
+   * out, the map as it is now.
+   */
+  base?: EditorDocument<PartialBlock>
+}
+
+/**
+ * Change a shared map from `options.base` to `doc`, without an editor, e.g.
+ * on the server when a program wrote a new version while people edit the
+ * document. Only what differs is written: blocks keep their id and their
+ * text is changed character by character, so the cursors, undo and comment
+ * threads of the others stay. Blocks with new ids (e.g. read from Markdown)
+ * are matched to the stored ones by content and place; one that matches
+ * none is written as a new block, and one left over is removed. An empty
+ * map is filled.
+ */
+export function updateMap(
+  map: Y.Map<unknown>,
+  doc: EditorDocument<PartialBlock>,
+  options: UpdateMapOptions = {},
+) {
+  const schema = schemaOf(options.extensions)
+  const { base } = options
+  transact(
+    map,
+    () =>
+      updateDoc(
+        map as Y.Map<YBlock>,
+        blocksToDoc(schema, doc.blocks),
+        schema,
+        base && blocksToDoc(schema, base.blocks),
+      ),
+    options.origin,
+  )
+}
+
+export interface ReadMapOptions {
+  /** The extensions the editors use, for custom blocks. Defaults to `[editorKit()]`. */
+  extensions?: ExtensionList
 }
 
 /**
  * The document a shared map holds, read without an editor, e.g. to save a
- * version on the server. Pass the extensions the editors use; an empty map
- * reads as no blocks.
+ * version on the server. An empty map reads as no blocks.
  */
-export function readMap(
-  map: Y.Map<unknown>,
-  extensions: (EditorExtension | EditorExtension[])[] = [editorKit()],
-): EditorDocument {
-  const schema = resolveEditorExtensions(extensions).schema
-  const doc = readDoc(map as Y.Map<YBlock>, schema)
+export function readMap(map: Y.Map<unknown>, options: ReadMapOptions = {}): EditorDocument {
+  const doc = readDoc(map as Y.Map<YBlock>, schemaOf(options.extensions))
   return { version: 1, blocks: doc ? docToBlocks(doc) : [] }
 }
 

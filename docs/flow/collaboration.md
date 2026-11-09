@@ -69,6 +69,27 @@ fillMaps({ nodes: doc.getMap('nodes'), edges: doc.getMap('edges') }, flow.value)
 
 这一步通常在创建共享文档时在服务器上做一次。节点和连线按 id 保存，即使两端同时写入同一个流程，也不会出现重复的节点。
 
+在没有编辑器的地方，`readMaps` 读出共享文档里的流程（比如在服务器上保存版本），`updateMaps` 把它改成新的流程。交给程序（比如 AI）改写、过一会儿才写回时，把读到的那一份作为 `base` 传入，只有 `base` 到新流程之间的差别会写进去：
+
+```ts
+import { readMaps, updateMaps } from '@dou-ui/flow/collaboration'
+import type { FlowDocument } from '@dou-ui/flow'
+import * as Y from 'yjs'
+
+async function rewrite(ydoc: Y.Doc, ask: (flow: FlowDocument) => Promise<FlowDocument>) {
+  const maps = { nodes: ydoc.getMap('nodes'), edges: ydoc.getMap('edges') }
+  const base = readMaps(maps)
+  const next = await ask(base)
+  updateMaps(maps, next, { base, origin: 'ai' })
+}
+```
+
+- 只写 `base` 和新流程之间不同的字段；这期间其他人移动的节点、新加的节点和连线、改的别的字段都保留。同一个字段两边都改了时，以新流程为准。
+- `base` 里有、新流程里没有的节点和连线会被删除；这期间被其他人删掉的，即使新流程改了它，也保持删除。新流程里新加的连线如果连到这期间被删掉的节点，不会写入。
+- 不传 `base` 时，以共享文档现在的内容为准：新流程里没有的节点和连线都会被删除，这期间其他人的修改也会被改回去。
+- `readMaps` 读出的节点和连线顺序不固定，两次读取、两个客户端之间都可能不同。
+- `fillMaps` 和 `updateMaps` 都可以传 `origin`，作为这次 Yjs 事务的来源。
+
 ## 拖动
 
 拖动节点、调整连线和改变分组大小时，过程中只把位置告诉其他人，他们看到的是一个虚线框；松手后才写入共享文档，作为一步撤销。按 Esc 取消拖动时不会写入。
@@ -110,10 +131,12 @@ interface CollaborationUser {
 
 ### 函数和常量
 
-| 名称                  | 说明                           | 类型                                            |
-| --------------------- | ------------------------------ | ----------------------------------------------- |
-| `fillMaps`            | 把节点和连线写入共享文档       | `({ nodes, edges }, doc: FlowDocument) => void` |
-| `collaborationColors` | 不传 `user.color` 时使用的颜色 | `string[]`                                      |
+| 名称                  | 说明                                             | 类型                                                                          |
+| --------------------- | ------------------------------------------------ | ----------------------------------------------------------------------------- |
+| `fillMaps`            | 把节点和连线写入共享文档                         | `({ nodes, edges }, doc: FlowDocument, options?: { origin? }) => void`        |
+| `readMaps`            | 从共享文档读出流程                               | `({ nodes, edges }) => FlowDocument`                                          |
+| `updateMaps`          | 把共享文档从 `base` 改成 `doc`，只写有变化的字段 | `({ nodes, edges }, doc: FlowDocument, options?: { base?, origin? }) => void` |
+| `collaborationColors` | 不传 `user.color` 时使用的颜色                   | `string[]`                                                                    |
 
 ### CSS 变量
 

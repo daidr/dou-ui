@@ -5,7 +5,7 @@ import {
 } from './extension'
 import type { Block, PartialBlock } from './model'
 import { writeHTML } from './output'
-import { parseHTML } from './prepare'
+import { parseHTML, type DOMParserLike } from './prepare'
 
 export type EditorExtensionList = readonly (EditorExtension | EditorExtension[])[]
 
@@ -29,7 +29,19 @@ export function blocksToHTML(blocks: PartialBlock[], extensions: EditorExtension
   return writeHTML(blocks, kitOf(extensions))
 }
 
-/** Read HTML as blocks with the given extensions. Needs `DOMParser` (a browser, or a DOM library). */
-export function htmlToBlocks(html: string, extensions: EditorExtensionList): Block[] {
-  return parseHTML(html, kitOf(extensions))
+export interface HTMLToBlocksOptions {
+  /**
+   * Reads the HTML. Defaults to the global `DOMParser`; where there is none
+   * (Node, Bun), pass one from a DOM library such as happy-dom or linkedom.
+   */
+  domParser?: DOMParserLike
+}
+
+/** Read HTML as blocks with the given extensions. Needs a `DOMParser`: the browser's, or `options.domParser`. */
+export function htmlToBlocks(
+  html: string,
+  extensions: EditorExtensionList,
+  options: HTMLToBlocksOptions = {},
+): Block[] {
+  return parseHTML(html, kitOf(extensions), options.domParser)
 }

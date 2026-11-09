@@ -135,14 +135,28 @@ const SIZES: Record<WhiteboardShapeTool, { width: number; height: number }> = {
 /**
  * The comment tool: a click on a node starts a thread pinned where it was
  * clicked, the point turned back with the node. A press on the empty canvas
- * does nothing; a drag does nothing either, so the view isn't moved by
- * mistake.
+ * does nothing; a mouse drag does nothing either, so a thread isn't started
+ * by mistake, while a finger's drag moves the view, as it does elsewhere.
  */
-function pinComment(ctx: FlowEditorContext, node: string | null, start: Point): FlowPressHandler {
+function pinComment(
+  ctx: FlowEditorContext,
+  node: string | null,
+  start: Point,
+  event: PointerEvent,
+): FlowPressHandler {
+  const client = { x: event.clientX, y: event.clientY }
+  const origin = { ...ctx.viewport.value }
+  const finger = event.pointerType !== 'mouse'
+  let moved = false
   return {
-    end(point) {
-      const zoom = ctx.viewport.value.zoom
-      const moved = Math.hypot(point.x - start.x, point.y - start.y) * zoom > 8
+    move(_, move) {
+      const dx = move.clientX - client.x
+      const dy = move.clientY - client.y
+      if (!moved && Math.hypot(dx, dy) <= 8) return
+      moved = true
+      if (finger) ctx.setViewport({ ...origin, x: origin.x + dx, y: origin.y + dy })
+    },
+    end() {
       const rect = node && !moved ? ctx.getNodeRect(node) : null
       if (!node || !rect || !rect.width || !rect.height) return
       const centre = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }
@@ -277,7 +291,8 @@ export function whiteboardKit(options: WhiteboardKitOptions = {}): FlowExtension
       if (tool === 'select') return
       // while read-only, only moving the view and commenting
       if (ctx.readonly.value && tool !== 'hand' && tool !== 'comment') return
-      if (tool === 'comment') return pinComment(ctx, press.node?.id ?? null, press.point)
+      if (tool === 'comment')
+        return pinComment(ctx, press.node?.id ?? null, press.point, press.event)
       // a press puts down whatever text was being typed
       state.editing.value = null
       if (tool === 'hand') {
@@ -393,16 +408,16 @@ export function whiteboardKit(options: WhiteboardKitOptions = {}): FlowExtension
           pickImages(ctx)
         },
         enter: () => {
-          if (ctx.readonly.value) return false
           const tool = state.tool.value
+          // with the comment tool, Enter starts a thread on the selected node, about all of it
+          if (tool === 'comment') {
+            const { nodes, edges } = ctx.selection.value
+            if (nodes.length !== 1 || edges.length) return false
+            return ctx.comment({ node: nodes[0]! }) || false
+          }
+          if (ctx.readonly.value) return false
           // with a drawing tool, Enter puts one down: after the selected node, or mid-view
-          if (
-            tool !== 'select' &&
-            tool !== 'hand' &&
-            tool !== 'pen' &&
-            tool !== 'eraser' &&
-            tool !== 'comment'
-          ) {
+          if (tool !== 'select' && tool !== 'hand' && tool !== 'pen' && tool !== 'eraser') {
             const { type, data } = kindOf(tool)
             // text keeps no height, as when drawn
             const size =

@@ -53,7 +53,7 @@ export interface FlowCommentPin {
   thread: string
   node: string
   at: Point
-  /** Its place among the open pins on the node, from 1, oldest first. */
+  /** Its number on the node: its place among the node's pins, from 1, oldest first, resolved ones counted. */
   number: number
 }
 
@@ -119,15 +119,18 @@ export function useFlowComments(options: {
 
   const openOn = computed(() => {
     const live = new Set(threads.value.filter((t) => !t.resolved).map((t) => t.id))
+    const known = new Set(threads.value.map((t) => t.id))
     const pins: FlowCommentPin[] = []
     const nodes = new Map<string, string[]>()
     for (const node of doc.value.nodes) {
       const ids: string[] = []
       let number = 0
       for (const id of idsOf(node)) {
-        if (!live.has(id)) continue
         const at = pinOf(node, id)
-        if (at) pins.push({ thread: id, node: node.id, at, number: ++number })
+        // numbered among every pin there, so resolving one renumbers none
+        if (at && known.has(id)) number++
+        if (!live.has(id)) continue
+        if (at) pins.push({ thread: id, node: node.id, at, number })
         else ids.push(id)
       }
       if (ids.length) nodes.set(node.id, ids)
@@ -234,7 +237,10 @@ export function useFlowComments(options: {
     const node = doc.value.nodes.find((n) => idsOf(n).includes(id))
     if (node) {
       const at = pinOf(node, id)
-      return at ? { node: node.id, at } : { node: node.id }
+      if (!at) return { node: node.id }
+      const known = new Set(threads.value.map((t) => t.id))
+      const pinned = idsOf(node).filter((other) => known.has(other) && pinOf(node, other))
+      return { node: node.id, at, number: pinned.indexOf(id) + 1 }
     }
     const edge = doc.value.edges.find((e) => idsOf(e).includes(id))
     return edge ? { edge: edge.id } : null

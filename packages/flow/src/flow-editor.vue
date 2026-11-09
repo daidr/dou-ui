@@ -871,8 +871,10 @@ function setViewport(target: FlowViewport, animate = false) {
 
 /** Point on the screen relative to the editor's top left corner. */
 function local(clientX: number, clientY: number): Point {
-  const rect = root.value!.getBoundingClientRect()
-  return { x: clientX - rect.left, y: clientY - rect.top }
+  const el = root.value!
+  const rect = el.getBoundingClientRect()
+  // from inside the border, where the canvas and the panels are drawn
+  return { x: clientX - rect.left - el.clientLeft, y: clientY - rect.top - el.clientTop }
 }
 
 function toCanvas(point: Point): Point {
@@ -4048,7 +4050,8 @@ const commentSpots = computed(() => {
       threads: [...threads],
       shown: [],
       pending: !!extra.pending,
-      number: 'node' in spot && spot.at ? (extra.number ?? 0) : undefined,
+      number: 'node' in spot && spot.at ? (extra.number ?? spot.number ?? 0) : undefined,
+      node: 'node' in spot ? nodeName(spot.node) : undefined,
       ...at,
       lift,
     })

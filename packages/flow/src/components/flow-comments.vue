@@ -38,6 +38,8 @@ export interface FlowCommentMarker {
    * 1; `0` for one being started or a resolved one opened from outside.
    */
   number?: number
+  /** The name of the node it is on, for screen readers. */
+  node?: string
 }
 
 const props = defineProps<{
@@ -156,7 +158,20 @@ function onClosed() {
   if (!el || el === document.body) props.restore(lastAnchor)
 }
 
+/**
+ * When the thread being started was opened. A tap that starts one (the
+ * whiteboard's comment tool) is followed by the click the browser makes
+ * from it, which lands on the new pin just drawn under the finger: that
+ * one doesn't close it.
+ */
+let startedAt = -Infinity
+watch(
+  () => comments.pending.value,
+  (now) => now && (startedAt = performance.now()),
+)
+
 function press(marker: FlowCommentMarker, event: MouseEvent) {
+  if (marker.pending && performance.now() - startedAt < 500) return
   if (current.value?.key === marker.key) return comments.close()
   // pressed from the keyboard (no clicks counted): straight into the reply box;
   // a click or tap only shows the threads, without bringing up a phone's keyboard
@@ -168,7 +183,7 @@ function press(marker: FlowCommentMarker, event: MouseEvent) {
 
 const label = (marker: FlowCommentMarker) =>
   marker.number
-    ? format(props.messages.commentPin, { number: marker.number })
+    ? format(props.messages.commentPin, { number: marker.number, node: marker.node ?? '' })
     : marker.threads.length
       ? format(props.messages.comments, { count: marker.threads.length })
       : props.messages.comment

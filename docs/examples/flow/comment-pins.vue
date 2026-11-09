@@ -29,8 +29,8 @@ const doc = ref<FlowDocument>({
     {
       id: 'plan-b',
       type: 'shape',
-      x: 340,
-      y: 0,
+      x: 0,
+      y: 220,
       width: 280,
       height: 180,
       data: { shape: 'rect', text: '方案二：活动首页', tone: 'primary' },
@@ -67,7 +67,7 @@ function where(at: { x: number; y: number }) {
   return row || column ? `${column}${row}` : '中间'
 }
 
-const places = ref<{ id: string; text: string; place: string }[]>([])
+const places = ref<{ id: string; text: string; place: string; number?: number }[]>([])
 function read() {
   const anchors = editor.value?.getCommentAnchors() ?? {}
   places.value = threads.value.flatMap((thread) => {
@@ -80,6 +80,7 @@ function read() {
         id: thread.id,
         text: thread.comments[0]?.body ?? '',
         place: on.at ? `${name} · ${where(on.at)}` : name,
+        number: on.at ? on.number : undefined,
       },
     ]
   })
@@ -99,11 +100,12 @@ watch([doc, threads], read, { deep: true, flush: 'post' })
       :author="me"
       fit-view
       aria-label="活动首页方案评审"
-      style="height: 360px"
+      style="height: 440px"
     />
     <ul class="comment-pins__list">
       <li v-for="item in places" :key="item.id">
         <button type="button" :aria-pressed="active === item.id" @click="active = item.id">
+          <span v-if="item.number" class="comment-pins__number">{{ item.number }}</span>
           <span class="comment-pins__place">{{ item.place }}</span>
           {{ item.text }}
         </button>
@@ -139,6 +141,18 @@ watch([doc, threads], read, { deep: true, flush: 'post' })
 .comment-pins__list button:hover,
 .comment-pins__list button[aria-pressed='true'] {
   background-color: var(--dou-color-bg-muted);
+}
+.comment-pins__number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  margin-inline-end: 8px;
+  border: 1px solid var(--dou-color-border);
+  border-radius: 10px 10px 10px 2px;
+  font-size: var(--dou-font-size-sm);
+  font-variant-numeric: tabular-nums;
 }
 .comment-pins__place {
   margin-inline-end: 8px;

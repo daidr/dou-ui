@@ -124,10 +124,12 @@ export interface FlowEditorProps {
 
 /**
  * What a comment thread is about: a node, a point on a node, or an edge.
- * `at` pins the thread to that point: fractions of the node's width and
- * height from its top left, 0 to 1.
+ * `at` pins the thread to that point, as fractions of the node's width and
+ * height from its top left, 0 to 1 (not canvas px, unlike other `at`s).
+ * `number` is the pin's number on the node, as drawn: read from
+ * `getCommentAnchors`, left out when starting one.
  */
-export type FlowCommentAnchor = { node: string; at?: Point } | { edge: string }
+export type FlowCommentAnchor = { node: string; at?: Point; number?: number } | { edge: string }
 
 export interface FlowEditorEmits {
   /** Every change to the document, with its steps; `update:modelValue` follows. */

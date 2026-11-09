@@ -104,7 +104,7 @@ export interface FlowMessages {
   comment: string
   /** The marker of the discussions on a node or an edge; `{count}` of them are open. */
   comments: string
-  /** A thread pinned to a point on a node; `{number}` is its place among the pins there. */
+  /** A thread pinned to a point on a node; `{number}` is its number there, `{node}` the node's name. */
   commentPin: string
   /** Why an edge was refused, announced when it is dropped. */
   refused: {
@@ -239,7 +239,7 @@ const zhCN: FlowMessages = {
   stale: '{count} 条连线的端口类型已经对不上',
   comment: '评论',
   comments: '{count} 条评论',
-  commentPin: '评论 {number}',
+  commentPin: '{node}的评论 {number}',
   refused: {
     direction: '只能从输出连到输入',
     self: '不能连到同一个节点',
@@ -358,7 +358,7 @@ const zhTW: FlowMessages = {
   stale: '{count} 條連線的連接埠類型已經對不上',
   comment: '評論',
   comments: '{count} 則評論',
-  commentPin: '評論 {number}',
+  commentPin: '{node}的評論 {number}',
   refused: {
     direction: '只能從輸出連到輸入',
     self: '不能連到同一個節點',
@@ -477,7 +477,7 @@ const en: FlowMessages = {
   stale: '{count} edges no longer match their ports',
   comment: 'Comment',
   comments: '{count} comments',
-  commentPin: 'Comment {number}',
+  commentPin: 'Comment {number} on {node}',
   refused: {
     direction: 'Edges go from an output to an input',
     self: 'A node can’t connect to itself',

@@ -28,7 +28,7 @@ const sides = ['top', 'right', 'bottom', 'left'] as const
   height: 100%;
   padding: 8px 12px;
   border: 1px dashed var(--dou-color-border-strong);
-  border-radius: var(--dou-radius-md);
+  border-radius: var(--dou-radius-control);
   color: var(--dou-color-text-tertiary);
 }
 </style>

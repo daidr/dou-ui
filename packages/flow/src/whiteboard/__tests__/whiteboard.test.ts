@@ -952,6 +952,32 @@ describe('resize handles', () => {
     expect(layer.find('.dou-whiteboard-node__frame').attributes('style')).toContain('width: 100px')
   })
 
+  it("keeps the corners' targets short of the anchors on a small shape", async () => {
+    const { root, selection } = setup({
+      version: 1,
+      nodes: [
+        { id: 'a', type: 'shape', x: 0, y: 0, width: 64, height: 40, data: { shape: 'rect' } },
+      ],
+      edges: [],
+    })
+    await ticks()
+    selection.value = { nodes: ['a'], edges: [] }
+    await ticks()
+    const layer = root.find('.dou-whiteboard-handles')
+    // the stylesheet stops each target this far into the node, short of the sides' middles
+    const frame = layer.find('.dou-whiteboard-node__frame').element as HTMLElement
+    expect(frame.style.getPropertyValue('--dou-whiteboard-frame-width')).toBe('64px')
+    expect(frame.style.getPropertyValue('--dou-whiteboard-frame-height')).toBe('40px')
+    // and needs to know which way is into the node
+    const corners = layer.findAll('.dou-whiteboard-node__corner')
+    expect(corners).toHaveLength(4)
+    for (const c of corners) {
+      const [x = 0, y = 0] = c.attributes('data-handle')!.split(',').map(Number)
+      expect(c.classes(x < 0 ? 'is-left' : 'is-right')).toBe(true)
+      expect(c.classes(y < 0 ? 'is-top' : 'is-bottom')).toBe(true)
+    }
+  })
+
   it('turns the corner handles about the node, not about the board', async () => {
     const { root, selection } = setup({
       version: 1,

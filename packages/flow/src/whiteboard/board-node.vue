@@ -75,6 +75,9 @@ const frameStyle = computed(() => {
     translate: `${rect.x}px ${rect.y}px`,
     width: `${rect.width}px`,
     height: `${rect.height}px`,
+    // the corners' targets keep short of the anchors in the sides' middle
+    '--dou-whiteboard-frame-width': `${rect.width}px`,
+    '--dou-whiteboard-frame-height': `${rect.height}px`,
     rotate: rotation.value ? `${rotation.value}deg` : undefined,
   }
 })
@@ -318,7 +321,11 @@ function onKeydown(event: KeyboardEvent) {
           <span
             v-for="handle in cornerHandles"
             :key="`${handle.x},${handle.y}`"
-            class="dou-whiteboard-node__corner"
+            :class="[
+              'dou-whiteboard-node__corner',
+              handle.x < 0 ? 'is-left' : 'is-right',
+              handle.y < 0 ? 'is-top' : 'is-bottom',
+            ]"
             :style="{ left: place(handle.x), top: place(handle.y), cursor: cursorOf(handle) }"
             :data-handle="`${handle.x},${handle.y}`"
             data-dou-nodrag

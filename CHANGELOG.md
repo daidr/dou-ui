@@ -7,6 +7,21 @@ DouUI 的所有包（`dou-ui`、`@dou-ui/theme`、`@dou-ui/icons` 以及生态�
 
 这个文件由发版脚本生成：改动先以碎片文件记在 [`.changes/`](./.changes/README.md) 里，发布时汇总到这里。
 
+## 0.1.0-alpha.11 · 2026-11-09
+
+### 不兼容
+
+- **dou-ui、@dou-ui/theme**：轻提示的内容包进了新的 `.dou-toast__body`，内边距和横向排列都在它上面；`.dou-toast__item` 改为绝对定位，高度由组件按内容计算并控制，超出部分会被裁掉。原来写在 `.dou-toast__item` 上的内边距、`gap`、对齐等样式请改到 `.dou-toast__body`；`.dou-toast__item` 上只保留外壳样式（边框、背景、圆角、阴影），不要再设置 `height`、`position` 或 `transform`。 ([#402](https://github.com/daidr/dou-ui/pull/402))
+
+### 新增
+
+- **dou-ui**：DouMarkdown、DouStreamText、DouChatMessage 新增 `trailing` 插槽：内容跟在正文最后一个字后面、和文字同一行，适合放“已编辑”这类常驻标记。在 Markdown 里位置和流式光标相同，最后一块是代码块或分隔线时单独占一行；在 ChatMessage 里跟在最后一个文字片段末尾，不受 `actionsVisible` 影响。 ([#400](https://github.com/daidr/dou-ui/pull/400))
+- **dou-ui、@dou-ui/theme**：同一位置的多条轻提示默认叠在一起，指针悬停、焦点进入或在触屏上轻点时展开成一列，展开期间暂停倒计时；新增、关闭、展开和收起之间连贯过渡。`DouToastViewport` 新增 `stacked`，设为 `false` 时始终排成一列。 ([#402](https://github.com/daidr/dou-ui/pull/402))
+
+### 修复
+
+- **@dou-ui/theme**：DouDialog 没有标题栏（不传标题、`closable` 为 `false`、也没有 `fullscreenable`）时，正文四边都用 `--dou-dialog-padding`，不再在顶部多留 8px；有标题、关闭按钮或全屏按钮任一存在时显示标题栏，标题栏和正文之间仍是 8px。 ([#399](https://github.com/daidr/dou-ui/pull/399))
+
 ## 0.1.0-alpha.10 · 2026-11-09
 
 ### 不兼容

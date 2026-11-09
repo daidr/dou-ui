@@ -1,6 +1,6 @@
 {
   "name": "@dou-ui/sheet-xlsx",
-  "version": "0.1.0-alpha.10",
+  "version": "0.1.0-alpha.11",
   "description": "DouUI 电子表格的 .xlsx 导入导出，不依赖第三方库",
   "keywords": [
     "vue",

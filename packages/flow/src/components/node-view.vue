@@ -14,7 +14,7 @@ import { flowNodeKey, type NodeMetrics, type PortAnchor, type PortState } from '
 import type { FlowNode, FlowPortSpec, PortSide } from '../core/model'
 import { portSide, portsOf, resizeOf, type NodeTypeSpec } from '../core/node-types'
 import DefaultNode from './default-node.vue'
-import FlowPortView from './flow-port.vue'
+import FlowPortView from './port-view.vue'
 
 const props = defineProps<{
   node: FlowNode

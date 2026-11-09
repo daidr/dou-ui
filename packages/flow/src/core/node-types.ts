@@ -109,6 +109,8 @@ export const portSide = (port: FlowPortSpec): PortSide =>
 /**
  * The ports of `ports: 'sides'`: an output and an input in the middle of
  * each side. Edges go from an output (`right`) to an input (`left-in`).
+ * Like a whiteboard shape's anchors, the outputs show on hover and the
+ * inputs only while an edge is drawn.
  * `right` and `left-in` come first, so a node added after another joins it
  * left to right.
  */
@@ -117,12 +119,14 @@ export const sidePorts: readonly FlowPortSpec[] = [
     id: side,
     kind: 'output' as const,
     side,
+    visible: 'hover' as const,
   })),
   ...(['left', 'top', 'right', 'bottom'] as const).map((side) => ({
     id: `${side}-in`,
     kind: 'input' as const,
     side,
     max: Number.POSITIVE_INFINITY,
+    visible: 'connecting' as const,
   })),
 ]
 

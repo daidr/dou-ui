@@ -46,6 +46,7 @@ export type {
   FlowEndpoint,
   FlowNode,
   FlowPortSpec,
+  FlowPortVisible,
   FlowSelection,
   FlowViewport,
   Point,

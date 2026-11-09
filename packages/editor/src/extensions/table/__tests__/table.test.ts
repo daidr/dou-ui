@@ -2,6 +2,7 @@ import { TextSelection } from 'prosemirror-state'
 import { CellSelection, TableMap } from 'prosemirror-tables'
 import type { EditorView } from 'prosemirror-view'
 import { afterEach, describe, expect, it } from 'vitest'
+import { getBlockSelection, selectBlocks } from '../../../core/block-selection'
 import { blocksToHTML, htmlToBlocks } from '../../../core/convert'
 import { createEditorView } from '../../../core/editor'
 import { resolveEditorExtensions } from '../../../core/extension'
@@ -316,5 +317,14 @@ describe('table import and export', () => {
       ['text', 'break', 'text'],
       ['text', 'break', 'text'],
     ])
+  })
+})
+
+describe('selecting the whole table block', () => {
+  it('stays a block selection though the text selection under it turns into cells', () => {
+    const target = create([grid, { id: 'p', content: '后面' }])
+    expect(selectBlocks('t')(target.state, target.dispatch)).toBe(true)
+    // what dragging the block handle needs
+    expect(getBlockSelection(target.state)).toEqual({ anchor: 't', head: 't' })
   })
 })

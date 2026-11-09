@@ -164,8 +164,10 @@ export function blockSelectionPlugin(): Plugin<BlockSelection | null> {
       apply(tr, value) {
         const meta = tr.getMeta(blockSelectionKey) as BlockSelection | null | undefined
         if (meta !== undefined) return meta
-        // any other selection change (a click, typing) ends it
-        if (value && tr.selectionSet && !tr.docChanged) return null
+        // any other selection change (a click, typing) ends it; not a plugin
+        // adjusting the selection under it (a table's turns into cells)
+        if (value && tr.selectionSet && !tr.docChanged && !tr.getMeta('appendedTransaction'))
+          return null
         return value
       },
     },

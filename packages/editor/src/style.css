@@ -859,11 +859,6 @@
   .dou-editor__handle.is-compact {
     transform: translateX(calc(-100% - 2px));
 
-    /* clear of a table's row handles, which reach 7px out of it */
-    &.is-before-table {
-      transform: translateX(calc(-100% - 11px));
-    }
-
     & .dou-editor__add {
       display: none;
     }
@@ -1158,6 +1153,14 @@
     padding-inline-start: 0;
   }
 
+  /*
+   * a table in a column starts a little in: its row handles, centered on
+   * its left edge, stay clear of the block handle in the gap before it
+   */
+  .dou-editor__content--column + .dou-editor__group .dou-editor__content--table {
+    padding-inline-start: 12px;
+  }
+
   /* while editing, pointing at a set of columns outlines them, empty ones too */
   @media (hover: hover) {
     .dou-editor:not(.is-readonly)
@@ -1210,6 +1213,11 @@
     &.is-shown::after,
     &:focus-visible::after {
       opacity: 1;
+    }
+
+    /* a bar kept for the keyboard takes the pointer only once it shows */
+    &.is-key:not(.is-shown, :focus) {
+      pointer-events: none;
     }
   }
 

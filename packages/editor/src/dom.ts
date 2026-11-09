@@ -122,8 +122,10 @@ export function firstLine(content: HTMLElement): { top: number; height: number }
   return { top: rect.top + (height < rect.height ? padding : 0), height }
 }
 
+/** A top-level table: only it reaches into the margins (a table in a column or a list doesn't). */
 const isWideTable = (content: HTMLElement) =>
-  content.classList.contains('dou-editor__content--table')
+  content.classList.contains('dou-editor__content--table') &&
+  !!content.parentElement?.parentElement?.classList.contains('dou-editor__surface')
 
 /**
  * Where a block's content goes across: its box, less what a top-level

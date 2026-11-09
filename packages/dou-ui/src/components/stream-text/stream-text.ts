@@ -28,6 +28,11 @@ export interface StreamTextSlots {
    * to plain text that keeps line breaks.
    */
   default?: (props: { text: string; done: boolean }) => unknown
+  /**
+   * Content that follows the last character on the same line, e.g. an
+   * "edited" mark; after the caret while streaming.
+   */
+  trailing?: () => unknown
 }
 
 export interface StreamTextExpose {

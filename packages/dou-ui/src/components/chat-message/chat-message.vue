@@ -64,7 +64,8 @@ const markdownOptions = computed(() =>
 const PREFIX = 'markdown-'
 const markdownSlots = () =>
   Object.keys(slots)
-    .filter((name) => name.startsWith(PREFIX))
+    // the message's own `trailing` goes to its last text, not to every Markdown in it
+    .filter((name) => name.startsWith(PREFIX) && name !== `${PREFIX}trailing`)
     .map((name) => ({
       name: name as keyof ChatMessageMarkdownSlots,
       inner: name.slice(PREFIX.length),
@@ -77,6 +78,11 @@ const body = computed(() =>
   isUser.value ? parts.value.filter((p) => p.type !== 'files') : parts.value,
 )
 const text = computed(() => messageText(parts.value as { type: string; text?: unknown }[]))
+/** The last text part, which the `trailing` slot follows; -1 without one. */
+const lastText = computed(() => {
+  for (let i = body.value.length - 1; i >= 0; i--) if (body.value[i]!.type === 'text') return i
+  return -1
+})
 // Every source of the message, numbered in order, for `[1]` in Markdown
 // text. The same array while the sources stay the same, so text that
 // streams in does not redraw the whole reply.
@@ -236,6 +242,9 @@ const rest = (part: AnyPart) => {
             <template v-for="slot in markdownSlots()" :key="slot.name" #[slot.inner]="scope">
               <slot :name="slot.name" v-bind="scope" />
             </template>
+            <template v-if="slots.trailing && index === lastText" #trailing>
+              <slot name="trailing" />
+            </template>
           </DouMarkdown>
           <DouStreamText
             v-else-if="part.type === 'text'"
@@ -251,6 +260,9 @@ const rest = (part: AnyPart) => {
                 :index="index"
                 :sources="sources"
               />
+            </template>
+            <template v-if="slots.trailing && index === lastText" #trailing>
+              <slot name="trailing" />
             </template>
           </DouStreamText>
           <DouChatReasoning
@@ -319,6 +331,9 @@ const rest = (part: AnyPart) => {
             :index="index"
           />
         </template>
+        <div v-if="slots.trailing && lastText < 0 && !loading" :class="ns.e('trailing')">
+          <slot name="trailing" />
+        </div>
       </slot>
       <span v-if="loading" :class="ns.e('loading')" role="status" :aria-label="t('chat.loading')">
         <i /><i /><i />

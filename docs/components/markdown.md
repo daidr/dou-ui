@@ -94,6 +94,10 @@ app.use(DouUI, {
 - `link`、`image`、`citation`、`inline-code`、`strong`、`em`、`del` 在段落里面，插槽里要用 `span` 这类行内元素，放 `div` 会让服务端渲染的 HTML 被浏览器拆开。
 - 想换掉高亮器而不换组件时，不需要插槽，在 `defaults` 里设置 CodeBlock 的 `highlight` 即可。
 
+## 跟在正文末尾
+
+`trailing` 插槽的内容跟在正文最后一个字后面，和文字在同一行，适合放“已编辑”这类标记。它的位置和流式输出的光标一样：最后一段、标题、列表项或表格最后一格的末尾，最后一块是引用或 `:::` 自定义块时就在框里面，生成中时在光标后面。最后一块是代码块或分隔线时，后面接不了文字，它单独占一行。插槽里要用 `span`、`button` 这类行内元素。在 ChatMessage 里用它的 [`trailing`](./chat-message#跟在文字后面的标记) 插槽，不用加 `markdown-` 前缀。
+
 ## 安全
 
 - 不解析 HTML：`<script>`、`<img onerror>` 这类内容按原样显示为文字。
@@ -153,7 +157,7 @@ parser.update(text, { final: true })
 
 ### Slots
 
-见[替换渲染](#替换渲染)。
+见[替换渲染](#替换渲染)和[跟在正文末尾](#跟在正文末尾)。
 
 ### Exposes
 

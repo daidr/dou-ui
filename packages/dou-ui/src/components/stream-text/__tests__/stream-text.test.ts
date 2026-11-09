@@ -88,4 +88,14 @@ describe('DouStreamText', () => {
     expect(safeCut(text, 1)).toBe(1)
     expect(safeCut(text, 9)).toBe(4)
   })
+
+  it('puts the trailing slot after the last character and the caret', () => {
+    const wrapper = mount(DouStreamText, {
+      props: { content: '正在写', streaming: true, smooth: false },
+      slots: { trailing: () => h('span', { class: 'mark' }, '已编辑') },
+    })
+    const tail = [...wrapper.element.children].map((el) => el.className)
+    expect(tail).toEqual(['dou-stream-text__caret', 'dou-stream-text__trailing'])
+    expect(wrapper.find('.dou-stream-text__trailing .mark').exists()).toBe(true)
+  })
 })

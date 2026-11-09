@@ -193,4 +193,53 @@ describe('DouChatMessage', () => {
     expect(wrapper.classes()).not.toContain('is-highlighted')
     expect(wrapper.attributes('aria-current')).toBeUndefined()
   })
+
+  it('puts the trailing slot after the last text part, whatever `actionsVisible` is', () => {
+    const mark = { trailing: () => h('button', { class: 'mark' }, '已编辑') }
+    for (const markdown of [false, true]) {
+      const wrapper = mount(DouChatMessage, {
+        props: {
+          parts: [
+            { type: 'text', text: '先查天气。' },
+            { type: 'tool', name: 'get_weather' },
+            { type: 'text', text: '周六适合去滴水湖骑车。' },
+          ],
+          markdown,
+          actionsVisible: 'hover',
+        },
+        slots: mark,
+      })
+      const texts = wrapper.findAll('.dou-chat-message__text')
+      expect(wrapper.findAll('.mark')).toHaveLength(1)
+      expect(texts[1]!.find('.mark').exists()).toBe(true)
+      // not on the reasoning, nor among the actions
+      expect(wrapper.find('.dou-chat-message__actions .mark').exists()).toBe(false)
+      wrapper.unmount()
+    }
+    // no text: a line after the parts
+    const tools = mount(DouChatMessage, {
+      props: { parts: [{ type: 'tool', name: 'get_weather' }] },
+      slots: mark,
+    })
+    const content = tools.get('.dou-chat-message__content').element
+    expect(content.lastElementChild!.className).toBe('dou-chat-message__trailing')
+    // not before the loading dots: it waits until loading ends
+    const waiting = mount(DouChatMessage, { props: { parts: [], loading: true }, slots: mark })
+    expect(waiting.find('.mark').exists()).toBe(false)
+  })
+
+  it('keeps the trailing slot off the reasoning in Markdown', () => {
+    const wrapper = mount(DouChatMessage, {
+      props: {
+        parts: [
+          { type: 'reasoning', text: '想一想' },
+          { type: 'text', text: '好的。' },
+        ],
+        markdown: true,
+      },
+      slots: { trailing: () => h('i', { class: 'mark' }, '已编辑') },
+    })
+    expect(wrapper.findAll('.mark')).toHaveLength(1)
+    expect(wrapper.find('.dou-chat-reasoning .mark').exists()).toBe(false)
+  })
 })

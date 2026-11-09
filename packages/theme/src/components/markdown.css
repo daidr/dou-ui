@@ -44,6 +44,7 @@
         .dou-markdown__custom,
         .dou-markdown__callout,
         .dou-markdown__container,
+        div.dou-markdown__trailing,
         hr,
         img
       ) {

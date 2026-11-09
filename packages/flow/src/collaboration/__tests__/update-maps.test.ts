@@ -101,4 +101,20 @@ describe('readMaps and updateMaps', () => {
     updateMaps(maps(ydoc), { ...base, nodes: [base.nodes[0]!], edges: [] }, { base })
     expect(new Set(readMaps(maps(ydoc)).nodes.map((n) => n.id))).toEqual(new Set(['a', 'c']))
   })
+
+  it('with `base`, leaves out a new edge to a node removed meanwhile', () => {
+    const ydoc = new Y.Doc()
+    fillMaps(maps(ydoc), flow)
+    const base = readMaps(maps(ydoc))
+    maps(ydoc).nodes.delete('b')
+    updateMaps(
+      maps(ydoc),
+      {
+        ...base,
+        edges: [...base.edges, { id: 'f', source: { node: 'a' }, target: { node: 'b' } }],
+      },
+      { base },
+    )
+    expect(maps(ydoc).edges.has('f')).toBe(false)
+  })
 })

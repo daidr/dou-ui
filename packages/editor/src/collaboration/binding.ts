@@ -378,6 +378,10 @@ function likeness(a: string, b: string): number {
 const ALIKE = 0.4
 /** How many stored blocks ahead a block is looked for between two equal ones. */
 const LOOK_AHEAD = 32
+/** How alike a block moved out of its order must be to count as the same one edited. */
+const MOVED_ALIKE = 0.8
+/** The most comparisons spent on blocks moved out of their order. */
+const MOVED_PAIRS = 40_000
 
 /**
  * Which block of `before` each block of `after` stands for: by id when it
@@ -435,6 +439,42 @@ function matchBlocks(before: Index, after: Index): Map<string, string> {
       if (ai < fresh.length) pair(fresh[ai]!, olds[aj]!)
       i = ai + 1
       j = aj + 1
+    }
+    // what is left: blocks moved past others, e.g. paragraphs put in another order;
+    // the same content first, then very alike text, wherever it is in the list
+    const leftNew = fresh.filter((id) => !match.has(id))
+    const leftOld = olds.filter((id) => !used.has(id))
+    if (leftNew.length && leftOld.length) {
+      const byKey = new Map<string, string[]>()
+      // last first, so `pop` takes them in order
+      for (let k = leftOld.length - 1; k >= 0; k--) {
+        const id = leftOld[k]!
+        const text = keyOf(contentOf(before, id))
+        const list = byKey.get(text)
+        if (list) list.push(id)
+        else byKey.set(text, [id])
+      }
+      const rest: string[] = []
+      for (const id of leftNew) {
+        const old = byKey.get(keyOf(contentOf(after, id)))?.pop()
+        if (old) pair(id, old)
+        else rest.push(id)
+      }
+      if (rest.length * leftOld.length <= MOVED_PAIRS)
+        for (const id of rest) {
+          const node = contentOf(after, id)
+          let best: string | null = null
+          let score = MOVED_ALIKE
+          for (const old of leftOld) {
+            if (used.has(old) || contentOf(before, old).type !== node.type) continue
+            const like = likeness(node.textContent, contentOf(before, old).textContent)
+            if (like >= score) {
+              best = old
+              score = like
+            }
+          }
+          if (best) pair(id, best)
+        }
     }
     for (const id of ids) if (after.children.has(id)) visit(id, match.get(id) ?? null)
   }
@@ -519,9 +559,21 @@ export function updateDoc(map: Y.Map<YBlock>, doc: PMNode, schema: Schema, base?
     const there = nowOf(old)
     if (there) stored.set(id, there)
   }
+  // removed by someone else since `base`: it stays removed, even if `doc`
+  // changed it, and so do the blocks `doc` adds under it
+  const gone = new Set<string>()
+  const walk = (key: string, inGone: boolean) => {
+    for (const id of to.children.get(key) ?? []) {
+      const old = toBase.get(id)
+      const lost = (old !== undefined && !stored.has(id)) || (inGone && !stored.has(id))
+      if (lost) gone.add(id)
+      walk(id, lost)
+    }
+  }
+  walk(ROOT, false)
   // ids of `doc` for its new blocks: kept unless the map has them already
   for (const id of to.blocks.keys())
-    if (!stored.has(id)) stored.set(id, map.has(id) ? createId() : id)
+    if (!stored.has(id) && !gone.has(id)) stored.set(id, map.has(id) ? createId() : id)
   const kept = new Set(stored.values())
   const inDoc = new Set(toBase.values())
 
@@ -535,6 +587,7 @@ export function updateDoc(map: Y.Map<YBlock>, doc: PMNode, schema: Schema, base?
 
   // content: new blocks written, those changed since `base` brought to `doc`
   for (const [id, placed] of to.blocks) {
+    if (gone.has(id)) continue
     const target = stored.get(id)!
     const yblock = map.get(target)
     if (!now.blocks.has(target)) {
@@ -551,7 +604,9 @@ export function updateDoc(map: Y.Map<YBlock>, doc: PMNode, schema: Schema, base?
   }
 
   // places: in each list of `doc`, the blocks new there or out of their order in `base`
-  for (const [key, ids] of to.children) {
+  for (const [key, all] of to.children) {
+    if (gone.has(key)) continue
+    const ids = all.filter((id) => !gone.has(id))
     const parent = key === ROOT ? null : stored.get(key)!
     const oldParent = key === ROOT ? ROOT : toBase.get(key)
     const siblings = oldParent === undefined ? [] : (from.children.get(oldParent) ?? [])

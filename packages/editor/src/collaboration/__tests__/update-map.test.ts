@@ -32,6 +32,10 @@ const tree = (child: string) => ({
   ],
 })
 
+/** The block of `map` with the text `line`. */
+const blockOf = (map: Y.Map<unknown>, line: string) =>
+  readMap(map).blocks.find((b) => text([b])[0] === line)!
+
 describe('updateMap', () => {
   it('fills an empty map', () => {
     const ydoc = new Y.Doc()
@@ -208,5 +212,81 @@ describe('updateMap', () => {
     updateMap(map, doc(...lines))
     expect(performance.now() - start).toBeLessThan(1500)
     expect(text(readMap(map).blocks)[1500]).toBe('第 1500 段：上海的天气多云')
+  })
+
+  it('with `base`, keeps a block removed meanwhile removed, even if changed', () => {
+    const ydoc = new Y.Doc()
+    const map = ydoc.getMap('document')
+    fillMap(map, doc('first', 'second'))
+    const base = readMap(map)
+    // someone removes the second block while the program rewrites it
+    updateMap(map, doc('first'))
+    updateMap(map, doc('first', 'second by ai'), { base })
+    expect(text(readMap(map).blocks)).toEqual(['first'])
+  })
+
+  it('moves blocks put in another order, keeping their ids', () => {
+    const ydoc = new Y.Doc()
+    const map = ydoc.getMap('document')
+    fillMap(map, doc('alpha', 'beta', 'gamma'))
+    const ids = Object.fromEntries(readMap(map).blocks.map((b) => [text([b])[0], b.id]))
+    updateMap(map, doc('gamma', 'alpha', 'beta'))
+    const after = readMap(map).blocks
+    expect(text(after)).toEqual(['gamma', 'alpha', 'beta'])
+    expect(after.map((b) => b.id)).toEqual([ids.gamma, ids.alpha, ids.beta])
+    // and moved and edited a little
+    updateMap(map, doc('alpha', 'beta', 'gamma!'))
+    expect(readMap(map).blocks.map((b) => b.id)).toEqual([ids.alpha, ids.beta, ids.gamma])
+  })
+
+  describe.each([
+    ['with ids', (blocks: PartialBlock[]) => blocks],
+    // as read again from Markdown: the same blocks, new ids
+    [
+      'read from Markdown',
+      (blocks: PartialBlock[]) => blocks.map((b) => ({ ...b, id: undefined })),
+    ],
+  ])('with a `base` %s, what others did meanwhile', (_, asBase) => {
+    const setup = () => {
+      const ydoc = new Y.Doc()
+      const map = ydoc.getMap('document')
+      fillMap(map, doc('alpha one', 'beta two', 'gamma three'))
+      const base = { version: 1 as const, blocks: asBase(readMap(map).blocks) }
+      return { map, base }
+    }
+
+    it('a block removed stays removed, changed by the program or not', () => {
+      const { map, base } = setup()
+      map.delete(blockOf(map, 'beta two').id!)
+      updateMap(map, doc('alpha one', 'beta two', 'gamma three, edited'), { base })
+      expect(text(readMap(map).blocks)).toEqual(['alpha one', 'gamma three, edited'])
+      const again = setup()
+      again.map.delete(blockOf(again.map, 'beta two').id!)
+      updateMap(again.map, doc('alpha one', 'beta two!!', 'gamma three'), { base: again.base })
+      expect(text(readMap(again.map).blocks)).toEqual(['alpha one', 'gamma three'])
+    })
+
+    it('a block moved stays where it was moved, once', () => {
+      const { map, base } = setup()
+      const alpha = blockOf(map, 'alpha one')
+      updateMap(map, doc('beta two', 'gamma three', 'alpha one'))
+      expect(blockOf(map, 'alpha one').id).toBe(alpha.id)
+      updateMap(map, doc('alpha one', 'beta two', 'gamma three, edited'), { base })
+      expect(text(readMap(map).blocks)).toEqual(['beta two', 'gamma three, edited', 'alpha one'])
+    })
+
+    it('a block rewritten keeps their words, once', () => {
+      const { map, base } = setup()
+      const beta = blockOf(map, 'beta two')
+      const typed = (map.get(beta.id!) as Y.Map<unknown>).get('text') as Y.Text
+      typed.delete(0, typed.length)
+      typed.insert(0, 'completely different words here')
+      updateMap(map, doc('alpha one', 'beta two', 'gamma three, edited'), { base })
+      expect(text(readMap(map).blocks)).toEqual([
+        'alpha one',
+        'completely different words here',
+        'gamma three, edited',
+      ])
+    })
   })
 })

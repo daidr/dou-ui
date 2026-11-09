@@ -198,6 +198,8 @@ function syncItems(
   map: Shared,
   items: readonly (FlowNode | FlowEdge)[],
   base?: readonly (FlowNode | FlowEdge)[],
+  /** Whether a new item can be added, e.g. an edge whose two nodes are there. */
+  fits: (item: FlowNode | FlowEdge) => boolean = () => true,
 ) {
   if (!base) {
     const ids = new Set(items.map((item) => item.id))
@@ -211,7 +213,7 @@ function syncItems(
   for (const item of items) {
     const old = before.get(item.id)
     if (!old) {
-      write(map, item)
+      if (fits(item)) write(map, item)
       continue
     }
     // removed meanwhile by someone else: it stays removed
@@ -242,7 +244,12 @@ export function updateMaps(maps: Maps, doc: FlowDocument, options: UpdateMapsOpt
   const { base } = options
   const update = () => {
     syncItems(maps.nodes, doc.nodes, base?.nodes)
-    syncItems(maps.edges, doc.edges, base?.edges)
+    // a new edge to a node someone removed meanwhile would lead nowhere
+    const there = (end: { node: string }) => maps.nodes.get(end.node) instanceof Y.Map
+    syncItems(maps.edges, doc.edges, base?.edges, (item) => {
+      const edge = item as FlowEdge
+      return there(edge.source) && there(edge.target)
+    })
   }
   transact(maps, update, options.origin)
 }

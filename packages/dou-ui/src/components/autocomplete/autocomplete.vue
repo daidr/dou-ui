@@ -98,14 +98,15 @@ function load(immediate = false) {
     loading.value = true
     try {
       const result = await props.fetch!(query)
-      if (current === request) fetched.value = normalize(result)
-    } catch {
-      if (current === request) fetched.value = []
-    } finally {
       if (current === request) {
-        loading.value = false
+        fetched.value = normalize(result)
         fetchedFor = query
       }
+    } catch {
+      // not marked as fetched: focusing the field again tries once more
+      if (current === request) fetched.value = []
+    } finally {
+      if (current === request) loading.value = false
     }
   }
   if (immediate || props.debounce <= 0) void run()
@@ -205,19 +206,26 @@ async function choose(option: AutocompleteOption | undefined) {
   if (props.hideOnSelect) wanted.value = false
   active.value = -1
   if (!props.fetch) return
-  // the suggestions were for the text before: none are shown until those for the new text come
+  // the suggestions were for the text before: whatever was on its way is dropped
+  clearTimeout(timer)
   request++
-  fetched.value = []
   fetchedFor = undefined
-  loading.value = !props.hideOnSelect
+  loading.value = false
+  // closing: the list stays as it was while it fades, and is fetched again when it opens
+  if (props.hideOnSelect) return
+  // staying open: none are shown until those for the new text come
+  fetched.value = []
+  loading.value = true
   // a bound value comes back from the parent on the next render
   await nextTick()
-  if (!props.hideOnSelect) load(true)
+  load(true)
 }
 
-/** Fetch again when the suggestions are not for the text in the field. */
+/** Fetch again when the suggestions are not for the text in the field, showing none until they come. */
 function refresh() {
-  if (props.fetch && fetchedFor !== model.value) load(true)
+  if (!props.fetch || fetchedFor === model.value) return
+  fetched.value = []
+  load(true)
 }
 
 // A bound value comes back from the parent on the next render.

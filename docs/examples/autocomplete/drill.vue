@@ -48,6 +48,6 @@ const folders = (query) => {
     placeholder="目录"
     style="width: 280px"
   >
-    <template #empty>这个目录里没有子目录</template>
+    <template #empty>没有匹配的目录</template>
   </DouAutocomplete>
 </template>

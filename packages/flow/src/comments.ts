@@ -10,7 +10,7 @@ import { computed, shallowRef, type ComputedRef, type Ref, type ShallowRef } fro
 import type { FlowCommentAnchor, FlowEditorEmits, FlowEditorProps } from './context'
 import { defineFlowExtension, type FlowExtension } from './core/extension'
 import type { FlowToolbarItem } from './core/menu'
-import type { FlowDocument, FlowSelection } from './core/model'
+import type { FlowDocument, FlowNode, FlowSelection, Point } from './core/model'
 import type { FlowTransaction, FlowTransactionMeta } from './core/transaction'
 import type { FlowMessages } from './locale'
 
@@ -29,8 +29,15 @@ export interface FlowComments {
   pending: ShallowRef<FlowCommentAnchor | null>
   /** Goes up when the open thread should take the focus, ready for a reply. */
   focusRequest: ShallowRef<number>
-  /** The open threads on each node and edge, oldest first. */
-  openOn: ComputedRef<{ nodes: Map<string, string[]>; edges: Map<string, string[]> }>
+  /**
+   * The open threads on each node and edge, oldest first; a node's leave
+   * out those pinned to a point on it, which are in `pins`.
+   */
+  openOn: ComputedRef<{
+    nodes: Map<string, string[]>
+    edges: Map<string, string[]>
+    pins: FlowCommentPin[]
+  }>
   start: (anchor?: FlowCommentAnchor | null, focus?: boolean) => boolean
   /** Opens a thread, with the focus in its reply box when `focus`. */
   show: (id: string, focus: boolean) => void
@@ -41,7 +48,35 @@ export interface FlowComments {
   openedHere: (id: string | null) => boolean
 }
 
+/** An open thread pinned to a point on a node. */
+export interface FlowCommentPin {
+  thread: string
+  node: string
+  at: Point
+  /** Its place among the open pins on the node, from 1, oldest first. */
+  number: number
+}
+
+type MarkPatch = { comments: string[] | undefined; commentPins?: Record<string, Point> | undefined }
+
 const KEY = 'mod+alt+m'
+
+const fraction = (value: unknown) =>
+  typeof value === 'number' && Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : null
+
+/** A point within a node, kept between 0 and 1; `null` when it isn't one. */
+export function pinPoint(at: unknown): Point | null {
+  if (!at || typeof at !== 'object') return null
+  const x = fraction((at as Point).x)
+  const y = fraction((at as Point).y)
+  return x === null || y === null ? null : { x, y }
+}
+
+/** Where the thread `id` is pinned on a node, if it is. */
+const pinOf = (node: FlowNode, id: string): Point | null => {
+  const pins = node.commentPins
+  return pins && typeof pins === 'object' && Object.hasOwn(pins, id) ? pinPoint(pins[id]) : null
+}
 
 /** The thread ids on a node or edge; nothing when a hand-written document has something else there. */
 const idsOf = (item: { comments?: unknown }): string[] =>
@@ -55,7 +90,7 @@ export function useFlowComments(options: {
   messages: ComputedRef<FlowMessages>
   transact: (fn: (tr: FlowTransaction) => void, meta?: FlowTransactionMeta) => FlowTransaction
   /** Keeps a change kept out of undo on a node or edge as undo and redo bring it back. */
-  carry: (anchor: FlowCommentAnchor, patch: { comments: string[] | undefined }) => void
+  carry: (anchor: FlowCommentAnchor, patch: MarkPatch) => void
   /** The open threads a node's marker counts: a collapsed container's take in those inside it. */
   shownOn: (anchor: FlowCommentAnchor) => string[] | undefined
 }) {
@@ -84,15 +119,25 @@ export function useFlowComments(options: {
 
   const openOn = computed(() => {
     const live = new Set(threads.value.filter((t) => !t.resolved).map((t) => t.id))
-    const collect = (items: readonly { id: string; comments?: unknown }[]) => {
-      const out = new Map<string, string[]>()
-      for (const item of items) {
-        const ids = idsOf(item).filter((id) => live.has(id))
-        if (ids.length) out.set(item.id, ids)
+    const pins: FlowCommentPin[] = []
+    const nodes = new Map<string, string[]>()
+    for (const node of doc.value.nodes) {
+      const ids: string[] = []
+      let number = 0
+      for (const id of idsOf(node)) {
+        if (!live.has(id)) continue
+        const at = pinOf(node, id)
+        if (at) pins.push({ thread: id, node: node.id, at, number: ++number })
+        else ids.push(id)
       }
-      return out
+      if (ids.length) nodes.set(node.id, ids)
     }
-    return { nodes: collect(doc.value.nodes), edges: collect(doc.value.edges) }
+    const edges = new Map<string, string[]>()
+    for (const edge of doc.value.edges) {
+      const ids = idsOf(edge).filter((id) => live.has(id))
+      if (ids.length) edges.set(edge.id, ids)
+    }
+    return { nodes, edges, pins }
   })
 
   const threadsOf = (anchor: FlowCommentAnchor) =>
@@ -119,12 +164,22 @@ export function useFlowComments(options: {
 
   /**
    * Opens the threads on a node or edge, the selected one by default, or
-   * the box to start one there. `focus` puts the focus in the reply box:
-   * from the keyboard, not from a tap, which would bring up the keyboard
-   * on a phone.
+   * the box to start one there; with `at`, always the box for a new pin.
+   * `focus` puts the focus in the reply box: from the keyboard, not from a
+   * tap, which would bring up the keyboard on a phone.
    */
   function start(anchor: FlowCommentAnchor | null = selected(), focus = true): boolean {
     if (!enabled.value || !anchor) return false
+    if ('node' in anchor && anchor.at !== undefined) {
+      const { node } = anchor
+      const at = pinPoint(anchor.at)
+      if (!at || !writable.value || !doc.value.nodes.some((n) => n.id === node)) return false
+      open(null)
+      pending.value = { node, at }
+      focusRequest.value++
+      return true
+    }
+    anchor = 'node' in anchor ? { node: anchor.node } : { edge: anchor.edge }
     const there =
       'node' in anchor
         ? doc.value.nodes.some((n) => n.id === anchor.node)
@@ -150,7 +205,7 @@ export function useFlowComments(options: {
 
   /** Adds or takes away a thread's id on what it is about; not an undo step. */
   function mark(anchor: FlowCommentAnchor, id: string, add: boolean) {
-    let patch: { comments: string[] | undefined } | null = null
+    let patch: MarkPatch | null = null
     transact(
       (tr) => {
         const item = 'node' in anchor ? tr.getNode(anchor.node) : tr.getEdge(anchor.edge)
@@ -158,8 +213,17 @@ export function useFlowComments(options: {
         const had = idsOf(item)
         const next = add ? [...had.filter((x) => x !== id), id] : had.filter((x) => x !== id)
         patch = { comments: next.length ? next : undefined }
-        if ('node' in anchor) tr.updateNode(anchor.node, patch)
-        else tr.updateEdge(anchor.edge, patch)
+        if ('node' in anchor) {
+          const node = item as FlowNode
+          const at = add && anchor.at ? pinPoint(anchor.at) : null
+          const pins = { ...node.commentPins }
+          delete pins[id]
+          if (at) pins[id] = at
+          // only touched when there are pins, so a plain thread keeps the node as it was
+          if (at || node.commentPins)
+            patch.commentPins = Object.keys(pins).length ? pins : undefined
+          tr.updateNode(anchor.node, patch)
+        } else tr.updateEdge(anchor.edge, patch)
       },
       { history: false, origin: 'comment' },
     )
@@ -168,7 +232,10 @@ export function useFlowComments(options: {
 
   function anchorOf(id: string): FlowCommentAnchor | null {
     const node = doc.value.nodes.find((n) => idsOf(n).includes(id))
-    if (node) return { node: node.id }
+    if (node) {
+      const at = pinOf(node, id)
+      return at ? { node: node.id, at } : { node: node.id }
+    }
     const edge = doc.value.edges.find((e) => idsOf(e).includes(id))
     return edge ? { edge: edge.id } : null
   }

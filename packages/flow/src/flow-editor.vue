@@ -59,6 +59,7 @@ import {
   intersectsTurned,
   rectFrom,
   snapBox,
+  turn,
   type Guide,
   type SnapLink,
 } from './core/geometry'
@@ -191,9 +192,7 @@ const {
   messages,
   transact,
   carry: (on, patch) => !customHistory && history.carry(on, patch),
-  shownOn: (on) =>
-    commentSpots.value.find((spot) => spot.key === ('node' in on ? `n:${on.node}` : `e:${on.edge}`))
-      ?.threads,
+  shownOn: (on) => commentSpots.value.find((spot) => spot.key === spotKey(on))?.threads,
 })
 
 const resolved = computed(() => {
@@ -1575,7 +1574,7 @@ function onPointerDown(event: PointerEvent) {
   // Typing a label: the field's own presses.
   if (target.closest('.dou-flow-editor__label-input')) return
 
-  if (resolved.value.presses.length && !props.readonly && !isInteractive(target)) {
+  if (resolved.value.presses.length && !isInteractive(target)) {
     const pressedId = target.closest<HTMLElement>('[data-node-id]')?.dataset.nodeId
     const press = {
       point: toCanvas(client),
@@ -2395,6 +2394,7 @@ function paste(data: FlowDocument, at?: Point | null) {
       locked: undefined,
       // a copy starts without the original's discussions
       comments: undefined,
+      commentPins: undefined,
       parent: copied ?? containerAt(centre, containers),
     }
   })
@@ -3719,6 +3719,8 @@ const context: FlowEditorContext = {
   portTypeOf,
   colorOf,
   getNodeRect,
+  comment: (on) => comments.start(on),
+  canComment: comments.writable,
   tidy,
   centerNode,
   announce,
@@ -3955,11 +3957,20 @@ const EDGE_MARKER_LIFT = 14
 const MARKER_SIZE = 24
 const MARKER_GAP = 32
 
-/** A marker's middle, in px within the editor: a node's sits off its top right corner (style.css). */
+/**
+ * A marker's middle, in px within the editor: a node's sits off its top
+ * right corner, a pin's bottom left corner is on its point (style.css).
+ */
 const markerCenter = (marker: FlowCommentMarker): Point =>
-  'node' in marker.anchor
-    ? { x: marker.x + 6 + MARKER_SIZE / 2, y: marker.y - 6 - MARKER_SIZE / 2 }
-    : { x: marker.x, y: marker.y }
+  marker.number !== undefined
+    ? { x: marker.x + MARKER_SIZE / 2, y: marker.y - MARKER_SIZE / 2 }
+    : 'node' in marker.anchor
+      ? { x: marker.x + 6 + MARKER_SIZE / 2, y: marker.y - 6 - MARKER_SIZE / 2 }
+      : { x: marker.x, y: marker.y }
+
+/** A marker's key: one per node and edge, and one per pin (`thread`; a pin being started has none). */
+const spotKey = (on: FlowCommentAnchor, thread?: string) =>
+  'edge' in on ? `e:${on.edge}` : on.at ? `p:${thread ?? ''}` : `n:${on.node}`
 
 /** The top of a marker with a finger's target around it, in px within the editor. */
 const markerTop = (marker: FlowCommentMarker) =>
@@ -3970,7 +3981,9 @@ function commentSpotOf(on: FlowCommentAnchor): FlowCommentAnchor | null {
   const hidden = hiddenIn.value
   if ('node' in on) {
     if (!nodeById.value.has(on.node)) return null
-    return { node: hidden.get(on.node) ?? on.node }
+    const outer = hidden.get(on.node)
+    // a pin inside a collapsed container is counted on the container
+    return outer ? { node: outer } : on
   }
   if (edgeRouteById.value.has(on.edge)) return on
   // not drawn: folded away inside a container
@@ -3988,15 +4001,19 @@ const edgeRouteById = computed(() => new Map(edgeRoutes.value.map((item) => [ite
  */
 const commentSpots = computed(() => {
   if (!comments.enabled.value) return []
-  const { nodes, edges } = comments.openOn.value
+  const { nodes, edges, pins } = comments.openOn.value
   const spots = new Map<
     string,
     Omit<FlowCommentMarker, 'x' | 'y' | 'lifted'> & Point & { lift: number }
   >()
-  const add = (on: FlowCommentAnchor, threads: string[], extra: { pending?: boolean } = {}) => {
+  const add = (
+    on: FlowCommentAnchor,
+    threads: string[],
+    extra: { pending?: boolean; number?: number; thread?: string } = {},
+  ) => {
     const spot = commentSpotOf(on)
     if (!spot) return
-    const key = 'node' in spot ? `n:${spot.node}` : `e:${spot.edge}`
+    const key = spotKey(spot, extra.thread)
     const had = spots.get(key)
     if (had) {
       for (const id of threads) if (!had.threads.includes(id)) had.threads.push(id)
@@ -4005,7 +4022,14 @@ const commentSpots = computed(() => {
     }
     let at: Point
     let lift = 0
-    if ('node' in spot) {
+    if ('node' in spot && spot.at) {
+      // the point on the node, turned with it
+      const node = nodeById.value.get(spot.node)!
+      const rect = rectOf(node)
+      const point = { x: rect.x + spot.at.x * rect.width, y: rect.y + spot.at.y * rect.height }
+      const centre = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }
+      at = turn(point, centre, nodeRotation(node.id))
+    } else if ('node' in spot) {
       const node = nodeById.value.get(spot.node)!
       const box = nodeBounds(specOf(node), node, rectOf(node))
       at = { x: box.x + box.width, y: box.y }
@@ -4024,11 +4048,14 @@ const commentSpots = computed(() => {
       threads: [...threads],
       shown: [],
       pending: !!extra.pending,
+      number: 'node' in spot && spot.at ? (extra.number ?? 0) : undefined,
       ...at,
       lift,
     })
   }
   for (const [id, threads] of nodes) add({ node: id }, threads)
+  for (const pin of pins)
+    add({ node: pin.node, at: pin.at }, [pin.thread], { number: pin.number, thread: pin.thread })
   for (const [id, threads] of edges) add({ edge: id }, threads)
   const starting = comments.pending.value
   if (starting) add(starting, [], { pending: true })
@@ -4039,11 +4066,11 @@ const commentSpots = computed(() => {
   for (const spot of list) spot.shown = spot.threads
   if (active && where) {
     const spot = commentSpotOf(where)
-    const key = spot && ('node' in spot ? `n:${spot.node}` : `e:${spot.edge}`)
+    const key = spot && spotKey(spot, active)
     const there = key && spots.get(key)
     if (there && !there.threads.includes(active)) there.shown = [...there.threads, active]
     else if (!there) {
-      add(where, [])
+      add(where, [], { thread: active })
       const added = key && spots.get(key)
       if (added) {
         added.shown = [active]

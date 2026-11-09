@@ -33,6 +33,11 @@ export interface FlowCommentMarker {
   y: number
   /** Above an edge's label: a finger's target keeps clear of the label. */
   lifted: boolean
+  /**
+   * A pin on a point of a node: its place among the open pins there, from
+   * 1; `0` for one being started or a resolved one opened from outside.
+   */
+  number?: number
 }
 
 const props = defineProps<{
@@ -162,7 +167,11 @@ function press(marker: FlowCommentMarker, event: MouseEvent) {
 }
 
 const label = (marker: FlowCommentMarker) =>
-  format(props.messages.comments, { count: marker.threads.length })
+  marker.number
+    ? format(props.messages.commentPin, { number: marker.number })
+    : marker.threads.length
+      ? format(props.messages.comments, { count: marker.threads.length })
+      : props.messages.comment
 </script>
 
 <template>
@@ -178,18 +187,24 @@ const label = (marker: FlowCommentMarker) =>
       :class="{
         'is-active': current?.key === marker.key,
         'is-new': !marker.threads.length,
-        'is-node': 'node' in marker.anchor,
+        'is-node': 'node' in marker.anchor && marker.number === undefined,
+        'is-pin': marker.number !== undefined,
         'is-lifted': marker.lifted,
       }"
       :style="{ translate: `${marker.x}px ${marker.y}px` }"
-      :aria-label="marker.threads.length ? label(marker) : messages.comment"
+      :aria-label="label(marker)"
       :aria-expanded="current?.key === marker.key"
       @click="press(marker, $event)"
     >
-      <MessageCircleIcon aria-hidden="true" />
-      <span v-if="marker.threads.length > 1" class="dou-flow-editor__comment-count">{{
-        marker.threads.length
-      }}</span>
+      <span v-if="marker.number" class="dou-flow-editor__comment-count">{{ marker.number }}</span>
+      <template v-else>
+        <MessageCircleIcon aria-hidden="true" />
+        <span
+          v-if="marker.number === undefined && marker.threads.length > 1"
+          class="dou-flow-editor__comment-count"
+          >{{ marker.threads.length }}</span
+        >
+      </template>
     </button>
   </div>
   <Transition name="dou-floating" @after-leave="onClosed">

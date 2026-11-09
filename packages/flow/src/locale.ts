@@ -104,6 +104,8 @@ export interface FlowMessages {
   comment: string
   /** The marker of the discussions on a node or an edge; `{count}` of them are open. */
   comments: string
+  /** A thread pinned to a point on a node; `{number}` is its place among the pins there. */
+  commentPin: string
   /** Why an edge was refused, announced when it is dropped. */
   refused: {
     direction: string
@@ -132,6 +134,8 @@ export interface FlowMessages {
     named: string
     pen: string
     eraser: string
+    /** The tool that pins a comment where a node is clicked. */
+    comment: string
     /** The toolbar button that inserts an image. */
     image: string
     /** A pen stroke. */
@@ -235,6 +239,7 @@ const zhCN: FlowMessages = {
   stale: '{count} 条连线的端口类型已经对不上',
   comment: '评论',
   comments: '{count} 条评论',
+  commentPin: '评论 {number}',
   refused: {
     direction: '只能从输出连到输入',
     self: '不能连到同一个节点',
@@ -258,6 +263,7 @@ const zhCN: FlowMessages = {
     named: '{kind}：{text}',
     pen: '画笔',
     eraser: '橡皮',
+    comment: '评论',
     image: '图片',
     ink: '笔迹',
     imageFailed: '{name} 没能添加',
@@ -352,6 +358,7 @@ const zhTW: FlowMessages = {
   stale: '{count} 條連線的連接埠類型已經對不上',
   comment: '評論',
   comments: '{count} 則評論',
+  commentPin: '評論 {number}',
   refused: {
     direction: '只能從輸出連到輸入',
     self: '不能連到同一個節點',
@@ -375,6 +382,7 @@ const zhTW: FlowMessages = {
     named: '{kind}：{text}',
     pen: '畫筆',
     eraser: '橡皮擦',
+    comment: '評論',
     image: '圖片',
     ink: '筆跡',
     imageFailed: '{name} 未能新增',
@@ -469,6 +477,7 @@ const en: FlowMessages = {
   stale: '{count} edges no longer match their ports',
   comment: 'Comment',
   comments: '{count} comments',
+  commentPin: 'Comment {number}',
   refused: {
     direction: 'Edges go from an output to an input',
     self: 'A node can’t connect to itself',
@@ -492,6 +501,7 @@ const en: FlowMessages = {
     named: '{kind}: {text}',
     pen: 'Pen',
     eraser: 'Eraser',
+    comment: 'Comment',
     image: 'Image',
     ink: 'Stroke',
     imageFailed: '{name} could not be added',

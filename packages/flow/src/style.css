@@ -574,6 +574,14 @@
       z-index: 1;
       transform: translate(6px, calc(-100% - 6px));
     }
+    /* a pin: its square bottom left corner on the point it is about */
+    &.is-pin {
+      z-index: 1;
+      transform: translate(0, -100%);
+      border-radius: 12px 12px 12px 2px;
+      color: var(--dou-color-text);
+      font-weight: var(--dou-font-weight-medium);
+    }
 
     @media (hover: hover) {
       &:hover {
@@ -1264,6 +1272,10 @@
     &[data-board-tool='text'],
     &[data-board-tool='text'] .dou-flow-editor__node {
       cursor: text;
+    }
+    /* the comment tool pins where a node is clicked */
+    &[data-board-tool='comment'] .dou-flow-editor__node {
+      cursor: crosshair;
     }
     &[data-board-tool='pen'],
     &[data-board-tool='eraser'] {

@@ -41,7 +41,7 @@ const promptNode = defineNodeType<{ title: string }>({
 
 端口默认一直显示。使用端口的 `visible` 设置它在什么时候显示：
 
-- `hover`：鼠标移到节点上、节点被选中或节点里有焦点时显示，适合作为连线的起点。
+- `hover`：鼠标移到节点上、节点被选中，或正在节点里的输入框中输入时显示，适合作为连线的起点。
 - `connecting`：只在拉连线时显示，适合只作为终点的端口。
 
 正在拉连线时，这两种端口只在可以接上时显示：可以接上的半透明显示，松手时会接上的端口和连线的起点完整显示，其余的不显示；指针靠近一个接不上的端口时，它会以错误色显示。只读的编辑器不能拉连线，这两种端口始终不显示。在[白板](./whiteboard)上，`hover` 端口和内置形状的锚点一样，只在选择工具下显示。
@@ -51,8 +51,6 @@ const promptNode = defineNodeType<{ title: string }>({
 下面的虚线框是一个自定义的白板节点。它用 `ports: 'sides'`，组件里不放端口，锚点就和内置形状一样：
 
 <DocDemo src="flow/port-visible" />
-
-<<< @/examples/flow/port-visible.vue
 
 ### DouFlowPort 属性
 

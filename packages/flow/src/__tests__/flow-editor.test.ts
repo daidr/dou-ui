@@ -256,6 +256,18 @@ describe('DouFlowEditor', () => {
     )
   })
 
+  it('shows hover ports on hovered or selected nodes, not on one that only has the focus', () => {
+    // a node keeps the focus after an edge is drawn from it or Esc lets it go
+    const css = readFileSync(
+      resolve(dirname(fileURLToPath(import.meta.url)), '../style.css'),
+      'utf8',
+    )
+    const rule = /([^{}]*)\.dou-flow-port\[data-visible='hover'\] \{\s*opacity: 1;/.exec(css)
+    expect(rule?.[1]?.replace(/\s+/g, ' ').trim()).toBe(
+      '.dou-flow-editor__node:is(:hover, :has(:focus-visible), .is-selected)',
+    )
+  })
+
   it('keeps the editor-only `auto` out of DouFlowPort', () => {
     expect(Object.keys(DouFlowPort.props as object)).toEqual(['id', 'visible'])
   })

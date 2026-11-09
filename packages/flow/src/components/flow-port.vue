@@ -9,9 +9,9 @@ defineProps<{
   id: string
   /**
    * When the port shows: `always`; `hover`, on a hovered or selected node,
-   * or one with the focus inside; or `connecting`, only while an edge is
-   * drawn. Never shown in a readonly editor. Defaults to the port's own
-   * `visible`, else `always`.
+   * or one with the keyboard focus in it (a field being typed in);
+   * or `connecting`, only while an edge is drawn. Never shown in a
+   * readonly editor. Defaults to the port's own `visible`, else `always`.
    */
   visible?: FlowPortVisible
 }>()

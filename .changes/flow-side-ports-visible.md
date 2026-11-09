@@ -1,5 +1,5 @@
 ---
-type: 改进
+type: 不兼容
 packages: [flow]
 ---
 

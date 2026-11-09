@@ -508,16 +508,18 @@
 
   /*
    * A port's `visible`: out of sight until wanted. `hover` shows on a
-   * hovered or selected node, or one with the focus inside; while an edge
-   * is drawn both kinds show only where it can land, faint, and fully at
-   * its start and under the pointer. A readonly editor draws no edges, so
-   * they never show there.
+   * hovered or selected node, or one with the keyboard focus in it (a
+   * field being typed in). Not the node's own focus: the keys that focus a
+   * node select it, and one let go with Esc keeps the focus (and, after a
+   * key, :focus-visible too). While an edge is drawn both kinds show only
+   * where it can land, faint, and fully at its start and under the
+   * pointer. A readonly editor draws no edges, so they never show there.
    */
   .dou-flow-port[data-visible] {
     opacity: 0;
     pointer-events: none;
   }
-  .dou-flow-editor__node:is(:hover, :focus-within, .is-selected)
+  .dou-flow-editor__node:is(:hover, :has(:focus-visible), .is-selected)
     .dou-flow-port[data-visible='hover'] {
     opacity: 1;
     pointer-events: auto;

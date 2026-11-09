@@ -94,8 +94,9 @@ export interface FlowPortSpec {
   max?: number
   /**
    * When the port shows: `always`; `hover`, on a hovered or selected node,
-   * or one with the focus inside; or `connecting`, only while an edge is
-   * drawn. A `<DouFlowPort visible>` overrides it. Defaults to `always`.
+   * or one with the keyboard focus in it (a field being typed in);
+   * or `connecting`, only while an edge is drawn. A `<DouFlowPort visible>`
+   * overrides it. Defaults to `always`.
    */
   visible?: FlowPortVisible
 }

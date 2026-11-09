@@ -36,6 +36,7 @@ const props = withDefaults(defineProps<AutocompleteProps>(), {
   placement: 'bottom-start',
   teleport: undefined,
   virtual: undefined,
+  hideOnSelect: true,
 })
 const teleportTarget = useTeleport(() => props.teleport)
 const model = defineModel<string>({ default: '' })
@@ -59,6 +60,8 @@ const labelOf = (option: AutocompleteOption) => option.label ?? option.value
 /* suggestions */
 
 const fetched = ref<AutocompleteOption[]>([])
+// the text `fetched` answers; another text needs them fetched again
+let fetchedFor: string | undefined
 const loading = ref(false)
 let request = 0
 let timer: ReturnType<typeof setTimeout> | undefined
@@ -85,6 +88,7 @@ function load(immediate = false) {
   if (!enough.value) {
     request++
     fetched.value = []
+    fetchedFor = model.value
     loading.value = false
     return
   }
@@ -98,7 +102,10 @@ function load(immediate = false) {
     } catch {
       if (current === request) fetched.value = []
     } finally {
-      if (current === request) loading.value = false
+      if (current === request) {
+        loading.value = false
+        fetchedFor = query
+      }
     }
   }
   if (immediate || props.debounce <= 0) void run()
@@ -191,12 +198,26 @@ const autosize = computed(() =>
     : undefined,
 )
 
-function choose(option: AutocompleteOption | undefined) {
+async function choose(option: AutocompleteOption | undefined) {
   if (!option || option.disabled) return
   model.value = option.value
   emit('select', option)
-  wanted.value = false
+  if (props.hideOnSelect) wanted.value = false
   active.value = -1
+  if (!props.fetch) return
+  // the suggestions were for the text before: none are shown until those for the new text come
+  request++
+  fetched.value = []
+  fetchedFor = undefined
+  loading.value = !props.hideOnSelect
+  // a bound value comes back from the parent on the next render
+  await nextTick()
+  if (!props.hideOnSelect) load(true)
+}
+
+/** Fetch again when the suggestions are not for the text in the field. */
+function refresh() {
+  if (props.fetch && fetchedFor !== model.value) load(true)
 }
 
 // A bound value comes back from the parent on the next render.
@@ -209,7 +230,7 @@ async function onInput() {
 function onFocus() {
   focused.value = true
   wanted.value = true
-  if (props.fetch && !fetched.value.length) load(true)
+  refresh()
 }
 
 function onBlur(event: FocusEvent) {
@@ -229,6 +250,7 @@ function onKeydown(event: KeyboardEvent) {
       event.preventDefault()
       if (!open.value) {
         wanted.value = true
+        refresh()
         return
       }
       move(event.key === 'ArrowDown' ? 1 : -1)

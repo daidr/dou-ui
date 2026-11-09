@@ -52,6 +52,12 @@ export interface AutocompleteProps {
    * the `prefix` slot do not apply.
    */
   multiline?: boolean | { maxRows?: number }
+  /**
+   * Close the list once a suggestion is chosen. `false` keeps it open with
+   * the suggestions for the new text, to go on choosing from there, as
+   * when stepping into folders one at a time.
+   */
+  hideOnSelect?: boolean
 }
 
 export interface AutocompleteEmits {

@@ -83,6 +83,65 @@ describe('DouAutocomplete', () => {
     expect(options()).toEqual(['ab-1', 'ab-2'])
     wrapper.unmount()
   })
+  it('fetches for the chosen value before the list opens again', async () => {
+    const fetch = vi.fn<(query: string) => string[]>((query) => [`${query}/a`, `${query}/b`])
+    const wrapper = mount(DouAutocomplete, {
+      props: {
+        fetch,
+        modelValue: '/home',
+        'onUpdate:modelValue': (v: string) => wrapper.setProps({ modelValue: v }),
+      },
+      attachTo: document.body,
+    })
+    const input = wrapper.get('input')
+    await input.trigger('focus')
+    await flushPromises()
+    expect(options()).toEqual(['/home/a', '/home/b'])
+    ;(document.querySelectorAll('[role="option"]')[0] as HTMLElement).click()
+    await flushPromises()
+    expect(input.attributes('aria-expanded')).toBe('false')
+    // focus leaves and comes back: the suggestions are for `/home/a`, not `/home`
+    await input.trigger('blur')
+    await input.trigger('focus')
+    await flushPromises()
+    expect(fetch).toHaveBeenLastCalledWith('/home/a')
+    expect(options()).toEqual(['/home/a/a', '/home/a/b'])
+    wrapper.unmount()
+  })
+
+  it('keeps the list open after a choice with `hideOnSelect` off, to step further in', async () => {
+    let answer: ((list: string[]) => void) | undefined
+    const fetch = vi.fn<(query: string) => Promise<string[]>>(
+      () => new Promise((resolve) => (answer = resolve)),
+    )
+    const wrapper = mount(DouAutocomplete, {
+      props: {
+        fetch,
+        hideOnSelect: false,
+        modelValue: '/home',
+        'onUpdate:modelValue': (v: string) => wrapper.setProps({ modelValue: v }),
+      },
+      attachTo: document.body,
+    })
+    const input = wrapper.get('input')
+    await input.trigger('focus')
+    answer!(['/home/a', '/home/b'])
+    await flushPromises()
+    await input.trigger('keydown', { key: 'ArrowDown' })
+    await input.trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+    expect(wrapper.props('modelValue')).toBe('/home/a')
+    // the old suggestions are gone while the new ones load
+    expect(input.attributes('aria-expanded')).toBe('true')
+    expect(options()).toEqual([])
+    expect(document.querySelector('.dou-autocomplete__status')!.textContent).toContain('加载中')
+    expect(fetch).toHaveBeenLastCalledWith('/home/a')
+    answer!(['/home/a/x'])
+    await flushPromises()
+    expect(options()).toEqual(['/home/a/x'])
+    expect(input.attributes('aria-expanded')).toBe('true')
+    wrapper.unmount()
+  })
 })
 
 describe('DouAutocomplete highlight', () => {

@@ -51,16 +51,35 @@ function hasText(nodes: unknown): boolean {
   })
 }
 
-// Read while rendering: slot content can change from one render to the next.
+/** Whether rendered slot content shows anything: comments, blank text and empty fragments don't. */
+function rendersSomething(nodes: unknown): boolean {
+  return (Array.isArray(nodes) ? nodes : [nodes]).some((node) => {
+    if (!isVNode(node)) return typeof node === 'string' ? node.trim() !== '' : node != null
+    if (node.type === Comment) return false
+    if (node.type === Text) return String(node.children).trim() !== ''
+    if (node.type === Fragment) return rendersSomething(node.children)
+    return true
+  })
+}
+
+// Read while rendering: slot content can change from one render to the
+// next, and a slot that renders nothing this time counts as not passed,
+// e.g. a count behind `v-if` next to a leading icon.
+/** Whether a slot is passed and renders something this time. */
+function has(name: 'default' | 'leading' | 'trailing') {
+  const slot = slots[name]
+  return !!slot && rendersSomething(slot())
+}
+
 /** The default slot holds only an icon, so it is sized and centered like one. */
 function iconLabel() {
-  return !!slots.default && !hasText(slots.default())
+  return has('default') && !hasText(slots.default!())
 }
 
 function iconOnly() {
-  if (slots.trailing) return false
-  if (slots.default) return !slots.leading && iconLabel()
-  return !!(slots.leading || props.loading)
+  if (has('trailing')) return false
+  if (has('default')) return !has('leading') && iconLabel()
+  return has('leading') || props.loading
 }
 
 function onClick(event: MouseEvent) {
@@ -81,14 +100,14 @@ function onClick(event: MouseEvent) {
     <span v-if="loading" :class="ns.e('icon')" aria-hidden="true">
       <span :class="ns.e('spinner')" />
     </span>
-    <span v-else-if="slots.leading" :class="ns.e('icon')">
+    <span v-else-if="has('leading')" :class="ns.e('icon')">
       <slot name="leading" />
     </span>
-    <template v-if="slots.default">
+    <template v-if="has('default')">
       <span v-if="!iconLabel()" :class="ns.e('label')"><slot /></span>
       <span v-else-if="!loading" :class="ns.e('icon')"><slot /></span>
     </template>
-    <span v-if="slots.trailing" :class="ns.e('icon')">
+    <span v-if="has('trailing')" :class="ns.e('icon')">
       <slot name="trailing" />
     </span>
   </button>

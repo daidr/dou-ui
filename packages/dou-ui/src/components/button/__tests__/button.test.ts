@@ -1,6 +1,6 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
-import { createApp, h } from 'vue'
+import { Comment, Fragment, createApp, h, nextTick, ref } from 'vue'
 import DouUI, { DouButton, DouFieldGroup } from '../../../index'
 
 describe('DouButton', () => {
@@ -104,6 +104,33 @@ describe('DouButton', () => {
       'is-icon-only',
     )
     expect(mount(DouButton, { slots: { default: 'Save' } }).classes()).not.toContain('is-icon-only')
+  })
+
+  it('treats a default slot that renders nothing as not passed', async () => {
+    // a count behind `v-if` next to a leading icon
+    const count = ref(0)
+    const wrapper = mount({
+      render: () =>
+        h(DouButton, null, {
+          leading: () => h('svg', { class: 'bell' }),
+          default: () =>
+            count.value ? [String(count.value)] : [h(Fragment, [h(Comment, 'v-if')])],
+        }),
+    })
+    const button = wrapper.get('button')
+    expect(button.classes()).toContain('is-icon-only')
+    expect(button.findAll('.dou-button__icon')).toHaveLength(1)
+    expect(button.find('.dou-button__label').exists()).toBe(false)
+    count.value = 3
+    await nextTick()
+    expect(button.classes()).not.toContain('is-icon-only')
+    expect(button.get('.dou-button__label').text()).toBe('3')
+    // blank text and an empty trailing slot count as nothing too
+    const blank = mount(DouButton, {
+      slots: { leading: () => h('svg'), default: () => ' ', trailing: () => [] },
+    })
+    expect(blank.classes()).toContain('is-icon-only')
+    expect(blank.findAll('.dou-button__icon')).toHaveLength(1)
   })
 
   it('takes xs only from its own prop', () => {

@@ -282,14 +282,13 @@ watch(active, async (index) => {
 function onOptionEnter(event: MouseEvent, option: ChatInputOption, index: number) {
   if (!option.disabled) active.value = index
   const row = event.currentTarget as HTMLElement
-  const parts = [
-    ...row.querySelectorAll<HTMLElement>(
-      `.${ns.e('option-label')}, .${ns.e('option-description')}`,
-    ),
-  ]
-  if (parts.some((part) => part.scrollWidth > part.clientWidth)) {
-    row.title = parts.map((part) => part.textContent!.trim()).join(' · ')
-  } else row.removeAttribute('title')
+  for (const part of row.querySelectorAll<HTMLElement>(
+    `.${ns.e('option-label')}, .${ns.e('option-description')}`,
+  )) {
+    const cut = part.scrollWidth > part.clientWidth || part.scrollHeight > part.clientHeight
+    if (cut) part.title = part.textContent!.trim()
+    else part.removeAttribute('title')
+  }
 }
 
 function pick(option: ChatInputOption) {

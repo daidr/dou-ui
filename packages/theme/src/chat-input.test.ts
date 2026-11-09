@@ -17,19 +17,24 @@ function rule(selector: string) {
 }
 
 describe('chat input menu options', () => {
-  it('cut a long label short instead of letting it run out of the menu', () => {
-    const label = rule('.dou-chat-input__option-label')
-    expect(label).toMatch(/flex:\s*0 1 auto/)
-    expect(label).toMatch(/min-width:\s*0/)
-    expect(label).toMatch(/text-overflow:\s*ellipsis/)
-    expect(label).toMatch(/white-space:\s*nowrap/)
+  it('share the row evenly, each part taking what it needs while there is room', () => {
+    const option = rule('.dou-chat-input__option')
+    expect(option).toMatch(/display:\s*grid/)
+    expect(option).toMatch(/grid-auto-flow:\s*column/)
+    expect(option).toMatch(/grid-auto-columns:\s*minmax\(0, max-content\)/)
   })
 
-  it('keep a short description whole and a long one to half the row', () => {
+  it('wrap a long label onto two lines before cutting it short', () => {
+    const label = rule('.dou-chat-input__option-label')
+    expect(label).toMatch(/-webkit-line-clamp:\s*2/)
+    expect(label).toMatch(/overflow:\s*hidden/)
+    expect(label).toMatch(/overflow-wrap:\s*anywhere/)
+  })
+
+  it('keep a description to one line', () => {
     const description = rule('.dou-chat-input__option-description')
-    expect(description).toMatch(/flex:\s*none/)
-    expect(description).toMatch(/max-width:\s*50%/)
     expect(description).toMatch(/text-overflow:\s*ellipsis/)
+    expect(description).toMatch(/white-space:\s*nowrap/)
   })
 
   it('never scroll the menu sideways', () => {

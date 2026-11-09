@@ -150,15 +150,18 @@ describe('DouChatInput', () => {
     ;(textarea.element as HTMLTextAreaElement).setSelectionRange(1, 1)
     await textarea.trigger('keyup')
     const [first, second] = wrapper.findAll('[role="option"]')
-    // happy-dom has no layout: the long label overflows, the short one fits
-    const label = first!.get('.dou-chat-input__option-label').element
-    Object.defineProperty(label, 'scrollWidth', { value: 500 })
-    Object.defineProperty(label, 'clientWidth', { value: 260 })
+    // happy-dom has no layout: the long label runs past its two lines
+    const label = first!.get('.dou-chat-input__option-label')
+    Object.defineProperty(label.element, 'scrollHeight', { value: 60 })
+    Object.defineProperty(label.element, 'clientHeight', { value: 40 })
     await first!.trigger('mouseenter')
-    expect(first!.attributes('title')).toBe(`@${long} · 文件`)
+    // the title sits on the part cut short, not on the whole option
+    expect(label.attributes('title')).toBe(`@${long}`)
+    expect(first!.attributes('title')).toBeUndefined()
+    expect(first!.get('.dou-chat-input__option-description').attributes('title')).toBeUndefined()
     expect(wrapper.findAll('[role="option"]')[0]!.classes()).toContain('is-active')
     await second!.trigger('mouseenter')
-    expect(second!.attributes('title')).toBeUndefined()
+    expect(second!.get('.dou-chat-input__option-label').attributes('title')).toBeUndefined()
     expect(second!.classes()).toContain('is-active')
     wrapper.unmount()
   })

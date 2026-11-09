@@ -164,9 +164,15 @@
     }
   }
 
+  /* The icon, label and description share the row evenly: each takes what it
+     needs while there is room, and when both run long the space is split in
+     half, so a short description such as a kind stays whole and a long one
+     such as a folder never pushes the label narrower than itself. */
   .dou-chat-input__option {
-    display: flex;
-    align-items: center;
+    display: grid;
+    grid-auto-columns: minmax(0, max-content);
+    grid-auto-flow: column;
+    align-items: start;
     gap: 8px;
     min-width: 0;
     padding: 6px 8px;
@@ -186,25 +192,24 @@
   }
 
   .dou-chat-input__option-icon {
-    flex: none;
+    margin-block: 2px;
     color: var(--dou-color-text-secondary);
     font-size: 16px;
   }
 
-  /* a long label gives way first; a short description such as a kind stays
-     whole, a long one such as a folder takes at most half the row */
+  /* a long label wraps onto a second line before it is cut short, so names
+     that differ only at the end, such as -v1 and -v2, still tell apart */
   .dou-chat-input__option-label {
-    flex: 0 1 auto;
-    min-width: 0;
-    overflow-x: clip;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
     font-weight: var(--dou-font-weight-medium);
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
   }
 
   .dou-chat-input__option-description {
-    flex: none;
-    max-width: 50%;
     overflow-x: clip;
     color: var(--dou-color-text-tertiary);
     text-overflow: ellipsis;

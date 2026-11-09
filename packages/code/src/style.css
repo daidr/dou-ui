@@ -485,16 +485,21 @@
   }
 
   /* columns of the gutter left of the line numbers */
+  /* as tall as the whole line, wrapped rows too, so a cell's background runs down beside all of them */
   .dou-code-editor__cells {
     position: absolute;
     top: 0;
+    bottom: 0;
     left: 0;
     display: flex;
-    height: var(--dou-code-editor-line-height);
   }
+  /* what a cell shows stays centered on the line's first row */
   .dou-code-editor__cell {
-    display: inline-flex;
+    display: inline-grid;
     flex: none;
+    grid-template-rows: var(--dou-code-editor-line-height);
+    grid-auto-flow: column;
+    align-content: start;
     align-items: center;
     justify-content: center;
     height: 100%;
@@ -1540,6 +1545,20 @@
   }
   .dou-code-editor__cell.dou-code-diff__sign {
     font-family: var(--dou-font-family-mono);
+    /* inline, the sign is the last column: its tint carries on up to the text, with no gap */
+    .dou-code-diff--inline & {
+      position: relative;
+      &::after {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 100%;
+        width: calc(var(--dou-code-editor-gutter) - var(--dou-code-editor-gutter-cells));
+        background-color: inherit;
+        content: '';
+        pointer-events: none;
+      }
+    }
     &.is-removed {
       background-color: var(--dou-code-diff-removed);
       color: var(--dou-color-danger-text);

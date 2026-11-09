@@ -83,6 +83,153 @@ describe('DouAutocomplete', () => {
     expect(options()).toEqual(['ab-1', 'ab-2'])
     wrapper.unmount()
   })
+  it('fetches for the chosen value before the list opens again', async () => {
+    const fetch = vi.fn<(query: string) => string[]>((query) => [`${query}/a`, `${query}/b`])
+    const wrapper = mount(DouAutocomplete, {
+      props: {
+        fetch,
+        modelValue: '/home',
+        'onUpdate:modelValue': (v: string) => wrapper.setProps({ modelValue: v }),
+      },
+      attachTo: document.body,
+    })
+    const input = wrapper.get('input')
+    await input.trigger('focus')
+    await flushPromises()
+    expect(options()).toEqual(['/home/a', '/home/b'])
+    ;(document.querySelectorAll('[role="option"]')[0] as HTMLElement).click()
+    await flushPromises()
+    expect(input.attributes('aria-expanded')).toBe('false')
+    // focus leaves and comes back: the suggestions are for `/home/a`, not `/home`
+    await input.trigger('blur')
+    await input.trigger('focus')
+    await flushPromises()
+    expect(fetch).toHaveBeenLastCalledWith('/home/a')
+    expect(options()).toEqual(['/home/a/a', '/home/a/b'])
+    wrapper.unmount()
+  })
+
+  it('keeps the old list while it closes, and shows loading when it opens for a new value', async () => {
+    let answer: ((list: string[]) => void) | undefined
+    const fetch = vi.fn<(query: string) => Promise<string[]>>(
+      () => new Promise((resolve) => (answer = resolve)),
+    )
+    const wrapper = mount(DouAutocomplete, {
+      props: {
+        fetch,
+        modelValue: '/home',
+        'onUpdate:modelValue': (v: string) => wrapper.setProps({ modelValue: v }),
+      },
+      attachTo: document.body,
+      global: { stubs: { transition: false } },
+    })
+    const input = wrapper.get('input')
+    await input.trigger('focus')
+    answer!(['/home/a', '/home/b'])
+    await flushPromises()
+    ;(document.querySelectorAll('[role="option"]')[0] as HTMLElement).click()
+    await wrapper.vm.$nextTick()
+    // fading out: still the list it was, not an empty box
+    expect(input.attributes('aria-expanded')).toBe('false')
+    expect(options()).toEqual(['/home/a', '/home/b'])
+    // the value was set from outside meanwhile: the old list isn't shown again
+    await wrapper.setProps({ modelValue: '/srv' })
+    await input.trigger('blur')
+    await input.trigger('focus')
+    await wrapper.vm.$nextTick()
+    expect(fetch).toHaveBeenLastCalledWith('/srv')
+    expect(options()).toEqual([])
+    expect(document.querySelector('.dou-autocomplete__status')!.textContent).toContain('加载中')
+    answer!(['/srv/www'])
+    await flushPromises()
+    expect(options()).toEqual(['/srv/www'])
+    wrapper.unmount()
+  })
+
+  it('tries again on focus after a fetch failed', async () => {
+    let fail = true
+    const fetch = vi.fn<(query: string) => Promise<string[]>>(async (query) => {
+      if (fail) throw new Error('offline')
+      return [`${query}/a`]
+    })
+    const wrapper = mount(DouAutocomplete, {
+      props: { fetch, modelValue: '/home' },
+      attachTo: document.body,
+    })
+    const input = wrapper.get('input')
+    await input.trigger('focus')
+    await flushPromises()
+    expect(fetch).toHaveBeenCalledTimes(1)
+    fail = false
+    await input.trigger('blur')
+    await input.trigger('focus')
+    await flushPromises()
+    expect(fetch).toHaveBeenCalledTimes(2)
+    expect(options()).toEqual(['/home/a'])
+    wrapper.unmount()
+  })
+
+  it('drops a pending fetch for the typed text when an option is chosen', async () => {
+    vi.useFakeTimers()
+    const fetch = vi.fn<(query: string) => Promise<string[]>>(async (query) => [`${query}-1`])
+    const wrapper = mount(DouAutocomplete, {
+      props: {
+        fetch,
+        debounce: 200,
+        minLength: 1,
+        'onUpdate:modelValue': (v: string) => wrapper.setProps({ modelValue: v }),
+      },
+      attachTo: document.body,
+    })
+    const input = wrapper.get('input')
+    await input.trigger('focus')
+    await input.setValue('a')
+    await vi.advanceTimersByTimeAsync(200)
+    await flushPromises()
+    expect(fetch).toHaveBeenCalledTimes(1)
+    // typed again, and an option of the old list picked before the pause is over
+    await input.setValue('ab')
+    ;(document.querySelectorAll('[role="option"]')[0] as HTMLElement).click()
+    await vi.advanceTimersByTimeAsync(400)
+    await flushPromises()
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(wrapper.props('modelValue')).toBe('a-1')
+    wrapper.unmount()
+  })
+
+  it('keeps the list open after a choice with `hideOnSelect` off, to step further in', async () => {
+    let answer: ((list: string[]) => void) | undefined
+    const fetch = vi.fn<(query: string) => Promise<string[]>>(
+      () => new Promise((resolve) => (answer = resolve)),
+    )
+    const wrapper = mount(DouAutocomplete, {
+      props: {
+        fetch,
+        hideOnSelect: false,
+        modelValue: '/home',
+        'onUpdate:modelValue': (v: string) => wrapper.setProps({ modelValue: v }),
+      },
+      attachTo: document.body,
+    })
+    const input = wrapper.get('input')
+    await input.trigger('focus')
+    answer!(['/home/a', '/home/b'])
+    await flushPromises()
+    await input.trigger('keydown', { key: 'ArrowDown' })
+    await input.trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+    expect(wrapper.props('modelValue')).toBe('/home/a')
+    // the old suggestions are gone while the new ones load
+    expect(input.attributes('aria-expanded')).toBe('true')
+    expect(options()).toEqual([])
+    expect(document.querySelector('.dou-autocomplete__status')!.textContent).toContain('加载中')
+    expect(fetch).toHaveBeenLastCalledWith('/home/a')
+    answer!(['/home/a/x'])
+    await flushPromises()
+    expect(options()).toEqual(['/home/a/x'])
+    expect(input.attributes('aria-expanded')).toBe('true')
+    wrapper.unmount()
+  })
 })
 
 describe('DouAutocomplete highlight', () => {

@@ -1490,10 +1490,8 @@
   }
   /* placed by left and top on the corner, centred on it */
   .dou-whiteboard-node__corner {
-    /* how far the target reaches past the handle, and how far a selected
-       node's anchor reaches from its centre */
+    /* how far the target reaches past the handle */
     --dou-whiteboard-corner-reach: 8px;
-    --dou-whiteboard-anchor-reach: 6px;
     /*
      * into the node, the target stops short of the anchor in the middle of
      * each side, down to the corner itself: a small shape still connects
@@ -1520,7 +1518,6 @@
 
     @media (pointer: coarse) {
       --dou-whiteboard-corner-reach: 15px;
-      --dou-whiteboard-anchor-reach: 10px;
     }
 
     &::before {
@@ -1649,12 +1646,21 @@
    * on a selected node the sides resize: a port then answers only on its
    * dot, so a drag from beside it, in the middle of a side, resizes
    */
-  .dou-whiteboard-node.is-selected .dou-whiteboard-node__anchor::before {
-    inset: -2px;
+  /*
+   * how far a selected node's anchor takes a pointer from its centre; the
+   * corner handles, drawn above, keep their targets short of it
+   */
+  .dou-whiteboard-handles,
+  .dou-whiteboard-node {
+    --dou-whiteboard-anchor-reach: 6px;
 
     @media (pointer: coarse) {
-      inset: -6px;
+      --dou-whiteboard-anchor-reach: 10px;
     }
+  }
+  .dou-whiteboard-node.is-selected .dou-whiteboard-node__anchor::before {
+    /* past the 8px dot */
+    inset: calc(4px - var(--dou-whiteboard-anchor-reach));
   }
 
   .dou-whiteboard-node__anchors {

@@ -7,6 +7,21 @@ DouUI 的所有包（`dou-ui`、`@dou-ui/theme`、`@dou-ui/icons` 以及生态�
 
 这个文件由发版脚本生成：改动先以碎片文件记在 [`.changes/`](./.changes/README.md) 里，发布时汇总到这里。
 
+## 0.1.0-alpha.12 · 2026-11-09
+
+### 新增
+
+- **@dou-ui/icons**：新增 13 个图标：`PinOffIcon`、`ThumbsUpDownIcon`、`McpServerIcon`（MCP 官方标志）、`ZapIcon`，试管、烧瓶、烧杯一组（`TestTubeIcon`、`TestTubeDiagonalIcon`、`TestTubeRackIcon`、`FlaskIcon`、`FlaskRoundIcon`、`BeakerIcon`），以及 `FitToScreenIcon`、`FitWidthIcon`、`FitHeightIcon`。 ([#406](https://github.com/daidr/dou-ui/pull/406))
+
+### 改进
+
+- **@dou-ui/icons**：`MessagesIcon` 的背景气泡改到右上角露出；`PinIcon` 改为斜放（针朝左下），和新增的 `PinOffIcon` 完全重合。 ([#406](https://github.com/daidr/dou-ui/pull/406))
+
+### 修复
+
+- **dou-ui**：轻提示堆叠时，新出现的一条和已有的高度不同，已有的几条不再在第一帧跳到新高度或新位置，而是平滑过渡过去。 ([#403](https://github.com/daidr/dou-ui/pull/403))
+- **@dou-ui/code**：代码对比里新增、删除行的底色铺满整个行号栏，从最左一列一直连到代码，`inline` 和 `split` 两种视图一样，不再在 `+`/`−`、行号和代码之间断开，`gutters` 加的列也在底色里；`inline` 视图开了 `wrap` 时，换行折出的几行旁边的行号栏也一起着色。代码编辑器 `gutters` 的格子同样跟着换行后的整行变高，内容和焦点环留在第一行。 ([#408](https://github.com/daidr/dou-ui/pull/408))
+
 ## 0.1.0-alpha.11 · 2026-11-09
 
 ### 不兼容

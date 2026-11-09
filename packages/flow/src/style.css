@@ -507,15 +507,17 @@
   }
 
   /*
-   * <DouFlowPort visible>: out of sight until wanted. `hover` shows on a
-   * hovered, focused or selected node; while an edge is drawn both kinds
-   * show only where it can land, faint, and fully under the pointer.
+   * A port's `visible`: out of sight until wanted. `hover` shows on a
+   * hovered or selected node, or one with the focus inside; while an edge
+   * is drawn both kinds show only where it can land, faint, and fully at
+   * its start and under the pointer. A readonly editor draws no edges, so
+   * they never show there.
    */
   .dou-flow-port[data-visible] {
     opacity: 0;
     pointer-events: none;
   }
-  .dou-flow-editor__node:is(:hover, :focus-visible, .is-selected)
+  .dou-flow-editor__node:is(:hover, :focus-within, .is-selected)
     .dou-flow-port[data-visible='hover'] {
     opacity: 1;
     pointer-events: auto;
@@ -531,6 +533,10 @@
     &:is(.is-active, .is-candidate, .is-refused) {
       opacity: 1;
     }
+  }
+  .dou-flow-editor.is-readonly .dou-flow-editor__node .dou-flow-port[data-visible] {
+    opacity: 0;
+    pointer-events: none;
   }
 
   .dou-flow-editor__marquee {
@@ -1586,7 +1592,10 @@
     field-sizing: content;
   }
 
-  /* anchors: an output and an input on each side; only the output shows */
+  /*
+   * anchors: an output and an input on each side (`ports: 'sides'`); when
+   * they show is the ports' `visible`, set by `sidePorts`
+   */
   /*
    * on a selected node the sides resize: a port then answers only on its
    * dot, so a drag from beside it, in the middle of a side, resizes
@@ -1605,9 +1614,13 @@
     /* its ports over the resize strips along the sides */
     z-index: 1;
     pointer-events: none;
+  }
+  /* every port on a board keeps its size at any zoom, a custom node's too */
+  .dou-flow-editor[data-board-tool] .dou-flow-port {
+    scale: calc(1 / var(--dou-flow-editor-zoom, 1));
 
-    & .dou-flow-port {
-      scale: calc(1 / var(--dou-flow-editor-zoom, 1));
+    &.is-candidate {
+      scale: calc(1.25 / var(--dou-flow-editor-zoom, 1));
     }
   }
   /*

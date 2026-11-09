@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
@@ -203,10 +206,9 @@ describe('DouFlowEditor', () => {
       component: defineComponent({
         setup: () => () =>
           h('div', [
-            h(DouFlowPort, { id: 'top', visible: 'hover' }),
-            h(DouFlowPort, { id: 'top-in', visible: 'connecting' }),
-            h(DouFlowPort, { id: 'left', visible: 'always' }),
-            h(DouFlowPort, { id: 'right' }),
+            h(DouFlowPort, { id: 'top', visible: 'always' }),
+            h(DouFlowPort, { id: 'top-in', visible: 'hover' }),
+            h(DouFlowPort, { id: 'left' }),
           ]),
       }),
     })
@@ -221,13 +223,41 @@ describe('DouFlowEditor', () => {
       },
     })
     await nextTick()
+    await nextTick()
     const visible = (id: string) =>
       wrapper.find(`.dou-flow-port[data-port="${id}"]`).attributes('data-visible')
-    expect(visible('top')).toBe('hover')
-    expect(visible('top-in')).toBe('connecting')
-    expect(visible('left')).toBeUndefined()
-    expect(visible('right')).toBeUndefined()
+    // the component's own choice wins over the port's
+    expect(visible('top')).toBeUndefined()
+    expect(visible('top-in')).toBe('hover')
+    // otherwise the port's: `sidePorts` show like a whiteboard shape's anchors
+    expect(visible('left')).toBe('hover')
+    expect(
+      wrapper.find('.dou-flow-port.is-auto[data-port="right"]').attributes('data-visible'),
+    ).toBe('hover')
+    expect(
+      wrapper.find('.dou-flow-port.is-auto[data-port="left-in"]').attributes('data-visible'),
+    ).toBe('connecting')
     wrapper.unmount()
+  })
+
+  it('never shows hover or connecting ports in a readonly editor', () => {
+    const wrapper = mount(DouFlowEditor, {
+      props: { modelValue: { version: 1, nodes: [], edges: [] }, readonly: true },
+    })
+    expect(wrapper.classes()).toContain('is-readonly')
+    wrapper.unmount()
+    // happy-dom does not apply the stylesheet, so check the rule itself
+    const css = readFileSync(
+      resolve(dirname(fileURLToPath(import.meta.url)), '../style.css'),
+      'utf8',
+    )
+    expect(css).toMatch(
+      /\.dou-flow-editor\.is-readonly \.dou-flow-editor__node \.dou-flow-port\[data-visible\] \{\s*opacity: 0;\s*pointer-events: none;/,
+    )
+  })
+
+  it('keeps the editor-only `auto` out of DouFlowPort', () => {
+    expect(Object.keys(DouFlowPort.props as object)).toEqual(['id', 'visible'])
   })
 
   it('applies transactions from outside and reports them', () => {

@@ -75,6 +75,8 @@ interface FlowPortSpec {
   dataType?: string | string[]
   /** 最多连几条线，输入默认 1，输出不限 */
   max?: number
+  /** 显示时机，默认一直显示，见“自定义节点”的“显示时机” */
+  visible?: 'always' | 'hover' | 'connecting'
 }
 ```
 

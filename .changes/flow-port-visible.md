@@ -3,4 +3,4 @@ type: 新增
 packages: [flow]
 ---
 
-`DouFlowPort` 新增 `visible`，可以设为 `hover`（悬停或选中节点时显示）或 `connecting`（只在拉连线时显示），自定义白板节点的锚点可以和内置形状一样平时藏起来。
+端口新增显示时机 `visible`：写在端口声明（`FlowPortSpec`）或 `DouFlowPort` 上，`hover` 在悬停、选中节点或节点里有焦点时显示，`connecting` 只在拉连线时显示，只读时都不显示。自定义白板节点用 `ports: 'sides'` 就和内置形状有一样的锚点，缩放时大小也一样。

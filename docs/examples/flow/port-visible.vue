@@ -5,19 +5,19 @@ import { ref } from 'vue'
 import PendingNode from './pending-node.vue'
 
 const nodeTypes = [
-  defineNodeType({
+  defineNodeType<{ text?: string }>({
     type: 'pending',
     component: PendingNode,
     ports: 'sides',
     frame: false,
     resizable: { minWidth: 96, minHeight: 48 },
     size: { width: 160, height: 64 },
-    label: (node) => `待定：${(node.data as { text?: string }).text || '待定'}`,
+    label: (node) => `待定：${node.data?.text || '待定'}`,
   }),
 ]
 const extensions = [flowKit(), whiteboardKit()]
 
-// 鼠标移到虚线框上看起点；从“订票”拉一条连接线到虚线框，终点才出现
+// 鼠标移到虚线框上看起点；从“订票”拉一条连接线到虚线框，终点才显示
 const doc = ref<FlowDocument>({
   version: 1,
   nodes: [
@@ -50,7 +50,7 @@ const doc = ref<FlowDocument>({
     :node-types="nodeTypes"
     :extensions="extensions"
     fit-view
-    aria-label="连接点显示时机示例"
+    aria-label="端口显示时机示例"
     style="height: 320px"
   />
 </template>

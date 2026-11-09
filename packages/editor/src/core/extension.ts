@@ -4,7 +4,7 @@ import type { Command, Plugin } from 'prosemirror-state'
 import type { NodeViewConstructor } from 'prosemirror-view'
 import { parseHotkey, type CommentAction, type CommentThread } from 'dou-ui'
 import type { Component, Ref } from 'vue'
-import type { EditorMessages } from '../locale'
+import { editorLocales, type EditorMessages } from '../locale'
 import type { BlockProps } from './model'
 import type { EditorExtensionOutput } from './output'
 import { createSchema } from './schema'
@@ -37,18 +37,48 @@ export interface BlockOption {
   choices?: BlockOptionChoices
 }
 
+/** One variant of a slash menu option. */
+export interface BlockOptionChoice {
+  /** The props it inserts with, over the option's own. */
+  props: BlockProps
+  /** Its name, also read out by screen readers. */
+  label: Label
+}
+
 /** The variants of a slash menu option, picked in a panel beside it. */
 export interface BlockOptionChoices {
-  /** The panel's title, e.g. “Number of columns”. */
+  /** The panel's title, e.g. “Number of columns”; also the name screen readers give the panel. */
   title: Label
-  /** Each variant: the props it inserts with (over the option's own) and its name. */
-  items: { props: BlockProps; label: Label }[]
+  items: BlockOptionChoice[]
   /**
-   * Draws the variants. It gets `items`, `active` (the index of the
-   * highlighted one) and `messages`, and emits `hover` and `choose` with an
-   * index. Without it, the panel lists their names.
+   * Draws the variants (the panel around them and its title are drawn by
+   * the menu). It gets the props in `BlockOptionChoicesProps` and emits
+   * `hover` and `choose` with an index, as in `BlockOptionChoicesEmits`.
+   * Without it, the panel lists their names.
    */
-  component?: Component
+  component?: Component<BlockOptionChoicesProps>
+}
+
+/** What the `component` of `BlockOptionChoices` gets. */
+export interface BlockOptionChoicesProps {
+  items: BlockOptionChoice[]
+  /** The index of the highlighted variant; -1 while the option itself is highlighted. */
+  active: number
+  messages: EditorMessages
+  /**
+   * For screen readers: give the element of variant `index` the id
+   * `${idPrefix}-${index}` and `role="option"` (with `aria-selected`), so
+   * the editor can point at the highlighted one.
+   */
+  idPrefix: string
+}
+
+/** What the `component` of `BlockOptionChoices` emits. */
+export interface BlockOptionChoicesEmits {
+  /** The pointer is on variant `index`. */
+  hover: [index: number]
+  /** Variant `index` is picked: the menu inserts it. */
+  choose: [index: number]
 }
 
 /** A toggle in the formatting toolbar for a mark. */
@@ -70,6 +100,12 @@ export interface CommentsProvider {
 
 export interface EditorExtensionContext {
   schema: Schema
+  /**
+   * The editor's messages, in its current locale, for text a plugin puts
+   * in the document's markup (e.g. a name for screen readers). Outside an
+   * editor (converting documents) the Chinese ones.
+   */
+  messages: () => EditorMessages
 }
 
 /** What the extension replacing the undo history provides (e.g. collaboration). */
@@ -259,6 +295,7 @@ function merge<T>(
 /** Sort the extensions by priority, build the schema and collect what they add. */
 export function resolveEditorExtensions(
   list: readonly (EditorExtension | EditorExtension[])[],
+  messages: () => EditorMessages = () => editorLocales['zh-CN']!,
 ): ResolvedEditorExtensions {
   const extensions = flatten(list)
     .map((extension, index) => ({ extension, index }))
@@ -283,7 +320,7 @@ export function resolveEditorExtensions(
     merge(marks, extension.marks, 'mark', extension.name)
   }
   const schema = createSchema({ blocks, nodes, inlines, marks })
-  const context: EditorExtensionContext = { schema }
+  const context: EditorExtensionContext = { schema, messages }
 
   const providers = extensions.filter((extension) => extension.history)
   if (providers.length > 1)

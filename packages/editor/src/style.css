@@ -1074,13 +1074,28 @@
     text-box: trim-both cap alphabetic;
   }
 
+  /* on a phone, the variants unfold under their option */
+  .dou-editor-slash__unfolded {
+    padding: 4px 8px 8px;
+
+    & .dou-editor-slash__choices-title {
+      padding-inline: 0;
+    }
+  }
+
+  .dou-editor-slash__more {
+    transition: rotate var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    &.is-unfolded {
+      rotate: 90deg;
+    }
+  }
+
   /* bars for the columns: pointing at one lights the bars up to it */
   .dou-editor-column-picker {
     display: flex;
     gap: 6px;
-    padding: 10px;
-    border: 1px solid var(--dou-color-border);
-    border-radius: var(--dou-radius-control);
+    padding: 2px 4px 4px;
   }
 
   .dou-editor-column-picker__bar {
@@ -1094,7 +1109,7 @@
     &.is-lit {
       background-color: color-mix(
         in oklab,
-        var(--dou-color-focus) calc(24% + 10% * var(--dou-scheme-dark)),
+        var(--dou-color-text) calc(22% + 8% * var(--dou-scheme-dark)),
         transparent
       );
     }
@@ -1137,12 +1152,13 @@
   }
 
   /* while editing, pointing at a set of columns outlines them, empty ones too */
-  .dou-editor:not(.is-readonly)
-    .dou-editor__content--columns
-    + .dou-editor__group:hover
-    > .dou-editor__block {
-    outline: 1px dashed var(--dou-color-border);
-    outline-offset: 2px;
+  @media (hover: hover) {
+    .dou-editor:not(.is-readonly)
+      .dou-editor__content--columns
+      + .dou-editor__group:hover
+      > .dou-editor__block {
+      outline: 1px dashed var(--dou-color-border);
+    }
   }
 
   @container dou-editor-columns (max-width: 480px) {
@@ -1157,8 +1173,19 @@
     z-index: 2;
     width: 10px;
     margin-inline-start: -5px;
+    outline: none;
     cursor: col-resize;
     touch-action: none;
+
+    /* a finger needs more room to grab it */
+    @media (pointer: coarse) {
+      &::before {
+        content: '';
+        position: absolute;
+        inset-block: 0;
+        inset-inline: -15px;
+      }
+    }
 
     &::after {
       content: '';
@@ -1173,9 +1200,16 @@
     }
 
     &:hover::after,
-    &.is-active::after {
+    &.is-shown::after,
+    &:focus-visible::after {
       opacity: 1;
     }
+  }
+
+  /* the handle of a block in a column steps aside while a bar between columns shows */
+  .dou-editor:has(.dou-editor-columns__bar:is(:hover, .is-shown)) .dou-editor__handle.is-compact {
+    opacity: 0;
+    pointer-events: none;
   }
 
   /* table */

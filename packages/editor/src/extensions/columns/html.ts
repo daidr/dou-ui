@@ -4,20 +4,21 @@ import { widthOf } from './schema'
 
 /**
  * Columns in HTML: a flex row of `div`s, each with its share of the row,
- * so the page shows them side by side without the editor's styles.
+ * so the page shows them side by side without the editor's styles; on a
+ * narrow page they wrap, one under the other.
  * Markdown has no columns: their blocks follow one another.
  */
 export const columnsOutput: Record<string, BlockOutput> = {
   columns: {
     html: (_block, { children }) =>
-      `<div data-columns style="display: flex; gap: 2em">${children}</div>`,
+      `<div data-columns style="display: flex; flex-wrap: wrap; gap: 1em 2em">${children}</div>`,
     markdown: (_block, { children }) => children,
   },
   column: {
     html: (block, { children }) => {
       const width = widthOf(block.props.width)
       const data = width ? ` data-width="${width}"` : ''
-      return `<div data-column${data} style="flex: ${width ?? 1} 1 0; min-width: 0">${children}</div>`
+      return `<div data-column${data} style="flex: ${width ?? 1} 1 0; min-width: min(100%, 12em)">${children}</div>`
     },
     markdown: (_block, { children }) => children,
   },

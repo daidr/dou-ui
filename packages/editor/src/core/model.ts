@@ -365,7 +365,12 @@ export function createContentNode(
   return nodeType.create(attrs, inlineNodes(schema, content, !!nodeType.spec.code))
 }
 
-export function nodeFromBlock(schema: Schema, block: PartialBlock): PMNode {
+/**
+ * The block node for `block`. With `fill`, a block that starts with
+ * children of its own (`template` in its spec, e.g. columns) and is given
+ * none gets them, as when it is picked from the slash menu.
+ */
+export function nodeFromBlock(schema: Schema, block: PartialBlock, fill = false): PMNode {
   const content = createContentNode(
     schema,
     block.type ?? 'paragraph',
@@ -373,7 +378,11 @@ export function nodeFromBlock(schema: Schema, block: PartialBlock): PMNode {
     block.content,
     block.rows,
   )
-  const children = (block.children ?? []).map((child) => nodeFromBlock(schema, child))
+  const template = fill
+    ? (content.type.spec.template as ((props: BlockProps) => PartialBlock[]) | undefined)
+    : undefined
+  const given = block.children?.length ? block.children : template?.(block.props ?? {})
+  const children = (given ?? []).map((child) => nodeFromBlock(schema, child, fill))
   const parts = children.length
     ? [content, schema.nodes.blockGroup!.create(null, children)]
     : [content]

@@ -7,7 +7,14 @@ import { editorKit } from './extensions/editor-kit'
 export const emptyDocument = (): EditorDocument<Block> => ({ version: 1, blocks: [] })
 
 export interface DocumentProblem {
-  code: 'version' | 'shape' | 'duplicate-id' | 'unknown-type' | 'unknown-mark' | 'unknown-inline'
+  code:
+    | 'version'
+    | 'shape'
+    | 'duplicate-id'
+    | 'unknown-type'
+    | 'unknown-mark'
+    | 'unknown-inline'
+    | 'invalid-columns'
   /** The block at fault, when it has an id. */
   blockId?: string
   /**
@@ -44,7 +51,9 @@ function shapeProblems(value: unknown, lists: string[]): DocumentProblem[] {
  * The problems of an editor document, before it is saved or shown: an
  * unknown version, blocks or table rows sharing an id, and block types,
  * marks and inline nodes the extensions don't define, which the editor
- * would show as a paragraph or leave out.
+ * would show as a paragraph or leave out, and columns the editor would
+ * change on the next edit (a column outside a set of columns, a set with
+ * fewer than two, columns in a column…).
  */
 export function checkDocument(
   document: EditorDocument<PartialBlock>,
@@ -62,14 +71,68 @@ export function checkDocument(
     })
   const { schema } = kitOf(options.extensions ?? (defaultKit ??= [editorKit()]))
   const ids = new Set<string>()
-  const walk = (blocks: readonly PartialBlock[], at: string) =>
+  const walk = (blocks: readonly PartialBlock[], at: string, around: Around) =>
     blocks.forEach((block, i) => {
       const path = `${at}[${i}]`
       checkBlock(block, path, schema, ids, problems)
-      if (block.children) walk(block.children, `${path}.children`)
+      const layout = layoutOfType(schema, block.type)
+      checkLayout(block, layout, path, around, schema, problems)
+      if (block.children)
+        walk(block.children, `${path}.children`, {
+          layout,
+          inColumn: around.inColumn || layout === 'column',
+        })
     })
-  walk(document.blocks, 'blocks')
+  walk(document.blocks, 'blocks', { layout: undefined, inColumn: false })
   return problems
+}
+
+/** What a block sits in: the layout of its parent, and whether that is inside a column. */
+interface Around {
+  layout: string | undefined
+  inColumn: boolean
+}
+
+const layoutOfType = (schema: Schema, type: string | undefined) =>
+  schema.nodes[type ?? 'paragraph']?.spec.layout as string | undefined
+
+/** Columns as the editor keeps them; anything else it changes on the next edit. */
+function checkLayout(
+  block: PartialBlock,
+  layout: string | undefined,
+  path: string,
+  around: Around,
+  schema: Schema,
+  problems: DocumentProblem[],
+) {
+  const type = block.type ?? 'paragraph'
+  const report = (message: string, at = path) =>
+    problems.push({ code: 'invalid-columns', blockId: block.id, path: at, text: type, message })
+  const children = block.children ?? []
+  if (around.layout === 'row' && layout !== 'column')
+    report(`A "${type}" block directly in a set of columns would move into the column before it`)
+  if (layout === 'column') {
+    if (around.layout !== 'row')
+      report('A column outside a set of columns would be replaced by its blocks')
+    if (!children.length) report('An empty column would be removed')
+    const width = block.props?.width
+    if (width != null && !(typeof width === 'number' && width > 0))
+      report(
+        `The column width ${JSON.stringify(width)} is not a positive number; it would be ignored`,
+        `${path}.props.width`,
+      )
+  }
+  if (layout === 'row') {
+    if (around.inColumn) report('Columns inside a column would be replaced by their blocks')
+    const columns = children.filter((child) => layoutOfType(schema, child.type) === 'column')
+    if (columns.length < 2)
+      report(`A set of ${columns.length} column(s) would be replaced by its blocks`)
+  }
+  if (layout && Array.isArray(block.content) && block.content.length)
+    report(
+      `A "${type}" block has no text of its own; its content would be left out`,
+      `${path}.content`,
+    )
 }
 
 function checkBlock(

@@ -385,6 +385,9 @@ function onDragKey(event: KeyboardEvent) {
 }
 
 /** Beside a column, past its edge: a new column there, when the set takes one more. */
+/** How far into the last column a drop still makes a new column after it. */
+const LAST_COLUMN_EDGE = 16
+
 function columnDrop(content: HTMLElement, moving: SiblingRange, box: DOMRect): Drop | null {
   const instance = view.value
   const group = content.closest<HTMLElement>(COLUMN_GROUP)
@@ -396,7 +399,9 @@ function columnDrop(content: HTMLElement, moving: SiblingRange, box: DOMRect): D
   const index = columns.indexOf(column)
   if (index < 0 || !sideBySide(columns)) return null
   const rect = column.getBoundingClientRect()
-  const at = lastX < rect.left ? index : lastX > rect.right ? index + 1 : -1
+  // right of the last column there may be no room (the editor's edge): its last strip counts
+  const right = index === columns.length - 1 ? rect.right - LAST_COLUMN_EDGE : rect.right
+  const at = lastX < rect.left ? index : lastX > right ? index + 1 : -1
   if (at < 0) return null
   const row = findBlockById(instance.state.doc, rowId)
   if (!row || !moveRangeToNewColumn(moving, row.pos, at)(instance.state)) return null
@@ -408,7 +413,7 @@ function columnDrop(content: HTMLElement, moving: SiblingRange, box: DOMRect): D
     at === 0
       ? columns[0]!.getBoundingClientRect().left - gap / 2
       : at === columns.length
-        ? columns.at(-1)!.getBoundingClientRect().right + gap / 2
+        ? columns.at(-1)!.getBoundingClientRect().right - 1
         : (columns[at - 1]!.getBoundingClientRect().right +
             columns[at]!.getBoundingClientRect().left) /
           2

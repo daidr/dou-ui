@@ -114,7 +114,7 @@ const doc = migrateDocument(JSON.parse(saved))
 const problems = checkDocument(doc, { extensions })
 ```
 
-`checkDocument` 找出版本不对、块的 `id` 重复、同一张表格里行的 `id` 重复，以及扩展里没有的块类型、文字格式和行内节点（编辑器会把没有的块类型显示成正文，把没有的格式和行内节点丢掉）。每一项带 `code`、`path`（如 `blocks[1].children[0]`）和出问题的 `blockId`。传入和编辑器一样的 `extensions`，不传时按默认的 `editorKit()` 检查。整份数据的形状不对（不是对象，或者列表不是数组）时只报 `shape`，先修好形状才能检查别的。`migrateDocument` 补全旧数据或手写数据缺少的部分（`version`、`blocks`），丢掉不是对象的块；传入的不是对象（包括数组和 `null`），或者版本不认识时报错，以免把损坏的存档当成空文档再保存回去。还没有存档时用 `emptyDocument()` 新建：
+`checkDocument` 找出版本不对、块的 `id` 重复、同一张表格里行的 `id` 重复，以及扩展里没有的块类型、文字格式和行内节点（编辑器会把没有的块类型显示成正文，把没有的格式和行内节点丢掉），还有编辑器会在下一次编辑时整理的[分栏](./columns#数据)（`invalid-columns`：不在分栏里的栏、少于两栏的分栏、空栏、栏里的分栏、直接放在分栏里的其他块、不是正数的 `width`）。每一项带 `code`、`path`（如 `blocks[1].children[0]`）和出问题的 `blockId`。传入和编辑器一样的 `extensions`，不传时按默认的 `editorKit()` 检查。整份数据的形状不对（不是对象，或者列表不是数组）时只报 `shape`，先修好形状才能检查别的。`migrateDocument` 补全旧数据或手写数据缺少的部分（`version`、`blocks`），丢掉不是对象的块；传入的不是对象（包括数组和 `null`），或者版本不认识时报错，以免把损坏的存档当成空文档再保存回去。还没有存档时用 `emptyDocument()` 新建：
 
 ```ts
 import { emptyDocument, migrateDocument } from '@dou-ui/editor'

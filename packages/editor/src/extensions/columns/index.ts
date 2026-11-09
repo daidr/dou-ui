@@ -3,6 +3,7 @@ import { defineEditorExtension } from '../../core/extension'
 import ColumnPicker from './column-picker.vue'
 import ColumnsControls from './columns-controls.vue'
 import { columnsOutput, prepareColumns } from './html'
+import { columnKeys } from './keys'
 import { columnsPlugin } from './plugin'
 import { columnSpec, columnsSpec, MAX_COLUMNS, MIN_COLUMNS } from './schema'
 import SelectColumns from './select-columns.vue'
@@ -22,7 +23,12 @@ const counts = Array.from(
 export const columns = defineEditorExtension({
   name: 'columns',
   blocks: { columns: columnsSpec, column: columnSpec },
-  plugins: () => [columnsPlugin()],
+  keymap: columnKeys,
+  plugins: ({ messages }) => [
+    columnsPlugin((index, count) =>
+      messages().columns.column.replace('{index}', String(index)).replace('{count}', String(count)),
+    ),
+  ],
   output: { blocks: columnsOutput },
   prepareHTML: prepareColumns,
   overlays: [ColumnsControls],

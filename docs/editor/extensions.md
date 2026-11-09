@@ -137,7 +137,7 @@ export const highlight = defineEditorExtension({
 | `output`           | 块、行内节点和文字格式写成 HTML 与 Markdown 的方式，见[导入与导出](./import-export)                                                                        | `EditorExtensionOutput`                |
 | `prepareHTML`      | 读入 HTML 前整理它（粘贴和导入时），见[导入与导出](./import-export)                                                                                        | `(root: HTMLElement) => void`          |
 
-`context` 里有根据全部扩展生成的 `schema`。
+`context` 里有根据全部扩展生成的 `schema`，以及 `messages()`：返回编辑器当前语言的 `messages`，供插件写进文档结构的文字使用（例如给读屏的名称）；不在编辑器里（转换文档）时返回简体中文。
 
 块类型的节点定义除了 ProseMirror 的字段，还可以设置 `continues`（同 `defineBlock`）和 `component`（渲染块的 Vue 组件）。
 
@@ -203,18 +203,63 @@ const open = useToolbarMenu()
 
 ```ts
 {
-  key: 'columns',
-  type: 'columns',
-  label: '分栏',
-  icon: LayoutColumnsIcon,
+  key: 'chart',
+  type: 'chart',
+  label: '图表',
+  icon: BarChartIcon,
   choices: {
-    title: '选择栏数',
-    items: [2, 3, 4, 5].map((count) => ({ props: { count }, label: `${count} 栏` })),
-    component: ColumnPicker,
+    title: '选择图表类型',
+    items: [
+      { props: { kind: 'bar' }, label: '柱状图' },
+      { props: { kind: 'line' }, label: '折线图' },
+    ],
   },
 }
 ```
 
 - `items` 是各个变体，选中后把它的 `props` 合并到选项的 `props` 上再插入。直接点击选项本身时插入第一个变体。
-- 用键盘时，`←` `→` 切换变体，`Enter` 插入。在手机上，第一次点选项只打开面板，再点面板里的变体插入。
-- `component` 决定面板怎样画出这些变体。它收到 `items`、`active`（当前变体的序号）和 `messages`，在指针移到某个变体上时触发 `hover`，点击时触发 `choose`，参数都是序号。省略时面板按名称列出各个变体。
+- `title` 显示在面板顶部，读屏也用它作为面板的名称；变体的 `label` 是读屏读出的名称。
+- 用键盘时，`→` 进入面板并切换到下一个变体，`←` 切换到上一个，在第一个变体上按 `←` 回到选项本身；`Enter` 插入当前的变体，停在选项上时插入第一个。在选项上按 `←`、在最后一个变体上按 `→` 时，方向键照常移动光标。
+- 在手机上（指针不精确的设备），面板不在旁边弹出，而是在这个选项下面展开：第一次点选项展开，再点变体插入。
+- `component` 决定面板里怎样画出这些变体，面板外框和标题由菜单画出。省略时按名称列出各个变体。
+
+自己画变体时，组件收到 `BlockOptionChoicesProps`，触发 `BlockOptionChoicesEmits` 里的事件：
+
+| 名称             | 说明                                                                                                                                            | 类型                  |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| `items`          | 各个变体                                                                                                                                        | `BlockOptionChoice[]` |
+| `active`         | 当前变体的序号；选中的是选项本身时为 `-1`                                                                                                       | `number`              |
+| `messages`       | 编辑器当前语言的文字                                                                                                                            | `EditorMessages`      |
+| `idPrefix`       | 第 `index` 个变体的元素要设置 `id` 为 `` `${idPrefix}-${index}` ``，并带上 `role="option"` 和 `aria-selected`，编辑器靠它告诉读屏当前是哪个变体 | `string`              |
+| `hover`（事件）  | 指针移到第 `index` 个变体上时触发                                                                                                               | `(index) => void`     |
+| `choose`（事件） | 点击第 `index` 个变体时触发，菜单随即插入                                                                                                       | `(index) => void`     |
+
+```vue
+<script setup lang="ts">
+import type { BlockOptionChoicesEmits, BlockOptionChoicesProps } from '@dou-ui/editor'
+import { labelOf } from '@dou-ui/editor'
+
+defineProps<BlockOptionChoicesProps>()
+const emit = defineEmits<BlockOptionChoicesEmits>()
+</script>
+
+<template>
+  <div class="chart-kinds">
+    <button
+      v-for="(item, index) in items"
+      :id="`${idPrefix}-${index}`"
+      :key="index"
+      type="button"
+      role="option"
+      :aria-selected="index === active"
+      :class="{ 'is-active': index === active }"
+      @pointermove="emit('hover', index)"
+      @click="emit('choose', index)"
+    >
+      {{ labelOf(item.label, messages) }}
+    </button>
+  </div>
+</template>
+```
+
+分栏的栏数面板就是这样画出的一排竖条。

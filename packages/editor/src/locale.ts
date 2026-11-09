@@ -105,6 +105,10 @@ export interface EditorMessages {
     select: string
     /** The bar between two columns. */
     resize: string
+    /** Makes every column of the set as wide as the others. */
+    even: string
+    /** A column, for screen readers; `{index}` and `{count}` are replaced. */
+    column: string
   }
   /** The color menu of the formatting toolbar. */
   colors: {
@@ -268,7 +272,9 @@ const zhCN: EditorMessages = {
     pick: '选择栏数',
     count: '{count} 栏',
     select: '选中整个分栏',
-    resize: '拖动调整栏宽，双击平分',
+    resize: '调整栏宽',
+    even: '平分栏宽',
+    column: '第 {index} 栏，共 {count} 栏',
   },
   colors: {
     label: '颜色',
@@ -421,7 +427,9 @@ const zhTW: EditorMessages = {
     pick: '選擇欄數',
     count: '{count} 欄',
     select: '選取整個分欄',
-    resize: '拖曳調整欄寬，按兩下平分',
+    resize: '調整欄寬',
+    even: '平分欄寬',
+    column: '第 {index} 欄，共 {count} 欄',
   },
   colors: {
     label: '顏色',
@@ -574,7 +582,9 @@ const en: EditorMessages = {
     pick: 'Number of columns',
     count: '{count} columns',
     select: 'Select all columns',
-    resize: 'Drag to resize, double-click to even out',
+    resize: 'Resize columns',
+    even: 'Even out columns',
+    column: 'Column {index} of {count}',
   },
   colors: {
     label: 'Color',

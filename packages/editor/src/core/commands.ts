@@ -10,6 +10,7 @@ import {
 import {
   blockAround,
   blocksIn,
+  findBlockById,
   infoAt,
   layoutOf,
   nextInDocument,
@@ -61,6 +62,8 @@ export function setBlockType(type: ContentType, props: BlockProps = {}): Command
     const schema = state.schema
     const nodeType = schema.nodes[type]
     if (!nodeType) return false
+    // columns don't nest
+    if (nodeType.spec.layout === 'row' && insideColumn(state.selection.$from)) return false
     if (!dispatch) return true
     const template = nodeType.spec.template as ((props: BlockProps) => PartialBlock[]) | undefined
     if (template) {
@@ -445,13 +448,18 @@ function restoreSelection(tr: Transaction, state: EditorState, from: number, to:
 
 /* moving, duplicating and removing blocks */
 
-/** `Mod+Shift+↑/↓`: swap the selected blocks with their neighbour. */
+/**
+ * `Mod+Shift+↑/↓`: swap the selected blocks with their neighbour. At the
+ * top or bottom of a column, the blocks move out of the set of columns,
+ * above or below it.
+ */
 export function swapBlocks(direction: -1 | 1): Command {
   return (state, dispatch) => {
     const range = selectedRange(state)
     if (!range) return false
     const neighbourIndex = direction < 0 ? range.from - 1 : range.to + 1
-    if (neighbourIndex < 0 || neighbourIndex >= range.parent.childCount) return false
+    if (neighbourIndex < 0 || neighbourIndex >= range.parent.childCount)
+      return leaveColumn(state, range, direction, dispatch)
     if (!dispatch) return true
     const neighbour = range.parent.child(neighbourIndex)
     const tr = state.tr
@@ -471,6 +479,34 @@ export function swapBlocks(direction: -1 | 1): Command {
     dispatch(tr.scrollIntoView())
     return true
   }
+}
+
+/** The blocks of `range`, at the edge of a column, moved above or below its set of columns. */
+function leaveColumn(
+  state: EditorState,
+  range: SiblingRange,
+  direction: -1 | 1,
+  dispatch?: (tr: Transaction) => void,
+): boolean {
+  if (range.depth < 5) return false
+  const $start = state.doc.resolve(range.start)
+  const column = $start.node(range.depth - 2)
+  const row = $start.node(range.depth - 4)
+  if (layoutOf(column) !== 'column' || layoutOf(row) !== 'row') return false
+  const rowPos = $start.before(range.depth - 4)
+  const target = direction < 0 ? rowPos : rowPos + row.nodeSize
+  if (!dispatch) return true
+  const { from, to } = state.selection
+  const first = state.doc.resolve(range.start).nodeAfter!.attrs.id as string
+  let result: Transaction | null = null
+  moveRangeTo(range, target)(state, (tr) => (result = tr))
+  if (!result) return false
+  const tr = result as Transaction
+  // the same text selected, now where the blocks went
+  const shift = findBlockById(tr.doc, first)!.pos - range.start
+  restoreSelection(tr, state, from + shift, to + shift)
+  dispatch(tr.scrollIntoView())
+  return true
 }
 
 /**

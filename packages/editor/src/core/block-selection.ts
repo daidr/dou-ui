@@ -11,6 +11,8 @@ import { Decoration, DecorationSet, type EditorView } from 'prosemirror-view'
 import {
   blocksIn,
   findBlockById,
+  layoutOf,
+  parentBlock,
   selectedRange,
   siblingRangeBetween,
   type BlockInfo,
@@ -104,7 +106,13 @@ function moveHead(view: EditorView, direction: -1 | 1, extend: boolean) {
   const head = findBlockById(state.doc, current.head)!
   const $head = state.doc.resolve(head.pos)
   const index = $head.index() + direction
-  if (index < 0 || index >= range.parent.childCount) return true
+  if (index < 0 || index >= range.parent.childCount) {
+    // past the edge of a column: the whole set of columns
+    const column = parentBlock(state.doc, head)
+    const row = column && layoutOf(column.node) === 'column' && parentBlock(state.doc, column)
+    if (row) selectBlocks(row.node.attrs.id as string)(state, view.dispatch)
+    return true
+  }
   const id = range.parent.child(index).attrs.id as string
   return selectBlocks(extend ? current.anchor : id, id)(state, view.dispatch)
 }

@@ -1,8 +1,15 @@
 import type { Node as PMNode } from 'prosemirror-model'
-import { Plugin, PluginKey, type Transaction } from 'prosemirror-state'
+import {
+  Plugin,
+  PluginKey,
+  TextSelection,
+  type EditorState,
+  type Transaction,
+} from 'prosemirror-state'
 import { AttrStep } from 'prosemirror-transform'
 import { Decoration, DecorationSet } from 'prosemirror-view'
-import { layoutOf } from '../../core/blocks'
+import { getBlockSelection, selectBlocks } from '../../core/block-selection'
+import { blocksIn, layoutOf, siblingRangeBetween } from '../../core/blocks'
 import { changesBlockStructure, isRemote } from '../../core/plugins'
 
 const descends = (node: PMNode) => node.type.name === 'block' || node.type.name === 'blockGroup'
@@ -51,7 +58,13 @@ function fixOne(tr: Transaction): boolean {
       fixed = true
       return false
     }
-    // a set of columns
+    // a set of columns inside a column: columns don't nest, its columns take its place
+    for (let depth = $pos.depth; depth > 0; depth--) {
+      if (layoutOf($pos.node(depth)) !== 'column') continue
+      unwrap(tr, pos, node)
+      fixed = true
+      return false
+    }
     if (!group) {
       removeBlock(tr, pos)
       fixed = true
@@ -95,52 +108,136 @@ function fixOne(tr: Transaction): boolean {
   return fixed
 }
 
-/** Each column's width, as a style on its block. */
-function widths(doc: PMNode): DecorationSet {
+/** A column's width while its bar is dragged: shown, not yet in the document. */
+export interface ColumnPreview {
+  /** The position before the column's block. */
+  pos: number
+  width: number
+}
+
+interface ColumnsState {
+  decorations: DecorationSet
+  preview: ColumnPreview[] | null
+}
+
+/** Each column's width, as a style on its block, and its name for screen readers. */
+function widths(doc: PMNode, preview: ColumnPreview[] | null, label: ColumnLabel): DecorationSet {
   const decorations: Decoration[] = []
   doc.descendants((node, pos) => {
     if (node.type.name !== 'block') return descends(node)
-    const width = node.firstChild!.attrs.width as number | null | undefined
-    if (layoutOf(node) === 'column' && width)
-      decorations.push(
-        Decoration.node(pos, pos + node.nodeSize, { style: `--dou-editor-column-width: ${width}` }),
-      )
+    if (layoutOf(node) !== 'row') return true
+    const group = node.childCount > 1 ? node.child(1) : null
+    let at = pos + 1 + node.firstChild!.nodeSize + 1
+    group?.forEach((column, _offset, index) => {
+      const shown = preview?.find((entry) => entry.pos === at)
+      const width = shown ? shown.width : (column.firstChild!.attrs.width as number | null)
+      if (width && width !== 1)
+        decorations.push(
+          Decoration.node(at, at + column.nodeSize, {
+            style: `--dou-editor-column-width: ${width}`,
+          }),
+        )
+      // the column's blocks, named after its place
+      const inner = at + 1 + column.firstChild!.nodeSize
+      if (column.childCount > 1)
+        decorations.push(
+          Decoration.node(inner, inner + column.child(1).nodeSize, {
+            'aria-label': label(index + 1, group.childCount),
+          }),
+        )
+      at += column.nodeSize
+    })
     return true
   })
   return DecorationSet.create(doc, decorations)
 }
 
-export const columnsKey = new PluginKey<DecorationSet>('dou-editor-columns')
+/** The name of a column: its place among the columns of its set. */
+export type ColumnLabel = (index: number, count: number) => string
+
+export const columnsKey = new PluginKey<ColumnsState>('dou-editor-columns')
+
+/** Show `preview` widths without changing the document, or stop showing them (`null`). */
+export function previewColumns(tr: Transaction, preview: ColumnPreview[] | null): Transaction {
+  return tr.setMeta(columnsKey, { preview }).setMeta('addToHistory', false)
+}
+
+/** Lay the columns out again, e.g. after the locale changed their names. */
+export const refreshColumns = (tr: Transaction) =>
+  tr.setMeta(columnsKey, {}).setMeta('addToHistory', false)
+
+/** The column around a position: the position before its block, or -1 outside columns. */
+function columnAt(state: EditorState, pos: number): number {
+  const $pos = state.doc.resolve(pos)
+  for (let depth = $pos.depth; depth > 0; depth--)
+    if (layoutOf($pos.node(depth)) === 'column') return $pos.before(depth)
+  return -1
+}
+
+/**
+ * A text selection from one column into another, or between a column and
+ * the blocks around the set: the whole blocks instead, so deleting it or
+ * typing over it never joins text across columns.
+ */
+function selectAcross(state: EditorState): Transaction | null {
+  const { selection } = state
+  if (!(selection instanceof TextSelection) || selection.empty || getBlockSelection(state))
+    return null
+  if (columnAt(state, selection.from) === columnAt(state, selection.to)) return null
+  const range = siblingRangeBetween(state.doc, selection.from, selection.to)
+  if (!range) return null
+  const blocks = blocksIn(range)
+  const [first, last] = [blocks[0]!.node.attrs.id, blocks.at(-1)!.node.attrs.id] as string[]
+  const backwards = selection.head < selection.anchor
+  let result: Transaction | null = null
+  selectBlocks(backwards ? last! : first!, backwards ? first! : last!)(state, (tr) => {
+    result = tr
+  })
+  return result
+}
 
 /**
  * Keeps columns well formed after every change, also one from another
  * collaborator (the fix is the same everywhere): columns only in a set of
- * columns, at least one block in each, at least two in a set. And lays
- * each column's width on it.
+ * columns, at least one block in each, at least two in a set, no set of
+ * columns in a column. Lays each column's width on it, and turns a text
+ * selection across columns into a selection of the whole blocks.
  */
-export function columnsPlugin(): Plugin<DecorationSet> {
-  return new Plugin<DecorationSet>({
+export function columnsPlugin(label: ColumnLabel): Plugin<ColumnsState> {
+  return new Plugin<ColumnsState>({
     key: columnsKey,
     state: {
-      init: (_config, state) => widths(state.doc),
-      apply: (tr, value, _old, state) =>
-        !tr.docChanged
-          ? value
-          : changesBlockStructure(tr) || tr.steps.some((step) => step instanceof AttrStep)
-            ? widths(state.doc)
-            : value.map(tr.mapping, tr.doc),
+      init: (_config, state) => ({ decorations: widths(state.doc, null, label), preview: null }),
+      apply: (tr, value, _old, state) => {
+        const meta = tr.getMeta(columnsKey) as { preview?: ColumnPreview[] | null } | undefined
+        let preview = value.preview
+        if (meta?.preview !== undefined) preview = meta.preview
+        else if (preview && tr.docChanged)
+          preview = preview.map((entry) => ({ ...entry, pos: tr.mapping.map(entry.pos) }))
+        if (
+          meta ||
+          (tr.docChanged &&
+            (changesBlockStructure(tr) || tr.steps.some((step) => step instanceof AttrStep)))
+        )
+          return { decorations: widths(state.doc, preview, label), preview }
+        if (!tr.docChanged) return value
+        return { decorations: value.decorations.map(tr.mapping, tr.doc), preview }
+      },
     },
     appendTransaction(trs, _old, state) {
-      if (!trs.some((tr) => changesBlockStructure(tr))) return null
-      const tr = state.tr
-      for (let round = 0; round < 64 && fixOne(tr); round++);
-      if (!tr.docChanged) return null
-      if (trs.every(isRemote)) tr.setMeta('addToHistory', false)
-      return tr
+      if (trs.some((tr) => changesBlockStructure(tr))) {
+        const tr = state.tr
+        for (let round = 0; round < 64 && fixOne(tr); round++);
+        if (tr.docChanged) {
+          if (trs.every(isRemote)) tr.setMeta('addToHistory', false)
+          return tr
+        }
+      }
+      return trs.some((tr) => tr.selectionSet) ? selectAcross(state) : null
     },
     props: {
       decorations(state) {
-        return this.getState(state)
+        return this.getState(state)?.decorations
       },
     },
   })

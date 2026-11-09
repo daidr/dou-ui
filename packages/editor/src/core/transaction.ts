@@ -116,7 +116,7 @@ export class EditorTransaction {
     const taken = usedIds(tr.doc)
     const ids: string[] = []
     const nodes = blocks.map((block) => {
-      const node = nodeFromBlock(schema, freshIds(block, taken))
+      const node = nodeFromBlock(schema, freshIds(block, taken), true)
       ids.push(node.attrs.id as string)
       return node
     })
@@ -394,7 +394,7 @@ function replaceChildren(tr: Transaction, info: BlockInfo, children: PartialBloc
   info.group?.descendants((node) => {
     if (node.type.name === 'block') taken.delete(node.attrs.id as string)
   })
-  const nodes = children.map((child) => nodeFromBlock(schema, freshIds(child, taken)))
+  const nodes = children.map((child) => nodeFromBlock(schema, freshIds(child, taken), true))
   const group = nodes.length ? schema.nodes.blockGroup!.create(null, nodes) : null
   const end = info.group ? groupPos + info.group.nodeSize : groupPos
   if (group) tr.replaceWith(groupPos, end, group)

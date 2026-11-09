@@ -1,5 +1,6 @@
 import { TextSelection, type Command, type EditorState } from 'prosemirror-state'
 import { describe, expect, it } from 'vitest'
+import { getBlockSelection } from '../../../core/block-selection'
 import { findBlockById, siblingRangeBetween } from '../../../core/blocks'
 import {
   joinBackward,
@@ -10,12 +11,15 @@ import {
   setBlockType,
   sinkBlocks,
   splitBlock,
+  swapBlocks,
 } from '../../../core/commands'
 import { blocksToHTML, htmlToBlocks } from '../../../core/convert'
-import { docToBlocks, type PartialBlock } from '../../../core/model'
+import { blockFromNode, docToBlocks, nodeFromBlock, type PartialBlock } from '../../../core/model'
+import { checkDocument } from '../../../document'
 import { at, cursor, p, shapeOf, stateOf } from '../../../core/__tests__/helpers'
 import { blocksToMarkdown } from '../../../markdown'
 import { editorKit } from '../../editor-kit'
+import { columnsKey, previewColumns } from '../plugin'
 
 /** Run a command the way the view does, with the plugins' follow-up changes. */
 function run(state: EditorState, command: Command) {
@@ -277,7 +281,7 @@ describe('columns in HTML and Markdown', () => {
   it('writes a flex row and reads it back', () => {
     const html = blocksToHTML(blocks, extensions)
     expect(html).toBe(
-      '<div data-columns style="display: flex; gap: 2em"><div data-column data-width="2" style="flex: 2 1 0; min-width: 0"><p>left</p></div><div data-column style="flex: 1 1 0; min-width: 0"><p>right</p></div></div>',
+      '<div data-columns style="display: flex; flex-wrap: wrap; gap: 1em 2em"><div data-column data-width="2" style="flex: 2 1 0; min-width: min(100%, 12em)"><p>left</p></div><div data-column style="flex: 1 1 0; min-width: min(100%, 12em)"><p>right</p></div></div>',
     )
     const back = htmlToBlocks(html, extensions)
     expect(back[0]!.type).toBe('columns')
@@ -293,27 +297,180 @@ describe('columns in HTML and Markdown', () => {
 })
 
 describe('the selection API', () => {
-  it('a text selection from one column to the next is fixed up after deleting it', () => {
+  it('a text selection from one column into the next selects the whole set instead', () => {
     const state = stateOf(TWO)
     const x = findBlockById(state.doc, 'x')!
     const z = findBlockById(state.doc, 'z')!
-    const selected = state.apply(
+    const selected = state.applyTransaction(
       state.tr.setSelection(TextSelection.create(state.doc, x.contentPos + 3, z.contentPos + 2)),
-    )
+    ).state
+    expect(getBlockSelection(selected)).toEqual({ anchor: 'r', head: 'r' })
+    // and deleting it never joins the text after the columns
     const next = selected.applyTransaction(selected.tr.deleteSelection()).state
-    // whatever the deletion joined, columns stay columns: list what is wrong
-    const problems: string[] = []
-    const check = (list: ReturnType<typeof docToBlocks>, inRow = false): void => {
-      for (const block of list) {
-        if (block.type === 'column' && !inRow) problems.push(`${block.id} outside a row`)
-        if (block.type === 'columns' && block.children.length < 2)
-          problems.push(`${block.id} has one column`)
-        if (block.type === 'column' && !block.children.length) problems.push(`${block.id} is empty`)
-        if (inRow && block.type !== 'column') problems.push(`${block.id} in a row`)
-        check(block.children, block.type === 'columns')
-      }
-    }
-    check(docToBlocks(next.doc))
-    expect(problems).toEqual([])
+    expect(shapeOf(next).at(-1)).toEqual(['paragraph', 'after'])
+    expect(shapeOf(next)[0]).toEqual(['paragraph', 'before'])
+  })
+
+  it('a text selection from before the columns into one selects the blocks up to the set', () => {
+    const state = stateOf(TWO)
+    const a = findBlockById(state.doc, 'a')!
+    const z = findBlockById(state.doc, 'z')!
+    const selected = state.applyTransaction(
+      state.tr.setSelection(TextSelection.create(state.doc, z.contentPos + 2, a.contentPos + 2)),
+    ).state
+    // backwards: the anchor stays where the selection started
+    expect(getBlockSelection(selected)).toEqual({ anchor: 'r', head: 'a' })
+  })
+
+  it('a text selection inside one column stays as it is', () => {
+    const state = stateOf(TWO)
+    const x = findBlockById(state.doc, 'x')!
+    const y = findBlockById(state.doc, 'y')!
+    const selected = state.applyTransaction(
+      state.tr.setSelection(TextSelection.create(state.doc, x.contentPos + 2, y.contentPos + 2)),
+    ).state
+    expect(getBlockSelection(selected)).toBe(null)
+  })
+})
+
+describe('no columns in a column', () => {
+  it('can’t insert columns in a column', () => {
+    const state = at(stateOf([row('r', [column('c1', [p('x')]), column('c2', [p('z')])])]), 'x')
+    expect(setBlockType('columns', { count: 2 })(state)).toBe(false)
+    expect(setBlockType('heading', { level: 1 })(state)).toBe(true)
+  })
+
+  it('flattens columns that land in a column', () => {
+    const state = stateOf(TWO)
+    const nested = nodeFromBlock(
+      state.schema,
+      row('n', [column('n1', [p('i', 'one')]), column('n2', [p('j', 'two')])]),
+    )
+    const z = findBlockById(state.doc, 'z')!
+    const next = change(state, (tr) => tr.insert(z.pos + z.node.nodeSize, nested))
+    expect(shapeOf(next)[1]).toEqual([
+      'columns',
+      '',
+      [
+        [
+          'column',
+          '',
+          [
+            ['paragraph', 'left'],
+            ['paragraph', 'more'],
+          ],
+        ],
+        [
+          'column',
+          '',
+          [
+            ['paragraph', 'right'],
+            ['paragraph', 'one'],
+            ['paragraph', 'two'],
+          ],
+        ],
+      ],
+    ])
+  })
+})
+
+describe('moving blocks out with the keyboard', () => {
+  it('Mod+Shift+↑ on the first block of a column moves it above the set', () => {
+    const state = at(stateOf(TWO), 'x')
+    const { ok, state: next } = run(state, swapBlocks(-1))
+    expect(ok).toBe(true)
+    expect(docToBlocks(next.doc).map((block) => block.id)).toEqual(['a', 'x', 'r', 'b'])
+    expect(cursor(next).id).toBe('x')
+  })
+
+  it('Mod+Shift+↓ on the last block of a column moves it below the set', () => {
+    const state = at(stateOf(TWO), 'y')
+    const { state: next } = run(state, swapBlocks(1))
+    expect(docToBlocks(next.doc).map((block) => block.id)).toEqual(['a', 'r', 'y', 'b'])
+    expect(cursor(next).id).toBe('y')
+  })
+
+  it('the last block of a column leaving takes the set apart', () => {
+    const state = at(stateOf(TWO), 'z')
+    const { state: next } = run(state, swapBlocks(1))
+    expect(docToBlocks(next.doc).map((block) => block.id)).toEqual(['a', 'x', 'y', 'z', 'b'])
+  })
+})
+
+describe('code and checks', () => {
+  it('a set of columns inserted without children gets its empty columns', () => {
+    const { schema } = stateOf([p('a')])
+    const node = nodeFromBlock(schema, { type: 'columns', props: { count: 3 } }, true)
+    expect(blockFromNode(node).children.map((child) => child.type)).toEqual([
+      'column',
+      'column',
+      'column',
+    ])
+    // loaded as it is, without
+    expect(nodeFromBlock(schema, { type: 'columns' }).childCount).toBe(1)
+  })
+
+  it('checkDocument finds columns the editor would change', () => {
+    const problems = checkDocument({
+      version: 1,
+      blocks: [
+        { id: 'lone', type: 'column', children: [p('a')] },
+        row('one', [column('only', [p('b')])]),
+        row('ok', [
+          column('c1', [p('c'), row('nested', [column('n1', [p('d')]), column('n2', [p('e')])])]),
+          { id: 'empty', type: 'column', props: { width: 'abc' as unknown as number } },
+          p('stray'),
+        ]),
+      ],
+    })
+    expect(problems.map((problem) => [problem.code, problem.path])).toEqual([
+      ['invalid-columns', 'blocks[0]'],
+      ['invalid-columns', 'blocks[1]'],
+      ['invalid-columns', 'blocks[2].children[0].children[1]'],
+      ['invalid-columns', 'blocks[2].children[1]'],
+      ['invalid-columns', 'blocks[2].children[1].props.width'],
+      ['invalid-columns', 'blocks[2].children[2]'],
+    ])
+  })
+
+  it('a well-formed document has no problems', () => {
+    expect(checkDocument({ version: 1, blocks: TWO })).toEqual([])
+  })
+})
+
+const widthsOf = (state: EditorState) =>
+  columnsKey
+    .getState(state)!
+    .decorations.find()
+    .map(
+      (decoration) =>
+        (decoration as unknown as { type: { attrs: Record<string, string> } }).type.attrs,
+    )
+
+describe('widths and names', () => {
+  it('names each column for screen readers', () => {
+    const labels = widthsOf(stateOf(TWO))
+      .map((attrs) => attrs['aria-label'])
+      .filter(Boolean)
+    expect(labels).toEqual(['第 1 栏，共 2 栏', '第 2 栏，共 2 栏'])
+  })
+
+  it('shows a width while the bar is dragged, without changing the document', () => {
+    const state = stateOf(TWO)
+    const c1 = findBlockById(state.doc, 'c1')!
+    const tr = previewColumns(state.tr, [{ pos: c1.pos, width: 1.5 }])
+    const next = state.apply(tr)
+    expect(next.doc.eq(state.doc)).toBe(true)
+    expect(
+      widthsOf(next)
+        .map((attrs) => attrs.style)
+        .filter(Boolean),
+    ).toEqual(['--dou-editor-column-width: 1.5'])
+    const back = next.apply(previewColumns(next.tr, null))
+    expect(
+      widthsOf(back)
+        .map((attrs) => attrs.style)
+        .filter(Boolean),
+    ).toEqual([])
   })
 })

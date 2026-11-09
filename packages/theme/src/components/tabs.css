@@ -13,6 +13,8 @@
     --dou-tabs-gap: 4px;
     --dou-tabs-icon-size: 16px;
     --dou-tabs-indicator: var(--dou-color-text);
+    /* between the row of tabs and the panel below it */
+    --dou-tabs-panel-gap: 16px;
 
     display: flex;
     flex-direction: column;
@@ -152,7 +154,7 @@
   }
 
   .dou-tabs__panel {
-    padding-top: 16px;
+    padding-top: var(--dou-tabs-panel-gap);
     color: var(--dou-color-text-secondary);
     outline: none;
 

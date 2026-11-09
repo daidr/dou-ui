@@ -7,6 +7,30 @@ DouUI 的所有包（`dou-ui`、`@dou-ui/theme`、`@dou-ui/icons` 以及生态�
 
 这个文件由发版脚本生成：改动先以碎片文件记在 [`.changes/`](./.changes/README.md) 里，发布时汇总到这里。
 
+## 0.1.0-alpha.10 · 2026-11-09
+
+### 不兼容
+
+- **@dou-ui/editor**：`@dou-ui/editor/collaboration` 的 `fillMap` 和 `readMap` 改为用选项传扩展，和 `updateMap` 一致：`fillMap(map, doc, extensions)` 改成 `fillMap(map, doc, { extensions })`，`readMap(map, extensions)` 改成 `readMap(map, { extensions })`。`fillMap` 还可以传 `origin`。 ([#391](https://github.com/daidr/dou-ui/pull/391))
+- **@dou-ui/flow**：扩展的 `press` 在 `readonly` 时也会被调用（白板的评论和移动画布工具要用）。自己写的 `press` 如果会修改文档，在开头判断 `ctx.readonly.value`，为 `true` 时直接返回。 ([#394](https://github.com/daidr/dou-ui/pull/394))
+
+### 新增
+
+- **@dou-ui/editor、@dou-ui/flow**：没有编辑器也能改正在协同编辑的文档，适合把文档交给 AI 改写后写回：`@dou-ui/editor/collaboration` 新增 `updateMap(map, doc, { base, extensions, origin })`，`@dou-ui/flow/collaboration` 新增 `readMaps` 和 `updateMaps(maps, doc, { base, origin })`。传入程序读到的那一份作为 `base`，只把 `base` 到新版本之间的差别写进共享文档，这期间其他人的输入、新加的块和节点都保留；块保留 id、文字按字符改，从 Markdown 读出的块按内容和文字相似度对应到原来的块，文字没变的地方评论也留着。`fillMaps` 也可以传 `origin`。 ([#391](https://github.com/daidr/dou-ui/pull/391))
+- **dou-ui**：DouAutocomplete 新增 `hideOnSelect`：设为 `false` 时选中建议后列表保持打开，并按新值重新 `fetch`，可以逐级往下选（比如目录）。 ([#393](https://github.com/daidr/dou-ui/pull/393))
+- **@dou-ui/flow**：Flow 的评论可以钉在节点里的一点上：`comment({ node, at: { x, y } })` 在那一点发起讨论（`x`、`y` 是节点宽高的 0–1 比例），每条钉住的讨论在那一点有一个带序号的钉子，随节点移动、缩放和旋转；位置保存在节点的 `commentPins` 里，`getCommentAnchors()` 返回的锚点带上 `at`。白板加了评论工具（M），点在节点上就在那一点发起讨论；`readonly` 时白板工具栏只留选择、移动画布和评论。 ([#394](https://github.com/daidr/dou-ui/pull/394))
+
+### 改进
+
+- **@dou-ui/editor**：`markdownToBlocks` 和 `htmlToBlocks` 新增 `domParser` 选项（类型 `DOMParserLike`），在 Node、Bun 等没有 `DOMParser` 的地方传入 happy-dom、linkedom 等 DOM 库的实现，就能读出块；读 HTML 时不再用到 `Element`、`Text`、`NodeFilter` 这些全局对象。 ([#391](https://github.com/daidr/dou-ui/pull/391))
+- **dou-ui、@dou-ui/theme**：DouDock 的间距可以用 CSS 变量调整：`--dou-dock-group-padding-x`、`--dou-dock-group-padding-bottom`、`--dou-dock-panel-gap`；DouTabs 新增 `--dou-tabs-panel-gap`，控制标签行和面板之间的距离。 ([#392](https://github.com/daidr/dou-ui/pull/392))
+- **@dou-ui/flow**：白板的评论工具在触屏上轻点发起讨论时，焦点不再进入回复框，手机上不会先弹出键盘再收起；`comment()` 新增 `{ focus: false }` 选项。钉子读出的名称改成“评论 1，矩形：方案一”，先读序号。 ([#396](https://github.com/daidr/dou-ui/pull/396))
+
+### 修复
+
+- **dou-ui**：DouTabs 选中标签自己变宽（比如 `label` 插槽的文字晚一步才出现）时，下划线会跟着重新测量，不再只剩一截。 ([#392](https://github.com/daidr/dou-ui/pull/392))
+- **dou-ui、@dou-ui/theme**：DouAutocomplete 选中建议后，下次打开列表时按新值重新取建议，不再显示上一次的旧建议；`empty` 插槽里的长文字在列表宽度内换行，不再把列表撑得比输入框宽。 ([#393](https://github.com/daidr/dou-ui/pull/393))
+
 ## 0.1.0-alpha.9 · 2026-11-07
 
 ### 不兼容

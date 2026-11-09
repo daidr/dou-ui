@@ -238,6 +238,31 @@ function syncItems(
   }
 }
 
+/** Warns about the first of `items` that is one of `kept` (from base) but no longer what the map holds: likely changed in place. */
+function warnChangedItem(map: Shared, items: readonly (FlowNode | FlowEdge)[], kept: Set<object>) {
+  for (const item of items) {
+    const now = kept.has(item) ? read<Item>(map, item.id) : null
+    if (!now || !changedKeys(now, item as unknown as Item).size) continue
+    console.warn(
+      `[@dou-ui/flow] updateMaps got "${item.id}" of \`base\` itself in \`doc\`, and it isn't what the map holds: a change made to it in place isn't written. Change a copy of \`base\`, e.g. structuredClone(base).`,
+    )
+    return true
+  }
+  return false
+}
+
+/** Warns when `doc` holds `base` itself, or nodes or edges of it changed in place. */
+function warnChangedInPlace(maps: Maps, doc: FlowDocument, base: FlowDocument) {
+  if (doc === base || doc.nodes === base.nodes) {
+    console.warn(
+      '[@dou-ui/flow] updateMaps got the same object as `doc` and `base`, so nothing is written: change a copy of `base`, e.g. structuredClone(base).',
+    )
+    return
+  }
+  if (!warnChangedItem(maps.nodes, doc.nodes, new Set(base.nodes)))
+    warnChangedItem(maps.edges, doc.edges, new Set(base.edges))
+}
+
 export interface UpdateMapsOptions extends FillMapsOptions {
   /**
    * The version `doc` was made from, e.g. the one read with `readMaps` and
@@ -257,10 +282,7 @@ export interface UpdateMapsOptions extends FillMapsOptions {
  */
 export function updateMaps(maps: Maps, doc: FlowDocument, options: UpdateMapsOptions = {}) {
   const { base } = options
-  if (process.env.NODE_ENV !== 'production' && base && (doc === base || doc.nodes === base.nodes))
-    console.warn(
-      '[@dou-ui/flow] updateMaps got the same object as `doc` and `base`, so nothing is written: change a copy of `base`, e.g. structuredClone(base).',
-    )
+  if (process.env.NODE_ENV !== 'production' && base) warnChangedInPlace(maps, doc, base)
   const update = () => {
     syncItems(maps.nodes, doc.nodes, base?.nodes)
     // a new edge to a node someone removed meanwhile would lead nowhere

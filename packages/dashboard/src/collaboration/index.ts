@@ -250,12 +250,25 @@ function placeOrder(map: Shared, next: readonly DashboardWidget[], placing: Set<
 }
 
 /** The widgets of `next` that can be written: each id once, each with a type. */
-function writable(next: DashboardDocument, base: DashboardDocument | undefined) {
+function writable(map: Shared, next: DashboardDocument, base: DashboardDocument | undefined) {
   const dev = process.env.NODE_ENV !== 'production'
   if (dev && base && (next === base || next.widgets === base.widgets))
     console.warn(
       '[@dou-ui/dashboard] updateMap got the same object as `next` and `base`, so nothing is written: change a copy of `base`, e.g. structuredClone(base).',
     )
+  else if (dev && base) {
+    // a widget shared with base but no longer what the map holds was likely changed in place
+    const kept = new Set<DashboardWidget>(base.widgets)
+    const shared = new Map(readMap(map).widgets.map((widget) => [widget.id, widget]))
+    for (const widget of next.widgets) {
+      const now = shared.get(widget.id)
+      if (!kept.has(widget) || !now || same(now, widget)) continue
+      console.warn(
+        `[@dou-ui/dashboard] updateMap got the widget "${widget.id}" of \`base\` itself in \`next\`, and it isn't what the map holds: a change made to it in place isn't written. Change a copy of \`base\`, e.g. structuredClone(base).`,
+      )
+      break
+    }
+  }
   const seen = new Set<string>()
   return next.widgets.filter((widget) => {
     if (typeof widget.type !== 'string') {
@@ -299,9 +312,11 @@ export function updateMap(
   next: DashboardDocument,
   options: UpdateMapOptions = {},
 ) {
+  // a map not in a document can't be read, so nothing could be merged
+  if (!map.doc) throw new Error('[@dou-ui/dashboard] updateMap needs a map of a Y.Doc')
   const update = () => {
     const base = options.base ?? readMap(map)
-    const widgets = writable(next, options.base)
+    const widgets = writable(map, next, options.base)
     const before = new Map(base.widgets.map((widget) => [widget.id, widget]))
     const ids = new Set(next.widgets.map((widget) => widget.id))
     for (const id of before.keys()) if (!ids.has(id)) map.delete(id)

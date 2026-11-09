@@ -277,6 +277,40 @@ describe('updateMap', () => {
     }
   })
 
+  it('warns about widgets of base changed in place, but not about ones handed on unchanged', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const { map } = shared()
+      const base = readMap(map)
+      // unchanged widgets of base handed on as they are: fine
+      updateMap(map, { ...base, widgets: [...base.widgets, plain('c')] }, { base })
+      expect(warn).not.toHaveBeenCalled()
+      const again = readMap(map)
+      updateMap(
+        map,
+        {
+          ...again,
+          widgets: again.widgets.map((widget) => {
+            widget.title = '原地改'
+            return widget
+          }),
+        },
+        { base: again },
+      )
+      expect(widgetIn(map, 'a')!.title).toBe('订单')
+      expect(warn).toHaveBeenCalledTimes(1)
+      expect(warn.mock.calls[0]![0]).toContain('"a"')
+    } finally {
+      warn.mockRestore()
+    }
+  })
+
+  it('needs a map in a document', () => {
+    expect(() => updateMap(new Y.Map(), start())).toThrow(
+      '[@dou-ui/dashboard] updateMap needs a map of a Y.Doc',
+    )
+  })
+
   it('without base, makes the map match the new version', () => {
     const { map } = shared()
     const next: DashboardDocument = { version: 1, widgets: [start().widgets[1]!] }

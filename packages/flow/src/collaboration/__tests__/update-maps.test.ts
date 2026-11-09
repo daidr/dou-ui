@@ -138,7 +138,7 @@ describe('readMaps and updateMaps', () => {
     })
   })
 
-  it('warns when given base itself, changed in place', () => {
+  it('warns when given base itself, or nodes of it changed in place', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     try {
       const ydoc = new Y.Doc()
@@ -146,6 +146,16 @@ describe('readMaps and updateMaps', () => {
       const base = readMaps(maps(ydoc))
       updateMaps(maps(ydoc), base, { base })
       expect(warn.mock.calls[0]![0]).toContain('structuredClone')
+      // handed on unchanged: fine; changed in place: warned
+      warn.mockClear()
+      updateMaps(maps(ydoc), { ...base, nodes: [...base.nodes] }, { base })
+      expect(warn).not.toHaveBeenCalled()
+      const node = base.nodes.find((item) => item.id === 'b')!
+      node.x = 999
+      updateMaps(maps(ydoc), { ...base, nodes: [...base.nodes] }, { base })
+      expect(readMaps(maps(ydoc)).nodes.find((item) => item.id === 'b')!.x).toBe(200)
+      expect(warn).toHaveBeenCalledTimes(1)
+      expect(warn.mock.calls[0]![0]).toContain('"b"')
     } finally {
       warn.mockRestore()
     }

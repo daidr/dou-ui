@@ -145,6 +145,8 @@
     max-height: min(var(--dou-floating-available, 100vh), 280px);
     margin: 0;
     padding: var(--dou-chat-input-menu-inset);
+    /* a long option is cut short, never scrolled sideways */
+    overflow-x: hidden;
     overflow-y: auto;
     border: 1px solid var(--dou-color-border);
     /* concentric with the options, like a dropdown menu */
@@ -162,6 +164,7 @@
     }
   }
 
+  /* custom option content lays itself out in a centered row */
   .dou-chat-input__option {
     display: flex;
     align-items: center;
@@ -172,6 +175,35 @@
     font-size: var(--dou-font-size-sm);
     line-height: 20px;
     cursor: pointer;
+
+    /* option slot content reusing the label and description classes: the
+       label gives way, a short description such as a kind stays whole, and
+       a long one takes at most 40% of the row, so beside an avatar the label
+       still keeps more room than it */
+    &:not(.is-default) {
+      .dou-chat-input__option-label {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+
+      .dou-chat-input__option-description {
+        flex: none;
+        min-width: 0;
+        max-width: 40%;
+      }
+    }
+
+    /* The default icon, label and description share the row evenly: each
+       takes what it needs while there is room, and when both run long the
+       space is split in half, so a short description such as a kind stays
+       whole and a long one such as a folder never pushes the label narrower
+       than itself. */
+    &.is-default {
+      display: grid;
+      grid-auto-columns: minmax(0, max-content);
+      grid-auto-flow: column;
+      align-items: start;
+    }
 
     &.is-active {
       background-color: var(--dou-color-bg-muted);
@@ -184,19 +216,25 @@
   }
 
   .dou-chat-input__option-icon {
-    flex: none;
+    margin-block: 2px;
     color: var(--dou-color-text-secondary);
     font-size: 16px;
   }
 
+  /* a long label wraps onto a second line before it is cut short, so names
+     that differ only at the end, such as -v1 and -v2, still tell apart */
   .dou-chat-input__option-label {
-    flex: none;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
     font-weight: var(--dou-font-weight-medium);
+    overflow-wrap: anywhere;
   }
 
   .dou-chat-input__option-description {
     overflow-x: clip;
-    min-width: 0;
     color: var(--dou-color-text-tertiary);
     text-overflow: ellipsis;
     white-space: nowrap;

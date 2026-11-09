@@ -133,6 +133,39 @@ describe('DouChatInput', () => {
     wrapper.unmount()
   })
 
+  it('shows an option cut short in full on hover', async () => {
+    const long = '上海办公室搬迁：各部门工位分配与网络布线方案.md'
+    const wrapper = mount(DouChatInput, {
+      props: {
+        modelValue: '@',
+        teleport: false,
+        mentions: [
+          { value: long, description: '文件' },
+          { value: '戴兜', description: '成员' },
+        ],
+      },
+      attachTo: document.body,
+    })
+    const textarea = wrapper.get('textarea')
+    ;(textarea.element as HTMLTextAreaElement).setSelectionRange(1, 1)
+    await textarea.trigger('keyup')
+    const [first, second] = wrapper.findAll('[role="option"]')
+    // happy-dom has no layout: the long label runs past its two lines
+    const label = first!.get('.dou-chat-input__option-label')
+    Object.defineProperty(label.element, 'scrollHeight', { value: 60 })
+    Object.defineProperty(label.element, 'clientHeight', { value: 40 })
+    await first!.trigger('mouseenter')
+    // the title sits on the part cut short, not on the whole option
+    expect(label.attributes('title')).toBe(`@${long}`)
+    expect(first!.attributes('title')).toBeUndefined()
+    expect(first!.get('.dou-chat-input__option-description').attributes('title')).toBeUndefined()
+    expect(wrapper.findAll('[role="option"]')[0]!.classes()).toContain('is-active')
+    await second!.trigger('mouseenter')
+    expect(second!.get('.dou-chat-input__option-label').attributes('title')).toBeUndefined()
+    expect(second!.classes()).toContain('is-active')
+    wrapper.unmount()
+  })
+
   describe('matching', () => {
     const snippets = [
       { value: 's_01', label: '周报模板' },

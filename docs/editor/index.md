@@ -160,16 +160,16 @@ function reset() {
 
 ### CSS 变量
 
-| 变量                         | 说明                                     |
-| ---------------------------- | ---------------------------------------- |
-| `--dou-editor-font-size`     | 正文字号                                 |
-| `--dou-editor-match`         | 查找结果的底色                           |
-| `--dou-editor-match-current` | 当前查找结果的描边                       |
-| `--dou-editor-line-height`   | 正文行高                                 |
-| `--dou-editor-gutter`        | 左侧留给手柄的宽度，只读时为 `0`         |
-| `--dou-editor-indent`        | 每一级缩进的宽度，也是列表符号的宽度     |
-| `--dou-editor-block-gap`     | 相邻两块之间的距离，默认 `4px`           |
-| `--dou-editor-list-gap`      | 同一列表里相邻两项之间的距离，默认 `4px` |
-| `--dou-editor-reading-width` | 正文的最大宽度，超出时居中，默认 `none`  |
-| `--dou-editor-selected`      | 选中的块的底色                           |
-| `--dou-editor-scroll-shadow` | 表格左右还有被遮住的列时，那一侧的阴影   |
+| 变量                         | 说明                                       |
+| ---------------------------- | ------------------------------------------ |
+| `--dou-editor-font-size`     | 正文字号                                   |
+| `--dou-editor-match`         | 查找结果的底色                             |
+| `--dou-editor-match-current` | 当前查找结果的描边                         |
+| `--dou-editor-line-height`   | 正文行高                                   |
+| `--dou-editor-gutter`        | 左侧留给手柄的宽度，只读时为 `0`           |
+| `--dou-editor-indent`        | 每一级缩进的宽度，也是列表符号的宽度       |
+| `--dou-editor-block-gap`     | 相邻两块之间的距离，默认 `4px`             |
+| `--dou-editor-list-gap`      | 同一列表里相邻两项之间的距离，默认 `4px`   |
+| `--dou-editor-reading-width` | 正文的最大宽度，超出时居中，默认 `none`    |
+| `--dou-editor-selected`      | 选中的块的底色                             |
+| `--dou-editor-scroll-shadow` | 表格左右还有被遮住的列时，那一侧阴影的颜色 |

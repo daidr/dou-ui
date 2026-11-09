@@ -1051,36 +1051,38 @@
   }
 
   /*
-   * a wide table at the top level, with a reading width: its frame reaches
-   * across the margins on both sides, the padding before the table keeping
-   * it in line with the text. The table grows into the right margin first;
-   * when it is wider than that too, scrolling takes the padding away first,
-   * so its left edge moves out to the editor's edge before the columns
-   * start to go under it. The gutter stays clear for the handles, and a
-   * little room is left after the table for the "+" bar. The margins are
-   * the same calc as the surface's padding, on the width of the mount (a
-   * container); with no reading width the calc is invalid and both stay 0.
+   * a top-level table, with a reading width: its frame reaches across the
+   * margins on both sides, and the padding before the table keeps it in line
+   * with the text. A wide table takes the right margin first; wider still, it
+   * scrolls, and scrolling takes the padding away first, so its left edge
+   * moves out to the gutter before the columns move. The gutter stays for the
+   * handles, and 28px after the table for the "+" bar. The margins are the
+   * surface's padding, which the table extension measures in px and sets on
+   * the mount (0 until then, and with no reading width).
    */
-  .dou-editor__mount {
-    container-type: inline-size;
+  .dou-editor__mount > .dou-editor__surface > .dou-editor__block > .dou-editor__content--table {
+    --dou-editor-bleed-start: var(--dou-editor-margin-start, 0px);
+    --dou-editor-bleed-end: var(--dou-editor-margin-end, 0px);
+
+    margin-inline: calc(-1 * var(--dou-editor-bleed-start)) calc(-1 * var(--dou-editor-bleed-end));
+    padding-inline: var(--dou-editor-bleed-start) min(var(--dou-editor-bleed-end), 28px);
   }
 
-  .dou-editor__mount > .dou-editor__surface > .dou-editor__block > .dou-editor__content--table {
-    --dou-editor-table-bleed-start: max(
-      0px,
-      (100cqi - var(--dou-editor-reading-width) - var(--dou-editor-gutter)) / 2
+  /*
+   * a selected top-level table reaches past its block, which has the tint:
+   * the frame tints the margins it covers (the background stays put while
+   * the table scrolls)
+   */
+  .dou-editor__mount
+    > .dou-editor__surface
+    > .dou-editor__block.is-selected
+    > .dou-editor__content--table {
+    background-image: linear-gradient(
+      to right,
+      var(--dou-editor-selected) var(--dou-editor-bleed-start),
+      transparent var(--dou-editor-bleed-start) calc(100% - var(--dou-editor-bleed-end)),
+      var(--dou-editor-selected) calc(100% - var(--dou-editor-bleed-end))
     );
-    --dou-editor-table-bleed-end: max(
-      0px,
-      min(
-        100cqi - var(--dou-editor-reading-width),
-        (100cqi - var(--dou-editor-reading-width) + var(--dou-editor-gutter)) / 2
-      )
-    );
-
-    margin-inline: calc(-1 * var(--dou-editor-table-bleed-start))
-      calc(-1 * var(--dou-editor-table-bleed-end));
-    padding-inline: var(--dou-editor-table-bleed-start) min(var(--dou-editor-table-bleed-end), 28px);
   }
 
   .dou-editor-table {

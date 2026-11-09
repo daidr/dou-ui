@@ -33,6 +33,6 @@ const doc = ref<EditorDocument<PartialBlock>>({
     v-model="doc"
     :extensions="extensions"
     aria-label="门店日销售额"
-    :style="{ '--dou-editor-reading-width': '32em' }"
+    :style="{ '--dou-editor-reading-width': '20em' }"
   />
 </template>

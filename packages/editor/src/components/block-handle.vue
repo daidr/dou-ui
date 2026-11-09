@@ -31,12 +31,21 @@ import {
   insertBlockAfter,
   swapBlocks,
   moveRangeTo,
+  moveRangeToNewColumn,
   deleteBlocks,
   setBlockType,
 } from '../core/commands'
 import { blockFromNode } from '../core/model'
 import { slashKey } from '../core/slash'
-import { blockElementOf, contentAt, firstLine, scrollParent } from '../dom'
+import {
+  blockElementOf,
+  childBlocks,
+  COLUMN_GROUP,
+  contentAt,
+  firstLine,
+  scrollParent,
+  sideBySide,
+} from '../dom'
 import { editorKey } from '../editor'
 import { useMenuEscape } from './menu-escape'
 
@@ -54,10 +63,24 @@ const onMedia = () => (touch.value = !!media?.matches)
 /** The block the handle is next to, by id. */
 const hovered = shallowRef<string | null>(null)
 const position = shallowRef<{ top: number; left: number; height: number } | null>(null)
+/** In a column the handle is only the grip, in the gap before it, leaving room for the resize bar. */
+const compact = shallowRef(false)
 const menuOpen = shallowRef(false)
 useMenuEscape(menuOpen, () => (menuOpen.value = false))
 
-const drop = shallowRef<{ pos: number; top: number; left: number; width: number } | null>(null)
+/**
+ * Where a drag would drop: before or after a block (a line across), or
+ * beside a column, into a new column (a line down, `column` set).
+ */
+interface Drop {
+  pos: number
+  top: number
+  left: number
+  width: number
+  height?: number
+  column?: { row: string; index: number }
+}
+const drop = shallowRef<Drop | null>(null)
 // typing hides the handle until the pointer moves again
 const resting = shallowRef(false)
 
@@ -76,6 +99,7 @@ function place(content: HTMLElement) {
   const box = host.getBoundingClientRect()
   const line = firstLine(content)
   hovered.value = id
+  compact.value = !!content.closest(COLUMN_GROUP)
   position.value = {
     top: line.top - box.top,
     left: content.getBoundingClientRect().left - box.left,
@@ -99,7 +123,7 @@ function track(event: PointerEvent) {
     if (dragging.value) return updateDrop()
     const current = view.value
     if (!current || menuOpen.value) return
-    const content = contentAt(current, lastY)
+    const content = contentAt(current, lastY, lastX)
     if (content) place(content)
   })
 }
@@ -360,15 +384,56 @@ function onDragKey(event: KeyboardEvent) {
   stopDrag()
 }
 
+/** Beside a column, past its edge: a new column there, when the set takes one more. */
+function columnDrop(content: HTMLElement, moving: SiblingRange, box: DOMRect): Drop | null {
+  const instance = view.value
+  const group = content.closest<HTMLElement>(COLUMN_GROUP)
+  const column = group?.parentElement
+  const rowGroup = column?.parentElement
+  const rowId = rowGroup?.parentElement?.dataset.blockId
+  if (!instance || !column || !rowGroup || !rowId) return null
+  const columns = childBlocks(rowGroup)
+  const index = columns.indexOf(column)
+  if (index < 0 || !sideBySide(columns)) return null
+  const rect = column.getBoundingClientRect()
+  const at = lastX < rect.left ? index : lastX > rect.right ? index + 1 : -1
+  if (at < 0) return null
+  const row = findBlockById(instance.state.doc, rowId)
+  if (!row || !moveRangeToNewColumn(moving, row.pos, at)(instance.state)) return null
+  const gap =
+    columns.length > 1
+      ? columns[1]!.getBoundingClientRect().left - columns[0]!.getBoundingClientRect().right
+      : 0
+  const x =
+    at === 0
+      ? columns[0]!.getBoundingClientRect().left - gap / 2
+      : at === columns.length
+        ? columns.at(-1)!.getBoundingClientRect().right + gap / 2
+        : (columns[at - 1]!.getBoundingClientRect().right +
+            columns[at]!.getBoundingClientRect().left) /
+          2
+  const rowRect = rowGroup.getBoundingClientRect()
+  return {
+    pos: row.pos,
+    top: rowRect.top - box.top,
+    left: x - box.left,
+    width: 0,
+    height: rowRect.height,
+    column: { row: rowId, index: at },
+  }
+}
+
 function updateDrop() {
   const instance = view.value
   const host = root.value
   if (!instance || !host || !range) return
-  const content = contentAt(instance, lastY)
+  const content = contentAt(instance, lastY, lastX)
   const id = content && blockElementOf(content)?.dataset.blockId
   const info = id ? findBlockById(instance.state.doc, id) : null
   if (!content || !info) return (drop.value = null)
   const box = host.getBoundingClientRect()
+  const beside = columnDrop(content, range, box)
+  if (beside) return (drop.value = beside)
   const rect = content.getBoundingClientRect()
   const below = lastY > rect.top + rect.height / 2
   let pos: number
@@ -419,7 +484,11 @@ function finishDrag() {
   stopDrag()
   if (!instance || !spot || !moving) return
   const ids = blocksIn(moving).map((block) => block.node.attrs.id as string)
-  if (!moveRangeTo(moving, spot.pos)(instance.state, instance.dispatch)) return
+  const row = spot.column && findBlockById(instance.state.doc, spot.column.row)
+  const command = spot.column
+    ? row && moveRangeToNewColumn(moving, row.pos, spot.column.index)
+    : moveRangeTo(moving, spot.pos)
+  if (!command || !command(instance.state, instance.dispatch)) return
   selectBlocks(ids[0]!, ids.at(-1)!)(instance.state, instance.dispatch)
   instance.focus()
 }
@@ -446,7 +515,7 @@ watch(menuOpen, (value) => {
 <template>
   <div
     v-show="visible"
-    class="dou-editor__handle"
+    :class="['dou-editor__handle', { 'is-compact': compact }]"
     :style="
       position
         ? {
@@ -543,7 +612,11 @@ watch(menuOpen, (value) => {
   </div>
   <div
     v-if="drop"
-    class="dou-editor__drop"
-    :style="{ top: `${drop.top}px`, left: `${drop.left}px`, width: `${drop.width}px` }"
+    :class="['dou-editor__drop', { 'is-vertical': drop.column }]"
+    :style="
+      drop.column
+        ? { top: `${drop.top}px`, left: `${drop.left}px`, height: `${drop.height}px` }
+        : { top: `${drop.top}px`, left: `${drop.left}px`, width: `${drop.width}px` }
+    "
   />
 </template>

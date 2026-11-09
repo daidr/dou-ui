@@ -28,6 +28,7 @@ const extensions = [editorKit({ codeBlock: false, divider: false })]
 | `divider`    | 分隔线                                      |
 | `toggle`     | 折叠块                                      |
 | `callout`    | 提示块                                      |
+| `columns`    | [分栏](./columns)                           |
 | `formatting` | 粗体、斜体、下划线、删除线、行内代码        |
 | `link`       | 链接                                        |
 
@@ -182,15 +183,38 @@ const open = useToolbarMenu()
 
 `BlockOption` 描述块菜单中的一项：
 
-| 名称       | 说明                                   | 类型        |
-| ---------- | -------------------------------------- | ----------- |
-| `key`      | 选项的标识，不能重复                   | `string`    |
-| `type`     | 插入或转换成的块类型                   | `string`    |
-| `props`    | 同时设置的 `props`，例如标题的 `level` | `object`    |
-| `label`    | 名称                                   | `Label`     |
-| `hint`     | 名称下方的说明                         | `Label`     |
-| `icon`     | 图标                                   | `Component` |
-| `keywords` | 额外用于筛选的词，例如拼音             | `string[]`  |
-| `shortcut` | 对应的 Markdown 快捷输入，作为提示显示 | `string`    |
+| 名称       | 说明                                   | 类型                 |
+| ---------- | -------------------------------------- | -------------------- |
+| `key`      | 选项的标识，不能重复                   | `string`             |
+| `type`     | 插入或转换成的块类型                   | `string`             |
+| `props`    | 同时设置的 `props`，例如标题的 `level` | `object`             |
+| `label`    | 名称                                   | `Label`              |
+| `hint`     | 名称下方的说明                         | `Label`              |
+| `icon`     | 图标                                   | `Component`          |
+| `keywords` | 额外用于筛选的词，例如拼音             | `string[]`           |
+| `shortcut` | 对应的 Markdown 快捷输入，作为提示显示 | `string`             |
+| `choices`  | 在选项旁边弹出的几种变体，见下文       | `BlockOptionChoices` |
 
 `Label` 可以是字符串，也可以是 `(messages) => string`，从编辑器的 `messages` 里读取文字，这样会跟随语言切换。
+
+### 选项的变体
+
+有的块插入前要先选一个参数，例如[分栏](./columns)要选栏数。给选项加上 `choices`，斜杠菜单里这个选项被选中时，旁边会弹出一个面板：
+
+```ts
+{
+  key: 'columns',
+  type: 'columns',
+  label: '分栏',
+  icon: LayoutColumnsIcon,
+  choices: {
+    title: '选择栏数',
+    items: [2, 3, 4, 5].map((count) => ({ props: { count }, label: `${count} 栏` })),
+    component: ColumnPicker,
+  },
+}
+```
+
+- `items` 是各个变体，选中后把它的 `props` 合并到选项的 `props` 上再插入。直接点击选项本身时插入第一个变体。
+- 用键盘时，`←` `→` 切换变体，`Enter` 插入。在手机上，第一次点选项只打开面板，再点面板里的变体插入。
+- `component` 决定面板怎样画出这些变体。它收到 `items`、`active`（当前变体的序号）和 `messages`，在指针移到某个变体上时触发 `hover`，点击时触发 `choose`，参数都是序号。省略时面板按名称列出各个变体。

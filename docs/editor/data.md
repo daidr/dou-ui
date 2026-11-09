@@ -65,10 +65,14 @@ const doc: EditorDocument<PartialBlock> = {
 | `toggle`       | 折叠块   | —                                                         |
 | `callout`      | 提示块   | `tone`：`info`、`tip`、`warning` 或 `danger`，默认 `info` |
 | `table`        | 表格     | 表头设置与列信息，内容在 `rows` 里，见[表格](./table)     |
+| `columns`      | 分栏     | —                                                         |
+| `column`       | 一栏     | `width`：这一栏占的比例                                   |
 
 `align` 只在设置了对齐时出现，没有对齐的块 `props` 里没有这一项。图片、附件和嵌入等块由各自的扩展提供，见对应页面。
 
 通过[扩展](./extensions)增加的块类型也使用同样的格式，`props` 由扩展定义。
+
+分栏的每一栏是一个 `column` 块，放在 `columns` 块的 `children` 里，栏里的块又放在 `column` 块的 `children` 里。这两种块都没有文字，见[分栏](./columns#数据)。
 
 列表没有单独的“列表”容器，每一项都是一个块。有序列表的序号按连续的同级有序列表项计算，中间隔着其他类型的块时重新从 1 开始。
 

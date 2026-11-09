@@ -1,4 +1,4 @@
-import { Fragment, type Node as PMNode, type Schema } from 'prosemirror-model'
+import { Fragment, type Node as PMNode, type ResolvedPos, type Schema } from 'prosemirror-model'
 import {
   NodeSelection,
   Selection,
@@ -11,13 +11,15 @@ import {
   blockAround,
   blocksIn,
   infoAt,
+  layoutOf,
   nextInDocument,
+  parentBlock,
   previousInDocument,
   selectedRange,
   type BlockInfo,
   type SiblingRange,
 } from './blocks'
-import { createContentNode, type BlockProps } from './model'
+import { createContentNode, nodeFromBlock, type BlockProps, type PartialBlock } from './model'
 import type { ContentType } from './schema'
 
 const newBlock = (schema: Schema, content: PMNode, children?: Fragment) =>
@@ -25,6 +27,13 @@ const newBlock = (schema: Schema, content: PMNode, children?: Fragment) =>
     { id: null },
     children?.size ? [content, schema.nodes.blockGroup!.create(null, children)] : content,
   )
+
+/** Whether a position is inside a column, at any depth. */
+function insideColumn($pos: ResolvedPos): boolean {
+  for (let depth = $pos.depth; depth > 0; depth--)
+    if (layoutOf($pos.node(depth)) === 'column') return true
+  return false
+}
 
 /** The block and content around the cursor, when the selection is inside one textblock. */
 function cursorBlock(state: EditorState) {
@@ -40,7 +49,10 @@ function cursorBlock(state: EditorState) {
  * Turn every block the selection touches into `type`. Text formatting is
  * dropped when it can't be kept (in a code block); a type without text
  * (a divider, an embed) replaces the content and adds an empty paragraph
- * after it to keep typing in.
+ * after it to keep typing in. A type that starts with children of its own
+ * (`template` in its spec, e.g. columns) is added after the blocks instead,
+ * or takes the place of an empty paragraph; blocks that lay out others
+ * (columns) are left as they are.
  */
 export function setBlockType(type: ContentType, props: BlockProps = {}): Command {
   return (state, dispatch) => {
@@ -50,6 +62,11 @@ export function setBlockType(type: ContentType, props: BlockProps = {}): Command
     const nodeType = schema.nodes[type]
     if (!nodeType) return false
     if (!dispatch) return true
+    const template = nodeType.spec.template as ((props: BlockProps) => PartialBlock[]) | undefined
+    if (template) {
+      dispatch(insertTemplate(state.tr, blocksIn(range), type, props, template(props)))
+      return true
+    }
     const tr = state.tr
     const created = createContentNode(schema, type, props)
     const attrs = created.attrs
@@ -59,6 +76,7 @@ export function setBlockType(type: ContentType, props: BlockProps = {}): Command
       // last first, so earlier positions stay valid
       for (let index = blocks.length - 1; index >= 0; index--) {
         const block = blocks[index]!
+        if (block.content.type.spec.layout) continue
         tr.replaceWith(block.contentPos, block.contentPos + block.content.nodeSize, created)
       }
       const after = tr.mapping.map(last.pos + last.node.nodeSize)
@@ -70,8 +88,8 @@ export function setBlockType(type: ContentType, props: BlockProps = {}): Command
     for (const block of blocksIn(range)) {
       const from = tr.mapping.map(block.contentPos)
       const content = tr.doc.nodeAt(from)!
-      // a block holding other nodes (a table) can't become text
-      if (!content.isAtom && !content.inlineContent) continue
+      // a block holding other nodes (a table) or laying out others (columns) can't become text
+      if ((!content.isAtom && !content.inlineContent) || content.type.spec.layout) continue
       if (content.isAtom) {
         tr.replaceWith(from, from + content.nodeSize, nodeType.create(attrs))
       } else {
@@ -87,6 +105,36 @@ export function setBlockType(type: ContentType, props: BlockProps = {}): Command
     dispatch(tr.scrollIntoView())
     return true
   }
+}
+
+/**
+ * A new block of `type` with its starting children, after `blocks` (or in
+ * place of the one empty paragraph), with the cursor in its first text.
+ */
+function insertTemplate(
+  tr: Transaction,
+  blocks: BlockInfo[],
+  type: ContentType,
+  props: BlockProps,
+  children: PartialBlock[],
+): Transaction {
+  const schema = tr.doc.type.schema
+  const last = blocks.at(-1)!
+  const node = nodeFromBlock(schema, { type, props, children })
+  const empty =
+    blocks.length === 1 &&
+    !last.group &&
+    last.content.type.name === 'paragraph' &&
+    last.content.content.size === 0
+  const at = empty ? last.pos : last.pos + last.node.nodeSize
+  if (empty) tr.replaceWith(at, at + last.node.nodeSize, node)
+  else tr.insert(at, node)
+  // the last of its level: an empty paragraph below to go on writing
+  const $at = tr.doc.resolve(at)
+  if ($at.index() === $at.parent.childCount - 1)
+    tr.insert(at + node.nodeSize, newBlock(schema, schema.nodes.paragraph!.create()))
+  tr.setSelection(Selection.near(tr.doc.resolve(at + 1)))
+  return tr.scrollIntoView()
 }
 
 /** Set attributes on the content of the block at `pos`, e.g. tick a to-do. */
@@ -131,7 +179,9 @@ export const splitBlock: Command = (state, dispatch) => {
         dispatch(tr.setBlockType($from.pos, $from.pos, schema.nodes.paragraph!).scrollIntoView())
       return true
     }
-    if (type === 'paragraph' && info.depth > 1) return liftBlocks(state, dispatch)
+    // nested: up a level, where there is one (not out of a column)
+    if (type === 'paragraph' && info.depth > 1 && liftBlocks(state))
+      return liftBlocks(state, dispatch)
   }
 
   if (!dispatch) return true
@@ -238,9 +288,22 @@ export const joinBackward: Command = (state, dispatch) => {
     }
     return true
   }
-  if (info.depth > 1) return liftBlocks(state, dispatch)
+  if (info.depth > 1 && liftBlocks(state)) return liftBlocks(state, dispatch)
   const previous = previousInDocument(state.doc, info)
-  if (!previous) return false
+  if (!previous) {
+    // the start of a column: text stays in its column; an empty block goes
+    // (and its column with it, when it was the only one there)
+    if (!insideColumn(state.selection.$from)) return false
+    if (dispatch && info.content.content.size === 0 && !info.group) {
+      const tr = deleteBlocks(state.tr, [info])
+      // the column goes with it: back to the end of the column before, if there is one
+      const column = parentBlock(state.doc, info)
+      if (column?.group?.childCount === 1 && state.doc.resolve(column.pos).index() > 0)
+        tr.setSelection(Selection.near(tr.doc.resolve(tr.mapping.map(column.pos)), -1))
+      dispatch(tr.scrollIntoView())
+    }
+    return true
+  }
   if (!dispatch) return true
   const tr = state.tr
   if (previous.content.isAtom) {
@@ -261,7 +324,10 @@ export const joinForward: Command = (state, dispatch) => {
   if (!info || !state.selection.empty || $from.parentOffset < $from.parent.content.size)
     return false
   const next = nextInDocument(state.doc, info)
-  if (!next) return false
+  // the end of a column: nothing comes after it there
+  if (!next) return insideColumn($from)
+  // columns are not pulled into text
+  if (layoutOf(next.node)) return true
   if (!dispatch) return true
   const tr = state.tr
   if (next.content.isAtom && !next.group) {
@@ -293,6 +359,8 @@ export const sinkBlocks: Command = (state, dispatch) => {
   const schema = state.schema
   const blocks = blocksIn(range)
   const previousNode = range.parent.child(range.from - 1)
+  // nothing goes into a set of columns but columns
+  if (layoutOf(previousNode)) return false
   const previous = infoAt(previousNode, range.start - previousNode.nodeSize, range.depth)
   const moving = Fragment.fromArray(blocks.map((block) => block.node))
   const tr = state.tr
@@ -321,11 +389,13 @@ export const sinkBlocks: Command = (state, dispatch) => {
 export const liftBlocks: Command = (state, dispatch) => {
   const range = selectedRange(state)
   if (!range || range.depth <= 1) return false
-  if (!dispatch) return true
-  const schema = state.schema
   const doc = state.doc
   const $start = doc.resolve(range.start)
   const parentDepth = range.depth - 2
+  // the top level of a column: the blocks stay in it
+  if (layoutOf($start.node(parentDepth))) return false
+  if (!dispatch) return true
+  const schema = state.schema
   const parent = infoAt($start.node(parentDepth), $start.before(parentDepth), parentDepth)
   const group = range.parent
   const blocks = blocksIn(range).map((block) => block.node)
@@ -426,6 +496,59 @@ export function moveRangeTo(range: SiblingRange, target: number): Command {
       tr.setSelection(Selection.near(tr.doc.resolve(at + 2)))
       dispatch(tr.scrollIntoView())
     }
+    return true
+  }
+}
+
+/**
+ * Drag and drop beside a column: move the blocks of `range` into a new
+ * column of the row at `rowPos`, before its column `index` (or after the
+ * last). The new column is as wide as the others on average. A column the
+ * blocks leave empty goes away. Fails when the row is among the moved
+ * blocks or already has as many columns as it may (`maxColumns`).
+ */
+export function moveRangeToNewColumn(range: SiblingRange, rowPos: number, index: number): Command {
+  return (state, dispatch) => {
+    const row = state.doc.nodeAt(rowPos)
+    const schema = state.schema
+    const columnType = Object.values(schema.nodes).find((type) => type.spec.layout === 'column')
+    if (!row || layoutOf(row) !== 'row' || row.childCount < 2 || !columnType) return false
+    if (rowPos >= range.start && rowPos < range.end) return false
+    const group = row.child(1)
+    const start = rowPos + 1 + row.firstChild!.nodeSize + 1
+    // a whole column of this row moving: the count stays
+    const wholeColumn =
+      range.depth >= 3 &&
+      range.from === 0 &&
+      range.to === range.parent.childCount - 1 &&
+      state.doc.resolve(range.start).start(range.depth - 3) === start
+    const max = (row.firstChild!.type.spec.maxColumns as number | undefined) ?? Infinity
+    if (group.childCount >= max && !wholeColumn) return false
+    if (!dispatch) return true
+    let at = start
+    const widths: number[] = []
+    group.forEach((column, _offset, position) => {
+      if (position < index) at += column.nodeSize
+      widths.push(Number(column.firstChild!.attrs.width) || 1)
+    })
+    const average =
+      Math.round((widths.reduce((sum, width) => sum + width, 0) / widths.length) * 1000) / 1000
+    const nodes = blocksIn(range).map((block) => block.node)
+    const column = schema.nodes.block!.create({ id: null }, [
+      columnType.create(average === 1 ? {} : { width: average }),
+      schema.nodes.blockGroup!.create(null, nodes),
+    ])
+    const tr = state.tr
+    const whole =
+      range.parent.type.name === 'blockGroup' &&
+      range.from === 0 &&
+      range.to === range.parent.childCount - 1
+    if (whole) tr.delete(range.start - 1, range.end + 1)
+    else tr.delete(range.start, range.end)
+    const pos = tr.mapping.map(at)
+    tr.insert(pos, column)
+    tr.setSelection(Selection.near(tr.doc.resolve(pos + 1)))
+    dispatch(tr.scrollIntoView())
     return true
   }
 }

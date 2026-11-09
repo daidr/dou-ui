@@ -30,6 +30,25 @@ export interface BlockOption {
   keywords?: string[]
   /** The Markdown shortcut, shown as a hint. */
   shortcut?: string
+  /**
+   * Variants to pick from in a panel beside the option in the slash menu,
+   * e.g. how many columns. Choosing the option itself inserts the first.
+   */
+  choices?: BlockOptionChoices
+}
+
+/** The variants of a slash menu option, picked in a panel beside it. */
+export interface BlockOptionChoices {
+  /** The panel's title, e.g. “Number of columns”. */
+  title: Label
+  /** Each variant: the props it inserts with (over the option's own) and its name. */
+  items: { props: BlockProps; label: Label }[]
+  /**
+   * Draws the variants. It gets `items`, `active` (the index of the
+   * highlighted one) and `messages`, and emits `hover` and `choose` with an
+   * index. Without it, the panel lists their names.
+   */
+  component?: Component
 }
 
 /** A toggle in the formatting toolbar for a mark. */

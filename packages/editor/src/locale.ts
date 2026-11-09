@@ -21,6 +21,7 @@ export interface EditorMessages {
     toggle: string
     callout: string
     table: string
+    columns: string
     attachment: string
     embed: string
   }
@@ -40,6 +41,7 @@ export interface EditorMessages {
     toggle: string
     callout: string
     table: string
+    columns: string
     attachment: string
     embed: string
   }
@@ -92,6 +94,17 @@ export interface EditorMessages {
     alignRight: string
     addRow: string
     addColumn: string
+  }
+  /** Columns: the picker in the slash menu, the block menu entry, the resize bar. */
+  columns: {
+    /** The title of the picker for the number of columns. */
+    pick: string
+    /** A number of columns; `{count}` is replaced with it. */
+    count: string
+    /** Selects the whole set of columns a block is in. */
+    select: string
+    /** The bar between two columns. */
+    resize: string
   }
   /** The color menu of the formatting toolbar. */
   colors: {
@@ -186,6 +199,7 @@ const zhCN: EditorMessages = {
     toggle: '折叠块',
     callout: '提示块',
     table: '表格',
+    columns: '分栏',
     attachment: '附件',
     embed: '嵌入',
   },
@@ -204,6 +218,7 @@ const zhCN: EditorMessages = {
     toggle: '可以展开和收起的内容',
     callout: '带图标的醒目说明',
     table: '插入一个表格',
+    columns: '把内容并排分成几栏',
     attachment: '上传一个文件',
     embed: '视频、音频或网页',
   },
@@ -248,6 +263,12 @@ const zhCN: EditorMessages = {
   callout: {
     change: '点击更换',
     tones: { info: '说明', tip: '提示', warning: '注意', danger: '警告' },
+  },
+  columns: {
+    pick: '选择栏数',
+    count: '{count} 栏',
+    select: '选中整个分栏',
+    resize: '拖动调整栏宽，双击平分',
   },
   colors: {
     label: '颜色',
@@ -331,6 +352,7 @@ const zhTW: EditorMessages = {
     toggle: '摺疊區塊',
     callout: '提示區塊',
     table: '表格',
+    columns: '分欄',
     attachment: '附件',
     embed: '嵌入',
   },
@@ -349,6 +371,7 @@ const zhTW: EditorMessages = {
     toggle: '可以展開和收合的內容',
     callout: '帶圖示的醒目說明',
     table: '插入一個表格',
+    columns: '把內容並排分成幾欄',
     attachment: '上傳一個檔案',
     embed: '影片、音訊或網頁',
   },
@@ -393,6 +416,12 @@ const zhTW: EditorMessages = {
   callout: {
     change: '點擊更換',
     tones: { info: '說明', tip: '提示', warning: '注意', danger: '警告' },
+  },
+  columns: {
+    pick: '選擇欄數',
+    count: '{count} 欄',
+    select: '選取整個分欄',
+    resize: '拖曳調整欄寬，按兩下平分',
   },
   colors: {
     label: '顏色',
@@ -476,6 +505,7 @@ const en: EditorMessages = {
     toggle: 'Toggle',
     callout: 'Callout',
     table: 'Table',
+    columns: 'Columns',
     attachment: 'File',
     embed: 'Embed',
   },
@@ -494,6 +524,7 @@ const en: EditorMessages = {
     toggle: 'Content that can be shown or hidden',
     callout: 'A note that stands out, with an icon',
     table: 'A grid of rows and columns',
+    columns: 'Put content side by side',
     attachment: 'Upload a file',
     embed: 'Video, audio or a web page',
   },
@@ -538,6 +569,12 @@ const en: EditorMessages = {
   callout: {
     change: 'click to change',
     tones: { info: 'Info', tip: 'Tip', warning: 'Warning', danger: 'Danger' },
+  },
+  columns: {
+    pick: 'Number of columns',
+    count: '{count} columns',
+    select: 'Select all columns',
+    resize: 'Drag to resize, double-click to even out',
   },
   colors: {
     label: 'Color',

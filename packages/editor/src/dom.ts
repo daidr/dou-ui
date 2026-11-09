@@ -122,6 +122,36 @@ export function firstLine(content: HTMLElement): { top: number; height: number }
   return { top: rect.top + (height < rect.height ? padding : 0), height }
 }
 
+const isWideTable = (content: HTMLElement) =>
+  content.classList.contains('dou-editor__content--table')
+
+/**
+ * Where a block's content goes across: its box, less what a top-level
+ * table's frame reaches into the margins (its start padding and end margin),
+ * which keeps the table in line with the text. The editor lays out left to
+ * right, so the logical start and end are the left and right.
+ */
+export function contentSpan(content: HTMLElement): { left: number; right: number } {
+  const rect = content.getBoundingClientRect()
+  if (!isWideTable(content)) return { left: rect.left, right: rect.right }
+  const style = getComputedStyle(content)
+  return {
+    left: rect.left + (Number.parseFloat(style.paddingInlineStart) || 0),
+    right: rect.right + (Number.parseFloat(style.marginInlineEnd) || 0),
+  }
+}
+
+/**
+ * Where the block handle goes: before the content, or before what shows of
+ * a table, whose left edge moves out into the margin as it scrolls.
+ */
+export function handleLeft(content: HTMLElement): number {
+  const rect = content.getBoundingClientRect()
+  if (!isWideTable(content)) return rect.left
+  const table = content.querySelector('table')
+  return table ? Math.max(rect.left, table.getBoundingClientRect().left) : contentSpan(content).left
+}
+
 /** The right edge of the editor's text column: the surface less its padding (a reading width). */
 export function columnRight(surface: HTMLElement): number {
   const padding = Number.parseFloat(getComputedStyle(surface).paddingRight) || 0

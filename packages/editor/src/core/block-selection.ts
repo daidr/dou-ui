@@ -176,7 +176,13 @@ export function blockSelectionPlugin(): Plugin<BlockSelection | null> {
         return DecorationSet.create(
           state.doc,
           blocksIn(range).map((block) =>
-            Decoration.node(block.pos, block.pos + block.node.nodeSize, { class: 'is-selected' }),
+            Decoration.node(block.pos, block.pos + block.node.nodeSize, {
+              // a top-level table reaches into the margins: its tint goes with it
+              class:
+                block.node.firstChild?.type.spec.tableRole === 'table'
+                  ? 'is-selected has-table'
+                  : 'is-selected',
+            }),
           ),
         )
       },

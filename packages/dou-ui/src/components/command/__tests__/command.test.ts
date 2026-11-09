@@ -125,3 +125,281 @@ describe('DouCommand highlight', () => {
     wrapper.unmount()
   })
 })
+
+const rows = (root: ParentNode) => [...root.querySelectorAll<HTMLElement>('[role="option"]')]
+const heights = (root: ParentNode) => rows(root).map((row) => row.style.height)
+const many = (count: number): CommandItem[] =>
+  Array.from({ length: count }, (_, index) => ({
+    value: index,
+    label: `第 ${index} 条`,
+    description: index % 2 ? '上海 · 戴兜' : undefined,
+  }))
+
+const isRow = (el: Element) => el.getAttribute('role') === 'option'
+/** The number in a row's label. */
+const label = (row: HTMLElement) => Number(/第 (\d+) 条/.exec(row.textContent!)![1])
+
+/**
+ * A stand-in for layout in happy-dom: rows are `height(row)` tall and stack
+ * under the spacers, the list shows 300px, and resize observers report
+ * every observed row once it is rendered.
+ */
+function fakeLayout(height: (row: HTMLElement) => number) {
+  const proto = HTMLElement.prototype
+  const props = [
+    'offsetHeight',
+    'clientHeight',
+    'scrollHeight',
+    'scrollTop',
+    'getBoundingClientRect',
+  ] as const
+  const own = props.map((name) => Object.getOwnPropertyDescriptor(proto, name))
+  const saved = {
+    ResizeObserver: globalThis.ResizeObserver,
+    requestAnimationFrame: globalThis.requestAnimationFrame,
+  }
+  const sizeOf = (el: Element): number => {
+    if (isRow(el)) return height(el as HTMLElement)
+    const style = (el as HTMLElement).style?.height
+    return style ? Number.parseFloat(style) : 0
+  }
+  const topOf = (el: Element) => {
+    let top = 0
+    for (let at = el.previousElementSibling; at; at = at.previousElementSibling) top += sizeOf(at)
+    return top
+  }
+  const tops = new WeakMap<Element, number>()
+  const state = { dropWrites: false }
+  // the content is the groups' children stacked, shown 300px at a time
+  const contentOf = (el: Element) => {
+    let content = 0
+    for (const group of el.children) for (const child of group.children) content += sizeOf(child)
+    return content
+  }
+  const clamp = (el: Element, top: number) => Math.max(0, Math.min(top, contentOf(el) - 300))
+  // Where an element is on screen: the list sits at 0 and its content scrolls.
+  const screenTop = (el: Element): number => {
+    if (el.getAttribute('role') === 'listbox') return 0
+    const parent = el.parentElement
+    if (!parent) return 0
+    const inner = parent.getAttribute('role') === 'listbox' ? -(tops.get(parent) ?? 0) : 0
+    return screenTop(parent) + inner + topOf(el)
+  }
+  Object.defineProperty(proto, 'getBoundingClientRect', {
+    configurable: true,
+    value(this: HTMLElement) {
+      const top = this.closest('[role="listbox"]') ? screenTop(this) : 0
+      return new DOMRect(0, top, 0, sizeOf(this))
+    },
+  })
+  Object.defineProperty(proto, 'offsetHeight', {
+    configurable: true,
+    get(this: HTMLElement) {
+      return sizeOf(this)
+    },
+  })
+  Object.defineProperty(proto, 'clientHeight', {
+    configurable: true,
+    get(this: Element) {
+      return this.getAttribute('role') === 'listbox' ? 300 : 0
+    },
+  })
+  Object.defineProperty(proto, 'scrollHeight', {
+    configurable: true,
+    get(this: Element) {
+      return this.getAttribute('role') === 'listbox' ? contentOf(this) : 0
+    },
+  })
+  Object.defineProperty(proto, 'scrollTop', {
+    configurable: true,
+    get(this: Element) {
+      return tops.get(this) ?? 0
+    },
+    set(this: Element, value: number) {
+      // iOS drops positions written by code during a touch scroll
+      if (state.dropWrites) return
+      const next = clamp(this, value)
+      if (next === (tops.get(this) ?? 0)) return
+      tops.set(this, next)
+      queueMicrotask(() => this.dispatchEvent(new Event('scroll')))
+    },
+  })
+  const observers = new Set<{ fire: () => void }>()
+  globalThis.ResizeObserver = class {
+    targets = new Set<Element>()
+    constructor(private callback: ResizeObserverCallback) {
+      observers.add(this)
+    }
+    observe(target: Element) {
+      this.targets.add(target)
+    }
+    unobserve(target: Element) {
+      this.targets.delete(target)
+    }
+    disconnect() {
+      this.targets.clear()
+    }
+    fire() {
+      const entries = [...this.targets].filter(isRow).map((target) => ({ target }))
+      if (entries.length) this.callback(entries as never, this as never)
+    }
+  } as never
+  globalThis.requestAnimationFrame = ((step: FrameRequestCallback) =>
+    setTimeout(() => step(0), 0)) as never
+  return {
+    state,
+    topOf: (row: HTMLElement) => topOf(row),
+    /** Where a row shows, from the top of the list's view. */
+    shownAt: (row: HTMLElement) => screenTop(row),
+    /** The reader scrolling by `delta`, which iOS never drops. */
+    scrollBy(list: HTMLElement, delta: number) {
+      tops.set(list, clamp(list, (tops.get(list) ?? 0) + delta))
+      list.dispatchEvent(new Event('scroll'))
+    },
+    async settle() {
+      for (let frame = 0; frame < 8; frame++) {
+        await nextTick()
+        for (const observer of observers) observer.fire()
+        await new Promise((resolve) => setTimeout(resolve, 0))
+      }
+    },
+    restore() {
+      props.forEach((name, at) => {
+        delete (proto as unknown as Record<string, unknown>)[name]
+        if (own[at]) Object.defineProperty(proto, name, own[at])
+      })
+      globalThis.ResizeObserver = saved.ResizeObserver
+      globalThis.requestAnimationFrame = saved.requestAnimationFrame
+    },
+  }
+}
+
+describe('DouCommand row height', () => {
+  it('leaves rows to their content unless the list is virtual', () => {
+    const wrapper = mount(DouCommand, { props: { items, virtual: false } })
+    expect(heights(wrapper.element).every((height) => height === '')).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('gives each virtual row its itemSize, by number or by item', async () => {
+    const wrapper = mount(DouCommand, { props: { items: many(30), virtual: true } })
+    await nextTick()
+    expect(new Set(heights(wrapper.element))).toEqual(new Set(['']))
+    await wrapper.setProps({ itemSize: 52 })
+    expect(new Set(heights(wrapper.element))).toEqual(new Set(['52px']))
+    await wrapper.setProps({
+      itemSize: (item: CommandItem) => (item.description ? 52 : 36),
+    })
+    expect(heights(wrapper.element).slice(0, 2)).toEqual(['36px', '52px'])
+    wrapper.unmount()
+  })
+
+  it('lets an itemSize under 36 win over the minimum height', async () => {
+    const wrapper = mount(DouCommand, { props: { items: many(30), virtual: true, itemSize: 28 } })
+    await nextTick()
+    const row = rows(wrapper.element)[0]!
+    expect([row.style.height, row.style.minHeight]).toEqual(['28px', '28px'])
+    wrapper.unmount()
+  })
+
+  it('measures virtual rows without itemSize and estimates the rest from them', async () => {
+    const layout = fakeLayout(() => 52)
+    try {
+      const wrapper = mount(DouCommand, { props: { items: many(200) }, attachTo: document.body })
+      await layout.settle()
+      const shown = rows(wrapper.element).length
+      expect(shown).toBeLessThan(200)
+      const spacer = wrapper.element.querySelector('[role="group"]')!
+        .lastElementChild as HTMLElement
+      expect(spacer.style.height).toBe(`${(200 - shown) * 52}px`)
+      wrapper.unmount()
+    } finally {
+      layout.restore()
+    }
+  })
+
+  it('lands on a far item once the rows around it are measured', async () => {
+    // the first half one line, the second half two
+    const layout = fakeLayout((row) =>
+      Number(/第 (\d+) 条/.exec(row.textContent!)![1]) < 100 ? 36 : 72,
+    )
+    try {
+      const wrapper = mount(DouCommand, { props: { items: many(200) }, attachTo: document.body })
+      await layout.settle()
+      const input = wrapper.get('input')
+      await input.trigger('keydown', { key: 'End', ctrlKey: true })
+      await layout.settle()
+      const id = input.attributes('aria-activedescendant')!
+      const row = document.getElementById(id)
+      expect(row).not.toBeNull()
+      const list = wrapper.get('[role="listbox"]').element as HTMLElement
+      const top = layout.topOf(row!)
+      expect(top).toBeGreaterThanOrEqual(list.scrollTop)
+      expect(top + 72).toBeLessThanOrEqual(list.scrollTop + 300)
+      wrapper.unmount()
+    } finally {
+      layout.restore()
+    }
+  })
+
+  it('keeps what is in view in place scrolling up past rows not measured yet, also on iOS', async () => {
+    // every fifth row is much taller than the first ones shown
+    const layout = fakeLayout((row) => (label(row) % 5 ? 52 : 140))
+    try {
+      const wrapper = mount(DouCommand, { props: { items: many(300) }, attachTo: document.body })
+      await layout.settle()
+      const list = wrapper.get('[role="listbox"]').element as HTMLElement
+      for (let step = 0; step < 6; step++) {
+        list.scrollTop = 100_000
+        await layout.settle()
+      }
+      const watched = () =>
+        rows(list).find((row) => layout.shownAt(row) >= 0 && layout.shownAt(row) < 300)!
+      // without a touch, then with one where iOS drops every move made by code
+      for (const touch of [false, true]) {
+        const row = watched()
+        const name = row.textContent
+        const before = layout.shownAt(row)
+        if (touch) {
+          document.dispatchEvent(new Event('touchstart'))
+          layout.state.dropWrites = true
+        }
+        for (let step = 0; step < 4; step++) {
+          layout.scrollBy(list, -30)
+          await layout.settle()
+        }
+        if (touch) {
+          layout.state.dropWrites = false
+          document.dispatchEvent(Object.assign(new Event('touchend'), { touches: [] }))
+          await new Promise((resolve) => setTimeout(resolve, 200))
+          await layout.settle()
+        }
+        const same = rows(list).find((each) => each.textContent === name)!
+        expect(layout.shownAt(same)).toBeCloseTo(before + 120, 0)
+      }
+      wrapper.unmount()
+    } finally {
+      layout.restore()
+    }
+  })
+
+  it('passes virtual and itemSize through the dialog', async () => {
+    const wrapper = mount(DouCommandDialog, {
+      props: { items: many(30), open: true, virtual: true, itemSize: 48 },
+      attachTo: document.body,
+    })
+    await nextTick()
+    expect(new Set(heights(document))).toEqual(new Set(['48px']))
+    wrapper.unmount()
+  })
+
+  it('turns virtual on by itself for a long list in the dialog', async () => {
+    const wrapper = mount(DouCommandDialog, {
+      props: { items: many(150), open: true },
+      attachTo: document.body,
+    })
+    await nextTick()
+    expect(rows(document).length).toBeLessThan(150)
+    wrapper.unmount()
+  })
+})

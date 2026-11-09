@@ -42,7 +42,9 @@ import {
   childBlocks,
   COLUMN_GROUP,
   contentAt,
+  contentSpan,
   firstLine,
+  handleLeft,
   scrollParent,
   sideBySide,
 } from '../dom'
@@ -102,7 +104,7 @@ function place(content: HTMLElement) {
   compact.value = !!content.closest(COLUMN_GROUP)
   position.value = {
     top: line.top - box.top,
-    left: content.getBoundingClientRect().left - box.left,
+    left: handleLeft(content) - box.left,
     height: line.height,
   }
 }
@@ -126,6 +128,18 @@ function track(event: PointerEvent) {
     const content = contentAt(current, lastY, lastX)
     if (content) place(content)
   })
+}
+
+/** A wide table scrolled sideways: the handle next to it follows its left edge. */
+function onScroll(event: Event) {
+  const content = event.target
+  if (
+    !(content instanceof HTMLElement) ||
+    !content.classList.contains('dou-editor__content--table')
+  )
+    return
+  if (position.value && hovered.value && blockElementOf(content)?.dataset.blockId === hovered.value)
+    place(content)
 }
 
 function leave(event: PointerEvent) {
@@ -170,6 +184,7 @@ onMounted(() => {
   window.addEventListener('resize', scheduleFollow)
   root.value?.addEventListener('pointermove', track)
   root.value?.addEventListener('pointerleave', leave)
+  root.value?.addEventListener('scroll', onScroll, true)
 })
 onBeforeUnmount(() => {
   media?.removeEventListener('change', onMedia)
@@ -177,6 +192,7 @@ onBeforeUnmount(() => {
   if (followFrame) cancelAnimationFrame(followFrame)
   root.value?.removeEventListener('pointermove', track)
   root.value?.removeEventListener('pointerleave', leave)
+  root.value?.removeEventListener('scroll', onScroll, true)
   if (frame) cancelAnimationFrame(frame)
   stopDrag()
 })
@@ -440,10 +456,11 @@ function updateDrop() {
   const beside = columnDrop(content, range, box)
   if (beside) return (drop.value = beside)
   const rect = content.getBoundingClientRect()
+  const span = contentSpan(content)
   const below = lastY > rect.top + rect.height / 2
   let pos: number
   let y: number
-  let left = rect.left
+  let left = span.left
   if (!below) {
     pos = info.pos
     y = rect.top
@@ -454,14 +471,14 @@ function updateDrop() {
     const child = blockElementOf(content)?.querySelector<HTMLElement>(
       ':scope > .dou-editor__group > .dou-editor__block > .dou-editor__content',
     )
-    left = child?.getBoundingClientRect().left ?? rect.left
+    left = child ? contentSpan(child).left : span.left
   } else {
     pos = info.pos + info.node.nodeSize
     y = blockElementOf(content)!.getBoundingClientRect().bottom
   }
   if (!moveRangeTo(range, pos)(instance.state)) return (drop.value = null)
   // to the end of the text column, which a reading width can end before the editor
-  drop.value = { pos, top: y - box.top, left: left - box.left, width: rect.right - left }
+  drop.value = { pos, top: y - box.top, left: left - box.left, width: span.right - left }
 }
 
 function autoScroll() {

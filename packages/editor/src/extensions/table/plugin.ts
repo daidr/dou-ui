@@ -1,7 +1,7 @@
 import type { Node as PMNode } from 'prosemirror-model'
 import { Plugin, PluginKey, type Transaction } from 'prosemirror-state'
 import { TableMap } from 'prosemirror-tables'
-import { Decoration, DecorationSet } from 'prosemirror-view'
+import { Decoration, DecorationSet, type EditorView } from 'prosemirror-view'
 import { createId } from '../../core/model'
 import { fitColumns, isHeaderAt } from './schema'
 
@@ -67,6 +67,45 @@ function alignments(doc: PMNode): DecorationSet {
   return DecorationSet.create(doc, decorations)
 }
 
+/**
+ * The margins beside the text column (the surface's padding, from a reading
+ * width), in px on the mount, for top-level tables to reach into. Read from
+ * the padding the surface already has, so any way of writing the reading
+ * width works; kept up to date as the mount or the column changes size.
+ */
+class Margins {
+  private readonly observer: ResizeObserver | null = null
+  private readonly mount: HTMLElement | null
+
+  constructor(private readonly view: EditorView) {
+    const mount = view.dom.parentElement
+    this.mount = mount?.classList.contains('dou-editor__mount') ? mount : null
+    if (!this.mount || typeof ResizeObserver === 'undefined') return
+    this.observer = new ResizeObserver(() => this.measure())
+    // the mount's width, and the column's (the padding changes with the reading width)
+    this.observer.observe(this.mount)
+    this.observer.observe(view.dom)
+  }
+
+  private measure() {
+    const mount = this.mount
+    if (!mount) return
+    const style = getComputedStyle(this.view.dom)
+    for (const [name, value] of [
+      ['--dou-editor-margin-start', style.paddingInlineStart],
+      ['--dou-editor-margin-end', style.paddingInlineEnd],
+    ] as const) {
+      if (mount.style.getPropertyValue(name) !== value) mount.style.setProperty(name, value)
+    }
+  }
+
+  destroy() {
+    this.observer?.disconnect()
+    this.mount?.style.removeProperty('--dou-editor-margin-start')
+    this.mount?.style.removeProperty('--dou-editor-margin-end')
+  }
+}
+
 export const tableKey = new PluginKey<DecorationSet>('dou-editor-table')
 
 export function tablePlugin(): Plugin<DecorationSet> {
@@ -85,5 +124,6 @@ export function tablePlugin(): Plugin<DecorationSet> {
     props: {
       decorations: (state) => tableKey.getState(state),
     },
+    view: (view) => new Margins(view),
   })
 }

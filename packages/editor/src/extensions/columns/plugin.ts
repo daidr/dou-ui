@@ -2,6 +2,7 @@ import type { Node as PMNode } from 'prosemirror-model'
 import {
   Plugin,
   PluginKey,
+  Selection,
   TextSelection,
   type EditorState,
   type Transaction,
@@ -9,7 +10,7 @@ import {
 import { AttrStep } from 'prosemirror-transform'
 import { Decoration, DecorationSet } from 'prosemirror-view'
 import { getBlockSelection, selectBlocks } from '../../core/block-selection'
-import { blocksIn, layoutOf, siblingRangeBetween } from '../../core/blocks'
+import { blockAround, blocksIn, layoutOf, siblingRangeBetween } from '../../core/blocks'
 import { changesBlockStructure, isRemote } from '../../core/plugins'
 
 const descends = (node: PMNode) => node.type.name === 'block' || node.type.name === 'blockGroup'
@@ -183,8 +184,26 @@ function selectAcross(state: EditorState): Transaction | null {
   const { selection } = state
   if (!(selection instanceof TextSelection) || selection.empty || getBlockSelection(state))
     return null
-  if (columnAt(state, selection.from) === columnAt(state, selection.to)) return null
-  const range = siblingRangeBetween(state.doc, selection.from, selection.to)
+  // an end at the very start of the next block (or the very end of the one
+  // before) is where the browser puts a selection that stops at a line
+  // break: that block isn't selected
+  const { $from, $to } = selection
+  const doc = state.doc
+  let from = selection.from
+  let to = selection.to
+  if ($to.parentOffset === 0 && $to.parent.isTextblock) {
+    const block = blockAround($to)
+    const before = block && Selection.findFrom(doc.resolve(block.pos), -1, true)
+    if (before && before.from > from) to = before.from
+  }
+  if ($from.parentOffset === $from.parent.content.size && $from.parent.isTextblock) {
+    const block = blockAround($from)
+    const after =
+      block && Selection.findFrom(doc.resolve(block.contentPos + block.content.nodeSize), 1, true)
+    if (after && after.from < to) from = after.from
+  }
+  if (columnAt(state, from) === columnAt(state, to)) return null
+  const range = siblingRangeBetween(doc, from, to)
   if (!range) return null
   const blocks = blocksIn(range)
   const [first, last] = [blocks[0]!.node.attrs.id, blocks.at(-1)!.node.attrs.id] as string[]

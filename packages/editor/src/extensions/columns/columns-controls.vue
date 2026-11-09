@@ -308,7 +308,17 @@ const onScroll = () => {
   if (!resize) bar.value = null
 }
 
+// the editor narrower or wider (a window resized, a tablet turned): the bars move with the columns
+let observer: ResizeObserver | undefined
+
 onMounted(() => {
+  if (typeof ResizeObserver !== 'undefined' && root.value) {
+    observer = new ResizeObserver(() => {
+      if (!resize) bar.value = null
+      placeKeyBars()
+    })
+    observer.observe(root.value)
+  }
   root.value?.addEventListener('pointermove', track)
   root.value?.addEventListener('pointerdown', tap)
   root.value?.addEventListener('pointerleave', leave)
@@ -316,6 +326,7 @@ onMounted(() => {
   placeKeyBars()
 })
 onBeforeUnmount(() => {
+  observer?.disconnect()
   root.value?.removeEventListener('pointermove', track)
   root.value?.removeEventListener('pointerdown', tap)
   root.value?.removeEventListener('pointerleave', leave)

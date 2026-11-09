@@ -6,7 +6,7 @@ import {
   type EditorState,
   type Transaction,
 } from 'prosemirror-state'
-import { blockAround, findBlockById, type BlockInfo } from './blocks'
+import { blockAround, findBlockById, layoutOf, parentBlock, type BlockInfo } from './blocks'
 import { blockSelectionRange } from './block-selection'
 import {
   blockFromNode,
@@ -122,6 +122,13 @@ export class EditorTransaction {
     })
     const target = placement ?? this.defaultPlacement()
     if (insertNodes(tr, target, nodes) === null) return []
+    for (const id of ids) {
+      const info = findBlockById(tr.doc, id)
+      if (layoutOf(info?.node) === 'row' && info && inColumn(tr.doc, info))
+        warn(
+          `insertBlocks: columns don't go in a column; the block "${id}" is replaced by its columns' blocks`,
+        )
+    }
     return ids
   }
 
@@ -384,6 +391,13 @@ function childPos(start: number, container: PMNode, index = container.childCount
   let pos = start
   for (let i = 0; i < at; i++) pos += container.child(i).nodeSize
   return pos
+}
+
+/** Whether a block sits in a column, at any depth. */
+function inColumn(doc: PMNode, info: BlockInfo): boolean {
+  for (let parent = parentBlock(doc, info); parent; parent = parentBlock(doc, parent))
+    if (layoutOf(parent.node) === 'column') return true
+  return false
 }
 
 function replaceChildren(tr: Transaction, info: BlockInfo, children: PartialBlock[]) {

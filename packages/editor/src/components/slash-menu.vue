@@ -7,6 +7,7 @@ import { labelOf, type BlockOption } from '../core/extension'
 import SlashChoices from './slash-choices.vue'
 import { insertBlockAfter, setBlockType } from '../core/commands'
 import { slashKey, type SlashState } from '../core/slash'
+import { scrollParent } from '../dom'
 import { editorKey } from '../editor'
 
 const props = defineProps<{ slash: SlashState | null }>()
@@ -54,6 +55,8 @@ const shownChoices = computed(() =>
     : choices.value,
 )
 watch(activeOption, () => {
+  // an option just unfolded keeps its variants
+  if (unfolded.value === active.value) return
   choice.value = -1
   unfolded.value = -1
 })
@@ -146,10 +149,36 @@ function onItemMove(event: PointerEvent, index: number) {
   choice.value = -1
 }
 
+/**
+ * On a phone: the variants under option `index`, the first one lit (what
+ * a tap on the option inserts), and in sight, the page scrolled up when
+ * the menu has no room left below.
+ */
+function unfold(index: number) {
+  active.value = index
+  unfolded.value = index
+  choice.value = 0
+  void nextTick(() => {
+    const menu = panel.value
+    const group = menu?.querySelector<HTMLElement>('.dou-editor-slash__unfolded')
+    const dom = view.value?.dom
+    if (!menu || !group || !dom) return
+    const hidden = menu.scrollHeight - menu.clientHeight
+    if (hidden > 0) {
+      const scroller = scrollParent(dom)
+      if (scroller) scroller.scrollBy({ top: hidden })
+      else window.scrollBy({ top: hidden })
+    }
+    requestAnimationFrame(() => {
+      update()
+      requestAnimationFrame(() => group.scrollIntoView({ block: 'nearest' }))
+    })
+  })
+}
+
 function onItemClick(option: BlockOption, index: number) {
   if (option.choices && (coarse.value || touched) && unfolded.value !== index) {
-    active.value = index
-    unfolded.value = index
+    unfold(index)
     return
   }
   choose(option)
@@ -188,9 +217,12 @@ function onKey(event: KeyboardEvent): boolean {
     case 'ArrowRight': {
       const items = activeChoices.value?.items
       if (!items) return false
-      if (coarse.value && unfolded.value !== active.value) unfolded.value = active.value
+      if (coarse.value && unfolded.value !== active.value) {
+        unfold(active.value)
+        return true
+      }
       // past the last variant the key moves the cursor again
-      else if (choice.value >= items.length - 1) return false
+      if (choice.value >= items.length - 1) return false
       choice.value++
       return true
     }

@@ -95,7 +95,7 @@ describe('inserting columns', () => {
   })
 
   it('never turns columns into text', () => {
-    const state = at(stateOf(TWO), 'a', 0, 'b', 0)
+    const state = at(stateOf(TWO), 'a', 0, 'b', 2)
     const { state: next } = run(state, setBlockType('heading', { level: 1 }))
     expect(shapeOf(next).map(([type]) => type)).toEqual(['heading', 'columns', 'heading'])
     expect(docToBlocks(next.doc)[1]!.children.map((block) => block.type)).toEqual([
@@ -320,6 +320,27 @@ describe('the selection API', () => {
     ).state
     // backwards: the anchor stays where the selection started
     expect(getBlockSelection(selected)).toEqual({ anchor: 'r', head: 'a' })
+  })
+
+  it('an end at the very start of the block after the set leaves that block out', () => {
+    // where the browser puts the end of a drag that stops on the last line of the second column
+    const state = stateOf(TWO)
+    const x = findBlockById(state.doc, 'x')!
+    const b = findBlockById(state.doc, 'b')!
+    const selected = state.applyTransaction(
+      state.tr.setSelection(TextSelection.create(state.doc, x.contentPos + 3, b.contentPos + 1)),
+    ).state
+    expect(getBlockSelection(selected)).toEqual({ anchor: 'r', head: 'r' })
+  })
+
+  it('an end at the very start of the next column is still in the first one', () => {
+    const state = stateOf(TWO)
+    const x = findBlockById(state.doc, 'x')!
+    const z = findBlockById(state.doc, 'z')!
+    const selected = state.applyTransaction(
+      state.tr.setSelection(TextSelection.create(state.doc, x.contentPos + 3, z.contentPos + 1)),
+    ).state
+    expect(getBlockSelection(selected)).toBe(null)
   })
 
   it('a text selection inside one column stays as it is', () => {

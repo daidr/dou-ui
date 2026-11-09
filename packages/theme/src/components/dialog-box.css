@@ -23,11 +23,6 @@
     --dou-dialog-box-tone: var(--dou-color-danger);
   }
 
-  /* the box has no header row of its own: the heading sits with the text */
-  .dou-dialog-box .dou-dialog__body {
-    padding-top: var(--dou-dialog-padding);
-  }
-
   .dou-dialog-box__main {
     display: flex;
     align-items: flex-start;

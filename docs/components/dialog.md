@@ -151,11 +151,11 @@ const dialog = useDialog()
 
 ### CSS 变量
 
-| 变量                   | 说明                 |
-| ---------------------- | -------------------- |
-| `--dou-dialog-mask`    | 遮罩颜色             |
-| `--dou-dialog-bg`      | 面板底色             |
-| `--dou-dialog-width`   | 默认宽度             |
-| `--dou-dialog-top`     | 不居中时离顶部的距离 |
-| `--dou-dialog-radius`  | 圆角                 |
-| `--dou-dialog-padding` | 内边距               |
+| 变量                   | 说明                                                                                              |
+| ---------------------- | ------------------------------------------------------------------------------------------------- |
+| `--dou-dialog-mask`    | 遮罩颜色                                                                                          |
+| `--dou-dialog-bg`      | 面板底色                                                                                          |
+| `--dou-dialog-width`   | 默认宽度                                                                                          |
+| `--dou-dialog-top`     | 不居中时离顶部的距离                                                                              |
+| `--dou-dialog-radius`  | 圆角                                                                                              |
+| `--dou-dialog-padding` | 内边距；有标题、关闭按钮（`closable` 默认开启）或全屏按钮时会显示标题栏，这时正文上边距固定为 8px |

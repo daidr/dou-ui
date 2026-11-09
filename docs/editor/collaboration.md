@@ -65,7 +65,7 @@ import { fillMap } from '@dou-ui/editor/collaboration'
 fillMap(doc.getMap('document'), saved)
 ```
 
-这一步只在创建共享文档时做一次，通常放在服务器上。如果两端同时往同一个空文档里写入，内容会出现两份。使用了自定义块时，把编辑器用的扩展传给 `extensions` 选项：`fillMap(map, saved, { extensions })`。
+这一步只在创建共享文档时做一次，通常放在服务器上。如果两端同时往同一个空文档里写入，内容会出现两份。用了 `editorKit()` 以外的扩展（比如图片、附件、嵌入）或自定义块时，把编辑器用的扩展传给 `extensions` 选项：`fillMap(map, saved, { extensions })`。
 
 ### 在服务器上写入新版本
 
@@ -113,12 +113,12 @@ async function rewrite(ydoc: Y.Doc, ask: (markdown: string) => Promise<string>) 
 
 ```ts
 import type { Block } from '@dou-ui/editor'
-import { cursorAt, readMap, updateMap } from '@dou-ui/editor/collaboration'
+import { cursorAt, readMap, updateMap, type EditorPresence } from '@dou-ui/editor/collaboration'
 
 awareness.setLocalStateField('user', { name: 'AI 助手', color: '#7c5cff' })
 
 /** 文档里最后一处文字的末尾：从后往前找，有子块时先找子块，跳过图片、表格这类没有文字的块 */
-function cursorAtEnd(blocks: Block[]) {
+function cursorAtEnd(blocks: Block[]): EditorPresence | null {
   for (let i = blocks.length - 1; i >= 0; i--) {
     const block = blocks[i]!
     const cursor = cursorAtEnd(block.children) ?? cursorAt(map, { block: block.id }, { extensions })
@@ -139,7 +139,7 @@ awareness.setLocalStateField('editor', null)
 - 表格的文字在格子里，要再给出 `cell`，格式是 `行 id:列 id`：行 id 是 `readMap` 读出的表格块里 `rows[].id`，列 id 是 `props.columns[].id`。
 - 传入 `anchor` 选项时显示一段选区，从 `anchor` 到光标所在的位置。
 - 光标保存的是文字里的相对位置，之后其他人在它前面输入或删除文字，光标会跟着移动。
-- 块不存在或者没有文字（比如图片、分割线、没给 `cell` 的表格）时返回 `null`。用了自定义块时，把编辑器用的扩展传给 `extensions` 选项，才能知道哪些块有文字。
+- 块不存在或者没有文字（比如图片、分割线、没给 `cell` 的表格）时返回 `null`。用了 `editorKit()` 以外的扩展（比如图片、附件、嵌入）或自定义块时，要把编辑器用的扩展传给 `extensions` 选项，才能知道哪些块有文字；不传时这些块会按正文处理，光标会画在块的后面。
 - 从 Markdown 读出的块没有 id，写入时会对上原来的块或者得到新的 id，所以要在 `updateMap` 之后用 `readMap` 读出 id。
 
 ## 评论

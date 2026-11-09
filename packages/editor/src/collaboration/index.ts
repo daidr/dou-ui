@@ -5,6 +5,7 @@ import {
   type CommentThread,
   type SharedCommentMap,
 } from 'dou-ui'
+import type { Schema } from 'prosemirror-model'
 import { shallowRef } from 'vue'
 import { Plugin, TextSelection, type Command } from 'prosemirror-state'
 import * as Y from 'yjs'
@@ -133,8 +134,19 @@ export function collaboration(options: CollaborationOptions): EditorExtension {
 type ExtensionList = (EditorExtension | EditorExtension[])[]
 
 /** The extensions the editors of the shared document use; `[editorKit()]` when left out. */
-const schemaOf = (extensions: ExtensionList = [editorKit()]) =>
-  resolveEditorExtensions(extensions).schema
+const schemas = new WeakMap<ExtensionList, Schema>()
+let defaultSchema: Schema | undefined
+
+/** The schema of a list of extensions, resolved once per list; without one, of `[editorKit()]`. */
+function schemaOf(extensions?: ExtensionList): Schema {
+  if (!extensions) return (defaultSchema ??= resolveEditorExtensions([editorKit()]).schema)
+  let schema = schemas.get(extensions)
+  if (!schema) {
+    schema = resolveEditorExtensions(extensions).schema
+    schemas.set(extensions, schema)
+  }
+  return schema
+}
 
 export interface CursorAtOptions {
   /** Where a selection starts; left out, only a cursor at `head`. */

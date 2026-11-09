@@ -467,6 +467,7 @@ defineExpose<ChatInputExpose>({
             role="option"
             :class="[
               ns.e('option'),
+              ns.is('default', !slots.option),
               ns.is('active', index === active),
               ns.is('disabled', !!option.disabled),
             ]"

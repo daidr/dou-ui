@@ -18,7 +18,10 @@ function rule(selector: string) {
 
 describe('chat input menu options', () => {
   it('share the row evenly, each part taking what it needs while there is room', () => {
-    const option = rule('.dou-chat-input__option')
+    const custom = rule('.dou-chat-input__option')
+    expect(custom).toMatch(/display:\s*flex/)
+    expect(custom).toMatch(/align-items:\s*center/)
+    const option = rule('&.is-default')
     expect(option).toMatch(/display:\s*grid/)
     expect(option).toMatch(/grid-auto-flow:\s*column/)
     expect(option).toMatch(/grid-auto-columns:\s*minmax\(0, max-content\)/)

@@ -164,15 +164,10 @@
     }
   }
 
-  /* The icon, label and description share the row evenly: each takes what it
-     needs while there is room, and when both run long the space is split in
-     half, so a short description such as a kind stays whole and a long one
-     such as a folder never pushes the label narrower than itself. */
+  /* custom option content lays itself out in a centered row */
   .dou-chat-input__option {
-    display: grid;
-    grid-auto-columns: minmax(0, max-content);
-    grid-auto-flow: column;
-    align-items: start;
+    display: flex;
+    align-items: center;
     gap: 8px;
     min-width: 0;
     padding: 6px 8px;
@@ -180,6 +175,18 @@
     font-size: var(--dou-font-size-sm);
     line-height: 20px;
     cursor: pointer;
+
+    /* The default icon, label and description share the row evenly: each
+       takes what it needs while there is room, and when both run long the
+       space is split in half, so a short description such as a kind stays
+       whole and a long one such as a folder never pushes the label narrower
+       than itself. */
+    &.is-default {
+      display: grid;
+      grid-auto-columns: minmax(0, max-content);
+      grid-auto-flow: column;
+      align-items: start;
+    }
 
     &.is-active {
       background-color: var(--dou-color-bg-muted);

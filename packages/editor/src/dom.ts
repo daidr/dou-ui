@@ -46,6 +46,22 @@ export function firstLine(content: HTMLElement): { top: number; height: number }
   return { top: rect.top + (height < rect.height ? padding : 0), height }
 }
 
+/**
+ * Where a block's content goes across: its box, less the padding of a wide
+ * table's frame, which reaches into the margins with the table in line with
+ * the text.
+ */
+export function contentSpan(content: HTMLElement): { left: number; right: number } {
+  const rect = content.getBoundingClientRect()
+  if (!content.classList.contains('dou-editor__content--table'))
+    return { left: rect.left, right: rect.right }
+  const style = getComputedStyle(content)
+  return {
+    left: rect.left + (Number.parseFloat(style.paddingLeft) || 0),
+    right: rect.right + (Number.parseFloat(style.marginRight) || 0),
+  }
+}
+
 /** The right edge of the editor's text column: the surface less its padding (a reading width). */
 export function columnRight(surface: HTMLElement): number {
   const padding = Number.parseFloat(getComputedStyle(surface).paddingRight) || 0

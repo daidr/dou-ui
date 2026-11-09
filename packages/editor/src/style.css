@@ -1050,6 +1050,39 @@
     overscroll-behavior-x: contain;
   }
 
+  /*
+   * a wide table at the top level, with a reading width: its frame reaches
+   * across the margins on both sides, the padding before the table keeping
+   * it in line with the text. The table grows into the right margin first;
+   * when it is wider than that too, scrolling takes the padding away first,
+   * so its left edge moves out to the editor's edge before the columns
+   * start to go under it. The gutter stays clear for the handles, and a
+   * little room is left after the table for the "+" bar. The margins are
+   * the same calc as the surface's padding, on the width of the mount (a
+   * container); with no reading width the calc is invalid and both stay 0.
+   */
+  .dou-editor__mount {
+    container-type: inline-size;
+  }
+
+  .dou-editor__mount > .dou-editor__surface > .dou-editor__block > .dou-editor__content--table {
+    --dou-editor-table-bleed-start: max(
+      0px,
+      (100cqi - var(--dou-editor-reading-width) - var(--dou-editor-gutter)) / 2
+    );
+    --dou-editor-table-bleed-end: max(
+      0px,
+      min(
+        100cqi - var(--dou-editor-reading-width),
+        (100cqi - var(--dou-editor-reading-width) + var(--dou-editor-gutter)) / 2
+      )
+    );
+
+    margin-inline: calc(-1 * var(--dou-editor-table-bleed-start))
+      calc(-1 * var(--dou-editor-table-bleed-end));
+    padding-inline: var(--dou-editor-table-bleed-start) min(var(--dou-editor-table-bleed-end), 28px);
+  }
+
   .dou-editor-table {
     border-collapse: collapse;
     table-layout: fixed;

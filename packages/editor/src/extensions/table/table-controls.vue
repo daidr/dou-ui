@@ -173,7 +173,12 @@ function measure() {
       width: tableBox.width,
       height: tableBox.height,
     },
-    frame: { left: frameBox.left - box.left, right: frameBox.right - box.left },
+    // a top-level table's frame reaches into the margins, the table starting
+    // after its padding: what shows of it starts at whichever is further in
+    frame: {
+      left: Math.max(frameBox.left, tableBox.left) - box.left,
+      right: frameBox.right - box.left,
+    },
     column: { left: first.left - box.left, width: first.width },
     row: { top: first.top - box.top, height: first.height },
     bar,

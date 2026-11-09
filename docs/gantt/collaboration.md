@@ -65,7 +65,7 @@ import { fillMaps } from '@dou-ui/gantt/collaboration'
 fillMaps({ tasks: doc.getMap('tasks'), links: doc.getMap('links') }, plan)
 ```
 
-这一步通常在创建共享文档时在服务器上做一次。任务和依赖按 id 保存，即使两端同时写入同一份排期，也不会出现重复的任务。
+这一步通常在创建共享文档时在服务器上做一次。任务和依赖按 id 保存，即使两端同时写入同一份排期，也不会出现重复的任务。`fillMaps` 可以传 `origin`，作为这次 Yjs 事务的来源：`fillMaps(maps, plan, { origin: 'server' })`。
 
 ## 撤销
 
@@ -111,10 +111,10 @@ interface CollaborationUser {
 
 ### 函数和常量
 
-| 名称                  | 说明                           | 类型                                              |
-| --------------------- | ------------------------------ | ------------------------------------------------- |
-| `fillMaps`            | 把任务和依赖写入共享文档       | `({ tasks, links }, plan: GanttDocument) => void` |
-| `collaborationColors` | 不传 `user.color` 时使用的颜色 | `string[]`                                        |
+| 名称                  | 说明                           | 类型                                                                     |
+| --------------------- | ------------------------------ | ------------------------------------------------------------------------ |
+| `fillMaps`            | 把任务和依赖写入共享文档       | `({ tasks, links }, plan: GanttDocument, options?: { origin? }) => void` |
+| `collaborationColors` | 不传 `user.color` 时使用的颜色 | `string[]`                                                               |
 
 ### CSS 变量
 

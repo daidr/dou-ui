@@ -9,7 +9,7 @@ import type {
 } from '../core/collaboration'
 import type { DashboardTransaction } from '../core/transaction'
 import type { DashboardDocument, DashboardWidget } from '../core/types'
-import { orderKeys } from './order'
+import { keptIndexes, orderKeys } from './order'
 
 /** The part of an `Awareness` (`y-protocols/awareness`) the dashboard uses. */
 export interface AwarenessLike {
@@ -139,19 +139,147 @@ function writeOrder(map: Shared, widgets: readonly DashboardWidget[]) {
   })
 }
 
+/** Runs `write` as one transaction of the map's document, from `origin`. */
+function transact(map: Shared, write: () => void, origin: unknown) {
+  if (map.doc) map.doc.transact(write, origin ?? null)
+  else write()
+}
+
+export interface FillMapOptions {
+  /** The origin of the Yjs transaction, so the others can tell who wrote it. */
+  origin?: unknown
+}
+
 /**
  * Writes a dashboard into an empty map, e.g. when a dashboard so far saved
  * as JSON starts being edited together. Do it once, where the shared
  * document is created; otherwise the first person to open the dashboard
  * brings theirs.
  */
-export function fillMap(map: Y.Map<unknown>, document: DashboardDocument) {
+export function fillMap(
+  map: Y.Map<unknown>,
+  document: DashboardDocument,
+  options: FillMapOptions = {},
+) {
   const fill = () => {
     for (const widget of document.widgets) writeWidget(map, widget)
     writeOrder(map, document.widgets)
   }
-  if (map.doc) map.doc.transact(fill)
-  else fill()
+  transact(map, fill, options.origin)
+}
+
+/** Writes the keys and places that differ between `before` and `after` into a widget's map. */
+function writeDifference(fields: Shared, before: DashboardWidget, after: DashboardWidget) {
+  const a = before as unknown as Item
+  const b = after as unknown as Item
+  for (const key of new Set([...Object.keys(a), ...Object.keys(b)])) {
+    if (key === 'id' || key[0] === '$') continue
+    if (key === PLACE) {
+      const from = before.place ?? {}
+      const to = after.place ?? {}
+      const found = fields.get(PLACE)
+      let places = found instanceof Y.Map ? (found as Shared) : null
+      for (const name of new Set([...Object.keys(from), ...Object.keys(to)])) {
+        if (same(from[name], to[name])) continue
+        if (!places) fields.set(PLACE, (places = new Y.Map<unknown>()))
+        const place = to[name]
+        if (place) places.set(name, { ...place })
+        else places.delete(name)
+      }
+    } else if (!same(a[key], b[key])) {
+      if (b[key] === undefined) fields.delete(key)
+      else {
+        warnUnshareable(after.id, key, b[key])
+        fields.set(key, b[key])
+      }
+    }
+  }
+}
+
+/**
+ * Gives `placing` (widgets added or moved in `next`) order keys right after
+ * the widget before them in `next` (those at its start: right before the
+ * first widget that stays), among the widgets as they are ordered in the
+ * map now; everyone else keeps their key.
+ */
+function placeOrder(map: Shared, next: readonly DashboardWidget[], placing: Set<string>) {
+  if (!placing.size) return
+  const list = readMap(map)
+    .widgets.map((widget) => widget.id)
+    .filter((id) => !placing.has(id))
+  // those before the first widget that stays go right before it
+  const leading: string[] = []
+  let previous: string | null = null
+  for (const widget of next) {
+    if (!(map.get(widget.id) instanceof Y.Map)) continue
+    if (!placing.has(widget.id)) {
+      if (previous === null) list.splice(list.indexOf(widget.id), 0, ...leading)
+    } else if (previous === null) {
+      leading.push(widget.id)
+      continue
+    } else list.splice(list.indexOf(previous) + 1, 0, widget.id)
+    previous = widget.id
+  }
+  // none stays: they go after the others
+  if (previous === null) list.push(...leading)
+  const shared = list.map((id) => map.get(id) as Shared)
+  const keys = orderKeys(
+    shared.map((fields, index) =>
+      placing.has(list[index]!) ? null : ((fields.get(ORDER) as string | undefined) ?? null),
+    ),
+  )
+  shared.forEach((fields, index) => {
+    if (fields.get(ORDER) !== keys[index]) fields.set(ORDER, keys[index])
+  })
+}
+
+export interface UpdateMapOptions extends FillMapOptions {
+  /**
+   * The version `next` was made from, e.g. the one read with `readMap` and
+   * given to a program that took a while to write `next`. Only what differs
+   * between `base` and `next` is written: added and removed widgets, changed
+   * keys, places on the breakpoints that changed, and the order of the
+   * widgets that moved. What others changed meanwhile stays. Left out, the
+   * map as it is now: then every widget not in `next` is removed.
+   */
+  base?: DashboardDocument
+}
+
+/**
+ * Change a shared map from `options.base` to `next`, without a dashboard,
+ * e.g. on the server when a program wrote a new version while people edit
+ * the dashboard. Only what differs is written.
+ */
+export function updateMap(
+  map: Y.Map<unknown>,
+  next: DashboardDocument,
+  options: UpdateMapOptions = {},
+) {
+  const update = () => {
+    const base = options.base ?? readMap(map)
+    const before = new Map(base.widgets.map((widget) => [widget.id, widget]))
+    const ids = new Set(next.widgets.map((widget) => widget.id))
+    for (const id of before.keys()) if (!ids.has(id)) map.delete(id)
+
+    // the widgets both have, in `base`'s order: those out of it in `next` moved
+    const index = new Map(base.widgets.map((widget, i) => [widget.id, i]))
+    const common = next.widgets.filter((widget) => index.has(widget.id))
+    const kept = keptIndexes(common.map((widget) => String(index.get(widget.id)).padStart(10, '0')))
+    const placing = new Set(common.filter((_, i) => !kept.has(i)).map((widget) => widget.id))
+
+    for (const widget of next.widgets) {
+      const old = before.get(widget.id)
+      const fields = map.get(widget.id)
+      if (!old) {
+        writeWidget(map, widget)
+        placing.add(widget.id)
+      } else if (fields instanceof Y.Map) writeDifference(fields, old, widget)
+      // removed meanwhile by someone else: it stays removed
+      else placing.delete(widget.id)
+    }
+    placeOrder(map, next.widgets, placing)
+  }
+  transact(map, update, options.origin)
 }
 
 /** The dashboard the map holds: its widgets by their order keys (then ids, the same for everyone). */

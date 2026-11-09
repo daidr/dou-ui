@@ -12,7 +12,7 @@ import {
   useDashboardWidget,
 } from '..'
 import type { DashboardDocument, DashboardExpose } from '..'
-import { collaboration, fillMap, readMap } from '../collaboration'
+import { collaboration, fillMap, readMap, updateMap } from '../collaboration'
 import { later } from '../../../../test/later'
 
 const Stat = defineComponent({
@@ -136,6 +136,108 @@ describe('fillMap and readMap', () => {
     dashboard.widgets.reverse()
     fillMap(map, dashboard)
     expect(readMap(map)).toEqual(dashboard)
+  })
+})
+
+const shared = () => {
+  const doc = new Y.Doc()
+  const map = doc.getMap('widgets')
+  fillMap(map, start())
+  return { doc, map }
+}
+const ids = (map: Y.Map<unknown>) => readMap(map).widgets.map((widget) => widget.id)
+const widgetIn = (map: Y.Map<unknown>, id: string) =>
+  readMap(map).widgets.find((item) => item.id === id)
+
+describe('updateMap', () => {
+  it('writes only what changed from base, keeping what others changed meanwhile', () => {
+    const { map } = shared()
+    const base = readMap(map)
+    // meanwhile someone renames a, moves b on a narrow breakpoint and adds d at the end
+    const peer = cloneDoc(base)
+    peer.widgets[0]!.title = '新订单'
+    peer.widgets[1]!.place.sm = { x: 0, y: 2, w: 6, h: 2 }
+    peer.widgets.push({ id: 'd', type: 'stat', place: {} })
+    updateMap(map, peer, { base })
+    // the program changes a's settings, moves b on the wide breakpoint and adds c after a
+    const next = cloneDoc(base)
+    next.widgets[0]!.props = { value: 10 }
+    next.widgets[1]!.place.lg = { x: 6, y: 0, w: 3, h: 2 }
+    next.widgets.splice(1, 0, { id: 'c', type: 'stat', title: '金额', place: {} })
+    updateMap(map, next, { base })
+
+    expect(ids(map)).toEqual(['a', 'c', 'b', 'd'])
+    expect(widgetIn(map, 'a')).toMatchObject({ title: '新订单', props: { value: 10 } })
+    expect(widgetIn(map, 'b')!.place).toEqual({
+      lg: { x: 6, y: 0, w: 3, h: 2 },
+      sm: { x: 0, y: 2, w: 6, h: 2 },
+    })
+    expect(widgetIn(map, 'c')).toMatchObject({ title: '金额' })
+  })
+
+  it('keeps a widget removed meanwhile removed, and removes what base had and next has not', () => {
+    const { map } = shared()
+    const base = readMap(map)
+    map.delete('a')
+    const next = cloneDoc(base)
+    next.widgets[0]!.title = '改过'
+    next.widgets.pop()
+    updateMap(map, next, { base })
+    expect(ids(map)).toEqual([])
+  })
+
+  it('moves only the widgets the new version moved, and keeps unchanged ones as they are', () => {
+    const { map } = shared()
+    const base = readMap(map)
+    // meanwhile c is added at the top
+    updateMap(map, {
+      version: 1,
+      widgets: [{ id: 'c', type: 'stat', place: {} }, ...base.widgets],
+    })
+    const a = map.get('a') as Y.Map<unknown>
+    const next = { version: 1 as const, widgets: [base.widgets[1]!, base.widgets[0]!] }
+    updateMap(map, next, { base })
+    expect(ids(map)).toEqual(['c', 'b', 'a'])
+    // the same map: the widget wasn't written anew
+    expect(map.get('a')).toBe(a)
+    // nothing changed: nothing is written
+    const updates: unknown[] = []
+    map.doc!.on('update', (update) => updates.push(update))
+    updateMap(map, readMap(map), { base: readMap(map) })
+    updateMap(map, readMap(map))
+    expect(updates).toEqual([])
+  })
+
+  it('without base, makes the map match the new version', () => {
+    const { map } = shared()
+    const next: DashboardDocument = { version: 1, widgets: [start().widgets[1]!] }
+    map.set('x', new Y.Map(Object.entries({ type: 'stat', $order: 'z' })))
+    updateMap(map, next)
+    expect(readMap(map)).toEqual({ version: 1, widgets: [start().widgets[1]] })
+  })
+
+  it('writes in one transaction from the given origin', () => {
+    const doc = new Y.Doc()
+    const map = doc.getMap('widgets')
+    const origins: unknown[] = []
+    doc.on('afterTransaction', (tr: Y.Transaction) => origins.push(tr.origin))
+    fillMap(map, start(), { origin: 'server' })
+    const next = cloneDoc(start())
+    next.widgets[0]!.title = '金额'
+    updateMap(map, next, { base: start(), origin: 'ai' })
+    expect(origins).toEqual(['server', 'ai'])
+  })
+
+  it('shows up on an open dashboard as it is written', async () => {
+    const { docs } = pair()
+    fillMap(docs[0].getMap('widgets'), start())
+    const client = await mountClient(docs[1])
+    const base = readMap(docs[0].getMap('widgets'))
+    const next = cloneDoc(base)
+    next.widgets.push({ id: 'c', type: 'stat', props: { value: 7 }, place: {} })
+    updateMap(docs[0].getMap('widgets'), next, { base, origin: 'ai' })
+    await nextTick()
+    expect(client.model.value.widgets.map((w) => w.id)).toEqual(['a', 'b', 'c'])
   })
 })
 

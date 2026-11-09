@@ -69,7 +69,7 @@ import { fillMaps } from '@dou-ui/form-builder/collaboration'
 fillMaps({ nodes: doc.getMap('nodes'), settings: doc.getMap('settings') }, form)
 ```
 
-这一步通常在创建共享文档时在服务器上做一次。`readMaps` 反过来从共享文档读出表单，例如在服务器上保存快照。
+这一步通常在创建共享文档时在服务器上做一次。`readMaps` 反过来从共享文档读出表单，例如在服务器上保存快照。`fillMaps` 可以传 `origin`，作为这次 Yjs 事务的来源：`fillMaps(maps, form, { origin: 'server' })`。
 
 ## 撤销
 
@@ -106,11 +106,11 @@ interface CollaborationUser {
 
 ### 函数和常量
 
-| 名称                  | 说明                           | 类型                                                                    |
-| --------------------- | ------------------------------ | ----------------------------------------------------------------------- |
-| `fillMaps`            | 把表单写入共享文档             | `({ nodes, settings }, form: FormDocument) => void`                     |
-| `readMaps`            | 从共享文档读出表单             | `({ nodes, settings }) => { document: FormDocument; lifted: string[] }` |
-| `collaborationColors` | 不传 `user.color` 时使用的颜色 | `string[]`                                                              |
+| 名称                  | 说明                           | 类型                                                                       |
+| --------------------- | ------------------------------ | -------------------------------------------------------------------------- |
+| `fillMaps`            | 把表单写入共享文档             | `({ nodes, settings }, form: FormDocument, options?: { origin? }) => void` |
+| `readMaps`            | 从共享文档读出表单             | `({ nodes, settings }) => { document: FormDocument; lifted: string[] }`    |
+| `collaborationColors` | 不传 `user.color` 时使用的颜色 | `string[]`                                                                 |
 
 `readMaps` 返回的 `lifted` 是因为容器被删除或互相嵌套而回到最外层的节点。
 

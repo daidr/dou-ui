@@ -9,9 +9,9 @@ const css = readFileSync(resolve(here, 'components/chat-input.css'), 'utf8').rep
   '',
 )
 
-/** The declarations of the rule with exactly this selector. */
+/** The declarations of the last rule with exactly this selector. */
 function rule(selector: string) {
-  const start = css.indexOf(`${selector} {`)
+  const start = css.lastIndexOf(`${selector} {`)
   if (start < 0) throw new Error(`no rule for ${selector}`)
   return css.slice(start, css.indexOf('}', start))
 }

@@ -12,6 +12,12 @@ export interface UseMeasuredSizesOptions<K> {
   estimate: (index: number) => number
   /** The element that scrolls, kept steady while items above the view change height. */
   container: () => HTMLElement | null | undefined
+  /**
+   * Where an item starts in the scrolled content, when items don't simply
+   * follow each other from the top, e.g. under group labels. Defaults to
+   * the sum of the sizes before it.
+   */
+  start?: (index: number) => number
 }
 
 /**
@@ -28,11 +34,12 @@ export function useMeasuredSizes<K>(options: UseMeasuredSizesOptions<K>) {
   // Bumped when a measurement changes; reading it ties offsets to it.
   const version = shallowRef(0)
 
-  const sizeOf = (index: number) => known.get(options.keyOf(index)) ?? options.estimate(index)
-  const offsets = computed(() => {
+  const sizeOf = (index: number) => {
     void version.value
-    return createOffsets(options.count(), sizeOf)
-  })
+    return known.get(options.keyOf(index)) ?? options.estimate(index)
+  }
+  const offsets = computed(() => createOffsets(options.count(), sizeOf))
+  const startOf = (index: number) => options.start?.(index) ?? offsets.value.start(index)
 
   // An item can span several elements, e.g. a table row and its detail row.
   const tracked = new Map<Element, { key: K; index: number }>()
@@ -58,7 +65,7 @@ export function useMeasuredSizes<K>(options: UseMeasuredSizesOptions<K>) {
       if (size === before && known.has(key)) continue
       known.set(key, size)
       changed = true
-      if (offsets.value.start(index) < top) shift += size - before
+      if (startOf(index) < top) shift += size - before
     }
     if (!changed) return
     version.value++

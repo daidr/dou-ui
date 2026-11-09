@@ -61,6 +61,8 @@
     overflow-y: auto;
     overscroll-behavior: contain;
     scroll-padding: 6px;
+    /* a virtual list keeps its own place when rows above change height */
+    overflow-anchor: none;
   }
 
   .dou-command__group + .dou-command__group {

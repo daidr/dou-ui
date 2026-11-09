@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { createSSRApp, defineComponent, h, nextTick } from 'vue'
+import { createSSRApp, defineComponent, h, nextTick, ref } from 'vue'
 import { renderToString } from 'vue/server-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -451,5 +451,63 @@ describe('DouChatMessage markdown options', () => {
       }),
     )
     expect(wrapper.find('a').attributes('target')).toBeUndefined()
+  })
+
+  it('puts the trailing slot after the last word, or on a line of its own', async () => {
+    const mark = { trailing: () => h('button', { class: 'mark' }, '已编辑') }
+    const cases: [string, string][] = [
+      ['第一段\n\n第二段', 'p'],
+      ['# 标题', 'h1'],
+      ['- 一\n- 二', 'li'],
+      ['> 引用的话', 'blockquote p'],
+      ['| 地点 | 人 |\n| - | - |\n| 上海 | 戴兜 |', 'tbody td'],
+    ]
+    for (const [content, last] of cases) {
+      const wrapper = mount(DouMarkdown, { props: { content }, slots: mark })
+      const hosts = wrapper.findAll(last)
+      expect(hosts[hosts.length - 1]!.find('.dou-markdown__trailing .mark').exists()).toBe(true)
+      expect(wrapper.findAll('.mark')).toHaveLength(1)
+      wrapper.unmount()
+    }
+    // a code block can't take it on the same line
+    const code = mount(DouMarkdown, { props: { content: '看：\n\n```js\n1\n```' }, slots: mark })
+    const tail = code.element.lastElementChild!
+    expect(tail.tagName).toBe('DIV')
+    expect(tail.classList.contains('dou-markdown__trailing')).toBe(true)
+    expect(code.find('p .mark').exists()).toBe(false)
+  })
+
+  it('keeps the trailing slot after the caret while streaming, and on when done', async () => {
+    const wrapper = mount(DouMarkdown, {
+      props: { content: '正在写', streaming: true, smooth: false },
+      slots: { trailing: () => h('span', { class: 'mark' }, '已编辑') },
+    })
+    await nextTick()
+    const p = wrapper.find('p').element
+    const last = [...p.children].map((el) => el.className)
+    expect(last.slice(-2)).toEqual(['dou-markdown__caret', 'dou-markdown__trailing'])
+    await wrapper.setProps({ content: '正在写\n\n第二段' })
+    frames(1)
+    await nextTick()
+    expect(wrapper.findAll('p')[0]!.find('.mark').exists()).toBe(false)
+    expect(wrapper.findAll('p')[1]!.find('.mark').exists()).toBe(true)
+    await wrapper.setProps({ streaming: false })
+    frames(1)
+    await nextTick()
+    expect(wrapper.find('.dou-markdown__caret').exists()).toBe(false)
+    expect(wrapper.findAll('p')[1]!.find('.mark').exists()).toBe(true)
+  })
+
+  it('draws the trailing slot again when what it shows changes', async () => {
+    const label = ref('已编辑')
+    const wrapper = mount(
+      defineComponent(
+        () => () => h(DouMarkdown, { content: '一段话' }, { trailing: () => label.value }),
+      ),
+    )
+    expect(wrapper.find('.dou-markdown__trailing').text()).toBe('已编辑')
+    label.value = '已编辑 2 次'
+    await nextTick()
+    expect(wrapper.find('.dou-markdown__trailing').text()).toBe('已编辑 2 次')
   })
 })

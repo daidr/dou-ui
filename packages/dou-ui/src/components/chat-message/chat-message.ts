@@ -191,6 +191,12 @@ export interface ChatMessageSlots {
   part?: (props: { part: ChatCustomPart; index: number }) => unknown
   /** Buttons after the built-in actions, e.g. regenerate or feedback. */
   actions?: () => unknown
+  /**
+   * Content that follows the last word of the last text part on the same
+   * line, e.g. an "edited" mark. Unlike `actions` it always shows, whatever
+   * `actionsVisible` is. Without a text part it takes a line after the parts.
+   */
+  trailing?: () => unknown
   /** Replaces all parts, for a message laid out by hand. */
   default?: () => unknown
 }
@@ -200,7 +206,7 @@ export interface ChatMessageSlots {
  * rendered with `markdown`: `markdown-code`, `markdown-container-tip`, ...
  */
 export type ChatMessageMarkdownSlots = {
-  [K in keyof MarkdownSlots as `markdown-${K & string}`]: MarkdownSlots[K]
+  [K in Exclude<keyof MarkdownSlots, 'trailing'> as `markdown-${K & string}`]: MarkdownSlots[K]
 }
 
 /** The text of a message, for copying: its text parts, one paragraph each. */

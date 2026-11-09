@@ -112,6 +112,10 @@ defineExpose<StreamTextExpose>({ flush })
     :aria-busy="!done || undefined"
   >
     <slot :text="text" :done="done">{{ text }}</slot
-    ><span v-if="caret && !done" :class="ns.e('caret')" aria-hidden="true" />
+    ><span v-if="caret && !done" :class="ns.e('caret')" aria-hidden="true" /><span
+      v-if="slots.trailing"
+      :class="ns.e('trailing')"
+      ><slot name="trailing"
+    /></span>
   </component>
 </template>

@@ -15,6 +15,11 @@
     }
   }
 
+  /* the slot's own spaces and line breaks are not part of the text */
+  .dou-stream-text__trailing {
+    white-space: normal;
+  }
+
   .dou-stream-text__caret {
     display: inline-block;
     width: 2px;

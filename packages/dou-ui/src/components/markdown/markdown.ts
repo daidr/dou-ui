@@ -145,6 +145,12 @@ export interface MarkdownEmits {
  * `<component :is="children" />`.
  */
 export interface MarkdownSlots {
+  /**
+   * Content that follows the last word of the text on the same line, e.g.
+   * an "edited" mark. After a code block or a rule it takes a line of its
+   * own. While streaming it comes after the caret.
+   */
+  trailing?: () => unknown
   paragraph?: (props: { node: MarkdownParagraph; children: VNode }) => unknown
   heading?: (props: { node: MarkdownHeading; level: number; children: VNode }) => unknown
   blockquote?: (props: { node: MarkdownBlockquote; children: VNode }) => unknown

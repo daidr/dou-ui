@@ -51,6 +51,8 @@ export interface MarkdownRenderContext {
   delays: Map<string, string>
   /** The block the caret follows, while streaming. */
   caret: object | null
+  /** The block the `trailing` slot follows, when it is given. */
+  end: object | null
   /** The block or row being drawn. */
   drawing: ComponentInternalInstance | null
   /** Blocks and rows drawn with fading spans, to draw again once the fades end. */
@@ -105,6 +107,13 @@ function enter(ctx: MarkdownRenderContext, offset: number): string | undefined {
 
 function caretNode() {
   return h('span', { class: `${B}__caret`, 'aria-hidden': 'true' })
+}
+
+/** The caret and the `trailing` slot, after the last word of `owner`. */
+function tail(ctx: MarkdownRenderContext, owner: object, out: VNodeChild[]) {
+  if (ctx.caret === owner) out.push(caretNode())
+  if (ctx.end === owner && ctx.slots.trailing)
+    out.push(h('span', { class: `${B}__trailing` }, ctx.slots.trailing() as VNode[]))
 }
 
 /** Text, with the parts that are still fading in wrapped in spans. */
@@ -302,7 +311,7 @@ function leafContent(
   fade = true,
 ): VNodeChild[] {
   const out = inlines(ctx, nodes, fade)
-  if (ctx.caret === owner) out.push(caretNode())
+  tail(ctx, owner, out)
   return out
 }
 
@@ -348,7 +357,7 @@ function renderItem(ctx: MarkdownRenderContext, item: MarkdownItem, tick: number
       )
     }
   })
-  if (ctx.caret === item) children.push(caretNode())
+  tail(ctx, item, children)
   if (slot) return output(slot({ node: item, checked: item.checked, children: group(children) }))
   return h(
     'li',
@@ -375,7 +384,7 @@ function renderRow(
     { class: entering },
     row.cells.map((content, index) => {
       const out = inlines(ctx, content, fade && !entering)
-      if (ctx.caret === row && index === row.cells.length - 1) out.push(caretNode())
+      if (index === row.cells.length - 1) tail(ctx, row, out)
       return h(cell, { style: align[index] ? { textAlign: align[index] } : undefined }, out)
     }),
   )

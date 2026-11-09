@@ -61,6 +61,14 @@ app.use(DouUI, {
 
 <DocDemo src="chat-message/actions-hover" column />
 
+### 跟在文字后面的标记
+
+“已编辑”这类一直要看得到的小标记，放进 `trailing` 插槽。它跟在最后一个文字片段的最后一个字后面，和文字在同一行，不受 `actions-visible` 影响。生成中时它在光标后面。消息里没有文字片段时，它单独占一行，放在所有片段后面。样式由插槽里的内容自己决定。
+
+<DocDemo src="chat-message/trailing" column />
+
+开了 `markdown` 时，它跟在最后一段、标题、列表项或表格最后一格的末尾；最后一块是代码块或分隔线时，单独占一行。用 `text` 插槽自己渲染文字时，它放在插槽内容后面；用默认插槽替换全部片段时不显示，需要自己放。
+
 ## 高亮
 
 `highlighted` 给消息加上主题色的描边：用户消息的描边贴着气泡，助手消息的描边在文字外侧 4px。打开时一直显示，关掉后淡出（减少动效时很快消失），所以通常过一两秒再关掉。高亮的消息带 `aria-current="true"`。配合 DouChatList 的 [`scrollToMessage`](./chat-list#定位到某条消息) 使用。
@@ -111,10 +119,11 @@ app.use(DouUI, {
 
 ### Slots
 
-| 名称         | 说明                                                         |
-| ------------ | ------------------------------------------------------------ |
-| `text`       | 渲染文字片段，参数为 `{ part, text, index, sources }`        |
-| `markdown-*` | Markdown 组件的同名插槽，如 `markdown-code`、`markdown-link` |
-| `part`       | 渲染未知类型的片段，参数为 `{ part, index }`                 |
-| `actions`    | 追加在内置操作后面的按钮                                     |
-| `default`    | 替换全部片段，自己排版                                       |
+| 名称         | 说明                                                                        |
+| ------------ | --------------------------------------------------------------------------- |
+| `text`       | 渲染文字片段，参数为 `{ part, text, index, sources }`                       |
+| `markdown-*` | Markdown 组件的同名插槽，如 `markdown-code`、`markdown-link`                |
+| `part`       | 渲染未知类型的片段，参数为 `{ part, index }`                                |
+| `actions`    | 追加在内置操作后面的按钮                                                    |
+| `trailing`   | 跟在最后一个文字片段末尾的内容，见[跟在文字后面的标记](#跟在文字后面的标记) |
+| `default`    | 替换全部片段，自己排版                                                      |

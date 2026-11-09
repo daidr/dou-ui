@@ -1,5 +1,15 @@
 <script setup lang="ts">
-import { computed, h, onBeforeUnmount, onMounted, provide, ref, shallowRef, watch } from 'vue'
+import {
+  computed,
+  h,
+  onBeforeUnmount,
+  onMounted,
+  provide,
+  ref,
+  shallowRef,
+  watch,
+  type VNode,
+} from 'vue'
 import { useReducedMotion } from '../../composables/use-motion'
 import { useNamespace } from '../../utils/namespace'
 import { safeCut } from '../stream-text/stream-text'
@@ -67,6 +77,7 @@ const ctx: MarkdownRenderContext = {
   now: 0,
   delays: new Map(),
   caret: null,
+  end: null,
   drawing: null,
   fading: new Set(),
 }
@@ -75,7 +86,7 @@ provide(markdownContextKey, ctx)
 let mounted = false
 const animate = () => mounted && props.smooth && !reducedMotion.value
 
-/** The last leaf, where the caret goes. */
+/** The last leaf, where the caret and the `trailing` slot go. */
 function caretTarget(list: MarkdownBlock[]): object | null {
   let node: MarkdownBlock | MarkdownBlock[] | undefined = list[list.length - 1]
   for (;;) {
@@ -226,17 +237,26 @@ defineExpose<MarkdownExpose>({ flush })
 // moving the caret does not re-render every block that checks for it.
 function Body() {
   ctx.drawing = null
-  ctx.caret = props.caret && !done.value ? caretTarget(blocks.value) : null
+  const target = caretTarget(blocks.value)
+  ctx.caret = props.caret && !done.value ? target : null
+  ctx.end = slots.trailing ? target : null
   const list = chunked.value
+  // the last chunk draws again when the `trailing` slot comes or goes
+  const lastTick = tick.value * 2 + (slots.trailing ? 1 : 0)
   const children = list.map((chunk, index) =>
     h(MarkdownChunkView, {
       key: index,
       blocks: chunk,
-      tick: index === list.length - 1 ? tick.value : 0,
+      tick: index === list.length - 1 ? lastTick : 0,
     }),
   )
-  if (props.caret && !done.value && !ctx.caret)
+  if (props.caret && !done.value && !target)
     children.push(h('span', { key: 'caret', class: ns.e('caret'), 'aria-hidden': 'true' }))
+  // after a code block or a rule, nothing to follow on the same line: a line of its own
+  if (slots.trailing && !target)
+    children.push(
+      h('div', { key: 'trailing', class: ns.e('trailing') }, slots.trailing() as VNode[]),
+    )
   return children
 }
 </script>

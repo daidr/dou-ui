@@ -12,6 +12,7 @@ defineOptions({ name: 'DouCommandDialog' })
 const props = withDefaults(defineProps<CommandDialogProps>(), {
   loop: true,
   maxHeight: 360,
+  virtual: undefined,
   hotkey: 'mod+k',
   closeOnSelect: true,
   width: 560,

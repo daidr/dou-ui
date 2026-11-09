@@ -126,16 +126,16 @@ describe('DouCommand highlight', () => {
   })
 })
 
-const heights = (root: ParentNode) =>
-  [...root.querySelectorAll<HTMLElement>('[role="option"]')].map((row) => row.style.height)
-
-describe('DouCommand row height', () => {
-  const many: CommandItem[] = Array.from({ length: 30 }, (_, index) => ({
+const rows = (root: ParentNode) => [...root.querySelectorAll<HTMLElement>('[role="option"]')]
+const heights = (root: ParentNode) => rows(root).map((row) => row.style.height)
+const many = (count: number): CommandItem[] =>
+  Array.from({ length: count }, (_, index) => ({
     value: index,
     label: `第 ${index} 条`,
     description: index % 2 ? '上海 · 戴兜' : undefined,
   }))
 
+describe('DouCommand row height', () => {
   it('leaves rows to their content unless the list is virtual', () => {
     const wrapper = mount(DouCommand, { props: { items, virtual: false } })
     expect(heights(wrapper.element).every((height) => height === '')).toBe(true)
@@ -143,9 +143,9 @@ describe('DouCommand row height', () => {
   })
 
   it('gives each virtual row its itemSize, by number or by item', async () => {
-    const wrapper = mount(DouCommand, { props: { items: many, virtual: true } })
+    const wrapper = mount(DouCommand, { props: { items: many(30), virtual: true } })
     await nextTick()
-    expect(new Set(heights(wrapper.element))).toEqual(new Set(['36px']))
+    expect(new Set(heights(wrapper.element))).toEqual(new Set(['']))
     await wrapper.setProps({ itemSize: 52 })
     expect(new Set(heights(wrapper.element))).toEqual(new Set(['52px']))
     await wrapper.setProps({
@@ -155,13 +155,51 @@ describe('DouCommand row height', () => {
     wrapper.unmount()
   })
 
+  it('lets an itemSize under 36 win over the minimum height', async () => {
+    const wrapper = mount(DouCommand, { props: { items: many(30), virtual: true, itemSize: 28 } })
+    await nextTick()
+    const row = rows(wrapper.element)[0]!
+    expect([row.style.height, row.style.minHeight]).toEqual(['28px', '28px'])
+    wrapper.unmount()
+  })
+
+  it('measures virtual rows without itemSize and estimates the rest from them', async () => {
+    const rect = HTMLElement.prototype.getBoundingClientRect
+    HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
+      return new DOMRect(0, 0, 0, this.getAttribute('role') === 'option' ? 52 : 0)
+    }
+    try {
+      const wrapper = mount(DouCommand, { props: { items: many(200) } })
+      await nextTick()
+      await nextTick()
+      const shown = rows(wrapper.element).length
+      expect(shown).toBeLessThan(200)
+      const spacer = wrapper.element.querySelector('[role="group"]')!
+        .lastElementChild as HTMLElement
+      expect(spacer.style.height).toBe(`${(200 - shown) * 52}px`)
+      wrapper.unmount()
+    } finally {
+      HTMLElement.prototype.getBoundingClientRect = rect
+    }
+  })
+
   it('passes virtual and itemSize through the dialog', async () => {
     const wrapper = mount(DouCommandDialog, {
-      props: { items: many, open: true, virtual: true, itemSize: 48 },
+      props: { items: many(30), open: true, virtual: true, itemSize: 48 },
       attachTo: document.body,
     })
     await nextTick()
     expect(new Set(heights(document))).toEqual(new Set(['48px']))
+    wrapper.unmount()
+  })
+
+  it('turns virtual on by itself for a long list in the dialog', async () => {
+    const wrapper = mount(DouCommandDialog, {
+      props: { items: many(150), open: true },
+      attachTo: document.body,
+    })
+    await nextTick()
+    expect(rows(document).length).toBeLessThan(150)
     wrapper.unmount()
   })
 })

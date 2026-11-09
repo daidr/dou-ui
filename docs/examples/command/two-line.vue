@@ -59,16 +59,19 @@ const items = [
   flex-direction: column;
   gap: 2px;
   min-width: 0;
-  line-height: 1.4;
 }
 .two-line__title,
 .two-line__meta {
-  overflow: hidden;
+  overflow-x: clip;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.two-line__title {
+  line-height: 20px;
 }
 .two-line__meta {
   color: var(--dou-color-text-tertiary);
   font-size: var(--dou-font-size-sm);
+  line-height: 18px;
 }
 </style>

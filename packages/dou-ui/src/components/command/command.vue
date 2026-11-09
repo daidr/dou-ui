@@ -1,6 +1,16 @@
 <script setup lang="ts">
 import { SearchIcon } from '@dou-ui/icons'
-import { computed, nextTick, onUpdated, ref, useId, useTemplateRef, watch } from 'vue'
+import {
+  computed,
+  nextTick,
+  onMounted,
+  onUpdated,
+  ref,
+  shallowRef,
+  useId,
+  useTemplateRef,
+  watch,
+} from 'vue'
 import { GROUP_START, useGroupedWindow } from '../../composables/use-grouped-window'
 import { ariaHotkey, useApplePlatform } from '../../composables/use-hotkey'
 import { isComposing } from '../../utils/keyboard'
@@ -9,7 +19,13 @@ import { devWarn } from '../../utils/status-check'
 import { useLocale } from '../config-provider/use-config'
 import { DouKbd } from '../kbd'
 import { matchCommand } from './command'
-import type { CommandExpose, CommandItem, CommandProps, CommandSlots } from './command'
+import type {
+  CommandExpose,
+  CommandItem,
+  CommandProps,
+  CommandSlots,
+  CommandValue,
+} from './command'
 
 defineOptions({ name: 'DouCommand' })
 
@@ -102,11 +118,21 @@ watch(
 
 const listRef = useTemplateRef<HTMLElement>('list')
 
-// Long lists render only the items in view, each row exactly `itemSize`
-// tall so its place can be worked out; otherwise rows grow to fit.
+// Long lists render only the items in view. With `itemSize` every row is
+// that tall; without it rows grow to fit and are measured once rendered,
+// and rows not rendered yet are taken to be as tall as the ones that were.
+const measured = shallowRef(new Map<CommandValue, number>())
+const estimate = computed(() => {
+  let sum = 0
+  for (const height of measured.value.values()) sum += height
+  return measured.value.size ? sum / measured.value.size : 36
+})
+function fixedSize(item: CommandItem) {
+  const size = props.itemSize
+  return typeof size === 'function' ? size(item) : size
+}
 function rowSize(entry: Entry) {
-  const size = props.itemSize ?? 36
-  return typeof size === 'function' ? size(entry.item, entry.index) : size
+  return fixedSize(entry.item) ?? measured.value.get(entry.item.value) ?? estimate.value
 }
 const windowing = useGroupedWindow({
   container: () => listRef.value,
@@ -123,19 +149,41 @@ const groupWindows = computed(() =>
 watch(flatKey, () => {
   if (listRef.value) listRef.value.scrollTop = 0
 })
+watch(
+  () => props.items,
+  () => (measured.value = new Map()),
+)
 
-// A row cut to its size overlaps the next one: say so while developing.
-if (process.env.NODE_ENV !== 'production') {
-  onUpdated(() => {
-    if (!windowing.enabled.value || !listRef.value) return
-    for (const row of listRef.value.querySelectorAll<HTMLElement>(`.${ns.e('item')}`)) {
-      if (row.scrollHeight <= row.clientHeight + 1) continue
-      return devWarn(
-        '[dou-ui] DouCommand: an item is taller than `itemSize`. With `virtual` on (by default past 100 items) rows are exactly `itemSize` tall; pass a larger `itemSize`, or `:virtual="false"` to let rows grow.',
-      )
+function measureRows() {
+  if (!windowing.enabled.value || !listRef.value) return
+  const rows = listRef.value.querySelectorAll<HTMLElement>('[role="option"]')
+  const shown = groupWindows.value.flatMap((group) => group.entries)
+  if (props.itemSize !== undefined) {
+    // A row cut to its size overlaps the next one: say so while developing.
+    if (process.env.NODE_ENV !== 'production') {
+      for (const row of rows) {
+        if (row.scrollHeight <= row.clientHeight + 1) continue
+        return devWarn(
+          '[dou-ui] DouCommand: an item is taller than `itemSize`. Pass a larger `itemSize`, or leave it out to have rows measured.',
+        )
+      }
     }
+    return
+  }
+  let next: Map<CommandValue, number> | undefined
+  rows.forEach((row, at) => {
+    const entry = shown[at]
+    const height = row.getBoundingClientRect().height
+    if (!entry || !height) return
+    const known = (next ?? measured.value).get(entry.item.value)
+    if (known !== undefined && Math.abs(known - height) < 0.5) return
+    next ??= new Map(measured.value)
+    next.set(entry.item.value, height)
   })
+  if (next) measured.value = next
 }
+onMounted(measureRows)
+onUpdated(measureRows)
 
 watch(active, async (index) => {
   if (windowing.enabled.value && index >= 0) {
@@ -193,6 +241,11 @@ function parts(entry: Entry) {
     else result.push({ text: label[index]!, match })
   }
   return result
+}
+
+function rowStyle(entry: Entry) {
+  const size = windowing.enabled.value ? fixedSize(entry.item) : undefined
+  return size === undefined ? undefined : { height: `${size}px`, minHeight: `${size}px` }
 }
 
 const inputRef = useTemplateRef<HTMLInputElement>('input')
@@ -274,7 +327,7 @@ const maxHeight = computed(() =>
             ns.is('active', entry.index === active),
             ns.is('disabled', !!entry.item.disabled),
           ]"
-          :style="windowing.enabled.value ? { height: `${rowSize(entry)}px` } : undefined"
+          :style="rowStyle(entry)"
           @mousedown.prevent
           @click="choose(entry.index)"
           @mousemove="enabled(entry.index) && (active = entry.index)"

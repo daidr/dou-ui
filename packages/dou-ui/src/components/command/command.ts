@@ -49,11 +49,11 @@ export interface CommandProps {
    */
   virtual?: boolean
   /**
-   * The height of a row in px while `virtual` is on, or one per item. Rows
-   * are this tall then, so an `item` slot taller than one line needs it.
-   * With `virtual` off rows grow to fit and this is unused. Defaults to 36.
+   * The height of a row in px while `virtual` is on, or a function giving
+   * each item's. Rows are exactly this tall then. Left out, rows grow to
+   * fit and are measured once rendered. Unused with `virtual` off.
    */
-  itemSize?: number | ((item: CommandItem, index: number) => number)
+  itemSize?: number | ((item: CommandItem) => number)
   /** Names the search box when there is no visible label. */
   ariaLabel?: string
 }

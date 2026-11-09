@@ -17,13 +17,13 @@ import { blocksToDoc, docToBlocks, type EditorDocument, type PartialBlock } from
 import { editorKit } from '../extensions/editor-kit'
 import { createBinding, readDoc, syncPlugin, updateDoc, writeDoc, type YBlock } from './binding'
 import {
-  cursorAt,
+  cursorIn,
   cursorsPlugin,
   positionOf,
   type AwarenessLike,
-  type CursorTarget,
-  type EditorCursor,
-  type EditorCursorPlace,
+  type EditorCursorTarget,
+  type EditorPresence,
+  type EditorPresencePlace,
 } from './cursors'
 
 /** How the people editing together see each other. */
@@ -136,6 +136,36 @@ type ExtensionList = (EditorExtension | EditorExtension[])[]
 const schemaOf = (extensions: ExtensionList = [editorKit()]) =>
   resolveEditorExtensions(extensions).schema
 
+export interface CursorAtOptions {
+  /** Where a selection starts; left out, only a cursor at `head`. */
+  anchor?: EditorCursorTarget
+  /** The extensions the editors use, for custom blocks. Defaults to `[editorKit()]`. */
+  extensions?: ExtensionList
+}
+
+/**
+ * The value for the awareness field `editor` that puts a cursor at `head`,
+ * selecting from `options.anchor` when given, without an editor: e.g. on
+ * the server, for a program writing into the document with `updateMap`, so
+ * the people in the editor see where it writes. `null` when the block isn't
+ * in the map or has no text, e.g. an image, a divider, or a table without
+ * `cell`.
+ */
+export function cursorAt(
+  map: Y.Map<unknown>,
+  head: EditorCursorTarget,
+  options: CursorAtOptions = {},
+): EditorPresence | null {
+  const schema = schemaOf(options.extensions)
+  const holdsText = (name: string) => {
+    const known = schema.nodes[name]
+    // unknown types are read as paragraphs
+    const type = known?.isInGroup('blockContent') ? known : schema.nodes.paragraph!
+    return type.inlineContent
+  }
+  return cursorIn(map, head, options.anchor ?? head, holdsText)
+}
+
 /** Runs `write` as one transaction of the map's document, from `origin`. */
 function transact(map: Y.Map<unknown>, write: () => void, origin: unknown) {
   if (map.doc) map.doc.transact(write, origin ?? null)
@@ -224,5 +254,4 @@ export function readMap(map: Y.Map<unknown>, options: ReadMapOptions = {}): Edit
   return { version: 1, blocks: doc ? docToBlocks(doc) : [] }
 }
 
-export { cursorAt }
-export type { AwarenessLike, CursorTarget, EditorCursor, EditorCursorPlace }
+export type { AwarenessLike, EditorCursorTarget, EditorPresence, EditorPresencePlace }

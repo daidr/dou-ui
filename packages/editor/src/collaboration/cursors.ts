@@ -17,25 +17,25 @@ export interface AwarenessLike {
 }
 
 /** A place in the text: the block and a position in its text that follows edits. */
-export interface EditorCursorPlace {
+export interface EditorPresencePlace {
   block: string
   /** In a table: the cell, `row id:column id`. */
   cell?: string
   /** A Yjs relative position as JSON (`Y.relativePositionToJSON`). */
   position: unknown
 }
-type Place = EditorCursorPlace
+type Place = EditorPresencePlace
 
 /**
- * Where a person's cursor is, shared in the awareness field `cursor`
+ * Where a person's cursor is, shared in the awareness field `editor`
  * (`null` when they have none). The selection runs from `anchor` to
  * `head`; the cursor with the name is drawn at `head`.
  */
-export interface EditorCursor {
-  anchor: EditorCursorPlace
-  head: EditorCursorPlace
+export interface EditorPresence {
+  anchor: EditorPresencePlace
+  head: EditorPresencePlace
 }
-type Cursor = EditorCursor
+type Cursor = EditorPresence
 
 /** The text a place points into: the block's own, or one of its table cells. */
 function textOf(map: Y.Map<unknown>, block: string, cell?: string): Y.Text | undefined {
@@ -53,7 +53,7 @@ function textOf(map: Y.Map<unknown>, block: string, cell?: string): Y.Text | und
 }
 
 /** A place in a block's text, given without an editor. */
-export interface CursorTarget {
+export interface EditorCursorTarget {
   block: string
   /** In a table: the cell, `row id:column id`. */
   cell?: string
@@ -65,7 +65,16 @@ export interface CursorTarget {
   offset?: number
 }
 
-function placeAt(map: Y.Map<unknown>, target: CursorTarget): Place | null {
+/** Whether blocks of a stored type hold text of their own, e.g. not an image or a divider. */
+export type HoldsText = (type: string) => boolean
+
+function placeAt(
+  map: Y.Map<unknown>,
+  target: EditorCursorTarget,
+  holdsText: HoldsText,
+): Place | null {
+  const yblock = map.get(target.block)
+  if (!target.cell && yblock instanceof Y.Map && !holdsText(String(yblock.get('type')))) return null
   const text = textOf(map, target.block, target.cell)
   if (!text) return null
   const offset = Math.max(0, Math.min(Math.floor(target.offset ?? text.length), text.length))
@@ -75,20 +84,15 @@ function placeAt(map: Y.Map<unknown>, target: CursorTarget): Place | null {
     : { block: target.block, position }
 }
 
-/**
- * The value for the awareness field `cursor` that puts a cursor at `head`,
- * selecting from `anchor` when given, without an editor: e.g. on the server,
- * for a program writing into the document with `updateMap`, so the people
- * in the editor see where it writes. `null` when the block (or cell) has no
- * text, e.g. an image, or isn't in the map.
- */
-export function cursorAt(
+/** A cursor at `head`, selecting from `anchor`; `null` when either has no text to be in. */
+export function cursorIn(
   map: Y.Map<unknown>,
-  head: CursorTarget,
-  anchor: CursorTarget = head,
-): EditorCursor | null {
-  const to = placeAt(map, head)
-  const from = anchor === head ? to : placeAt(map, anchor)
+  head: EditorCursorTarget,
+  anchor: EditorCursorTarget,
+  holdsText: HoldsText,
+): EditorPresence | null {
+  const to = placeAt(map, head, holdsText)
+  const from = anchor === head ? to : placeAt(map, anchor, holdsText)
   return to && from ? { anchor: from, head: to } : null
 }
 
@@ -153,7 +157,7 @@ function decorations(binding: Binding, awareness: AwarenessLike, state: EditorSt
   const found: Decoration[] = []
   awareness.getStates().forEach((value, client) => {
     if (client === awareness.clientID) return
-    const cursor = value.cursor as Cursor | null | undefined
+    const cursor = value.editor as Cursor | null | undefined
     const user = value.user as { name?: string; color?: string } | undefined
     if (!cursor) return
     const anchor = positionOf(binding, state.doc, cursor.anchor)
@@ -218,7 +222,7 @@ export function cursorsPlugin(binding: Binding, awareness: AwarenessLike): Plugi
         const json = JSON.stringify(cursor)
         if (json === last) return
         last = json
-        awareness.setLocalStateField('cursor', cursor)
+        awareness.setLocalStateField('editor', cursor)
       }
       const onFocus = () => share()
       view.dom.addEventListener('focus', onFocus)
@@ -229,7 +233,7 @@ export function cursorsPlugin(binding: Binding, awareness: AwarenessLike): Plugi
           awareness.off('change', onChange)
           view.dom.removeEventListener('focus', onFocus)
           view.dom.removeEventListener('blur', onFocus)
-          awareness.setLocalStateField('cursor', null)
+          awareness.setLocalStateField('editor', null)
         },
       }
     },

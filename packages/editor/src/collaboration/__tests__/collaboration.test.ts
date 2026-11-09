@@ -14,6 +14,7 @@ import type { Block, EditorDocument, PartialBlock } from '../../core/model'
 import { applyEditorTransaction, EditorTransaction } from '../../core/transaction'
 import DouEditor from '../../editor.vue'
 import { editorKit } from '../../extensions/editor-kit'
+import { image } from '../../extensions/image'
 
 const views: EditorView[] = []
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0))
@@ -383,7 +384,7 @@ describe('collaboration', () => {
       awarenessA.getStates().set(server.clientID, awareness.getLocalState()!)
       awarenessA.emit('change', [{ added: [], updated: [server.clientID], removed: [] }, 'remote'])
     }
-    awareness.setLocalStateField('cursor', cursorAt(map, { block: 'a', offset: 2 }))
+    awareness.setLocalStateField('editor', cursorAt(map, { block: 'a', offset: 2 }))
     relay()
     await tick()
     const cursor = a.view.dom.querySelector('.dou-editor__cursor')!
@@ -398,7 +399,10 @@ describe('collaboration', () => {
     )
 
     // left out, the offset is the end; with an anchor, a selection
-    awareness.setLocalStateField('cursor', cursorAt(map, { block: 'a' }, { block: 'a', offset: 4 }))
+    awareness.setLocalStateField(
+      'editor',
+      cursorAt(map, { block: 'a' }, { anchor: { block: 'a', offset: 4 } }),
+    )
     relay()
     await tick()
     expect(a.view.dom.querySelector('.dou-editor__remote-selection')?.textContent).toBe('Hello')
@@ -407,18 +411,25 @@ describe('collaboration', () => {
   it('gives no cursor where there is no text to put it in', () => {
     const doc = new Y.Doc()
     const map = doc.getMap('document')
-    fillMap(map, {
-      version: 1,
-      blocks: [
-        { id: 'a', content: 'Hi' },
-        {
-          id: 't',
-          type: 'table',
-          rows: [{ id: 'r', cells: ['上海'] }],
-          props: { columns: [{ id: 'c' }] },
-        },
-      ],
-    })
+    const extensions = [editorKit(), image()]
+    fillMap(
+      map,
+      {
+        version: 1,
+        blocks: [
+          { id: 'a', content: 'Hi' },
+          { id: 'i', type: 'image', props: { url: 'https://example.com/a.png' } },
+          { id: 'd', type: 'divider' },
+          {
+            id: 't',
+            type: 'table',
+            rows: [{ id: 'r', cells: ['上海'] }],
+            props: { columns: [{ id: 'c' }] },
+          },
+        ],
+      },
+      { extensions },
+    )
     expect(cursorAt(map, { block: 'missing' })).toBeNull()
     // a table's text is in its cells
     expect(cursorAt(map, { block: 't' })).toBeNull()
@@ -427,7 +438,11 @@ describe('collaboration', () => {
       cell: 'r:c',
     })
     expect(cursorAt(map, { block: 't', cell: 'r:x' })).toBeNull()
-    expect(cursorAt(map, { block: 'a' }, { block: 'missing' })).toBeNull()
+    expect(cursorAt(map, { block: 'a' }, { anchor: { block: 'missing' } })).toBeNull()
+    // blocks without text: an image, a divider
+    expect(cursorAt(map, { block: 'i' }, { extensions })).toBeNull()
+    expect(cursorAt(map, { block: 'd', offset: 0 })).toBeNull()
+    expect(cursorAt(map, { block: 'a' }, { anchor: { block: 'i' }, extensions })).toBeNull()
     // kept within the text
     const far = cursorAt(map, { block: 'a', offset: 99 })!
     const back = Y.createAbsolutePositionFromRelativePosition(

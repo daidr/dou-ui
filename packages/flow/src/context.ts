@@ -122,8 +122,14 @@ export interface FlowEditorProps {
   commentable?: boolean
 }
 
-/** What a comment thread is about: a node or an edge. */
-export type FlowCommentAnchor = { node: string } | { edge: string }
+/**
+ * What a comment thread is about: a node, a point on a node, or an edge.
+ * `at` pins the thread to that point, as fractions of the node's width and
+ * height from its top left, 0 to 1 (not canvas px, unlike other `at`s).
+ * `number` is the pin's number on the node, as drawn: read from
+ * `getCommentAnchors`, left out when starting one.
+ */
+export type FlowCommentAnchor = { node: string; at?: Point; number?: number } | { edge: string }
 
 export interface FlowEditorEmits {
   /** Every change to the document, with its steps; `update:modelValue` follows. */
@@ -211,7 +217,8 @@ export interface FlowEditorExpose {
   /**
    * Opens the open thread on a node or edge (the selected one when left
    * out), ready to reply, or starts one there; `false` when there is no such
-   * node or edge, or nothing to open and comments can't be written.
+   * node or edge, or nothing to open and comments can't be written. With
+   * `at`, it always starts a new thread pinned to that point of the node.
    */
   comment: (anchor?: FlowCommentAnchor) => boolean
   /** What each thread is about; `null` when its node or edge is gone. Not reactive. */
@@ -321,6 +328,10 @@ export interface FlowEditorContext {
   /** A port type's color as CSS. */
   colorOf: (spec: PortTypeSpec | undefined) => string | undefined
   getNodeRect: FlowEditorExpose['getNodeRect']
+  /** See `FlowEditorExpose.comment`. */
+  comment: FlowEditorExpose['comment']
+  /** Comment threads can be started: the editor has `comments`, an `author` and is `commentable`. */
+  canComment: ComputedRef<boolean>
   exportSVG: FlowEditorExpose['exportSVG']
   exportPNG: FlowEditorExpose['exportPNG']
   tidy: FlowEditorExpose['tidy']

@@ -57,3 +57,9 @@ export function boardState(context: FlowEditorContext): WhiteboardState {
   }
   return state
 }
+
+/** Whether a tool can be used now: while read-only only select, hand and comment; comment while threads can be started. */
+export function usable(ctx: FlowEditorContext, tool: WhiteboardTool) {
+  if (tool === 'comment') return ctx.canComment.value
+  return !ctx.readonly.value || tool === 'select' || tool === 'hand'
+}

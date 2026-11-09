@@ -34,6 +34,12 @@ export interface FlowNode<Data extends FlowData = FlowData> {
    * `comments`. Kept when the node is deleted and brought back by undo.
    */
   comments?: string[]
+  /**
+   * Where on the node each pinned thread is, by thread id: `x` and `y` are
+   * fractions of the node's width and height from its top left, 0 to 1, so
+   * a pin moves and scales with the node. The ids are in `comments` too.
+   */
+  commentPins?: Record<string, Point>
 }
 
 export interface FlowEndpoint {

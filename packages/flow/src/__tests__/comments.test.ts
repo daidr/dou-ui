@@ -2,7 +2,8 @@ import { mount } from '@vue/test-utils'
 import { DouCommentThread, type CommentAction, type CommentThread } from 'dou-ui'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
-import { DouFlowEditor, type FlowEditorExpose } from '../index'
+import { DouFlowEditor, flowKit, type FlowEditorExpose } from '../index'
+import { whiteboardKit, type WhiteboardTool } from '../whiteboard'
 import type { FlowDocument, FlowSelection } from '../index'
 
 // happy-dom lays nothing out: give every element a size so nodes get measured.
@@ -357,5 +358,239 @@ describe('DouFlowEditor comments', () => {
     editor.value!.setViewport({ x: 0, y: 0, zoom: 1 })
     await ticks()
     expect(card()!.contains(document.activeElement)).toBe(true)
+  })
+})
+
+const pinned = (flow: { value: FlowDocument }) => {
+  flow.value = {
+    ...flow.value,
+    nodes: flow.value.nodes.map((n) =>
+      n.id === 'a'
+        ? {
+            ...n,
+            comments: ['t1', 'p1', 'p2'],
+            commentPins: { p1: { x: 0.5, y: 0.5 }, p2: { x: 1, y: 0 } },
+          }
+        : n,
+    ),
+  }
+}
+const pins = () => [...document.querySelectorAll<HTMLElement>('.dou-flow-editor__comment.is-pin')]
+const xy = (el: HTMLElement) => el.style.translate.split(' ').map((v) => Number.parseFloat(v))
+
+const press = (type: string, x: number, y: number) =>
+  new PointerEvent(type, {
+    bubbles: true,
+    cancelable: true,
+    clientX: x,
+    clientY: y,
+    button: 0,
+    pointerId: 5,
+  })
+
+const touch = (type: string, x: number, y: number) =>
+  new PointerEvent(type, {
+    bubbles: true,
+    cancelable: true,
+    clientX: x,
+    clientY: y,
+    button: 0,
+    pointerId: 6,
+    pointerType: 'touch',
+  })
+
+describe('DouFlowEditor pinned comments', () => {
+  it("draws a numbered pin for each pinned thread, apart from the node's marker", async () => {
+    const { flow, threads, active } = setup()
+    threads.value = [...threads.value, thread('p1', '这里的按钮太小'), thread('p2', '右上角留白')]
+    pinned(flow)
+    await ticks()
+    const labels = [...document.querySelectorAll('.dou-flow-editor__comment')].map((el) =>
+      el.getAttribute('aria-label'),
+    )
+    // the node's marker counts only the thread about the whole node
+    expect(labels).toEqual(['1 条评论', '主管审批的评论 1', '主管审批的评论 2', '1 条评论'])
+    const [first, second] = pins()
+    expect(first!.textContent).toBe('1')
+    // on its point: the middle of the 200 × 60 node, and its top right corner
+    expect(xy(first!)).toEqual([100, 30])
+    expect(xy(second!)).toEqual([200, 0])
+    second!.click()
+    await ticks()
+    expect(active.value).toBe('p2')
+    expect(card()!.textContent).toContain('右上角留白')
+    expect(card()!.textContent).not.toContain('这里的按钮太小')
+  })
+
+  it('moves and scales a pin with its node', async () => {
+    const { flow, threads } = setup()
+    threads.value = [...threads.value, thread('p1', '这里'), thread('p2', '那里')]
+    pinned(flow)
+    await ticks()
+    flow.value = {
+      ...flow.value,
+      nodes: flow.value.nodes.map((n) => (n.id === 'a' ? { ...n, x: 40, y: 20 } : n)),
+    }
+    await ticks()
+    expect(xy(pins()[0]!)).toEqual([140, 50])
+  })
+
+  it('starts a pinned thread with comment({ node, at }) even where one is open', async () => {
+    const { wrapper, editor, flow, threads } = setup()
+    await ticks()
+    expect(editor.value!.comment({ node: 'a', at: { x: 0.25, y: 2 } })).toBe(true)
+    await ticks()
+    // the box is on the new pin, and a point off the node is kept on its edge
+    expect(pins()).toHaveLength(1)
+    expect(xy(pins()[0]!)).toEqual([50, 60])
+    wrapper.findComponent(DouCommentThread).vm.$emit('action', {
+      type: 'create',
+      thread: { id: 'np', comments: [{ id: 'np1', author: me, body: '截图左下', createdAt: at }] },
+    })
+    await ticks()
+    const node = flow.value.nodes[0]!
+    expect(node.comments).toEqual(['t1', 'np'])
+    expect(node.commentPins).toEqual({ np: { x: 0.25, y: 1 } })
+    expect(editor.value!.getCommentAnchors()).toMatchObject({
+      t1: { node: 'a' },
+      np: { node: 'a', at: { x: 0.25, y: 1 }, number: 1 },
+    })
+    expect(pins()[0]!.textContent).toBe('1')
+    wrapper.findAllComponents(DouCommentThread)[0]!.vm.$emit('action', {
+      type: 'remove',
+      threadId: 'np',
+    })
+    await ticks()
+    expect(flow.value.nodes[0]!.comments).toEqual(['t1'])
+    expect(flow.value.nodes[0]!.commentPins).toBeUndefined()
+    expect(threads.value.some((t) => t.id === 'np')).toBe(false)
+  })
+
+  it('leaves a plain thread on a node without pins as it was', async () => {
+    const { wrapper, editor, flow } = setup()
+    await ticks()
+    editor.value!.comment({ node: 'b' })
+    await ticks()
+    wrapper.findComponent(DouCommentThread).vm.$emit('action', {
+      type: 'create',
+      thread: { id: 'w', comments: [{ id: 'w1', author: me, body: '整个节点', createdAt: at }] },
+    })
+    await ticks()
+    expect('commentPins' in flow.value.nodes[1]!).toBe(false)
+  })
+
+  it('pins a thread where a node is clicked with the whiteboard comment tool', async () => {
+    const tool = ref<WhiteboardTool>('select')
+    const { wrapper, editor } = setup({
+      extensions: [flowKit(), whiteboardKit({ tool })],
+      readonly: true,
+    })
+    await ticks()
+    const root = wrapper.find('.dou-flow-editor').element
+    root.dispatchEvent(new KeyboardEvent('keydown', { key: 'm', bubbles: true }))
+    await ticks()
+    expect(tool.value).toBe('comment')
+    // read-only, the toolbar offers only what can be done: select, hand and comment
+    const buttons = [...document.querySelectorAll('.dou-whiteboard-toolbar button')]
+    expect(buttons.map((b) => b.getAttribute('aria-label'))).toEqual(['选择', '移动画布', '评论'])
+    const node = wrapper.find('[data-node-id="b"]').element
+    node.dispatchEvent(press('pointerdown', 350, 15))
+    root.dispatchEvent(press('pointerup', 350, 15))
+    await ticks()
+    expect(wrapper.findComponent(DouCommentThread).props('thread')).toBe(null)
+    wrapper.findComponent(DouCommentThread).vm.$emit('action', {
+      type: 'create',
+      thread: { id: 'wb', comments: [{ id: 'wb1', author: me, body: '这里', createdAt: at }] },
+    })
+    await ticks()
+    expect(editor.value!.getCommentAnchors().wb).toEqual({
+      node: 'b',
+      at: { x: 0.25, y: 0.25 },
+      number: 1,
+    })
+    // the empty canvas does nothing, nor does a drag
+    root.dispatchEvent(press('pointerdown', 700, 500))
+    root.dispatchEvent(press('pointerup', 700, 500))
+    node.dispatchEvent(press('pointerdown', 320, 10))
+    root.dispatchEvent(press('pointermove', 380, 40))
+    root.dispatchEvent(press('pointerup', 380, 40))
+    await ticks()
+    expect(document.querySelector('.dou-flow-editor__comment.is-new')).toBe(null)
+    expect(pins()).toHaveLength(1)
+  })
+
+  it('has no comment tool when threads cannot be started', async () => {
+    const tool = ref<WhiteboardTool>('comment')
+    const { wrapper } = setup({
+      extensions: [flowKit(), whiteboardKit({ tool })],
+      author: undefined,
+    })
+    await ticks()
+    expect(tool.value).toBe('select')
+    const labels = [...document.querySelectorAll('.dou-whiteboard-toolbar button')].map((b) =>
+      b.getAttribute('aria-label'),
+    )
+    expect(labels).not.toContain('评论')
+    wrapper
+      .find('.dou-flow-editor')
+      .element.dispatchEvent(new KeyboardEvent('keydown', { key: 'm', bubbles: true }))
+    await ticks()
+    expect(tool.value).toBe('select')
+  })
+
+  it('keeps the numbers of the other pins when one is resolved', async () => {
+    const { flow, threads, editor } = setup()
+    threads.value = [...threads.value, thread('p1', '这里'), thread('p2', '那里')]
+    pinned(flow)
+    await ticks()
+    threads.value = threads.value.map((t) =>
+      t.id === 'p1' ? { ...t, resolved: { by: me, at } } : t,
+    )
+    await ticks()
+    expect(pins().map((el) => el.textContent)).toEqual(['2'])
+    expect(editor.value!.getCommentAnchors().p2).toMatchObject({ number: 2 })
+  })
+
+  it('keeps the card of a pin started by a tap open through the click that follows', async () => {
+    const { editor } = setup()
+    await ticks()
+    editor.value!.comment({ node: 'a', at: { x: 0.5, y: 0.5 } })
+    await ticks()
+    // the click the browser makes from the tap lands on the new pin under the finger
+    pins()[0]!.click()
+    await ticks()
+    expect(card()).not.toBe(null)
+  })
+
+  it('starts a thread on the selected node with Enter under the comment tool', async () => {
+    const tool = ref<WhiteboardTool>('comment')
+    const { wrapper, editor } = setup({ extensions: [flowKit(), whiteboardKit({ tool })] }, ['b'])
+    await ticks()
+    wrapper
+      .find('.dou-flow-editor')
+      .element.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    await ticks()
+    expect(wrapper.findComponent(DouCommentThread).props('thread')).toBe(null)
+    wrapper.findComponent(DouCommentThread).vm.$emit('action', {
+      type: 'create',
+      thread: { id: 'k', comments: [{ id: 'k1', author: me, body: '键盘', createdAt: at }] },
+    })
+    await ticks()
+    expect(editor.value!.getCommentAnchors().k).toEqual({ node: 'b' })
+  })
+
+  it('moves the view when a finger drags under the comment tool', async () => {
+    const tool = ref<WhiteboardTool>('comment')
+    const { wrapper, editor } = setup({ extensions: [flowKit(), whiteboardKit({ tool })] })
+    await ticks()
+    const root = wrapper.find('.dou-flow-editor').element
+    const before = editor.value!.toCanvas({ x: 0, y: 0 })
+    root.dispatchEvent(touch('pointerdown', 600, 400))
+    root.dispatchEvent(touch('pointermove', 640, 430))
+    root.dispatchEvent(touch('pointerup', 640, 430))
+    await ticks()
+    const after = editor.value!.toCanvas({ x: 0, y: 0 })
+    expect(before.x - after.x).toBe(40)
+    expect(before.y - after.y).toBe(30)
   })
 })

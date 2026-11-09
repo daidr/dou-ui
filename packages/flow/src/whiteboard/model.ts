@@ -2,10 +2,22 @@ import type { Tone } from 'dou-ui'
 
 /** What a press on the board does. */
 export type WhiteboardTool =
-  'select' | 'hand' | 'rect' | 'ellipse' | 'diamond' | 'sticky' | 'text' | 'pen' | 'eraser'
+  | 'select'
+  | 'hand'
+  | 'rect'
+  | 'ellipse'
+  | 'diamond'
+  | 'sticky'
+  | 'text'
+  | 'pen'
+  | 'eraser'
+  | 'comment'
 
 /** The tools that put down a node with a box. */
-export type WhiteboardShapeTool = Exclude<WhiteboardTool, 'select' | 'hand' | 'pen' | 'eraser'>
+export type WhiteboardShapeTool = Exclude<
+  WhiteboardTool,
+  'select' | 'hand' | 'pen' | 'eraser' | 'comment'
+>
 
 export type WhiteboardShape = 'rect' | 'ellipse' | 'diamond'
 
@@ -87,6 +99,7 @@ export const whiteboardKeys: Record<WhiteboardTool, string> = {
   text: 't',
   pen: 'p',
   eraser: 'x',
+  comment: 'm',
 }
 
 /** The key that inserts an image. */

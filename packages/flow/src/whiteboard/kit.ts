@@ -2,7 +2,8 @@ import type { ContextMenuItem } from 'dou-ui'
 import { RotateCwIcon } from '@dou-ui/icons'
 import { watch, type Ref } from 'vue'
 import type { FlowEditorContext } from '../context'
-import { defineFlowExtension, type FlowExtension } from '../core/extension'
+import { defineFlowExtension, type FlowExtension, type FlowPressHandler } from '../core/extension'
+import { turn } from '../core/geometry'
 import { createId, type FlowData, type FlowNode, type Point, type Rect } from '../core/model'
 import { defineNodeType } from '../core/node-types'
 import { format, type FlowMessages } from '../locale'
@@ -31,7 +32,7 @@ import {
 import { connectorEdge, connectorToolbar } from './connector'
 import { drawBoardNode } from './draw'
 import { drawInk, erase } from './pen'
-import { boardState } from './state'
+import { boardState, usable } from './state'
 
 /** The node types the whiteboard adds; only they turn. */
 const BOARD_TYPES = new Set(['shape', 'sticky', 'text', 'ink', 'image'])
@@ -131,6 +132,41 @@ const SIZES: Record<WhiteboardShapeTool, { width: number; height: number }> = {
   text: { width: 200, height: 40 },
 }
 
+/**
+ * The comment tool: a click on a node starts a thread pinned where it was
+ * clicked, the point turned back with the node. A press on the empty canvas
+ * does nothing; a mouse drag does nothing either, so a thread isn't started
+ * by mistake, while a finger's drag moves the view, as it does elsewhere.
+ */
+function pinComment(
+  ctx: FlowEditorContext,
+  node: string | null,
+  start: Point,
+  event: PointerEvent,
+): FlowPressHandler {
+  const client = { x: event.clientX, y: event.clientY }
+  const origin = { ...ctx.viewport.value }
+  const finger = event.pointerType !== 'mouse'
+  let moved = false
+  return {
+    move(_, move) {
+      const dx = move.clientX - client.x
+      const dy = move.clientY - client.y
+      if (!moved && Math.hypot(dx, dy) <= 8) return
+      moved = true
+      if (finger) ctx.setViewport({ ...origin, x: origin.x + dx, y: origin.y + dy })
+    },
+    end() {
+      const rect = node && !moved ? ctx.getNodeRect(node) : null
+      if (!node || !rect || !rect.width || !rect.height) return
+      const centre = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }
+      const local = turn(start, centre, -ctx.nodeRotation(node))
+      const at = { x: (local.x - rect.x) / rect.width, y: (local.y - rect.y) / rect.height }
+      ctx.comment({ node, at })
+    },
+  }
+}
+
 /** After a tool put down a node: back to select unless kept, and notes and text open to be written in. */
 function added(ctx: FlowEditorContext, tool: WhiteboardShapeTool, id: string) {
   const state = boardState(ctx)
@@ -187,6 +223,14 @@ export function whiteboardKit(options: WhiteboardKitOptions = {}): FlowExtension
           watch(state.tool, (tool) => (outer.value = tool)),
         )
       }
+      // the comment tool goes once threads can't be started, every drawing tool once read-only
+      stops.push(
+        watch(
+          () => usable(ctx, state.tool.value),
+          (ok) => !ok && (state.tool.value = 'select'),
+          { immediate: true },
+        ),
+      )
       // the cursor says what a press will do
       stops.push(
         watch(
@@ -245,6 +289,10 @@ export function whiteboardKit(options: WhiteboardKitOptions = {}): FlowExtension
       const state = boardState(ctx)
       const tool = state.tool.value
       if (tool === 'select') return
+      // while read-only, only moving the view and commenting
+      if (ctx.readonly.value && tool !== 'hand' && tool !== 'comment') return
+      if (tool === 'comment')
+        return pinComment(ctx, press.node?.id ?? null, press.point, press.event)
       // a press puts down whatever text was being typed
       state.editing.value = null
       if (tool === 'hand') {
@@ -344,6 +392,7 @@ export function whiteboardKit(options: WhiteboardKitOptions = {}): FlowExtension
     keymap(ctx) {
       const state = boardState(ctx)
       const pick = (tool: WhiteboardTool) => () => {
+        if (!usable(ctx, tool)) return false
         state.tool.value = tool
         state.locked.value = false
         const t = ctx.messages.value.board
@@ -359,8 +408,14 @@ export function whiteboardKit(options: WhiteboardKitOptions = {}): FlowExtension
           pickImages(ctx)
         },
         enter: () => {
-          if (ctx.readonly.value) return false
           const tool = state.tool.value
+          // with the comment tool, Enter starts a thread on the selected node, about all of it
+          if (tool === 'comment') {
+            const { nodes, edges } = ctx.selection.value
+            if (nodes.length !== 1 || edges.length) return false
+            return ctx.comment({ node: nodes[0]! }) || false
+          }
+          if (ctx.readonly.value) return false
           // with a drawing tool, Enter puts one down: after the selected node, or mid-view
           if (tool !== 'select' && tool !== 'hand' && tool !== 'pen' && tool !== 'eraser') {
             const { type, data } = kindOf(tool)

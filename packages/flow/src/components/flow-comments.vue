@@ -33,6 +33,13 @@ export interface FlowCommentMarker {
   y: number
   /** Above an edge's label: a finger's target keeps clear of the label. */
   lifted: boolean
+  /**
+   * A pin on a point of a node: its place among the open pins there, from
+   * 1; `0` for one being started or a resolved one opened from outside.
+   */
+  number?: number
+  /** The name of the node it is on, for screen readers. */
+  node?: string
 }
 
 const props = defineProps<{
@@ -151,7 +158,20 @@ function onClosed() {
   if (!el || el === document.body) props.restore(lastAnchor)
 }
 
+/**
+ * When the thread being started was opened. A tap that starts one (the
+ * whiteboard's comment tool) is followed by the click the browser makes
+ * from it, which lands on the new pin just drawn under the finger: that
+ * one doesn't close it.
+ */
+let startedAt = -Infinity
+watch(
+  () => comments.pending.value,
+  (now) => now && (startedAt = performance.now()),
+)
+
 function press(marker: FlowCommentMarker, event: MouseEvent) {
+  if (marker.pending && performance.now() - startedAt < 500) return
   if (current.value?.key === marker.key) return comments.close()
   // pressed from the keyboard (no clicks counted): straight into the reply box;
   // a click or tap only shows the threads, without bringing up a phone's keyboard
@@ -162,7 +182,11 @@ function press(marker: FlowCommentMarker, event: MouseEvent) {
 }
 
 const label = (marker: FlowCommentMarker) =>
-  format(props.messages.comments, { count: marker.threads.length })
+  marker.number
+    ? format(props.messages.commentPin, { number: marker.number, node: marker.node ?? '' })
+    : marker.threads.length
+      ? format(props.messages.comments, { count: marker.threads.length })
+      : props.messages.comment
 </script>
 
 <template>
@@ -178,18 +202,24 @@ const label = (marker: FlowCommentMarker) =>
       :class="{
         'is-active': current?.key === marker.key,
         'is-new': !marker.threads.length,
-        'is-node': 'node' in marker.anchor,
+        'is-node': 'node' in marker.anchor && marker.number === undefined,
+        'is-pin': marker.number !== undefined,
         'is-lifted': marker.lifted,
       }"
       :style="{ translate: `${marker.x}px ${marker.y}px` }"
-      :aria-label="marker.threads.length ? label(marker) : messages.comment"
+      :aria-label="label(marker)"
       :aria-expanded="current?.key === marker.key"
       @click="press(marker, $event)"
     >
-      <MessageCircleIcon aria-hidden="true" />
-      <span v-if="marker.threads.length > 1" class="dou-flow-editor__comment-count">{{
-        marker.threads.length
-      }}</span>
+      <span v-if="marker.number" class="dou-flow-editor__comment-count">{{ marker.number }}</span>
+      <template v-else>
+        <MessageCircleIcon aria-hidden="true" />
+        <span
+          v-if="marker.number === undefined && marker.threads.length > 1"
+          class="dou-flow-editor__comment-count"
+          >{{ marker.threads.length }}</span
+        >
+      </template>
     </button>
   </div>
   <Transition name="dou-floating" @after-leave="onClosed">

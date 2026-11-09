@@ -7,6 +7,7 @@ import {
   HandGrabIcon,
   HandIcon,
   ImageIcon,
+  MessagePlusIcon,
   PencilIcon,
   SquareIcon,
   StickyNoteIcon,
@@ -17,7 +18,7 @@ import { computed, onBeforeUnmount, ref, useTemplateRef, watch, type Component }
 import { useFlowEditor } from '../context'
 import { pickImages } from './image'
 import { imageKey, whiteboardKeys, type WhiteboardTool } from './model'
-import { boardState } from './state'
+import { boardState, usable } from './state'
 
 defineOptions({ name: 'DouWhiteboardToolbar' })
 
@@ -25,7 +26,7 @@ const ctx = useFlowEditor()
 const state = boardState(ctx)
 const t = computed(() => ctx.messages.value.board)
 
-const groups: { tool: WhiteboardTool; icon: Component }[][] = [
+const all: { tool: WhiteboardTool; icon: Component }[][] = [
   [
     { tool: 'select', icon: CursorIcon },
     { tool: 'hand', icon: HandIcon },
@@ -43,7 +44,15 @@ const groups: { tool: WhiteboardTool; icon: Component }[][] = [
     { tool: 'pen', icon: PencilIcon },
     { tool: 'eraser', icon: EraserIcon },
   ],
+  [{ tool: 'comment', icon: MessagePlusIcon }],
 ]
+
+/** The tools that can be used now: while read-only, select, hand and comment; comment while threads can be started. */
+const groups = computed(() =>
+  all
+    .map((group) => group.filter((item) => usable(ctx, item.tool)))
+    .filter((group) => group.length),
+)
 
 /** Tools that go back to select after one use, unless kept with a double click. */
 const once = new Set<WhiteboardTool>(['rect', 'ellipse', 'diamond', 'sticky', 'text'])
@@ -106,7 +115,7 @@ watch(
 
 <template>
   <div
-    v-if="!ctx.readonly.value"
+    v-if="!ctx.readonly.value || ctx.canComment.value"
     class="dou-whiteboard-toolbar"
     data-flow-overlay
     role="toolbar"
@@ -142,7 +151,12 @@ watch(
           </button>
         </DouTooltip>
       </template>
-      <DouTooltip :content="t.image" :shortcut="imageKey" placement="bottom">
+      <DouTooltip
+        v-if="!ctx.readonly.value"
+        :content="t.image"
+        :shortcut="imageKey"
+        placement="bottom"
+      >
         <button
           type="button"
           class="dou-whiteboard-toolbar__button"

@@ -101,7 +101,8 @@ export interface FlowExtension {
   /**
    * Asked first when the canvas or a node is pressed with the main button or
    * one finger, in priority order. Return handlers to take the press over;
-   * the editor then doesn't select, drag or pan for it.
+   * the editor then doesn't select, drag or pan for it. Asked while
+   * read-only too: check `context.readonly` before changing the document.
    */
   press?: (context: FlowExtensionContext, press: FlowPress) => FlowPressHandler | void
   /** Runs once the editor is mounted. Return a function to run when it unmounts. */

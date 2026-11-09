@@ -485,18 +485,24 @@
   }
 
   /* columns of the gutter left of the line numbers */
+  /* as tall as the whole line, wrapped rows too, so a cell's background runs down beside all of them */
   .dou-code-editor__cells {
     position: absolute;
     top: 0;
+    bottom: 0;
     left: 0;
     display: flex;
-    height: var(--dou-code-editor-line-height);
   }
+  /* what a cell shows stays centered on the line's first row */
   .dou-code-editor__cell {
-    display: inline-flex;
+    display: inline-grid;
     flex: none;
+    grid-template-rows: var(--dou-code-editor-line-height);
+    grid-auto-flow: column;
+    align-content: start;
     align-items: center;
     justify-content: center;
+    position: relative;
     height: 100%;
     font-size: var(--dou-font-size-sm);
     &[data-gutter-cell] {
@@ -507,10 +513,21 @@
     }
     &[role='button'] {
       border-radius: var(--dou-radius-control);
-
-      &:focus-visible {
-        outline: 2px solid var(--dou-color-focus);
-        outline-offset: -2px;
+    }
+    /* the focus ring stays on the first row, around what the cell shows, however tall the line wraps */
+    &[role='button']:focus-visible {
+      outline: none;
+      &::after {
+        position: absolute;
+        top: 0;
+        right: 0;
+        left: 0;
+        box-sizing: border-box;
+        height: var(--dou-code-editor-line-height);
+        border: 2px solid var(--dou-color-focus);
+        border-radius: var(--dou-radius-control);
+        content: '';
+        pointer-events: none;
       }
     }
     & > svg {
@@ -1538,15 +1555,34 @@
       background-color: var(--dou-code-diff-added-word);
     }
   }
+  /*
+   * The sign is the gutter's last column, on both views. Its tint covers the
+   * whole gutter row, from the first column to the text, under the line
+   * numbers and the columns of `gutters`, so the line reads as one band.
+   */
   .dou-code-editor__cell.dou-code-diff__sign {
     font-family: var(--dou-font-family-mono);
+    &::after {
+      position: absolute;
+      z-index: -1;
+      top: 0;
+      bottom: 0;
+      left: calc(100% - var(--dou-code-editor-gutter-cells));
+      width: var(--dou-code-editor-gutter);
+      content: '';
+      pointer-events: none;
+    }
     &.is-removed {
-      background-color: var(--dou-code-diff-removed);
       color: var(--dou-color-danger-text);
+      &::after {
+        background-color: var(--dou-code-diff-removed);
+      }
     }
     &.is-added {
-      background-color: var(--dou-code-diff-added);
       color: var(--dou-color-success-text);
+      &::after {
+        background-color: var(--dou-code-diff-added);
+      }
     }
   }
   .dou-code-editor__cell.dou-code-diff__number {
@@ -1557,12 +1593,6 @@
     font-family: var(--dou-font-family-mono);
     font-size: inherit;
     font-variant-numeric: tabular-nums;
-    &.is-removed {
-      background-color: var(--dou-code-diff-removed);
-    }
-    &.is-added {
-      background-color: var(--dou-code-diff-added);
-    }
   }
 
   /* widgets from `widgets`; a margin of their own counts in their height */

@@ -307,29 +307,6 @@ function sideExtension(side: Side): CodeExtension {
       }
       return out
     },
-    gutters: [
-      {
-        name: 'diff',
-        width: 16,
-        markers({ visible }) {
-          const out: CodeGutterMarker[] = []
-          const title = side === 'a' ? messages.value.diffRemoved : messages.value.diffAdded
-          for (const hunk of hunks.value) {
-            const start = startOf(hunk)
-            const count = countOf(hunk)
-            if (start > visible.to) break
-            for (let n = Math.max(start, visible.from); n < start + count && n <= visible.to; n++)
-              out.push({
-                line: n,
-                text: side === 'a' ? '−' : '+',
-                class: `${ns.e('sign')} is-${tone}`,
-                title,
-              })
-          }
-          return out
-        },
-      },
-    ],
     widgets() {
       const out: CodeWidget[] = []
       const fills = splitPlan.value[side].fills
@@ -392,19 +369,63 @@ function filler(rows: number, blanks: Blank[]) {
   return h('div', children)
 }
 
+/**
+ * The `+`/`−` column of one side. It goes after every other extension, so it
+ * is always the gutter's last column, next to the text: its tint spreads
+ * over the whole gutter row from there (see style.css).
+ */
+function signExtension(side: Side): CodeExtension {
+  const startOf = (hunk: CodeDiffHunk) => (side === 'a' ? hunk.originalStart : hunk.modifiedStart)
+  const countOf = (hunk: CodeDiffHunk) => (side === 'a' ? hunk.originalCount : hunk.modifiedCount)
+  const tone = side === 'a' ? 'removed' : 'added'
+  return defineCodeExtension({
+    name: 'diff-sign',
+    gutters: [
+      {
+        name: 'diff',
+        width: 16,
+        markers({ visible }) {
+          const out: CodeGutterMarker[] = []
+          const title = side === 'a' ? messages.value.diffRemoved : messages.value.diffAdded
+          for (const hunk of hunks.value) {
+            const start = startOf(hunk)
+            const count = countOf(hunk)
+            if (start > visible.to) break
+            for (let n = Math.max(start, visible.from); n < start + count && n <= visible.to; n++)
+              out.push({
+                line: n,
+                text: side === 'a' ? '−' : '+',
+                class: `${ns.e('sign')} is-${tone}`,
+                title,
+              })
+          }
+          return out
+        },
+      },
+    ],
+  })
+}
+
 const modifiedOwn = sideExtension('b')
+const signB = signExtension('b')
 const modifiedExtensions = computed(() => [
   annotationsB,
   modifiedOwn,
   annotationsEndB,
   ...(props.extensions ?? []),
+  signB,
 ])
 
 const editorA = ref<CodeEditorExpose>()
 const editorB = ref<CodeEditorExpose>()
 const sideA = ref<HTMLElement>()
 const sideB = ref<HTMLElement>()
-const extensionsA = [annotations('a'), sideExtension('a'), annotations('a', true)]
+const extensionsA = [
+  annotations('a'),
+  sideExtension('a'),
+  annotations('a', true),
+  signExtension('a'),
+]
 const annotationsB = annotations('b')
 const annotationsEndB = annotations('b', true)
 

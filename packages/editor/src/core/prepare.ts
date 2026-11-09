@@ -39,7 +39,7 @@ export function splitContainer(element: Element): { content: Node[]; children: N
   const nodes = Array.from(element.childNodes)
   while (nodes.length && isBlank(nodes[0]!)) nodes.shift()
   const first = nodes[0]
-  if (first instanceof Element && first.tagName === 'P')
+  if (first?.nodeType === 1 && (first as Element).tagName === 'P')
     return { content: Array.from(first.childNodes), children: nodes.slice(1) }
   const content: Node[] = []
   while (nodes.length && !isBlockElement(nodes[0]!)) content.push(nodes.shift()!)
@@ -74,18 +74,36 @@ const BLOCK_TAGS = new Set([
 
 const isBlank = (node: Node) => node.nodeType === 3 && !node.textContent?.trim()
 
-const isBlockElement = (node: Node) => node instanceof Element && BLOCK_TAGS.has(node.tagName)
+const isBlockElement = (node: Node) =>
+  node.nodeType === 1 && BLOCK_TAGS.has((node as Element).tagName)
 
 /** Run every extension's `prepareHTML` over the markup. */
 export function prepareElement(root: HTMLElement, kit: ResolvedEditorExtensions) {
   for (const extension of kit.extensions) extension.prepareHTML?.(root)
 }
 
-/** Read HTML as blocks, with the block types, inline nodes and marks of `kit`. */
-export function parseHTML(html: string, kit: ResolvedEditorExtensions): Block[] {
-  const doc = new DOMParser().parseFromString(html, 'text/html')
+/** What reads HTML into a document: the browser's `DOMParser`, or one from a DOM library. */
+export interface HTMLReader {
+  parseFromString(html: string, type: 'text/html'): Document
+}
+
+/**
+ * Read HTML as blocks, with the block types, inline nodes and marks of `kit`.
+ * Uses the global `DOMParser` unless given a `reader`.
+ */
+export function parseHTML(
+  html: string,
+  kit: ResolvedEditorExtensions,
+  reader?: HTMLReader,
+): Block[] {
+  const parser = reader ?? (typeof DOMParser === 'undefined' ? null : new DOMParser())
+  if (!parser)
+    throw new Error(
+      '[@dou-ui/editor] reading HTML needs a DOMParser: pass one, e.g. from happy-dom or linkedom, where there is no browser',
+    )
+  const doc = parser.parseFromString(html, 'text/html')
   prepareElement(doc.body, kit)
-  const blocks = docToBlocks(PMDOMParser.fromSchema(kit.schema).parse(doc.body))
+  const blocks = docToBlocks(PMDOMParser.fromSchema(kit.schema).parse(doc.body as unknown as Node))
   // read blocks are shared and read-only: copy the ones without an id
   const fill = (list: Block[]): Block[] =>
     list.map((block) => ({ ...block, id: block.id || createId(), children: fill(block.children) }))

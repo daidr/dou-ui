@@ -252,6 +252,150 @@ export function writeDoc(map: Y.Map<YBlock>, doc: PMNode) {
   })
 }
 
+/**
+ * Write the changes from `before` to `after` into the map: the content of
+ * blocks that changed, blocks added and removed, and the places of the
+ * blocks that moved. Returns the blocks that hold more than `after` shows,
+ * to be read back (see `writeTable`). Call it inside a transaction.
+ */
+function writeChanges(map: Y.Map<YBlock>, before: Index, after: Index, schema: Schema): string[] {
+  const stale: string[] = []
+  for (const [id, placed] of after.blocks) {
+    const yblock = map.get(id)
+    const old = before.blocks.get(id)
+    if (!yblock) {
+      const created = new Y.Map<unknown>()
+      map.set(id, created)
+      writeContent(created, placed.content)
+    } else if (old && old.content !== placed.content) {
+      if (updateContent(yblock, old.content, placed.content)) stale.push(id)
+    } else if (!old) {
+      // stored, but not shown before (e.g. the empty placeholder came back)
+      if (updateContent(yblock, contentFrom(yblock, schema), placed.content)) stale.push(id)
+    }
+  }
+  for (const id of before.blocks.keys()) if (!after.blocks.has(id)) map.delete(id)
+  // places: only lists that changed, and only the blocks that moved in them
+  for (const [key, ids] of after.children) {
+    const old = before.children.get(key)
+    if (old && old.length === ids.length && old.every((id, i) => ids[i] === id)) {
+      if (ids.every((id) => map.get(id)!.get('order') !== undefined)) continue
+    }
+    const parent = key === ROOT ? null : key
+    const keys = ids.map((id) => {
+      const yblock = map.get(id)!
+      const order = yblock.get('order') as string | undefined
+      return yblock.get('parent') === parent && order !== undefined ? order : null
+    })
+    const next = orderKeys(keys)
+    ids.forEach((id, index) => {
+      if (keys[index] === next[index]) return
+      const yblock = map.get(id)!
+      if (yblock.get('parent') !== parent) yblock.set('parent', parent)
+      yblock.set('order', next[index])
+    })
+  }
+  return stale
+}
+
+/** The longest run of pairs `same` holds for, in order: indexes into `a` and `b`. */
+function commonPairs<T, U>(a: T[], b: U[], same: (x: T, y: U) => boolean): [number, number][] {
+  const n = a.length
+  const m = b.length
+  const lengths = Array.from({ length: n + 1 }, () => new Uint32Array(m + 1))
+  for (let i = n - 1; i >= 0; i--)
+    for (let j = m - 1; j >= 0; j--)
+      lengths[i]![j] = same(a[i]!, b[j]!)
+        ? lengths[i + 1]![j + 1]! + 1
+        : Math.max(lengths[i + 1]![j]!, lengths[i]![j + 1]!)
+  const pairs: [number, number][] = []
+  for (let i = 0, j = 0; i < n && j < m;) {
+    if (same(a[i]!, b[j]!)) pairs.push([i++, j++])
+    else if (lengths[i + 1]![j]! >= lengths[i]![j + 1]!) i++
+    else j++
+  }
+  return pairs
+}
+
+/**
+ * Which stored block each block of a new document stands for, by id when
+ * it keeps one, otherwise by place: among the blocks of the same parent,
+ * the most blocks with the same content in the same order, then between
+ * them the blocks of the same type one by one (their text is changed in
+ * place). New id → stored id; blocks without one are new.
+ */
+function matchBlocks(before: Index, after: Index): Map<string, string> {
+  const match = new Map<string, string>()
+  const used = new Set<string>()
+  for (const id of after.blocks.keys())
+    if (before.blocks.has(id)) {
+      match.set(id, id)
+      used.add(id)
+    }
+  const pair = (a: string, b: string) => {
+    match.set(a, b)
+    used.add(b)
+  }
+  const visit = (key: string, oldKey: string | null) => {
+    const ids = after.children.get(key) ?? []
+    const fresh = ids.filter((id) => !match.has(id))
+    const olds = (oldKey === null ? [] : (before.children.get(oldKey) ?? [])).filter(
+      (id) => !used.has(id),
+    )
+    const pairs = commonPairs(fresh, olds, (a, b) =>
+      after.blocks.get(a)!.content.eq(before.blocks.get(b)!.content),
+    )
+    // between equal blocks, those of a type are taken as the same block edited
+    let i = 0
+    let j = 0
+    for (const [pi, pj] of [...pairs, [fresh.length, olds.length] as [number, number]]) {
+      for (; i < pi && j < pj; i++, j++) {
+        if (after.blocks.get(fresh[i]!)!.content.type !== before.blocks.get(olds[j]!)!.content.type)
+          break
+        pair(fresh[i]!, olds[j]!)
+      }
+      if (pi < fresh.length) pair(fresh[pi]!, olds[pj]!)
+      i = pi + 1
+      j = pj + 1
+    }
+    for (const id of ids) if (after.children.has(id)) visit(id, match.get(id) ?? null)
+  }
+  visit(ROOT, ROOT)
+  return match
+}
+
+/** `doc` with its blocks' ids changed as `ids` says. */
+function renamed(doc: PMNode, ids: Map<string, string>): PMNode {
+  const rename = (node: PMNode): PMNode => {
+    const children: PMNode[] = []
+    node.forEach((child) =>
+      children.push(
+        child.type.name === 'block' || child.type.name === 'blockGroup' ? rename(child) : child,
+      ),
+    )
+    const content = Fragment.from(children)
+    if (node.type.name === 'block') {
+      const id = node.attrs.id as string
+      return node.type.create({ ...node.attrs, id: ids.get(id) ?? id }, content, node.marks)
+    }
+    return node.copy(content)
+  }
+  return rename(doc)
+}
+
+/**
+ * Change the map to hold `doc`, touching only what differs from what it
+ * holds now (see `matchBlocks`): text typed elsewhere into the blocks this
+ * leaves alone stays. Call it inside a transaction.
+ */
+export function updateDoc(map: Y.Map<YBlock>, doc: PMNode, schema: Schema) {
+  const current = readDoc(map, schema)
+  if (!current) return void writeDoc(map, doc)
+  const before = indexDoc(current)
+  const next = renamed(doc, matchBlocks(before, indexDoc(doc)))
+  writeChanges(map, before, indexDoc(next), schema)
+}
+
 /** The document a map holds, read without an editor; `null` while the map is empty. */
 export function readDoc(map: Y.Map<YBlock>, schema: Schema): PMNode | null {
   const children = placeAll(map)
@@ -346,54 +490,12 @@ export function syncPlugin(binding: Binding): Plugin {
       if (!old || old.length !== ids.length || old.some((id, i) => ids[i] !== id)) structural = true
     }
     if (structural) binding.stopCapturing?.()
-    // blocks that hold more than the editor shows, to be read back
-    const stale: string[] = []
-    ydoc.transact(
-      () => {
-        for (const [id, placed] of after.blocks) {
-          const yblock = map.get(id)
-          const old = before.blocks.get(id)
-          if (!yblock) {
-            const created = new Y.Map<unknown>()
-            map.set(id, created)
-            writeContent(created, placed.content)
-          } else if (old && old.content !== placed.content) {
-            if (updateContent(yblock, old.content, placed.content)) stale.push(id)
-          } else if (!old) {
-            // stored, but not shown before (e.g. the empty placeholder came back)
-            if (updateContent(yblock, contentFrom(yblock, schema), placed.content)) stale.push(id)
-          }
-          cache.set(id, placed.content)
-        }
-        for (const id of before.blocks.keys()) {
-          if (!after.blocks.has(id)) {
-            map.delete(id)
-            cache.delete(id)
-          }
-        }
-        // places: only lists that changed, and only the blocks that moved in them
-        for (const [key, ids] of after.children) {
-          const old = before.children.get(key)
-          if (old && old.length === ids.length && old.every((id, i) => ids[i] === id)) {
-            if (ids.every((id) => map.get(id)!.get('order') !== undefined)) continue
-          }
-          const parent = key === ROOT ? null : key
-          const keys = ids.map((id) => {
-            const yblock = map.get(id)!
-            const order = yblock.get('order') as string | undefined
-            return yblock.get('parent') === parent && order !== undefined ? order : null
-          })
-          const next = orderKeys(keys)
-          ids.forEach((id, index) => {
-            if (keys[index] === next[index]) return
-            const yblock = map.get(id)!
-            if (yblock.get('parent') !== parent) yblock.set('parent', parent)
-            yblock.set('order', next[index])
-          })
-        }
-      },
+    const stale = ydoc.transact(
+      () => writeChanges(map, before, after, schema),
       tracked ? binding.origin : binding.untracked,
     )
+    for (const id of after.blocks.keys()) cache.set(id, after.blocks.get(id)!.content)
+    for (const id of before.blocks.keys()) if (!after.blocks.has(id)) cache.delete(id)
     if (structural) binding.stopCapturing?.()
     synced = after
     if (stale.length) {

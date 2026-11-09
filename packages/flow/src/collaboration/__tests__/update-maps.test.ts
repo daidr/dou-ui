@@ -1,0 +1,63 @@
+// @vitest-environment node
+import { describe, expect, it } from 'vitest'
+import * as Y from 'yjs'
+import { fillMaps, readMaps, updateMaps } from '..'
+import type { FlowDocument } from '../../core/model'
+
+const maps = (ydoc: Y.Doc) => ({ nodes: ydoc.getMap('nodes'), edges: ydoc.getMap('edges') })
+
+const flow: FlowDocument = {
+  version: 1,
+  nodes: [
+    { id: 'a', type: 'default', x: 0, y: 0, data: { label: 'A' } },
+    { id: 'b', type: 'default', x: 200, y: 0, data: { label: 'B' } },
+  ],
+  edges: [{ id: 'e', source: { node: 'a' }, target: { node: 'b' } }],
+}
+
+describe('readMaps and updateMaps', () => {
+  it('reads what fillMaps wrote', () => {
+    const ydoc = new Y.Doc()
+    fillMaps(maps(ydoc), flow)
+    expect(readMaps(maps(ydoc))).toEqual(flow)
+  })
+
+  it('writes only the fields that changed, so others’ changes to other fields stay', () => {
+    const server = new Y.Doc()
+    const page = new Y.Doc()
+    fillMaps(maps(server), flow)
+    Y.applyUpdate(page, Y.encodeStateAsUpdate(server))
+    // the page moves a node while the server relabels it
+    ;(maps(page).nodes.get('a') as Y.Map<unknown>).set('x', 50)
+    const origin = { agent: 'ai' }
+    let seen: unknown = null
+    server.on('afterTransaction', (tr: Y.Transaction) => (seen ??= tr.origin))
+    updateMaps(
+      maps(server),
+      { ...flow, nodes: [{ ...flow.nodes[0]!, data: { label: 'A!' } }, flow.nodes[1]!] },
+      { origin },
+    )
+    expect(seen).toBe(origin)
+    Y.applyUpdate(page, Y.encodeStateAsUpdate(server))
+    Y.applyUpdate(server, Y.encodeStateAsUpdate(page))
+    expect(readMaps(maps(page)).nodes[0]).toEqual({
+      id: 'a',
+      type: 'default',
+      x: 50,
+      y: 0,
+      data: { label: 'A!' },
+    })
+  })
+
+  it('adds and removes nodes and edges', () => {
+    const ydoc = new Y.Doc()
+    fillMaps(maps(ydoc), flow)
+    const next: FlowDocument = {
+      version: 1,
+      nodes: [flow.nodes[0]!, { id: 'c', type: 'default', x: 0, y: 100, data: {} }],
+      edges: [],
+    }
+    updateMaps(maps(ydoc), next)
+    expect(readMaps(maps(ydoc))).toEqual(next)
+  })
+})

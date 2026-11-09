@@ -33,7 +33,16 @@ doc.value = { version: 1, blocks: markdownToBlocks(text, extensions) }
 
 <DocDemo src="editor/import" column />
 
-导入需要 `DOMParser`，在浏览器里运行；在服务端使用时需要先提供一个 DOM 实现。编辑器实例的 `setHTML(html)` 用 HTML 替换整个文档。
+导入需要 `DOMParser`。在服务端（Node、Bun）没有它，`markdownToBlocks` 可以通过 `domParser` 选项传入 DOM 库提供的实现：
+
+```ts
+import { Window } from 'happy-dom'
+
+const window = new Window()
+markdownToBlocks(text, extensions, { domParser: new window.DOMParser() })
+```
+
+编辑器实例的 `setHTML(html)` 用 HTML 替换整个文档。
 
 `markdownToBlocks` 使用 [markdown-it](https://github.com/markdown-it/markdown-it) 解析 Markdown，需要另外安装：
 

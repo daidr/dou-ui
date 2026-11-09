@@ -67,6 +67,18 @@ fillMap(doc.getMap('document'), saved)
 
 这一步只在创建共享文档时做一次，通常放在服务器上。如果两端同时往同一个空文档里写入，内容会出现两份。使用了自定义块时，把同样的 `extensions` 作为第三个参数传入。
 
+在没有编辑器的地方（比如服务器上另一个程序写出了新版本）要改动正在协同编辑的文档时，用 `updateMap`。它只写有差别的地方：块保留 id，文字按字符改，其他人同时在别处输入的内容、光标、撤销和评论锚点都不受影响。块先按 id 对应，id 对不上的（比如从 Markdown 读出来的块）按内容和位置对应：
+
+```ts
+import { updateMap } from '@dou-ui/editor/collaboration'
+import { markdownToBlocks } from '@dou-ui/editor/markdown'
+
+const blocks = markdownToBlocks(markdown, extensions, { domParser })
+updateMap(doc.getMap('document'), { version: 1, blocks }, extensions, { origin: 'server' })
+```
+
+`origin` 是这次 Yjs 事务的来源，用来区分是谁写的。空的共享文档会直接写入。
+
 ## 评论
 
 传入 `comments` 后，[评论](./comments)也放在共享文档里，新的讨论和回复会实时出现在每个人那里。这时不用再写 `v-model:comments`，编辑器从共享文档里读取讨论。下面的示例里两个人都可以选中文字发起讨论。
@@ -116,9 +128,11 @@ interface CollaborationUser {
 
 ### 函数
 
-| 名称      | 说明                       | 类型                                                            |
-| --------- | -------------------------- | --------------------------------------------------------------- |
-| `fillMap` | 把文档写入空的共享 `Y.Map` | `(map, doc: EditorDocument<PartialBlock>, extensions?) => void` |
+| 名称        | 说明                                        | 类型                                                                                   |
+| ----------- | ------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `fillMap`   | 把文档写入空的共享 `Y.Map`                  | `(map, doc: EditorDocument<PartialBlock>, extensions?) => void`                        |
+| `updateMap` | 把共享 `Y.Map` 改成 `doc`，只写有差别的地方 | `(map, doc: EditorDocument<PartialBlock>, extensions?, options?: { origin? }) => void` |
+| `readMap`   | 从共享 `Y.Map` 读出文档                     | `(map, extensions?) => EditorDocument`                                                 |
 
 ### CSS 变量
 

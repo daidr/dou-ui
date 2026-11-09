@@ -33,14 +33,17 @@ export const calloutOutput: BlockOutput = {
 /** Take the `[!TIP]` off the start of a quote's text; returns the tone, or null without one. */
 function takeMarker(content: Node[]): string | null {
   const first = content.find((node) => node.textContent?.trim())
-  if (!(first instanceof Text)) return null
-  const match = MARKER.exec(first.data)
+  // by node type, not `instanceof`: the DOM may come from a library, without globals
+  if (first?.nodeType !== 3) return null
+  const text = first as Text
+  const match = MARKER.exec(text.data)
   if (!match) return null
-  first.data = first.data.slice(match[0].length)
+  text.data = text.data.slice(match[0].length)
   // the text after the marker starts on the next line
   const index = content.indexOf(first)
   const next = content[index + 1]
-  if (!first.data.trim() && next instanceof Element && next.tagName === 'BR') next.remove()
+  if (!text.data.trim() && next?.nodeType === 1 && (next as Element).tagName === 'BR')
+    (next as Element).remove()
   return ALERTS[match[1]!.toUpperCase()]!
 }
 

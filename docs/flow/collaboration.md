@@ -69,6 +69,16 @@ fillMaps({ nodes: doc.getMap('nodes'), edges: doc.getMap('edges') }, flow.value)
 
 这一步通常在创建共享文档时在服务器上做一次。节点和连线按 id 保存，即使两端同时写入同一个流程，也不会出现重复的节点。
 
+在没有编辑器的地方，`readMaps` 读出共享文档里的流程（比如在服务器上保存版本），`updateMaps` 把它改成新的流程：只写有变化的字段，其他人同时改的别的字段和节点都保留，新流程里没有的节点和连线会被删除。
+
+```ts
+import { readMaps, updateMaps } from '@dou-ui/flow/collaboration'
+
+const maps = { nodes: doc.getMap('nodes'), edges: doc.getMap('edges') }
+const flow = readMaps(maps)
+updateMaps(maps, { ...flow, nodes: [...flow.nodes, node] }, { origin: 'server' })
+```
+
 ## 拖动
 
 拖动节点、调整连线和改变分组大小时，过程中只把位置告诉其他人，他们看到的是一个虚线框；松手后才写入共享文档，作为一步撤销。按 Esc 取消拖动时不会写入。
@@ -110,10 +120,12 @@ interface CollaborationUser {
 
 ### 函数和常量
 
-| 名称                  | 说明                           | 类型                                            |
-| --------------------- | ------------------------------ | ----------------------------------------------- |
-| `fillMaps`            | 把节点和连线写入共享文档       | `({ nodes, edges }, doc: FlowDocument) => void` |
-| `collaborationColors` | 不传 `user.color` 时使用的颜色 | `string[]`                                      |
+| 名称                  | 说明                                   | 类型                                                                   |
+| --------------------- | -------------------------------------- | ---------------------------------------------------------------------- |
+| `fillMaps`            | 把节点和连线写入共享文档               | `({ nodes, edges }, doc: FlowDocument) => void`                        |
+| `readMaps`            | 从共享文档读出流程                     | `({ nodes, edges }) => FlowDocument`                                   |
+| `updateMaps`          | 把共享文档改成 `doc`，只写有变化的字段 | `({ nodes, edges }, doc: FlowDocument, options?: { origin? }) => void` |
+| `collaborationColors` | 不传 `user.color` 时使用的颜色         | `string[]`                                                             |
 
 ### CSS 变量
 

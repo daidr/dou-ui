@@ -54,7 +54,8 @@ function convertList(list: Element): HTMLElement[] {
 }
 
 function firstText(item: Element): Text | null {
-  const walker = item.ownerDocument.createTreeWalker(item, NodeFilter.SHOW_TEXT)
+  // NodeFilter.SHOW_TEXT, as a number: the DOM may come from a library, without globals
+  const walker = item.ownerDocument.createTreeWalker(item, 4)
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
     if (node.textContent?.trim()) return node as Text
   }

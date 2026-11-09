@@ -155,6 +155,51 @@ export function fillMaps(
   else fill()
 }
 
+/** Every node or edge a map holds, in its order. */
+function readAll<T>(map: Shared): T[] {
+  return Array.from(map.keys(), (id) => read<T>(map, id)).filter((item): item is T => !!item)
+}
+
+/**
+ * The flow the maps hold, read without an editor, e.g. to save a version
+ * on the server. Nodes and edges come in the order the maps keep them.
+ */
+export function readMaps(maps: { nodes: Y.Map<unknown>; edges: Y.Map<unknown> }): FlowDocument {
+  return { version: 1, nodes: readAll<FlowNode>(maps.nodes), edges: readAll<FlowEdge>(maps.edges) }
+}
+
+/** Makes the map hold `items`: their changed fields written, the others removed. */
+function syncItems(map: Shared, items: readonly (FlowNode | FlowEdge)[]) {
+  const ids = new Set(items.map((item) => item.id))
+  for (const id of Array.from(map.keys())) if (!ids.has(id)) map.delete(id)
+  for (const item of items) write(map, item)
+}
+
+export interface UpdateMapsOptions {
+  /** The origin of the Yjs transaction, so the others can tell who wrote it. */
+  origin?: unknown
+}
+
+/**
+ * Change the maps to hold `doc`, without an editor, e.g. on the server when
+ * a new version comes from elsewhere while people edit the flow. Only the
+ * fields that differ are written, so what others change meanwhile in other
+ * fields and items stays; nodes and edges not in `doc` are removed.
+ */
+export function updateMaps(
+  maps: { nodes: Y.Map<unknown>; edges: Y.Map<unknown> },
+  doc: FlowDocument,
+  options: UpdateMapsOptions = {},
+) {
+  const update = () => {
+    syncItems(maps.nodes, doc.nodes)
+    syncItems(maps.edges, doc.edges)
+  }
+  const ydoc = maps.nodes.doc
+  if (ydoc) ydoc.transact(update, options.origin ?? null)
+  else update()
+}
+
 /** The fields `touched` holds for an item, when it holds only some. */
 function heldKeys(touched: Touched, id: string) {
   const keys = touched.get(id)

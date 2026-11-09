@@ -15,7 +15,7 @@ import {
 } from '../core/extension'
 import { blocksToDoc, docToBlocks, type EditorDocument, type PartialBlock } from '../core/model'
 import { editorKit } from '../extensions/editor-kit'
-import { createBinding, readDoc, syncPlugin, writeDoc, type YBlock } from './binding'
+import { createBinding, readDoc, syncPlugin, updateDoc, writeDoc, type YBlock } from './binding'
 import { cursorsPlugin, positionOf, type AwarenessLike } from './cursors'
 
 /** How the people editing together see each other. */
@@ -135,6 +135,32 @@ export function fillMap(
 ) {
   const schema = resolveEditorExtensions(extensions).schema
   writeDoc(map as Y.Map<YBlock>, blocksToDoc(schema, doc.blocks))
+}
+
+export interface UpdateMapOptions {
+  /** The origin of the Yjs transaction, so the others can tell who wrote it. */
+  origin?: unknown
+}
+
+/**
+ * Change a shared map to hold `doc`, without an editor, e.g. on the server
+ * when a new version comes from elsewhere while people edit the document.
+ * Only what differs is written: blocks keep their id and their text is
+ * changed character by character, so what others type meanwhile in other
+ * places stays, and so do their cursors, undo and comment anchors. Blocks
+ * of `doc` are matched to stored ones by id, and those with new ids (e.g.
+ * read from Markdown) by content and place. An empty map is filled.
+ */
+export function updateMap(
+  map: Y.Map<unknown>,
+  doc: EditorDocument<PartialBlock>,
+  extensions: (EditorExtension | EditorExtension[])[] = [editorKit()],
+  options: UpdateMapOptions = {},
+) {
+  const schema = resolveEditorExtensions(extensions).schema
+  const write = () => updateDoc(map as Y.Map<YBlock>, blocksToDoc(schema, doc.blocks), schema)
+  if (map.doc) map.doc.transact(write, options.origin ?? null)
+  else write()
 }
 
 /**

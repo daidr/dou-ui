@@ -290,8 +290,8 @@ function onKeydown(event: KeyboardEvent) {
     />
     <div v-if="kind !== 'ink'" class="dou-whiteboard-node__anchors">
       <template v-for="side in anchorSides" :key="side">
-        <DouFlowPort :id="`${side}-in`" class="dou-whiteboard-node__anchor" />
-        <DouFlowPort :id="side" class="dou-whiteboard-node__anchor" />
+        <DouFlowPort :id="`${side}-in`" class="dou-whiteboard-node__anchor" visible="connecting" />
+        <DouFlowPort :id="side" class="dou-whiteboard-node__anchor" visible="hover" />
       </template>
     </div>
     <template v-if="handles">

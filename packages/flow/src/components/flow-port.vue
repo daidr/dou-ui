@@ -8,6 +8,13 @@ defineOptions({ name: 'DouFlowPort' })
 const props = defineProps<{
   /** The id of one of the node's ports. */
   id: string
+  /**
+   * When the port shows: `always`; `hover`, on a hovered, focused or
+   * selected node; or `connecting`, only while an edge is drawn. While an
+   * edge is drawn, `hover` and `connecting` ports show only where it can
+   * land. Defaults to `always`.
+   */
+  visible?: 'always' | 'hover' | 'connecting'
   /** @internal placed by the editor, not by the node's component */
   auto?: boolean
 }>()
@@ -44,6 +51,7 @@ onBeforeUnmount(() => node?.unregisterPort(props.id, props.auto))
     ]"
     :style="color ? { '--dou-flow-port-color': color } : undefined"
     :data-port="id"
+    :data-visible="visible && visible !== 'always' ? visible : undefined"
     aria-hidden="true"
   >
     <svg v-if="shape === 'triangle'" viewBox="0 0 10 10">

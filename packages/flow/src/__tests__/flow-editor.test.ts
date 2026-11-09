@@ -195,6 +195,41 @@ describe('DouFlowEditor', () => {
     wrapper.unmount()
   })
 
+  it('marks ports that show only on hover or while connecting', async () => {
+    const Pending = defineNodeType({
+      type: 'pending',
+      ports: 'sides',
+      frame: false,
+      component: defineComponent({
+        setup: () => () =>
+          h('div', [
+            h(DouFlowPort, { id: 'top', visible: 'hover' }),
+            h(DouFlowPort, { id: 'top-in', visible: 'connecting' }),
+            h(DouFlowPort, { id: 'left', visible: 'always' }),
+            h(DouFlowPort, { id: 'right' }),
+          ]),
+      }),
+    })
+    const wrapper = mount(DouFlowEditor, {
+      props: {
+        modelValue: {
+          version: 1,
+          nodes: [{ id: 'p', type: 'pending', x: 0, y: 0, data: {} }],
+          edges: [],
+        },
+        nodeTypes: [Pending],
+      },
+    })
+    await nextTick()
+    const visible = (id: string) =>
+      wrapper.find(`.dou-flow-port[data-port="${id}"]`).attributes('data-visible')
+    expect(visible('top')).toBe('hover')
+    expect(visible('top-in')).toBe('connecting')
+    expect(visible('left')).toBeUndefined()
+    expect(visible('right')).toBeUndefined()
+    wrapper.unmount()
+  })
+
   it('applies transactions from outside and reports them', () => {
     const changes: string[] = []
     const doc = ref(sample())

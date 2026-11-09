@@ -506,6 +506,33 @@
     }
   }
 
+  /*
+   * <DouFlowPort visible>: out of sight until wanted. `hover` shows on a
+   * hovered, focused or selected node; while an edge is drawn both kinds
+   * show only where it can land, faint, and fully under the pointer.
+   */
+  .dou-flow-port[data-visible] {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .dou-flow-editor__node:is(:hover, :focus-visible, .is-selected)
+    .dou-flow-port[data-visible='hover'] {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .dou-flow-editor.is-connecting .dou-flow-port[data-visible] {
+    &.is-unavailable {
+      opacity: 0;
+      pointer-events: none;
+    }
+    &.is-valid {
+      opacity: 0.6;
+    }
+    &:is(.is-active, .is-candidate, .is-refused) {
+      opacity: 1;
+    }
+  }
+
   .dou-flow-editor__marquee {
     position: absolute;
     top: 0;
@@ -1580,28 +1607,18 @@
     pointer-events: none;
 
     & .dou-flow-port {
-      opacity: 0;
-      pointer-events: none;
       scale: calc(1 / var(--dou-flow-editor-zoom, 1));
     }
   }
-  .dou-flow-editor[data-board-tool='select'] {
-    & .dou-flow-editor__node:hover,
-    & .dou-flow-editor__node.is-selected {
-      & .dou-whiteboard-node:not(.is-editing) .dou-flow-port.is-output {
-        opacity: 1;
-        pointer-events: auto;
-      }
-    }
-  }
-  /* while a connector is drawn: where it can land */
-  .dou-flow-editor.is-connecting .dou-whiteboard-node__anchors .dou-flow-port.is-input {
-    &.is-valid {
-      opacity: 0.6;
-    }
-    &.is-candidate {
-      opacity: 1;
-    }
+  /*
+   * ports shown on hover (the built-in anchors and custom nodes alike) wait
+   * for the select tool; not while a shape's text is typed either
+   */
+  .dou-flow-editor[data-board-tool]:not([data-board-tool='select'])
+    .dou-flow-port[data-visible='hover']:not(.is-active),
+  .dou-whiteboard-node.is-editing .dou-flow-port[data-visible] {
+    opacity: 0;
+    pointer-events: none;
   }
 
   /* connectors are drawn in ink, like the shapes they join */

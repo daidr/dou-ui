@@ -28,6 +28,8 @@
       var(--dou-color-focus) calc(12% + 10% * var(--dou-scheme-dark)),
       transparent
     );
+    /* the shadow on a side of a table that cuts columns off */
+    --dou-editor-scroll-shadow: color-mix(in oklab, var(--dou-color-text) 14%, transparent);
     --dou-editor-control-hover: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
     --dou-editor-match: color-mix(in oklab, var(--dou-color-warning) 22%, transparent);
     --dou-editor-match-current: color-mix(in oklab, var(--dou-color-warning-text) 80%, transparent);
@@ -1043,11 +1045,51 @@
   /* table */
 
   .dou-editor__content--table {
+    display: flex;
     margin-block: 4px;
     /* room for the column handles over the first row */
     padding-block: 8px 4px;
     overflow-x: auto;
     overscroll-behavior-x: contain;
+
+    & > .dou-editor-table {
+      flex: none;
+    }
+
+    /*
+     * a shadow on a side that cuts columns off, so they read as going on
+     * under the edge instead of being sliced: a strip either side of the
+     * table that sticks to the frame's edge once the table passes it
+     */
+    &::before,
+    &::after {
+      content: '';
+      position: sticky;
+      z-index: 1;
+      flex: none;
+      width: 8px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
+    }
+
+    /* a sticky box stays inside the padding: past it to the frame's edges */
+    &::before {
+      inset-inline-start: calc(-1 * var(--dou-editor-frame-start, 0px));
+      margin-inline-end: -8px;
+      background-image: linear-gradient(to right, var(--dou-editor-scroll-shadow), transparent);
+    }
+
+    &::after {
+      inset-inline-end: calc(-1 * var(--dou-editor-frame-end, 0px));
+      margin-inline-start: -8px;
+      background-image: linear-gradient(to left, var(--dou-editor-scroll-shadow), transparent);
+    }
+
+    &.is-cut-start::before,
+    &.is-cut-end::after {
+      opacity: 1;
+    }
   }
 
   /*
@@ -1064,25 +1106,36 @@
     --dou-editor-bleed-start: var(--dou-editor-margin-start, 0px);
     --dou-editor-bleed-end: var(--dou-editor-margin-end, 0px);
 
+    --dou-editor-frame-start: var(--dou-editor-bleed-start);
+    --dou-editor-frame-end: min(var(--dou-editor-bleed-end), 28px);
+
     margin-inline: calc(-1 * var(--dou-editor-bleed-start)) calc(-1 * var(--dou-editor-bleed-end));
-    padding-inline: var(--dou-editor-bleed-start) min(var(--dou-editor-bleed-end), 28px);
+    padding-inline: var(--dou-editor-frame-start) var(--dou-editor-frame-end);
   }
 
   /*
-   * a selected top-level table reaches past its block, which has the tint:
-   * the frame tints the margins it covers (the background stays put while
-   * the table scrolls)
+   * a selected top-level table: the tint reaches into the margins with it,
+   * one band with the block's rounded corners, painted beside the block and
+   * under the frame (it stays put while the table scrolls)
    */
-  .dou-editor__mount
-    > .dou-editor__surface
-    > .dou-editor__block.is-selected
-    > .dou-editor__content--table {
-    background-image: linear-gradient(
-      to right,
-      var(--dou-editor-selected) var(--dou-editor-bleed-start),
-      transparent var(--dou-editor-bleed-start) calc(100% - var(--dou-editor-bleed-end)),
-      var(--dou-editor-selected) calc(100% - var(--dou-editor-bleed-end))
-    );
+  .dou-editor__mount > .dou-editor__surface > .dou-editor__block.is-selected.has-table {
+    background-color: transparent;
+
+    &::before {
+      content: '';
+      position: absolute;
+      inset-block: 0;
+      inset-inline: calc(-1 * var(--dou-editor-margin-start, 0px))
+        calc(-1 * var(--dou-editor-margin-end, 0px));
+      border-radius: inherit;
+      background-color: var(--dou-editor-selected);
+      pointer-events: none;
+    }
+
+    & > .dou-editor__content--table {
+      position: relative;
+      z-index: 0;
+    }
   }
 
   .dou-editor-table {

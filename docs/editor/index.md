@@ -172,3 +172,4 @@ function reset() {
 | `--dou-editor-list-gap`      | 同一列表里相邻两项之间的距离，默认 `4px` |
 | `--dou-editor-reading-width` | 正文的最大宽度，超出时居中，默认 `none`  |
 | `--dou-editor-selected`      | 选中的块的底色                           |
+| `--dou-editor-scroll-shadow` | 表格左右还有被遮住的列时，那一侧的阴影   |

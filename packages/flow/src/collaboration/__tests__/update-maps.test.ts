@@ -60,4 +60,45 @@ describe('readMaps and updateMaps', () => {
     updateMaps(maps(ydoc), next)
     expect(readMaps(maps(ydoc))).toEqual(next)
   })
+
+  it('with `base`, writes only what changed since it, keeping what others did meanwhile', () => {
+    const server = new Y.Doc()
+    const page = new Y.Doc()
+    fillMaps(maps(server), flow)
+    Y.applyUpdate(page, Y.encodeStateAsUpdate(server))
+    // the server reads the flow and hands it to a program that takes a while
+    const base = readMaps(maps(server))
+    // meanwhile the page moves a, adds c, and removes the edge
+    const nodes = maps(page).nodes
+    ;(nodes.get('a') as Y.Map<unknown>).set('x', 50)
+    nodes.set('c', new Y.Map(Object.entries({ type: 'default', x: 0, y: 100, data: {} })))
+    maps(page).edges.delete('e')
+    Y.applyUpdate(server, Y.encodeStateAsUpdate(page))
+    // the program relabels b and changes the edge
+    updateMaps(
+      maps(server),
+      {
+        ...base,
+        nodes: base.nodes.map((n) => (n.id === 'b' ? { ...n, data: { label: 'B!' } } : n)),
+        edges: [{ ...base.edges[0]!, label: '通过' }],
+      },
+      { base },
+    )
+    const after = readMaps(maps(server))
+    const byId = new Map(after.nodes.map((n) => [n.id, n]))
+    expect(byId.get('a')!.x).toBe(50)
+    expect(byId.get('b')!.data).toEqual({ label: 'B!' })
+    expect(byId.has('c')).toBe(true)
+    // removed by someone else meanwhile: it stays removed
+    expect(after.edges).toEqual([])
+  })
+
+  it('with `base`, removes only what the new version left out of it', () => {
+    const ydoc = new Y.Doc()
+    fillMaps(maps(ydoc), flow, { origin: 'server' })
+    const base = readMaps(maps(ydoc))
+    maps(ydoc).nodes.set('c', new Y.Map(Object.entries({ type: 'default', x: 0, y: 100 })))
+    updateMaps(maps(ydoc), { ...base, nodes: [base.nodes[0]!], edges: [] }, { base })
+    expect(new Set(readMaps(maps(ydoc)).nodes.map((n) => n.id))).toEqual(new Set(['a', 'c']))
+  })
 })

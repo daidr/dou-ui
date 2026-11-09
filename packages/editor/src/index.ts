@@ -127,7 +127,8 @@ export {
 } from './core/commands'
 export { clearBlockSelection, getBlockSelection, selectBlocks } from './core/block-selection'
 export { isRemote } from './core/plugins'
-export { blocksToHTML, htmlToBlocks } from './core/convert'
+export { blocksToHTML, htmlToBlocks, type HTMLToBlocksOptions } from './core/convert'
+export type { DOMParserLike } from './core/prepare'
 export type { EditorExtensionList } from './core/convert'
 export { escapeHTML, escapeMarkdown, indentLines } from './core/output'
 export type {

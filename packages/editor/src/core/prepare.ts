@@ -82,26 +82,36 @@ export function prepareElement(root: HTMLElement, kit: ResolvedEditorExtensions)
   for (const extension of kit.extensions) extension.prepareHTML?.(root)
 }
 
-/** What reads HTML into a document: the browser's `DOMParser`, or one from a DOM library. */
-export interface HTMLReader {
-  parseFromString(html: string, type: 'text/html'): Document
+/**
+ * Something that reads HTML like the browser's `DOMParser`, e.g. one from a
+ * DOM library such as happy-dom or linkedom. Only `parseFromString` is used,
+ * and only the `body` of what it returns.
+ */
+export interface DOMParserLike {
+  parseFromString(html: string, type: 'text/html'): { body: unknown }
 }
 
 /**
  * Read HTML as blocks, with the block types, inline nodes and marks of `kit`.
- * Uses the global `DOMParser` unless given a `reader`.
+ * Uses the global `DOMParser` unless given `domParser`; `name` is the
+ * function the error message tells to pass one to.
  */
 export function parseHTML(
   html: string,
   kit: ResolvedEditorExtensions,
-  reader?: HTMLReader,
+  domParser?: DOMParserLike,
+  name = 'htmlToBlocks(html, extensions, { domParser })',
 ): Block[] {
-  const parser = reader ?? (typeof DOMParser === 'undefined' ? null : new DOMParser())
+  const parser = domParser ?? (typeof DOMParser === 'undefined' ? null : new DOMParser())
   if (!parser)
     throw new Error(
-      '[@dou-ui/editor] reading HTML needs a DOMParser: pass one, e.g. from happy-dom or linkedom, where there is no browser',
+      `[@dou-ui/editor] reading HTML needs a DOMParser, and there is none here: pass one from a DOM library such as happy-dom or linkedom, as ${name}`,
     )
-  const doc = parser.parseFromString(html, 'text/html')
+  // a whole document: some libraries leave the body empty for a bare fragment
+  const whole = /^\s*<(!doctype|html)/i.test(html)
+    ? html
+    : `<!doctype html><html><head></head><body>${html}</body></html>`
+  const doc = parser.parseFromString(whole, 'text/html') as unknown as Document
   prepareElement(doc.body, kit)
   const blocks = docToBlocks(PMDOMParser.fromSchema(kit.schema).parse(doc.body as unknown as Node))
   // read blocks are shared and read-only: copy the ones without an id

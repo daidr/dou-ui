@@ -1,4 +1,11 @@
-import { Fragment, type Node as PMNode, type ResolvedPos, type Schema } from 'prosemirror-model'
+import {
+  Fragment,
+  type Mark,
+  type Node as PMNode,
+  type ResolvedPos,
+  type Schema,
+} from 'prosemirror-model'
+import { Transform } from 'prosemirror-transform'
 import {
   Plugin,
   PluginKey,
@@ -13,7 +20,7 @@ import { createId } from '../core/model'
 import { originKey } from '../core/editor'
 import { ownStepKey } from '../core/transaction'
 import { placeOf } from './cursors'
-import { keysBetween, orderKeys } from './order'
+import { keptIndexes, keysBetween, orderKeys } from './order'
 import { cellAt, cellStart, clearTable, readTable, writeTable } from './table'
 import { inlineFrom, insertInline, updateText, type Attributes } from './text'
 
@@ -298,31 +305,87 @@ function writeChanges(map: Y.Map<YBlock>, before: Index, after: Index, schema: S
   return stale
 }
 
-/** The longest run of pairs `same` holds for, in order: indexes into `a` and `b`. */
-function commonPairs<T, U>(a: T[], b: U[], same: (x: T, y: U) => boolean): [number, number][] {
-  const n = a.length
-  const m = b.length
-  const lengths = Array.from({ length: n + 1 }, () => new Uint32Array(m + 1))
-  for (let i = n - 1; i >= 0; i--)
-    for (let j = m - 1; j >= 0; j--)
-      lengths[i]![j] = same(a[i]!, b[j]!)
-        ? lengths[i + 1]![j + 1]! + 1
-        : Math.max(lengths[i + 1]![j]!, lengths[i]![j + 1]!)
+/* writing a new version from elsewhere, without an editor (`updateMap`) */
+
+/** The content node of block `id`. */
+const contentOf = (index: Index, id: string) => index.blocks.get(id)!.content
+
+/** A content node as a string, to tell equal blocks apart quickly. */
+const keyOf = (content: PMNode) => JSON.stringify(content.toJSON())
+
+/**
+ * Pairs of `a` and `b` with equal keys, in the order of both: the equal
+ * start and end, then in the middle each of `a` with the first free equal
+ * one of `b`, keeping the longest run in order. Indexes into `a` and `b`;
+ * about linear, so a long document stays fast.
+ */
+function equalPairs(a: string[], b: string[]): [number, number][] {
   const pairs: [number, number][] = []
-  for (let i = 0, j = 0; i < n && j < m;) {
-    if (same(a[i]!, b[j]!)) pairs.push([i++, j++])
-    else if (lengths[i + 1]![j]! >= lengths[i]![j + 1]!) i++
-    else j++
+  let start = 0
+  while (start < a.length && start < b.length && a[start] === b[start]) {
+    pairs.push([start, start])
+    start++
   }
+  let endA = a.length
+  let endB = b.length
+  const tail: [number, number][] = []
+  while (endA > start && endB > start && a[endA - 1] === b[endB - 1]) {
+    endA--
+    endB--
+    tail.push([endA, endB])
+  }
+  // the middle: each of `a` takes the first free equal one of `b`, then the
+  // longest run increasing in `b` stays
+  const free = new Map<string, number[]>()
+  for (let j = endB - 1; j >= start; j--) {
+    const list = free.get(b[j]!)
+    if (list) list.push(j)
+    else free.set(b[j]!, [j])
+  }
+  const middle: [number, number][] = []
+  for (let i = start; i < endA; i++) {
+    const j = free.get(a[i]!)?.pop()
+    if (j !== undefined) middle.push([i, j])
+  }
+  const kept = keptIndexes(middle.map(([, j]) => String(j).padStart(10, '0')))
+  middle.forEach((pair, index) => kept.has(index) && pairs.push(pair))
+  for (let k = tail.length - 1; k >= 0; k--) pairs.push(tail[k]!)
   return pairs
 }
 
+/** How alike two texts are, 0 to 1, by the pairs of letters they share. */
+function likeness(a: string, b: string): number {
+  if (a === b) return 1
+  if (a.length < 2 || b.length < 2) return 0
+  const pairs = new Map<string, number>()
+  for (let i = 0; i < a.length - 1; i++) {
+    const pair = a.slice(i, i + 2)
+    pairs.set(pair, (pairs.get(pair) ?? 0) + 1)
+  }
+  let shared = 0
+  for (let i = 0; i < b.length - 1; i++) {
+    const pair = b.slice(i, i + 2)
+    const left = pairs.get(pair)
+    if (left) {
+      shared++
+      pairs.set(pair, left - 1)
+    }
+  }
+  return (2 * shared) / (a.length + b.length - 2)
+}
+
+/** How alike two blocks must be to count as one edited. */
+const ALIKE = 0.4
+/** How many stored blocks ahead a block is looked for between two equal ones. */
+const LOOK_AHEAD = 32
+
 /**
- * Which stored block each block of a new document stands for, by id when
- * it keeps one, otherwise by place: among the blocks of the same parent,
- * the most blocks with the same content in the same order, then between
- * them the blocks of the same type one by one (their text is changed in
- * place). New id → stored id; blocks without one are new.
+ * Which block of `before` each block of `after` stands for: by id when it
+ * keeps one, otherwise by place among the blocks of the same parent: first
+ * the blocks with equal content, kept in order, then between those, each
+ * block with the most alike one of its type further on (its text is
+ * changed in place). A block with nothing alike enough is new. Returns
+ * new id → old id.
  */
 function matchBlocks(before: Index, after: Index): Map<string, string> {
   const match = new Map<string, string>()
@@ -342,21 +405,36 @@ function matchBlocks(before: Index, after: Index): Map<string, string> {
     const olds = (oldKey === null ? [] : (before.children.get(oldKey) ?? [])).filter(
       (id) => !used.has(id),
     )
-    const pairs = commonPairs(fresh, olds, (a, b) =>
-      after.blocks.get(a)!.content.eq(before.blocks.get(b)!.content),
+    const anchors = equalPairs(
+      fresh.map((id) => keyOf(contentOf(after, id))),
+      olds.map((id) => keyOf(contentOf(before, id))),
     )
-    // between equal blocks, those of a type are taken as the same block edited
     let i = 0
     let j = 0
-    for (const [pi, pj] of [...pairs, [fresh.length, olds.length] as [number, number]]) {
-      for (; i < pi && j < pj; i++, j++) {
-        if (after.blocks.get(fresh[i]!)!.content.type !== before.blocks.get(olds[j]!)!.content.type)
-          break
-        pair(fresh[i]!, olds[j]!)
+    for (const [ai, aj] of [...anchors, [fresh.length, olds.length] as [number, number]]) {
+      // between two equal blocks: each takes the most alike block of its type ahead
+      for (; i < ai; i++) {
+        const node = contentOf(after, fresh[i]!)
+        const text = node.textContent
+        let best = -1
+        let score = ALIKE
+        for (let k = j; k < Math.min(aj, j + LOOK_AHEAD); k++) {
+          const old = contentOf(before, olds[k]!)
+          if (old.type !== node.type) continue
+          const like = likeness(text, old.textContent)
+          if (like > score || (best < 0 && like >= score)) {
+            best = k
+            score = like
+          }
+        }
+        if (best >= 0) {
+          pair(fresh[i]!, olds[best]!)
+          j = best + 1
+        }
       }
-      if (pi < fresh.length) pair(fresh[pi]!, olds[pj]!)
-      i = pi + 1
-      j = pj + 1
+      if (ai < fresh.length) pair(fresh[ai]!, olds[aj]!)
+      i = ai + 1
+      j = aj + 1
     }
     for (const id of ids) if (after.children.has(id)) visit(id, match.get(id) ?? null)
   }
@@ -364,36 +442,151 @@ function matchBlocks(before: Index, after: Index): Map<string, string> {
   return match
 }
 
-/** `doc` with its blocks' ids changed as `ids` says. */
-function renamed(doc: PMNode, ids: Map<string, string>): PMNode {
-  const rename = (node: PMNode): PMNode => {
-    const children: PMNode[] = []
-    node.forEach((child) =>
-      children.push(
-        child.type.name === 'block' || child.type.name === 'blockGroup' ? rename(child) : child,
-      ),
-    )
-    const content = Fragment.from(children)
-    if (node.type.name === 'block') {
-      const id = node.attrs.id as string
-      return node.type.create({ ...node.attrs, id: ids.get(id) ?? id }, content, node.marks)
-    }
-    return node.copy(content)
+/**
+ * `after` with the comment marks of `before` on the text both start and
+ * end with, when `after` has none: a version read from Markdown, which
+ * doesn't carry them, leaves the threads where the text stays the same.
+ */
+function keepComments(before: PMNode, after: PMNode): PMNode {
+  const type = after.type.schema.marks.comment
+  if (!type || !after.inlineContent || !before.inlineContent || before.type !== after.type)
+    return after
+  let theirs = false
+  after.descendants((node) => {
+    if (type.isInSet(node.marks)) theirs = true
+  })
+  if (theirs) return after
+  const ranges: { from: number; to: number; mark: Mark }[] = []
+  before.forEach((child, pos) => {
+    for (const mark of child.marks)
+      if (mark.type === type) ranges.push({ from: pos, to: pos + child.nodeSize, mark })
+  })
+  if (!ranges.length) return after
+  const a = before.textBetween(0, before.content.size, '', '￼')
+  const b = after.textBetween(0, after.content.size, '', '￼')
+  let head = 0
+  while (head < a.length && head < b.length && a[head] === b[head]) head++
+  let tail = 0
+  while (
+    tail < a.length - head &&
+    tail < b.length - head &&
+    a[a.length - 1 - tail] === b[b.length - 1 - tail]
+  )
+    tail++
+  const tr = new Transform(after)
+  const shift = b.length - a.length
+  for (const { from, to, mark } of ranges) {
+    // the start both share, and the end, moved by what changed between
+    if (from < head) tr.addMark(from, Math.min(to, head), mark)
+    const end = a.length - tail
+    if (to > end) tr.addMark(Math.max(from, end) + shift, to + shift, mark)
   }
-  return rename(doc)
+  return tr.doc
+}
+
+/** Every block id in `index` under `id`, at any depth. */
+function descendants(index: Index, id: string, out: string[] = []): string[] {
+  for (const child of index.children.get(id) ?? []) {
+    out.push(child)
+    descendants(index, child, out)
+  }
+  return out
 }
 
 /**
- * Change the map to hold `doc`, touching only what differs from what it
- * holds now (see `matchBlocks`): text typed elsewhere into the blocks this
- * leaves alone stays. Call it inside a transaction.
+ * Change the map from `base` to `doc`, leaving what changed in the map since
+ * `base` was read: blocks of `doc` are matched to those of `base` (see
+ * `matchBlocks`), and those of `base` to the stored ones; only blocks that
+ * differ between `base` and `doc` are written, removed or moved. Without
+ * `base`, the map as it is now. Call it inside a transaction.
  */
-export function updateDoc(map: Y.Map<YBlock>, doc: PMNode, schema: Schema) {
+export function updateDoc(map: Y.Map<YBlock>, doc: PMNode, schema: Schema, base?: PMNode | null) {
   const current = readDoc(map, schema)
   if (!current) return void writeDoc(map, doc)
-  const before = indexDoc(current)
-  const next = renamed(doc, matchBlocks(before, indexDoc(doc)))
-  writeChanges(map, before, indexDoc(next), schema)
+  const now = indexDoc(current)
+  const from = base ? indexDoc(base) : now
+  const to = indexDoc(doc)
+  const toBase = matchBlocks(from, to)
+  const baseToNow = base ? matchBlocks(now, from) : null
+  /** The stored block a block of `base` is now, if it still is. */
+  const nowOf = (old: string) => {
+    const there = baseToNow ? baseToNow.get(old) : old
+    return there !== undefined && now.blocks.has(there) ? there : null
+  }
+  /** The stored block each block of `doc` is written to. */
+  const stored = new Map<string, string>()
+  for (const [id, old] of toBase) {
+    const there = nowOf(old)
+    if (there) stored.set(id, there)
+  }
+  // ids of `doc` for its new blocks: kept unless the map has them already
+  for (const id of to.blocks.keys())
+    if (!stored.has(id)) stored.set(id, map.has(id) ? createId() : id)
+  const kept = new Set(stored.values())
+  const inDoc = new Set(toBase.values())
+
+  // removed: what `base` had and `doc` hasn't, with what is stored under it
+  for (const old of from.blocks.keys()) {
+    const there = inDoc.has(old) ? null : nowOf(old)
+    if (!there) continue
+    for (const id of [there, ...descendants(now, there)])
+      if (!kept.has(id) && map.has(id)) map.delete(id)
+  }
+
+  // content: new blocks written, those changed since `base` brought to `doc`
+  for (const [id, placed] of to.blocks) {
+    const target = stored.get(id)!
+    const yblock = map.get(target)
+    if (!now.blocks.has(target)) {
+      const created = new Y.Map<unknown>()
+      map.set(target, created)
+      writeContent(created, placed.content)
+      continue
+    }
+    const old = toBase.get(id)
+    const was = old !== undefined ? from.blocks.get(old)!.content : null
+    if (was && keepComments(was, placed.content).eq(was)) continue
+    const there = now.blocks.get(target)!.content
+    updateContent(yblock!, there, keepComments(there, placed.content))
+  }
+
+  // places: in each list of `doc`, the blocks new there or out of their order in `base`
+  for (const [key, ids] of to.children) {
+    const parent = key === ROOT ? null : stored.get(key)!
+    const oldParent = key === ROOT ? ROOT : toBase.get(key)
+    const siblings = oldParent === undefined ? [] : (from.children.get(oldParent) ?? [])
+    const at = new Map(siblings.map((id, index) => [id, index]))
+    const inBase = ids.map((id) => {
+      const old = toBase.get(id)
+      return old !== undefined && at.has(old) ? String(at.get(old)!).padStart(10, '0') : null
+    })
+    const stays = keptIndexes(inBase)
+    const moved = new Set(ids.filter((_, index) => !stays.has(index)).map((id) => stored.get(id)!))
+    if (!moved.size) continue
+    // the stored list, without what goes elsewhere, with the moved ones put after their neighbour in `doc`
+    const list = (now.children.get(parentKey(parent)) ?? []).filter(
+      (id) => map.has(id) && !moved.has(id),
+    )
+    let previous: string | null = null
+    for (const id of ids) {
+      const target = stored.get(id)!
+      if (moved.has(target))
+        list.splice(previous === null ? 0 : list.indexOf(previous) + 1, 0, target)
+      if (list.includes(target)) previous = target
+    }
+    const keys = list.map((id) => {
+      const yblock = map.get(id)!
+      const order = yblock.get('order') as string | undefined
+      return !moved.has(id) && yblock.get('parent') === parent && order !== undefined ? order : null
+    })
+    const next = orderKeys(keys)
+    list.forEach((id, index) => {
+      if (keys[index] === next[index]) return
+      const yblock = map.get(id)!
+      if (yblock.get('parent') !== parent) yblock.set('parent', parent)
+      yblock.set('order', next[index])
+    })
+  }
 }
 
 /** The document a map holds, read without an editor; `null` while the map is empty. */

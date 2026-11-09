@@ -2,9 +2,9 @@ import MarkdownIt from 'markdown-it'
 import { kitOf, type EditorExtensionList } from '../core/convert'
 import type { Block, PartialBlock } from '../core/model'
 import { writeMarkdown } from '../core/output'
-import { parseHTML, type HTMLReader } from '../core/prepare'
+import { parseHTML, type DOMParserLike } from '../core/prepare'
 
-export type { HTMLReader }
+export type { DOMParserLike }
 
 export interface MarkdownToBlocksOptions {
   /**
@@ -17,7 +17,7 @@ export interface MarkdownToBlocksOptions {
    * Reads the HTML. Defaults to the global `DOMParser`; where there is none
    * (Node, Bun), pass one from a DOM library such as happy-dom or linkedom.
    */
-  domParser?: HTMLReader
+  domParser?: DOMParserLike
 }
 
 let parser: MarkdownIt | undefined
@@ -38,5 +38,10 @@ export function markdownToBlocks(
   extensions: EditorExtensionList,
   options: MarkdownToBlocksOptions = {},
 ): Block[] {
-  return parseHTML((options.render ?? render)(markdown), kitOf(extensions), options.domParser)
+  return parseHTML(
+    (options.render ?? render)(markdown),
+    kitOf(extensions),
+    options.domParser,
+    'markdownToBlocks(markdown, extensions, { domParser })',
+  )
 }

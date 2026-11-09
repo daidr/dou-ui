@@ -1,53 +1,22 @@
 <script setup lang="ts">
-import { computed, inject, onBeforeUnmount, onMounted, useTemplateRef } from 'vue'
-import { flowEditorKey, flowNodeKey } from '../context'
-import { portSide } from '../core/node-types'
+import type { FlowPortVisible } from '../core/model'
+import PortView from './port-view.vue'
 
 defineOptions({ name: 'DouFlowPort' })
 
-const props = defineProps<{
+defineProps<{
   /** The id of one of the node's ports. */
   id: string
-  /** @internal placed by the editor, not by the node's component */
-  auto?: boolean
+  /**
+   * When the port shows: `always`; `hover`, on a hovered or selected node,
+   * or one with the keyboard focus in it (a field being typed in);
+   * or `connecting`, only while an edge is drawn. Never shown in a
+   * readonly editor. Defaults to the port's own `visible`, else `always`.
+   */
+  visible?: FlowPortVisible
 }>()
-
-const node = inject(flowNodeKey, null)
-
-const el = useTemplateRef<HTMLElement>('el')
-const port = computed(() => node?.ports.value.find((p) => p.id === props.id))
-const side = computed(() => (port.value ? portSide(port.value) : 'left'))
-const connected = computed(() => !!node?.connected.value.has(props.id))
-const editor = inject(flowEditorKey, null)
-const type = computed(() => (port.value ? editor?.portTypeOf(port.value) : undefined))
-const shape = computed(() => type.value?.shape ?? 'circle')
-const color = computed(() => editor?.colorOf(type.value))
-const states = computed(() => node?.portStates.value)
-const state = computed(() => states.value?.get(props.id))
-
-onMounted(() => {
-  if (el.value) node?.registerPort(props.id, el.value, props.auto)
-})
-onBeforeUnmount(() => node?.unregisterPort(props.id, props.auto))
 </script>
 
 <template>
-  <span
-    ref="el"
-    class="dou-flow-port"
-    :class="[
-      `is-${side}`,
-      `is-${port?.kind ?? 'input'}`,
-      `is-${shape}`,
-      state && `is-${state}`,
-      { 'is-connected': connected, 'is-unavailable': states && !state },
-    ]"
-    :style="color ? { '--dou-flow-port-color': color } : undefined"
-    :data-port="id"
-    aria-hidden="true"
-  >
-    <svg v-if="shape === 'triangle'" viewBox="0 0 10 10">
-      <path d="M2 1.5 8 5 2 8.5Z" />
-    </svg>
-  </span>
+  <PortView :id="id" :visible="visible" />
 </template>

@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { portSide, type NodeViewProps } from '../core/node-types'
 import { useFlowEditor } from '../context'
 import type { DefaultNodeData } from './default-node'
-import FlowPortView from './flow-port.vue'
+import FlowPortView from './port-view.vue'
 
 const props = defineProps<NodeViewProps<DefaultNodeData>>()
 const { messages } = useFlowEditor()

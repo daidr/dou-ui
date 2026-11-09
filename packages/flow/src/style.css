@@ -506,6 +506,41 @@
     }
   }
 
+  /*
+   * A port's `visible`: out of sight until wanted. `hover` shows on a
+   * hovered or selected node, or one with the keyboard focus in it (a
+   * field being typed in). Not the node's own focus: the keys that focus a
+   * node select it, and one let go with Esc keeps the focus (and, after a
+   * key, :focus-visible too). While an edge is drawn both kinds show only
+   * where it can land, faint, and fully at its start and under the
+   * pointer. A readonly editor draws no edges, so they never show there.
+   */
+  .dou-flow-port[data-visible] {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .dou-flow-editor__node:is(:hover, :has(:focus-visible), .is-selected)
+    .dou-flow-port[data-visible='hover'] {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .dou-flow-editor.is-connecting .dou-flow-port[data-visible] {
+    &.is-unavailable {
+      opacity: 0;
+      pointer-events: none;
+    }
+    &.is-valid {
+      opacity: 0.6;
+    }
+    &:is(.is-active, .is-candidate, .is-refused) {
+      opacity: 1;
+    }
+  }
+  .dou-flow-editor.is-readonly .dou-flow-editor__node .dou-flow-port[data-visible] {
+    opacity: 0;
+    pointer-events: none;
+  }
+
   .dou-flow-editor__marquee {
     position: absolute;
     top: 0;
@@ -1606,7 +1641,10 @@
     field-sizing: content;
   }
 
-  /* anchors: an output and an input on each side; only the output shows */
+  /*
+   * anchors: an output and an input on each side (`ports: 'sides'`); when
+   * they show is the ports' `visible`, set by `sidePorts`
+   */
   /*
    * on a selected node the sides resize: a port then answers only on its
    * dot, so a drag from beside it, in the middle of a side, resizes
@@ -1625,30 +1663,24 @@
     /* its ports over the resize strips along the sides */
     z-index: 1;
     pointer-events: none;
+  }
+  /* every port on a board keeps its size at any zoom, a custom node's too */
+  .dou-flow-editor[data-board-tool] .dou-flow-port {
+    scale: calc(1 / var(--dou-flow-editor-zoom, 1));
 
-    & .dou-flow-port {
-      opacity: 0;
-      pointer-events: none;
-      scale: calc(1 / var(--dou-flow-editor-zoom, 1));
-    }
-  }
-  .dou-flow-editor[data-board-tool='select'] {
-    & .dou-flow-editor__node:hover,
-    & .dou-flow-editor__node.is-selected {
-      & .dou-whiteboard-node:not(.is-editing) .dou-flow-port.is-output {
-        opacity: 1;
-        pointer-events: auto;
-      }
-    }
-  }
-  /* while a connector is drawn: where it can land */
-  .dou-flow-editor.is-connecting .dou-whiteboard-node__anchors .dou-flow-port.is-input {
-    &.is-valid {
-      opacity: 0.6;
-    }
     &.is-candidate {
-      opacity: 1;
+      scale: calc(1.25 / var(--dou-flow-editor-zoom, 1));
     }
+  }
+  /*
+   * ports shown on hover (the built-in anchors and custom nodes alike) wait
+   * for the select tool; not while a shape's text is typed either
+   */
+  .dou-flow-editor[data-board-tool]:not([data-board-tool='select'])
+    .dou-flow-port[data-visible='hover']:not(.is-active),
+  .dou-whiteboard-node.is-editing .dou-flow-port[data-visible] {
+    opacity: 0;
+    pointer-events: none;
   }
 
   /* connectors are drawn in ink, like the shapes they join */

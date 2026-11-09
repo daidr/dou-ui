@@ -14,6 +14,7 @@ import {
 } from 'vue'
 import type { VNode } from 'vue'
 import { useNamespace } from '../../utils/namespace'
+import { filled } from '../../utils/slot'
 import { devWarn } from '../../utils/status-check'
 import type { LinkEmits, LinkProps, LinkSlots } from './link'
 
@@ -103,12 +104,12 @@ function walk(nodes: unknown[], edge: Edge, take: boolean): Walk {
 const parts = () => {
   const label = (slots.default?.() ?? []) as unknown[]
   const soft = props.variant === 'soft'
-  const leading = slots.leading?.()
-  const trailing = slots.trailing
-    ? slots.trailing()
-    : props.external && !isButton.value
-      ? h(ArrowUpRightIcon)
-      : undefined
+  // a slot that renders nothing counts as not passed: no empty icon, and
+  // an external link keeps its arrow
+  const leading = filled(slots.leading)
+  const own = filled(slots.trailing)
+  const arrow = !own
+  const trailing = own ?? (props.external && !isButton.value ? h(ArrowUpRightIcon) : undefined)
   const head = walk(label, 'start', soft && !!leading)
   const tail = walk(head.nodes, 'end', soft && !!trailing)
   const icon = (content: unknown, external = false) =>
@@ -120,9 +121,8 @@ const parts = () => {
       },
       content as VNode[],
     )
-  const external = !slots.trailing
   const before = leading ? icon(leading) : undefined
-  const after = trailing ? icon(trailing, external) : undefined
+  const after = trailing ? icon(trailing, arrow) : undefined
   const body = h('span', { class: ns.e('label') }, tail.nodes as VNode[])
   if (!soft) return [before, body, after]
   // a single character between two icons: all three break as one

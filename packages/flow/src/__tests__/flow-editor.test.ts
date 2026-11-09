@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
@@ -193,6 +196,80 @@ describe('DouFlowEditor', () => {
     await wrapper.find('.edit').trigger('click')
     expect(doc.value.nodes[0]!.data).toEqual({ text: 'b' })
     wrapper.unmount()
+  })
+
+  it('marks ports that show only on hover or while connecting', async () => {
+    const Pending = defineNodeType({
+      type: 'pending',
+      ports: 'sides',
+      frame: false,
+      component: defineComponent({
+        setup: () => () =>
+          h('div', [
+            h(DouFlowPort, { id: 'top', visible: 'always' }),
+            h(DouFlowPort, { id: 'top-in', visible: 'hover' }),
+            h(DouFlowPort, { id: 'left' }),
+          ]),
+      }),
+    })
+    const wrapper = mount(DouFlowEditor, {
+      props: {
+        modelValue: {
+          version: 1,
+          nodes: [{ id: 'p', type: 'pending', x: 0, y: 0, data: {} }],
+          edges: [],
+        },
+        nodeTypes: [Pending],
+      },
+    })
+    await nextTick()
+    await nextTick()
+    const visible = (id: string) =>
+      wrapper.find(`.dou-flow-port[data-port="${id}"]`).attributes('data-visible')
+    // the component's own choice wins over the port's
+    expect(visible('top')).toBeUndefined()
+    expect(visible('top-in')).toBe('hover')
+    // otherwise the port's: `sidePorts` show like a whiteboard shape's anchors
+    expect(visible('left')).toBe('hover')
+    expect(
+      wrapper.find('.dou-flow-port.is-auto[data-port="right"]').attributes('data-visible'),
+    ).toBe('hover')
+    expect(
+      wrapper.find('.dou-flow-port.is-auto[data-port="left-in"]').attributes('data-visible'),
+    ).toBe('connecting')
+    wrapper.unmount()
+  })
+
+  it('never shows hover or connecting ports in a readonly editor', () => {
+    const wrapper = mount(DouFlowEditor, {
+      props: { modelValue: { version: 1, nodes: [], edges: [] }, readonly: true },
+    })
+    expect(wrapper.classes()).toContain('is-readonly')
+    wrapper.unmount()
+    // happy-dom does not apply the stylesheet, so check the rule itself
+    const css = readFileSync(
+      resolve(dirname(fileURLToPath(import.meta.url)), '../style.css'),
+      'utf8',
+    )
+    expect(css).toMatch(
+      /\.dou-flow-editor\.is-readonly \.dou-flow-editor__node \.dou-flow-port\[data-visible\] \{\s*opacity: 0;\s*pointer-events: none;/,
+    )
+  })
+
+  it('shows hover ports on hovered or selected nodes, not on one that only has the focus', () => {
+    // a node keeps the focus after an edge is drawn from it or Esc lets it go
+    const css = readFileSync(
+      resolve(dirname(fileURLToPath(import.meta.url)), '../style.css'),
+      'utf8',
+    )
+    const rule = /([^{}]*)\.dou-flow-port\[data-visible='hover'\] \{\s*opacity: 1;/.exec(css)
+    expect(rule?.[1]?.replace(/\s+/g, ' ').trim()).toBe(
+      '.dou-flow-editor__node:is(:hover, :has(:focus-visible), .is-selected)',
+    )
+  })
+
+  it('keeps the editor-only `auto` out of DouFlowPort', () => {
+    expect(Object.keys(DouFlowPort.props as object)).toEqual(['id', 'visible'])
   })
 
   it('applies transactions from outside and reports them', () => {

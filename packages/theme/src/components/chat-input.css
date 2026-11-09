@@ -145,6 +145,8 @@
     max-height: min(var(--dou-floating-available, 100vh), 280px);
     margin: 0;
     padding: var(--dou-chat-input-menu-inset);
+    /* a long option is cut short, never scrolled sideways */
+    overflow-x: hidden;
     overflow-y: auto;
     border: 1px solid var(--dou-color-border);
     /* concentric with the options, like a dropdown menu */
@@ -189,14 +191,21 @@
     font-size: 16px;
   }
 
+  /* a long label gives way first; a short description such as a kind stays
+     whole, a long one such as a folder takes at most half the row */
   .dou-chat-input__option-label {
-    flex: none;
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow-x: clip;
     font-weight: var(--dou-font-weight-medium);
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .dou-chat-input__option-description {
+    flex: none;
+    max-width: 50%;
     overflow-x: clip;
-    min-width: 0;
     color: var(--dou-color-text-tertiary);
     text-overflow: ellipsis;
     white-space: nowrap;

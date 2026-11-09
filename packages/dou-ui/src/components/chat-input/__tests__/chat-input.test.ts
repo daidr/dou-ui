@@ -133,6 +133,36 @@ describe('DouChatInput', () => {
     wrapper.unmount()
   })
 
+  it('shows an option cut short in full on hover', async () => {
+    const long = '上海办公室搬迁：各部门工位分配与网络布线方案.md'
+    const wrapper = mount(DouChatInput, {
+      props: {
+        modelValue: '@',
+        teleport: false,
+        mentions: [
+          { value: long, description: '文件' },
+          { value: '戴兜', description: '成员' },
+        ],
+      },
+      attachTo: document.body,
+    })
+    const textarea = wrapper.get('textarea')
+    ;(textarea.element as HTMLTextAreaElement).setSelectionRange(1, 1)
+    await textarea.trigger('keyup')
+    const [first, second] = wrapper.findAll('[role="option"]')
+    // happy-dom has no layout: the long label overflows, the short one fits
+    const label = first!.get('.dou-chat-input__option-label').element
+    Object.defineProperty(label, 'scrollWidth', { value: 500 })
+    Object.defineProperty(label, 'clientWidth', { value: 260 })
+    await first!.trigger('mouseenter')
+    expect(first!.attributes('title')).toBe(`@${long} · 文件`)
+    expect(wrapper.findAll('[role="option"]')[0]!.classes()).toContain('is-active')
+    await second!.trigger('mouseenter')
+    expect(second!.attributes('title')).toBeUndefined()
+    expect(second!.classes()).toContain('is-active')
+    wrapper.unmount()
+  })
+
   describe('matching', () => {
     const snippets = [
       { value: 's_01', label: '周报模板' },

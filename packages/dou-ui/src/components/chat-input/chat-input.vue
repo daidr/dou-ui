@@ -278,6 +278,20 @@ watch(active, async (index) => {
   document.getElementById(optionId(index))?.scrollIntoView?.({ block: 'nearest' })
 })
 
+// A label or description cut short shows in full on hover, for a mouse.
+function onOptionEnter(event: MouseEvent, option: ChatInputOption, index: number) {
+  if (!option.disabled) active.value = index
+  const row = event.currentTarget as HTMLElement
+  const parts = [
+    ...row.querySelectorAll<HTMLElement>(
+      `.${ns.e('option-label')}, .${ns.e('option-description')}`,
+    ),
+  ]
+  if (parts.some((part) => part.scrollWidth > part.clientWidth)) {
+    row.title = parts.map((part) => part.textContent!.trim()).join(' · ')
+  } else row.removeAttribute('title')
+}
+
 function pick(option: ChatInputOption) {
   const current = token.value
   if (!current || option.disabled) return
@@ -459,7 +473,7 @@ defineExpose<ChatInputExpose>({
             ]"
             :aria-selected="index === active"
             :aria-disabled="option.disabled || undefined"
-            @mouseenter="!option.disabled && (active = index)"
+            @mouseenter="onOptionEnter($event, option, index)"
             @click="pick(option)"
           >
             <slot name="option" :option="option" :trigger="token!.trigger">

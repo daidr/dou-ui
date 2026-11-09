@@ -1,12 +1,24 @@
 import { describe, expect, it } from 'vitest'
 import { contentSpan, handleLeft } from '../dom'
 
-function content(className: string, style: string, rect: { left: number; right: number }) {
+/** Content in a block, at the top level of the editor (or `nested` deeper, e.g. in a column). */
+function content(
+  className: string,
+  style: string,
+  rect: { left: number; right: number },
+  nested = false,
+) {
+  const surface = document.createElement('div')
+  surface.className = nested ? 'dou-editor__group' : 'dou-editor__surface'
+  const block = document.createElement('div')
+  block.className = 'dou-editor__block'
   const element = document.createElement('div')
   element.className = className
   element.setAttribute('style', style)
   element.getBoundingClientRect = () => ({ ...rect, top: 0, bottom: 0 }) as DOMRect
-  document.body.append(element)
+  block.append(element)
+  surface.append(block)
+  document.body.append(surface)
   return element
 }
 
@@ -26,6 +38,16 @@ describe('contentSpan', () => {
       { left: 60, right: 560 },
     )
     expect(contentSpan(element)).toEqual({ left: 100, right: 500 })
+  })
+
+  it('is the box of a table deeper in, e.g. in a column', () => {
+    const element = content(
+      'dou-editor__content dou-editor__content--table',
+      'padding-inline-start: 12px',
+      { left: 60, right: 560 },
+      true,
+    )
+    expect(contentSpan(element)).toEqual({ left: 60, right: 560 })
   })
 })
 

@@ -101,7 +101,8 @@ const props = withDefaults(defineProps<EditorProps>(), {
 const emit = defineEmits<EditorEmits>()
 
 // read once: changing the schema of a live editor would invalidate its document
-const kit = resolveEditorExtensions(props.extensions ?? [editorKit()])
+const messages = useEditorMessages(() => props.messages)
+const kit = resolveEditorExtensions(props.extensions ?? [editorKit()], () => messages.value)
 // say so once, instead of silently keeping the old extensions
 const stopWatchingExtensions = watch(
   () => props.extensions,
@@ -114,7 +115,6 @@ const stopWatchingExtensions = watch(
 )
 
 const ns = useNamespace('editor')
-const messages = useEditorMessages(() => props.messages)
 const config = useGlobalConfig()
 const root = useTemplateRef<HTMLElement>('root')
 const mount = useTemplateRef<HTMLElement>('mount')

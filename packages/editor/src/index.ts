@@ -32,6 +32,10 @@ export { filterOptions } from './catalog'
 export { defineEditorExtension, labelOf } from './core/extension'
 export type {
   BlockOption,
+  BlockOptionChoice,
+  BlockOptionChoices,
+  BlockOptionChoicesEmits,
+  BlockOptionChoicesProps,
   CommentsProvider,
   EditorExtension,
   EditorExtensionContext,
@@ -46,6 +50,7 @@ export {
   callout,
   codeBlock,
   colors,
+  columns,
   divider,
   formatting,
   heading,

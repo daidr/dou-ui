@@ -160,6 +160,8 @@ export type BuiltinContentType =
   | 'toggle'
   | 'callout'
   | 'table'
+  | 'columns'
+  | 'column'
 
 export type ContentType = BuiltinContentType | (string & {})
 

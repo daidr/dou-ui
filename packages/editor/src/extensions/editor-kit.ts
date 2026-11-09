@@ -4,6 +4,7 @@ import { align } from './align'
 import { callout } from './callout'
 import { colors } from './colors'
 import { codeBlock, type CodeBlockOptions } from './code-block'
+import { columns } from './columns'
 import { formatting, link } from './formatting'
 import { lists } from './lists'
 import { table } from './table'
@@ -23,6 +24,8 @@ export interface EditorKitOptions {
   toggle?: boolean
   callout?: boolean
   table?: boolean
+  /** Blocks side by side in columns. */
+  columns?: boolean
   formatting?: boolean
   link?: boolean
   /** Text and background colors. */
@@ -49,6 +52,7 @@ export function editorKit(options: EditorKitOptions = {}): EditorExtension[] {
     toggle,
     callout,
     table,
+    columns,
     formatting,
     link,
     colors,
@@ -67,6 +71,7 @@ export {
   callout,
   colors,
   codeBlock,
+  columns,
   divider,
   formatting,
   heading,

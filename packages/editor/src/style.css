@@ -18,6 +18,8 @@
     /* room on the left for the handle of top-level blocks */
     --dou-editor-gutter: 56px;
     --dou-editor-indent: 24px;
+    /* room between columns, where the handle of a block in a column sits */
+    --dou-editor-column-gap: 48px;
     /* distance between two blocks, and between two items of a list */
     --dou-editor-block-gap: 4px;
     --dou-editor-list-gap: 4px;
@@ -64,6 +66,7 @@
     /* touch screens: only the grip, in a narrower gutter */
     @media (pointer: coarse) {
       --dou-editor-gutter: 32px;
+      --dou-editor-column-gap: 32px;
     }
 
     &.is-dragging,
@@ -852,6 +855,15 @@
     }
   }
 
+  /* in a column: only the grip, close to the text, clear of the resize bar */
+  .dou-editor__handle.is-compact {
+    transform: translateX(calc(-100% - 2px));
+
+    & .dou-editor__add {
+      display: none;
+    }
+  }
+
   .dou-editor__grip {
     position: relative;
     width: 18px;
@@ -1040,6 +1052,179 @@
     padding: 8px;
     color: var(--dou-color-text-tertiary);
     font-size: var(--dou-font-size-sm);
+  }
+
+  /* the variants beside a slash menu option, e.g. how many columns */
+
+  .dou-editor-slash__more {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    color: var(--dou-color-text-tertiary);
+  }
+
+  .dou-editor-slash__choices {
+    /* beside the menu, the room left is a width: not a limit on the height */
+    max-height: none;
+    padding: 8px;
+  }
+
+  .dou-editor-slash__choices-title {
+    padding: 4px 4px 10px;
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    text-box: trim-both cap alphabetic;
+  }
+
+  /* on a phone, the variants unfold under their option */
+  .dou-editor-slash__unfolded {
+    padding: 4px 8px 8px;
+
+    & .dou-editor-slash__choices-title {
+      padding-inline: 0;
+    }
+  }
+
+  .dou-editor-slash__more {
+    transition: rotate var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    &.is-unfolded {
+      rotate: 90deg;
+    }
+  }
+
+  /* bars for the columns: pointing at one lights the bars up to it */
+  .dou-editor-column-picker {
+    display: flex;
+    gap: 6px;
+    padding: 2px 4px 4px;
+  }
+
+  .dou-editor-column-picker__bar {
+    width: 24px;
+    height: 72px;
+    border-radius: 4px;
+    background-color: var(--dou-color-bg-muted);
+    cursor: pointer;
+    transition: background-color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    &.is-lit {
+      background-color: color-mix(
+        in oklab,
+        var(--dou-color-text) calc(22% + 8% * var(--dou-scheme-dark)),
+        transparent
+      );
+    }
+  }
+
+  @media (pointer: coarse) {
+    .dou-editor-column-picker__bar {
+      width: 32px;
+    }
+  }
+
+  /*
+   * columns: a set of columns and each column are blocks without content
+   * of their own; the set lays its columns side by side, each taking its
+   * share (`--dou-editor-column-width`, a weight) of the row. A narrow
+   * editor stacks them, so they read top to bottom.
+   */
+  .dou-editor__content--columns,
+  .dou-editor__content--column {
+    display: none;
+  }
+
+  .dou-editor__content--columns + .dou-editor__group {
+    container: dou-editor-columns / inline-size;
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: var(--dou-editor-column-gap);
+    /* stacked, columns stay apart a little */
+    row-gap: 12px;
+    padding-inline-start: 0;
+
+    & > .dou-editor__block {
+      flex: var(--dou-editor-column-width, 1) 1 0;
+      min-width: 0;
+    }
+  }
+
+  .dou-editor__content--column + .dou-editor__group {
+    padding-inline-start: 0;
+  }
+
+  /*
+   * a table in a column starts a little in: its row handles, centered on
+   * its left edge, stay clear of the block handle in the gap before it
+   */
+  .dou-editor__content--column + .dou-editor__group .dou-editor__content--table {
+    padding-inline-start: 12px;
+  }
+
+  /* while editing, pointing at a set of columns outlines them, empty ones too */
+  @media (hover: hover) {
+    .dou-editor:not(.is-readonly)
+      .dou-editor__content--columns
+      + .dou-editor__group:hover
+      > .dou-editor__block {
+      outline: 1px dashed var(--dou-color-border);
+    }
+  }
+
+  @container dou-editor-columns (max-width: 480px) {
+    .dou-editor__content--columns + .dou-editor__group > .dou-editor__block {
+      flex-basis: 100%;
+    }
+  }
+
+  /* the bar between two columns, to resize them */
+  .dou-editor-columns__bar {
+    position: absolute;
+    z-index: 2;
+    width: 10px;
+    margin-inline-start: -5px;
+    outline: none;
+    cursor: col-resize;
+    touch-action: none;
+
+    /* a finger needs more room to grab it */
+    @media (pointer: coarse) {
+      &::before {
+        content: '';
+        position: absolute;
+        inset-block: 0;
+        inset-inline: -15px;
+      }
+    }
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset-block: 0;
+      inset-inline-start: 4px;
+      width: 2px;
+      border-radius: 1px;
+      background-color: var(--dou-color-focus);
+      opacity: 0;
+      transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
+    }
+
+    &:hover::after,
+    &.is-shown::after,
+    &:focus-visible::after {
+      opacity: 1;
+    }
+
+    /* a bar kept for the keyboard takes the pointer only once it shows */
+    &.is-key:not(.is-shown, :focus) {
+      pointer-events: none;
+    }
+  }
+
+  /* the handle of a block in a column steps aside while a bar between columns shows */
+  .dou-editor:has(.dou-editor-columns__bar:is(:hover, .is-shown)) .dou-editor__handle.is-compact {
+    opacity: 0;
+    pointer-events: none;
   }
 
   /* table */

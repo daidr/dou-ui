@@ -201,8 +201,8 @@ export function useFlowComments(options: {
     if (!writable.value) return false
     open(null)
     pending.value = anchor
-    pendingFocus.value = true
-    focusRequest.value++
+    pendingFocus.value = focus
+    if (focus) focusRequest.value++
     return true
   }
 

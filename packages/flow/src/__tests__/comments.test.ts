@@ -578,6 +578,17 @@ describe('DouFlowEditor pinned comments', () => {
     expect(card()!.contains(document.activeElement)).toBe(false)
   })
 
+  it('starts a thread on a node without the focus when asked to', async () => {
+    const { editor } = setup()
+    await ticks()
+    expect(editor.value!.comment({ node: 'b' }, { focus: false })).toBe(true)
+    await ticks()
+    await new Promise((resolve) => setTimeout(resolve))
+    await ticks()
+    expect(card()).not.toBe(null)
+    expect(card()!.contains(document.activeElement)).toBe(false)
+  })
+
   it('puts the focus in the reply box of a pin started with a mouse', async () => {
     const tool = ref<WhiteboardTool>('comment')
     const { wrapper } = setup({ extensions: [flowKit(), whiteboardKit({ tool })] })

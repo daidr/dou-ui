@@ -41,33 +41,41 @@
     right: 0;
   }
 
+  /*
+   * The toasts lie on top of each other, newest in front, and spread into
+   * a column while the pointer or focus is on them. Each one is placed by
+   * the stack: its distance from the edge and its scale come in as
+   * variables, its height inline. The list is as tall as what shows, so
+   * hovering anywhere over the toasts or the gaps between them keeps
+   * them open.
+   */
   .dou-toast__list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+    --dou-toast-direction: 1;
+
+    position: relative;
     width: 100%;
     padding: 0;
     margin: 0;
     list-style: none;
+    pointer-events: auto;
+    transition: height calc(var(--dou-motion-duration-normal) * var(--dou-motion-travel))
+      var(--dou-motion-easing);
   }
 
   /* the newest toast sits nearest the edge it comes from */
   .dou-toast[class*='dou-toast--bottom'] .dou-toast__list {
-    flex-direction: column;
-  }
-  .dou-toast[class*='dou-toast--top'] .dou-toast__list {
-    flex-direction: column-reverse;
+    --dou-toast-direction: -1;
   }
 
   .dou-toast__item {
     --dou-toast-tone: var(--dou-color-text-secondary);
 
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
     box-sizing: border-box;
-    width: 100%;
-    padding: 12px 14px;
+    overflow: hidden;
     border: 1px solid var(--dou-color-border);
     border-radius: var(--dou-radius-container);
     background-color: color-mix(
@@ -81,6 +89,46 @@
     font-size: var(--dou-font-size-md);
     line-height: 1.5;
     pointer-events: auto;
+    /* a toast behind shrinks toward the edge that shows */
+    transform-origin: 50% 100%;
+    translate: 0 calc(var(--dou-toast-offset, 0px) * var(--dou-toast-direction));
+    scale: var(--dou-toast-scale, 1);
+    /*
+     * Moves use the individual translate and scale properties, so they
+     * glide from wherever they are when the stack changes again, and
+     * leave transform to the toast coming in or going out.
+     */
+    transition-property: translate, scale, height, opacity, box-shadow;
+    transition-duration: calc(var(--dou-motion-duration-normal) * var(--dou-motion-travel));
+    transition-timing-function: var(--dou-motion-easing);
+  }
+  .dou-toast[class*='dou-toast--bottom'] .dou-toast__item {
+    top: auto;
+    bottom: 0;
+    transform-origin: 50% 0;
+  }
+
+  /* a lighter shadow behind, so the deep one in front does not bury the edges */
+  .dou-toast__item.is-behind {
+    box-shadow: var(--dou-shadow-md);
+  }
+
+  .dou-toast__item.is-hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .dou-toast__body {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+    transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
+  }
+
+  /* only the edge of a toast behind shows, so its content steps back */
+  .dou-toast__item.is-behind > .dou-toast__body {
+    opacity: 0;
   }
 
   .dou-toast--primary {
@@ -179,23 +227,25 @@
     outline-offset: 1px;
   }
 
-  /* motion: in from the edge the stack hangs from, out by fading */
-  .dou-toast-enter-active,
-  .dou-toast-leave-active {
-    transition-property: opacity, transform;
+  /*
+   * motion: in from the edge the stack hangs from, out by fading; the
+   * toasts already there move aside at the same pace
+   */
+  .dou-toast-enter-active {
+    transition-property: opacity, transform, translate, scale, height;
     transition-duration: var(--dou-motion-duration-normal);
     transition-timing-function: var(--dou-motion-easing-enter);
   }
   .dou-toast-leave-active {
+    transition-property: opacity, transform;
     transition-duration: var(--dou-motion-duration-fast);
     transition-timing-function: var(--dou-motion-easing-exit);
+    pointer-events: none;
   }
   .dou-toast-enter-from {
     opacity: 0;
-    transform: translateY(calc(-1 * var(--dou-motion-distance-md))) scale(var(--dou-motion-scale));
-  }
-  .dou-toast[class*='dou-toast--bottom'] .dou-toast-enter-from {
-    transform: translateY(var(--dou-motion-distance-md)) scale(var(--dou-motion-scale));
+    transform: translateY(calc(-1 * var(--dou-motion-distance-md) * var(--dou-toast-direction)))
+      scale(var(--dou-motion-scale));
   }
   .dou-toast-leave-to {
     opacity: 0;

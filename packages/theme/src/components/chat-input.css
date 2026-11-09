@@ -176,26 +176,28 @@
     line-height: 20px;
     cursor: pointer;
 
+    /* option slot content reusing the label and description classes: the
+       label gives way, a short description such as a kind stays whole, and
+       a long one takes at most 40% of the row, so beside an avatar the label
+       still keeps more room than it */
+    &:not(.is-default) {
+      .dou-chat-input__option-label {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+
+      .dou-chat-input__option-description {
+        flex: none;
+        min-width: 0;
+        max-width: 40%;
+      }
+    }
+
     /* The default icon, label and description share the row evenly: each
        takes what it needs while there is room, and when both run long the
        space is split in half, so a short description such as a kind stays
        whole and a long one such as a folder never pushes the label narrower
        than itself. */
-    /* option slot content reusing the label and description classes: both
-       may shrink, and the description never takes more than half the row */
-    &:not(.is-default) {
-      .dou-chat-input__option-label {
-        flex: 0 1 auto;
-        min-width: 0;
-      }
-
-      .dou-chat-input__option-description {
-        flex: 0 1 auto;
-        min-width: 0;
-        max-width: 50%;
-      }
-    }
-
     &.is-default {
       display: grid;
       grid-auto-columns: minmax(0, max-content);

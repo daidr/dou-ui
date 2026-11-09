@@ -158,6 +158,27 @@ describe('DouLink', () => {
     expect(wrapper.text()).toContain('→')
   })
 
+  it('treats icon slots that render nothing as not passed', async () => {
+    const wrapper = mount({
+      components: { DouLink },
+      props: { icon: { type: Boolean, default: false } },
+      template: `
+        <DouLink href="https://example.com" external>
+          <template #leading><svg v-if="icon" class="lead" /></template>
+          文档
+          <template #trailing><svg v-if="icon" class="trail" /></template>
+        </DouLink>
+      `,
+    })
+    // no empty icon in front, and the external arrow stays
+    expect(wrapper.findAll('.dou-link__icon')).toHaveLength(1)
+    expect(wrapper.find('.dou-link__external').exists()).toBe(true)
+    await wrapper.setProps({ icon: true })
+    expect(wrapper.find('.dou-link__external').exists()).toBe(false)
+    expect(wrapper.find('.lead').exists()).toBe(true)
+    expect(wrapper.find('.trail').exists()).toBe(true)
+  })
+
   it('drops the href and swallows clicks when disabled', async () => {
     const wrapper = mount(DouLink, { props: { href: '/docs', disabled: true } })
     expect(wrapper.attributes('href')).toBeUndefined()

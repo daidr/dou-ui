@@ -50,7 +50,7 @@
 
 ## 图标
 
-与按钮一致，用 `leading` / `trailing` 插槽放置图标；`trailing` 会替代外部链接的箭头。
+与按钮一致，用 `leading` / `trailing` 插槽放置图标；`trailing` 会替代外部链接的箭头，没有渲染出内容时（比如图标写在 `v-if` 里）仍显示箭头。
 
 ```vue
 <DouLink href="/changelog">

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { Comment, Fragment, Text, computed, isVNode } from 'vue'
+import type { VNode } from 'vue'
 import { useNamespace } from '../../utils/namespace'
+import { SlotNodes, filled } from '../../utils/slot'
 import { useFormDisabled, useFormSize } from '../form/use-form-item'
 import type { ButtonEmits, ButtonProps, ButtonSlots } from './button'
 
@@ -51,16 +53,29 @@ function hasText(nodes: unknown): boolean {
   })
 }
 
-// Read while rendering: slot content can change from one render to the next.
-/** The default slot holds only an icon, so it is sized and centered like one. */
-function iconLabel() {
-  return !!slots.default && !hasText(slots.default())
+interface Layout {
+  leading?: VNode[]
+  label?: VNode[]
+  trailing?: VNode[]
+  /** The default slot holds only an icon, so it is sized and centered like one. */
+  iconLabel: boolean
+  iconOnly: boolean
 }
 
-function iconOnly() {
-  if (slots.trailing) return false
-  if (slots.default) return !slots.leading && iconLabel()
-  return !!(slots.leading || props.loading)
+// Each slot is rendered once a render, on the root's class binding, which is
+// evaluated before the content below it; the content puts down what was
+// rendered. A slot that renders nothing, e.g. a count behind a false `v-if`
+// next to a leading icon, counts as not passed.
+const layout: Layout = { iconLabel: false, iconOnly: false }
+function measure() {
+  const leading = filled(slots.leading)
+  const label = filled(slots.default)
+  const trailing = filled(slots.trailing)
+  const iconLabel = !!label && !hasText(label)
+  let iconOnly = false
+  if (!trailing) iconOnly = label ? !leading && iconLabel : !!(leading || props.loading)
+  Object.assign(layout, { leading, label, trailing, iconLabel, iconOnly })
+  return iconOnly
 }
 
 function onClick(event: MouseEvent) {
@@ -71,7 +86,7 @@ function onClick(event: MouseEvent) {
 
 <template>
   <button
-    :class="[classes, ns.is('icon-only', iconOnly())]"
+    :class="[classes, ns.is('icon-only', measure())]"
     :type="nativeType"
     :disabled="disabled"
     :aria-disabled="loading || undefined"
@@ -81,15 +96,17 @@ function onClick(event: MouseEvent) {
     <span v-if="loading" :class="ns.e('icon')" aria-hidden="true">
       <span :class="ns.e('spinner')" />
     </span>
-    <span v-else-if="slots.leading" :class="ns.e('icon')">
-      <slot name="leading" />
+    <span v-else-if="layout.leading" :class="ns.e('icon')">
+      <SlotNodes :nodes="layout.leading" />
     </span>
-    <template v-if="slots.default">
-      <span v-if="!iconLabel()" :class="ns.e('label')"><slot /></span>
-      <span v-else-if="!loading" :class="ns.e('icon')"><slot /></span>
+    <template v-if="layout.label">
+      <span v-if="!layout.iconLabel" :class="ns.e('label')"
+        ><SlotNodes :nodes="layout.label"
+      /></span>
+      <span v-else-if="!loading" :class="ns.e('icon')"><SlotNodes :nodes="layout.label" /></span>
     </template>
-    <span v-if="slots.trailing" :class="ns.e('icon')">
-      <slot name="trailing" />
+    <span v-if="layout.trailing" :class="ns.e('icon')">
+      <SlotNodes :nodes="layout.trailing" />
     </span>
   </button>
 </template>

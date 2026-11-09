@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, inject } from 'vue'
 import { useNamespace } from '../../utils/namespace'
+import { SlotNodes, filled } from '../../utils/slot'
 import { useFormDisabled, useFormSize } from '../form/use-form-item'
 import { checkTagGroupKey } from './check-tag'
 import type { CheckTagEmits, CheckTagProps, CheckTagSlots } from './check-tag'
@@ -54,7 +55,10 @@ const classes = computed(() => [
     :disabled="disabled"
     @click="toggle"
   >
-    <span v-if="slots.leading" :class="ns.e('icon')"><slot name="leading" /></span>
+    <!-- rendered once: a leading slot that renders nothing leaves no icon -->
+    <template v-for="leading in [filled(slots.leading)]" :key="0">
+      <span v-if="leading" :class="ns.e('icon')"><SlotNodes :nodes="leading" /></span>
+    </template>
     <span :class="ns.e('label')"><slot /></span>
   </button>
 </template>

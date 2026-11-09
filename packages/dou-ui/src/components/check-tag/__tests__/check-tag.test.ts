@@ -81,4 +81,15 @@ describe('DouCheckTagGroup', () => {
     expect(wrapper.props('modelValue')).toEqual(['ts'])
     expect(wrapper.emitted('change')).toHaveLength(2)
   })
+
+  it('leaves no empty icon when the leading slot renders nothing', async () => {
+    const wrapper = mount({
+      components: { DouCheckTag },
+      props: { icon: { type: Boolean, default: false } },
+      template: `<DouCheckTag><template #leading><svg v-if="icon" /></template>上海</DouCheckTag>`,
+    })
+    expect(wrapper.find('.dou-check-tag__icon').exists()).toBe(false)
+    await wrapper.setProps({ icon: true })
+    expect(wrapper.find('.dou-check-tag__icon svg').exists()).toBe(true)
+  })
 })

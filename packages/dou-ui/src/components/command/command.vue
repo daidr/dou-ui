@@ -1,14 +1,22 @@
 <script setup lang="ts">
 import { SearchIcon } from '@dou-ui/icons'
-import { computed, nextTick, ref, useId, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, onUpdated, ref, useId, useTemplateRef, watch } from 'vue'
 import { GROUP_START, useGroupedWindow } from '../../composables/use-grouped-window'
 import { ariaHotkey, useApplePlatform } from '../../composables/use-hotkey'
+import { useMeasuredSizes } from '../../composables/use-measured-sizes'
 import { isComposing } from '../../utils/keyboard'
 import { useNamespace } from '../../utils/namespace'
+import { devWarn } from '../../utils/status-check'
 import { useLocale } from '../config-provider/use-config'
 import { DouKbd } from '../kbd'
 import { matchCommand } from './command'
-import type { CommandExpose, CommandItem, CommandProps, CommandSlots } from './command'
+import type {
+  CommandExpose,
+  CommandItem,
+  CommandProps,
+  CommandSlots,
+  CommandValue,
+} from './command'
 
 defineOptions({ name: 'DouCommand' })
 
@@ -101,11 +109,34 @@ watch(
 
 const listRef = useTemplateRef<HTMLElement>('list')
 
-// Long lists render only the items in view; every item is one row tall.
+// Long lists render only the items in view. With `itemSize` every row is
+// that tall; without it rows grow to fit and are measured once rendered,
+// rows not rendered yet count as tall as the last ones measured, and a row
+// changing height above the view keeps what is in view in place.
+const fixed = computed(() => props.itemSize !== undefined)
+function fixedSize(item: CommandItem) {
+  const size = props.itemSize
+  return typeof size === 'function' ? size(item) : size
+}
+/** Each item's group and place in it, by its index in the flat list. */
+const places = computed(() =>
+  groups.value.flatMap((group, at) => group.entries.map((_, index) => [at, index] as const)),
+)
+let estimate: number | undefined
+const measured = useMeasuredSizes<CommandValue>({
+  count: () => flat.value.length,
+  keyOf: (index) => flat.value[index]!.item.value,
+  estimate: () => estimate ?? 36,
+  container: () => listRef.value,
+  start: (index) => windowing.startOf(...places.value[index]!),
+})
 const windowing = useGroupedWindow({
   container: () => listRef.value,
   sizes: () => groups.value.map((group) => group.entries.length),
-  itemSize: () => 36,
+  itemSize: (group, index) => {
+    const entry = groups.value[group]!.entries[index]!
+    return fixedSize(entry.item) ?? measured.sizeOf(entry.index)
+  },
   virtual: () => props.virtual,
 })
 const groupWindows = computed(() =>
@@ -117,23 +148,61 @@ const groupWindows = computed(() =>
 watch(flatKey, () => {
   if (listRef.value) listRef.value.scrollTop = 0
 })
+watch(
+  () => props.items,
+  () => (estimate = undefined),
+)
 
-watch(active, async (index) => {
-  if (windowing.enabled.value && index >= 0) {
-    // The item may not be rendered: scroll by its place in its group.
-    let at = index
-    for (const [group, { entries }] of groups.value.entries()) {
-      if (at < entries.length) {
-        windowing.scrollToItem(group, at)
-        break
-      }
-      at -= entries.length
+function trackRow(el: unknown, entry: Entry) {
+  if (windowing.enabled.value && !fixed.value) {
+    measured.track(el as Element | null, entry.item.value, entry.index)
+  }
+}
+onUpdated(() => {
+  measured.prune()
+  if (!windowing.enabled.value || !listRef.value) return
+  const rows = listRef.value.querySelectorAll<HTMLElement>('[role="option"]')
+  if (!fixed.value) {
+    // Rows still to be rendered are taken to be like the first ones shown.
+    // Set once: a later change would move every row not measured yet.
+    if (estimate === undefined) {
+      let sum = 0
+      for (const row of rows) sum += row.offsetHeight
+      if (sum) estimate = sum / rows.length
+    }
+    return
+  }
+  // A row cut to its size overlaps the next one: say so while developing.
+  if (process.env.NODE_ENV !== 'production') {
+    for (const row of rows) {
+      if (row.scrollHeight <= row.clientHeight + 1) continue
+      return devWarn(
+        '[dou-ui] DouCommand: an item is taller than `itemSize`. Pass a larger `itemSize`, or leave it out to have rows measured.',
+      )
     }
   }
+})
+
+// Bring the active item into view. A far jump in a virtual list first
+// scrolls to where the item is estimated to be; once the rows there are
+// rendered and measured, it aims again, for a few frames at most.
+async function reveal(index: number, settle: number) {
+  if (windowing.enabled.value) {
+    const place = places.value[index]
+    if (place) windowing.scrollToItem(...place)
+  }
   await nextTick()
+  if (index !== active.value) return
   listRef.value?.querySelector(`#${CSS.escape(optionId(index))}`)?.scrollIntoView?.({
     block: 'nearest',
   })
+  if (settle > 0 && windowing.enabled.value && !fixed.value) {
+    if (typeof requestAnimationFrame !== 'undefined')
+      requestAnimationFrame(() => index === active.value && void reveal(index, settle - 1))
+  }
+}
+watch(active, (index) => {
+  if (index >= 0) void reveal(index, 3)
 })
 
 function choose(index: number) {
@@ -174,6 +243,11 @@ function parts(entry: Entry) {
     else result.push({ text: label[index]!, match })
   }
   return result
+}
+
+function rowStyle(entry: Entry) {
+  const size = windowing.enabled.value ? fixedSize(entry.item) : undefined
+  return size === undefined ? undefined : { height: `${size}px`, minHeight: `${size}px` }
 }
 
 const inputRef = useTemplateRef<HTMLInputElement>('input')
@@ -255,6 +329,8 @@ const maxHeight = computed(() =>
             ns.is('active', entry.index === active),
             ns.is('disabled', !!entry.item.disabled),
           ]"
+          :ref="(el) => trackRow(el, entry)"
+          :style="rowStyle(entry)"
           @mousedown.prevent
           @click="choose(entry.index)"
           @mousemove="enabled(entry.index) && (active = entry.index)"

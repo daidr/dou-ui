@@ -61,6 +61,8 @@
     overflow-y: auto;
     overscroll-behavior: contain;
     scroll-padding: 6px;
+    /* a virtual list keeps its own place when rows above change height */
+    overflow-anchor: none;
   }
 
   .dou-command__group + .dou-command__group {
@@ -81,12 +83,12 @@
     align-items: center;
     gap: 10px;
     box-sizing: border-box;
-    height: 36px;
-    padding: 0 10px;
+    /* one line is 36px; an item slot with more grows the row, unless the
+       list is virtual, where the row gets its exact height inline */
+    min-height: 36px;
+    padding: 6px 10px;
     border-radius: var(--dou-radius-control);
     color: var(--dou-color-text);
-    line-height: 1;
-    white-space: nowrap;
     cursor: pointer;
 
     &.is-active {
@@ -103,6 +105,8 @@
     flex: 0 1 auto;
     min-width: 0;
     overflow-x: clip;
+    line-height: 1;
+    white-space: nowrap;
     text-overflow: ellipsis;
     text-box: trim-both cap alphabetic;
   }
@@ -125,6 +129,8 @@
     overflow-x: clip;
     color: var(--dou-color-text-tertiary);
     font-size: var(--dou-font-size-sm);
+    line-height: 1;
+    white-space: nowrap;
     text-overflow: ellipsis;
     text-box: trim-both cap alphabetic;
   }

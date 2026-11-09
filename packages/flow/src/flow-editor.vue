@@ -3721,7 +3721,7 @@ const context: FlowEditorContext = {
   portTypeOf,
   colorOf,
   getNodeRect,
-  comment: (on) => comments.start(on),
+  comment: (on, options) => comments.start(on, options?.focus ?? true),
   canComment: comments.writable,
   tidy,
   centerNode,
@@ -4161,7 +4161,7 @@ defineExpose<FlowEditorExpose>({
     return [...staleEdges.value]
   },
   removeStaleEdges,
-  comment: (on) => comments.start(on),
+  comment: (on, options) => comments.start(on, options?.focus ?? true),
   getCommentAnchors,
   insertNode,
   startInsertDrag,

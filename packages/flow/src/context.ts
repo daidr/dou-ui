@@ -219,8 +219,10 @@ export interface FlowEditorExpose {
    * out), ready to reply, or starts one there; `false` when there is no such
    * node or edge, or nothing to open and comments can't be written. With
    * `at`, it always starts a new thread pinned to that point of the node.
+   * `focus: false` leaves the focus where it is instead of putting it in the
+   * reply box, for a tap that shouldn't bring up a phone's keyboard.
    */
-  comment: (anchor?: FlowCommentAnchor) => boolean
+  comment: (anchor?: FlowCommentAnchor, options?: { focus?: boolean }) => boolean
   /** What each thread is about; `null` when its node or edge is gone. Not reactive. */
   getCommentAnchors: () => Record<string, FlowCommentAnchor | null>
   /**

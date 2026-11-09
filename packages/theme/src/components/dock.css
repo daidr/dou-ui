@@ -10,8 +10,8 @@
 @layer dou.components {
   .dou-dock {
     /* around the tabs and the panel of each group */
-    --dou-dock-padding-x: 12px;
-    --dou-dock-padding-bottom: 4px;
+    --dou-dock-group-padding-x: 12px;
+    --dou-dock-group-padding-bottom: 4px;
     /* between a group's row of tabs and its panel */
     --dou-dock-panel-gap: 16px;
 
@@ -42,12 +42,28 @@
     height: 100%;
     min-width: 0;
     min-height: 0;
-    padding: 0 var(--dou-dock-padding-x) var(--dou-dock-padding-bottom);
+    padding: 0 var(--dou-dock-group-padding-x) var(--dou-dock-group-padding-bottom);
 
     & > .dou-tabs {
       --dou-tabs-panel-gap: var(--dou-dock-panel-gap);
 
       flex: 1 1 auto;
+    }
+
+    /*
+     * The panel keeps up to 4px clear on its sides and bottom for the focus
+     * rings of its content (tabs.css), taken out of the group's padding: the
+     * content sits the padding away from the group's edges, alike on both
+     * sides, and flush with no padding.
+     */
+    & > .dou-tabs.is-fixed:not(.is-vertical) > .dou-tabs__panel {
+      --dou-dock-ring-x: min(4px, var(--dou-dock-group-padding-x));
+      --dou-dock-ring-bottom: min(4px, var(--dou-dock-group-padding-bottom));
+
+      margin-inline: calc(-1 * var(--dou-dock-ring-x));
+      margin-bottom: calc(-1 * var(--dou-dock-ring-bottom));
+      padding-inline: var(--dou-dock-ring-x);
+      padding-bottom: var(--dou-dock-ring-bottom);
     }
   }
 

@@ -85,16 +85,25 @@ layout.value = moveDockTab(layout.value, value, target)
 
 ## 间距
 
-每组左右各留 12px、底部留 4px，标签行和面板之间留 16px。如果放进来的内容自带内边距、顶部有贴边的标题栏，可以用 CSS 变量调整这些间距，避免两层内边距叠在一起：
+每组左右各留 12px、底部留 4px，标签行和面板之间留 16px。放进来的内容如果自带内边距，或者顶部有贴边的标题栏，可以给 `DouDock` 加一个类名，再用 CSS 变量调整这些间距，避免两层内边距叠在一起：
 
-```css
+<!-- prettier-ignore -->
+```vue
+<template>
+  <DouDock v-model="layout" class="side-dock" :panels="panels" />
+</template>
+
+<style>
 .side-dock {
-  --dou-dock-padding-x: 0px;
+  --dou-dock-group-padding-x: 0px;
   --dou-dock-panel-gap: 0px;
 }
+</style>
 ```
 
-把 `class="side-dock"` 加在 `DouDock` 上即可。这样标签行也会贴边。
+变量要设在 `DouDock` 本身或它的类名上，设在外层元素上不生效。`--dou-dock-group-padding-x` 为 0 时，标签行和面板内容都贴着组的左右边缘。
+
+面板内容离组边缘的距离就是这两个内边距：面板在这段距离里最多留 4px 给内容的焦点框，内边距设为 0 时内容完全贴边，焦点框可能被组的边缘挡住一部分。Dock 里调标签行和面板的距离用 `--dou-dock-panel-gap`，设 `--dou-tabs-panel-gap` 不生效。
 
 ## 键盘与读屏
 
@@ -147,11 +156,11 @@ layout.value = moveDockTab(layout.value, value, target)
 
 ### CSS 变量
 
-| 变量                        | 说明                                  |
-| --------------------------- | ------------------------------------- |
-| `--dou-dock-padding-x`      | 每组左右的内边距，默认 12px           |
-| `--dou-dock-padding-bottom` | 每组底部的内边距，默认 4px            |
-| `--dou-dock-panel-gap`      | 每组标签行和面板之间的距离，默认 16px |
+| 变量                              | 说明                                  |
+| --------------------------------- | ------------------------------------- |
+| `--dou-dock-group-padding-x`      | 每组左右的内边距，默认 12px           |
+| `--dou-dock-group-padding-bottom` | 每组底部的内边距，默认 4px            |
+| `--dou-dock-panel-gap`            | 每组标签行和面板之间的距离，默认 16px |
 
 ### 类型
 

@@ -55,13 +55,15 @@ describe('a button in the prefix or suffix', () => {
 })
 
 describe('the touch area of a button in the prefix or suffix', () => {
-  it('stops at the field’s outer edge, above and below as well', () => {
+  it('reaches 40px on its own, and stops at the field’s outer edge in a field group', () => {
     for (const [name, inset] of [
       ['input', '--dou-input-action-inset'],
       ['input-number', '--dou-input-number-action-inset'],
     ]) {
-      expect(read(name!)).toMatch(
-        new RegExp(`--dou-field-action-reach:\\s*calc\\(var\\(${inset}\\) \\+ 1px\\)`),
+      const css = read(name!)
+      expect(css).toMatch(/--dou-field-action-reach:\s*20px/)
+      expect(rule(css, `.dou-field-group > .dou-${name}`)).toMatch(
+        new RegExp(`--dou-field-action-reach:\\s*calc\\(var\\(${inset}\\) \\+ 2px\\)`),
       )
     }
     for (const name of ['button', 'copy-button']) {

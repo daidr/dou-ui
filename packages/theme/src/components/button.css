@@ -253,8 +253,8 @@
   /*
    * A button in the prefix or suffix of a field acts for it: the field sets
    * its height, and its focus ring stays inside the gap to the field's edge.
-   * On touch screens it takes taps up to 40px tall, but never past the
-   * field's outer edge, where another control may sit in a field group.
+   * On touch screens it takes taps up to 40px tall, or up to the field's
+   * outer edge in a field group, where another control sits right against it.
    */
   .dou-button.is-field-action {
     --dou-button-height: var(--dou-field-action-size, var(--dou-control-height-md));

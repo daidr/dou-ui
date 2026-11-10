@@ -15,8 +15,8 @@
     /* a button in the prefix or suffix: its gap to the inner edge, on every
        side, and the height that leaves it */
     --dou-input-action-inset: 2px;
-    /* how far a button's touch area may reach past it: to the outer edge */
-    --dou-field-action-reach: calc(var(--dou-input-action-inset) + 1px);
+    /* how far a button's touch area may reach past it; enough for 40px */
+    --dou-field-action-reach: 20px;
     --dou-field-action-size: calc(
       var(--dou-input-height) - 2px - 2 * var(--dou-input-action-inset)
     );
@@ -221,10 +221,14 @@
   }
 
   /* on touch screens a narrow button at the start or end takes taps up to
-     40px wide, but never past the field's outer edge, where another control
-     may sit in a field group. The rest comes from the inner side when the
-     button stands alone next to the text, at most half the gap to it; a
-     clear or reveal button there keeps its own taps. */
+     40px wide and tall. In a field group the next control sits right against
+     the field, so there the taps stop at the field's outer edge (the gap,
+     the field's border and the button's own), and the rest comes from the
+     inner side when the button stands alone next to the text, at most half
+     the gap to it; a clear or reveal button there keeps its own taps. */
+  .dou-field-group > .dou-input {
+    --dou-field-action-reach: calc(var(--dou-input-action-inset) + 2px);
+  }
   @media (pointer: coarse) {
     .dou-input__prefix.is-edge-action .is-field-action:first-child::after {
       inset-inline-start: max(

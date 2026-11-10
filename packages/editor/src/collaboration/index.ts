@@ -5,6 +5,7 @@ import {
   type CommentThread,
   type SharedCommentMap,
 } from 'dou-ui'
+import type { Schema } from 'prosemirror-model'
 import { shallowRef } from 'vue'
 import { Plugin, TextSelection, type Command } from 'prosemirror-state'
 import * as Y from 'yjs'
@@ -16,7 +17,15 @@ import {
 import { blocksToDoc, docToBlocks, type EditorDocument, type PartialBlock } from '../core/model'
 import { editorKit } from '../extensions/editor-kit'
 import { createBinding, readDoc, syncPlugin, updateDoc, writeDoc, type YBlock } from './binding'
-import { cursorsPlugin, positionOf, type AwarenessLike } from './cursors'
+import {
+  cursorIn,
+  cursorsPlugin,
+  positionOf,
+  type AwarenessLike,
+  type EditorCursorTarget,
+  type EditorPresence,
+  type EditorPresencePlace,
+} from './cursors'
 
 /** How the people editing together see each other. */
 export interface CollaborationUser {
@@ -61,6 +70,10 @@ export function collaboration(options: CollaborationOptions): EditorExtension {
     captureTimeout: 500,
   })
   binding.stopCapturing = () => undoManager.stopCapturing()
+  // as if the last change were just now: the next one is captured with it
+  binding.joinCapturing = () => {
+    if (undoManager.undoStack.length) undoManager.lastChange = Date.now()
+  }
   // put the cursor back where it was when the change was made
   undoManager.on('stack-item-added', (event: { stackItem: { meta: Map<string, unknown> } }) => {
     if (!event.stackItem.meta.has('selection'))
@@ -125,8 +138,49 @@ export function collaboration(options: CollaborationOptions): EditorExtension {
 type ExtensionList = (EditorExtension | EditorExtension[])[]
 
 /** The extensions the editors of the shared document use; `[editorKit()]` when left out. */
-const schemaOf = (extensions: ExtensionList = [editorKit()]) =>
-  resolveEditorExtensions(extensions).schema
+const schemas = new WeakMap<ExtensionList, Schema>()
+let defaultSchema: Schema | undefined
+
+/** The schema of a list of extensions, resolved once per list; without one, of `[editorKit()]`. */
+function schemaOf(extensions?: ExtensionList): Schema {
+  if (!extensions) return (defaultSchema ??= resolveEditorExtensions([editorKit()]).schema)
+  let schema = schemas.get(extensions)
+  if (!schema) {
+    schema = resolveEditorExtensions(extensions).schema
+    schemas.set(extensions, schema)
+  }
+  return schema
+}
+
+export interface CursorAtOptions {
+  /** Where a selection starts; left out, only a cursor at `head`. */
+  anchor?: EditorCursorTarget
+  /** The extensions the editors use, for custom blocks. Defaults to `[editorKit()]`. */
+  extensions?: ExtensionList
+}
+
+/**
+ * The value for the awareness field `editor` that puts a cursor at `head`,
+ * selecting from `options.anchor` when given, without an editor: e.g. on
+ * the server, for a program writing into the document with `updateMap`, so
+ * the people in the editor see where it writes. `null` when the block isn't
+ * in the map or has no text, e.g. an image, a divider, or a table without
+ * `cell`.
+ */
+export function cursorAt(
+  map: Y.Map<unknown>,
+  head: EditorCursorTarget,
+  options: CursorAtOptions = {},
+): EditorPresence | null {
+  const schema = schemaOf(options.extensions)
+  const holdsText = (name: string) => {
+    const known = schema.nodes[name]
+    // unknown types are read as paragraphs
+    const type = known?.isInGroup('blockContent') ? known : schema.nodes.paragraph!
+    return type.inlineContent
+  }
+  return cursorIn(map, head, options.anchor ?? head, holdsText)
+}
 
 /** Runs `write` as one transaction of the map's document, from `origin`. */
 function transact(map: Y.Map<unknown>, write: () => void, origin: unknown) {
@@ -216,4 +270,4 @@ export function readMap(map: Y.Map<unknown>, options: ReadMapOptions = {}): Edit
   return { version: 1, blocks: doc ? docToBlocks(doc) : [] }
 }
 
-export type { AwarenessLike }
+export type { AwarenessLike, EditorCursorTarget, EditorPresence, EditorPresencePlace }

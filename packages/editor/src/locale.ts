@@ -21,8 +21,10 @@ export interface EditorMessages {
     toggle: string
     callout: string
     table: string
+    columns: string
     attachment: string
     embed: string
+    whiteboard: string
   }
   /** Short descriptions in the slash menu. */
   hints: {
@@ -40,8 +42,10 @@ export interface EditorMessages {
     toggle: string
     callout: string
     table: string
+    columns: string
     attachment: string
     embed: string
+    whiteboard: string
   }
   /** The image block. */
   image: {
@@ -93,6 +97,21 @@ export interface EditorMessages {
     addRow: string
     addColumn: string
   }
+  /** Columns: the picker in the slash menu, the block menu entry, the resize bar. */
+  columns: {
+    /** The title of the picker for the number of columns. */
+    pick: string
+    /** A number of columns; `{count}` is replaced with it. */
+    count: string
+    /** Selects the whole set of columns a block is in. */
+    select: string
+    /** The bar between two columns. */
+    resize: string
+    /** Makes every column of the set as wide as the others. */
+    even: string
+    /** A column, for screen readers; `{index}` and `{count}` are replaced. */
+    column: string
+  }
   /** The color menu of the formatting toolbar. */
   colors: {
     label: string
@@ -132,6 +151,21 @@ export interface EditorMessages {
     caption: string
     edit: string
     cancel: string
+  }
+  /** Blocks holding a whiteboard or a flow (`@dou-ui/editor/flow`). */
+  board: {
+    empty: string
+    start: string
+    edit: string
+    view: string
+    resize: string
+    /** The button that adds a node to a flow, and the name of the node a flow block offers. */
+    addNode: string
+    searchNodes: string
+    noNodes: string
+    node: string
+    /** On an empty flow in the fullscreen editor. */
+    emptyFlow: string
   }
   noResults: string
   addBlock: string
@@ -186,8 +220,10 @@ const zhCN: EditorMessages = {
     toggle: '折叠块',
     callout: '提示块',
     table: '表格',
+    columns: '分栏',
     attachment: '附件',
     embed: '嵌入',
+    whiteboard: '白板',
   },
   hints: {
     paragraph: '普通的文字',
@@ -204,8 +240,10 @@ const zhCN: EditorMessages = {
     toggle: '可以展开和收起的内容',
     callout: '带图标的醒目说明',
     table: '插入一个表格',
+    columns: '把内容并排分成几栏',
     attachment: '上传一个文件',
     embed: '视频、音频或网页',
+    whiteboard: '图形、便签和连线',
   },
   image: {
     empty: '添加一张图片',
@@ -249,6 +287,14 @@ const zhCN: EditorMessages = {
     change: '点击更换',
     tones: { info: '说明', tip: '提示', warning: '注意', danger: '警告' },
   },
+  columns: {
+    pick: '选择栏数',
+    count: '{count} 栏',
+    select: '选中整个分栏',
+    resize: '调整栏宽',
+    even: '平分栏宽',
+    column: '第 {index} 栏，共 {count} 栏',
+  },
   colors: {
     label: '颜色',
     text: '文字颜色',
@@ -283,6 +329,18 @@ const zhCN: EditorMessages = {
     edit: '修改链接',
     cancel: '取消',
     caption: '添加说明',
+  },
+  board: {
+    empty: '还没有内容',
+    start: '开始绘制',
+    edit: '编辑',
+    view: '查看',
+    resize: '拖动以调整高度',
+    addNode: '添加节点',
+    searchNodes: '搜索节点',
+    noNodes: '没有匹配的节点',
+    node: '节点',
+    emptyFlow: '使用左上角的“添加节点”添加第一个节点，也可以按住按钮拖到画布上',
   },
   noResults: '没有匹配的块',
   addBlock: '在下方添加块',
@@ -331,8 +389,10 @@ const zhTW: EditorMessages = {
     toggle: '摺疊區塊',
     callout: '提示區塊',
     table: '表格',
+    columns: '分欄',
     attachment: '附件',
     embed: '嵌入',
+    whiteboard: '白板',
   },
   hints: {
     paragraph: '一般的文字',
@@ -349,8 +409,10 @@ const zhTW: EditorMessages = {
     toggle: '可以展開和收合的內容',
     callout: '帶圖示的醒目說明',
     table: '插入一個表格',
+    columns: '把內容並排分成幾欄',
     attachment: '上傳一個檔案',
     embed: '影片、音訊或網頁',
+    whiteboard: '圖形、便籤和連線',
   },
   image: {
     empty: '新增一張圖片',
@@ -394,6 +456,14 @@ const zhTW: EditorMessages = {
     change: '點擊更換',
     tones: { info: '說明', tip: '提示', warning: '注意', danger: '警告' },
   },
+  columns: {
+    pick: '選擇欄數',
+    count: '{count} 欄',
+    select: '選取整個分欄',
+    resize: '調整欄寬',
+    even: '平分欄寬',
+    column: '第 {index} 欄，共 {count} 欄',
+  },
   colors: {
     label: '顏色',
     text: '文字顏色',
@@ -428,6 +498,18 @@ const zhTW: EditorMessages = {
     edit: '修改連結',
     cancel: '取消',
     caption: '新增說明',
+  },
+  board: {
+    empty: '還沒有內容',
+    start: '開始繪製',
+    edit: '編輯',
+    view: '查看',
+    resize: '拖曳以調整高度',
+    addNode: '新增節點',
+    searchNodes: '搜尋節點',
+    noNodes: '沒有符合的節點',
+    node: '節點',
+    emptyFlow: '使用左上角的「新增節點」新增第一個節點，也可以按住按鈕拖曳到畫布上',
   },
   noResults: '沒有符合的區塊',
   addBlock: '在下方新增區塊',
@@ -476,8 +558,10 @@ const en: EditorMessages = {
     toggle: 'Toggle',
     callout: 'Callout',
     table: 'Table',
+    columns: 'Columns',
     attachment: 'File',
     embed: 'Embed',
+    whiteboard: 'Whiteboard',
   },
   hints: {
     paragraph: 'Plain text',
@@ -494,8 +578,10 @@ const en: EditorMessages = {
     toggle: 'Content that can be shown or hidden',
     callout: 'A note that stands out, with an icon',
     table: 'A grid of rows and columns',
+    columns: 'Put content side by side',
     attachment: 'Upload a file',
     embed: 'Video, audio or a web page',
+    whiteboard: 'Shapes, sticky notes and connectors',
   },
   image: {
     empty: 'Add an image',
@@ -539,6 +625,14 @@ const en: EditorMessages = {
     change: 'click to change',
     tones: { info: 'Info', tip: 'Tip', warning: 'Warning', danger: 'Danger' },
   },
+  columns: {
+    pick: 'Number of columns',
+    count: '{count} columns',
+    select: 'Select all columns',
+    resize: 'Resize columns',
+    even: 'Even out columns',
+    column: 'Column {index} of {count}',
+  },
   colors: {
     label: 'Color',
     text: 'Text color',
@@ -573,6 +667,19 @@ const en: EditorMessages = {
     edit: 'Change link',
     cancel: 'Cancel',
     caption: 'Add a caption',
+  },
+  board: {
+    empty: 'Nothing drawn yet',
+    start: 'Start drawing',
+    edit: 'Edit',
+    view: 'View',
+    resize: 'Drag to change the height',
+    addNode: 'Add node',
+    searchNodes: 'Search nodes',
+    noNodes: 'No matching nodes',
+    node: 'Node',
+    emptyFlow:
+      'Use “Add node” at the top left to add the first node, or hold the button and drag it onto the canvas',
   },
   noResults: 'No matching blocks',
   addBlock: 'Add a block below',

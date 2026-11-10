@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { CheckIcon, CopyIcon } from '@dou-ui/icons'
-import { computed } from 'vue'
+import { computed, useTemplateRef } from 'vue'
 import { useClipboard } from '../../composables/use-clipboard'
+import { useFieldAction } from '../../utils/field-action'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import { DouTooltip } from '../tooltip'
@@ -21,13 +22,18 @@ const props = withDefaults(defineProps<CopyButtonProps>(), {
 const emit = defineEmits<{ copy: [text: string]; error: [error: unknown] }>()
 
 const ns = useNamespace('copy-button')
+// in a field's prefix or suffix the button acts for the field: disabled
+// with it, and sized by it
+const root = useTemplateRef<HTMLButtonElement>('root')
+const fieldAction = useFieldAction(() => root.value)
+const disabled = computed(() => props.disabled || fieldAction.disabled())
 const { t } = useLocale()
 
 const clipboard = useClipboard({ duration: () => props.duration })
 const copied = clipboard.copied
 
 async function copy() {
-  if (props.disabled) return
+  if (disabled.value) return
   try {
     const text = typeof props.text === 'function' ? await props.text() : props.text
     await clipboard.copy(text)
@@ -45,6 +51,7 @@ const copiedLabel = computed(() => props.copiedLabel ?? t('copyButton.copied'))
   <!-- Only the icon shows: its name goes in a tooltip. -->
   <DouTooltip :content="copied ? copiedLabel : label" :disabled="showLabel">
     <button
+      ref="root"
       v-bind="$attrs"
       type="button"
       :class="[
@@ -53,6 +60,7 @@ const copiedLabel = computed(() => props.copiedLabel ?? t('copyButton.copied'))
         ns.m(variant),
         ns.is('copied', copied),
         ns.is('labelled', showLabel),
+        ns.is('field-action', fieldAction.active.value),
       ]"
       :disabled="disabled"
       :aria-label="copied ? copiedLabel : label"

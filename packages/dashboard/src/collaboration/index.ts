@@ -7,9 +7,9 @@ import type {
   DashboardPeer,
   DashboardPresence,
 } from '../core/collaboration'
-import type { DashboardTransaction } from '../core/transaction'
+import { sameValue, type DashboardTransaction } from '../core/transaction'
 import type { DashboardDocument, DashboardWidget } from '../core/types'
-import { orderKeys } from './order'
+import { keptIndexes, orderKeys } from './order'
 
 /** The part of an `Awareness` (`y-protocols/awareness`) the dashboard uses. */
 export interface AwarenessLike {
@@ -48,9 +48,8 @@ const ORDER = '$order'
 /** The places by breakpoint, a map of their own, so places on two breakpoints don't overwrite each other. */
 const PLACE = 'place'
 
-const same = (a: unknown, b: unknown) =>
-  a === b ||
-  (typeof a === 'object' && typeof b === 'object' && JSON.stringify(a) === JSON.stringify(b))
+/** Whether two JSON values are the same, whatever the order of their keys. */
+const same = sameValue
 
 /** Where in `value` something JSON can't carry sits, e.g. a component or a function. */
 function unshareable(value: unknown, path: string): string | null {
@@ -139,19 +138,213 @@ function writeOrder(map: Shared, widgets: readonly DashboardWidget[]) {
   })
 }
 
+/** Runs `write` as one transaction of the map's document, from `origin`. */
+function transact(map: Shared, write: () => void, origin: unknown) {
+  if (map.doc) map.doc.transact(write, origin ?? null)
+  else write()
+}
+
+export interface FillMapOptions {
+  /** The origin of the Yjs transaction, so the others can tell who wrote it. */
+  origin?: unknown
+}
+
 /**
  * Writes a dashboard into an empty map, e.g. when a dashboard so far saved
  * as JSON starts being edited together. Do it once, where the shared
  * document is created; otherwise the first person to open the dashboard
  * brings theirs.
  */
-export function fillMap(map: Y.Map<unknown>, document: DashboardDocument) {
+export function fillMap(
+  map: Y.Map<unknown>,
+  document: DashboardDocument,
+  options: FillMapOptions = {},
+) {
   const fill = () => {
     for (const widget of document.widgets) writeWidget(map, widget)
     writeOrder(map, document.widgets)
   }
-  if (map.doc) map.doc.transact(fill)
-  else fill()
+  transact(map, fill, options.origin)
+}
+
+/** Writes the keys and places that differ between `before` and `after` into a widget's map. */
+function writeDifference(fields: Shared, before: DashboardWidget, after: DashboardWidget) {
+  const a = before as unknown as Item
+  const b = after as unknown as Item
+  for (const key of new Set([...Object.keys(a), ...Object.keys(b)])) {
+    if (key === 'id' || key[0] === '$') continue
+    if (key === PLACE) {
+      const from = before.place ?? {}
+      const to = after.place ?? {}
+      const found = fields.get(PLACE)
+      let places = found instanceof Y.Map ? (found as Shared) : null
+      for (const name of new Set([...Object.keys(from), ...Object.keys(to)])) {
+        if (same(from[name], to[name])) continue
+        if (!places) fields.set(PLACE, (places = new Y.Map<unknown>()))
+        const place = to[name]
+        if (place) places.set(name, { ...place })
+        else places.delete(name)
+      }
+    } else if (!same(a[key], b[key])) {
+      if (b[key] === undefined) fields.delete(key)
+      else {
+        warnUnshareable(after.id, key, b[key])
+        fields.set(key, b[key])
+      }
+    }
+  }
+}
+
+/**
+ * Gives `placing` (widgets added or moved in `next`) order keys among the
+ * widgets as they are ordered in the map now: right after the widget before
+ * them in `next`; those before the first widget that stays go right before
+ * it, and those after the last one go after all the others. Everyone else
+ * keeps their key.
+ */
+function placeOrder(map: Shared, next: readonly DashboardWidget[], placing: Set<string>) {
+  if (!placing.size) return
+  const list = readMap(map)
+    .widgets.map((widget) => widget.id)
+    .filter((id) => !placing.has(id))
+  const listed = new Set(list)
+  const stays = (id: string) => listed.has(id)
+  let last = -1
+  next.forEach((widget, index) => {
+    if (stays(widget.id)) last = index
+  })
+  const leading: string[] = []
+  const trailing: string[] = []
+  const after = new Map<string, string[]>()
+  let first: string | null = null
+  let previous: string | null = null
+  next.forEach((widget, index) => {
+    if (stays(widget.id)) {
+      first ??= widget.id
+      previous = widget.id
+    } else if (placing.has(widget.id)) {
+      if (index > last) trailing.push(widget.id)
+      else if (previous === null) leading.push(widget.id)
+      else {
+        const attached = after.get(previous)
+        if (attached) attached.push(widget.id)
+        else after.set(previous, [widget.id])
+      }
+    }
+  })
+  const ordered: string[] = []
+  for (const id of list) {
+    if (id === first) ordered.push(...leading)
+    ordered.push(id, ...(after.get(id) ?? []))
+  }
+  ordered.push(...trailing)
+  const shared = ordered.map((id) => map.get(id) as Shared)
+  const keys = orderKeys(
+    shared.map((fields, index) =>
+      placing.has(ordered[index]!) ? null : ((fields.get(ORDER) as string | undefined) ?? null),
+    ),
+  )
+  shared.forEach((fields, index) => {
+    if (fields.get(ORDER) !== keys[index]) fields.set(ORDER, keys[index])
+  })
+}
+
+/**
+ * While developing: each widget `readMap` gave, as it was then, to tell a
+ * widget of `base` changed in place from one others changed meanwhile.
+ */
+const asRead = new WeakMap<object, unknown>()
+
+/** The widgets of `next` that can be written: each id once, each with a type. */
+function writable(next: DashboardDocument, base: DashboardDocument | undefined) {
+  const dev = process.env.NODE_ENV !== 'production'
+  if (dev && base && (next === base || next.widgets === base.widgets))
+    console.warn(
+      '[@dou-ui/dashboard] updateMap got the same object as `next` and `base`, so nothing is written: change a copy of `base`, e.g. structuredClone(base).',
+    )
+  else if (dev && base) {
+    // a widget of base that is no longer as `readMap` gave it was changed in place
+    const kept = new Set<DashboardWidget>(base.widgets)
+    for (const widget of next.widgets) {
+      const snapshot = kept.has(widget) ? asRead.get(widget) : undefined
+      if (!snapshot || same(snapshot, widget)) continue
+      console.warn(
+        `[@dou-ui/dashboard] updateMap got the widget "${widget.id}" of \`base\` itself in \`next\`, changed in place: the change isn't written. Change a copy of \`base\`, e.g. structuredClone(base).`,
+      )
+      break
+    }
+  }
+  const seen = new Set<string>()
+  return next.widgets.filter((widget) => {
+    if (typeof widget.type !== 'string') {
+      if (dev)
+        console.warn(
+          `[@dou-ui/dashboard] updateMap skips "${widget.id}": a widget needs a \`type\`.`,
+        )
+      return false
+    }
+    if (seen.has(widget.id)) {
+      if (dev)
+        console.warn(
+          `[@dou-ui/dashboard] updateMap skips the second widget "${widget.id}": ids must be unique.`,
+        )
+      return false
+    }
+    seen.add(widget.id)
+    return true
+  })
+}
+
+export interface UpdateMapOptions extends FillMapOptions {
+  /**
+   * The version `next` was made from, e.g. the one read with `readMap` and
+   * given to a program that took a while to write `next`. Only what differs
+   * between `base` and `next` is written: added and removed widgets, changed
+   * keys, places on the breakpoints that changed, and the order of the
+   * widgets that moved. What others changed meanwhile stays. Left out, the
+   * map as it is now: then every widget not in `next` is removed.
+   */
+  base?: DashboardDocument
+}
+
+/**
+ * Change a shared map from `options.base` to `next`, without a dashboard,
+ * e.g. on the server when a program wrote a new version while people edit
+ * the dashboard. Only what differs is written.
+ */
+export function updateMap(
+  map: Y.Map<unknown>,
+  next: DashboardDocument,
+  options: UpdateMapOptions = {},
+) {
+  // a map not in a document can't be read, so nothing could be merged
+  if (!map.doc) throw new Error('[@dou-ui/dashboard] updateMap needs a map of a Y.Doc')
+  const update = () => {
+    const base = options.base ?? readMap(map)
+    const widgets = writable(next, options.base)
+    const before = new Map(base.widgets.map((widget) => [widget.id, widget]))
+    const ids = new Set(next.widgets.map((widget) => widget.id))
+    for (const id of before.keys()) if (!ids.has(id)) map.delete(id)
+
+    // the widgets both have, in `base`'s order: those out of it in `next` moved
+    const index = new Map(base.widgets.map((widget, i) => [widget.id, i]))
+    const common = widgets.filter((widget) => index.has(widget.id))
+    const kept = keptIndexes(common.map((widget) => String(index.get(widget.id)).padStart(10, '0')))
+    const placing = new Set(common.filter((_, i) => !kept.has(i)).map((widget) => widget.id))
+
+    for (const widget of widgets) {
+      const old = before.get(widget.id)
+      const fields = map.get(widget.id)
+      if (!old) {
+        writeWidget(map, widget)
+        placing.add(widget.id)
+      } else if (fields instanceof Y.Map) writeDifference(fields, old, widget)
+      // removed meanwhile by someone else: it stays removed
+      else placing.delete(widget.id)
+    }
+    placeOrder(map, widgets, placing)
+  }
+  transact(map, update, options.origin)
 }
 
 /** The dashboard the map holds: its widgets by their order keys (then ids, the same for everyone). */
@@ -175,7 +368,10 @@ export function readMap(map: Y.Map<unknown>): DashboardDocument {
   list.sort((a, b) =>
     a.order < b.order ? -1 : a.order > b.order ? 1 : a.widget.id < b.widget.id ? -1 : 1,
   )
-  return { version: 1, widgets: list.map((entry) => entry.widget) }
+  const widgets = list.map((entry) => entry.widget)
+  if (process.env.NODE_ENV !== 'production')
+    for (const widget of widgets) asRead.set(widget, structuredClone(widget))
+  return { version: 1, widgets }
 }
 
 /** The widgets and keys a transaction changed, written to the map. */

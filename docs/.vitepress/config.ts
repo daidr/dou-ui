@@ -53,6 +53,8 @@ const editorSidebar = ecosystem('块编辑器', [
   { text: '提及', link: '/editor/mention' },
   { text: '评论', link: '/editor/comments' },
   { text: '表格', link: '/editor/table' },
+  { text: '分栏', link: '/editor/columns' },
+  { text: '白板与流程图', link: '/editor/whiteboard' },
   { text: '导入与导出', link: '/editor/import-export' },
   { text: '历史版本', link: '/editor/versions' },
   { text: '协同编辑', link: '/editor/collaboration' },
@@ -538,6 +540,10 @@ export default defineConfig({
         {
           find: /^@dou-ui\/editor\/code$/,
           replacement: r('../../packages/editor/src/code/index.ts'),
+        },
+        {
+          find: /^@dou-ui\/editor\/flow$/,
+          replacement: r('../../packages/editor/src/flow/index.ts'),
         },
         {
           find: /^@dou-ui\/editor\/markdown$/,

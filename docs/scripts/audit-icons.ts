@@ -9,6 +9,10 @@
  *   Controls taller than 44px (cards) and stacked icon pairs are skipped.
  * - size: the button icons of one toolbar, button group or toggle group are
  *   not all the same size.
+ * - clip: a line of text is cut off at the top or bottom by a box that clips
+ *   it (`overflow: hidden` on a label trimmed to the cap height, a fixed
+ *   height that is too short). The glyphs are taken as one em tall, centered
+ *   on the line, as Chinese characters are; a 1px slip is allowed.
  *
  * Tilted boxes (3D or rotated, like the home page wall) are skipped.
  *
@@ -19,6 +23,9 @@
  *
  * A page that fails to open counts as a failure: it was not measured.
  *
+ * `--font <family>` draws every page in that font instead, to check text
+ * under the metrics of another platform's font (a Windows or Linux CJK font).
+ *
  * Needs Playwright and the docs dev server (`bun run docs:dev`, the
  * default URL) or a preview server (`--url`). Exits with 1 when something
  * is found.
@@ -28,7 +35,7 @@
  * for a changed base component its own page plus up to 20 pages whose demos
  * use it. CI runs it this way on pull requests.
  *
- *   bun run audit:icons [paths] [--open] [--changed <ref>] [--url <server>] [--json]
+ *   bun run audit:icons [paths] [--open] [--changed <ref>] [--url <server>] [--font <family>] [--json]
  *
  * Paths are site paths such as `/sheet/` or `components/button`.
  */
@@ -43,6 +50,7 @@ const flag = (name: string) => {
 }
 const base = (flag('--url') ?? 'http://localhost:5173').replace(/\/$/, '')
 const changedSince = flag('--changed')
+const font = flag('--font')
 const openLayers = args.includes('--open') && !!args.splice(args.indexOf('--open'), 1)
 const json = args.includes('--json') && !!args.splice(args.indexOf('--json'), 1)
 const only = args
@@ -53,13 +61,21 @@ const SIZE = 0.5
 
 interface Finding {
   page: string
-  rule: 'offset' | 'size'
+  rule: 'offset' | 'size' | 'clip'
   where: string
   detail: string
 }
 
 const browser = await chromium.launch()
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+if (font)
+  await page.addInitScript((family) => {
+    addEventListener('DOMContentLoaded', () => {
+      const style = document.createElement('style')
+      style.textContent = `:where(*:not(code, pre, kbd, samp, code *, pre *)) { font-family: ${JSON.stringify(family)} !important }`
+      document.head.append(style)
+    })
+  }, font)
 
 /** The markdown files of the site, relative to the docs folder. */
 async function markdown() {
@@ -133,7 +149,7 @@ const measure = ({
   size: number
   scope?: string
 }) => {
-  const out: { rule: 'offset' | 'size'; where: string; detail: string }[] = []
+  const out: { rule: 'offset' | 'size' | 'clip'; where: string; detail: string }[] = []
   const headings = [...document.querySelectorAll('.doc-content h2, .doc-content h3')]
   const name = (el: Element) => {
     const label = el.getAttribute('aria-label') ?? el.textContent?.trim().slice(0, 16) ?? ''
@@ -216,6 +232,65 @@ const measure = ({
         where: name(group),
         detail: [...sizes].map(([s, n]) => `${n}× ${s}px`).join(', '),
       })
+  }
+  // text cut off at the top or bottom by a box that clips it
+  const texts = roots.flatMap((root) => {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+    const found: Text[] = []
+    while (walker.nextNode())
+      if (walker.currentNode.textContent?.trim()) found.push(walker.currentNode as Text)
+    return found
+  })
+  const clipped = new Set<Element>()
+  for (const text of texts) {
+    const holder = text.parentElement
+    if (!holder || tilted(holder)) continue
+    const range = document.createRange()
+    range.selectNodeContents(text)
+    const lines = range.getClientRects()
+    // one line only: clamped paragraphs cut their last lines on purpose
+    if (lines.length !== 1) continue
+    const line = lines[0]!
+    if (!line.width || !line.height) continue
+    const em = parseFloat(getComputedStyle(holder).fontSize)
+    const glyphTop = (line.top + line.bottom - em) / 2
+    const glyphBottom = glyphTop + em
+    // the nearest box that clips it; a scroller is left alone
+    let box: Element | null = null
+    for (
+      let el: Element | null = holder, depth = 0;
+      el && depth < 4;
+      el = el.parentElement, depth++
+    ) {
+      const overflow = getComputedStyle(el).overflowY
+      if (overflow === 'auto' || overflow === 'scroll') break
+      if (overflow === 'hidden' || overflow === 'clip') {
+        box = el
+        break
+      }
+    }
+    if (!box || clipped.has(box)) continue
+    // moving content (a marquee) passes through its clip on purpose
+    if (box.getAnimations({ subtree: true }).some((a) => a.playState === 'running')) continue
+    const b = box.getBoundingClientRect()
+    // visually hidden text for screen readers is meant to be clipped
+    if (b.height <= 2 || b.width <= 2) continue
+    // text moved out of its box altogether (a skip link) is hidden on purpose
+    if (line.bottom <= b.top || line.top >= b.bottom) continue
+    const style = getComputedStyle(box)
+    const top = b.top + parseFloat(style.borderTopWidth)
+    const bottom = b.bottom - parseFloat(style.borderBottomWidth)
+    // `overflow: clip` may draw past its edge
+    const margin = style.overflowY === 'clip' ? parseFloat(style.overflowClipMargin) || 0 : 0
+    const cut = Math.max(top - glyphTop, glyphBottom - bottom) - margin
+    if (cut > 1) {
+      clipped.add(box)
+      out.push({
+        rule: 'clip',
+        where: name(box),
+        detail: `"${text.textContent!.trim().slice(0, 12)}" cut by ${cut.toFixed(2)}px`,
+      })
+    }
   }
   return out
 }

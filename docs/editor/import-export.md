@@ -76,9 +76,11 @@ markdownToBlocks(text, extensions, { render: (markdown) => myParser.render(markd
 | 图片     | `<figure>`、`<img>` 与 `<figcaption>`             | `![替代文字](地址 "说明文字")`          |
 | 提及     | `<span data-mention="id">`                        | 同 HTML                                 |
 | 表格     | `<table>`，表头用 `<thead>` 与 `<th>`             | GitHub 表格                             |
+| 分栏     | `<div data-columns>` 与其中的 `<div data-column>` | 各栏的内容依次写出                      |
+| 白板     | `<figure data-content-type="whiteboard">`         | 语言为 `dou-whiteboard` 的代码围栏      |
 | 文字格式 | `<strong>`、`<em>`、`<u>`、`<s>`、`<code>`、`<a>` | `**`、`*`、`<u>`、`~~`、`` ` ``、`[]()` |
 
-Markdown 没有下划线、折叠块和提及，这些内容写成 HTML，读回时仍能还原。提示块的语气对应 GitHub 的五种提示：`NOTE` 与 `IMPORTANT` 读作 `info`，`TIP` 读作 `tip`，`WARNING` 读作 `warning`，`CAUTION` 读作 `danger`。图片的宽度，表格的表头列、列宽和合并单元格只写入 HTML。
+Markdown 没有下划线、折叠块和提及，这些内容写成 HTML，读回时仍能还原。提示块的语气对应 GitHub 的五种提示：`NOTE` 与 `IMPORTANT` 读作 `info`，`TIP` 读作 `tip`，`WARNING` 读作 `warning`，`CAUTION` 读作 `danger`。图片的宽度，表格的表头列、列宽和合并单元格只写入 HTML。白板和 `flowBlock` 定义的块见[白板与流程图](./whiteboard#导入与导出)。
 
 段落、标题等块的子块在 HTML 和 Markdown 中没有对应的嵌套方式，会依次写在它的后面。
 

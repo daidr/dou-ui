@@ -92,7 +92,17 @@ export interface FlowPortSpec {
    * number. A new edge on a full port replaces its oldest edge.
    */
   max?: number
+  /**
+   * When the port shows: `always`; `hover`, on a hovered or selected node,
+   * or one with the keyboard focus in it (a field being typed in);
+   * or `connecting`, only while an edge is drawn. A `<DouFlowPort visible>`
+   * overrides it. Defaults to `always`.
+   */
+  visible?: FlowPortVisible
 }
+
+/** When a port shows, see `FlowPortSpec.visible`. */
+export type FlowPortVisible = 'always' | 'hover' | 'connecting'
 
 /** Where the canvas is shown: `x` and `y` are the screen offset of the canvas origin. */
 export interface FlowViewport {

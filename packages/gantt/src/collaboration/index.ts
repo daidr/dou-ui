@@ -132,6 +132,11 @@ function withOrder(tasks: GanttTask[]): GanttTask[] {
     : tasks
 }
 
+export interface FillMapsOptions {
+  /** The origin of the Yjs transaction, so the others can tell who wrote it. */
+  origin?: unknown
+}
+
 /**
  * Writes tasks and links into empty maps, e.g. when a plan that so far was
  * saved as JSON starts being edited together. Every task gets an `order`
@@ -140,13 +145,14 @@ function withOrder(tasks: GanttTask[]): GanttTask[] {
 export function fillMaps(
   maps: { tasks: Y.Map<unknown>; links: Y.Map<unknown> },
   doc: GanttDocument,
+  options: FillMapsOptions = {},
 ) {
   const fill = () => {
     for (const task of withOrder(doc.tasks)) write(maps.tasks, task)
     for (const link of doc.links) write(maps.links, link)
   }
   const ydoc = maps.tasks.doc
-  if (ydoc) ydoc.transact(fill)
+  if (ydoc) ydoc.transact(fill, options.origin ?? null)
   else fill()
 }
 

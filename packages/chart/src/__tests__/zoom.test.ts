@@ -270,6 +270,63 @@ describe('DouChartZoom', () => {
     wrapper.unmount()
   })
 
+  it('pans a sliver of the range strip pressed by a finger in its middle', async () => {
+    const days = Array.from({ length: 100 }, (_, x) => ({ x, v: x % 7 }))
+    const range = ref<ChartInterval | null>([50, 53])
+    const { wrapper, root } = await sized(() =>
+      h(DouChart, { data: days, x: 'x' }, () => [
+        h(DouChartBar, { y: 'v' }),
+        h(DouChartZoom, {
+          x: range.value,
+          'onUpdate:x': (v: ChartInterval | null) => (range.value = v),
+        }),
+        h(DouChartRange),
+      ]),
+    )
+    const strip = root.querySelector<HTMLElement>('.dou-chart__range')!
+    const [, left, top] = /translate\(([\d.]+)px, ([\d.]+)px\)/
+      .exec(strip.style.transform)!
+      .map(Number)
+    const width = parseFloat(strip.style.width)
+    const height = parseFloat(strip.style.height)
+    strip.getBoundingClientRect = () => ({ left, top, width, height }) as DOMRect
+    const shown = root.querySelector<HTMLElement>('.dou-chart__range-window')!
+    const [, from] = /translate\(([\d.]+)px/.exec(shown.style.transform)!.map(Number)
+    const middle = left! + from! + parseFloat(shown.style.width) / 2
+    // narrower than two fingertips: still the shown part, not a handle
+    expect(parseFloat(shown.style.width)).toBeLessThan(24)
+    const touch = { pointerType: 'touch' }
+    const at = (type: string, x: number) =>
+      strip.dispatchEvent(
+        new PointerEvent(type, {
+          bubbles: true,
+          button: 0,
+          clientX: x,
+          clientY: top! + height / 2,
+          ...touch,
+        }),
+      )
+    // on a phone the handles drawn at its ends cover all of it: the press lands on one
+    root.querySelectorAll('.dou-chart__range-handle')[1]!.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        button: 0,
+        clientX: middle,
+        clientY: top! + height / 2,
+        ...touch,
+      }),
+    )
+    at('pointermove', middle - width / 4)
+    at('pointerup', middle - width / 4)
+    await settle()
+    const [a, b] = range.value as [number, number]
+    // the same few days, moved: not stretched or squeezed by a handle
+    expect(b - a).toBeGreaterThanOrEqual(3)
+    expect(b - a).toBeLessThanOrEqual(4)
+    expect(a).toBeLessThan(40)
+    wrapper.unmount()
+  })
+
   it('zooms with the wheel only with Ctrl held, unless told to', async () => {
     const range = ref<ChartInterval | null>(null)
     const wheel = ref(false)

@@ -142,5 +142,9 @@ export function useGroupedWindow(options: UseGroupedWindowOptions) {
     observer?.disconnect()
   })
 
-  return { enabled, windows, scrollToItem, measure }
+  /** Where an item starts in the scrolled content. */
+  const startOf = (group: number, index: number) =>
+    (starts.value[group] ?? 0) + (offsets.value[group]?.start(index) ?? 0)
+
+  return { enabled, windows, scrollToItem, measure, startOf }
 }

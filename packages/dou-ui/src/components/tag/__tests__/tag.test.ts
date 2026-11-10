@@ -68,4 +68,15 @@ describe('DouTag', () => {
     expect(label.attributes('title')).toBeUndefined()
     expect(wrapper.attributes('title')).toBe('收货地址')
   })
+
+  it('leaves no empty icon when the leading slot renders nothing', async () => {
+    const wrapper = mount({
+      components: { DouTag },
+      props: { icon: { type: Boolean, default: false } },
+      template: `<DouTag><template #leading><svg v-if="icon" /></template>上海</DouTag>`,
+    })
+    expect(wrapper.find('.dou-tag__icon').exists()).toBe(false)
+    await wrapper.setProps({ icon: true })
+    expect(wrapper.find('.dou-tag__icon svg').exists()).toBe(true)
+  })
 })

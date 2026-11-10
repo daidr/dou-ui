@@ -19,9 +19,10 @@ const tick = async () => {
   await nextTick()
 }
 
-function withSub() {
+function withSub(attrs: Record<string, unknown> = {}) {
   const wrapper = mount(DouDropdown, {
     props: {
+      ...attrs,
       open: false,
       'onUpdate:open': (value: boolean) => wrapper.setProps({ open: value }),
     },
@@ -41,6 +42,22 @@ function withSub() {
 }
 
 describe('DouDropdownSub', () => {
+  it("carries the menu's class and renders where the menu does", async () => {
+    const host = document.createElement('div')
+    host.id = 'host'
+    document.body.append(host)
+    const wrapper = withSub({ class: 'my-menu', teleport: '#host' })
+    await wrapper.get('#trigger').trigger('click')
+    const sub = document.querySelector<HTMLElement>('[role="menuitem"][aria-haspopup]')!
+    sub.focus()
+    key(sub, 'ArrowRight')
+    await tick()
+    const [root, panel] = menus()
+    expect(root!.classList.contains('my-menu')).toBe(true)
+    expect(panel!.classList.contains('my-menu')).toBe(true)
+    expect(panel!.closest('#host')).toBe(host)
+  })
+
   it('opens with ArrowRight and closes with ArrowLeft, focus following', async () => {
     const wrapper = withSub()
     await wrapper.get('#trigger').trigger('click')

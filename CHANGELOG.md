@@ -7,6 +7,85 @@ DouUI 的所有包（`dou-ui`、`@dou-ui/theme`、`@dou-ui/icons` 以及生态�
 
 这个文件由发版脚本生成：改动先以碎片文件记在 [`.changes/`](./.changes/README.md) 里，发布时汇总到这里。
 
+## 0.1.0-alpha.15 · 2026-11-10
+
+### 不兼容
+
+- **@dou-ui/editor**：块把手改成浮在正文左侧的圆角气泡，不再占用宽度，鼠标移到把手上才出现 `+`：`--dou-editor-gutter` 默认从 `56px`（触屏 `32px`）改为 `0`，正文从编辑器左边开始，把手放在外层容器的内边距里，放不下时移进正文。只读时不再强制为 `0`，设置的空白只读时也保留（只读时要去掉，另写 `.dou-editor.is-readonly { --dou-editor-gutter: 0px }`）；对比版本时为 `16px`。要保留原来的左侧空白：`.dou-editor { --dou-editor-gutter: 56px }`，触屏另加 `@media (pointer: coarse) { .dou-editor { --dou-editor-gutter: 32px } }`。宽表格向左滚动时，左边移到离编辑器左边 10px 处。 ([#431](https://github.com/daidr/dou-ui/pull/431))
+
+### 新增
+
+- **@dou-ui/editor**：块的 spec 新增 `checkProps`，`checkDocument` 用它把块类型不能使用的属性报告为 `invalid-props`；白板会报告不是流程文档的 `board` 和不是正数的 `height`。 ([#429](https://github.com/daidr/dou-ui/pull/429))
+- **@dou-ui/editor**：新增 `@dou-ui/editor/flow`：`whiteboardBlock()` 在文档里放一块白板，`flowBlock()` 放自定义节点的流程图。文档里显示预览，双击、点“编辑”或选中后按 `Enter` 在全屏编辑器里绘制，撤销与文档共用历史；协同编辑时按节点和连线合并。块的 spec 新增 `mergeProps`，自定义块的列表属性也能逐项合并。 ([#429](https://github.com/daidr/dou-ui/pull/429))
+- **@dou-ui/flow**：扩展的 `history` 新增可选的 `drop(group)` 与 `close()`：拖动被 `Esc` 取消、手势结束时调用，自定义撤销记录可以丢掉取消的拖动，把一次拖动合成一步。 ([#429](https://github.com/daidr/dou-ui/pull/429))
+
+### 修复
+
+- **@dou-ui/editor**：`v-model` 绑定的是 `ref` 时，值为对象的块属性不再在读取文档时报错。 ([#429](https://github.com/daidr/dou-ui/pull/429))
+- **@dou-ui/editor**：单击图片、附件、嵌入等没有文字的块时，选中整个块（此前点击没有反应）。 ([#429](https://github.com/daidr/dou-ui/pull/429))
+- **dou-ui**：`DouDropdownSub` 的子菜单面板现在带上 `DouDropdown`、`DouContextMenu` 上写的 `class`，并和外层菜单渲染到同一个地方（遵循 `teleport` 和全局配置），此前固定渲染到 `body`，在全屏元素里看不到。 ([#430](https://github.com/daidr/dou-ui/pull/430))
+- **@dou-ui/editor**：格式工具栏颜色菜单里，文字颜色和背景色两个子菜单的预览现在显示对应的颜色，此前都显示成默认的文字颜色。 ([#430](https://github.com/daidr/dou-ui/pull/430))
+- **@dou-ui/editor**：按 `Esc` 关掉块菜单后焦点回到正文，选中的块可以继续按 `Delete` 删除或复制；表格旁的块把手不再和表格的行把手重叠。 ([#431](https://github.com/daidr/dou-ui/pull/431))
+
+## 0.1.0-alpha.14 · 2026-11-10
+
+### 新增
+
+- **dou-ui、@dou-ui/theme**：DouInput 和 DouInputNumber 的前缀、后缀里可以放 DouButton 或 DouCopyButton：按钮的高度跟随输入框尺寸，随输入框一起禁用；按钮位于最前或最后时，它的底色与输入框上、下和该侧边框的距离相同，聚焦环也落在这段距离之内。这段距离可用 `--dou-input-action-inset`、`--dou-input-number-action-inset` 调整，默认 2px。触屏上这类按钮上下方向至少有 40px 的点按范围。 ([#427](https://github.com/daidr/dou-ui/pull/427))
+
+### 修复
+
+- **@dou-ui/theme**：DouTooltip 的 `content` 插槽里的 DouLink 跟随提示的文字色（`tone` 不生效），浅色主题下不再是深色字落在深色底上，下划线和外链箭头也一样；`soft` 链接的底色由提示的文字色混出。DouBanner 的 `solid` 横幅里，`soft` 链接在中性横幅上同样改用由文字色混出的底色，在彩色横幅上改为带下划线的普通样式，不再是浅灰底上的浅色字。 ([#426](https://github.com/daidr/dou-ui/pull/426))
+
+## 0.1.0-alpha.13 · 2026-11-10
+
+### 不兼容
+
+- **@dou-ui/flow**：`ports: 'sides'`（`sidePorts`）的端口改为和白板形状的锚点一样：起点在悬停或选中节点时显示，终点只在拉连线时显示。需要一直显示的，在组件里放 `<DouFlowPort visible="always">`，或者自己写端口列表。 ([#417](https://github.com/daidr/dou-ui/pull/417))
+- **@dou-ui/editor**：协同编辑时光标和选区改放在 awareness 的 `editor` 字段（原来是 `cursor`），和其他包按包名取字段一致。自己读写过 `cursor` 字段的代码改成 `editor`；各端要一起升级，否则新旧版本之间看不到对方的光标。 ([#424](https://github.com/daidr/dou-ui/pull/424))
+
+### 新增
+
+- **@dou-ui/editor**：块编辑器支持分栏：斜杠菜单里的“分栏”可以在旁边的面板里选择 2 到 5 栏（手机上在这一项下面展开）；块可以在栏之间拖动，拖到两栏之间新建一栏，拖动栏之间的竖线调整栏宽（也可以用键盘和触屏），区域窄于 480px 时各栏上下排列。分栏里不能再放分栏。斜杠菜单的选项新增 `choices`，可以在选项旁边选择变体，自己画变体时用 `BlockOptionChoicesProps` 和 `BlockOptionChoicesEmits`。`checkDocument` 新增 `invalid-columns`，扩展的 `context` 新增 `messages()`。 ([#416](https://github.com/daidr/dou-ui/pull/416))
+- **@dou-ui/flow**：端口新增显示时机 `visible`：写在端口声明（`FlowPortSpec`）或 `DouFlowPort` 上，`hover` 在悬停、选中节点或在节点里的输入框中输入时显示，`connecting` 只在拉连线时显示，只读时都不显示。自定义白板节点用 `ports: 'sides'` 就和内置形状有一样的锚点，缩放时大小也一样。 ([#417](https://github.com/daidr/dou-ui/pull/417))
+- **@dou-ui/dashboard**：`@dou-ui/dashboard/collaboration` 新增 `updateMap(map, next, { base, origin })`：不经过仪表盘把新版本写进共享文档，只写 `base` 到新版本之间的差别（增删格子、改了的键、改了位置的断点、挪了顺序的格子），其他人同时做的修改保留。`fillMap` 也可以传 `origin`。 ([#418](https://github.com/daidr/dou-ui/pull/418))
+- **@dou-ui/editor**：`@dou-ui/editor/collaboration` 新增 `cursorAt(map, head, { anchor, extensions })`：不经过编辑器，按块 id 和块内文字位置得到放进 awareness `editor` 字段的光标，服务器上写入文档的一方也能显示自己的光标和名字。同时导出 `EditorPresence`、`EditorPresencePlace`、`EditorCursorTarget` 类型，文档写明 `editor` 字段的结构。 ([#424](https://github.com/daidr/dou-ui/pull/424))
+
+### 改进
+
+- **@dou-ui/editor**：设置了 `--dou-editor-reading-width` 时，顶层的宽表格不再受正文宽度限制：左边和正文对齐，右边伸进正文右侧的空白；还放不下时左右滚动，左边先移到手柄栏边上，再滚动列。
+
+  表格左右滚动时，还有被遮住的列的一侧显示一道阴影，新增 `--dou-editor-scroll-shadow` 调整颜色。 ([#412](https://github.com/daidr/dou-ui/pull/412))
+
+- **@dou-ui/form-builder、@dou-ui/gantt**：`@dou-ui/form-builder/collaboration` 和 `@dou-ui/gantt/collaboration` 的 `fillMaps` 可以传 `origin`，作为这次 Yjs 事务的来源。 ([#418](https://github.com/daidr/dou-ui/pull/418))
+
+### 修复
+
+- **dou-ui、@dou-ui/theme**：DouCommand / DouCommandDialog 的 `item` 插槽放两行或更高的内容时，行会跟着长高，高亮底色盖住整行，滚动定位也按实际高度来，不再固定 36px、溢出到下一行。开启 `virtual`（超过 100 条时默认开启）时也一样：渲染过的行按实际高度计算，没渲染的按最先显示的几行估算，上方的行高度变化时看到的内容不动；新增 `itemSize`（数字或 `(item) => number`），传了就固定每一行的高度、不再测量，内容超出时开发环境会提示。DouCommandDialog 现在也会把 `virtual` 和 `itemSize` 传给里面的列表，不传 `virtual` 时和 DouCommand 一样超过 100 条自动开启。
+
+  `line-height: 1` 和 `white-space: nowrap` 从 `.dou-command__item` 挪到了默认的标签和说明上：`item` 插槽里的内容现在用继承的行高，长文字会换行；需要单行省略时在插槽内容上自己加 `white-space: nowrap`。 ([#411](https://github.com/daidr/dou-ui/pull/411))
+
+- **@dou-ui/editor**：块编辑器选中整块（`Esc` 或把手）后，复制和剪切带走的是整块，而不是其中的文字；选中的块里有表格时，之前只会带走第一格的文字。表格块的把手现在可以拖动。 ([#416](https://github.com/daidr/dou-ui/pull/416))
+- **@dou-ui/flow**：`updateMaps` 比较 `base` 和新流程时不再看对象里键的顺序：程序只是把 `data`、位置等对象的键换了顺序，不再被当成改动，冲掉别人同时做的修改。开发环境下传入的新流程就是 `base` 本身时会警告。 ([#418](https://github.com/daidr/dou-ui/pull/418))
+- **dou-ui、@dou-ui/theme**：DouChatInput 的 `/` 和 `@` 菜单里，选项的 `label` 太长时不再超出菜单，而是先换到第二行，两行放不下再显示省略号。`description` 和 `label` 平分一行的空间：较短的（如类型）保持完整，较长的在有空间时完整显示，两者都长时各占一半。菜单不再能横向滚动，左侧图标始终完整。鼠标悬停在被截断的文字上时显示全文。 ([#420](https://github.com/daidr/dou-ui/pull/420))
+- **dou-ui**：DouButton 的默认插槽、`leading` 或 `trailing` 没有渲染出内容时（比如里面只有一个 `v-if` 为假的数字），当作没有传这个插槽：有 `leading` 图标的按钮会变成和纯图标按钮一样的方形，也不再多出一个空的图标位。DouTag、DouCheckTag 和 DouLink 的 `leading` 插槽没有渲染出内容时，也不再留下空的图标位；DouLink 设了 `external` 而 `trailing` 没有渲染出内容时，仍显示外链箭头。 ([#421](https://github.com/daidr/dou-ui/pull/421))
+- **@dou-ui/flow**：白板上选中较小的形状时，角上的手柄不再盖住各边中点的锚点，从锚点拖动能拉出连线，不会变成调整大小；从角上和角的外侧仍能调整大小。在触屏上，手指按在白板选中形状的角手柄或旋转手柄上时，就由这个手柄处理，不会被浏览器交给旁边的锚点；其他地方按偏一点仍和以前一样。 ([#423](https://github.com/daidr/dou-ui/pull/423))
+
+## 0.1.0-alpha.12 · 2026-11-09
+
+### 新增
+
+- **@dou-ui/icons**：新增 13 个图标：`PinOffIcon`、`ThumbsUpDownIcon`、`McpServerIcon`（MCP 官方标志）、`ZapIcon`，试管、烧瓶、烧杯一组（`TestTubeIcon`、`TestTubeDiagonalIcon`、`TestTubeRackIcon`、`FlaskIcon`、`FlaskRoundIcon`、`BeakerIcon`），以及 `FitToScreenIcon`、`FitWidthIcon`、`FitHeightIcon`。 ([#406](https://github.com/daidr/dou-ui/pull/406))
+
+### 改进
+
+- **@dou-ui/icons**：`MessagesIcon` 的背景气泡改到右上角露出；`PinIcon` 改为斜放（针朝左下），和新增的 `PinOffIcon` 完全重合。 ([#406](https://github.com/daidr/dou-ui/pull/406))
+
+### 修复
+
+- **dou-ui**：轻提示堆叠时，新出现的一条和已有的高度不同，已有的几条不再在第一帧跳到新高度或新位置，而是平滑过渡过去。 ([#403](https://github.com/daidr/dou-ui/pull/403))
+- **@dou-ui/code**：代码对比里新增、删除行的底色铺满整个行号栏，从最左一列一直连到代码，`inline` 和 `split` 两种视图一样，不再在 `+`/`−`、行号和代码之间断开，`gutters` 加的列也在底色里；`inline` 视图开了 `wrap` 时，换行折出的几行旁边的行号栏也一起着色。代码编辑器 `gutters` 的格子同样跟着换行后的整行变高，内容和焦点环留在第一行。 ([#408](https://github.com/daidr/dou-ui/pull/408))
+
 ## 0.1.0-alpha.11 · 2026-11-09
 
 ### 不兼容

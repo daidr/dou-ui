@@ -63,6 +63,10 @@ interface FlowHistoryHandler {
   redo: () => boolean
   canUndo: () => boolean
   canRedo: () => boolean
+  /** 可选：拖动被 Esc 取消时调用，传入这次拖动的 group，文档已经回到拖动前 */
+  drop?: (group: string) => void
+  /** 可选：一次拖动或其他手势结束时调用，之后的修改另起一步 */
+  close?: () => void
 }
 ```
 

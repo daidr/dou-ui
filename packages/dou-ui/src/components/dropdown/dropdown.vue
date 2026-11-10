@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, mergeProps, nextTick, provide, useId } from 'vue'
+import { computed, inject, mergeProps, nextTick, provide, useAttrs, useId } from 'vue'
 import { usePopup } from '../../composables/use-popup'
 import { useNamespace } from '../../utils/namespace'
 import { OnlyChild } from '../../utils/only-child'
@@ -80,6 +80,7 @@ const triggerProps = computed(() =>
 )
 
 const host = inject(dropdownHostKey, null)
+const attrs = useAttrs()
 
 // Tab leaves from the trigger so focus moves on from where the menu was opened.
 const onKeys = useMenuKeys(
@@ -112,6 +113,8 @@ provide(dropdownKey, {
   hold: () => props.trigger === 'hover' && popup.show(),
   release: () => props.trigger === 'hover' && popup.hide(props.hideDelay),
   move: host ? (direction) => host.move(direction) : undefined,
+  panelClass: () => attrs.class,
+  teleport: () => teleportTarget.value,
 })
 
 defineExpose<DropdownExpose>({ open: () => popup.show(), close: () => popup.hide() })

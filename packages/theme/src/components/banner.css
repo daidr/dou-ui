@@ -119,10 +119,27 @@
     gap: 8px;
   }
 
-  /* links in a solid bar take its text color */
-  .dou-banner--solid .dou-banner__action .dou-link,
-  .dou-banner--solid .dou-banner__text .dou-link {
+  /* links in a solid bar take its text color. A soft link on the dark
+     neutral bar gets a fill made from that color. A colored bar has no
+     contrast to spare for a fill, light text or dark, so a soft link there
+     is drawn as a plain underlined link. */
+  .dou-banner--solid :is(.dou-banner__action, .dou-banner__text) .dou-link {
     --dou-link-tone: currentColor;
+    --dou-link-soft: color-mix(in oklab, currentColor 16%, transparent);
+  }
+  .dou-banner--solid:not(.dou-banner--neutral)
+    :is(.dou-banner__action, .dou-banner__text)
+    .dou-link--soft {
+    padding-inline: 0;
+    background-color: transparent;
+    text-decoration-line: underline;
+    text-decoration-color: var(--dou-link-underline);
+
+    @media (hover: hover) {
+      &:hover:not(.is-disabled) {
+        text-decoration-color: var(--dou-link-underline-hover);
+      }
+    }
   }
 
   .dou-banner__close {

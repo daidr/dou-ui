@@ -710,7 +710,8 @@
 
     border-block: 1px solid var(--dou-chart-range-edge);
     background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
-    cursor: grab;
+    /* set on the strip by what a press would take (see zoom-layer.vue) */
+    cursor: inherit;
 
     .is-vertical > & {
       border-block: none;
@@ -728,12 +729,12 @@
     background-color: var(--dou-color-bg-surface);
     box-shadow: var(--dou-shadow-sm);
     outline: none;
-    cursor: ew-resize;
+    cursor: inherit;
 
-    /* a finger-sized place to press */
+    /* a place to press, as far out as the strip takes it for the handle (REACH) */
     &::before {
       position: absolute;
-      inset: -6px -8px;
+      inset: -6px -4px;
       content: '';
     }
 
@@ -750,10 +751,9 @@
       width: 20px;
       height: 8px;
       margin: -4px 0 0 6px;
-      cursor: ns-resize;
 
       &::before {
-        inset: -8px -6px;
+        inset: -4px -6px;
       }
     }
 

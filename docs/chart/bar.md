@@ -9,7 +9,7 @@
 <DocDemo src="chart/bar" />
 
 - 柱子的宽度按每个位置的空间计算，最宽 56px。
-- `radius` 设置柱子末端的圆角，默认 2px。
+- `radius` 设置柱子末端的圆角，默认 2px。柱子很多、彼此之间几乎没有空隙时不画圆角，见[大量数据](./performance#几百根堆叠柱)。
 
 ## 堆叠
 
@@ -80,7 +80,7 @@
 | `tone`           | 用语气色作为颜色                                          | `Tone`                                                              | —                                   |
 | `axis`           | 对应的数值轴                                              | `'y' \| 'y2'`                                                       | `'y'`                               |
 | `stack`          | 堆叠分组，名称相同的叠在一起                              | `string \| boolean`                                                 | —                                   |
-| `radius`         | 柱子末端的圆角，单位 px                                   | `number`                                                            | `2`                                 |
+| `radius`         | 柱子末端的圆角，单位 px；柱子之间几乎没有空隙时不画       | `number`                                                            | `2`                                 |
 | `labels`         | 数据标签，见[数据标签](./labels)                          | `boolean \| (label: ChartDataLabel) => string \| null \| undefined` | `false`                             |
 | `labelPosition`  | 标签写在柱子末端外面，或柱子里面                          | `'outside' \| 'inside'`                                             | 堆叠时 `'inside'`，否则 `'outside'` |
 | `pattern`        | 柱子上的图案，`none` 表示不加，见[外观](./theme#图案填充) | `ChartPattern \| 'none'`                                            | 图表的 `patterns`                   |
@@ -90,12 +90,12 @@
 
 `name`、`data`、`x`、`tone`、`axis`、`v-model:hidden` 和柱状图相同。
 
-| 名称            | 说明                                       | 类型                                                                | 默认值                     |
-| --------------- | ------------------------------------------ | ------------------------------------------------------------------- | -------------------------- |
-| `y`             | 每一步的变化量：字段名，或从行取值的函数   | `string \| (row, index: number) => unknown`                         | —                          |
-| `total`         | 是否是合计行：字段名，或从行取值的函数     | `string \| (row, index: number) => unknown`                         | —                          |
-| `color`         | 颜色：CSS 颜色，或按行给每根柱子上色的函数 | `string \| (row, index: number) => string \| undefined`             | 增加用成功色，减少用危险色 |
-| `radius`        | 柱子的圆角，单位 px                        | `number`                                                            | `2`                        |
-| `connectors`    | 用虚线连接相邻的柱子                       | `boolean`                                                           | `true`                     |
-| `labels`        | 数据标签，变化量带正负号                   | `boolean \| (label: ChartDataLabel) => string \| null \| undefined` | `false`                    |
-| `labelPosition` | 标签写在柱子末端外面，或柱子里面           | `'outside' \| 'inside'`                                             | `'outside'`                |
+| 名称            | 说明                                            | 类型                                                                | 默认值                     |
+| --------------- | ----------------------------------------------- | ------------------------------------------------------------------- | -------------------------- |
+| `y`             | 每一步的变化量：字段名，或从行取值的函数        | `string \| (row, index: number) => unknown`                         | —                          |
+| `total`         | 是否是合计行：字段名，或从行取值的函数          | `string \| (row, index: number) => unknown`                         | —                          |
+| `color`         | 颜色：CSS 颜色，或按行给每根柱子上色的函数      | `string \| (row, index: number) => string \| undefined`             | 增加用成功色，减少用危险色 |
+| `radius`        | 柱子的圆角，单位 px；柱子之间几乎没有空隙时不画 | `number`                                                            | `2`                        |
+| `connectors`    | 用虚线连接相邻的柱子                            | `boolean`                                                           | `true`                     |
+| `labels`        | 数据标签，变化量带正负号                        | `boolean \| (label: ChartDataLabel) => string \| null \| undefined` | `false`                    |
+| `labelPosition` | 标签写在柱子末端外面，或柱子里面                | `'outside' \| 'inside'`                                             | `'outside'`                |

@@ -1,4 +1,5 @@
 import { keydownHandler } from 'prosemirror-keymap'
+import { Fragment, Slice } from 'prosemirror-model'
 import {
   Plugin,
   PluginKey,
@@ -11,6 +12,8 @@ import { Decoration, DecorationSet, type EditorView } from 'prosemirror-view'
 import {
   blocksIn,
   findBlockById,
+  layoutOf,
+  parentBlock,
   selectedRange,
   siblingRangeBetween,
   type BlockInfo,
@@ -104,7 +107,13 @@ function moveHead(view: EditorView, direction: -1 | 1, extend: boolean) {
   const head = findBlockById(state.doc, current.head)!
   const $head = state.doc.resolve(head.pos)
   const index = $head.index() + direction
-  if (index < 0 || index >= range.parent.childCount) return true
+  if (index < 0 || index >= range.parent.childCount) {
+    // past the edge of a column: the whole set of columns
+    const column = parentBlock(state.doc, head)
+    const row = column && layoutOf(column.node) === 'column' && parentBlock(state.doc, column)
+    if (row) selectBlocks(row.node.attrs.id as string)(state, view.dispatch)
+    return true
+  }
   const id = range.parent.child(index).attrs.id as string
   return selectBlocks(extend ? current.anchor : id, id)(state, view.dispatch)
 }
@@ -148,6 +157,25 @@ const blockKeys = keydownHandler({
   },
 })
 
+/** Put the selected blocks on the clipboard, and remove them when cutting. */
+function copyBlocks(view: EditorView, event: ClipboardEvent, cut: boolean): boolean {
+  const range = blockSelectionRange(view.state)
+  const data = event.clipboardData
+  if (!range || !data) return false
+  const blocks = blocksIn(range)
+  const slice = new Slice(Fragment.from(blocks.map((block) => block.node)), 0, 0)
+  const { dom, text } = view.serializeForClipboard(slice)
+  event.preventDefault()
+  data.clearData()
+  data.setData('text/html', dom.innerHTML)
+  data.setData('text/plain', text)
+  if (cut && view.editable) {
+    const tr = deleteBlocks(view.state.tr, blocks).setMeta(blockSelectionKey, null)
+    view.dispatch(tr.scrollIntoView().setMeta('uiEvent', 'cut'))
+  }
+  return true
+}
+
 export function blockSelectionPlugin(): Plugin<BlockSelection | null> {
   return new Plugin<BlockSelection | null>({
     key: blockSelectionKey,
@@ -156,19 +184,33 @@ export function blockSelectionPlugin(): Plugin<BlockSelection | null> {
       apply(tr, value) {
         const meta = tr.getMeta(blockSelectionKey) as BlockSelection | null | undefined
         if (meta !== undefined) return meta
-        // any other selection change (a click, typing) ends it
-        if (value && tr.selectionSet && !tr.docChanged) return null
+        // any other selection change (a click, typing) ends it; not a plugin
+        // adjusting the selection under it (a table's turns into cells)
+        if (value && tr.selectionSet && !tr.docChanged && !tr.getMeta('appendedTransaction'))
+          return null
         return value
       },
     },
     props: {
+      // copy and cut take the whole blocks, not the text under them (a
+      // table's would be one cell)
+      handleDOMEvents: {
+        copy: (view, event) => copyBlocks(view, event, false),
+        cut: (view, event) => copyBlocks(view, event, true),
+      },
       decorations(state) {
         const range = blockSelectionRange(state)
         if (!range) return null
         return DecorationSet.create(
           state.doc,
           blocksIn(range).map((block) =>
-            Decoration.node(block.pos, block.pos + block.node.nodeSize, { class: 'is-selected' }),
+            Decoration.node(block.pos, block.pos + block.node.nodeSize, {
+              // a top-level table reaches into the margins: its tint goes with it
+              class:
+                block.node.firstChild?.type.spec.tableRole === 'table'
+                  ? 'is-selected has-table'
+                  : 'is-selected',
+            }),
           ),
         )
       },

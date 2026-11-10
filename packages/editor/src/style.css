@@ -5,19 +5,20 @@
  * reading size with generous leading. Blocks stack with a few pixels
  * between them, items of a list with their own (usually tighter) gap, and
  * nest by indenting. A reading width keeps lines short on wide screens: the
- * text column centers, and the handle's gutter hangs in the margin when it
- * fits. The handle sits in the gutter on
- * the left of the hovered block; on touch screens, a narrower gutter holds
- * only the grip, next to the block with the cursor. Selected blocks take a faint tint, the
+ * text column centers. The handle is a small bubble floating left of the
+ * hovered block, outside the text; on touch screens it sits next to the
+ * block with the cursor. Selected blocks take a faint tint, the
  * same in light and dark; the drop line during a drag is the focus color.
  */
 @layer dou.components {
   .dou-editor {
     --dou-editor-font-size: var(--dou-font-size-lg);
     --dou-editor-line-height: 1.7;
-    /* room on the left for the handle of top-level blocks */
-    --dou-editor-gutter: 56px;
+    /* room on the left of the text; the handle floats outside it, needing none */
+    --dou-editor-gutter: 0px;
     --dou-editor-indent: 24px;
+    /* room between columns, where the handle of a block in a column sits */
+    --dou-editor-column-gap: 48px;
     /* distance between two blocks, and between two items of a list */
     --dou-editor-block-gap: 4px;
     --dou-editor-list-gap: 4px;
@@ -28,6 +29,8 @@
       var(--dou-color-focus) calc(12% + 10% * var(--dou-scheme-dark)),
       transparent
     );
+    /* the shadow on a side of a table that cuts columns off */
+    --dou-editor-scroll-shadow: color-mix(in oklab, var(--dou-color-text) 14%, transparent);
     --dou-editor-control-hover: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
     --dou-editor-match: color-mix(in oklab, var(--dou-color-warning) 22%, transparent);
     --dou-editor-match-current: color-mix(in oklab, var(--dou-color-warning-text) 80%, transparent);
@@ -47,21 +50,13 @@
     line-height: var(--dou-editor-line-height);
     overflow-wrap: break-word;
 
-    &.is-readonly {
-      --dou-editor-gutter: 0px;
-    }
-
-    /*
-     * comparing: the bars beside changed blocks sit in the gutter, the one
-     * editing has; a read-only editor, which has none, gets a narrow one
-     */
-    &.is-readonly.is-comparing {
+    /* comparing: the bars beside changed blocks need a narrow gutter, inside the editor */
+    &.is-comparing {
       --dou-editor-gutter: 16px;
     }
 
-    /* touch screens: only the grip, in a narrower gutter */
     @media (pointer: coarse) {
-      --dou-editor-gutter: 32px;
+      --dou-editor-column-gap: 32px;
     }
 
     &.is-dragging,
@@ -808,16 +803,53 @@
     opacity: 0.45;
   }
 
-  /* the handle: add a block, drag to move, click for the menu */
+  /*
+   * the handle: a small bubble left of the block, outside the text, taking
+   * no room of its own. It holds the grip (drag to move, click for the
+   * menu); pointing at it brings out "+" before the grip. The bubble's
+   * right edge sits 4px before the text, further before a table, clear of
+   * the table's row handles; when the editor's container has no room there
+   * it moves in over the text (--dou-editor-handle-shift).
+   */
 
   .dou-editor__handle {
+    --dou-editor-handle-height: 24px;
+    --dou-editor-handle-offset: 4px;
+
     position: absolute;
     z-index: 1;
+    box-sizing: border-box;
     display: flex;
     align-items: center;
-    gap: 2px;
-    height: var(--dou-editor-line, 24px);
-    transform: translateX(calc(-100% - 6px));
+    height: var(--dou-editor-handle-height);
+    margin-top: calc((var(--dou-editor-line, 24px) - var(--dou-editor-handle-height)) / 2);
+    padding: 1px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: 6px;
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-sm);
+    transform: translateX(
+      calc(-100% - var(--dou-editor-handle-offset) + var(--dou-editor-handle-shift, 0px))
+    );
+
+    /* a table's row handles are centered on its left edge */
+    &.is-table {
+      --dou-editor-handle-offset: 10px;
+    }
+  }
+
+  /*
+   * the gap between the bubble and the text, where the pointer leaves the
+   * editor on its way to the bubble: the bubble reaches across it
+   */
+  @media (hover: hover) and (pointer: fine) {
+    .dou-editor__handle::after {
+      content: '';
+      position: absolute;
+      inset-block: 0;
+      left: 100%;
+      width: calc(var(--dou-editor-handle-offset) + 1px);
+    }
   }
 
   .dou-editor__handle-button {
@@ -825,8 +857,8 @@
     flex: none;
     align-items: center;
     justify-content: center;
-    width: 22px;
-    height: 24px;
+    width: 20px;
+    height: 100%;
     margin: 0;
     padding: 0;
     border: none;
@@ -839,8 +871,8 @@
     transition-timing-function: var(--dou-motion-easing);
 
     & > svg {
-      width: 16px;
-      height: 16px;
+      width: 14px;
+      height: 14px;
     }
 
     &:hover,
@@ -850,34 +882,44 @@
     }
   }
 
+  /* "+" comes out of the bubble while the pointer is on it; in a column there is none */
+  .dou-editor__add {
+    display: none;
+  }
+
+  /* on touch screens new blocks come from Enter and the slash menu */
+  @media (hover: hover) and (pointer: fine) {
+    .dou-editor__handle:not(.is-compact):hover .dou-editor__add {
+      display: inline-flex;
+    }
+  }
+
   .dou-editor__grip {
     position: relative;
-    width: 18px;
+    width: 16px;
     cursor: grab;
     touch-action: none;
   }
 
   @media (pointer: coarse) {
     .dou-editor__handle {
-      transform: translateX(calc(-100% - 4px));
-    }
+      --dou-editor-handle-height: 32px;
 
-    /* new blocks come from Enter and the slash menu */
-    .dou-editor__add {
-      display: none;
+      &.is-table {
+        --dou-editor-handle-offset: 12px;
+      }
     }
 
     .dou-editor__grip {
-      width: 24px;
-      height: max(28px, var(--dou-editor-line, 28px));
+      width: 18px;
       -webkit-touch-callout: none;
       user-select: none;
 
-      /* fingers need more room than the grip shows */
+      /* fingers need more room than the grip shows: 40px across, most of it outside the text */
       &::before {
         content: '';
         position: absolute;
-        inset: -8px -4px;
+        inset: -8px -8px -8px -14px;
       }
     }
   }
@@ -1040,14 +1082,274 @@
     font-size: var(--dou-font-size-sm);
   }
 
+  /* the variants beside a slash menu option, e.g. how many columns */
+
+  .dou-editor-slash__more {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    color: var(--dou-color-text-tertiary);
+  }
+
+  .dou-editor-slash__choices {
+    /* beside the menu, the room left is a width: not a limit on the height */
+    max-height: none;
+    padding: 8px;
+  }
+
+  .dou-editor-slash__choices-title {
+    padding: 4px 4px 10px;
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    text-box: trim-both cap alphabetic;
+  }
+
+  /* on a phone, the variants unfold under their option */
+  .dou-editor-slash__unfolded {
+    padding: 4px 8px 8px;
+
+    & .dou-editor-slash__choices-title {
+      padding-inline: 0;
+    }
+  }
+
+  .dou-editor-slash__more {
+    transition: rotate var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    &.is-unfolded {
+      rotate: 90deg;
+    }
+  }
+
+  /* bars for the columns: pointing at one lights the bars up to it */
+  .dou-editor-column-picker {
+    display: flex;
+    gap: 6px;
+    padding: 2px 4px 4px;
+  }
+
+  .dou-editor-column-picker__bar {
+    width: 24px;
+    height: 72px;
+    border-radius: 4px;
+    background-color: var(--dou-color-bg-muted);
+    cursor: pointer;
+    transition: background-color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    &.is-lit {
+      background-color: color-mix(
+        in oklab,
+        var(--dou-color-text) calc(22% + 8% * var(--dou-scheme-dark)),
+        transparent
+      );
+    }
+  }
+
+  @media (pointer: coarse) {
+    .dou-editor-column-picker__bar {
+      width: 32px;
+    }
+  }
+
+  /*
+   * columns: a set of columns and each column are blocks without content
+   * of their own; the set lays its columns side by side, each taking its
+   * share (`--dou-editor-column-width`, a weight) of the row. A narrow
+   * editor stacks them, so they read top to bottom.
+   */
+  .dou-editor__content--columns,
+  .dou-editor__content--column {
+    display: none;
+  }
+
+  .dou-editor__content--columns + .dou-editor__group {
+    container: dou-editor-columns / inline-size;
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: var(--dou-editor-column-gap);
+    /* stacked, columns stay apart a little */
+    row-gap: 12px;
+    padding-inline-start: 0;
+
+    & > .dou-editor__block {
+      flex: var(--dou-editor-column-width, 1) 1 0;
+      min-width: 0;
+    }
+  }
+
+  .dou-editor__content--column + .dou-editor__group {
+    padding-inline-start: 0;
+  }
+
+  /*
+   * a table in a column starts a little in: its row handles, centered on
+   * its left edge, stay clear of the block handle in the gap before it
+   */
+  .dou-editor__content--column + .dou-editor__group .dou-editor__content--table {
+    padding-inline-start: 12px;
+  }
+
+  /* while editing, pointing at a set of columns outlines them, empty ones too */
+  @media (hover: hover) {
+    .dou-editor:not(.is-readonly)
+      .dou-editor__content--columns
+      + .dou-editor__group:hover
+      > .dou-editor__block {
+      outline: 1px dashed var(--dou-color-border);
+    }
+  }
+
+  @container dou-editor-columns (max-width: 480px) {
+    .dou-editor__content--columns + .dou-editor__group > .dou-editor__block {
+      flex-basis: 100%;
+    }
+  }
+
+  /* the bar between two columns, to resize them */
+  .dou-editor-columns__bar {
+    position: absolute;
+    z-index: 2;
+    width: 10px;
+    margin-inline-start: -5px;
+    outline: none;
+    cursor: col-resize;
+    touch-action: none;
+
+    /* a finger needs more room to grab it */
+    @media (pointer: coarse) {
+      &::before {
+        content: '';
+        position: absolute;
+        inset-block: 0;
+        inset-inline: -15px;
+      }
+    }
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset-block: 0;
+      inset-inline-start: 4px;
+      width: 2px;
+      border-radius: 1px;
+      background-color: var(--dou-color-focus);
+      opacity: 0;
+      transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
+    }
+
+    &:hover::after,
+    &.is-shown::after,
+    &:focus-visible::after {
+      opacity: 1;
+    }
+
+    /* a bar kept for the keyboard takes the pointer only once it shows */
+    &.is-key:not(.is-shown, :focus) {
+      pointer-events: none;
+    }
+  }
+
+  /* the handle of a block in a column steps aside while a bar between columns shows */
+  .dou-editor:has(.dou-editor-columns__bar:is(:hover, .is-shown)) .dou-editor__handle.is-compact {
+    opacity: 0;
+    pointer-events: none;
+  }
+
   /* table */
 
   .dou-editor__content--table {
+    display: flex;
     margin-block: 4px;
     /* room for the column handles over the first row */
     padding-block: 8px 4px;
     overflow-x: auto;
     overscroll-behavior-x: contain;
+
+    & > .dou-editor-table {
+      flex: none;
+    }
+
+    /*
+     * a shadow on a side that cuts columns off, so they read as going on
+     * under the edge instead of being sliced: a strip either side of the
+     * table that sticks to the frame's edge once the table passes it
+     */
+    &::before,
+    &::after {
+      content: '';
+      position: sticky;
+      z-index: 1;
+      flex: none;
+      width: 8px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
+    }
+
+    /* a sticky box stays inside the padding: past it to the frame's edges */
+    &::before {
+      inset-inline-start: calc(-1 * var(--dou-editor-frame-start, 0px));
+      margin-inline-end: -8px;
+      background-image: linear-gradient(to right, var(--dou-editor-scroll-shadow), transparent);
+    }
+
+    &::after {
+      inset-inline-end: calc(-1 * var(--dou-editor-frame-end, 0px));
+      margin-inline-start: -8px;
+      background-image: linear-gradient(to left, var(--dou-editor-scroll-shadow), transparent);
+    }
+
+    &.is-cut-start::before,
+    &.is-cut-end::after {
+      opacity: 1;
+    }
+  }
+
+  /*
+   * a top-level table, with a reading width: its frame reaches across the
+   * margins on both sides, and the padding before the table keeps it in line
+   * with the text. A wide table takes the right margin first; wider still, it
+   * scrolls, and scrolling takes the padding away first, so its left edge
+   * moves out to 10px from the editor's edge before the columns move; 28px stay after
+   * the table for the "+" bar. The margins are the
+   * surface's padding, which the table extension measures in px and sets on
+   * the mount (0 until then, and with no reading width).
+   */
+  .dou-editor__mount > .dou-editor__surface > .dou-editor__block > .dou-editor__content--table {
+    /* scrolled, the table stops 10px short of the editor's edge: room for its row handles */
+    --dou-editor-bleed-start: max(0px, var(--dou-editor-margin-start, 0px) - 10px);
+    --dou-editor-bleed-end: var(--dou-editor-margin-end, 0px);
+
+    --dou-editor-frame-start: var(--dou-editor-bleed-start);
+    --dou-editor-frame-end: min(var(--dou-editor-bleed-end), 28px);
+
+    margin-inline: calc(-1 * var(--dou-editor-bleed-start)) calc(-1 * var(--dou-editor-bleed-end));
+    padding-inline: var(--dou-editor-frame-start) var(--dou-editor-frame-end);
+  }
+
+  /*
+   * a selected top-level table: the tint reaches into the margins with it,
+   * one band with the block's rounded corners, painted beside the block and
+   * under the frame (it stays put while the table scrolls)
+   */
+  .dou-editor__mount > .dou-editor__surface > .dou-editor__block.is-selected.has-table {
+    background-color: transparent;
+
+    &::before {
+      content: '';
+      position: absolute;
+      inset-block: 0;
+      inset-inline: calc(-1 * var(--dou-editor-margin-start, 0px))
+        calc(-1 * var(--dou-editor-margin-end, 0px));
+      border-radius: inherit;
+      background-color: var(--dou-editor-selected);
+      pointer-events: none;
+    }
+
+    & > .dou-editor__content--table {
+      position: relative;
+      z-index: 0;
+    }
   }
 
   .dou-editor-table {
@@ -1676,6 +1978,226 @@
     }
   }
 
+  /* a whiteboard or flow (`@dou-ui/editor/flow`): a preview here, edited in a fullscreen editor */
+  .dou-editor-board {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-color-bg-surface);
+    /* the page scrolls under a finger, the preview never pans */
+    touch-action: pan-y;
+  }
+
+  .dou-editor-board.is-selected {
+    outline: 2px solid var(--dou-color-focus);
+    outline-offset: 2px;
+  }
+
+  /* among selected blocks: the preview paints over the tint, so tint it too */
+  .dou-editor__block.is-selected > .dou-editor__content > .dou-editor-board::after {
+    position: absolute;
+    inset: 0;
+    background-color: var(--dou-editor-selected);
+    content: '';
+    pointer-events: none;
+  }
+
+  .dou-editor-board__preview {
+    position: absolute;
+    inset: 0;
+    /* a picture of the board: clicks select the block, the wheel scrolls the page */
+    pointer-events: none;
+
+    & .dou-flow-editor {
+      width: 100%;
+      height: 100%;
+      background: transparent;
+    }
+  }
+
+  .dou-editor-board__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    height: 100%;
+    background-color: color-mix(in oklab, var(--dou-color-text) 3%, var(--dou-color-bg-surface));
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-md);
+  }
+
+  .dou-editor-board__actions {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
+  }
+
+  .dou-editor-board:hover .dou-editor-board__actions,
+  .dou-editor-board.is-selected .dou-editor-board__actions,
+  .dou-editor-board__actions:focus-within {
+    opacity: 1;
+  }
+
+  @media (pointer: coarse) {
+    .dou-editor-board__actions {
+      opacity: 1;
+    }
+  }
+
+  /* the bar along the bottom edge that changes the height */
+  .dou-editor-board__resize {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 10px;
+    cursor: ns-resize;
+    touch-action: none;
+
+    &::after {
+      position: absolute;
+      bottom: 3px;
+      left: 50%;
+      width: 40px;
+      height: 4px;
+      border-radius: 2px;
+      background-color: var(--dou-color-border-strong);
+      content: '';
+      opacity: 0;
+      transform: translateX(-50%);
+      transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
+    }
+
+    &:focus-visible {
+      outline: none;
+
+      &::after {
+        background-color: var(--dou-color-focus);
+      }
+    }
+  }
+
+  .dou-editor-board:hover .dou-editor-board__resize::after,
+  .dou-editor-board.is-selected .dou-editor-board__resize::after,
+  .dou-editor-board__resize:focus-visible::after {
+    opacity: 1;
+  }
+
+  /*
+   * on touch: 40px high around the handle only, so the rest of the bottom
+   * edge selects the block; and only once the block is selected, so a tap
+   * selects it first
+   */
+  @media (pointer: coarse) {
+    .dou-editor-board__resize {
+      right: auto;
+      left: 50%;
+      width: 80px;
+      height: 40px;
+      transform: translateX(-50%);
+    }
+
+    .dou-editor-board:not(.is-selected) .dou-editor-board__resize {
+      pointer-events: none;
+    }
+
+    .dou-editor-board.is-selected .dou-editor-board__resize::after {
+      opacity: 1;
+    }
+  }
+
+  .dou-editor-board__editor {
+    height: 100%;
+
+    & > .dou-flow-editor {
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  /* adding nodes to a flow: a button at the top left, a list when there are several types */
+  .dou-editor-board__add {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    border-radius: var(--dou-radius-control);
+    box-shadow: var(--dou-shadow-sm);
+
+    /* on touch: taps from 40px around the button, as icon buttons take them */
+    @media (pointer: coarse) {
+      & .dou-button::after {
+        position: absolute;
+        inset: min(0px, calc(50% - 20px)) 0;
+        content: '';
+      }
+    }
+  }
+
+  /* the same list as when an edge is dropped on the canvas, in the popover */
+  /* the list reaches the popover's edges */
+  .dou-popover:has(> .dou-popover__content > .dou-editor-board__types) {
+    --dou-popover-padding: 0;
+  }
+
+  .dou-editor-board__types {
+    width: 260px;
+    max-width: 100%;
+
+    & .dou-command__search {
+      height: 40px;
+      padding: 0 12px;
+    }
+  }
+
+  .dou-editor-board__type-icon {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-color-bg-muted);
+    color: var(--dou-color-text-secondary);
+
+    & svg {
+      width: 14px;
+      height: 14px;
+    }
+  }
+
+  /* the whole row can be dragged onto the canvas: it covers the item's padding */
+  .dou-editor-board__type {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    align-self: stretch;
+    margin: -6px -10px;
+    padding: 6px 10px;
+  }
+
+  .dou-flow-editor__panels > .dou-editor-board__hint {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max-content;
+    max-width: calc(100% - 48px);
+    margin: 0;
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    text-align: center;
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+  }
+
   .dou-editor-embed__link {
     overflow-x: clip;
     max-width: 100%;
@@ -1919,6 +2441,12 @@
     font-size: var(--dou-font-size-sm);
     font-weight: var(--dou-font-weight-bold);
     line-height: 1;
+  }
+
+  /* on the tint of a hovered button or a highlighted item the border would fade into it */
+  .dou-editor-colors__button:is(:hover, [aria-expanded='true']) .dou-editor-colors__swatch,
+  .dou-dropdown__item:focus .dou-editor-colors__swatch {
+    border-color: var(--dou-color-border-strong);
   }
 
   /* centred by its cap height, not its line box */

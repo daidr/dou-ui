@@ -32,13 +32,22 @@ export interface ReplaceWidgetsOptions {
   keepComments?: boolean
 }
 
-/** Deep equality of JSON values; key order doesn't matter. */
+/** The keys JSON keeps: those whose value isn't `undefined`. */
+const jsonKeys = (value: object) =>
+  Object.keys(value).filter((key) => (value as Record<string, unknown>)[key] !== undefined)
+
+/** Deep equality of JSON values; key order and keys set to `undefined` don't matter. */
 export function sameValue(a: unknown, b: unknown): boolean {
   if (a === b) return true
   if (!a || !b || typeof a !== 'object' || typeof b !== 'object') return false
   if (Array.isArray(a) !== Array.isArray(b)) return false
-  const keys = Object.keys(a)
-  if (keys.length !== Object.keys(b).length) return false
+  if (Array.isArray(a))
+    return (
+      a.length === (b as unknown[]).length &&
+      a.every((item, i) => sameValue(item, (b as unknown[])[i]))
+    )
+  const keys = jsonKeys(a)
+  if (keys.length !== jsonKeys(b).length) return false
   return keys.every((key) =>
     sameValue((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key]),
   )

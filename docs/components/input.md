@@ -16,7 +16,13 @@
 
 ## 前缀与后缀
 
+`prefix` 和 `suffix` 插槽放在文字的前后，适合放图标、货币符号或单位。
+
 <DocDemo src="input/prefix-suffix" />
+
+放 [Button](./button) 或 [CopyButton](./copy-button) 时，按钮和清空、显示密码的按钮一样，属于输入框自己的操作：高度由输入框决定，按钮的 `size` 只影响文字大小和内边距；输入框禁用时按钮也一起禁用。按钮在最前或最后时，输入框那一侧不再留内边距，按钮的底色离上、下和那一侧的距离相同，这段距离可以用 `--dou-input-action-inset` 调整。一般用 `ghost` 按钮。
+
+<DocDemo src="input/action" column />
 
 ## 可清空
 
@@ -67,10 +73,10 @@
 
 ### Slots
 
-| 名称     | 说明                       |
-| -------- | -------------------------- |
-| `prefix` | 文字前的内容，通常是图标   |
-| `suffix` | 文字后的内容，如单位或图标 |
+| 名称     | 说明                                   |
+| -------- | -------------------------------------- |
+| `prefix` | 文字前的内容，通常是图标，也可以是按钮 |
+| `suffix` | 文字后的内容，如单位、图标或按钮       |
 
 ### Exposes
 
@@ -83,12 +89,13 @@
 
 ### CSS 变量
 
-| 变量                       | 说明         |
-| -------------------------- | ------------ |
-| `--dou-input-height`       | 高度         |
-| `--dou-input-padding-x`    | 水平内边距   |
-| `--dou-input-radius`       | 圆角         |
-| `--dou-input-bg`           | 背景色       |
-| `--dou-input-border`       | 描边颜色     |
-| `--dou-input-border-focus` | 聚焦描边颜色 |
-| `--dou-input-ring`         | 聚焦光晕颜色 |
+| 变量                       | 说明                                 |
+| -------------------------- | ------------------------------------ |
+| `--dou-input-height`       | 高度                                 |
+| `--dou-input-padding-x`    | 水平内边距                           |
+| `--dou-input-radius`       | 圆角                                 |
+| `--dou-input-action-inset` | 前缀、后缀里的按钮与输入框内沿的距离 |
+| `--dou-input-bg`           | 背景色                               |
+| `--dou-input-border`       | 描边颜色                             |
+| `--dou-input-border-focus` | 聚焦描边颜色                         |
+| `--dou-input-ring`         | 聚焦光晕颜色                         |

@@ -1,6 +1,6 @@
 {
   "name": "@dou-ui/gantt",
-  "version": "0.1.0-alpha.11",
+  "version": "0.1.0-alpha.15",
   "description": "DouUI 的甘特图：任务排期、依赖与工作日历",
   "keywords": [
     "vue",

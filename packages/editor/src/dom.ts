@@ -1,24 +1,100 @@
 import type { EditorView } from 'prosemirror-view'
 
-/**
- * The content element (paragraph, heading, …) at height `y` in viewport
- * coordinates: the last one whose top is above it. Contents follow each
- * other from top to bottom in document order, nested ones included, so
- * a binary search does.
- */
-export function contentAt(view: EditorView, y: number): HTMLElement | null {
-  const list = view.dom.querySelectorAll<HTMLElement>('.dou-editor__content')
+const isBlock = (element: Element): element is HTMLElement =>
+  element.classList.contains('dou-editor__block')
+
+/** The blocks right inside a container element: the editing area or a group. */
+export const childBlocks = (container: Element): HTMLElement[] =>
+  Array.from(container.children).filter(isBlock)
+
+const contentOf = (block: HTMLElement) =>
+  block.querySelector<HTMLElement>(':scope > .dou-editor__content')
+
+const groupOf = (block: HTMLElement) =>
+  block.querySelector<HTMLElement>(':scope > .dou-editor__group')
+
+/** Where a block starts: its content's top, or its children's for a block without visible content (columns). */
+function topOf(block: HTMLElement): number {
+  const content = contentOf(block)
+  const shown = content?.getClientRects().length ? content : (groupOf(block) ?? block)
+  return shown.getBoundingClientRect().top
+}
+
+/** The last of `blocks` whose top is above `y` (the first when none is). */
+function lastAbove(blocks: HTMLElement[], y: number): HTMLElement {
   let low = 0
-  let high = list.length - 1
-  let found = -1
+  let high = blocks.length - 1
+  let found = 0
   while (low <= high) {
     const middle = (low + high) >> 1
-    if (list[middle]!.getBoundingClientRect().top <= y) {
+    if (topOf(blocks[middle]!) <= y) {
       found = middle
       low = middle + 1
     } else high = middle - 1
   }
-  return list[Math.max(found, 0)] ?? null
+  return blocks[found]!
+}
+
+/** The group of a set of columns, around an element in one of them. */
+export const COLUMNS_GROUP = '.dou-editor__content--columns + .dou-editor__group'
+/** The group of one column (its blocks). */
+export const COLUMN_GROUP = '.dou-editor__content--column + .dou-editor__group'
+
+/** Whether columns sit side by side; a narrow editor stacks them. */
+export function sideBySide(columns: HTMLElement[]): boolean {
+  return (
+    columns.length > 1 &&
+    Math.abs(columns[0]!.getBoundingClientRect().top - columns[1]!.getBoundingClientRect().top) < 1
+  )
+}
+
+/**
+ * The column at `x` among side-by-side ones: the gap before a column
+ * belongs to it (its handle sits there), what is left of the first to the
+ * first and right of the last to the last.
+ */
+export function columnAtX(columns: HTMLElement[], x: number): number {
+  let index = 0
+  for (let next = 1; next < columns.length; next++)
+    if (x >= columns[next - 1]!.getBoundingClientRect().right) index = next
+  return index
+}
+
+/**
+ * The content element (paragraph, heading, …) at height `y` in viewport
+ * coordinates: the last one whose top is above it, nested ones included.
+ * Blocks follow each other from top to bottom, so a binary search finds
+ * the block, then the same again among its children. In a set of
+ * columns, `x` picks the column (stacked columns go by `y` too).
+ */
+export function contentAt(view: EditorView, y: number, x?: number): HTMLElement | null {
+  let container: Element = view.dom
+  for (;;) {
+    const blocks = childBlocks(container)
+    if (!blocks.length) return null
+    const block = lastAbove(blocks, y)
+    const content = contentOf(block)
+    const group = groupOf(block)
+    if (group && content?.classList.contains('dou-editor__content--columns')) {
+      const columns = childBlocks(group)
+      if (!columns.length) return null
+      const column =
+        x !== undefined && sideBySide(columns)
+          ? columns[columnAtX(columns, x)]!
+          : lastAbove(columns, y)
+      const inner = groupOf(column)
+      if (!inner) return null
+      container = inner
+      continue
+    }
+    // the children, when shown (a closed toggle hides them) and `y` reaches them
+    const first = group?.getClientRects().length ? childBlocks(group)[0] : undefined
+    if (group && first && topOf(first) <= y) {
+      container = group
+      continue
+    }
+    return content
+  }
 }
 
 /** The block element around a content element. */
@@ -44,6 +120,50 @@ export function firstLine(content: HTMLElement): { top: number; height: number }
   const padding = Number.parseFloat(style.paddingTop) || 0
   const height = Number.isFinite(lineHeight) ? Math.min(lineHeight, rect.height) : rect.height
   return { top: rect.top + (height < rect.height ? padding : 0), height }
+}
+
+/** A top-level table: only it reaches into the margins (a table in a column or a list doesn't). */
+const isWideTable = (content: HTMLElement) =>
+  content.classList.contains('dou-editor__content--table') &&
+  !!content.parentElement?.parentElement?.classList.contains('dou-editor__surface')
+
+/**
+ * Where a block's content goes across: its box, less what a top-level
+ * table's frame reaches into the margins (its start padding and end margin),
+ * which keeps the table in line with the text. The editor lays out left to
+ * right, so the logical start and end are the left and right.
+ */
+export function contentSpan(content: HTMLElement): { left: number; right: number } {
+  const rect = content.getBoundingClientRect()
+  if (!isWideTable(content)) return { left: rect.left, right: rect.right }
+  const style = getComputedStyle(content)
+  return {
+    left: rect.left + (Number.parseFloat(style.paddingInlineStart) || 0),
+    right: rect.right + (Number.parseFloat(style.marginInlineEnd) || 0),
+  }
+}
+
+/**
+ * Where the block handle goes: before the content, or before what shows of
+ * a table, whose left edge moves out into the margin as it scrolls.
+ */
+export function handleLeft(content: HTMLElement): number {
+  const rect = content.getBoundingClientRect()
+  if (!isWideTable(content)) return rect.left
+  const table = content.querySelector('table')
+  return table ? Math.max(rect.left, table.getBoundingClientRect().left) : contentSpan(content).left
+}
+
+/**
+ * How far the block handle's bubble moves in over the text: by as much as
+ * its `start` (its left edge, "+" included when it can come out) lacks of
+ * `clip` plus 2px. Next to a table, a bubble that has to move in goes on
+ * past `clear`, right of the table's row handles, rather than onto them.
+ */
+export function bubbleShift(start: number, clip: number, clear?: number): number {
+  const shift = Math.max(0, Math.ceil(clip + 2 - start))
+  if (!shift || clear === undefined) return shift
+  return Math.max(shift, Math.ceil(clear - start))
 }
 
 /** The right edge of the editor's text column: the surface less its padding (a reading width). */

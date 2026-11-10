@@ -1540,6 +1540,31 @@ function clearPress() {
   pressTimer = 0
 }
 
+/**
+ * A touch browser may hand a press to a clickable element near the finger
+ * instead of the one under it. That suits most of the board, where a finger
+ * a little off a node or a port still means it, but not a handle drawn on
+ * screen (`data-flow-handle`): on a small node an anchor beside a corner
+ * handle would take the press, and connect instead of resize. A press whose
+ * finger is on such a handle is stopped and sent again to the handle.
+ *
+ * It listens on the window, first among the editor's listeners there, so the
+ * listeners further on (the document's, the editor's own) hear only the press
+ * sent again; a window listener added earlier hears both. A handler that
+ * cancels the press sent again cancels the browser's own one too.
+ */
+function onTouchPress(event: PointerEvent) {
+  if (event.pointerType !== 'touch' || !root.value) return
+  const scope = root.value.getRootNode() as Document | ShadowRoot
+  const under = scope.elementFromPoint?.(event.clientX, event.clientY)
+  const handle = under?.closest('[data-flow-handle]')
+  if (!handle || !root.value.contains(handle)) return
+  const target = event.target as Node
+  if (handle === target || handle.contains(target)) return
+  event.stopImmediatePropagation()
+  if (!handle.dispatchEvent(new PointerEvent('pointerdown', event))) event.preventDefault()
+}
+
 function onPointerDown(event: PointerEvent) {
   const target = event.target as Element
   if (inPanels(target)) return
@@ -2665,10 +2690,12 @@ function showMenu(
 }
 
 onMounted(() => {
+  window.addEventListener('pointerdown', onTouchPress, true)
   window.addEventListener('pointerdown', onMenuPress, true)
   window.addEventListener('click', onMenuClick)
 })
 onBeforeUnmount(() => {
+  window.removeEventListener('pointerdown', onTouchPress, true)
   window.removeEventListener('pointerdown', onMenuPress, true)
   window.removeEventListener('click', onMenuClick)
 })
@@ -2941,8 +2968,10 @@ function endGesture() {
   clearPress()
   cancelAnimationFrame(autoPanFrame)
   if (g && root.value?.hasPointerCapture(g.id)) root.value.releasePointerCapture(g.id)
-  if ((g?.kind === 'drag' || g?.kind === 'bend') && g.started) history.close()
-  if (g?.kind === 'resize') history.close()
+  if (((g?.kind === 'drag' || g?.kind === 'bend') && g.started) || g?.kind === 'resize') {
+    if (customHistory) customHistory.close?.()
+    else history.close()
+  }
   gesture.value = null
   guides.value = []
   dropTarget.value = null
@@ -2957,7 +2986,8 @@ function cancelDrag() {
   if (g.kind === 'bend') tr.updateEdge(g.edge, { data: g.origin })
   else for (const [id, o] of g.origins) tr.moveNode(id, o.x, o.y)
   if (tr.changed) commit(tr)
-  history.drop(g.group)
+  if (customHistory) customHistory.drop?.(g.group)
+  else history.drop(g.group)
   syncHistory()
   endGesture()
   return true

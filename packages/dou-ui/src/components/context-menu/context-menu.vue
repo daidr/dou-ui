@@ -7,6 +7,7 @@ import {
   onScopeDispose,
   provide,
   ref,
+  useAttrs,
   useId,
   watch,
 } from 'vue'
@@ -263,6 +264,8 @@ const onMenuKeydown = useMenuKeys(
   () => dismiss(),
 )
 
+const attrs = useAttrs()
+
 provide(dropdownKey, {
   select(value) {
     findMenuItem(props.items, value)?.run?.()
@@ -272,6 +275,8 @@ provide(dropdownKey, {
   opened: () => open.value,
   hold: () => {},
   release: () => {},
+  panelClass: () => attrs.class,
+  teleport: () => teleportTarget.value,
 })
 
 const panelStyle = computed(() => ({ ...floating.style.value, zIndex: zIndex.value }))

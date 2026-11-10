@@ -123,7 +123,8 @@ function draw(painter: Painter, series: ChartSeries<BoxStyle>, view: ChartView) 
     const u0 = snap(sx.map(x) + offset)
     const u1 = Math.max(u0 + 1, snap(sx.map(x) + offset + width))
     const mid = line((u0 + u1) / 2)
-    const cap = Math.max(4, (u1 - u0) / 2)
+    // kept to its band, which may be narrower than 4px
+    const cap = Math.min(Math.max(4, (u1 - u0) / 2), view.band)
     const [q1, q3] = [snap(sy.map(box.q1)), snap(sy.map(box.q3))]
     // whiskers and their caps
     painter.strokeStyle = color

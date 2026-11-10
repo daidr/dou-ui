@@ -31,6 +31,11 @@ const commands = [
 const mentions = [
   { value: '需求文档.md', description: '文件', icon: FileTextIcon },
   { value: '会议记录.md', description: '文件', icon: FileTextIcon },
+  {
+    value: '上海办公室搬迁：各部门工位分配与网络布线方案.md',
+    description: '文件',
+    icon: FileTextIcon,
+  },
   { value: '戴兜', description: '成员', icon: UserIcon },
 ]
 </script>

@@ -900,7 +900,10 @@ describe('resize handles', () => {
     // the frame that draws the outline is the size being dragged to, not the board node alone
     expect(frame().attributes('style')).toContain('width: 100px')
     expect(frame().attributes('style')).toContain('height: 50px')
-    expect(frame().find('.dou-whiteboard-node').attributes('style') ?? '').not.toContain('width')
+    // it only passes its size on to its anchors and handles, as custom properties
+    const board = frame().find('.dou-whiteboard-node').element as HTMLElement
+    expect(board.style.width).toBe('')
+    expect(board.style.getPropertyValue('--dou-whiteboard-frame-width')).toBe('100px')
     expect(path()).not.toBe(before)
     // the handles sit on the frame's corners, so they move with it
     expect(at(root, '1,1').attributes('style')).toContain('left: 100%')
@@ -950,6 +953,92 @@ describe('resize handles', () => {
     // the sides stay on the node, under its anchors
     expect(root.find('[data-node-id="a"]').findAll('.dou-whiteboard-node__side')).toHaveLength(4)
     expect(layer.find('.dou-whiteboard-node__frame').attributes('style')).toContain('width: 100px')
+  })
+
+  it('resizes from the corner a finger is on, though the browser hands the press to an anchor', async () => {
+    const { root, flow, selection } = setup({
+      version: 1,
+      nodes: [
+        { id: 'a', type: 'shape', x: 0, y: 0, width: 64, height: 64, data: { shape: 'rect' } },
+      ],
+      edges: [],
+    })
+    await ticks()
+    selection.value = { nodes: ['a'], edges: [] }
+    await ticks()
+    const corner = at(root, '1,1').element
+    const anchor = root.find('[data-node-id="a"] .dou-flow-port.is-output.is-right').element
+    // touch browsers may give the press to a clickable element near the finger
+    const elementFromPoint = document.elementFromPoint
+    document.elementFromPoint = () => corner
+    const press = pointer('pointerdown', 64, 64, { pointerType: 'touch' })
+    try {
+      anchor.dispatchEvent(press)
+      corner.dispatchEvent(pointer('pointermove', 128, 96, { pointerType: 'touch' }))
+      corner.dispatchEvent(pointer('pointerup', 128, 96, { pointerType: 'touch' }))
+    } finally {
+      document.elementFromPoint = elementFromPoint
+    }
+    await ticks()
+    expect(flow.value.nodes[0]).toMatchObject({ width: 128, height: 96 })
+    expect(flow.value.edges).toHaveLength(0)
+    // the handle cancelled the press it was sent, and so the one the browser sent
+    expect(press.defaultPrevented).toBe(true)
+  })
+
+  it("leaves a touch near an anchor to the browser's choice, away from the handles", async () => {
+    const { root, flow } = setup({
+      version: 1,
+      nodes: [
+        { id: 'a', type: 'shape', x: 0, y: 0, width: 100, height: 100, data: { shape: 'rect' } },
+        { id: 'b', type: 'sticky', x: 300, y: 0, width: 100, height: 100, data: {} },
+      ],
+      edges: [],
+    })
+    await ticks()
+    const port = root.find('[data-node-id="b"] .dou-flow-port.is-output.is-left')
+    // the finger is beside the anchor, over the other node, which is no handle
+    const elementFromPoint = document.elementFromPoint
+    document.elementFromPoint = () => root.find('[data-node-id="a"]').element
+    try {
+      port.element.dispatchEvent(pointer('pointerdown', 300, 50, { pointerType: 'touch' }))
+      root.element.dispatchEvent(pointer('pointermove', 200, 50, { pointerType: 'touch' }))
+      root.element.dispatchEvent(pointer('pointermove', 60, 50, { pointerType: 'touch' }))
+      root.element.dispatchEvent(pointer('pointerup', 60, 50, { pointerType: 'touch' }))
+    } finally {
+      document.elementFromPoint = elementFromPoint
+    }
+    await ticks()
+    expect(flow.value.edges).toHaveLength(1)
+  })
+
+  it("keeps the corners' targets short of the anchors on a small shape", async () => {
+    const { root, selection } = setup({
+      version: 1,
+      nodes: [
+        { id: 'a', type: 'shape', x: 0, y: 0, width: 64, height: 40, data: { shape: 'rect' } },
+      ],
+      edges: [],
+    })
+    await ticks()
+    selection.value = { nodes: ['a'], edges: [] }
+    await ticks()
+    const layer = root.find('.dou-whiteboard-handles')
+    // the stylesheet stops each target this far into the node, short of the sides' middles
+    const frame = layer.find('.dou-whiteboard-node__frame').element as HTMLElement
+    expect(frame.style.getPropertyValue('--dou-whiteboard-frame-width')).toBe('64px')
+    expect(frame.style.getPropertyValue('--dou-whiteboard-frame-height')).toBe('40px')
+    // so does the node, whose anchors keep short of the corner handles in turn
+    const board = root.find('[data-node-id="a"] .dou-whiteboard-node').element as HTMLElement
+    expect(board.style.getPropertyValue('--dou-whiteboard-frame-height')).toBe('40px')
+    // and needs to know which way is into the node
+    const corners = layer.findAll('.dou-whiteboard-node__corner')
+    expect(corners).toHaveLength(4)
+    for (const c of corners) {
+      const [x = 0, y = 0] = c.attributes('data-handle')!.split(',').map(Number)
+      expect(c.classes(x < 0 ? 'is-left' : 'is-right')).toBe(true)
+      expect(c.classes(y < 0 ? 'is-top' : 'is-bottom')).toBe(true)
+    }
   })
 
   it('turns the corner handles about the node, not about the board', async () => {

@@ -24,6 +24,8 @@
 
 <DocDemo src="link/soft" />
 
+在 [Tooltip](./tooltip) 和 `solid` 的 [Banner](./banner) 这类自带底色的容器里，链接跟随所在容器的文字色，`tone` 不生效；彩色 `solid` 横幅里的 `soft` 链接改为带下划线的普通样式，以保证文字的对比度。
+
 ## 外部链接
 
 `external` 会在新标签页打开，自动加上 `rel="noopener noreferrer"`，并在末尾标记一个箭头。
@@ -50,7 +52,7 @@
 
 ## 图标
 
-与按钮一致，用 `leading` / `trailing` 插槽放置图标；`trailing` 会替代外部链接的箭头。
+与按钮一致，用 `leading` / `trailing` 插槽放置图标；`trailing` 会替代外部链接的箭头，没有渲染出内容时（比如图标写在 `v-if` 里）仍显示箭头。
 
 ```vue
 <DouLink href="/changelog">

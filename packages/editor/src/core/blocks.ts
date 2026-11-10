@@ -16,6 +16,17 @@ export interface BlockInfo {
   group: PMNode | null
 }
 
+/**
+ * How a block lays out its children, from its content node's `layout`
+ * spec field: `row` puts them side by side (a set of columns) and only
+ * holds `column` blocks; a `column` only sits in a row and holds the
+ * blocks shown in it. Such a block has no text of its own.
+ */
+export type BlockLayout = 'row' | 'column'
+
+export const layoutOf = (block: PMNode | null | undefined): BlockLayout | undefined =>
+  block?.firstChild?.type.spec.layout as BlockLayout | undefined
+
 export function infoAt(node: PMNode, pos: number, depth: number): BlockInfo {
   return {
     node,
@@ -37,6 +48,13 @@ export function blockAround($pos: ResolvedPos): BlockInfo | null {
   const after = $pos.nodeAfter
   if (after?.type.name === 'block') return infoAt(after, $pos.pos, $pos.depth + 1)
   return null
+}
+
+/** The block whose children `info` is one of, or `null` at the top level. */
+export function parentBlock(doc: PMNode, info: BlockInfo): BlockInfo | null {
+  if (info.depth <= 1) return null
+  const $pos = doc.resolve(info.pos)
+  return infoAt($pos.node(info.depth - 2), $pos.before(info.depth - 2), info.depth - 2)
 }
 
 /** The block with an id, by scanning the document. */
@@ -108,6 +126,12 @@ export function siblingRangeBetween(doc: PMNode, from: number, to: number): Sibl
     if (doc.resolve(a.pos).start() === doc.resolve(b.pos).start()) break
     depth -= 2
   }
+  // columns go together: a selection across them takes the whole row
+  if (depth > 1) {
+    const $a = doc.resolve(a.pos)
+    const owner = $a.node(depth - 2)
+    if (layoutOf(owner) === 'row') a = b = infoAt(owner, $a.before(depth - 2), depth - 2)
+  }
   return rangeOf(doc, a, b)
 }
 
@@ -167,9 +191,13 @@ export function previousInDocument(doc: PMNode, info: BlockInfo): BlockInfo | nu
     const before = $pos.parent.child(index - 1)
     return lastDescendant(infoAt(before, info.pos - before.nodeSize, info.depth))
   }
-  // the first child: the previous is its parent block
-  if (info.depth > 1)
-    return infoAt($pos.node(info.depth - 2), $pos.before(info.depth - 2), info.depth - 2)
+  // the first child: the previous is its parent block, unless that is a
+  // column, where reading starts over
+  if (info.depth > 1) {
+    const parent = $pos.node(info.depth - 2)
+    if (layoutOf(parent) === 'column') return null
+    return infoAt(parent, $pos.before(info.depth - 2), info.depth - 2)
+  }
   return null
 }
 
@@ -184,10 +212,9 @@ export function nextInDocument(doc: PMNode, info: BlockInfo): BlockInfo | null {
     if ($pos.index() < $pos.parent.childCount - 1)
       return infoAt($pos.parent.child($pos.index() + 1), end, current.depth)
     if (current.depth <= 1) return null
-    current = infoAt(
-      $pos.node(current.depth - 2),
-      $pos.before(current.depth - 2),
-      current.depth - 2,
-    )
+    const parent = $pos.node(current.depth - 2)
+    // the end of a column: the next column is beside it, not after it
+    if (layoutOf(parent) === 'column') return null
+    current = infoAt(parent, $pos.before(current.depth - 2), current.depth - 2)
   }
 }

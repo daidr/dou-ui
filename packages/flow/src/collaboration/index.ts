@@ -35,8 +35,23 @@ type Touched = Map<string, Set<string> | true>
 /** Whether a group is folded is each person's own view: it stays out of the shared document. */
 const LOCAL_DATA = 'collapsed'
 
-const same = (a: unknown, b: unknown) =>
-  a === b || (typeof a === 'object' && JSON.stringify(a) === JSON.stringify(b))
+/** The keys JSON keeps: those whose value isn't `undefined`. */
+const jsonKeys = (value: object) =>
+  Object.keys(value).filter((key) => (value as Item)[key] !== undefined)
+
+/** Whether two JSON values are the same, whatever the order of their keys. */
+function same(a: unknown, b: unknown): boolean {
+  if (a === b) return true
+  if (!a || !b || typeof a !== 'object' || typeof b !== 'object') return false
+  if (Array.isArray(a) !== Array.isArray(b)) return false
+  if (Array.isArray(a))
+    return (
+      a.length === (b as unknown[]).length && a.every((item, i) => same(item, (b as unknown[])[i]))
+    )
+  const keys = jsonKeys(a)
+  if (keys.length !== jsonKeys(b).length) return false
+  return keys.every((key) => same((a as Item)[key], (b as Item)[key]))
+}
 
 /** `data` as it is shared: without the local fields. */
 function sharedData(data: unknown) {
@@ -164,9 +179,18 @@ export function fillMaps(maps: Maps, doc: FlowDocument, options: FillMapsOptions
   transact(maps, fill, options.origin)
 }
 
+/**
+ * While developing: each node and edge `readMaps` gave, as it was then, to
+ * tell one of `base` changed in place from one others changed meanwhile.
+ */
+const asRead = new WeakMap<object, Item>()
+
 /** Every node or edge a map holds. */
-function readAll<T>(map: Shared): T[] {
-  return Array.from(map.keys(), (id) => read<T>(map, id)).filter((item): item is T => !!item)
+function readAll<T extends object>(map: Shared): T[] {
+  const items = Array.from(map.keys(), (id) => read<T>(map, id)).filter((item): item is T => !!item)
+  if (process.env.NODE_ENV !== 'production')
+    for (const item of items) asRead.set(item, structuredClone(item) as Item)
+  return items
 }
 
 /**
@@ -223,6 +247,31 @@ function syncItems(
   }
 }
 
+/** Warns about the first of `items` that is one of `kept` (from base) changed in place since it was read. */
+function warnChangedItem(items: readonly (FlowNode | FlowEdge)[], kept: Set<object>) {
+  for (const item of items) {
+    const snapshot = kept.has(item) ? asRead.get(item) : undefined
+    if (!snapshot || !changedKeys(snapshot, item as unknown as Item).size) continue
+    console.warn(
+      `[@dou-ui/flow] updateMaps got "${item.id}" of \`base\` itself in \`doc\`, changed in place: the change isn't written. Change a copy of \`base\`, e.g. structuredClone(base).`,
+    )
+    return true
+  }
+  return false
+}
+
+/** Warns when `doc` holds `base` itself, or nodes or edges of it changed in place. */
+function warnChangedInPlace(doc: FlowDocument, base: FlowDocument) {
+  if (doc === base || doc.nodes === base.nodes) {
+    console.warn(
+      '[@dou-ui/flow] updateMaps got the same object as `doc` and `base`, so nothing is written: change a copy of `base`, e.g. structuredClone(base).',
+    )
+    return
+  }
+  if (!warnChangedItem(doc.nodes, new Set(base.nodes)))
+    warnChangedItem(doc.edges, new Set(base.edges))
+}
+
 export interface UpdateMapsOptions extends FillMapsOptions {
   /**
    * The version `doc` was made from, e.g. the one read with `readMaps` and
@@ -242,6 +291,7 @@ export interface UpdateMapsOptions extends FillMapsOptions {
  */
 export function updateMaps(maps: Maps, doc: FlowDocument, options: UpdateMapsOptions = {}) {
   const { base } = options
+  if (process.env.NODE_ENV !== 'production' && base) warnChangedInPlace(doc, base)
   const update = () => {
     syncItems(maps.nodes, doc.nodes, base?.nodes)
     // a new edge to a node someone removed meanwhile would lead nowhere

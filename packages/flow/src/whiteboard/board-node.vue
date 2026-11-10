@@ -66,15 +66,27 @@ const resizeHandles = computed(() =>
 )
 const sideHandles = computed(() => resizeHandles.value.filter((h) => !h.x || !h.y))
 const cornerHandles = computed(() => resizeHandles.value.filter((h) => h.x && h.y))
+const rect = computed(
+  () => ctx.getNodeRect(props.node.id) ?? { ...props.node, width: 0, height: 0 },
+)
+/**
+ * The node's size, for the anchors and the corner handles to share the
+ * corners of a small node: each keeps short of the other.
+ */
+const sizeStyle = computed(() => ({
+  '--dou-whiteboard-frame-width': `${rect.value.width}px`,
+  '--dou-whiteboard-frame-height': `${rect.value.height}px`,
+}))
 /** The node's box, turned with it, for the handles drawn above every node. */
 const frameStyle = computed(() => {
-  const rect = ctx.getNodeRect(props.node.id) ?? { ...props.node, width: 0, height: 0 }
+  const box = rect.value
   return {
     // `translate`, not `transform`: it applies before `rotate`, so the box
     // turns about its own centre and its offset is not turned with it
-    translate: `${rect.x}px ${rect.y}px`,
-    width: `${rect.width}px`,
-    height: `${rect.height}px`,
+    translate: `${box.x}px ${box.y}px`,
+    width: `${box.width}px`,
+    height: `${box.height}px`,
+    ...sizeStyle.value,
     rotate: rotation.value ? `${rotation.value}deg` : undefined,
   }
 })
@@ -220,7 +232,7 @@ function onKeydown(event: KeyboardEvent) {
         'is-erasing': erasing,
       },
     ]"
-    :style="transform"
+    :style="[transform, sizeStyle]"
     @dblclick.stop="edit"
   >
     <svg
@@ -312,15 +324,25 @@ function onKeydown(event: KeyboardEvent) {
           <!-- data-flow-overlay on its target: the selection's toolbar keeps
                clear of where a finger can take it, when it floats below the
                node or the node is turned upside down -->
-          <span class="dou-whiteboard-node__turn" data-dou-nodrag @pointerdown="startTurn">
+          <span
+            class="dou-whiteboard-node__turn"
+            data-flow-handle
+            data-dou-nodrag
+            @pointerdown="startTurn"
+          >
             <span class="dou-whiteboard-node__target" data-flow-overlay />
           </span>
           <span
             v-for="handle in cornerHandles"
             :key="`${handle.x},${handle.y}`"
-            class="dou-whiteboard-node__corner"
+            :class="[
+              'dou-whiteboard-node__corner',
+              handle.x < 0 ? 'is-left' : 'is-right',
+              handle.y < 0 ? 'is-top' : 'is-bottom',
+            ]"
             :style="{ left: place(handle.x), top: place(handle.y), cursor: cursorOf(handle) }"
             :data-handle="`${handle.x},${handle.y}`"
+            data-flow-handle
             data-dou-nodrag
             @pointerdown="onResize($event, handle)"
           />

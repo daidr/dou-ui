@@ -12,6 +12,7 @@ defineOptions({ name: 'DouCommandDialog' })
 const props = withDefaults(defineProps<CommandDialogProps>(), {
   loop: true,
   maxHeight: 360,
+  virtual: undefined,
   hotkey: 'mod+k',
   closeOnSelect: true,
   width: 560,
@@ -51,6 +52,8 @@ const commandProps = computed(() => ({
   filter: props.filter,
   loop: props.loop,
   maxHeight: props.maxHeight,
+  virtual: props.virtual,
+  itemSize: props.itemSize,
   ariaLabel: props.ariaLabel,
 }))
 </script>

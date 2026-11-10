@@ -1,4 +1,5 @@
 import { Mark, type NodeType, type Node as PMNode, type Schema } from 'prosemirror-model'
+import { toRaw } from 'vue'
 import { isColor, type TextColor } from './colors'
 import type { ContentType, MarkType } from './schema'
 
@@ -341,7 +342,9 @@ export function inlineNodes(
 export function contentAttrs(type: NodeType, props: BlockProps = {}) {
   const attrs: Record<string, unknown> = {}
   for (const name of Object.keys(type.spec.attrs ?? {})) {
-    if (props[name] !== undefined) attrs[name] = props[name]
+    // a prop from a reactive document (an object one, e.g. a board) as its plain value:
+    // blocks are frozen, and a frozen proxy breaks every read
+    if (props[name] !== undefined) attrs[name] = toRaw(props[name])
   }
   const normalize = type.spec.normalizeProps as
     ((attrs: Record<string, unknown>) => Record<string, unknown>) | undefined
@@ -365,7 +368,12 @@ export function createContentNode(
   return nodeType.create(attrs, inlineNodes(schema, content, !!nodeType.spec.code))
 }
 
-export function nodeFromBlock(schema: Schema, block: PartialBlock): PMNode {
+/**
+ * The block node for `block`. With `fill`, a block that starts with
+ * children of its own (`template` in its spec, e.g. columns) and is given
+ * none gets them, as when it is picked from the slash menu.
+ */
+export function nodeFromBlock(schema: Schema, block: PartialBlock, fill = false): PMNode {
   const content = createContentNode(
     schema,
     block.type ?? 'paragraph',
@@ -373,7 +381,11 @@ export function nodeFromBlock(schema: Schema, block: PartialBlock): PMNode {
     block.content,
     block.rows,
   )
-  const children = (block.children ?? []).map((child) => nodeFromBlock(schema, child))
+  const template = fill
+    ? (content.type.spec.template as ((props: BlockProps) => PartialBlock[]) | undefined)
+    : undefined
+  const given = block.children?.length ? block.children : template?.(block.props ?? {})
+  const children = (given ?? []).map((child) => nodeFromBlock(schema, child, fill))
   const parts = children.length
     ? [content, schema.nodes.blockGroup!.create(null, children)]
     : [content]

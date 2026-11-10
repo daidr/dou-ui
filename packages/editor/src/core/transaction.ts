@@ -6,7 +6,7 @@ import {
   type EditorState,
   type Transaction,
 } from 'prosemirror-state'
-import { blockAround, findBlockById, type BlockInfo } from './blocks'
+import { blockAround, findBlockById, layoutOf, parentBlock, type BlockInfo } from './blocks'
 import { blockSelectionRange } from './block-selection'
 import {
   blockFromNode,
@@ -59,6 +59,13 @@ export type BlockEdge = 'start' | 'end'
  * providers other than the built-in one (collaboration reads it).
  */
 export const ownStepKey = 'douOwnStep'
+
+/**
+ * Set on a transaction that joins the undo step before it however long
+ * after it comes, e.g. the frames of a drag on a whiteboard (with
+ * `appendedTransaction` for the built-in history).
+ */
+export const joinStepKey = 'douJoinStep'
 
 const warn = (message: string) => {
   if (process.env.NODE_ENV !== 'production') console.warn(`[@dou-ui/editor] ${message}`)
@@ -116,12 +123,19 @@ export class EditorTransaction {
     const taken = usedIds(tr.doc)
     const ids: string[] = []
     const nodes = blocks.map((block) => {
-      const node = nodeFromBlock(schema, freshIds(block, taken))
+      const node = nodeFromBlock(schema, freshIds(block, taken), true)
       ids.push(node.attrs.id as string)
       return node
     })
     const target = placement ?? this.defaultPlacement()
     if (insertNodes(tr, target, nodes) === null) return []
+    for (const id of ids) {
+      const info = findBlockById(tr.doc, id)
+      if (layoutOf(info?.node) === 'row' && info && inColumn(tr.doc, info))
+        warn(
+          `insertBlocks: columns don't go in a column; the block "${id}" is replaced by its columns' blocks`,
+        )
+    }
     return ids
   }
 
@@ -386,6 +400,13 @@ function childPos(start: number, container: PMNode, index = container.childCount
   return pos
 }
 
+/** Whether a block sits in a column, at any depth. */
+function inColumn(doc: PMNode, info: BlockInfo): boolean {
+  for (let parent = parentBlock(doc, info); parent; parent = parentBlock(doc, parent))
+    if (layoutOf(parent.node) === 'column') return true
+  return false
+}
+
 function replaceChildren(tr: Transaction, info: BlockInfo, children: PartialBlock[]) {
   const schema = tr.doc.type.schema
   const groupPos = info.contentPos + info.content.nodeSize
@@ -394,7 +415,7 @@ function replaceChildren(tr: Transaction, info: BlockInfo, children: PartialBloc
   info.group?.descendants((node) => {
     if (node.type.name === 'block') taken.delete(node.attrs.id as string)
   })
-  const nodes = children.map((child) => nodeFromBlock(schema, freshIds(child, taken)))
+  const nodes = children.map((child) => nodeFromBlock(schema, freshIds(child, taken), true))
   const group = nodes.length ? schema.nodes.blockGroup!.create(null, nodes) : null
   const end = info.group ? groupPos + info.group.nodeSize : groupPos
   if (group) tr.replaceWith(groupPos, end, group)

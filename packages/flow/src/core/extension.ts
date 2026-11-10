@@ -25,6 +25,13 @@ export interface FlowHistoryHandler {
   redo: () => boolean
   canUndo: () => boolean
   canRedo: () => boolean
+  /**
+   * Forget the changes of `group` not yet undone, e.g. a drag cancelled with
+   * Escape: the editor has already put them back, outside the history.
+   */
+  drop?: (group: string) => void
+  /** A gesture ended (a drag, a resize): the next change starts a new undo step. */
+  close?: () => void
 }
 
 /** A press on the editor that an extension may take over, e.g. a drawing tool. */

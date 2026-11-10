@@ -1,33 +1,10 @@
-import {
-  Comment,
-  Fragment,
-  Text,
-  defineComponent,
-  h,
-  inject,
-  isVNode,
-  nextTick,
-  onBeforeUpdate,
-  onUpdated,
-  shallowRef,
-} from 'vue'
+import { defineComponent, h, inject, nextTick, onBeforeUpdate, onUpdated, shallowRef } from 'vue'
 import type { PropType, VNode } from 'vue'
 import { useResizeObserver } from '../../composables/use-element-size'
 import { useNamespace } from '../../utils/namespace'
+import { rendersSomething } from '../../utils/slot'
 import { menuKey } from './menu'
 import type { MenuItemOption } from './menu'
-
-/** Whether the slot drew anything for this item: it may leave most items alone. */
-function drawn(nodes: unknown): boolean {
-  if (!Array.isArray(nodes)) return false
-  return nodes.some((node) => {
-    if (!isVNode(node)) return node != null && node !== false && node !== ''
-    if (node.type === Comment) return false
-    if (node.type === Text) return String(node.children ?? '').trim() !== ''
-    if (node.type === Fragment) return drawn(node.children)
-    return true
-  })
-}
 
 export default defineComponent({
   name: 'DouMenuActions',
@@ -71,7 +48,9 @@ export default defineComponent({
     return () => {
       const nodes = menu.actionsSlot()?.({ item: props.item, selected: props.selected }) as
         VNode[] | undefined
-      return drawn(nodes) ? h('span', { ref: setEl, class: ns.e('actions') }, nodes) : null
+      return rendersSomething(nodes)
+        ? h('span', { ref: setEl, class: ns.e('actions') }, nodes)
+        : null
     }
   },
 })

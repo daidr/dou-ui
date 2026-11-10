@@ -18,6 +18,8 @@
 
 <DocDemo src="input-number/prefix-suffix" />
 
+前缀或后缀里也可以放 [Button](./button)，和 [Input](./input#前缀与后缀) 一样由输入框决定按钮的高度和留白，并随输入框一起禁用。显示步进键时，后缀不在最右侧，右侧的内边距不变。
+
 `controls` 设为 `false` 时隐藏步进键，键盘步进仍然可用。
 
 ## 显示格式

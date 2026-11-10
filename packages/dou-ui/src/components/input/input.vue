@@ -2,6 +2,7 @@
 import { CloseIcon, EyeIcon, EyeOffIcon } from '@dou-ui/icons'
 import { computed, nextTick, ref, useAttrs, useTemplateRef } from 'vue'
 import type { StyleValue } from 'vue'
+import { FieldAffix } from '../../utils/field-action'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import { useFormDisabled, useFormItem, useFormReadonly, useFormSize } from '../form/use-form-item'
@@ -102,9 +103,13 @@ defineExpose<InputExpose>({
 
 <template>
   <span :class="classes" :style="attrs.style as StyleValue" @mousedown="onMousedown">
-    <span v-if="slots.prefix" :class="[ns.e('affix'), ns.e('prefix')]">
-      <slot name="prefix" />
-    </span>
+    <FieldAffix
+      v-if="slots.prefix"
+      side="start"
+      :class="[ns.e('affix'), ns.e('prefix')]"
+      :disabled="disabled"
+      :render="slots.prefix"
+    />
     <input
       ref="input"
       v-model="model"
@@ -144,8 +149,12 @@ defineExpose<InputExpose>({
     <span v-if="showCount" :class="ns.e('count')" aria-hidden="true">
       {{ maxLength ? `${count} / ${maxLength}` : count }}
     </span>
-    <span v-if="slots.suffix" :class="[ns.e('affix'), ns.e('suffix')]">
-      <slot name="suffix" />
-    </span>
+    <FieldAffix
+      v-if="slots.suffix"
+      side="end"
+      :class="[ns.e('affix'), ns.e('suffix')]"
+      :disabled="disabled"
+      :render="slots.suffix"
+    />
   </span>
 </template>

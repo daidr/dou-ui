@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Comment, Fragment, Text, computed, isVNode } from 'vue'
 import type { VNode } from 'vue'
+import { useFieldAction } from '../../utils/field-action'
 import { useNamespace } from '../../utils/namespace'
 import { SlotNodes, filled } from '../../utils/slot'
 import { useFormDisabled, useFormSize } from '../form/use-form-item'
@@ -24,7 +25,10 @@ const ns = useNamespace('button')
 // xs exists only on buttons, so a form or field group never sets it
 const formSize = useFormSize(() => (props.size === 'xs' ? undefined : props.size))
 const size = computed(() => (props.size === 'xs' ? 'xs' : formSize.value))
-const disabled = useFormDisabled(() => props.disabled)
+// in a field's prefix or suffix the button acts for the field: disabled
+// with it, and sized by it
+const fieldAction = useFieldAction()
+const disabled = useFormDisabled(() => props.disabled || fieldAction?.disabled())
 const inert = computed(() => disabled.value || props.loading)
 
 const classes = computed(() => [
@@ -34,6 +38,7 @@ const classes = computed(() => [
   ns.m(size.value),
   ns.is('loading', props.loading),
   ns.is('block', props.block),
+  ns.is('field-action', !!fieldAction),
 ])
 
 // An icon passed as the only content of the default slot goes where the

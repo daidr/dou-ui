@@ -16,11 +16,13 @@
 
 ## 前缀与后缀
 
+`prefix` 和 `suffix` 插槽放在文字的前后，适合放图标、货币符号或单位。
+
 <DocDemo src="input/prefix-suffix" />
 
-前缀或后缀里放 [Button](./button) 时，它是输入框自己的操作，和清空、显示密码的按钮一样：高度和圆角由输入框决定，按钮的 `size` 只影响文字大小和内边距。按钮在最前或最后时，会占掉那一侧的内边距，悬停的底色离输入框上、下和那一侧的距离相同。一般用 `ghost` 按钮。
+放 [Button](./button) 或 [CopyButton](./copy-button) 时，按钮按输入框的操作处理，和清空、显示密码的按钮一样：高度由输入框决定，按钮的 `size` 只影响文字大小和内边距；输入框禁用时按钮也一起禁用。按钮在最前或最后时，输入框那一侧不再留内边距，按钮的底色离上、下和那一侧的距离相同，这段距离可以用 `--dou-input-action-inset` 调整。一般用 `ghost` 按钮。
 
-<DocDemo src="input/action" />
+<DocDemo src="input/action" column />
 
 ## 可清空
 
@@ -92,7 +94,7 @@
 | `--dou-input-height`       | 高度                                 |
 | `--dou-input-padding-x`    | 水平内边距                           |
 | `--dou-input-radius`       | 圆角                                 |
-| `--dou-input-action-inset` | 前缀、后缀里的按钮离输入框内沿的距离 |
+| `--dou-input-action-inset` | 前缀、后缀里的按钮与输入框内沿的距离 |
 | `--dou-input-bg`           | 背景色                               |
 | `--dou-input-border`       | 描边颜色                             |
 | `--dou-input-border-focus` | 聚焦描边颜色                         |

@@ -250,6 +250,27 @@
     }
   }
 
+  /*
+   * A button in the prefix or suffix of a field acts for it: the field sets
+   * its height, and its focus ring stays inside the gap to the field's edge.
+   * On touch screens it takes taps from at least 40px above and below its
+   * centre, never sideways, where a neighbouring button may sit.
+   */
+  .dou-button.is-field-action {
+    --dou-button-height: var(--dou-field-action-size);
+
+    &:focus-visible {
+      outline-offset: 0;
+    }
+  }
+  @media (pointer: coarse) {
+    .dou-button.dou-button.is-field-action::after {
+      position: absolute;
+      inset: min(0px, calc(50% - 20px)) 0;
+      content: '';
+    }
+  }
+
   .dou-button__label {
     /*
      * Center on the cap height instead of the font's ascent and descent,

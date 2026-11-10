@@ -1,6 +1,6 @@
 ---
 type: 新增
-packages: [theme]
+packages: [dou-ui, theme]
 ---
 
-DouInput 的前缀或后缀里放 DouButton 时，按钮的高度和圆角由输入框决定；按钮在最前或最后时占掉那一侧的内边距，悬停的底色离输入框上、下和那一侧的距离相同，不再顶满输入框或在侧边多出一截。新增 `--dou-input-action-inset` 调整这段距离（默认 2px）。触屏上这样的按钮至少能在中心 40px 范围内点到。
+DouInput 和 DouInputNumber 的前缀、后缀里可以放 DouButton 或 DouCopyButton：按钮的高度跟随输入框尺寸，随输入框一起禁用；按钮位于最前或最后时，它的底色与输入框上、下和该侧边框的距离相同，聚焦环也落在这段距离之内。这段距离可用 `--dou-input-action-inset`、`--dou-input-number-action-inset` 调整，默认 2px。触屏上这类按钮上下方向至少有 40px 的点按范围。

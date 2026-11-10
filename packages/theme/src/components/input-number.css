@@ -28,6 +28,12 @@
     );
     --dou-input-number-ring: color-mix(in oklab, var(--dou-color-focus) 32%, transparent);
     --dou-input-number-shadow: var(--dou-shadow-sm);
+    /* a button in the prefix or suffix: its gap to the inner edge, on every
+       side, and the height that leaves it */
+    --dou-input-number-action-inset: 2px;
+    --dou-field-action-size: calc(
+      var(--dou-input-number-height) - 2px - 2 * var(--dou-input-number-action-inset)
+    );
 
     display: inline-flex;
     align-items: center;
@@ -94,6 +100,15 @@
       color: var(--dou-color-text-disabled);
       cursor: not-allowed;
     }
+  }
+
+  /* a button at the very start or end of the field takes the padding on
+     that side, so its fill sits as far from that edge as from the top */
+  .dou-input-number:has(> .dou-input-number__prefix.is-edge-action) {
+    padding-inline-start: var(--dou-input-number-action-inset);
+  }
+  .dou-input-number:not(.is-controls):has(> .dou-input-number__suffix.is-edge-action) {
+    padding-inline-end: var(--dou-input-number-action-inset);
   }
 
   .dou-input-number--sm {

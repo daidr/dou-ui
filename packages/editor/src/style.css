@@ -50,11 +50,8 @@
     line-height: var(--dou-editor-line-height);
     overflow-wrap: break-word;
 
-    /*
-     * comparing: the bars beside changed blocks sit in the gutter, the one
-     * editing has; a read-only editor, which has none, gets a narrow one
-     */
-    &.is-readonly.is-comparing {
+    /* comparing: the bars beside changed blocks need a narrow gutter, inside the editor */
+    &.is-comparing {
       --dou-editor-gutter: 16px;
     }
 
@@ -841,6 +838,20 @@
     }
   }
 
+  /*
+   * the gap between the bubble and the text, where the pointer leaves the
+   * editor on its way to the bubble: the bubble reaches across it
+   */
+  @media (hover: hover) and (pointer: fine) {
+    .dou-editor__handle::after {
+      content: '';
+      position: absolute;
+      inset-block: 0;
+      left: 100%;
+      width: calc(var(--dou-editor-handle-offset) + 1px);
+    }
+  }
+
   .dou-editor__handle-button {
     display: inline-flex;
     flex: none;
@@ -904,11 +915,11 @@
       -webkit-touch-callout: none;
       user-select: none;
 
-      /* fingers need more room than the grip shows */
+      /* fingers need more room than the grip shows: 40px across, most of it outside the text */
       &::before {
         content: '';
         position: absolute;
-        inset: -8px -6px;
+        inset: -8px -8px -8px -14px;
       }
     }
   }
@@ -1299,13 +1310,14 @@
    * margins on both sides, and the padding before the table keeps it in line
    * with the text. A wide table takes the right margin first; wider still, it
    * scrolls, and scrolling takes the padding away first, so its left edge
-   * moves out to the editor's edge before the columns move; 28px stay after
+   * moves out to 10px from the editor's edge before the columns move; 28px stay after
    * the table for the "+" bar. The margins are the
    * surface's padding, which the table extension measures in px and sets on
    * the mount (0 until then, and with no reading width).
    */
   .dou-editor__mount > .dou-editor__surface > .dou-editor__block > .dou-editor__content--table {
-    --dou-editor-bleed-start: var(--dou-editor-margin-start, 0px);
+    /* scrolled, the table stops 10px short of the editor's edge: room for its row handles */
+    --dou-editor-bleed-start: max(0px, var(--dou-editor-margin-start, 0px) - 10px);
     --dou-editor-bleed-end: var(--dou-editor-margin-end, 0px);
 
     --dou-editor-frame-start: var(--dou-editor-bleed-start);

@@ -47,6 +47,7 @@ import { blockFromNode } from '../core/model'
 import { slashKey } from '../core/slash'
 import {
   blockElementOf,
+  bubbleShift,
   childBlocks,
   COLUMN_GROUP,
   contentAt,
@@ -68,6 +69,8 @@ const { view, state, focused, messages, root, dragging, kit } = inject(editorKey
  */
 const touch = shallowRef(false)
 let media: MediaQueryList | null = null
+/** A mouse: "+" comes out of the bubble while the pointer is on it. */
+let fine: MediaQueryList | null = null
 const onMedia = () => (touch.value = !!media?.matches)
 
 /** The block the handle is next to, by id. */
@@ -194,6 +197,7 @@ watch([state, focused, touch], scheduleFollow)
 
 onMounted(() => {
   media = window.matchMedia('(pointer: coarse)')
+  fine = window.matchMedia('(hover: hover) and (pointer: fine)')
   onMedia()
   media.addEventListener('change', onMedia)
   window.addEventListener('resize', scheduleFollow)
@@ -230,9 +234,12 @@ watch(state, (next, previous) => {
 /*
  * The bubble floats outside the text. When the editor's container cuts off
  * the room there (it clips, or the screen ends), the bubble moves in by as
- * much as it lacks.
+ * much as it lacks, counting the "+" that comes out on hover, so the grip
+ * stays under the pointer when it does.
  */
 const handle = useTemplateRef<HTMLElement>('handle')
+/** The width "+" adds to the bubble (its button, see the styles). */
+const ADD_WIDTH = 20
 const shift = shallowRef(0)
 
 function clipLeft(from: HTMLElement): number {
@@ -246,8 +253,18 @@ function fit() {
   const element = handle.value
   const host = root.value
   if (!element || !host || !visible.value) return
-  const left = element.getBoundingClientRect().left - shift.value
-  const next = Math.max(0, Math.ceil(clipLeft(host) + 2 - left))
+  let left = element.getBoundingClientRect().left - shift.value
+  const plus = element.querySelector<HTMLElement>('.dou-editor__add')
+  if (fine?.matches && !compact.value && plus && !plus.offsetWidth) left -= ADD_WIDTH
+  const style = getComputedStyle(element)
+  const clear =
+    table.value && position.value
+      ? host.getBoundingClientRect().left +
+        position.value.left +
+        Number.parseFloat(style.getPropertyValue('--dou-editor-handle-offset')) -
+        1
+      : undefined
+  const next = bubbleShift(left, clipLeft(host), clear)
   if (next !== shift.value) shift.value = next
 }
 

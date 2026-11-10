@@ -18,7 +18,7 @@
 
 <DocDemo src="input-number/prefix-suffix" />
 
-前缀或后缀里也可以放 [Button](./button)，和 [Input](./input#前缀与后缀) 一样由输入框决定按钮的高度和留白，并随输入框一起禁用。显示步进键时，后缀不在最右侧，右侧的内边距不变。
+前缀或后缀里也可以放 [Button](./button) 或 [CopyButton](./copy-button)，和 [Input](./input#前缀与后缀) 一样由输入框决定按钮的高度和留白，并随输入框一起禁用。显示步进键时，后缀不在最右侧，右侧的内边距不变。
 
 `controls` 设为 `false` 时隐藏步进键，键盘步进仍然可用。
 
@@ -118,13 +118,14 @@
 
 ### CSS 变量
 
-| 变量                              | 说明           |
-| --------------------------------- | -------------- |
-| `--dou-input-number-height`       | 高度           |
-| `--dou-input-number-padding-x`    | 水平内边距     |
-| `--dou-input-number-step-width`   | 步进键宽度     |
-| `--dou-input-number-icon-size`    | 步进键图标尺寸 |
-| `--dou-input-number-bg`           | 背景色         |
-| `--dou-input-number-border`       | 描边颜色       |
-| `--dou-input-number-border-focus` | 聚焦描边颜色   |
-| `--dou-input-number-ring`         | 聚焦光晕颜色   |
+| 变量                              | 说明                                 |
+| --------------------------------- | ------------------------------------ |
+| `--dou-input-number-height`       | 高度                                 |
+| `--dou-input-number-padding-x`    | 水平内边距                           |
+| `--dou-input-number-step-width`   | 步进键宽度                           |
+| `--dou-input-number-icon-size`    | 步进键图标尺寸                       |
+| `--dou-input-number-action-inset` | 前缀、后缀里的按钮与输入框内沿的距离 |
+| `--dou-input-number-bg`           | 背景色                               |
+| `--dou-input-number-border`       | 描边颜色                             |
+| `--dou-input-number-border-focus` | 聚焦描边颜色                         |
+| `--dou-input-number-ring`         | 聚焦光晕颜色                         |

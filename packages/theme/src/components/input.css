@@ -211,6 +211,16 @@
 
   /* a button at the very start or end of the field takes the padding on
      that side, so its fill sits as far from that edge as from the top */
+  /* on touch screens a narrow button at the start or end also takes taps
+     on its outer side, up to 40px wide; never towards a neighbour */
+  @media (pointer: coarse) {
+    .dou-input__prefix.is-edge-action .is-field-action:first-child::after {
+      inset-inline-start: min(0px, calc(100% - 40px));
+    }
+    .dou-input__suffix.is-edge-action .is-field-action:last-child::after {
+      inset-inline-end: min(0px, calc(100% - 40px));
+    }
+  }
   .dou-input:has(> .dou-input__prefix.is-edge-action) {
     padding-inline-start: var(--dou-input-action-inset);
   }

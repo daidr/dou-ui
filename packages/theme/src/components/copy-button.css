@@ -99,7 +99,7 @@
 
   /* in the prefix or suffix of a field, sized by the field like a button */
   .dou-copy-button.is-field-action {
-    --dou-copy-button-size: var(--dou-field-action-size);
+    --dou-copy-button-size: var(--dou-field-action-size, var(--dou-control-height-md));
 
     &:focus-visible {
       outline-offset: 0;

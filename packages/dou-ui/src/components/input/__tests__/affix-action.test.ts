@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils'
-import { defineComponent, h, nextTick } from 'vue'
+import { defineComponent, h, nextTick, ref, vShow, withDirectives } from 'vue'
 import { describe, expect, it } from 'vitest'
-import { DouButton, DouCopyButton, DouInput, DouInputNumber } from '../../../index'
+import { DouButton, DouCopyButton, DouInput, DouInputNumber, DouPopover } from '../../../index'
 
 const suffix = (wrapper: ReturnType<typeof mount>) => wrapper.get('.dou-input__suffix')
 
@@ -63,6 +63,54 @@ describe('a button in the prefix or suffix of DouInput', () => {
     await wrapper.setProps({ disabled: false })
     expect(wrapper.get('.dou-button').attributes('disabled')).toBeUndefined()
     expect(wrapper.get('.dou-copy-button').attributes('disabled')).toBeUndefined()
+  })
+
+  it('marks the edge again when the outer button is hidden with v-show', async () => {
+    const shown = ref(true)
+    const wrapper = mount(DouInput, {
+      slots: {
+        suffix: () => [
+          '元',
+          withDirectives(
+            h(DouButton, null, () => '发送'),
+            [[vShow, shown.value]],
+          ),
+        ],
+      },
+      attachTo: document.body,
+    })
+    await nextTick()
+    expect(suffix(wrapper).classes()).toContain('is-edge-action')
+    shown.value = false
+    await nextTick()
+    await new Promise((resolve) => setTimeout(resolve))
+    expect(suffix(wrapper).classes()).not.toContain('is-edge-action')
+    wrapper.unmount()
+  })
+
+  it('leaves the buttons in a panel the suffix opens alone', async () => {
+    const wrapper = mount(DouInput, {
+      props: { disabled: true },
+      slots: {
+        suffix: () => [
+          h(
+            DouPopover,
+            { open: true, title: '选项' },
+            {
+              default: () => h(DouButton, null, () => '更多'),
+              content: () => h(DouButton, { id: 'in-panel' }, () => '确定'),
+            },
+          ),
+        ],
+      },
+      attachTo: document.body,
+    })
+    await nextTick()
+    const inside = document.getElementById('in-panel')!
+    expect(inside.classList.contains('is-field-action')).toBe(false)
+    expect(inside.hasAttribute('disabled')).toBe(false)
+    expect(wrapper.get('.dou-input__suffix .dou-button').classes()).toContain('is-field-action')
+    wrapper.unmount()
   })
 
   it('leaves a button outside a field alone', () => {

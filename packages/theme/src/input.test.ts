@@ -23,10 +23,10 @@ describe('a button in the prefix or suffix', () => {
       /--dou-field-action-size:\s*calc\(\s*var\(--dou-input-number-height\) - 2px - 2 \* var\(--dou-input-number-action-inset\)\s*\)/,
     )
     expect(rule(read('button'), '.dou-button.is-field-action')).toMatch(
-      /--dou-button-height:\s*var\(--dou-field-action-size\)/,
+      /--dou-button-height:\s*var\(--dou-field-action-size,/,
     )
     expect(rule(read('copy-button'), '.dou-copy-button.is-field-action')).toMatch(
-      /--dou-copy-button-size:\s*var\(--dou-field-action-size\)/,
+      /--dou-copy-button-size:\s*var\(--dou-field-action-size,/,
     )
   })
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Comment, Fragment, Text, computed, isVNode } from 'vue'
+import { Comment, Fragment, Text, computed, isVNode, useTemplateRef } from 'vue'
 import type { VNode } from 'vue'
 import { useFieldAction } from '../../utils/field-action'
 import { useNamespace } from '../../utils/namespace'
@@ -27,8 +27,9 @@ const formSize = useFormSize(() => (props.size === 'xs' ? undefined : props.size
 const size = computed(() => (props.size === 'xs' ? 'xs' : formSize.value))
 // in a field's prefix or suffix the button acts for the field: disabled
 // with it, and sized by it
-const fieldAction = useFieldAction()
-const disabled = useFormDisabled(() => props.disabled || fieldAction?.disabled())
+const root = useTemplateRef<HTMLButtonElement>('root')
+const fieldAction = useFieldAction(() => root.value)
+const disabled = useFormDisabled(() => props.disabled || fieldAction.disabled())
 const inert = computed(() => disabled.value || props.loading)
 
 const classes = computed(() => [
@@ -38,7 +39,7 @@ const classes = computed(() => [
   ns.m(size.value),
   ns.is('loading', props.loading),
   ns.is('block', props.block),
-  ns.is('field-action', !!fieldAction),
+  ns.is('field-action', fieldAction.active.value),
 ])
 
 // An icon passed as the only content of the default slot goes where the
@@ -91,6 +92,7 @@ function onClick(event: MouseEvent) {
 
 <template>
   <button
+    ref="root"
     :class="[classes, ns.is('icon-only', measure())]"
     :type="nativeType"
     :disabled="disabled"

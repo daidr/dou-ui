@@ -10,6 +10,7 @@ import {
   onMounted,
   provide,
   ref,
+  computed,
   useTemplateRef,
 } from 'vue'
 import type { InjectionKey, PropType, VNode } from 'vue'
@@ -25,13 +26,43 @@ export interface FieldActionContext {
 export const fieldActionKey: InjectionKey<FieldActionContext | undefined> =
   Symbol('dou-field-action')
 
-/** The field a button sits in as an action, if any. */
-export function useFieldAction(): FieldActionContext | undefined {
-  return inject(fieldActionKey, undefined)
+const AFFIX_ATTR = 'data-field-affix'
+
+/** Whether nothing positioned or hidden comes between `el` and the affix it sits in. */
+function placedInAffix(el: Element): boolean {
+  for (let node = el.parentElement; node; node = node.parentElement) {
+    if (node.hasAttribute(AFFIX_ATTR)) return true
+    const style = getComputedStyle(node)
+    if (style.display === 'none' || style.position === 'absolute' || style.position === 'fixed')
+      return false
+  }
+  return false
+}
+
+/**
+ * Whether a button sits in a field's prefix or suffix as its action. The
+ * field's context reaches every descendant, so a button in a panel the
+ * prefix or suffix opens (a popover, a dialog) would get it too; once
+ * mounted the button checks it is placed in the prefix or suffix itself,
+ * not in a panel teleported away or laid over the page.
+ */
+export function useFieldAction(el: () => Element | null | undefined) {
+  const field = inject(fieldActionKey, undefined)
+  const placed = ref(!!field)
+  if (field)
+    onMounted(() => {
+      const node = el()
+      placed.value = !!node && placedInAffix(node)
+    })
+  return {
+    active: computed(() => placed.value),
+    disabled: () => placed.value && !!field?.disabled(),
+  }
 }
 
 const ACTIONS = ['DouButton', 'DouCopyButton']
-const ACTION_SELECTOR = '.dou-button, .dou-copy-button'
+// set by DouButton and DouCopyButton when they sit in a field
+const ACTION_SELECTOR = '.is-field-action'
 
 /** The outermost node that shows something, or undefined. */
 function edgeNode(nodes: unknown, side: 'start' | 'end'): unknown {
@@ -112,13 +143,24 @@ export const FieldAffix = defineComponent({
       measure()
       if (typeof MutationObserver === 'undefined' || !el.value) return
       observer = new MutationObserver(measure)
-      observer.observe(el.value, { childList: true, characterData: true, subtree: true })
+      observer.observe(el.value, {
+        childList: true,
+        characterData: true,
+        subtree: true,
+        // `v-show` hides the button with a style
+        attributes: true,
+        attributeFilter: ['style', 'class'],
+      })
     })
     onBeforeUnmount(() => observer?.disconnect())
     return () => {
       const nodes = props.render()
       const edge = measured.value ?? guessEdge(nodes, props.side)
-      return h('span', { ref: 'el', class: { 'is-edge-action': edge } }, nodes as VNode[])
+      return h(
+        'span',
+        { ref: 'el', [AFFIX_ATTR]: '', class: { 'is-edge-action': edge } },
+        nodes as VNode[],
+      )
     }
   },
 })

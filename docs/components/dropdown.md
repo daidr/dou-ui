@@ -40,7 +40,7 @@
 
 <DocDemo src="dropdown/submenu" />
 
-子菜单默认在右侧展开（`placement="right-start"`），空间不够时翻到左侧。子菜单的面板和外层菜单渲染到同一个地方（见 `teleport`），也带着写在 `DouDropdown` 上的 `class`，给菜单写的样式对子菜单同样有效。[ContextMenu 右键菜单](./context-menu) 里同样可以使用。
+子菜单默认在右侧展开（`placement="right-start"`），空间不够时翻到左侧。子菜单的面板和外层菜单渲染到同一个地方（见 `teleport`）；外层原地渲染（`teleport` 为 `false`）时，子菜单仍放到 `body`，免得被菜单自身的滚动裁掉。子菜单的面板也带着写在 `DouDropdown` 上的 `class`，给菜单写的样式对子菜单同样有效。[ContextMenu 右键菜单](./context-menu) 里同样可以使用。
 
 ## 勾选项与单选项
 

@@ -264,8 +264,11 @@
     z-index: 1;
   }
 
+  /* above the body's fixed cells, also once the header is pinned */
   .dou-table__head .dou-table__cell.is-fixed-start,
-  .dou-table__head .dou-table__cell.is-fixed-end {
+  .dou-table__head .dou-table__cell.is-fixed-end,
+  .dou-table.is-scroll .dou-table__head .dou-table__cell.is-fixed-start,
+  .dou-table.is-scroll .dou-table__head .dou-table__cell.is-fixed-end {
     z-index: 3;
   }
 

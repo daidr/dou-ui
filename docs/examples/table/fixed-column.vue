@@ -51,8 +51,11 @@ const wideColumns = [
   { key: 'updated', title: '更新于', width: 180 },
   { key: 'actions', title: '操作', width: 88, fixed: 'end' },
 ]
-const wideRows = rows.map((row, i) => ({
+// two rounds of the services above, enough to scroll within maxHeight
+const wideRows = [...rows, ...rows].map((row, i) => ({
   ...row,
+  id: i + 1,
+  name: i < rows.length ? row.name : `${row.name}-2`,
   runtime: ['Node 22', 'Bun 1.4', 'Deno 2'][i % 3],
   cpu: `${(i + 1) * 0.5} 核`,
   memory: `${(i + 1) * 256} MB`,
@@ -61,7 +64,7 @@ const wideRows = rows.map((row, i) => ({
 </script>
 
 <template>
-  <DouTable :data="wideRows" :columns="wideColumns" selectable>
+  <DouTable :data="wideRows" :columns="wideColumns" selectable :max-height="280">
     <template #cell-actions>
       <DouLink href="#">详情</DouLink>
     </template>

@@ -258,7 +258,6 @@ function fit() {
   let left = element.getBoundingClientRect().left - shift.value
   const plus = element.querySelector<HTMLElement>('.dou-editor__add')
   if (fine?.matches && !compact.value && plus && !plus.offsetWidth) left -= ADD_WIDTH
-  if (touch.value) left -= TOUCH_REACH
   const style = getComputedStyle(element)
   const clear =
     table.value && position.value
@@ -267,7 +266,16 @@ function fit() {
         Number.parseFloat(style.getPropertyValue('--dou-editor-handle-offset')) -
         1
       : undefined
-  const next = bubbleShift(left, clipLeft(host), clear)
+  const edge = clipLeft(host)
+  /*
+   * A finger's reach moves the bubble in too, but only as far as plain text
+   * lets it: next to a table, a cut-off reach stays cut off rather than
+   * pushing the bubble onto the row handles or past them.
+   */
+  const next = Math.max(
+    bubbleShift(left, edge, clear),
+    touch.value && !table.value ? bubbleShift(left - TOUCH_REACH, edge) : 0,
+  )
   if (next !== shift.value) shift.value = next
 }
 

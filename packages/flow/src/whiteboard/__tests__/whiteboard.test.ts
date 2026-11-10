@@ -969,13 +969,47 @@ describe('resize handles', () => {
     const corner = at(root, '1,1').element
     const anchor = root.find('[data-node-id="a"] .dou-flow-port.is-output.is-right').element
     // touch browsers may give the press to a clickable element near the finger
+    const elementFromPoint = document.elementFromPoint
     document.elementFromPoint = () => corner
-    anchor.dispatchEvent(pointer('pointerdown', 64, 64, { pointerType: 'touch' }))
-    corner.dispatchEvent(pointer('pointermove', 128, 96, { pointerType: 'touch' }))
-    corner.dispatchEvent(pointer('pointerup', 128, 96, { pointerType: 'touch' }))
+    const press = pointer('pointerdown', 64, 64, { pointerType: 'touch' })
+    try {
+      anchor.dispatchEvent(press)
+      corner.dispatchEvent(pointer('pointermove', 128, 96, { pointerType: 'touch' }))
+      corner.dispatchEvent(pointer('pointerup', 128, 96, { pointerType: 'touch' }))
+    } finally {
+      document.elementFromPoint = elementFromPoint
+    }
     await ticks()
     expect(flow.value.nodes[0]).toMatchObject({ width: 128, height: 96 })
     expect(flow.value.edges).toHaveLength(0)
+    // the handle cancelled the press it was sent, and so the one the browser sent
+    expect(press.defaultPrevented).toBe(true)
+  })
+
+  it("leaves a touch near an anchor to the browser's choice, away from the handles", async () => {
+    const { root, flow } = setup({
+      version: 1,
+      nodes: [
+        { id: 'a', type: 'shape', x: 0, y: 0, width: 100, height: 100, data: { shape: 'rect' } },
+        { id: 'b', type: 'sticky', x: 300, y: 0, width: 100, height: 100, data: {} },
+      ],
+      edges: [],
+    })
+    await ticks()
+    const port = root.find('[data-node-id="b"] .dou-flow-port.is-output.is-left')
+    // the finger is beside the anchor, over the other node, which is no handle
+    const elementFromPoint = document.elementFromPoint
+    document.elementFromPoint = () => root.find('[data-node-id="a"]').element
+    try {
+      port.element.dispatchEvent(pointer('pointerdown', 300, 50, { pointerType: 'touch' }))
+      root.element.dispatchEvent(pointer('pointermove', 200, 50, { pointerType: 'touch' }))
+      root.element.dispatchEvent(pointer('pointermove', 60, 50, { pointerType: 'touch' }))
+      root.element.dispatchEvent(pointer('pointerup', 60, 50, { pointerType: 'touch' }))
+    } finally {
+      document.elementFromPoint = elementFromPoint
+    }
+    await ticks()
+    expect(flow.value.edges).toHaveLength(1)
   })
 
   it("keeps the corners' targets short of the anchors on a small shape", async () => {

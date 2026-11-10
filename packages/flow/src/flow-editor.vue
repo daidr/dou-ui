@@ -1541,20 +1541,28 @@ function clearPress() {
 }
 
 /**
- * A finger lands where it lands. Touch browsers may hand a press to a
- * clickable element near the finger instead of the one under it; on a small
- * node that is an anchor beside the corner handle pressed, so the press would
- * connect instead of resize. The press is sent again to what lies under the
- * finger, which every handler then sees as the one press.
+ * A touch browser may hand a press to a clickable element near the finger
+ * instead of the one under it. That suits most of the board, where a finger
+ * a little off a node or a port still means it, but not a handle drawn on
+ * screen (`data-flow-handle`): on a small node an anchor beside a corner
+ * handle would take the press, and connect instead of resize. A press whose
+ * finger is on such a handle is stopped and sent again to the handle.
+ *
+ * It listens on the window, first among the editor's listeners there, so the
+ * listeners further on (the document's, the editor's own) hear only the press
+ * sent again; a window listener added earlier hears both. A handler that
+ * cancels the press sent again cancels the browser's own one too.
  */
-function onPointerDownCapture(event: PointerEvent) {
-  if (event.pointerType !== 'touch') return
-  const target = event.target as Element
-  const scope = root.value?.getRootNode() as Document | ShadowRoot | undefined
-  const under = scope?.elementFromPoint?.(event.clientX, event.clientY)
-  if (!under || under === target || !root.value!.contains(under)) return
+function onTouchPress(event: PointerEvent) {
+  if (event.pointerType !== 'touch' || !root.value) return
+  const scope = root.value.getRootNode() as Document | ShadowRoot
+  const under = scope.elementFromPoint?.(event.clientX, event.clientY)
+  const handle = under?.closest('[data-flow-handle]')
+  if (!handle || !root.value.contains(handle)) return
+  const target = event.target as Node
+  if (handle === target || handle.contains(target)) return
   event.stopImmediatePropagation()
-  under.dispatchEvent(new PointerEvent('pointerdown', event))
+  if (!handle.dispatchEvent(new PointerEvent('pointerdown', event))) event.preventDefault()
 }
 
 function onPointerDown(event: PointerEvent) {
@@ -2682,10 +2690,12 @@ function showMenu(
 }
 
 onMounted(() => {
+  window.addEventListener('pointerdown', onTouchPress, true)
   window.addEventListener('pointerdown', onMenuPress, true)
   window.addEventListener('click', onMenuClick)
 })
 onBeforeUnmount(() => {
+  window.removeEventListener('pointerdown', onTouchPress, true)
   window.removeEventListener('pointerdown', onMenuPress, true)
   window.removeEventListener('click', onMenuClick)
 })
@@ -4202,7 +4212,6 @@ defineExpose<FlowEditorExpose>({
     :aria-label="ariaLabel"
     :aria-description="messages.canvas"
     tabindex="0"
-    @pointerdown.capture="onPointerDownCapture"
     @pointerdown="onPointerDown"
     @pointerleave="hover = null"
     @dblclick="onDblclick"

@@ -324,7 +324,12 @@ function onKeydown(event: KeyboardEvent) {
           <!-- data-flow-overlay on its target: the selection's toolbar keeps
                clear of where a finger can take it, when it floats below the
                node or the node is turned upside down -->
-          <span class="dou-whiteboard-node__turn" data-dou-nodrag @pointerdown="startTurn">
+          <span
+            class="dou-whiteboard-node__turn"
+            data-flow-handle
+            data-dou-nodrag
+            @pointerdown="startTurn"
+          >
             <span class="dou-whiteboard-node__target" data-flow-overlay />
           </span>
           <span
@@ -337,6 +342,7 @@ function onKeydown(event: KeyboardEvent) {
             ]"
             :style="{ left: place(handle.x), top: place(handle.y), cursor: cursorOf(handle) }"
             :data-handle="`${handle.x},${handle.y}`"
+            data-flow-handle
             data-dou-nodrag
             @pointerdown="onResize($event, handle)"
           />

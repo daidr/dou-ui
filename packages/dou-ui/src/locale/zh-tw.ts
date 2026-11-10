@@ -491,6 +491,7 @@ export const zhTW: Locale = {
     nextVersion: '下一個版本',
     reactions: '回應',
     reaction: '{emoji} {count} 人',
+    reactionWith: '{reaction}：{label}',
     addReaction: '新增回應',
   },
   findReplace: {

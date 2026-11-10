@@ -1,6 +1,6 @@
 import { mount } from '@vue/test-utils'
-import { h } from 'vue'
-import { describe, expect, it } from 'vitest'
+import { defineComponent, h, ref } from 'vue'
+import { describe, expect, it, vi } from 'vitest'
 import { DouChatMessage, DouConfigProvider } from '../../../index'
 import { messageText } from '../chat-message'
 
@@ -279,7 +279,9 @@ describe('DouChatMessage', () => {
       expect(chips[1]!.attributes('aria-pressed')).toBe('false')
       expect(chips[1]!.attributes('aria-label')).toBe('🎉 1 人')
       await chips[0]!.trigger('click')
-      expect(wrapper.emitted('react')).toEqual([['👍']])
+      expect(wrapper.emitted('react')).toEqual([['👍', reactions[0]]])
+      // `label` follows the emoji and count
+      expect(chips[0]!.attributes('aria-label')).toBe('👍 2 人：戴兜和小王')
       // the row follows the parts, before the actions
       const order = [...wrapper.element.children].map((el) => el.className.split(' ')[0])
       expect(order).toEqual([
@@ -327,9 +329,54 @@ describe('DouChatMessage', () => {
       expect(wrapper.classes()).toContain('is-reacting')
       pick.click()
       await wrapper.vm.$nextTick()
-      expect(wrapper.emitted('react')).toEqual([['🚀']])
+      expect(wrapper.emitted('react')).toEqual([['🚀', undefined]])
       expect(wrapper.classes()).not.toContain('is-reacting')
       wrapper.unmount()
+    })
+
+    it('moves focus to the add button at the end of the first reaction', async () => {
+      const list = ref<{ emoji: string; count: number }[]>([])
+      const Host = defineComponent(
+        () => () =>
+          h(
+            DouChatMessage,
+            {
+              content: '好',
+              reactions: list.value,
+              onReact: (emoji: string) => (list.value = [{ emoji, count: 1 }]),
+            },
+            {
+              'reaction-picker': ({ react }: { react: (emoji: string) => void }) =>
+                h('button', { class: 'pick', onClick: () => react('🚀') }, '🚀'),
+            },
+          ),
+      )
+      const wrapper = mount(Host, { attachTo: document.body })
+      await wrapper.get('button[aria-label="添加回应"]').trigger('click')
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      const pick = document.querySelector<HTMLButtonElement>('.pick')!
+      pick.focus()
+      pick.click()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      expect(document.activeElement).toBe(
+        wrapper.get('.dou-chat-message__reactions button[aria-label="添加回应"]').element,
+      )
+      wrapper.unmount()
+    })
+
+    it('warns about an emoji listed twice', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      mount(DouChatMessage, {
+        props: {
+          content: '好',
+          reactions: [
+            { emoji: '🎈', count: 1 },
+            { emoji: '🎈', count: 2 },
+          ],
+        },
+      })
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('"🎈" more than once'))
+      warn.mockRestore()
     })
 
     it('renders the emoji with the `reaction` slot', () => {

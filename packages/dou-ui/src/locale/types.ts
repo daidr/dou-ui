@@ -732,6 +732,8 @@ export interface Locale {
     reactions: string
     /** Names a reaction, with `{emoji}` and `{count}`. */
     reaction: string
+    /** A reaction with its `label`, e.g. who reacted: `{reaction}` and `{label}`. */
+    reactionWith: string
     /** The button that opens the reaction picker. */
     addReaction: string
   }

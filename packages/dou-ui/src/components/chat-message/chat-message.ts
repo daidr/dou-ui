@@ -32,7 +32,7 @@ export interface ChatMessageReaction {
   count: number
   /** The person reacted this way too; pressing it again takes theirs back. */
   reacted?: boolean
-  /** Shown on hover, e.g. who reacted; left out, it reads the emoji and the count. */
+  /** More about it, e.g. who reacted; read out and shown on hover after the emoji and count. */
   label?: string
 }
 
@@ -175,7 +175,7 @@ export interface ChatMessageProps {
   highlighted?: boolean
   /**
    * The reactions under the message, each with how many reacted and
-   * whether the person did. Pressing one emits `react`; the app adds or
+   * whether the person did; one entry per emoji. Pressing one emits `react`; the app adds or
    * takes back the person's reaction itself.
    */
   reactions?: ChatMessageReaction[]
@@ -193,9 +193,10 @@ export interface ChatMessageEmits {
   question: [part: ChatQuestionPart, value: string | number, option: ChatQuestionOption]
   /**
    * A reaction was pressed, or picked in the `reaction-picker` slot: add
-   * the person's reaction, or take it back if `reacted` was on.
+   * the person's reaction, or take it back if `reacted` was on. `reaction`
+   * is the entry of `reactions` with that emoji, if there is one.
    */
-  react: [emoji: string]
+  react: [emoji: string, reaction: ChatMessageReaction | undefined]
 }
 
 export interface ChatMessageSlots {

@@ -491,6 +491,7 @@ export const en: Locale = {
     nextVersion: 'Next version',
     reactions: 'Reactions',
     reaction: '{emoji} {count}',
+    reactionWith: '{reaction}: {label}',
     addReaction: 'Add reaction',
   },
   findReplace: {

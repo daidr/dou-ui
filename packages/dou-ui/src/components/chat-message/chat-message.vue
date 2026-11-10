@@ -2,6 +2,7 @@
 import { ChevronLeftIcon, ChevronRightIcon, EditIcon, SmilePlusIcon } from '@dou-ui/icons'
 import { computed, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue'
 import { isComposing } from '../../utils/keyboard'
+import { devWarn } from '../../utils/status-check'
 import { useNamespace } from '../../utils/namespace'
 import { DouButton } from '../button'
 import { DouChatArtifact } from '../chat-artifact'
@@ -147,12 +148,45 @@ function step(delta: number) {
 const reactions = computed(() => (props.reactions ?? []).filter((r) => r.count > 0))
 const canReact = computed(() => !!slots['reaction-picker'])
 const pickerOpen = ref(false)
-function react(emoji: string) {
-  pickerOpen.value = false
-  emit('react', emoji)
+if (process.env.NODE_ENV !== 'production') {
+  watch(
+    () => props.reactions,
+    (list) => {
+      const seen = new Set<string>()
+      for (const { emoji } of list ?? []) {
+        if (seen.has(emoji))
+          devWarn(
+            `[dou-ui] DouChatMessage: \`reactions\` lists "${emoji}" more than once; give each emoji one entry with its count.`,
+          )
+        seen.add(emoji)
+      }
+    },
+    { immediate: true },
+  )
 }
+function react(emoji: string) {
+  emit(
+    'react',
+    emoji,
+    props.reactions?.find((r) => r.emoji === emoji),
+  )
+}
+// Picked in the panel: the add button may move from the actions to the end
+// of the reactions as the first one comes in, so focus follows it there
+// rather than falling back to the page.
+function pick(emoji: string) {
+  pickerOpen.value = false
+  react(emoji)
+  void nextTick(() => {
+    const root = rootRef.value
+    if (!root || root.contains(document.activeElement)) return
+    root.querySelector<HTMLElement>(`.${ns.e('add-reaction')}`)?.focus()
+  })
+}
+/** Read out and shown on hover: the emoji and count, then `label` when given. */
 function reactionLabel(reaction: ChatMessageReaction) {
-  return t('chat.reaction', { emoji: reaction.emoji, count: reaction.count })
+  const base = t('chat.reaction', { emoji: reaction.emoji, count: reaction.count })
+  return reaction.label ? t('chat.reactionWith', { reaction: base, label: reaction.label }) : base
 }
 // The add button sits among the actions until the first reaction, then at
 // the end of the reactions, so a message without any takes no extra line.
@@ -393,7 +427,7 @@ const rest = (part: AnyPart) => {
       <DouTooltip
         v-for="reaction in reactions"
         :key="reaction.emoji"
-        :content="reaction.label ?? reactionLabel(reaction)"
+        :content="reactionLabel(reaction)"
       >
         <button
           type="button"
@@ -410,11 +444,16 @@ const rest = (part: AnyPart) => {
       </DouTooltip>
       <DouTooltip v-if="canReact" :content="t('chat.addReaction')">
         <DouPopover v-model:open="pickerOpen" placement="top-start">
-          <DouButton variant="ghost" size="sm" :aria-label="t('chat.addReaction')">
+          <DouButton
+            variant="ghost"
+            size="xs"
+            :class="ns.e('add-reaction')"
+            :aria-label="t('chat.addReaction')"
+          >
             <SmilePlusIcon />
           </DouButton>
           <template #content="{ close }">
-            <slot name="reaction-picker" :react="react" :close="close" />
+            <slot name="reaction-picker" :react="pick" :close="close" />
           </template>
         </DouPopover>
       </DouTooltip>
@@ -457,11 +496,16 @@ const rest = (part: AnyPart) => {
         </DouTooltip>
         <DouTooltip v-if="addInActions" :content="t('chat.addReaction')">
           <DouPopover v-model:open="pickerOpen" placement="top-start">
-            <DouButton variant="ghost" size="sm" :aria-label="t('chat.addReaction')">
+            <DouButton
+              variant="ghost"
+              size="sm"
+              :class="ns.e('add-reaction')"
+              :aria-label="t('chat.addReaction')"
+            >
               <SmilePlusIcon />
             </DouButton>
             <template #content="{ close }">
-              <slot name="reaction-picker" :react="react" :close="close" />
+              <slot name="reaction-picker" :react="pick" :close="close" />
             </template>
           </DouPopover>
         </DouTooltip>

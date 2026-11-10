@@ -152,10 +152,9 @@
    * comes after the message in reading order.
    */
   .dou-chat-message__toolbar {
-    --dou-chat-message-toolbar-top: 36px;
-
     position: sticky;
-    top: var(--dou-chat-message-toolbar-top);
+    /* set it on the list or any outer element, e.g. under a fixed header */
+    top: var(--dou-chat-message-toolbar-top, 28px);
     z-index: 1;
     order: -1;
     display: flex;
@@ -171,6 +170,12 @@
       align-self: start;
       margin: 0 8px 0 0;
     }
+
+    /* always shown, it stays put rather than over a long message's text */
+    .dou-chat-message--actions-always > & {
+      position: relative;
+      top: auto;
+    }
   }
 
   .dou-chat-message__actions {
@@ -181,18 +186,18 @@
     box-sizing: border-box;
     max-width: 100%;
     height: max-content;
-    padding: 1px;
+    padding: 0;
     border: 1px solid var(--dou-color-border);
     border-radius: calc(var(--dou-radius-control) + 2px);
     background-color: var(--dou-color-bg-surface);
     box-shadow: var(--dou-shadow-sm);
     color: var(--dou-color-text-tertiary);
     /*
-     * Above the message, over its top edge by 4px only: the bubble's
-     * padding, not its text. It takes the gap between messages; at the top
-     * of a scroll area the sticky bar is held inside it.
+     * 24px above the message, the gap between messages in a ChatList, so
+     * it doesn't reach the message before; the 6px left over sits on the
+     * bubble's padding, not its text.
      */
-    translate: 0 calc(4px - 100%);
+    translate: 0 calc(6px - 100%);
 
     & > .dou-button--ghost:not(:hover, :focus-visible),
     & .dou-chat-message__versions > .dou-button--ghost:not(:hover, :focus-visible) {
@@ -206,7 +211,7 @@
       transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
     }
 
-    .dou-chat-message--actions-hover:focus-within > .dou-chat-message__toolbar > &,
+    .dou-chat-message--actions-hover:has(:focus-visible) > .dou-chat-message__toolbar > &,
     .dou-chat-message--actions-hover.is-reacting > .dou-chat-message__toolbar > &,
     .dou-chat-message--actions-hover.is-touched > .dou-chat-message__toolbar > & {
       opacity: 1;
@@ -254,7 +259,7 @@
     background-color: var(--dou-color-bg-surface);
     color: var(--dou-color-text-secondary);
     font: inherit;
-    font-size: 12px;
+    font-size: var(--dou-font-size-sm);
     line-height: 1;
     cursor: pointer;
     user-select: none;
@@ -271,7 +276,7 @@
 
     &:focus-visible {
       outline: 2px solid var(--dou-color-focus);
-      outline-offset: 1px;
+      outline-offset: 2px;
     }
 
     &.is-reacted {
@@ -307,10 +312,12 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 16px;
-    height: 16px;
+    /* an even box, whatever width the emoji font gives the glyph */
+    width: 18px;
+    height: 18px;
+    overflow: visible;
     font-size: 14px;
-    line-height: 16px;
+    line-height: 18px;
 
     & > img,
     & > svg {

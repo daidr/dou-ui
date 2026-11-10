@@ -491,6 +491,7 @@ export const zhCN: Locale = {
     nextVersion: '下一个版本',
     reactions: '回应',
     reaction: '{emoji} {count} 人',
+    reactionWith: '{reaction}：{label}',
     addReaction: '添加回应',
   },
   findReplace: {

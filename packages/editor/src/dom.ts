@@ -154,6 +154,18 @@ export function handleLeft(content: HTMLElement): number {
   return table ? Math.max(rect.left, table.getBoundingClientRect().left) : contentSpan(content).left
 }
 
+/**
+ * How far the block handle's bubble moves in over the text: by as much as
+ * its `start` (its left edge, "+" included when it can come out) lacks of
+ * `clip` plus 2px. Next to a table, a bubble that has to move in goes on
+ * past `clear`, right of the table's row handles, rather than onto them.
+ */
+export function bubbleShift(start: number, clip: number, clear?: number): number {
+  const shift = Math.max(0, Math.ceil(clip + 2 - start))
+  if (!shift || clear === undefined) return shift
+  return Math.max(shift, Math.ceil(clear - start))
+}
+
 /** The right edge of the editor's text column: the surface less its padding (a reading width). */
 export function columnRight(surface: HTMLElement): number {
   const padding = Number.parseFloat(getComputedStyle(surface).paddingRight) || 0

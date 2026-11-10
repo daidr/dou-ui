@@ -657,6 +657,18 @@ body {
   overflow-x: auto;
 }
 
+/* An editable block editor's handle floats left of its text: room for it
+   inside the card, so it doesn't sit on the card's border. */
+.doc-demo__stage:has(.dou-editor:not(.is-readonly)) {
+  padding-inline-start: 56px;
+}
+
+@media (pointer: coarse) {
+  .doc-demo__stage:has(.dou-editor:not(.is-readonly)) {
+    padding-inline-start: 40px;
+  }
+}
+
 .doc-demo__stage--column {
   flex-direction: column;
   /* A wrapping column sizes its line to the widest child's max-content,

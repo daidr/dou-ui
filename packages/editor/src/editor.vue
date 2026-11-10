@@ -614,7 +614,7 @@ const HighlightStyle = () => (highlightCSS.value ? h('style', highlightCSS.value
     :class="[
       ns.b(),
       {
-        // comparing keeps the editor's own gutter, so the text doesn't move
+        // comparing takes a narrow gutter for the bars beside changed blocks
         'is-readonly': readonly,
         'is-comparing': comparing,
         'is-focused': focused,

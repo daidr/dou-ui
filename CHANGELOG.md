@@ -7,6 +7,29 @@ DouUI 的所有包（`dou-ui`、`@dou-ui/theme`、`@dou-ui/icons` 以及生态�
 
 这个文件由发版脚本生成：改动先以碎片文件记在 [`.changes/`](./.changes/README.md) 里，发布时汇总到这里。
 
+## 0.1.0-alpha.16 · 2026-11-10
+
+### 不兼容
+
+- **dou-ui、@dou-ui/theme**：`DouChatMessage` 的操作改为浮在消息右上角的小浮条，不再占用消息左侧或下方的位置；浮条高出消息 24px，正好是 `DouChatList` 里消息之间的间距；长消息顶部滚出去时，浮条固定在滚动区域顶部，距离可以用 `--dou-chat-message-toolbar-top` 调整。`DouChatList` 的顶部内边距相应加大 12px（`--dou-chat-list-padding-top`），给第一条消息的浮条留位置。`actions-visible` 的默认值统一为 `'hover'`：鼠标悬停、键盘焦点在消息内时显示，触屏上点一下消息显示、点别处收起。以前助手消息的操作始终显示，想保持这样，设置 `actions-visible="always"`，或在 `defaults` 里给 `DouChatMessage` 设置 `actionsVisible: 'always'`。 ([#442](https://github.com/daidr/dou-ui/pull/442))
+
+### 新增
+
+- **@dou-ui/icons**：新增 `SmileIcon`（笑脸）和 `SmilePlusIcon`（添加表情）。 ([#441](https://github.com/daidr/dou-ui/pull/441))
+- **dou-ui、@dou-ui/theme**：`DouChatMessage` 新增回应：`reactions` 在消息下方显示表情和人数，自己回应过的一项带主题色，点击触发 `react`（参数为表情和对应的那一项），由应用加上或收回。提供 `reaction-picker` 插槽后出现“添加回应”按钮，弹出层里放什么由应用决定；还没有回应时按钮在操作里，有了回应后跟在回应末尾。`reaction` 插槽可以把表情渲染成图片。 ([#442](https://github.com/daidr/dou-ui/pull/442))
+
+### 改进
+
+- **@dou-ui/theme**：触屏上 Command 的每一行至少 40px 高，方便点按；流程编辑器从连线添加节点时的列表也随之变高。 ([#433](https://github.com/daidr/dou-ui/pull/433))
+- **@dou-ui/editor**：`flowBlock` 的全屏编辑器左上角新增“添加节点”按钮，列出扩展里写了 `palette` 的节点类型，点击添加或拖到画布上；不传 `extensions` 时提供一种带输入和输出端口的节点。空的流程图会提示从这里开始。 ([#433](https://github.com/daidr/dou-ui/pull/433))
+- **@dou-ui/chart**：柱子很多时画得更整齐：相邻柱子之间的空隙取整像素、处处一样宽，并随每根柱子占的位置变窄逐渐缩小到紧挨着，缩放时不再出现条纹或突然换样子；空隙很小时不画圆角，堆叠各段之间不留细缝。合成到同一列像素的堆叠柱各段不再互相遮盖。瀑布图和箱线图在位置很窄时同样处理。缩略图上按在哪个把手附近就拖哪个，光标也随之变化；窄的时间段按住中间可以平移；把手贴着图表边缘、外侧没有地方时，朝里多占一些。文档“大量数据”加上几百天的缺陷累计流图和一年逐小时的堆叠柱两个示例。 ([#434](https://github.com/daidr/dou-ui/pull/434))
+
+### 修复
+
+- **@dou-ui/pivot**：DouPivotFields 字段筛选弹层里的选项文字显示完整，此前上下部分被切掉。 ([#437](https://github.com/daidr/dou-ui/pull/437))
+- **@dou-ui/theme**：DouTable 设了 `maxHeight` 时，固定列的表头格在表体滚动后不再被表体的固定列单元格盖住。 ([#439](https://github.com/daidr/dou-ui/pull/439))
+- **@dou-ui/theme**：`soft` 的 DouLink 在 `leading`、`trailing` 里放 DouStatusDot、DouAvatar 时不再偏下，与 SVG 图标一样居中在文字旁。`external` 的外链箭头也改为居中，比原来略高；放文字或 emoji 时与链接文字同一基线。 ([#440](https://github.com/daidr/dou-ui/pull/440))
+
 ## 0.1.0-alpha.15 · 2026-11-10
 
 ### 不兼容

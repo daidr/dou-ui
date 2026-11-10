@@ -211,21 +211,36 @@
 
   /* a button at the very start or end of the field takes the padding on
      that side, so its fill sits as far from that edge as from the top */
-  /* on touch screens a narrow button at the start or end also takes taps
-     on its outer side, up to 40px wide; never towards a neighbour */
-  @media (pointer: coarse) {
-    .dou-input__prefix.is-edge-action .is-field-action:first-child::after {
-      inset-inline-start: min(0px, calc(100% - 40px));
-    }
-    .dou-input__suffix.is-edge-action .is-field-action:last-child::after {
-      inset-inline-end: min(0px, calc(100% - 40px));
-    }
-  }
   .dou-input:has(> .dou-input__prefix.is-edge-action) {
     padding-inline-start: var(--dou-input-action-inset);
   }
   .dou-input:has(> .dou-input__suffix.is-edge-action) {
     padding-inline-end: var(--dou-input-action-inset);
+  }
+
+  /* on touch screens a narrow button at the start or end takes taps up to
+     40px wide: outwards only as far as the field's outer edge, since the
+     field may sit right against another control in a field group, and
+     inwards for the rest when no other button sits beside it */
+  @media (pointer: coarse) {
+    .dou-input__prefix.is-edge-action .is-field-action:first-child::after {
+      inset-inline-start: max(
+        min(0px, calc(100% - 40px)),
+        calc(-1 * (var(--dou-input-action-inset) + 1px))
+      );
+    }
+    .dou-input__prefix.is-edge-action .is-field-action:only-child::after {
+      inset-inline-end: min(0px, calc(100% - 40px + var(--dou-input-action-inset) + 1px));
+    }
+    .dou-input__suffix.is-edge-action .is-field-action:last-child::after {
+      inset-inline-end: max(
+        min(0px, calc(100% - 40px)),
+        calc(-1 * (var(--dou-input-action-inset) + 1px))
+      );
+    }
+    .dou-input__suffix.is-edge-action .is-field-action:only-child::after {
+      inset-inline-start: min(0px, calc(100% - 40px + var(--dou-input-action-inset) + 1px));
+    }
   }
 
   /* sizes */

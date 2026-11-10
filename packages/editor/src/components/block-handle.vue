@@ -10,7 +10,15 @@ import {
 } from '@dou-ui/icons'
 import { DouDropdown, DouDropdownItem, DouDropdownSub } from 'dou-ui'
 import { TextSelection } from 'prosemirror-state'
-import { computed, inject, onBeforeUnmount, onMounted, shallowRef, watch } from 'vue'
+import {
+  computed,
+  inject,
+  onBeforeUnmount,
+  onMounted,
+  shallowRef,
+  useTemplateRef,
+  watch,
+} from 'vue'
 import { isCurrent } from '../catalog'
 import { labelOf, type BlockOption } from '../core/extension'
 import {
@@ -67,8 +75,14 @@ const hovered = shallowRef<string | null>(null)
 const position = shallowRef<{ top: number; left: number; height: number } | null>(null)
 /** In a column the handle is only the grip, in the gap before it, leaving room for the resize bar. */
 const compact = shallowRef(false)
+/** Next to a table: further out, clear of its row handles. */
+const table = shallowRef(false)
 const menuOpen = shallowRef(false)
-useMenuEscape(menuOpen, () => (menuOpen.value = false))
+useMenuEscape(menuOpen, () => {
+  menuOpen.value = false
+  // the menu had the focus; the selected blocks still answer Delete and copy
+  requestAnimationFrame(() => view.value?.focus())
+})
 
 /**
  * Where a drag would drop: before or after a block (a line across), or
@@ -102,6 +116,7 @@ function place(content: HTMLElement) {
   const line = firstLine(content)
   hovered.value = id
   compact.value = !!content.closest(COLUMN_GROUP)
+  table.value = content.classList.contains('dou-editor__content--table')
   position.value = {
     top: line.top - box.top,
     left: handleLeft(content) - box.left,
@@ -211,6 +226,38 @@ watch(state, (next, previous) => {
     else position.value = null
   })
 })
+
+/*
+ * The bubble floats outside the text. When the editor's container cuts off
+ * the room there (it clips, or the screen ends), the bubble moves in by as
+ * much as it lacks.
+ */
+const handle = useTemplateRef<HTMLElement>('handle')
+const shift = shallowRef(0)
+
+function clipLeft(from: HTMLElement): number {
+  for (let node = from.parentElement; node; node = node.parentElement) {
+    if (getComputedStyle(node).overflowX !== 'visible') return node.getBoundingClientRect().left
+  }
+  return 0
+}
+
+function fit() {
+  const element = handle.value
+  const host = root.value
+  if (!element || !host || !visible.value) return
+  const left = element.getBoundingClientRect().left - shift.value
+  const next = Math.max(0, Math.ceil(clipLeft(host) + 2 - left))
+  if (next !== shift.value) shift.value = next
+}
+
+watch([position, visible, compact, table], fit, { flush: 'post' })
+let sizes: ResizeObserver | null = null
+onMounted(() => {
+  sizes = new ResizeObserver(fit)
+  if (handle.value) sizes.observe(handle.value)
+})
+onBeforeUnmount(() => sizes?.disconnect())
 
 const target = computed(() => {
   const doc = state.value?.doc
@@ -537,13 +584,15 @@ watch(menuOpen, (value) => {
 <template>
   <div
     v-show="visible"
-    :class="['dou-editor__handle', { 'is-compact': compact }]"
+    ref="handle"
+    :class="['dou-editor__handle', { 'is-compact': compact, 'is-table': table }]"
     :style="
       position
         ? {
             top: `${position.top}px`,
             left: `${position.left}px`,
             '--dou-editor-line': `${position.height}px`,
+            '--dou-editor-handle-shift': `${shift}px`,
           }
         : undefined
     "

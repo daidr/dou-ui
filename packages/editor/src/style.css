@@ -5,18 +5,17 @@
  * reading size with generous leading. Blocks stack with a few pixels
  * between them, items of a list with their own (usually tighter) gap, and
  * nest by indenting. A reading width keeps lines short on wide screens: the
- * text column centers, and the handle's gutter hangs in the margin when it
- * fits. The handle sits in the gutter on
- * the left of the hovered block; on touch screens, a narrower gutter holds
- * only the grip, next to the block with the cursor. Selected blocks take a faint tint, the
+ * text column centers. The handle is a small bubble floating left of the
+ * hovered block, outside the text; on touch screens it sits next to the
+ * block with the cursor. Selected blocks take a faint tint, the
  * same in light and dark; the drop line during a drag is the focus color.
  */
 @layer dou.components {
   .dou-editor {
     --dou-editor-font-size: var(--dou-font-size-lg);
     --dou-editor-line-height: 1.7;
-    /* room on the left for the handle of top-level blocks */
-    --dou-editor-gutter: 56px;
+    /* room on the left of the text; the handle floats outside it, needing none */
+    --dou-editor-gutter: 0px;
     --dou-editor-indent: 24px;
     /* room between columns, where the handle of a block in a column sits */
     --dou-editor-column-gap: 48px;
@@ -51,10 +50,6 @@
     line-height: var(--dou-editor-line-height);
     overflow-wrap: break-word;
 
-    &.is-readonly {
-      --dou-editor-gutter: 0px;
-    }
-
     /*
      * comparing: the bars beside changed blocks sit in the gutter, the one
      * editing has; a read-only editor, which has none, gets a narrow one
@@ -63,9 +58,7 @@
       --dou-editor-gutter: 16px;
     }
 
-    /* touch screens: only the grip, in a narrower gutter */
     @media (pointer: coarse) {
-      --dou-editor-gutter: 32px;
       --dou-editor-column-gap: 32px;
     }
 
@@ -813,16 +806,39 @@
     opacity: 0.45;
   }
 
-  /* the handle: add a block, drag to move, click for the menu */
+  /*
+   * the handle: a small bubble left of the block, outside the text, taking
+   * no room of its own. It holds the grip (drag to move, click for the
+   * menu); pointing at it brings out "+" before the grip. The bubble's
+   * right edge sits 4px before the text, further before a table, clear of
+   * the table's row handles; when the editor's container has no room there
+   * it moves in over the text (--dou-editor-handle-shift).
+   */
 
   .dou-editor__handle {
+    --dou-editor-handle-height: 24px;
+    --dou-editor-handle-offset: 4px;
+
     position: absolute;
     z-index: 1;
+    box-sizing: border-box;
     display: flex;
     align-items: center;
-    gap: 2px;
-    height: var(--dou-editor-line, 24px);
-    transform: translateX(calc(-100% - 6px));
+    height: var(--dou-editor-handle-height);
+    margin-top: calc((var(--dou-editor-line, 24px) - var(--dou-editor-handle-height)) / 2);
+    padding: 1px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: 6px;
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-sm);
+    transform: translateX(
+      calc(-100% - var(--dou-editor-handle-offset) + var(--dou-editor-handle-shift, 0px))
+    );
+
+    /* a table's row handles are centered on its left edge */
+    &.is-table {
+      --dou-editor-handle-offset: 10px;
+    }
   }
 
   .dou-editor__handle-button {
@@ -830,8 +846,8 @@
     flex: none;
     align-items: center;
     justify-content: center;
-    width: 22px;
-    height: 24px;
+    width: 20px;
+    height: 100%;
     margin: 0;
     padding: 0;
     border: none;
@@ -844,8 +860,8 @@
     transition-timing-function: var(--dou-motion-easing);
 
     & > svg {
-      width: 16px;
-      height: 16px;
+      width: 14px;
+      height: 14px;
     }
 
     &:hover,
@@ -855,35 +871,36 @@
     }
   }
 
-  /* in a column: only the grip, close to the text, clear of the resize bar */
-  .dou-editor__handle.is-compact {
-    transform: translateX(calc(-100% - 2px));
+  /* "+" comes out of the bubble while the pointer is on it; in a column there is none */
+  .dou-editor__add {
+    display: none;
+  }
 
-    & .dou-editor__add {
-      display: none;
+  /* on touch screens new blocks come from Enter and the slash menu */
+  @media (hover: hover) and (pointer: fine) {
+    .dou-editor__handle:not(.is-compact):hover .dou-editor__add {
+      display: inline-flex;
     }
   }
 
   .dou-editor__grip {
     position: relative;
-    width: 18px;
+    width: 16px;
     cursor: grab;
     touch-action: none;
   }
 
   @media (pointer: coarse) {
     .dou-editor__handle {
-      transform: translateX(calc(-100% - 4px));
-    }
+      --dou-editor-handle-height: 32px;
 
-    /* new blocks come from Enter and the slash menu */
-    .dou-editor__add {
-      display: none;
+      &.is-table {
+        --dou-editor-handle-offset: 12px;
+      }
     }
 
     .dou-editor__grip {
-      width: 24px;
-      height: max(28px, var(--dou-editor-line, 28px));
+      width: 18px;
       -webkit-touch-callout: none;
       user-select: none;
 
@@ -891,7 +908,7 @@
       &::before {
         content: '';
         position: absolute;
-        inset: -8px -4px;
+        inset: -8px -6px;
       }
     }
   }
@@ -1282,8 +1299,8 @@
    * margins on both sides, and the padding before the table keeps it in line
    * with the text. A wide table takes the right margin first; wider still, it
    * scrolls, and scrolling takes the padding away first, so its left edge
-   * moves out to the gutter before the columns move. The gutter stays for the
-   * handles, and 28px after the table for the "+" bar. The margins are the
+   * moves out to the editor's edge before the columns move; 28px stay after
+   * the table for the "+" bar. The margins are the
    * surface's padding, which the table extension measures in px and sets on
    * the mount (0 until then, and with no reading width).
    */

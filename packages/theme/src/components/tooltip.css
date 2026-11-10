@@ -42,6 +42,13 @@
     text-box: trim-both cap alphabetic;
   }
 
+  /* links take the tooltip's own text color, which is light on its dark
+     fill, and a soft link a fill made from it */
+  .dou-tooltip .dou-link {
+    --dou-link-tone: currentColor;
+    --dou-link-soft: color-mix(in oklab, currentColor 16%, transparent);
+  }
+
   /*
    * Text, then its keys. The keys stand taller than the trimmed text, so
    * the row is a flex box of its own, centered on the text's cap height,

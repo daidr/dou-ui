@@ -2968,8 +2968,10 @@ function endGesture() {
   clearPress()
   cancelAnimationFrame(autoPanFrame)
   if (g && root.value?.hasPointerCapture(g.id)) root.value.releasePointerCapture(g.id)
-  if ((g?.kind === 'drag' || g?.kind === 'bend') && g.started) history.close()
-  if (g?.kind === 'resize') history.close()
+  if (((g?.kind === 'drag' || g?.kind === 'bend') && g.started) || g?.kind === 'resize') {
+    if (customHistory) customHistory.close?.()
+    else history.close()
+  }
   gesture.value = null
   guides.value = []
   dropTarget.value = null
@@ -2984,7 +2986,8 @@ function cancelDrag() {
   if (g.kind === 'bend') tr.updateEdge(g.edge, { data: g.origin })
   else for (const [id, o] of g.origins) tr.moveNode(id, o.x, o.y)
   if (tr.changed) commit(tr)
-  history.drop(g.group)
+  if (customHistory) customHistory.drop?.(g.group)
+  else history.drop(g.group)
   syncHistory()
   endGesture()
   return true

@@ -130,6 +130,7 @@
       },
       "devDependencies": {
         "@dou-ui/code": "workspace:*",
+        "@dou-ui/flow": "workspace:*",
         "@types/markdown-it": "^14.1.2",
         "markdown-it": "^14.1.0",
         "y-protocols": "^1.0.7",
@@ -137,6 +138,7 @@
       },
       "peerDependencies": {
         "@dou-ui/code": "workspace:*",
+        "@dou-ui/flow": "workspace:*",
         "dou-ui": "workspace:*",
         "markdown-it": "^14.0.0",
         "vue": "^3.5.0",
@@ -144,6 +146,7 @@
       },
       "optionalPeers": [
         "@dou-ui/code",
+        "@dou-ui/flow",
         "markdown-it",
         "yjs",
       ],

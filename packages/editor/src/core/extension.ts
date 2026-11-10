@@ -126,8 +126,11 @@ export interface EditorExtension {
   /**
    * Content node specs for new block types, by type name. They join the
    * `blockContent` group. Extra spec fields the editor reads:
-   * `continues` (Enter continues the same type, like a list) and
-   * `component` (a Vue component that renders the block).
+   * `continues` (Enter continues the same type, like a list),
+   * `component` (a Vue component that renders the block) and
+   * `mergeProps` (props holding lists of `{ id }` items that collaboration
+   * merges item by item, by prop name: the fields that are such lists,
+   * e.g. `{ board: ['nodes', 'edges'] }`).
    */
   blocks?: Record<string, NodeSpec>
   /**

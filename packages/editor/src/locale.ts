@@ -24,6 +24,7 @@ export interface EditorMessages {
     columns: string
     attachment: string
     embed: string
+    whiteboard: string
   }
   /** Short descriptions in the slash menu. */
   hints: {
@@ -44,6 +45,7 @@ export interface EditorMessages {
     columns: string
     attachment: string
     embed: string
+    whiteboard: string
   }
   /** The image block. */
   image: {
@@ -150,6 +152,14 @@ export interface EditorMessages {
     edit: string
     cancel: string
   }
+  /** Blocks holding a whiteboard or a flow (`@dou-ui/editor/flow`). */
+  board: {
+    empty: string
+    start: string
+    edit: string
+    view: string
+    resize: string
+  }
   noResults: string
   addBlock: string
   dragHandle: string
@@ -206,6 +216,7 @@ const zhCN: EditorMessages = {
     columns: '分栏',
     attachment: '附件',
     embed: '嵌入',
+    whiteboard: '白板',
   },
   hints: {
     paragraph: '普通的文字',
@@ -225,6 +236,7 @@ const zhCN: EditorMessages = {
     columns: '把内容并排分成几栏',
     attachment: '上传一个文件',
     embed: '视频、音频或网页',
+    whiteboard: '图形、便签和连线',
   },
   image: {
     empty: '添加一张图片',
@@ -311,6 +323,13 @@ const zhCN: EditorMessages = {
     cancel: '取消',
     caption: '添加说明',
   },
+  board: {
+    empty: '还没有内容',
+    start: '开始绘制',
+    edit: '编辑',
+    view: '查看',
+    resize: '拖动以调整高度',
+  },
   noResults: '没有匹配的块',
   addBlock: '在下方添加块',
   dragHandle: '拖动以移动，点击打开菜单',
@@ -361,6 +380,7 @@ const zhTW: EditorMessages = {
     columns: '分欄',
     attachment: '附件',
     embed: '嵌入',
+    whiteboard: '白板',
   },
   hints: {
     paragraph: '一般的文字',
@@ -380,6 +400,7 @@ const zhTW: EditorMessages = {
     columns: '把內容並排分成幾欄',
     attachment: '上傳一個檔案',
     embed: '影片、音訊或網頁',
+    whiteboard: '圖形、便籤和連線',
   },
   image: {
     empty: '新增一張圖片',
@@ -466,6 +487,13 @@ const zhTW: EditorMessages = {
     cancel: '取消',
     caption: '新增說明',
   },
+  board: {
+    empty: '還沒有內容',
+    start: '開始繪製',
+    edit: '編輯',
+    view: '查看',
+    resize: '拖曳以調整高度',
+  },
   noResults: '沒有符合的區塊',
   addBlock: '在下方新增區塊',
   dragHandle: '拖曳以移動，點擊開啟選單',
@@ -516,6 +544,7 @@ const en: EditorMessages = {
     columns: 'Columns',
     attachment: 'File',
     embed: 'Embed',
+    whiteboard: 'Whiteboard',
   },
   hints: {
     paragraph: 'Plain text',
@@ -535,6 +564,7 @@ const en: EditorMessages = {
     columns: 'Put content side by side',
     attachment: 'Upload a file',
     embed: 'Video, audio or a web page',
+    whiteboard: 'Shapes, sticky notes and connectors',
   },
   image: {
     empty: 'Add an image',
@@ -620,6 +650,13 @@ const en: EditorMessages = {
     edit: 'Change link',
     cancel: 'Cancel',
     caption: 'Add a caption',
+  },
+  board: {
+    empty: 'Nothing drawn yet',
+    start: 'Start drawing',
+    edit: 'Edit',
+    view: 'View',
+    resize: 'Drag to change the height',
   },
   noResults: 'No matching blocks',
   addBlock: 'Add a block below',

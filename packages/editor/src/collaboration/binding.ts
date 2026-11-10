@@ -18,9 +18,10 @@ import * as Y from 'yjs'
 import { blockAround, findBlockById } from '../core/blocks'
 import { createId } from '../core/model'
 import { originKey } from '../core/editor'
-import { ownStepKey } from '../core/transaction'
+import { joinStepKey, ownStepKey } from '../core/transaction'
 import { placeOf } from './cursors'
 import { keptIndexes, keysBetween, orderKeys } from './order'
+import { mergedPropsOf, newMerged, readMerged, writeMerged } from './merged-props'
 import { cellAt, cellStart, clearTable, readTable, writeTable } from './table'
 import { inlineFrom, insertInline, updateText, type Attributes } from './text'
 
@@ -39,6 +40,7 @@ import { inlineFrom, insertInline, updateText, type Attributes } from './text'
  *   }>
  *
  * Tables keep their rows, columns and cells in more entries; see `./table`.
+ * Props a block type merges item by item are maps too; see `./merged-props`.
  */
 
 export type YBlock = Y.Map<unknown>
@@ -82,10 +84,15 @@ function contentFrom(yblock: YBlock, schema: Schema): PMNode {
   const name = yblock.get('type') as string
   const known = schema.nodes[name]
   const type = known?.isInGroup('blockContent') ? known : schema.nodes.paragraph!
-  const props = (yblock.get('props') as Y.Map<unknown> | undefined)?.toJSON() ?? {}
+  const stored = yblock.get('props') as Y.Map<unknown> | undefined
+  const props = stored?.toJSON() ?? {}
+  const merged = mergedPropsOf(type)
   const attrs: Attributes = {}
-  for (const attr of Object.keys(type.spec.attrs ?? {}))
-    if (attr in props) attrs[attr] = props[attr]
+  for (const attr of Object.keys(type.spec.attrs ?? {})) {
+    if (!(attr in props)) continue
+    const spec = merged?.[attr]
+    attrs[attr] = spec ? readMerged(stored!.get(attr), spec) : props[attr]
+  }
   if (type.spec.rows) return readTable(yblock, type, attrs)
   if (!type.inlineContent) return type.create(attrs)
   const text = yblock.get('text') as Y.Text | undefined
@@ -102,8 +109,12 @@ function writeContent(yblock: YBlock, content: PMNode) {
     return
   }
   const props = new Y.Map<unknown>()
-  for (const [name, value] of Object.entries(content.attrs)) props.set(name, value)
+  const merged = mergedPropsOf(content.type)
   yblock.set('props', props)
+  for (const [name, value] of Object.entries(content.attrs)) {
+    const spec = merged?.[name]
+    props.set(name, spec ? newMerged(value, spec) : value)
+  }
   if (content.inlineContent) insertInline(text, 0, content, 0, content.content.size)
 }
 
@@ -117,8 +128,18 @@ function updateContent(yblock: YBlock, before: PMNode, after: PMNode): boolean {
     return writeTable(yblock, before.type === after.type ? before : null, after)
   clearTable(yblock)
   const props = yblock.get('props') as Y.Map<unknown>
+  const merged = mergedPropsOf(after.type)
   for (const [name, value] of Object.entries(after.attrs)) {
-    if (JSON.stringify(props.get(name)) !== JSON.stringify(value)) props.set(name, value)
+    const spec = merged?.[name]
+    if (spec)
+      writeMerged(
+        props,
+        name,
+        spec,
+        value,
+        before.type === after.type ? before.attrs[name] : undefined,
+      )
+    else if (JSON.stringify(props.get(name)) !== JSON.stringify(value)) props.set(name, value)
   }
   for (const name of Array.from(props.keys())) if (!(name in after.attrs)) props.delete(name)
 
@@ -221,6 +242,8 @@ export const collaborationKey = new PluginKey<{
   tracked: boolean
   /** An undo step of its own (`transact`). */
   own: boolean
+  /** Joins the undo step before (the frames of a drag on a whiteboard). */
+  join: boolean
 }>('dou-editor-collaboration')
 
 export interface Binding {
@@ -232,6 +255,8 @@ export interface Binding {
   view: EditorView | null
   /** Ends the current undo step, so a structural change is undone on its own. */
   stopCapturing?: () => void
+  /** Makes the next change join the current undo step. */
+  joinCapturing?: () => void
   /** Where the cursor was before the change being written, for undo to return to. */
   selectionBefore?: unknown
   /** Set while the undo manager takes a step back or forward. */
@@ -758,19 +783,27 @@ export function syncPlugin(binding: Binding): Plugin {
   return new Plugin({
     key: collaborationKey,
     state: {
-      init: () => ({ remote: false, tracked: false, own: false }),
+      init: () => ({ remote: false, tracked: false, own: false, join: false }),
       apply(tr, value) {
         const meta = tr.getMeta(collaborationKey) as { remote?: boolean } | undefined
         if (!tr.docChanged) return value
-        if (meta?.remote) return { remote: true, tracked: false, own: false }
+        if (meta?.remote) return { remote: true, tracked: false, own: false, join: false }
         // a transaction can come with appended ones (e.g. id fixes), written
         // together: undone together if any of them is
         const tracked = tr.getMeta('addToHistory') !== false
         const own = tr.getMeta(ownStepKey) === true
-        const appended = !!tr.getMeta('appendedTransaction') && !value.remote
+        const join = tr.getMeta(joinStepKey) === true
+        // a step joined on purpose stands on its own here (its
+        // `appendedTransaction` is for the built-in history)
+        const appended = !join && !!tr.getMeta('appendedTransaction') && !value.remote
         return appended
-          ? { remote: false, tracked: value.tracked || tracked, own: value.own || own }
-          : { remote: false, tracked, own }
+          ? {
+              remote: false,
+              tracked: value.tracked || tracked,
+              own: value.own || own,
+              join: value.join || join,
+            }
+          : { remote: false, tracked, own, join }
       },
     },
     view(view) {
@@ -809,6 +842,7 @@ export function syncPlugin(binding: Binding): Plugin {
           // read before writing: the map still holds the previous text
           binding.selectionBefore = placeOf(binding, previous.doc, previous.selection.head)
           if (state.own) binding.stopCapturing?.()
+          else if (state.join) binding.joinCapturing?.()
           writeMap(current, state.tracked)
           if (state.own) binding.stopCapturing?.()
         },

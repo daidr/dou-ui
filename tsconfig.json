@@ -11,6 +11,7 @@
       "@dou-ui/editor": ["./packages/editor/src/index.ts"],
       "@dou-ui/editor/collaboration": ["./packages/editor/src/collaboration/index.ts"],
       "@dou-ui/editor/code": ["./packages/editor/src/code/index.ts"],
+      "@dou-ui/editor/flow": ["./packages/editor/src/flow/index.ts"],
       "@dou-ui/editor/markdown": ["./packages/editor/src/markdown/index.ts"],
       "@dou-ui/flow": ["./packages/flow/src/index.ts"],
       "@dou-ui/flow/collaboration": ["./packages/flow/src/collaboration/index.ts"],

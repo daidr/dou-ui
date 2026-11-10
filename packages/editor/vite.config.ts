@@ -13,6 +13,7 @@ export default defineConfig({
         'collaboration/index': 'src/collaboration/index.ts',
         'markdown/index': 'src/markdown/index.ts',
         'code/index': 'src/code/index.ts',
+        'flow/index': 'src/flow/index.ts',
       },
       formats: ['es'],
     },

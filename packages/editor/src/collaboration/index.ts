@@ -70,6 +70,10 @@ export function collaboration(options: CollaborationOptions): EditorExtension {
     captureTimeout: 500,
   })
   binding.stopCapturing = () => undoManager.stopCapturing()
+  // as if the last change were just now: the next one is captured with it
+  binding.joinCapturing = () => {
+    if (undoManager.undoStack.length) undoManager.lastChange = Date.now()
+  }
   // put the cursor back where it was when the change was made
   undoManager.on('stack-item-added', (event: { stackItem: { meta: Map<string, unknown> } }) => {
     if (!event.stackItem.meta.has('selection'))

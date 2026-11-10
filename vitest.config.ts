@@ -19,8 +19,16 @@ export default defineConfig({
         find: /^@dou-ui\/editor\/code$/,
         replacement: r('./packages/editor/src/code/index.ts'),
       },
+      {
+        find: /^@dou-ui\/editor\/flow$/,
+        replacement: r('./packages/editor/src/flow/index.ts'),
+      },
       { find: /^@dou-ui\/editor$/, replacement: r('./packages/editor/src/index.ts') },
       { find: /^@dou-ui\/chart$/, replacement: r('./packages/chart/src/index.ts') },
+      {
+        find: /^@dou-ui\/flow\/whiteboard$/,
+        replacement: r('./packages/flow/src/whiteboard/index.ts'),
+      },
       { find: /^@dou-ui\/flow$/, replacement: r('./packages/flow/src/index.ts') },
       {
         find: /^@dou-ui\/gantt\/scheduler$/,

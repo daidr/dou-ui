@@ -235,11 +235,13 @@ watch(state, (next, previous) => {
  * The bubble floats outside the text. When the editor's container cuts off
  * the room there (it clips, or the screen ends), the bubble moves in by as
  * much as it lacks, counting the "+" that comes out on hover, so the grip
- * stays under the pointer when it does.
+ * stays under the pointer when it does, and a finger's reach on touch screens.
  */
 const handle = useTemplateRef<HTMLElement>('handle')
 /** The width "+" adds to the bubble (its button, see the styles). */
 const ADD_WIDTH = 20
+/** How far a finger's reach goes left of the bubble (the grip's ::before, past the bubble's border and padding). */
+const TOUCH_REACH = 12
 const shift = shallowRef(0)
 
 function clipLeft(from: HTMLElement): number {
@@ -256,6 +258,7 @@ function fit() {
   let left = element.getBoundingClientRect().left - shift.value
   const plus = element.querySelector<HTMLElement>('.dou-editor__add')
   if (fine?.matches && !compact.value && plus && !plus.offsetWidth) left -= ADD_WIDTH
+  if (touch.value) left -= TOUCH_REACH
   const style = getComputedStyle(element)
   const clear =
     table.value && position.value

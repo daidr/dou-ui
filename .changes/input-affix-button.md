@@ -1,5 +1,5 @@
 ---
-type: 新功能
+type: 新增
 packages: [theme]
 ---
 

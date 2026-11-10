@@ -60,6 +60,13 @@ export type BlockEdge = 'start' | 'end'
  */
 export const ownStepKey = 'douOwnStep'
 
+/**
+ * Set on a transaction that joins the undo step before it however long
+ * after it comes, e.g. the frames of a drag on a whiteboard (with
+ * `appendedTransaction` for the built-in history).
+ */
+export const joinStepKey = 'douJoinStep'
+
 const warn = (message: string) => {
   if (process.env.NODE_ENV !== 'production') console.warn(`[@dou-ui/editor] ${message}`)
 }

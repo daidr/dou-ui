@@ -18,7 +18,7 @@ import * as Y from 'yjs'
 import { blockAround, findBlockById } from '../core/blocks'
 import { createId } from '../core/model'
 import { originKey } from '../core/editor'
-import { ownStepKey } from '../core/transaction'
+import { joinStepKey, ownStepKey } from '../core/transaction'
 import { placeOf } from './cursors'
 import { keptIndexes, keysBetween, orderKeys } from './order'
 import { mergedPropsOf, newMerged, readMerged, writeMerged } from './merged-props'
@@ -242,6 +242,8 @@ export const collaborationKey = new PluginKey<{
   tracked: boolean
   /** An undo step of its own (`transact`). */
   own: boolean
+  /** Joins the undo step before (the frames of a drag on a whiteboard). */
+  join: boolean
 }>('dou-editor-collaboration')
 
 export interface Binding {
@@ -253,6 +255,8 @@ export interface Binding {
   view: EditorView | null
   /** Ends the current undo step, so a structural change is undone on its own. */
   stopCapturing?: () => void
+  /** Makes the next change join the current undo step. */
+  joinCapturing?: () => void
   /** Where the cursor was before the change being written, for undo to return to. */
   selectionBefore?: unknown
   /** Set while the undo manager takes a step back or forward. */
@@ -779,19 +783,27 @@ export function syncPlugin(binding: Binding): Plugin {
   return new Plugin({
     key: collaborationKey,
     state: {
-      init: () => ({ remote: false, tracked: false, own: false }),
+      init: () => ({ remote: false, tracked: false, own: false, join: false }),
       apply(tr, value) {
         const meta = tr.getMeta(collaborationKey) as { remote?: boolean } | undefined
         if (!tr.docChanged) return value
-        if (meta?.remote) return { remote: true, tracked: false, own: false }
+        if (meta?.remote) return { remote: true, tracked: false, own: false, join: false }
         // a transaction can come with appended ones (e.g. id fixes), written
         // together: undone together if any of them is
         const tracked = tr.getMeta('addToHistory') !== false
         const own = tr.getMeta(ownStepKey) === true
-        const appended = !!tr.getMeta('appendedTransaction') && !value.remote
+        const join = tr.getMeta(joinStepKey) === true
+        // a step joined on purpose stands on its own here (its
+        // `appendedTransaction` is for the built-in history)
+        const appended = !join && !!tr.getMeta('appendedTransaction') && !value.remote
         return appended
-          ? { remote: false, tracked: value.tracked || tracked, own: value.own || own }
-          : { remote: false, tracked, own }
+          ? {
+              remote: false,
+              tracked: value.tracked || tracked,
+              own: value.own || own,
+              join: value.join || join,
+            }
+          : { remote: false, tracked, own, join }
       },
     },
     view(view) {
@@ -830,6 +842,7 @@ export function syncPlugin(binding: Binding): Plugin {
           // read before writing: the map still holds the previous text
           binding.selectionBefore = placeOf(binding, previous.doc, previous.selection.head)
           if (state.own) binding.stopCapturing?.()
+          else if (state.join) binding.joinCapturing?.()
           writeMap(current, state.tracked)
           if (state.own) binding.stopCapturing?.()
         },

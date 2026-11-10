@@ -456,3 +456,86 @@ describe('in the editor', () => {
     expect(flow()).toBeTruthy()
   })
 })
+
+/** The fullscreen editor of a board in an editor that edits together with `peer`. */
+async function openTogether() {
+  const source = new Y.Doc()
+  fillMap(
+    source.getMap('document'),
+    { version: 1, blocks: START },
+    { extensions: [editorKit(), whiteboardBlock()] },
+  )
+  const docs = [new Y.Doc(), new Y.Doc()] as const
+  for (const doc of docs) Y.applyUpdate(doc, Y.encodeStateAsUpdate(source))
+  docs[0].on(
+    'update',
+    (u: Uint8Array, o: unknown) => o !== 'relay' && Y.applyUpdate(docs[1], u, 'relay'),
+  )
+  docs[1].on(
+    'update',
+    (u: Uint8Array, o: unknown) => o !== 'relay' && Y.applyUpdate(docs[0], u, 'relay'),
+  )
+  const peer = client(docs[1])
+  const editor = ref<EditorExpose>()
+  const wrapper = mount(
+    defineComponent(
+      () => () =>
+        h(DouEditor, {
+          ref: editor,
+          extensions: [
+            editorKit(),
+            whiteboardBlock(),
+            collaboration({ map: docs[0].getMap('document') }),
+          ],
+        }),
+    ),
+    { attachTo: document.body },
+  )
+  wrappers.push(wrapper)
+  await nextTick()
+  const view = editor.value!.view as EditorView
+  ;(wrapper.element as HTMLElement)
+    .querySelector('.dou-editor-board')!
+    .dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))
+  await nextTick()
+  await nextTick()
+  return { view, peer, vm: fullscreen()!.vm }
+}
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+const xOf = (view: EditorView, id: string) => boardIn(view).nodes.find((n) => n.id === id)?.x
+const textOf = (view: EditorView, id: string) =>
+  boardIn(view).nodes.find((n) => n.id === id)?.data?.text
+
+describe('undo while editing together', () => {
+  it('undoes two drags of the same node one by one', async () => {
+    const { view, vm } = await openTogether()
+    vm.transact((tr) => tr.updateNode('n1', { x: 10 }))
+    vm.transact((tr) => tr.updateNode('n1', { x: 20 }), { group: 'drag:1' })
+    await wait(600)
+    vm.transact((tr) => tr.updateNode('n1', { x: 30 }), { group: 'drag:1' })
+    vm.transact((tr) => tr.updateNode('n1', { x: 40 }), { group: 'drag:2' })
+    vm.transact((tr) => tr.updateNode('n1', { x: 50 }), { group: 'drag:2' })
+    await nextTick()
+    const seen: unknown[] = []
+    for (let i = 0; i < 4; i++) seen.push(`${vm.undo()}:${xOf(view, 'n1')}`)
+    expect(seen).toEqual(['true:30', 'true:10', 'true:0', 'false:0'])
+  })
+
+  it('keeps what the other person changed during a drag, when the drag is undone', async () => {
+    const { view, peer, vm } = await openTogether()
+    vm.transact((tr) => tr.updateNode('n1', { x: 20 }), { group: 'drag:1' })
+    setBoard(peer, (board) => ({
+      ...board,
+      nodes: board.nodes.map((n) => (n.id === 'n2' ? { ...n, data: { text: '对方改的' } } : n)),
+    }))
+    await nextTick()
+    vm.transact((tr) => tr.updateNode('n1', { x: 30 }), { group: 'drag:1' })
+    await nextTick()
+    expect(textOf(view, 'n2')).toBe('对方改的')
+    expect(vm.undo()).toBe(true)
+    await nextTick()
+    expect(xOf(view, 'n1')).toBe(0)
+    for (const side of [view, peer]) expect(textOf(side, 'n2')).toBe('对方改的')
+  })
+})

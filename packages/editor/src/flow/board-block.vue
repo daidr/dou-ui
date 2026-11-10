@@ -25,7 +25,7 @@ import { findBlockById } from '../core/blocks'
 import { historyCommands } from '../core/editor'
 import { labelOf } from '../core/extension'
 import type { BlockProps } from '../core/model'
-import { ownStepKey } from '../core/transaction'
+import { joinStepKey, ownStepKey } from '../core/transaction'
 import { useEditor } from '../editor'
 import {
   BOARD_HEIGHT,
@@ -166,13 +166,14 @@ function onClosed() {
  * Changes on the board go into the document as they are made, so `v-model`,
  * collaboration and the other blocks see them, and into the editor's undo
  * history: undo in the fullscreen editor is the document's, one step per
- * change on the board. The frames of a drag (or nudges with the arrow keys)
- * go in outside the history; once it ends, the whole move is written again
- * as one step, so a cancelled drag leaves none.
+ * change on the board. The frames of a drag (or nudges with the arrow keys,
+ * or typing in one node) join the step of the first one; only the fields
+ * they change are written, so what others change meanwhile stays theirs. A
+ * cancelled drag takes its step back.
  */
 const GROUP_WINDOW = 1000
-/** A drag going on: its group, the board before it, and when its last frame came. */
-let pending: { group: string; start: unknown; time: number } | null = null
+/** A drag going on: its group, and when its last frame came. */
+let pending: { group: string; time: number } | null = null
 /** The steps taken on the board since it was opened, and those undone. */
 const steps = { undo: 0, redo: 0 }
 
@@ -232,20 +233,19 @@ function record(next: unknown) {
   steps.redo = 0
 }
 
-/** Ends the drag going on: its change becomes one undo step. */
-function settle() {
-  const drag = pending
-  pending = null
+/** Writes the board into the undo step before, the drag's. */
+function join(next: unknown) {
   const editor = view.value
   const pos = contentPos()
-  if (!drag || !editor || pos === null) return
-  const end = currentBoard()
-  if (JSON.stringify(end) === JSON.stringify(drag.start)) return
-  // back to where it started, then to where it ended, in one go
-  editor.dispatch(
-    editor.state.tr.setNodeAttribute(pos, 'board', drag.start).setMeta('addToHistory', false),
-  )
-  record(end)
+  if (!editor || pos === null) return
+  const tr = editor.state.tr.setNodeAttribute(pos, 'board', next).setMeta(joinStepKey, true)
+  // for the built-in history: part of the step before, however long after
+  editor.dispatch(tr.setMeta('appendedTransaction', editor.state.tr))
+}
+
+/** Ends the drag going on: the next change is a step of its own. */
+function settle() {
+  pending = null
 }
 
 function forward(tr: FlowTransaction) {
@@ -256,17 +256,25 @@ function forward(tr: FlowTransaction) {
   const next = toDocument(tr.doc)
   // only folded or unfolded: nothing for the document
   if (JSON.stringify(next) === JSON.stringify(currentBoard())) return
-  const quiet = () =>
+  const now = Date.now()
+  if (pending && (pending.group !== group || now - pending.time >= GROUP_WINDOW)) {
+    // a cancelled drag putting the board back: part of its step
+    if (tr.meta.history === false) return join(next)
+    settle()
+  }
+  if (tr.meta.history === false) {
     editor.dispatch(
       editor.state.tr.setNodeAttribute(pos, 'board', next).setMeta('addToHistory', false),
     )
-  if (tr.meta.history === false) return quiet()
-  const now = Date.now()
-  if (pending && (pending.group !== group || now - pending.time >= GROUP_WINDOW)) settle()
+    return
+  }
   if (!group) return record(next)
-  pending ??= { group, start: currentBoard(), time: now }
-  pending.time = now
-  quiet()
+  if (pending) {
+    pending.time = now
+    return join(next)
+  }
+  pending = { group, time: now }
+  record(next)
 }
 
 /** Undo or redo in the document; refused when it would change something besides this board. */
@@ -292,15 +300,21 @@ function travel(kind: 'undo' | 'redo') {
   return true
 }
 
+/** A cancelled drag: the board is back where it started, and its step is taken back. */
+function drop(group: string) {
+  if (pending?.group !== group) return
+  pending = null
+  const editor = view.value
+  if (!editor || !steps.undo) return
+  if (historyCommands(editor.state).undo(editor.state, editor.dispatch, editor)) steps.undo--
+}
+
 const history: FlowHistoryHandler = {
   undo: () => travel('undo'),
   redo: () => travel('redo'),
-  canUndo: () => steps.undo > 0 || !!pending,
+  canUndo: () => steps.undo > 0,
   canRedo: () => steps.redo > 0 && !pending,
-  // a cancelled drag: the board is already back where it started
-  drop: (group) => {
-    if (pending?.group === group) pending = null
-  },
+  drop,
   close: settle,
 }
 const bridge: FlowExtension = defineFlowExtension({
@@ -434,6 +448,7 @@ function resetHeight() {
           :readonly="!editable"
           fit-view
           :fit-min-zoom="0.1"
+          :simple-zoom="0.1"
           :commentable="false"
           :aria-label="label"
           @transaction="forward"

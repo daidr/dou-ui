@@ -17,23 +17,83 @@ export interface AwarenessLike {
 }
 
 /** A place in the text: the block and a position in its text that follows edits. */
-interface Place {
+export interface EditorPresencePlace {
   block: string
   /** In a table: the cell, `row id:column id`. */
   cell?: string
+  /** A Yjs relative position as JSON (`Y.relativePositionToJSON`). */
   position: unknown
 }
+type Place = EditorPresencePlace
+
+/**
+ * Where a person's cursor is, shared in the awareness field `editor`
+ * (`null` when they have none). The selection runs from `anchor` to
+ * `head`; the cursor with the name is drawn at `head`.
+ */
+export interface EditorPresence {
+  anchor: EditorPresencePlace
+  head: EditorPresencePlace
+}
+type Cursor = EditorPresence
 
 /** The text a place points into: the block's own, or one of its table cells. */
-function textOf(binding: Binding, block: string, cell?: string): Y.Text | undefined {
-  const yblock = binding.map.get(block) as YBlock | undefined
-  if (!cell) return yblock?.get('text') as Y.Text | undefined
-  return (yblock?.get('cells') as Y.Map<Y.Text> | undefined)?.get(cell)
+function textOf(map: Y.Map<unknown>, block: string, cell?: string): Y.Text | undefined {
+  const yblock = map.get(block)
+  if (!(yblock instanceof Y.Map)) return undefined
+  if (!cell) {
+    // a table's text is in its cells
+    if ((yblock as YBlock).has('cells')) return undefined
+    const text = (yblock as YBlock).get('text')
+    return text instanceof Y.Text ? text : undefined
+  }
+  const cells = (yblock as YBlock).get('cells')
+  const text = cells instanceof Y.Map ? cells.get(cell) : undefined
+  return text instanceof Y.Text ? text : undefined
 }
 
-interface Cursor {
-  anchor: Place
-  head: Place
+/** A place in a block's text, given without an editor. */
+export interface EditorCursorTarget {
+  block: string
+  /** In a table: the cell, `row id:column id`. */
+  cell?: string
+  /**
+   * Where in the text: the number of characters before it (UTF-16 code
+   * units, as `string.length` counts them; an inline node such as a mention
+   * counts as one). Kept within the text; left out, its end.
+   */
+  offset?: number
+}
+
+/** Whether blocks of a stored type hold text of their own, e.g. not an image or a divider. */
+export type HoldsText = (type: string) => boolean
+
+function placeAt(
+  map: Y.Map<unknown>,
+  target: EditorCursorTarget,
+  holdsText: HoldsText,
+): Place | null {
+  const yblock = map.get(target.block)
+  if (!target.cell && yblock instanceof Y.Map && !holdsText(String(yblock.get('type')))) return null
+  const text = textOf(map, target.block, target.cell)
+  if (!text) return null
+  const offset = Math.max(0, Math.min(Math.floor(target.offset ?? text.length), text.length))
+  const position = Y.relativePositionToJSON(Y.createRelativePositionFromTypeIndex(text, offset))
+  return target.cell
+    ? { block: target.block, cell: target.cell, position }
+    : { block: target.block, position }
+}
+
+/** A cursor at `head`, selecting from `anchor`; `null` when either has no text to be in. */
+export function cursorIn(
+  map: Y.Map<unknown>,
+  head: EditorCursorTarget,
+  anchor: EditorCursorTarget,
+  holdsText: HoldsText,
+): EditorPresence | null {
+  const to = placeAt(map, head, holdsText)
+  const from = anchor === head ? to : placeAt(map, anchor, holdsText)
+  return to && from ? { anchor: from, head: to } : null
 }
 
 /** A document position as a place that survives other people's edits. */
@@ -49,7 +109,7 @@ export function placeOf(binding: Binding, doc: PMNode, pos: number): Place | nul
     cell = found.key
     index = found.index
   }
-  const text = textOf(binding, id, cell)
+  const text = textOf(binding.map as Y.Map<unknown>, id, cell)
   if (!text) return null
   const offset = Math.max(0, Math.min(index, text.length))
   const position = Y.relativePositionToJSON(Y.createRelativePositionFromTypeIndex(text, offset))
@@ -73,7 +133,7 @@ export function positionOf(binding: Binding, doc: PMNode, place: Place): number 
     size = cell.size
   }
   const offset =
-    absolute && textOf(binding, place.block, place.cell) === absolute.type
+    absolute && textOf(binding.map as Y.Map<unknown>, place.block, place.cell) === absolute.type
       ? Math.min(absolute.index, size)
       : 0
   return start + offset
@@ -97,7 +157,7 @@ function decorations(binding: Binding, awareness: AwarenessLike, state: EditorSt
   const found: Decoration[] = []
   awareness.getStates().forEach((value, client) => {
     if (client === awareness.clientID) return
-    const cursor = value.cursor as Cursor | null | undefined
+    const cursor = value.editor as Cursor | null | undefined
     const user = value.user as { name?: string; color?: string } | undefined
     if (!cursor) return
     const anchor = positionOf(binding, state.doc, cursor.anchor)
@@ -162,7 +222,7 @@ export function cursorsPlugin(binding: Binding, awareness: AwarenessLike): Plugi
         const json = JSON.stringify(cursor)
         if (json === last) return
         last = json
-        awareness.setLocalStateField('cursor', cursor)
+        awareness.setLocalStateField('editor', cursor)
       }
       const onFocus = () => share()
       view.dom.addEventListener('focus', onFocus)
@@ -173,7 +233,7 @@ export function cursorsPlugin(binding: Binding, awareness: AwarenessLike): Plugi
           awareness.off('change', onChange)
           view.dom.removeEventListener('focus', onFocus)
           view.dom.removeEventListener('blur', onFocus)
-          awareness.setLocalStateField('cursor', null)
+          awareness.setLocalStateField('editor', null)
         },
       }
     },

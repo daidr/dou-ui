@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { nextTick } from 'vue'
 import { Awareness } from 'y-protocols/awareness'
 import * as Y from 'yjs'
-import { collaboration, fillMap } from '..'
+import { collaboration, cursorAt, fillMap, updateMap } from '..'
 import { findBlockById } from '../../core/blocks'
 import { liftBlocks, sinkBlocks, splitBlock } from '../../core/commands'
 import { createEditorView, getBlocks } from '../../core/editor'
@@ -14,6 +14,7 @@ import type { Block, EditorDocument, PartialBlock } from '../../core/model'
 import { applyEditorTransaction, EditorTransaction } from '../../core/transaction'
 import DouEditor from '../../editor.vue'
 import { editorKit } from '../../extensions/editor-kit'
+import { image } from '../../extensions/image'
 
 const views: EditorView[] = []
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0))
@@ -363,6 +364,93 @@ describe('collaboration', () => {
     await tick()
     const label = a.view.dom.querySelector('.dou-editor__cursor-label')
     expect(label?.textContent).toBe(`user ${docB.clientID}`)
+  })
+
+  it('shows a cursor put in the awareness without an editor, e.g. by a program on the server', async () => {
+    const server = new Y.Doc()
+    const map = server.getMap('document')
+    const base: EditorDocument<PartialBlock> = {
+      version: 1,
+      blocks: [{ id: 'a', content: 'Hello' }],
+    }
+    fillMap(map, base)
+    const docA = new Y.Doc()
+    connect(server, docA)
+    const awarenessA = new Awareness(docA)
+    const a = client(docA, awarenessA)
+    const awareness = new Awareness(server)
+    awareness.setLocalStateField('user', { name: 'AI', color: '#7c5cff' })
+    const relay = () => {
+      awarenessA.getStates().set(server.clientID, awareness.getLocalState()!)
+      awarenessA.emit('change', [{ added: [], updated: [server.clientID], removed: [] }, 'remote'])
+    }
+    awareness.setLocalStateField('editor', cursorAt(map, { block: 'a', offset: 2 }))
+    relay()
+    await tick()
+    const cursor = a.view.dom.querySelector('.dou-editor__cursor')!
+    expect(cursor.textContent).toContain('AI')
+    expect(cursor.previousSibling?.textContent).toBe('He')
+
+    // text written before it moves it along
+    updateMap(map, { version: 1, blocks: [{ id: 'a', content: 'Oh, Hello' }] }, { base })
+    await tick()
+    expect(a.view.dom.querySelector('.dou-editor__cursor')!.previousSibling?.textContent).toBe(
+      'Oh, He',
+    )
+
+    // left out, the offset is the end; with an anchor, a selection
+    awareness.setLocalStateField(
+      'editor',
+      cursorAt(map, { block: 'a' }, { anchor: { block: 'a', offset: 4 } }),
+    )
+    relay()
+    await tick()
+    expect(a.view.dom.querySelector('.dou-editor__remote-selection')?.textContent).toBe('Hello')
+  })
+
+  it('gives no cursor where there is no text to put it in', () => {
+    const doc = new Y.Doc()
+    const map = doc.getMap('document')
+    const extensions = [editorKit(), image()]
+    fillMap(
+      map,
+      {
+        version: 1,
+        blocks: [
+          { id: 'a', content: 'Hi' },
+          { id: 'i', type: 'image', props: { url: 'https://example.com/a.png' } },
+          { id: 'd', type: 'divider' },
+          {
+            id: 't',
+            type: 'table',
+            rows: [{ id: 'r', cells: ['上海'] }],
+            props: { columns: [{ id: 'c' }] },
+          },
+        ],
+      },
+      { extensions },
+    )
+    expect(cursorAt(map, { block: 'missing' })).toBeNull()
+    // a table's text is in its cells
+    expect(cursorAt(map, { block: 't' })).toBeNull()
+    expect(cursorAt(map, { block: 't', cell: 'r:c', offset: 1 })?.head).toMatchObject({
+      block: 't',
+      cell: 'r:c',
+    })
+    expect(cursorAt(map, { block: 't', cell: 'r:x' })).toBeNull()
+    expect(cursorAt(map, { block: 'a' }, { anchor: { block: 'missing' } })).toBeNull()
+    // blocks without text: an image, a divider
+    expect(cursorAt(map, { block: 'i' }, { extensions })).toBeNull()
+    expect(cursorAt(map, { block: 'd', offset: 0 })).toBeNull()
+    expect(cursorAt(map, { block: 'a' }, { anchor: { block: 'i' }, extensions })).toBeNull()
+    // kept within the text
+    const far = cursorAt(map, { block: 'a', offset: 99 })!
+    const back = Y.createAbsolutePositionFromRelativePosition(
+      Y.createRelativePositionFromJSON(far.head.position),
+      doc,
+    )
+    expect(back?.index).toBe(2)
+    expect(JSON.parse(JSON.stringify(far))).toEqual(far)
   })
 
   it('mirrors the shared document through v-model and ignores outside changes', async () => {

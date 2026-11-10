@@ -489,6 +489,10 @@ export const en: Locale = {
     versions: 'Reply versions',
     previousVersion: 'Previous version',
     nextVersion: 'Next version',
+    reactions: 'Reactions',
+    reaction: '{emoji} {count}',
+    reactionWith: '{reaction}: {label}',
+    addReaction: 'Add reaction',
   },
   findReplace: {
     label: 'Find and replace',

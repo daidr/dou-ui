@@ -1,6 +1,6 @@
 import { mount } from '@vue/test-utils'
-import { h } from 'vue'
-import { describe, expect, it } from 'vitest'
+import { defineComponent, h, ref } from 'vue'
+import { describe, expect, it, vi } from 'vitest'
 import { DouChatMessage, DouConfigProvider } from '../../../index'
 import { messageText } from '../chat-message'
 
@@ -93,13 +93,34 @@ describe('DouChatMessage', () => {
     expect(wrapper.find('.dou-chat-message__actions .dou-copy-button').exists()).toBe(true)
   })
 
-  it('shows actions on hover for the person and always for the assistant by default', () => {
+  it('shows actions on hover for every message by default', () => {
     const user = mount(DouChatMessage, { props: { sender: 'user', content: '周六去哪' } })
     const assistant = mount(DouChatMessage, { props: { content: '去滴水湖骑车。' } })
     const system = mount(DouChatMessage, { props: { sender: 'system', content: '已切换模型' } })
     expect(user.classes()).toContain('dou-chat-message--actions-hover')
-    expect(assistant.classes()).toContain('dou-chat-message--actions-always')
-    expect(system.classes()).toContain('dou-chat-message--actions-always')
+    expect(assistant.classes()).toContain('dou-chat-message--actions-hover')
+    expect(system.classes()).toContain('dou-chat-message--actions-hover')
+  })
+
+  it('toggles the actions with a tap, but not with a click or a tap on a button', async () => {
+    const wrapper = mount(DouChatMessage, {
+      props: { content: '去滴水湖骑车。' },
+      attachTo: document.body,
+    })
+    const content = wrapper.get('.dou-chat-message__content')
+    await content.trigger('pointerup', { pointerType: 'mouse' })
+    expect(wrapper.classes()).not.toContain('is-touched')
+    await content.trigger('pointerup', { pointerType: 'touch' })
+    expect(wrapper.classes()).toContain('is-touched')
+    await wrapper.get('.dou-chat-message__actions button').trigger('pointerup', {
+      pointerType: 'touch',
+    })
+    expect(wrapper.classes()).toContain('is-touched')
+    // a tap anywhere else hides them
+    document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+    await wrapper.vm.$nextTick()
+    expect(wrapper.classes()).not.toContain('is-touched')
+    wrapper.unmount()
   })
 
   it('takes when the actions show from `actionsVisible`', async () => {
@@ -241,5 +262,132 @@ describe('DouChatMessage', () => {
     })
     expect(wrapper.findAll('.mark')).toHaveLength(1)
     expect(wrapper.find('.dou-chat-reasoning .mark').exists()).toBe(false)
+  })
+  describe('reactions', () => {
+    const reactions = [
+      { emoji: '👍', count: 2, reacted: true, label: '戴兜和小王' },
+      { emoji: '🎉', count: 1 },
+      { emoji: '👀', count: 0 },
+    ]
+
+    it('shows reactions with a count under the message and reports presses', async () => {
+      const wrapper = mount(DouChatMessage, { props: { content: '周六去滴水湖。', reactions } })
+      const chips = wrapper.findAll('.dou-chat-message__reaction')
+      // a reaction at 0 is left out
+      expect(chips.map((chip) => chip.text())).toEqual(['👍2', '🎉1'])
+      expect(chips[0]!.attributes('aria-pressed')).toBe('true')
+      expect(chips[1]!.attributes('aria-pressed')).toBe('false')
+      expect(chips[1]!.attributes('aria-label')).toBe('🎉 1 人')
+      await chips[0]!.trigger('click')
+      expect(wrapper.emitted('react')).toEqual([['👍', reactions[0]]])
+      // `label` follows the emoji and count
+      expect(chips[0]!.attributes('aria-label')).toBe('👍 2 人：戴兜和小王')
+      // the row follows the parts, before the actions
+      const order = [...wrapper.element.children].map((el) => el.className.split(' ')[0])
+      expect(order).toEqual([
+        'dou-chat-message__content',
+        'dou-chat-message__reactions',
+        'dou-chat-message__toolbar',
+      ])
+    })
+
+    it('offers no add button without a picker', () => {
+      const wrapper = mount(DouChatMessage, { props: { content: '好', reactions } })
+      expect(wrapper.find('button[aria-label="添加回应"]').exists()).toBe(false)
+    })
+
+    it('puts the add button among the actions until the first reaction', async () => {
+      const wrapper = mount(DouChatMessage, {
+        props: { content: '好' },
+        slots: { 'reaction-picker': () => h('i') },
+      })
+      expect(wrapper.find('.dou-chat-message__reactions').exists()).toBe(false)
+      expect(
+        wrapper.find('.dou-chat-message__actions button[aria-label="添加回应"]').exists(),
+      ).toBe(true)
+      await wrapper.setProps({ reactions })
+      expect(
+        wrapper.find('.dou-chat-message__actions button[aria-label="添加回应"]').exists(),
+      ).toBe(false)
+      expect(
+        wrapper.find('.dou-chat-message__reactions button[aria-label="添加回应"]').exists(),
+      ).toBe(true)
+    })
+
+    it('reacts from the picker and closes it', async () => {
+      const wrapper = mount(DouChatMessage, {
+        props: { content: '好' },
+        attachTo: document.body,
+        slots: {
+          'reaction-picker': ({ react }: { react: (emoji: string) => void }) =>
+            h('button', { class: 'pick', onClick: () => react('🚀') }, '🚀'),
+        },
+      })
+      await wrapper.get('button[aria-label="添加回应"]').trigger('click')
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      const pick = document.querySelector<HTMLButtonElement>('.pick')!
+      expect(wrapper.classes()).toContain('is-reacting')
+      pick.click()
+      await wrapper.vm.$nextTick()
+      expect(wrapper.emitted('react')).toEqual([['🚀', undefined]])
+      expect(wrapper.classes()).not.toContain('is-reacting')
+      wrapper.unmount()
+    })
+
+    it('moves focus to the add button at the end of the first reaction', async () => {
+      const list = ref<{ emoji: string; count: number }[]>([])
+      const Host = defineComponent(
+        () => () =>
+          h(
+            DouChatMessage,
+            {
+              content: '好',
+              reactions: list.value,
+              onReact: (emoji: string) => (list.value = [{ emoji, count: 1 }]),
+            },
+            {
+              'reaction-picker': ({ react }: { react: (emoji: string) => void }) =>
+                h('button', { class: 'pick', onClick: () => react('🚀') }, '🚀'),
+            },
+          ),
+      )
+      const wrapper = mount(Host, { attachTo: document.body })
+      await wrapper.get('button[aria-label="添加回应"]').trigger('click')
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      const pick = document.querySelector<HTMLButtonElement>('.pick')!
+      pick.focus()
+      pick.click()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      expect(document.activeElement).toBe(
+        wrapper.get('.dou-chat-message__reactions button[aria-label="添加回应"]').element,
+      )
+      wrapper.unmount()
+    })
+
+    it('warns about an emoji listed twice', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      mount(DouChatMessage, {
+        props: {
+          content: '好',
+          reactions: [
+            { emoji: '🎈', count: 1 },
+            { emoji: '🎈', count: 2 },
+          ],
+        },
+      })
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('"🎈" more than once'))
+      warn.mockRestore()
+    })
+
+    it('renders the emoji with the `reaction` slot', () => {
+      const wrapper = mount(DouChatMessage, {
+        props: { content: '好', reactions: [{ emoji: 'party', count: 3 }] },
+        slots: {
+          reaction: ({ reaction }: { reaction: { emoji: string } }) =>
+            h('img', { alt: reaction.emoji }),
+        },
+      })
+      expect(wrapper.get('.dou-chat-message__reaction img').attributes('alt')).toBe('party')
+    })
   })
 })

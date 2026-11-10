@@ -4,8 +4,8 @@
  * One turn of the conversation made of parts. The person's turn is a
  * tinted bubble on the right; the assistant's runs full width with no
  * bubble or avatar, its parts stacked with even gaps, like a page.
- * Actions sit underneath: always for the assistant, on hover for the
- * person, unless `actionsVisible` says otherwise.
+ * Actions float over the top right corner: on hover, focus or a tap,
+ * unless `actionsVisible` says to keep them.
  */
 @layer dou.components {
   .dou-chat-message {
@@ -31,7 +31,6 @@
     line-height: var(--dou-font-line-height);
   }
 
-  /* actions sit beside the bubble, so the hidden row adds no height between turns */
   .dou-chat-message--user {
     display: grid;
     grid-template-columns: minmax(20%, 1fr) minmax(0, max-content);
@@ -46,6 +45,12 @@
     & > .dou-chat-message__files {
       grid-row: 1;
       margin-bottom: 6px;
+    }
+
+    & > .dou-chat-message__reactions {
+      grid-row: 3;
+      justify-content: flex-end;
+      margin-top: 6px;
     }
   }
 
@@ -140,41 +145,204 @@
     }
   }
 
+  /*
+   * The actions float in a small bar over the top right corner of the
+   * message, so they take no room in the conversation. The bar sticks to
+   * the top of the scroll area while a long message runs past it, and it
+   * comes after the message in reading order.
+   */
+  .dou-chat-message__toolbar {
+    position: sticky;
+    /* set it on the list or any outer element, e.g. under a fixed header */
+    top: var(--dou-chat-message-toolbar-top, 28px);
+    z-index: 1;
+    order: -1;
+    display: flex;
+    justify-content: flex-end;
+    align-self: stretch;
+    height: 0;
+    /* no gap of its own above the message */
+    margin-bottom: -6px;
+
+    /* over the files when there are any, else over the bubble */
+    .dou-chat-message--user > & {
+      grid-row: 1;
+      align-self: start;
+      margin: 0 8px 0 0;
+    }
+
+    /* always shown, it stays put rather than over a long message's text */
+    .dou-chat-message--actions-always > & {
+      position: relative;
+      top: auto;
+    }
+  }
+
   .dou-chat-message__actions {
     display: flex;
+    flex-shrink: 0;
     align-items: center;
     gap: 2px;
-    margin-left: -6px;
+    box-sizing: border-box;
+    max-width: 100%;
+    height: max-content;
+    padding: 0;
+    border: 1px solid var(--dou-color-border);
+    border-radius: calc(var(--dou-radius-control) + 2px);
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-sm);
     color: var(--dou-color-text-tertiary);
+    /*
+     * 24px above the message, the gap between messages in a ChatList, so
+     * it doesn't reach the message before; the 6px left over sits on the
+     * bubble's padding, not its text.
+     */
+    translate: 0 calc(6px - 100%);
 
     & > .dou-button--ghost:not(:hover, :focus-visible),
     & .dou-chat-message__versions > .dou-button--ghost:not(:hover, :focus-visible) {
       color: inherit;
     }
 
-    .dou-chat-message--user > & {
-      grid-column: 1;
-      align-self: end;
-      margin-left: 0;
-    }
-
-    /* hidden, not removed: showing them moves nothing around */
-    .dou-chat-message--actions-hover > & {
+    /* hidden until wanted, and never in the way of what is under it */
+    .dou-chat-message--actions-hover > .dou-chat-message__toolbar > & {
       opacity: 0;
+      pointer-events: none;
       transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
     }
 
-    .dou-chat-message--actions-hover:hover > &,
-    .dou-chat-message--actions-hover:focus-within > & {
+    .dou-chat-message--actions-hover:has(:focus-visible) > .dou-chat-message__toolbar > &,
+    .dou-chat-message--actions-hover.is-reacting > .dou-chat-message__toolbar > &,
+    .dou-chat-message--actions-hover.is-touched > .dou-chat-message__toolbar > & {
       opacity: 1;
+      pointer-events: auto;
     }
 
-    /* no hover to reveal them, so they stay */
-    @media (hover: none) {
-      .dou-chat-message--actions-hover > & {
-        opacity: 1;
+    /*
+     * A finger's 40px reach of each button goes down only: upward it would
+     * cover the bottom of the message before, e.g. its add-reaction button.
+     * Down it reaches over the top of this message only while the bar shows.
+     */
+    @media (pointer: coarse) {
+      & .dou-button.dou-button::after,
+      & .dou-copy-button.dou-copy-button::after {
+        top: 0;
+        bottom: -12px;
       }
     }
+
+    /* a tap leaves :hover behind on touch screens, so only a mouse hovers */
+    @media (hover: hover) {
+      .dou-chat-message--actions-hover:hover > .dou-chat-message__toolbar > & {
+        opacity: 1;
+        pointer-events: auto;
+      }
+    }
+  }
+
+  /*
+   * Reactions: a row of quiet chips under the message, each an emoji and
+   * a count. The person's own reaction is tinted with the primary color,
+   * like a pressed toggle, without filling it in.
+   */
+  .dou-chat-message__reactions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    max-width: 100%;
+    color: var(--dou-color-text-tertiary);
+
+    & > .dou-button--ghost:not(:hover, :focus-visible) {
+      color: inherit;
+    }
+  }
+
+  .dou-chat-message__reaction {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    box-sizing: border-box;
+    height: 24px;
+    padding: 0 8px 0 6px;
+    margin: 0;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-full);
+    background-color: var(--dou-color-bg-surface);
+    color: var(--dou-color-text-secondary);
+    font: inherit;
+    font-size: var(--dou-font-size-sm);
+    line-height: 1;
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    transition-property: background-color, border-color, color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    &:hover {
+      border-color: var(--dou-color-border-strong);
+      background-color: color-mix(in oklab, var(--dou-color-text) 4%, var(--dou-color-bg-surface));
+      color: var(--dou-color-text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 2px;
+    }
+
+    &.is-reacted {
+      border-color: color-mix(in oklab, var(--dou-color-primary-text) 45%, var(--dou-color-border));
+      background-color: color-mix(
+        in oklab,
+        var(--dou-color-primary) 10%,
+        var(--dou-color-bg-surface)
+      );
+      color: var(--dou-color-primary-text);
+    }
+
+    &.is-reacted:hover {
+      border-color: color-mix(in oklab, var(--dou-color-primary-text) 65%, var(--dou-color-border));
+      background-color: color-mix(
+        in oklab,
+        var(--dou-color-primary) 14%,
+        var(--dou-color-bg-surface)
+      );
+    }
+
+    /* a finger gets a 40px target without spacing the chips apart */
+    @media (pointer: coarse) {
+      &::after {
+        position: absolute;
+        inset: -8px -2px;
+        content: '';
+      }
+    }
+  }
+
+  .dou-chat-message__reaction-emoji {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    /* an even box, whatever width the emoji font gives the glyph */
+    width: 18px;
+    height: 18px;
+    overflow: visible;
+    font-size: 14px;
+    line-height: 18px;
+
+    & > img,
+    & > svg {
+      width: 16px;
+      height: 16px;
+    }
+  }
+
+  .dou-chat-message__reaction-count {
+    font-weight: var(--dou-font-weight-medium);
+    font-variant-numeric: tabular-nums;
+    text-box: trim-both cap alphabetic;
   }
 
   .dou-chat-message__versions {

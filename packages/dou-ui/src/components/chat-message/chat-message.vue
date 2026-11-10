@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ChevronLeftIcon, ChevronRightIcon, EditIcon } from '@dou-ui/icons'
-import { computed, nextTick, ref, useTemplateRef } from 'vue'
+import { ChevronLeftIcon, ChevronRightIcon, EditIcon, SmilePlusIcon } from '@dou-ui/icons'
+import { computed, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue'
 import { isComposing } from '../../utils/keyboard'
+import { devWarn } from '../../utils/status-check'
 import { useNamespace } from '../../utils/namespace'
 import { DouButton } from '../button'
 import { DouChatArtifact } from '../chat-artifact'
@@ -18,6 +19,7 @@ import { DouChatToolCall } from '../chat-tool-call'
 import { useLocale } from '../config-provider/use-config'
 import { DouCopyButton } from '../copy-button'
 import { DouMarkdown } from '../markdown'
+import { DouPopover } from '../popover'
 import type { ChatSource } from '../chat-sources/chat-sources'
 import { DouStreamText } from '../stream-text'
 import { DouTooltip } from '../tooltip'
@@ -31,6 +33,7 @@ import type {
   ChatMessagePart,
   ChatMessageMarkdownSlots,
   ChatMessageProps,
+  ChatMessageReaction,
   ChatMessageSlots,
 } from './chat-message'
 
@@ -71,7 +74,29 @@ const markdownSlots = () =>
       inner: name.slice(PREFIX.length),
     }))
 const isUser = computed(() => props.sender === 'user')
-const actionsShow = computed(() => props.actionsVisible ?? (isUser.value ? 'hover' : 'always'))
+const actionsShow = computed(() => props.actionsVisible ?? 'hover')
+
+// Without hover, a tap on the message shows its actions and a tap
+// anywhere else hides them. Taps on its own buttons and links, and
+// selecting text, leave them as they are.
+const touched = ref(false)
+const rootRef = useTemplateRef<HTMLElement>('root')
+const INTERACTIVE = 'button, a[href], input, textarea, select, summary, [role="button"]'
+function onPointerUp(event: PointerEvent) {
+  if (event.pointerType === 'mouse') return
+  const target = event.target as Element | null
+  if (target?.closest(INTERACTIVE)) return
+  if (getSelection()?.isCollapsed === false) return
+  touched.value = !touched.value
+}
+function onOutsidePointerDown(event: PointerEvent) {
+  if (!rootRef.value?.contains(event.target as Node)) touched.value = false
+}
+watch(touched, (on) => {
+  if (on) document.addEventListener('pointerdown', onOutsidePointerDown, true)
+  else document.removeEventListener('pointerdown', onOutsidePointerDown, true)
+})
+onBeforeUnmount(() => document.removeEventListener('pointerdown', onOutsidePointerDown, true))
 // the person's attachments sit above their bubble, not inside it
 const files = computed(() => (isUser.value ? parts.value.filter((p) => p.type === 'files') : []))
 const body = computed(() =>
@@ -119,12 +144,61 @@ function step(delta: number) {
   emit('update:version', next)
 }
 
+// reactions
+const reactions = computed(() => (props.reactions ?? []).filter((r) => r.count > 0))
+const canReact = computed(() => !!slots['reaction-picker'])
+const pickerOpen = ref(false)
+if (process.env.NODE_ENV !== 'production') {
+  watch(
+    () => props.reactions,
+    (list) => {
+      const seen = new Set<string>()
+      for (const { emoji } of list ?? []) {
+        if (seen.has(emoji))
+          devWarn(
+            `[dou-ui] DouChatMessage: \`reactions\` lists "${emoji}" more than once; give each emoji one entry with its count.`,
+          )
+        seen.add(emoji)
+      }
+    },
+    { immediate: true },
+  )
+}
+function react(emoji: string) {
+  emit(
+    'react',
+    emoji,
+    props.reactions?.find((r) => r.emoji === emoji),
+  )
+}
+// Picked in the panel: the add button may move from the actions to the end
+// of the reactions as the first one comes in, so focus follows it there
+// rather than falling back to the page.
+function pick(emoji: string) {
+  pickerOpen.value = false
+  react(emoji)
+  void nextTick(() => {
+    const root = rootRef.value
+    if (!root || root.contains(document.activeElement)) return
+    root.querySelector<HTMLElement>(`.${ns.e('add-reaction')}`)?.focus()
+  })
+}
+/** Read out and shown on hover: the emoji and count, then `label` when given. */
+function reactionLabel(reaction: ChatMessageReaction) {
+  const base = t('chat.reaction', { emoji: reaction.emoji, count: reaction.count })
+  return reaction.label ? t('chat.reactionWith', { reaction: base, label: reaction.label }) : base
+}
+// The add button sits among the actions until the first reaction, then at
+// the end of the reactions, so a message without any takes no extra line.
+const addInActions = computed(() => canReact.value && !reactions.value.length)
+
 const showActions = computed(
   () =>
     !busy.value &&
     (props.versions > 1 ||
       (props.copyable && !!text.value) ||
       (props.editable && isUser.value) ||
+      addInActions.value ||
       !!slots.actions),
 )
 
@@ -200,9 +274,13 @@ const rest = (part: AnyPart) => {
       ns.is('loading', loading),
       ns.is('editing', editing),
       ns.is('highlighted', highlighted),
+      ns.is('reacting', pickerOpen),
+      ns.is('touched', touched),
     ]"
+    ref="root"
     :aria-busy="busy || undefined"
     :aria-current="highlighted || undefined"
+    @pointerup="onPointerUp"
   >
     <div v-if="files.length && !editing" :class="ns.e('files')">
       <template v-for="(part, index) in files" :key="`f${index}`">
@@ -340,40 +418,99 @@ const rest = (part: AnyPart) => {
       </span>
     </div>
 
-    <div v-if="showActions && !editing" :class="ns.e('actions')">
-      <div
-        v-if="versions > 1"
-        :class="ns.e('versions')"
-        role="group"
-        :aria-label="t('chat.versions')"
+    <div
+      v-if="reactions.length && !editing"
+      :class="ns.e('reactions')"
+      role="group"
+      :aria-label="t('chat.reactions')"
+    >
+      <DouTooltip
+        v-for="reaction in reactions"
+        :key="reaction.emoji"
+        :content="reactionLabel(reaction)"
       >
-        <DouButton
-          variant="ghost"
-          size="sm"
-          :disabled="version <= 1"
-          :aria-label="t('chat.previousVersion')"
-          @click="step(-1)"
+        <button
+          type="button"
+          :class="[ns.e('reaction'), ns.is('reacted', !!reaction.reacted)]"
+          :aria-pressed="!!reaction.reacted"
+          :aria-label="reactionLabel(reaction)"
+          @click="react(reaction.emoji)"
         >
-          <ChevronLeftIcon />
-        </DouButton>
-        <span :class="ns.e('version')">{{ version }} / {{ versions }}</span>
-        <DouButton
-          variant="ghost"
-          size="sm"
-          :disabled="version >= versions"
-          :aria-label="t('chat.nextVersion')"
-          @click="step(1)"
-        >
-          <ChevronRightIcon />
-        </DouButton>
-      </div>
-      <DouCopyButton v-if="copyable && text" size="sm" :text="text" />
-      <DouTooltip v-if="editable && isUser" :content="t('chat.edit')">
-        <DouButton variant="ghost" size="sm" :aria-label="t('chat.edit')" @click="startEdit">
-          <EditIcon />
-        </DouButton>
+          <span :class="ns.e('reaction-emoji')">
+            <slot name="reaction" :reaction="reaction">{{ reaction.emoji }}</slot>
+          </span>
+          <span :class="ns.e('reaction-count')">{{ reaction.count }}</span>
+        </button>
       </DouTooltip>
-      <slot name="actions" />
+      <DouTooltip v-if="canReact" :content="t('chat.addReaction')">
+        <DouPopover v-model:open="pickerOpen" placement="top-start">
+          <DouButton
+            variant="ghost"
+            size="xs"
+            :class="ns.e('add-reaction')"
+            :aria-label="t('chat.addReaction')"
+          >
+            <SmilePlusIcon />
+          </DouButton>
+          <template #content="{ close }">
+            <slot name="reaction-picker" :react="pick" :close="close" />
+          </template>
+        </DouPopover>
+      </DouTooltip>
+    </div>
+
+    <!-- last in reading order, drawn at the top right of the message -->
+    <div v-if="showActions && !editing" :class="ns.e('toolbar')">
+      <div :class="ns.e('actions')">
+        <div
+          v-if="versions > 1"
+          :class="ns.e('versions')"
+          role="group"
+          :aria-label="t('chat.versions')"
+        >
+          <DouButton
+            variant="ghost"
+            size="sm"
+            :disabled="version <= 1"
+            :aria-label="t('chat.previousVersion')"
+            @click="step(-1)"
+          >
+            <ChevronLeftIcon />
+          </DouButton>
+          <span :class="ns.e('version')">{{ version }} / {{ versions }}</span>
+          <DouButton
+            variant="ghost"
+            size="sm"
+            :disabled="version >= versions"
+            :aria-label="t('chat.nextVersion')"
+            @click="step(1)"
+          >
+            <ChevronRightIcon />
+          </DouButton>
+        </div>
+        <DouCopyButton v-if="copyable && text" size="sm" :text="text" />
+        <DouTooltip v-if="editable && isUser" :content="t('chat.edit')">
+          <DouButton variant="ghost" size="sm" :aria-label="t('chat.edit')" @click="startEdit">
+            <EditIcon />
+          </DouButton>
+        </DouTooltip>
+        <DouTooltip v-if="addInActions" :content="t('chat.addReaction')">
+          <DouPopover v-model:open="pickerOpen" placement="top-start">
+            <DouButton
+              variant="ghost"
+              size="sm"
+              :class="ns.e('add-reaction')"
+              :aria-label="t('chat.addReaction')"
+            >
+              <SmilePlusIcon />
+            </DouButton>
+            <template #content="{ close }">
+              <slot name="reaction-picker" :react="pick" :close="close" />
+            </template>
+          </DouPopover>
+        </DouTooltip>
+        <slot name="actions" />
+      </div>
     </div>
   </div>
 </template>

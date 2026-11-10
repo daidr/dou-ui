@@ -489,6 +489,10 @@ export const zhTW: Locale = {
     versions: '回覆版本',
     previousVersion: '上一個版本',
     nextVersion: '下一個版本',
+    reactions: '回應',
+    reaction: '{emoji} {count} 人',
+    reactionWith: '{reaction}：{label}',
+    addReaction: '新增回應',
   },
   findReplace: {
     label: '尋找和取代',

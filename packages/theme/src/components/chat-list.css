@@ -9,6 +9,11 @@
   .dou-chat-list {
     --dou-chat-list-gap: 24px;
     --dou-chat-list-padding: 16px;
+    /*
+     * ChatMessage floats its actions 24px above its top edge: room for the
+     * first message's above it, so they stay inside the list.
+     */
+    --dou-chat-list-padding-top: calc(var(--dou-chat-list-padding) + 12px);
 
     position: relative;
     display: flex;
@@ -34,6 +39,7 @@
     flex-direction: column;
     gap: var(--dou-chat-list-gap);
     padding: var(--dou-chat-list-padding);
+    padding-top: var(--dou-chat-list-padding-top);
   }
 
   /*
@@ -43,7 +49,7 @@
    */
   .dou-chat-list.is-virtual .dou-virtual-list__spacer {
     box-sizing: content-box;
-    margin-top: calc(var(--dou-chat-list-padding) - var(--dou-chat-list-gap));
+    margin-top: calc(var(--dou-chat-list-padding-top) - var(--dou-chat-list-gap));
     padding-bottom: var(--dou-chat-list-padding);
   }
 
@@ -51,6 +57,16 @@
     display: flex;
     flex-direction: column;
     padding: var(--dou-chat-list-gap) var(--dou-chat-list-padding) 0;
+  }
+
+  /*
+   * with `items`, each message is placed with a transform, which sticky
+   * positioning doesn't follow: ChatMessage's actions stay over the top of
+   * their message instead of following a long one down
+   */
+  .dou-chat-list.is-virtual .dou-chat-message__toolbar {
+    position: relative;
+    top: auto;
   }
 
   .dou-chat-list__scroll {

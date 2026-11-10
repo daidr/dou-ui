@@ -24,7 +24,7 @@
 
 <DocDemo src="link/soft" />
 
-在 [Tooltip](./tooltip) 和 `solid` 的 [Banner](./banner) 这类深色或彩色的底上，链接跟随所在容器的文字色，`tone` 不生效；彩色 `solid` 横幅里的 `soft` 链接改为带下划线的普通样式，以保证文字的对比度。
+在 [Tooltip](./tooltip) 和 `solid` 的 [Banner](./banner) 这类自带底色的容器里，链接跟随所在容器的文字色，`tone` 不生效；彩色 `solid` 横幅里的 `soft` 链接改为带下划线的普通样式，以保证文字的对比度。
 
 ## 外部链接
 

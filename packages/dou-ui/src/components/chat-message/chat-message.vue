@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChevronLeftIcon, ChevronRightIcon, EditIcon } from '@dou-ui/icons'
+import { ChevronLeftIcon, ChevronRightIcon, EditIcon, SmilePlusIcon } from '@dou-ui/icons'
 import { computed, nextTick, ref, useTemplateRef } from 'vue'
 import { isComposing } from '../../utils/keyboard'
 import { useNamespace } from '../../utils/namespace'
@@ -18,6 +18,7 @@ import { DouChatToolCall } from '../chat-tool-call'
 import { useLocale } from '../config-provider/use-config'
 import { DouCopyButton } from '../copy-button'
 import { DouMarkdown } from '../markdown'
+import { DouPopover } from '../popover'
 import type { ChatSource } from '../chat-sources/chat-sources'
 import { DouStreamText } from '../stream-text'
 import { DouTooltip } from '../tooltip'
@@ -31,6 +32,7 @@ import type {
   ChatMessagePart,
   ChatMessageMarkdownSlots,
   ChatMessageProps,
+  ChatMessageReaction,
   ChatMessageSlots,
 } from './chat-message'
 
@@ -119,12 +121,28 @@ function step(delta: number) {
   emit('update:version', next)
 }
 
+// reactions
+const reactions = computed(() => (props.reactions ?? []).filter((r) => r.count > 0))
+const canReact = computed(() => !!slots['reaction-picker'])
+const pickerOpen = ref(false)
+function react(emoji: string) {
+  pickerOpen.value = false
+  emit('react', emoji)
+}
+function reactionLabel(reaction: ChatMessageReaction) {
+  return t('chat.reaction', { emoji: reaction.emoji, count: reaction.count })
+}
+// The add button sits among the actions until the first reaction, then at
+// the end of the reactions, so a message without any takes no extra line.
+const addInActions = computed(() => canReact.value && !reactions.value.length)
+
 const showActions = computed(
   () =>
     !busy.value &&
     (props.versions > 1 ||
       (props.copyable && !!text.value) ||
       (props.editable && isUser.value) ||
+      addInActions.value ||
       !!slots.actions),
 )
 
@@ -200,6 +218,7 @@ const rest = (part: AnyPart) => {
       ns.is('loading', loading),
       ns.is('editing', editing),
       ns.is('highlighted', highlighted),
+      ns.is('reacting', pickerOpen),
     ]"
     :aria-busy="busy || undefined"
     :aria-current="highlighted || undefined"
@@ -340,6 +359,42 @@ const rest = (part: AnyPart) => {
       </span>
     </div>
 
+    <div
+      v-if="reactions.length && !editing"
+      :class="ns.e('reactions')"
+      role="group"
+      :aria-label="t('chat.reactions')"
+    >
+      <DouTooltip
+        v-for="reaction in reactions"
+        :key="reaction.emoji"
+        :content="reaction.label ?? reactionLabel(reaction)"
+      >
+        <button
+          type="button"
+          :class="[ns.e('reaction'), ns.is('reacted', !!reaction.reacted)]"
+          :aria-pressed="!!reaction.reacted"
+          :aria-label="reactionLabel(reaction)"
+          @click="react(reaction.emoji)"
+        >
+          <span :class="ns.e('reaction-emoji')">
+            <slot name="reaction" :reaction="reaction">{{ reaction.emoji }}</slot>
+          </span>
+          <span :class="ns.e('reaction-count')">{{ reaction.count }}</span>
+        </button>
+      </DouTooltip>
+      <DouTooltip v-if="canReact" :content="t('chat.addReaction')">
+        <DouPopover v-model:open="pickerOpen" placement="top-start">
+          <DouButton variant="ghost" size="sm" :aria-label="t('chat.addReaction')">
+            <SmilePlusIcon />
+          </DouButton>
+          <template #content="{ close }">
+            <slot name="reaction-picker" :react="react" :close="close" />
+          </template>
+        </DouPopover>
+      </DouTooltip>
+    </div>
+
     <div v-if="showActions && !editing" :class="ns.e('actions')">
       <div
         v-if="versions > 1"
@@ -372,6 +427,16 @@ const rest = (part: AnyPart) => {
         <DouButton variant="ghost" size="sm" :aria-label="t('chat.edit')" @click="startEdit">
           <EditIcon />
         </DouButton>
+      </DouTooltip>
+      <DouTooltip v-if="addInActions" :content="t('chat.addReaction')">
+        <DouPopover v-model:open="pickerOpen" placement="top-start">
+          <DouButton variant="ghost" size="sm" :aria-label="t('chat.addReaction')">
+            <SmilePlusIcon />
+          </DouButton>
+          <template #content="{ close }">
+            <slot name="reaction-picker" :react="react" :close="close" />
+          </template>
+        </DouPopover>
       </DouTooltip>
       <slot name="actions" />
     </div>

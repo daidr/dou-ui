@@ -47,6 +47,12 @@
       grid-row: 1;
       margin-bottom: 6px;
     }
+
+    & > .dou-chat-message__reactions {
+      grid-row: 3;
+      justify-content: flex-end;
+      margin-top: 6px;
+    }
   }
 
   .dou-chat-message--system {
@@ -165,7 +171,8 @@
     }
 
     .dou-chat-message--actions-hover:hover > &,
-    .dou-chat-message--actions-hover:focus-within > & {
+    .dou-chat-message--actions-hover:focus-within > &,
+    .dou-chat-message--actions-hover.is-reacting > & {
       opacity: 1;
     }
 
@@ -175,6 +182,109 @@
         opacity: 1;
       }
     }
+  }
+
+  /*
+   * Reactions: a row of quiet chips under the message, each an emoji and
+   * a count. The person's own reaction is tinted with the primary color,
+   * like a pressed toggle, without filling it in.
+   */
+  .dou-chat-message__reactions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    max-width: 100%;
+    color: var(--dou-color-text-tertiary);
+
+    & > .dou-button--ghost:not(:hover, :focus-visible) {
+      color: inherit;
+    }
+  }
+
+  .dou-chat-message__reaction {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    box-sizing: border-box;
+    height: 24px;
+    padding: 0 8px 0 6px;
+    margin: 0;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-full);
+    background-color: var(--dou-color-bg-surface);
+    color: var(--dou-color-text-secondary);
+    font: inherit;
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    transition-property: background-color, border-color, color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    &:hover {
+      border-color: var(--dou-color-border-strong);
+      background-color: color-mix(in oklab, var(--dou-color-text) 4%, var(--dou-color-bg-surface));
+      color: var(--dou-color-text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 1px;
+    }
+
+    &.is-reacted {
+      border-color: color-mix(in oklab, var(--dou-color-primary-text) 45%, var(--dou-color-border));
+      background-color: color-mix(
+        in oklab,
+        var(--dou-color-primary) 10%,
+        var(--dou-color-bg-surface)
+      );
+      color: var(--dou-color-primary-text);
+    }
+
+    &.is-reacted:hover {
+      border-color: color-mix(in oklab, var(--dou-color-primary-text) 65%, var(--dou-color-border));
+      background-color: color-mix(
+        in oklab,
+        var(--dou-color-primary) 14%,
+        var(--dou-color-bg-surface)
+      );
+    }
+
+    /* a finger gets a 40px target without spacing the chips apart */
+    @media (pointer: coarse) {
+      &::after {
+        position: absolute;
+        inset: -8px -2px;
+        content: '';
+      }
+    }
+  }
+
+  .dou-chat-message__reaction-emoji {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 16px;
+    height: 16px;
+    font-size: 14px;
+    line-height: 16px;
+
+    & > img,
+    & > svg {
+      width: 16px;
+      height: 16px;
+    }
+  }
+
+  .dou-chat-message__reaction-count {
+    font-weight: var(--dou-font-weight-medium);
+    font-variant-numeric: tabular-nums;
+    text-box: trim-both cap alphabetic;
   }
 
   .dou-chat-message__versions {

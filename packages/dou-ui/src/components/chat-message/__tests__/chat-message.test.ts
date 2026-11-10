@@ -242,4 +242,84 @@ describe('DouChatMessage', () => {
     expect(wrapper.findAll('.mark')).toHaveLength(1)
     expect(wrapper.find('.dou-chat-reasoning .mark').exists()).toBe(false)
   })
+  describe('reactions', () => {
+    const reactions = [
+      { emoji: '👍', count: 2, reacted: true, label: '戴兜和小王' },
+      { emoji: '🎉', count: 1 },
+      { emoji: '👀', count: 0 },
+    ]
+
+    it('shows reactions with a count under the message and reports presses', async () => {
+      const wrapper = mount(DouChatMessage, { props: { content: '周六去滴水湖。', reactions } })
+      const chips = wrapper.findAll('.dou-chat-message__reaction')
+      // a reaction at 0 is left out
+      expect(chips.map((chip) => chip.text())).toEqual(['👍2', '🎉1'])
+      expect(chips[0]!.attributes('aria-pressed')).toBe('true')
+      expect(chips[1]!.attributes('aria-pressed')).toBe('false')
+      expect(chips[1]!.attributes('aria-label')).toBe('🎉 1 人')
+      await chips[0]!.trigger('click')
+      expect(wrapper.emitted('react')).toEqual([['👍']])
+      // the row follows the parts, before the actions
+      const order = [...wrapper.element.children].map((el) => el.className.split(' ')[0])
+      expect(order).toEqual([
+        'dou-chat-message__content',
+        'dou-chat-message__reactions',
+        'dou-chat-message__actions',
+      ])
+    })
+
+    it('offers no add button without a picker', () => {
+      const wrapper = mount(DouChatMessage, { props: { content: '好', reactions } })
+      expect(wrapper.find('button[aria-label="添加回应"]').exists()).toBe(false)
+    })
+
+    it('puts the add button among the actions until the first reaction', async () => {
+      const wrapper = mount(DouChatMessage, {
+        props: { content: '好' },
+        slots: { 'reaction-picker': () => h('i') },
+      })
+      expect(wrapper.find('.dou-chat-message__reactions').exists()).toBe(false)
+      expect(
+        wrapper.find('.dou-chat-message__actions button[aria-label="添加回应"]').exists(),
+      ).toBe(true)
+      await wrapper.setProps({ reactions })
+      expect(
+        wrapper.find('.dou-chat-message__actions button[aria-label="添加回应"]').exists(),
+      ).toBe(false)
+      expect(
+        wrapper.find('.dou-chat-message__reactions button[aria-label="添加回应"]').exists(),
+      ).toBe(true)
+    })
+
+    it('reacts from the picker and closes it', async () => {
+      const wrapper = mount(DouChatMessage, {
+        props: { content: '好' },
+        attachTo: document.body,
+        slots: {
+          'reaction-picker': ({ react }: { react: (emoji: string) => void }) =>
+            h('button', { class: 'pick', onClick: () => react('🚀') }, '🚀'),
+        },
+      })
+      await wrapper.get('button[aria-label="添加回应"]').trigger('click')
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      const pick = document.querySelector<HTMLButtonElement>('.pick')!
+      expect(wrapper.classes()).toContain('is-reacting')
+      pick.click()
+      await wrapper.vm.$nextTick()
+      expect(wrapper.emitted('react')).toEqual([['🚀']])
+      expect(wrapper.classes()).not.toContain('is-reacting')
+      wrapper.unmount()
+    })
+
+    it('renders the emoji with the `reaction` slot', () => {
+      const wrapper = mount(DouChatMessage, {
+        props: { content: '好', reactions: [{ emoji: 'party', count: 3 }] },
+        slots: {
+          reaction: ({ reaction }: { reaction: { emoji: string } }) =>
+            h('img', { alt: reaction.emoji }),
+        },
+      })
+      expect(wrapper.get('.dou-chat-message__reaction img').attributes('alt')).toBe('party')
+    })
+  })
 })

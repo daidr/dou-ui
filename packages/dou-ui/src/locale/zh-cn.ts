@@ -489,6 +489,9 @@ export const zhCN: Locale = {
     versions: '回复版本',
     previousVersion: '上一个版本',
     nextVersion: '下一个版本',
+    reactions: '回应',
+    reaction: '{emoji} {count} 人',
+    addReaction: '添加回应',
   },
   findReplace: {
     label: '查找和替换',

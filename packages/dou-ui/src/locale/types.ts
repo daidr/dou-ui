@@ -728,6 +728,12 @@ export interface Locale {
     versions: string
     previousVersion: string
     nextVersion: string
+    /** Names the row of reactions. */
+    reactions: string
+    /** Names a reaction, with `{emoji}` and `{count}`. */
+    reaction: string
+    /** The button that opens the reaction picker. */
+    addReaction: string
   }
   findReplace: {
     /** Names the panel. */

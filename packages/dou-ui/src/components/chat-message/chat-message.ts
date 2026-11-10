@@ -24,6 +24,18 @@ export type ChatMessageSender = 'user' | 'assistant' | 'system'
 /** When the actions under a message show. */
 export type ChatMessageActionsVisible = 'always' | 'hover'
 
+/** One kind of reaction on a message, e.g. 👍 from three people. */
+export interface ChatMessageReaction {
+  /** The emoji, or any key the app knows the reaction by; shown as is unless the `reaction` slot renders it. */
+  emoji: string
+  /** How many reacted this way. A reaction at 0 is not shown. */
+  count: number
+  /** The person reacted this way too; pressing it again takes theirs back. */
+  reacted?: boolean
+  /** Shown on hover, e.g. who reacted; left out, it reads the emoji and the count. */
+  label?: string
+}
+
 export interface ChatTextPart {
   type: 'text'
   text: string
@@ -161,6 +173,12 @@ export interface ChatMessageProps {
    * moment. Pair it with ChatList's `scrollToMessage`.
    */
   highlighted?: boolean
+  /**
+   * The reactions under the message, each with how many reacted and
+   * whether the person did. Pressing one emits `react`; the app adds or
+   * takes back the person's reaction itself.
+   */
+  reactions?: ChatMessageReaction[]
 }
 
 export interface ChatMessageEmits {
@@ -173,6 +191,11 @@ export interface ChatMessageEmits {
   artifact: [part: ChatArtifactPart]
   /** An option of a question part was pressed, with its `value` and the option itself. */
   question: [part: ChatQuestionPart, value: string | number, option: ChatQuestionOption]
+  /**
+   * A reaction was pressed, or picked in the `reaction-picker` slot: add
+   * the person's reaction, or take it back if `reacted` was on.
+   */
+  react: [emoji: string]
 }
 
 export interface ChatMessageSlots {
@@ -198,6 +221,14 @@ export interface ChatMessageSlots {
    * once `loading` is off.
    */
   trailing?: () => unknown
+  /**
+   * The panel opened by the add-reaction button, e.g. a row of common
+   * emoji. Without it there is no add button. `react(emoji)` emits `react`
+   * and closes the panel; `close` closes it without reacting.
+   */
+  'reaction-picker'?: (props: { react: (emoji: string) => void; close: () => void }) => unknown
+  /** Renders the emoji of a reaction, e.g. a custom image for an app's own key. */
+  reaction?: (props: { reaction: ChatMessageReaction }) => unknown
   /** Replaces all parts, for a message laid out by hand. */
   default?: () => unknown
 }

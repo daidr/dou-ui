@@ -69,6 +69,28 @@ app.use(DouUI, {
 
 开了 `markdown` 时，它跟在最后一段、标题、列表项或表格最后一格的末尾，最后一块是引用或 `:::` 自定义块时，它在框里面，和流式光标的位置一致；最后一块是代码块或分隔线时，单独占一行。用 `text` 插槽自己渲染文字时，它放在插槽内容后面；用默认插槽替换全部片段时不显示，需要自己放。
 
+## 回应
+
+`reactions` 显示在消息下方，每一项是一个表情和回应的人数，`reacted` 表示自己也回应过，这一项会带上主题色。人数为 0 的项不显示。`label` 是悬停时的提示，适合写上是谁回应的；不写时提示表情和人数。
+
+点击一项触发 `react`，参数是这个表情。消息本身不改动 `reactions`，由应用决定加上还是收回自己的回应，再把新的数组传回来。
+
+提供 `reaction-picker` 插槽后才会出现“添加回应”按钮，点击后在弹出层里显示插槽的内容。放什么由应用决定，几个常用表情、完整的表情选择器或者自己的贴纸都可以。插槽参数里的 `react(emoji)` 触发 `react` 并关闭弹出层，`close` 只关闭弹出层。消息还没有任何回应时，这个按钮放在操作里，跟着 `actions-visible` 显示，不会给每条消息多占一行；有了回应以后，它跟在回应的最后面。
+
+<DocDemo src="chat-message/reactions" column />
+
+表情默认按文字显示。`emoji` 也可以是应用自己的标识，再用 `reaction` 插槽渲染成图片：
+
+```vue
+<DouChatMessage :reactions="reactions" @react="toggle">
+  <template #reaction="{ reaction }">
+    <img :src="stickers[reaction.emoji]" :alt="reaction.emoji" />
+  </template>
+</DouChatMessage>
+```
+
+每一项是一个按钮，带 `aria-pressed` 表示自己是否回应过；读屏软件读出表情和人数，`label` 作为补充说明。触屏上每一项的可点区域有 40px 高。
+
 ## 高亮
 
 `highlighted` 给消息加上主题色的描边：用户消息的描边贴着气泡，助手消息的描边在文字外侧 4px。打开时一直显示，关掉后淡出（减少动效时很快消失），所以通常过一两秒再关掉。高亮的消息带 `aria-current="true"`。配合 DouChatList 的 [`scrollToMessage`](./chat-list#定位到某条消息) 使用。
@@ -106,24 +128,37 @@ app.use(DouUI, {
 | `versions`        | 共有几个版本，大于 1 时显示切换器                                              | `number`                            | `1`                                 |
 | `version`         | 当前版本，从 1 开始，配合 `v-model:version`                                    | `number`                            | 最后一个版本                        |
 | `highlighted`     | 用主题色的描边框住这条消息，比如搜索定位到它时；关掉后淡出，减少动效时很快消失 | `boolean`                           | `false`                             |
+| `reactions`       | 消息下方的回应，见[回应](#回应)                                                | `ChatMessageReaction[]`             | —                                   |
 
 ### Events
 
-| 名称             | 说明                       | 参数                                                                            |
-| ---------------- | -------------------------- | ------------------------------------------------------------------------------- |
-| `update:version` | 切换了版本                 | `(version: number)`                                                             |
-| `edit`           | 保存了编辑后的消息         | `(text: string)`                                                                |
-| `confirm`        | 回答了确认片段             | `(part: ChatConfirmPart, decision: 'approve' \| 'always' \| 'deny')`            |
-| `artifact`       | 点击了产物片段             | `(part: ChatArtifactPart)`                                                      |
-| `question`       | 在选项提问片段中点选了一项 | `(part: ChatQuestionPart, value: string \| number, option: ChatQuestionOption)` |
+| 名称             | 说明                                              | 参数                                                                            |
+| ---------------- | ------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `update:version` | 切换了版本                                        | `(version: number)`                                                             |
+| `edit`           | 保存了编辑后的消息                                | `(text: string)`                                                                |
+| `confirm`        | 回答了确认片段                                    | `(part: ChatConfirmPart, decision: 'approve' \| 'always' \| 'deny')`            |
+| `artifact`       | 点击了产物片段                                    | `(part: ChatArtifactPart)`                                                      |
+| `question`       | 在选项提问片段中点选了一项                        | `(part: ChatQuestionPart, value: string \| number, option: ChatQuestionOption)` |
+| `react`          | 点击了一项回应，或在 `reaction-picker` 里选了表情 | `(emoji: string)`                                                               |
 
 ### Slots
 
-| 名称         | 说明                                                                        |
-| ------------ | --------------------------------------------------------------------------- |
-| `text`       | 渲染文字片段，参数为 `{ part, text, index, sources }`                       |
-| `markdown-*` | Markdown 组件的同名插槽，如 `markdown-code`、`markdown-link`                |
-| `part`       | 渲染未知类型的片段，参数为 `{ part, index }`                                |
-| `actions`    | 追加在内置操作后面的按钮                                                    |
-| `trailing`   | 跟在最后一个文字片段末尾的内容，见[跟在文字后面的标记](#跟在文字后面的标记) |
-| `default`    | 替换全部片段，自己排版                                                      |
+| 名称              | 说明                                                                        |
+| ----------------- | --------------------------------------------------------------------------- |
+| `text`            | 渲染文字片段，参数为 `{ part, text, index, sources }`                       |
+| `markdown-*`      | Markdown 组件的同名插槽，如 `markdown-code`、`markdown-link`                |
+| `part`            | 渲染未知类型的片段，参数为 `{ part, index }`                                |
+| `actions`         | 追加在内置操作后面的按钮                                                    |
+| `trailing`        | 跟在最后一个文字片段末尾的内容，见[跟在文字后面的标记](#跟在文字后面的标记) |
+| `reaction-picker` | “添加回应”弹出层的内容，参数为 `{ react, close }`；不提供时没有添加按钮     |
+| `reaction`        | 渲染回应的表情，参数为 `{ reaction }`                                       |
+| `default`         | 替换全部片段，自己排版                                                      |
+
+### ChatMessageReaction
+
+| 字段      | 说明                                       | 类型      |
+| --------- | ------------------------------------------ | --------- |
+| `emoji`   | 表情，或应用自己用来区分回应的标识         | `string`  |
+| `count`   | 回应的人数，为 0 时不显示                  | `number`  |
+| `reacted` | 自己也回应过，再点一次表示收回             | `boolean` |
+| `label`   | 悬停提示，比如回应的人；不写时为表情和人数 | `string`  |

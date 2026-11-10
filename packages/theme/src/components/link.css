@@ -110,10 +110,35 @@
       white-space: nowrap;
     }
 
-    /* inline, so no gap: the icons keep their distance with a margin */
+    /* inline, so no gap: the icons keep their distance with a margin. The
+       box is one em tall with its content centred, and sits on the text by
+       its own bottom edge: the empty first item gives it that baseline, so
+       a DouStatusDot or DouAvatar lines up the same as an svg. No line
+       height inside, so an icon wrapped in a plain element is as tall as
+       the icon and centres the same way. */
     & .dou-link__icon {
       display: inline-flex;
+      align-items: center;
+      height: 1em;
+      line-height: 0;
       vertical-align: -0.125em;
+
+      &::before {
+        height: 1em;
+        content: '';
+      }
+    }
+
+    /* text in place of an icon (an arrow, an emoji) stays on the baseline
+       of the label beside it */
+    & .dou-link__icon:not(:has(> *)) {
+      height: auto;
+      line-height: inherit;
+      vertical-align: baseline;
+
+      &::before {
+        content: none;
+      }
     }
 
     & .dou-link__lead > .dou-link__icon:first-child {

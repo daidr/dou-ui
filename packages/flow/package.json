@@ -1,6 +1,6 @@
 {
   "name": "@dou-ui/flow",
-  "version": "0.1.0-alpha.12",
+  "version": "0.1.0-alpha.13",
   "description": "DouUI 的流程编辑器：在无限画布上拖动节点、连接端口",
   "keywords": [
     "vue",

@@ -28,6 +28,25 @@
 
 组上的 `size`、`disabled`、`name` 会传给组内的每一项；单项上的设置优先。
 
+## 单行省略
+
+文字按大写字母的高度居中（见[视觉语言](/guide/visual-language#垂直居中)），文字盒比字形矮。在标签里自己做单行省略时，用 `overflow-x: clip` 只横向裁切；用 `overflow: hidden` 会切掉中文的上下部分。
+
+```vue
+<DouCheckbox v-model="checked">
+  <span class="option-text">{{ text }}</span>
+</DouCheckbox>
+
+<style>
+.option-text {
+  display: block;
+  overflow-x: clip; /* 不要用 overflow: hidden */
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+</style>
+```
+
 ## API
 
 ### Checkbox Props

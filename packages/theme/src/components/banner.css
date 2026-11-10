@@ -119,10 +119,12 @@
     gap: 8px;
   }
 
-  /* links in a solid bar take its text color */
+  /* links in a solid bar take its text color, and a soft link a fill
+     made from it */
   .dou-banner--solid .dou-banner__action .dou-link,
   .dou-banner--solid .dou-banner__text .dou-link {
     --dou-link-tone: currentColor;
+    --dou-link-soft: color-mix(in oklab, currentColor 16%, transparent);
   }
 
   .dou-banner__close {

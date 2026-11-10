@@ -110,10 +110,21 @@
       white-space: nowrap;
     }
 
-    /* inline, so no gap: the icons keep their distance with a margin */
+    /* inline, so no gap: the icons keep their distance with a margin. The
+       box is one em tall with its content centred, and sits on the text by
+       its own bottom edge: the empty first item gives it that baseline, so
+       content with a baseline of its own (a status dot, a wrapped icon)
+       lines up the same as an svg */
     & .dou-link__icon {
       display: inline-flex;
+      align-items: center;
+      height: 1em;
       vertical-align: -0.125em;
+
+      &::before {
+        height: 1em;
+        content: '';
+      }
     }
 
     & .dou-link__lead > .dou-link__icon:first-child {

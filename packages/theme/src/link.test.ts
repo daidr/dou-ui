@@ -43,3 +43,16 @@ describe('link.css', () => {
       expect(rule).toContain(declaration)
   })
 })
+
+describe('icons of a soft link', () => {
+  // a flex container takes its baseline from its first item; an empty item
+  // one em tall makes that the bottom of the icon box, whatever the content
+  it('sit on the text by the bottom of a one-em box, not by their content', () => {
+    const at = css.indexOf('& .dou-link__icon {', css.indexOf('.dou-link--soft {'))
+    const block = css.slice(at, css.indexOf('}\n    }', at) + 1)
+    expect(block).toMatch(/height:\s*1em/)
+    expect(block).toMatch(/align-items:\s*center/)
+    expect(block).toMatch(/vertical-align:\s*-0\.125em/)
+    expect(block).toMatch(/&::before\s*\{[^}]*height:\s*1em[^}]*content:\s*''/)
+  })
+})

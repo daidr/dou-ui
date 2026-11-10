@@ -107,7 +107,7 @@
   }
   @media (pointer: coarse) {
     .dou-copy-button.dou-copy-button.is-field-action::after {
-      inset: min(0px, calc(50% - 20px)) 0;
+      inset: max(min(0px, calc(50% - 20px)), calc(-1 * var(--dou-field-action-reach, 0px))) 0;
     }
   }
 

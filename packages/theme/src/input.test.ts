@@ -53,3 +53,34 @@ describe('a button in the prefix or suffix', () => {
     )
   })
 })
+
+describe('the touch area of a button in the prefix or suffix', () => {
+  it('stops at the field’s outer edge, above and below as well', () => {
+    for (const [name, inset] of [
+      ['input', '--dou-input-action-inset'],
+      ['input-number', '--dou-input-number-action-inset'],
+    ]) {
+      expect(read(name!)).toMatch(
+        new RegExp(`--dou-field-action-reach:\\s*calc\\(var\\(${inset}\\) \\+ 1px\\)`),
+      )
+    }
+    for (const name of ['button', 'copy-button']) {
+      expect(read(name)).toMatch(
+        /is-field-action::after\s*\{[^}]*inset:\s*max\(\s*min\(0px, calc\(50% - 20px\)\),\s*calc\(-1 \* var\(--dou-field-action-reach, 0px\)\)\s*\)\s*0/,
+      )
+    }
+    expect(read('input')).toMatch(
+      /\.dou-input__suffix\.is-edge-action \.is-field-action:last-child::after\s*\{[^}]*calc\(-1 \* var\(--dou-field-action-reach\)\)/,
+    )
+  })
+
+  it('grows inwards only right after the text, never over clear, reveal or count', () => {
+    const inward = [
+      ...read('input').matchAll(/([^{}]*)\.is-field-action:only-child::after\s*\{/g),
+    ].map((m) => m[1]!.trim())
+    expect(inward).toHaveLength(2)
+    expect(inward.find((s) => s.includes('__suffix'))).toMatch(
+      /^\.dou-input__native \+ \.dou-input__suffix\.is-edge-action$/,
+    )
+  })
+})

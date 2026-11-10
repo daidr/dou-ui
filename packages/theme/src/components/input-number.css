@@ -31,6 +31,8 @@
     /* a button in the prefix or suffix: its gap to the inner edge, on every
        side, and the height that leaves it */
     --dou-input-number-action-inset: 2px;
+    /* how far a button's touch area may reach past it: to the outer edge */
+    --dou-field-action-reach: calc(var(--dou-input-number-action-inset) + 1px);
     --dou-field-action-size: calc(
       var(--dou-input-number-height) - 2px - 2 * var(--dou-input-number-action-inset)
     );
@@ -112,31 +114,36 @@
   }
 
   /* on touch screens a narrow button at the start or end takes taps up to
-     40px wide: outwards only as far as the field's outer edge, since the
-     field may sit right against another control in a field group, and
-     inwards for the rest when no other button sits beside it */
+     40px wide, but never past the field's outer edge, where another control
+     may sit in a field group. The rest comes from the inner side when the
+     button stands alone next to the text, at most half the gap to it; a
+     clear or reveal button there keeps its own taps. */
   @media (pointer: coarse) {
     .dou-input-number__prefix.is-edge-action .is-field-action:first-child::after {
       inset-inline-start: max(
         min(0px, calc(100% - 40px)),
-        calc(-1 * (var(--dou-input-number-action-inset) + 1px))
+        calc(-1 * var(--dou-field-action-reach))
       );
     }
     .dou-input-number__prefix.is-edge-action .is-field-action:only-child::after {
-      inset-inline-end: min(0px, calc(100% - 40px + var(--dou-input-number-action-inset) + 1px));
+      inset-inline-end: max(
+        min(0px, calc(100% - 40px + var(--dou-field-action-reach))),
+        calc(var(--dou-input-number-gap) / -2)
+      );
     }
     .dou-input-number:not(.is-controls)
       > .dou-input-number__suffix.is-edge-action
       .is-field-action:last-child::after {
-      inset-inline-end: max(
-        min(0px, calc(100% - 40px)),
-        calc(-1 * (var(--dou-input-number-action-inset) + 1px))
-      );
+      inset-inline-end: max(min(0px, calc(100% - 40px)), calc(-1 * var(--dou-field-action-reach)));
     }
     .dou-input-number:not(.is-controls)
-      > .dou-input-number__suffix.is-edge-action
+      > .dou-input-number__native
+      + .dou-input-number__suffix.is-edge-action
       .is-field-action:only-child::after {
-      inset-inline-start: min(0px, calc(100% - 40px + var(--dou-input-number-action-inset) + 1px));
+      inset-inline-start: max(
+        min(0px, calc(100% - 40px + var(--dou-field-action-reach))),
+        calc(var(--dou-input-number-gap) / -2)
+      );
     }
   }
 

@@ -7,6 +7,16 @@ DouUI 的所有包（`dou-ui`、`@dou-ui/theme`、`@dou-ui/icons` 以及生态�
 
 这个文件由发版脚本生成：改动先以碎片文件记在 [`.changes/`](./.changes/README.md) 里，发布时汇总到这里。
 
+## 0.1.0-alpha.14 · 2026-11-10
+
+### 新增
+
+- **dou-ui、@dou-ui/theme**：DouInput 和 DouInputNumber 的前缀、后缀里可以放 DouButton 或 DouCopyButton：按钮的高度跟随输入框尺寸，随输入框一起禁用；按钮位于最前或最后时，它的底色与输入框上、下和该侧边框的距离相同，聚焦环也落在这段距离之内。这段距离可用 `--dou-input-action-inset`、`--dou-input-number-action-inset` 调整，默认 2px。触屏上这类按钮上下方向至少有 40px 的点按范围。 ([#427](https://github.com/daidr/dou-ui/pull/427))
+
+### 修复
+
+- **@dou-ui/theme**：DouTooltip 的 `content` 插槽里的 DouLink 跟随提示的文字色（`tone` 不生效），浅色主题下不再是深色字落在深色底上，下划线和外链箭头也一样；`soft` 链接的底色由提示的文字色混出。DouBanner 的 `solid` 横幅里，`soft` 链接在中性横幅上同样改用由文字色混出的底色，在彩色横幅上改为带下划线的普通样式，不再是浅灰底上的浅色字。 ([#426](https://github.com/daidr/dou-ui/pull/426))
+
 ## 0.1.0-alpha.13 · 2026-11-10
 
 ### 不兼容

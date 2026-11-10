@@ -539,3 +539,48 @@ describe('undo while editing together', () => {
     for (const side of [view, peer]) expect(textOf(side, 'n2')).toBe('对方改的')
   })
 })
+
+const addButton = () => [
+  ...document.querySelectorAll<HTMLButtonElement>('.dou-editor-board__add button'),
+]
+const nodesOf = (view: EditorView, id: string) => boardIn(view, id).nodes
+
+describe('adding nodes', () => {
+  it('offers a node with ports in a flow block, added as one undo step', async () => {
+    const { wrapper, view, flow } = await open([{ id: 'f', type: 'approval' }])
+    await wrapper.find('.dou-editor-board__empty button').trigger('click')
+    await nextTick()
+    await nextTick()
+    expect(document.querySelector('.dou-editor-board__hint')?.textContent).toContain('添加节点')
+    const [button] = addButton()
+    expect(button?.textContent).toContain('添加节点')
+    button!.click()
+    await nextTick()
+    const [added] = nodesOf(view, 'f')
+    expect(added?.data).toMatchObject({
+      label: '节点',
+      inputs: [{ id: 'in' }],
+      outputs: [{ id: 'out' }],
+    })
+    expect(document.querySelector('.dou-editor-board__hint')).toBeNull()
+    // the next one is joined to it
+    addButton()[0]!.click()
+    await nextTick()
+    expect(nodesOf(view, 'f')).toHaveLength(2)
+    expect(boardIn(view, 'f').edges).toHaveLength(1)
+    expect(flow()!.vm.undo()).toBe(true)
+    expect(nodesOf(view, 'f')).toHaveLength(1)
+  })
+
+  it('leaves the button out of a whiteboard, which has its own tools', async () => {
+    const { openBoard } = await open()
+    await openBoard()
+    expect(addButton()).toHaveLength(0)
+  })
+
+  it('leaves it out when read-only', async () => {
+    const { openBoard } = await open(START, true)
+    await openBoard()
+    expect(addButton()).toHaveLength(0)
+  })
+})

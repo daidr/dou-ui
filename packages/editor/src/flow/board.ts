@@ -14,6 +14,8 @@ export interface BoardBlockSettings {
   extensions: (FlowExtension | FlowExtension[])[]
   editorProps: FlowBlockEditorProps
   height: number
+  /** The extensions are the default ones: a node type of its own, with ports, is offered to add. */
+  builtIn: boolean
 }
 
 /** The items of a list that are objects. */

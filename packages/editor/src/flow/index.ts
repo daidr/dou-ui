@@ -102,6 +102,7 @@ export function flowBlock(options: FlowBlockOptions): EditorExtension {
     extensions: options.extensions ?? [flowKit()],
     editorProps: options.editorProps ?? {},
     height: options.height ?? 360,
+    builtIn: !options.extensions,
   }
   const View = defineComponent({
     name: 'DouEditorFlowBlockView',

@@ -1,16 +1,19 @@
 <script setup lang="ts">
 import {
+  defaultNode,
+  defineNodeType,
   DouFlowControls,
   DouFlowEditor,
   defineFlowExtension,
+  type NodeTypeSpec,
   type FlowDocument,
   type FlowExtension,
   type FlowHistoryHandler,
   type FlowNode,
   type FlowTransaction,
 } from '@dou-ui/flow'
-import { EyeIcon, PencilIcon } from '@dou-ui/icons'
-import { DouButton, DouDialog } from 'dou-ui'
+import { EyeIcon, PencilIcon, PlusIcon, SquareIcon } from '@dou-ui/icons'
+import { DouButton, DouDialog, DouPopover } from 'dou-ui'
 import { NodeSelection } from 'prosemirror-state'
 import {
   computed,
@@ -323,6 +326,36 @@ const bridge: FlowExtension = defineFlowExtension({
 })
 const extensions = [...props.settings.extensions, bridge]
 
+/*
+ * Adding nodes: the types the extensions offer (`palette`), from a button
+ * at the top left; with the default extensions, a node of its own with an
+ * input and an output, so what is added can be connected right away.
+ */
+const nodeTypes = computed(() => {
+  const given = (props.settings.editorProps.nodeTypes ?? []) as NodeTypeSpec[]
+  if (!props.settings.builtIn) return given
+  const name = text.value.node
+  const step = defineNodeType({
+    ...defaultNode,
+    defaults: () => ({ label: name, inputs: [{ id: 'in' }], outputs: [{ id: 'out' }] }),
+    palette: { label: name, icon: SquareIcon },
+  }) as unknown as NodeTypeSpec
+  return [step, ...given]
+})
+const full = useTemplateRef<InstanceType<typeof DouFlowEditor>>('full')
+const palette = computed(() => (props.editable ? (full.value?.paletteTypes ?? []) : []))
+const adding = shallowRef(false)
+
+function addNode(type: string) {
+  adding.value = false
+  full.value?.insertNode(type)
+}
+function dragNode(type: string, event: PointerEvent) {
+  full.value?.startInsertDrag(type, event)
+  // the list goes once the node is dropped, or the drag ends otherwise
+  window.addEventListener('pointerup', () => (adding.value = false), { once: true })
+}
+
 /* changing the height: drag the bar under the block, or the arrow keys on it */
 function onResizeStart(event: PointerEvent) {
   if (event.button !== 0) return
@@ -388,6 +421,7 @@ function resetHeight() {
         :model-value="shown"
         v-bind="settings.editorProps"
         :extensions="settings.extensions"
+        :node-types="nodeTypes"
         readonly
         fit-view
         :fit-min-zoom="0.05"
@@ -442,9 +476,11 @@ function resetHeight() {
     >
       <div ref="canvas" class="dou-editor-board__editor" data-editor-control>
         <DouFlowEditor
+          ref="full"
           :model-value="board"
           v-bind="settings.editorProps"
           :extensions="extensions"
+          :node-types="nodeTypes"
           :readonly="!editable"
           fit-view
           :fit-min-zoom="0.1"
@@ -454,6 +490,43 @@ function resetHeight() {
           @transaction="forward"
         >
           <DouFlowControls />
+          <div v-if="palette.length" class="dou-editor-board__add">
+            <DouButton
+              v-if="palette.length === 1"
+              size="sm"
+              variant="outline"
+              @pointerdown="dragNode(palette[0]!.type, $event)"
+              @click="addNode(palette[0]!.type)"
+            >
+              <template #leading><PlusIcon /></template>
+              {{ text.addNode }}
+            </DouButton>
+            <DouPopover v-else v-model:open="adding" placement="bottom-start">
+              <DouButton size="sm" variant="outline">
+                <template #leading><PlusIcon /></template>
+                {{ text.addNode }}
+              </DouButton>
+              <template #content>
+                <div class="dou-editor-board__types" role="group" :aria-label="text.addNode">
+                  <button
+                    v-for="spec in palette"
+                    :key="spec.type"
+                    type="button"
+                    class="dou-editor-board__type"
+                    :title="spec.palette?.description"
+                    @pointerdown="dragNode(spec.type, $event)"
+                    @click="addNode(spec.type)"
+                  >
+                    <component :is="spec.palette?.icon" v-if="spec.palette?.icon" />
+                    {{ spec.palette?.label ?? spec.type }}
+                  </button>
+                </div>
+              </template>
+            </DouPopover>
+          </div>
+          <p v-if="palette.length && !board.nodes.length" class="dou-editor-board__hint">
+            {{ text.emptyFlow }}
+          </p>
         </DouFlowEditor>
       </div>
     </DouDialog>

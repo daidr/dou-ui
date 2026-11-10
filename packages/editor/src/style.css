@@ -2121,6 +2121,73 @@
     }
   }
 
+  /* adding nodes to a flow: a button at the top left, a list when there are several types */
+  .dou-editor-board__add {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    border-radius: var(--dou-radius-control);
+    box-shadow: var(--dou-shadow-sm);
+  }
+
+  .dou-editor-board__types {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 160px;
+    margin: -4px;
+  }
+
+  .dou-editor-board__type {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 32px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: var(--dou-radius-control);
+    background: none;
+    color: var(--dou-color-text);
+    font: inherit;
+    font-size: var(--dou-font-size-sm);
+    text-align: start;
+    cursor: grab;
+
+    & > svg {
+      flex: none;
+      width: 16px;
+      height: 16px;
+      color: var(--dou-color-text-secondary);
+    }
+
+    &:hover {
+      background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: -2px;
+    }
+
+    @media (pointer: coarse) {
+      height: 40px;
+    }
+  }
+
+  .dou-flow-editor__panels > .dou-editor-board__hint {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max-content;
+    max-width: calc(100% - 48px);
+    margin: 0;
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    text-align: center;
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+  }
+
   .dou-editor-embed__link {
     overflow-x: clip;
     max-width: 100%;

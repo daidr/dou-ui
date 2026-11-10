@@ -900,7 +900,10 @@ describe('resize handles', () => {
     // the frame that draws the outline is the size being dragged to, not the board node alone
     expect(frame().attributes('style')).toContain('width: 100px')
     expect(frame().attributes('style')).toContain('height: 50px')
-    expect(frame().find('.dou-whiteboard-node').attributes('style') ?? '').not.toContain('width')
+    // it only passes its size on to its anchors and handles, as custom properties
+    const board = frame().find('.dou-whiteboard-node').element as HTMLElement
+    expect(board.style.width).toBe('')
+    expect(board.style.getPropertyValue('--dou-whiteboard-frame-width')).toBe('100px')
     expect(path()).not.toBe(before)
     // the handles sit on the frame's corners, so they move with it
     expect(at(root, '1,1').attributes('style')).toContain('left: 100%')
@@ -968,6 +971,9 @@ describe('resize handles', () => {
     const frame = layer.find('.dou-whiteboard-node__frame').element as HTMLElement
     expect(frame.style.getPropertyValue('--dou-whiteboard-frame-width')).toBe('64px')
     expect(frame.style.getPropertyValue('--dou-whiteboard-frame-height')).toBe('40px')
+    // so does the node, whose anchors keep short of the corner handles in turn
+    const board = root.find('[data-node-id="a"] .dou-whiteboard-node').element as HTMLElement
+    expect(board.style.getPropertyValue('--dou-whiteboard-frame-height')).toBe('40px')
     // and needs to know which way is into the node
     const corners = layer.findAll('.dou-whiteboard-node__corner')
     expect(corners).toHaveLength(4)

@@ -1494,20 +1494,18 @@
     --dou-whiteboard-corner-reach: 8px;
     /*
      * into the node, the target stops short of the anchor in the middle of
-     * each side, down to the corner itself: a small shape still connects
-     * from its anchors, and resizes from outside its corners. The handle is
-     * 1/zoom, so these are screen pixels and the node is scaled by the zoom.
+     * each side, but keeps the handle's own box: a small shape connects from
+     * its anchors and resizes from its corners. The handle is 1/zoom, so
+     * these are screen pixels and the node is scaled by the zoom.
      */
     --dou-whiteboard-corner-reach-x: clamp(
-      -5px,
-      var(--dou-whiteboard-frame-width, 100px) * var(--dou-flow-editor-zoom, 1) / 2 -
-        var(--dou-whiteboard-anchor-reach) - 5px,
+      0px,
+      var(--dou-whiteboard-half-width) - var(--dou-whiteboard-anchor-reach-x) - 5px,
       var(--dou-whiteboard-corner-reach)
     );
     --dou-whiteboard-corner-reach-y: clamp(
-      -5px,
-      var(--dou-whiteboard-frame-height, 100px) * var(--dou-flow-editor-zoom, 1) / 2 -
-        var(--dou-whiteboard-anchor-reach) - 5px,
+      0px,
+      var(--dou-whiteboard-half-height) - var(--dou-whiteboard-anchor-reach-y) - 5px,
       var(--dou-whiteboard-corner-reach)
     );
 
@@ -1650,17 +1648,46 @@
    * how far a selected node's anchor takes a pointer from its centre; the
    * corner handles, drawn above, keep their targets short of it
    */
-  .dou-whiteboard-handles,
-  .dou-whiteboard-node {
+  .dou-whiteboard-node,
+  .dou-whiteboard-node__frame {
     --dou-whiteboard-anchor-reach: 6px;
+    /* half the node on screen, across and down */
+    --dou-whiteboard-half-width: calc(
+      var(--dou-whiteboard-frame-width, 100px) * var(--dou-flow-editor-zoom, 1) / 2
+    );
+    --dou-whiteboard-half-height: calc(
+      var(--dou-whiteboard-frame-height, 100px) * var(--dou-flow-editor-zoom, 1) / 2
+    );
+    /*
+     * towards the corners, never past the 10px corner handle, nor less than
+     * its own 8px dot: the top and bottom anchors look along the width, the
+     * left and right ones along the height
+     */
+    --dou-whiteboard-anchor-reach-x: clamp(
+      4px,
+      var(--dou-whiteboard-half-width) - 5px,
+      var(--dou-whiteboard-anchor-reach)
+    );
+    --dou-whiteboard-anchor-reach-y: clamp(
+      4px,
+      var(--dou-whiteboard-half-height) - 5px,
+      var(--dou-whiteboard-anchor-reach)
+    );
 
     @media (pointer: coarse) {
       --dou-whiteboard-anchor-reach: 10px;
     }
   }
-  .dou-whiteboard-node.is-selected .dou-whiteboard-node__anchor::before {
-    /* past the 8px dot */
-    inset: calc(4px - var(--dou-whiteboard-anchor-reach));
+  .dou-whiteboard-node.is-selected .dou-whiteboard-node__anchor {
+    &.is-top::before,
+    &.is-bottom::before {
+      /* past the 8px dot */
+      inset: calc(4px - var(--dou-whiteboard-anchor-reach-x));
+    }
+    &.is-left::before,
+    &.is-right::before {
+      inset: calc(4px - var(--dou-whiteboard-anchor-reach-y));
+    }
   }
 
   .dou-whiteboard-node__anchors {

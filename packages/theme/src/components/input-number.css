@@ -28,6 +28,14 @@
     );
     --dou-input-number-ring: color-mix(in oklab, var(--dou-color-focus) 32%, transparent);
     --dou-input-number-shadow: var(--dou-shadow-sm);
+    /* a button in the prefix or suffix: its gap to the inner edge, on every
+       side, and the height that leaves it */
+    --dou-input-number-action-inset: 2px;
+    /* how far a button's touch area may reach past it; enough for 40px */
+    --dou-field-action-reach: 20px;
+    --dou-field-action-size: calc(
+      var(--dou-input-number-height) - 2px - 2 * var(--dou-input-number-action-inset)
+    );
 
     display: inline-flex;
     align-items: center;
@@ -93,6 +101,53 @@
       --dou-input-number-shadow: none;
       color: var(--dou-color-text-disabled);
       cursor: not-allowed;
+    }
+  }
+
+  /* a button at the very start or end of the field takes the padding on
+     that side, so its fill sits as far from that edge as from the top */
+  .dou-input-number:has(> .dou-input-number__prefix.is-edge-action) {
+    padding-inline-start: var(--dou-input-number-action-inset);
+  }
+  .dou-input-number:not(.is-controls):has(> .dou-input-number__suffix.is-edge-action) {
+    padding-inline-end: var(--dou-input-number-action-inset);
+  }
+
+  /* on touch screens a narrow button at the start or end takes taps up to
+     40px wide and tall. In a field group the next control sits right against
+     the field, so there the taps stop at the field's outer edge (the gap,
+     the field's border and the button's own), and the rest comes from the
+     inner side when the button stands alone next to the text, at most half
+     the gap to it; a clear or reveal button there keeps its own taps. */
+  .dou-field-group > .dou-input-number {
+    --dou-field-action-reach: calc(var(--dou-input-number-action-inset) + 2px);
+  }
+  @media (pointer: coarse) {
+    .dou-input-number__prefix.is-edge-action .is-field-action:first-child::after {
+      inset-inline-start: max(
+        min(0px, calc(100% - 40px)),
+        calc(-1 * var(--dou-field-action-reach))
+      );
+    }
+    .dou-input-number__prefix.is-edge-action .is-field-action:only-child::after {
+      inset-inline-end: max(
+        min(0px, calc(100% - 40px + var(--dou-field-action-reach))),
+        calc(var(--dou-input-number-gap) / -2)
+      );
+    }
+    .dou-input-number:not(.is-controls)
+      > .dou-input-number__suffix.is-edge-action
+      .is-field-action:last-child::after {
+      inset-inline-end: max(min(0px, calc(100% - 40px)), calc(-1 * var(--dou-field-action-reach)));
+    }
+    .dou-input-number:not(.is-controls)
+      > .dou-input-number__native
+      + .dou-input-number__suffix.is-edge-action
+      .is-field-action:only-child::after {
+      inset-inline-start: max(
+        min(0px, calc(100% - 40px + var(--dou-field-action-reach))),
+        calc(var(--dou-input-number-gap) / -2)
+      );
     }
   }
 

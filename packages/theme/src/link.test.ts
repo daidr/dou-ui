@@ -52,7 +52,18 @@ describe('icons of a soft link', () => {
     const block = css.slice(at, css.indexOf('}\n    }', at) + 1)
     expect(block).toMatch(/height:\s*1em/)
     expect(block).toMatch(/align-items:\s*center/)
+    // a wrapper element around an icon must not stand a line tall
+    expect(block).toMatch(/line-height:\s*0/)
     expect(block).toMatch(/vertical-align:\s*-0\.125em/)
     expect(block).toMatch(/&::before\s*\{[^}]*height:\s*1em[^}]*content:\s*''/)
+  })
+
+  it('keep text in place of an icon on the label’s baseline', () => {
+    const at = css.indexOf('& .dou-link__icon:not(:has(> *)) {')
+    expect(at).toBeGreaterThan(-1)
+    const block = css.slice(at, css.indexOf('}\n    }', at) + 1)
+    expect(block).toMatch(/vertical-align:\s*baseline/)
+    expect(block).toMatch(/line-height:\s*inherit/)
+    expect(block).toMatch(/&::before\s*\{\s*content:\s*none/)
   })
 })

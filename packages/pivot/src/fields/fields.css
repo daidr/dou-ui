@@ -275,7 +275,11 @@
 
   .dou-pivot-filter__text {
     display: block;
-    overflow: hidden;
+    /*
+     * Clip sideways only: the checkbox label trims the line to the cap
+     * height, so clipping up and down would cut off the glyphs.
+     */
+    overflow-x: clip;
     text-overflow: ellipsis;
     white-space: nowrap;
   }

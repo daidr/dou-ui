@@ -1,4 +1,11 @@
-import type { FlowDocument, FlowEditorExpose } from '@dou-ui/flow'
+import {
+  defaultNode,
+  defineFlowExtension,
+  defineNodeType,
+  flowKit,
+  type FlowDocument,
+  type FlowEditorExpose,
+} from '@dou-ui/flow'
 import { mount } from '@vue/test-utils'
 import type { EditorView } from 'prosemirror-view'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -8,7 +15,7 @@ import { collaboration, fillMap } from '../../collaboration'
 import { findBlockById } from '../../core/blocks'
 import { blocksToHTML, htmlToBlocks } from '../../core/convert'
 import { createEditorView, getBlocks } from '../../core/editor'
-import { resolveEditorExtensions } from '../../core/extension'
+import { resolveEditorExtensions, type EditorExtension } from '../../core/extension'
 import type { EditorDocument, PartialBlock } from '../../core/model'
 import DouEditor from '../../editor.vue'
 import type { EditorExpose } from '../../editor'
@@ -303,13 +310,14 @@ function fullscreen() {
   }
 }
 
-async function open(blocks = START, readonly = false) {
+async function open(blocks = START, readonly = false, more: EditorExtension[] = []) {
   const value = ref<EditorDocument<PartialBlock>>({ version: 1, blocks })
   const editor = ref<EditorExpose>()
   const extensions = [
     editorKit(),
     whiteboardBlock(),
     flowBlock({ type: 'approval', label: '审批流程' }),
+    ...more,
   ]
   const wrapper = mount(
     defineComponent(
@@ -537,5 +545,120 @@ describe('undo while editing together', () => {
     await nextTick()
     expect(xOf(view, 'n1')).toBe(0)
     for (const side of [view, peer]) expect(textOf(side, 'n2')).toBe('对方改的')
+  })
+})
+
+const addButton = () => [
+  ...document.querySelectorAll<HTMLButtonElement>('.dou-editor-board__add button'),
+]
+const nodesOf = (view: EditorView, id: string) => boardIn(view, id).nodes
+
+const card = (type: string, label: string, group: string) =>
+  defineNodeType({
+    ...defaultNode,
+    type,
+    defaults: () => ({ label }),
+    palette: { label, group, description: `${label}的说明` },
+  })
+
+const reviewBlock = () =>
+  flowBlock({
+    type: 'review',
+    label: '审核',
+    extensions: [
+      flowKit(),
+      defineFlowExtension({
+        name: 'review',
+        nodeTypes: [
+          card('start', '开始', '起止'),
+          card('check', '审核', '处理'),
+          card('end', '结束', '起止'),
+        ],
+      }),
+    ],
+  })
+
+describe('adding nodes', () => {
+  it('offers a node with ports in a flow block, added as one undo step', async () => {
+    const { wrapper, view, flow } = await open([{ id: 'f', type: 'approval' }])
+    await wrapper.find('.dou-editor-board__empty button').trigger('click')
+    await nextTick()
+    await nextTick()
+    expect(document.querySelector('.dou-editor-board__hint')?.textContent).toContain('添加节点')
+    const [button] = addButton()
+    expect(button?.textContent).toContain('添加节点')
+    button!.click()
+    await nextTick()
+    const [added] = nodesOf(view, 'f')
+    expect(added?.data).toMatchObject({
+      label: '节点',
+      inputs: [{ id: 'in' }],
+      outputs: [{ id: 'out' }],
+    })
+    expect(document.querySelector('.dou-editor-board__hint')).toBeNull()
+    // the next one is joined to it
+    addButton()[0]!.click()
+    await nextTick()
+    expect(nodesOf(view, 'f')).toHaveLength(2)
+    expect(boardIn(view, 'f').edges).toHaveLength(1)
+    expect(flow()!.vm.undo()).toBe(true)
+    expect(nodesOf(view, 'f')).toHaveLength(1)
+  })
+
+  it('offers the same node when flowKit() is given', async () => {
+    const block = flowBlock({ type: 'plain', label: '流程', extensions: [flowKit()] })
+    const { wrapper } = await open([{ id: 'f', type: 'plain' }], false, [block])
+    await wrapper.find('.dou-editor-board__empty button').trigger('click')
+    await nextTick()
+    await nextTick()
+    expect(addButton()[0]?.textContent).toContain('添加节点')
+  })
+
+  it('lists several types in groups, searchable, each one added on choosing it', async () => {
+    const { wrapper, view } = await open([{ id: 'r', type: 'review' }], false, [reviewBlock()])
+    await wrapper.find('.dou-editor-board__empty button').trigger('click')
+    await nextTick()
+    await nextTick()
+    addButton()[0]!.click()
+    await nextTick()
+    await nextTick()
+    const list = document.querySelector('.dou-editor-board__types')!
+    expect(list.querySelectorAll('.dou-command__group').length).toBeGreaterThan(0)
+    expect(list.textContent).toContain('审核的说明')
+    list.querySelector<HTMLElement>('.dou-editor-board__type')!.click()
+    await nextTick()
+    expect(nodesOf(view, 'r')).toHaveLength(1)
+  })
+
+  it('gives the focus back to the button when a drag from the list ends off the canvas', async () => {
+    const { wrapper } = await open([{ id: 'r', type: 'review' }], false, [reviewBlock()])
+    await wrapper.find('.dou-editor-board__empty button').trigger('click')
+    await nextTick()
+    await nextTick()
+    const trigger = addButton()[0]!
+    trigger.click()
+    await nextTick()
+    await nextTick()
+    const list = document.querySelector('.dou-editor-board__types')!
+    list.querySelector<HTMLInputElement>('input')!.focus()
+    list
+      .querySelector('.dou-editor-board__type')!
+      .dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerId: 3 }))
+    window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0, pointerId: 3 }))
+    await nextTick()
+    await nextTick()
+    expect(document.activeElement).toBe(trigger)
+  })
+
+  it('leaves the button out of a whiteboard, which has its own tools', async () => {
+    const { openBoard } = await open()
+    await openBoard()
+    expect(addButton()).toHaveLength(0)
+  })
+
+  it('leaves it out when read-only', async () => {
+    const { openBoard } = await open(START, true)
+    await openBoard()
+    expect(addButton()).toHaveLength(0)
   })
 })

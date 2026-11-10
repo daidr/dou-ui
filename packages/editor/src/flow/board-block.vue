@@ -1,16 +1,19 @@
 <script setup lang="ts">
 import {
+  defaultNode,
+  defineNodeType,
   DouFlowControls,
   DouFlowEditor,
   defineFlowExtension,
+  type NodeTypeSpec,
   type FlowDocument,
   type FlowExtension,
   type FlowHistoryHandler,
   type FlowNode,
   type FlowTransaction,
 } from '@dou-ui/flow'
-import { EyeIcon, PencilIcon } from '@dou-ui/icons'
-import { DouButton, DouDialog } from 'dou-ui'
+import { EyeIcon, PencilIcon, PlusIcon, SquareIcon } from '@dou-ui/icons'
+import { DouButton, DouCommand, DouDialog, DouPopover, type CommandItem } from 'dou-ui'
 import { NodeSelection } from 'prosemirror-state'
 import {
   computed,
@@ -323,6 +326,90 @@ const bridge: FlowExtension = defineFlowExtension({
 })
 const extensions = [...props.settings.extensions, bridge]
 
+/*
+ * Adding nodes: the types the extensions offer (`palette`), from a button
+ * at the top left. When none is offered (`flowKit()` alone), a node of its
+ * own with an input and an output, so what is added can be connected right
+ * away.
+ */
+const offered = [
+  ...props.settings.extensions.flat(),
+  { nodeTypes: props.settings.editorProps.nodeTypes ?? [] },
+].some((extension) => extension.nodeTypes?.some((spec) => spec.palette))
+const nodeTypes = computed(() => {
+  const given = (props.settings.editorProps.nodeTypes ?? []) as NodeTypeSpec[]
+  if (offered || !props.settings.fallbackNode) return given
+  const name = text.value.node
+  const step = defineNodeType({
+    ...defaultNode,
+    defaults: () => ({ label: name, inputs: [{ id: 'in' }], outputs: [{ id: 'out' }] }),
+    palette: { label: name, icon: SquareIcon },
+  }) as unknown as NodeTypeSpec
+  return [step, ...given]
+})
+const full = useTemplateRef<InstanceType<typeof DouFlowEditor>>('full')
+const palette = computed(() => (props.editable ? (full.value?.paletteTypes ?? []) : []))
+/* several types: the same searchable list as when an edge is dropped on the canvas */
+const adding = shallowRef(false)
+const query = shallowRef('')
+const addTrigger = useTemplateRef<InstanceType<typeof DouButton>>('addTrigger')
+const command = useTemplateRef<InstanceType<typeof DouCommand>>('command')
+const items = computed<CommandItem[]>(() =>
+  palette.value.map((spec) => ({
+    value: spec.type,
+    label: spec.palette!.label,
+    group: spec.palette!.group,
+    description: spec.palette!.description,
+    keywords: spec.palette!.keywords,
+    icon: spec.palette!.icon,
+  })),
+)
+watch(adding, (value) => {
+  if (!value) return
+  query.value = ''
+  // a phone's keyboard would cover the list: search only with a mouse
+  if (!matchMedia('(pointer: coarse)').matches) void nextTick(() => command.value?.focus())
+})
+
+function addNode(type: string) {
+  adding.value = false
+  full.value?.insertNode(type)
+}
+function dragNode(type: string, event: PointerEvent) {
+  if (event.button !== 0) return
+  full.value?.startInsertDrag(type, event)
+  // the list goes once the node is dropped, or the drag ends otherwise
+  window.addEventListener(
+    'pointerup',
+    () => {
+      if (!adding.value) return
+      adding.value = false
+      // a drag let go of (or cancelled) off the canvas: back to the button
+      void nextTick(() => {
+        // the list may not be hidden yet: focus still in its search field
+        const active = document.activeElement
+        const list = command.value?.$el as HTMLElement | undefined
+        if (!active || active === document.body || list?.contains(active))
+          (addTrigger.value?.$el as HTMLElement | undefined)?.focus({ preventScroll: true })
+      })
+    },
+    { once: true },
+  )
+}
+
+/** A label cut into the letters the search matched and the rest. */
+function parts(name: string, indices: number[]) {
+  const hit = new Set(indices)
+  const out: { text: string; match: boolean }[] = []
+  for (let i = 0; i < name.length; i++) {
+    const match = hit.has(i)
+    const last = out[out.length - 1]
+    if (last && last.match === match) last.text += name[i]
+    else out.push({ text: name[i]!, match })
+  }
+  return out
+}
+
 /* changing the height: drag the bar under the block, or the arrow keys on it */
 function onResizeStart(event: PointerEvent) {
   if (event.button !== 0) return
@@ -388,6 +475,7 @@ function resetHeight() {
         :model-value="shown"
         v-bind="settings.editorProps"
         :extensions="settings.extensions"
+        :node-types="nodeTypes"
         readonly
         fit-view
         :fit-min-zoom="0.05"
@@ -442,9 +530,11 @@ function resetHeight() {
     >
       <div ref="canvas" class="dou-editor-board__editor" data-editor-control>
         <DouFlowEditor
+          ref="full"
           :model-value="board"
           v-bind="settings.editorProps"
           :extensions="extensions"
+          :node-types="nodeTypes"
           :readonly="!editable"
           fit-view
           :fit-min-zoom="0.1"
@@ -454,6 +544,60 @@ function resetHeight() {
           @transaction="forward"
         >
           <DouFlowControls />
+          <div v-if="palette.length" class="dou-editor-board__add">
+            <DouButton
+              v-if="palette.length === 1"
+              size="sm"
+              variant="outline"
+              @pointerdown="dragNode(palette[0]!.type, $event)"
+              @click="addNode(palette[0]!.type)"
+            >
+              <template #leading><PlusIcon /></template>
+              {{ text.addNode }}
+            </DouButton>
+            <DouPopover v-else v-model:open="adding" placement="bottom-start">
+              <DouButton ref="addTrigger" size="sm" variant="outline">
+                <template #leading><PlusIcon /></template>
+                {{ text.addNode }}
+              </DouButton>
+              <template #content>
+                <DouCommand
+                  ref="command"
+                  v-model:query="query"
+                  class="dou-editor-board__types"
+                  :items="items"
+                  :placeholder="text.searchNodes"
+                  :aria-label="text.addNode"
+                  :empty-text="text.noNodes"
+                  :max-height="280"
+                  @select="addNode(String($event.value))"
+                >
+                  <template #item="{ item, indices }">
+                    <span
+                      class="dou-editor-board__type"
+                      @pointerdown="dragNode(String(item.value), $event)"
+                    >
+                      <span class="dou-editor-board__type-icon">
+                        <component :is="item.icon" v-if="item.icon" />
+                      </span>
+                      <span class="dou-command__label">
+                        <template v-for="(part, at) in parts(item.label, indices)" :key="at">
+                          <mark v-if="part.match" class="dou-command__match">{{ part.text }}</mark>
+                          <template v-else>{{ part.text }}</template>
+                        </template>
+                      </span>
+                      <span v-if="item.description" class="dou-command__description">
+                        {{ item.description }}
+                      </span>
+                    </span>
+                  </template>
+                </DouCommand>
+              </template>
+            </DouPopover>
+          </div>
+          <p v-if="palette.length && !board.nodes.length" class="dou-editor-board__hint">
+            {{ text.emptyFlow }}
+          </p>
         </DouFlowEditor>
       </div>
     </DouDialog>

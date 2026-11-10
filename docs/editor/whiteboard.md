@@ -97,7 +97,13 @@ const extensions = [
 ]
 ```
 
-不传 `extensions` 时只有 `flowKit()`。`flowBlock` 的选项见下面的 [API](#api)。
+`flowBlock` 的选项见下面的 [API](#api)。
+
+### 添加节点
+
+全屏编辑器左上角有“添加节点”按钮。点击后，节点添加在画布中间；选中一个节点时，新节点添加在它后面，选中的节点有输出端口时会自动连线，连续点击会依次连成一串。按住按钮拖到画布上，节点添加在松手的位置；触屏上需要先按住约 0.3 秒再拖动。从节点的端口拉出连线、在空白处松手，也可以选择一种节点添加在后面。
+
+扩展里没有写 [`palette`](/flow/editing#拖入节点) 的节点类型时（例如不传 `extensions`，或只传 `[flowKit()]`），可以添加的是一种带输入和输出端口的“节点”，双击节点修改文字。扩展里有写了 `palette` 的类型时，按钮列出这些类型；有多种时，按钮打开一个列表，按 `palette.group` 分组，显示 `palette.description`，可以搜索和用方向键选择，也可以从列表里把一项拖到画布上。没有写 `palette` 的类型不会出现在列表里。只读时没有这个按钮。
 
 ## 协同编辑
 
@@ -153,14 +159,14 @@ whiteboardBlock({
 
 ### flowBlock 选项
 
-| 名称          | 说明                                                                       | 类型                                     | 默认值        |
-| ------------- | -------------------------------------------------------------------------- | ---------------------------------------- | ------------- |
-| `type`        | 块的类型名，不能和其他块重复                                               | `string`                                 | —             |
-| `label`       | 斜杠菜单里的名称和全屏编辑器的标题，可以是返回文字的函数                   | `string \| ((messages) => string)`       | —             |
-| `extensions`  | 流程编辑器的扩展                                                           | `(FlowExtension \| FlowExtension[])[]`   | `[flowKit()]` |
-| `editorProps` | 传给预览和全屏编辑器的其他属性，例如 `nodeTypes`、`portTypes`、`direction` | `FlowBlockEditorProps`                   | `{}`          |
-| `height`      | 新块的高度，单位 px                                                        | `number`                                 | `360`         |
-| `html`        | `blocksToHTML` 写在 `<figure>` 里的内容                                    | `(board: FlowDocument, block) => string` | 名称          |
-| `menu`        | 斜杠菜单项的图标、说明和搜索关键字，`false` 不在斜杠菜单里出现             | `object \| false`                        | —             |
+| 名称          | 说明                                                                                                 | 类型                                     | 默认值        |
+| ------------- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------- | ------------- |
+| `type`        | 块的类型名，不能和其他块重复                                                                         | `string`                                 | —             |
+| `label`       | 斜杠菜单里的名称和全屏编辑器的标题，可以是返回文字的函数                                             | `string \| ((messages) => string)`       | —             |
+| `extensions`  | 流程编辑器的扩展；没有写 `palette` 的节点类型时，另外提供一种带端口的“节点”，见[添加节点](#添加节点) | `(FlowExtension \| FlowExtension[])[]`   | `[flowKit()]` |
+| `editorProps` | 传给预览和全屏编辑器的其他属性，例如 `nodeTypes`、`portTypes`、`direction`                           | `FlowBlockEditorProps`                   | `{}`          |
+| `height`      | 新块的高度，单位 px                                                                                  | `number`                                 | `360`         |
+| `html`        | `blocksToHTML` 写在 `<figure>` 里的内容                                                              | `(board: FlowDocument, block) => string` | 名称          |
+| `menu`        | 斜杠菜单项的图标、说明和搜索关键字，`false` 不在斜杠菜单里出现                                       | `object \| false`                        | —             |
 
 `editorProps` 不能设置 `extensions`、`readonly`、`fitView` 和评论相关的属性，这些由块决定。

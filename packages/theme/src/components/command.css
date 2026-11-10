@@ -87,6 +87,11 @@
        list is virtual, where the row gets its exact height inline */
     min-height: 36px;
     padding: 6px 10px;
+
+    /* on touch: rows of 40px, to tap */
+    @media (pointer: coarse) {
+      min-height: 40px;
+    }
     border-radius: var(--dou-radius-control);
     color: var(--dou-color-text);
     cursor: pointer;

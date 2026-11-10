@@ -2121,6 +2121,83 @@
     }
   }
 
+  /* adding nodes to a flow: a button at the top left, a list when there are several types */
+  .dou-editor-board__add {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    border-radius: var(--dou-radius-control);
+    box-shadow: var(--dou-shadow-sm);
+
+    /* on touch: taps from 40px around the button, as icon buttons take them */
+    @media (pointer: coarse) {
+      & .dou-button::after {
+        position: absolute;
+        inset: min(0px, calc(50% - 20px)) 0;
+        content: '';
+      }
+    }
+  }
+
+  /* the same list as when an edge is dropped on the canvas, in the popover */
+  /* the list reaches the popover's edges */
+  .dou-popover:has(> .dou-popover__content > .dou-editor-board__types) {
+    --dou-popover-padding: 0;
+  }
+
+  .dou-editor-board__types {
+    width: 260px;
+    max-width: 100%;
+
+    & .dou-command__search {
+      height: 40px;
+      padding: 0 12px;
+    }
+  }
+
+  .dou-editor-board__type-icon {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-color-bg-muted);
+    color: var(--dou-color-text-secondary);
+
+    & svg {
+      width: 14px;
+      height: 14px;
+    }
+  }
+
+  /* the whole row can be dragged onto the canvas: it covers the item's padding */
+  .dou-editor-board__type {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    align-self: stretch;
+    margin: -6px -10px;
+    padding: 6px 10px;
+  }
+
+  .dou-flow-editor__panels > .dou-editor-board__hint {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max-content;
+    max-width: calc(100% - 48px);
+    margin: 0;
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    text-align: center;
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+  }
+
   .dou-editor-embed__link {
     overflow-x: clip;
     max-width: 100%;

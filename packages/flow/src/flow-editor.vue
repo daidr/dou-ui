@@ -1540,6 +1540,23 @@ function clearPress() {
   pressTimer = 0
 }
 
+/**
+ * A finger lands where it lands. Touch browsers may hand a press to a
+ * clickable element near the finger instead of the one under it; on a small
+ * node that is an anchor beside the corner handle pressed, so the press would
+ * connect instead of resize. The press is sent again to what lies under the
+ * finger, which every handler then sees as the one press.
+ */
+function onPointerDownCapture(event: PointerEvent) {
+  if (event.pointerType !== 'touch') return
+  const target = event.target as Element
+  const scope = root.value?.getRootNode() as Document | ShadowRoot | undefined
+  const under = scope?.elementFromPoint?.(event.clientX, event.clientY)
+  if (!under || under === target || !root.value!.contains(under)) return
+  event.stopImmediatePropagation()
+  under.dispatchEvent(new PointerEvent('pointerdown', event))
+}
+
 function onPointerDown(event: PointerEvent) {
   const target = event.target as Element
   if (inPanels(target)) return
@@ -4185,6 +4202,7 @@ defineExpose<FlowEditorExpose>({
     :aria-label="ariaLabel"
     :aria-description="messages.canvas"
     tabindex="0"
+    @pointerdown.capture="onPointerDownCapture"
     @pointerdown="onPointerDown"
     @pointerleave="hover = null"
     @dblclick="onDblclick"

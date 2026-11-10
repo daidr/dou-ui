@@ -1659,9 +1659,10 @@
       var(--dou-whiteboard-frame-height, 100px) * var(--dou-flow-editor-zoom, 1) / 2
     );
     /*
-     * towards the corners, never past the 10px corner handle, nor less than
-     * its own 8px dot: the top and bottom anchors look along the width, the
-     * left and right ones along the height
+     * on a small node the whole target shrinks, so that along its side it
+     * stops short of the 10px corner handles, but never below its own 8px
+     * dot: the top and bottom anchors go by the width, the left and right
+     * ones by the height
      */
     --dou-whiteboard-anchor-reach-x: clamp(
       4px,

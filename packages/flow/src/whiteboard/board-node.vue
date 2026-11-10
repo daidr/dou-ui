@@ -106,12 +106,6 @@ function onResize(event: PointerEvent, handle: ResizeHandle) {
 }
 /** Where a handle sits on the box: `-1` is the start, `1` the end. */
 const place = (v: -1 | 0 | 1) => `${(v + 1) * 50}%`
-/**
- * A corner listens for clicks only so that the browser counts it as a target:
- * a touch that lands on it is otherwise moved onto a nearby anchor or the
- * board, which do, once its target no longer covers them on a small node.
- */
-const noop = () => {}
 
 /** Handles show on the one selected node, while the select tool is in hand. */
 const handles = computed(
@@ -345,7 +339,6 @@ function onKeydown(event: KeyboardEvent) {
             :data-handle="`${handle.x},${handle.y}`"
             data-dou-nodrag
             @pointerdown="onResize($event, handle)"
-            @click="noop"
           />
         </div>
       </Teleport>

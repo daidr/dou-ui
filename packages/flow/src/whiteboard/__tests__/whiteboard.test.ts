@@ -955,6 +955,29 @@ describe('resize handles', () => {
     expect(layer.find('.dou-whiteboard-node__frame').attributes('style')).toContain('width: 100px')
   })
 
+  it('resizes from the corner a finger is on, though the browser hands the press to an anchor', async () => {
+    const { root, flow, selection } = setup({
+      version: 1,
+      nodes: [
+        { id: 'a', type: 'shape', x: 0, y: 0, width: 64, height: 64, data: { shape: 'rect' } },
+      ],
+      edges: [],
+    })
+    await ticks()
+    selection.value = { nodes: ['a'], edges: [] }
+    await ticks()
+    const corner = at(root, '1,1').element
+    const anchor = root.find('[data-node-id="a"] .dou-flow-port.is-output.is-right').element
+    // touch browsers may give the press to a clickable element near the finger
+    document.elementFromPoint = () => corner
+    anchor.dispatchEvent(pointer('pointerdown', 64, 64, { pointerType: 'touch' }))
+    corner.dispatchEvent(pointer('pointermove', 128, 96, { pointerType: 'touch' }))
+    corner.dispatchEvent(pointer('pointerup', 128, 96, { pointerType: 'touch' }))
+    await ticks()
+    expect(flow.value.nodes[0]).toMatchObject({ width: 128, height: 96 })
+    expect(flow.value.edges).toHaveLength(0)
+  })
+
   it("keeps the corners' targets short of the anchors on a small shape", async () => {
     const { root, selection } = setup({
       version: 1,

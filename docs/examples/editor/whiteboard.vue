@@ -7,7 +7,7 @@ import { ref } from 'vue'
 const extensions = [
   editorKit(),
   whiteboardBlock(),
-  // 带端口节点的流程图，节点来自 flowKit()
+  // 流程图：全屏编辑器左上角的“添加节点”添加带输入和输出端口的节点
   flowBlock({ type: 'routine', label: '流程图', height: 240 }),
 ]
 const readonly = ref(false)
@@ -93,7 +93,12 @@ const doc = ref<EditorDocument<PartialBlock>>({
               y: 0,
               data: { label: '取票', inputs: [{ id: 'in' }], outputs: [{ id: 'out' }] },
             },
-            { id: 'metro', x: 480, y: 0, data: { label: '坐地铁去展馆', inputs: [{ id: 'in' }] } },
+            {
+              id: 'metro',
+              x: 480,
+              y: 0,
+              data: { label: '坐地铁去展馆', inputs: [{ id: 'in' }], outputs: [{ id: 'out' }] },
+            },
           ],
           edges: [
             {
@@ -115,6 +120,8 @@ const doc = ref<EditorDocument<PartialBlock>>({
       content: '下面是还没有内容的白板。输入 / 再选“白板”，可以插入新的白板。',
     },
     { type: 'whiteboard' },
+    { type: 'paragraph', content: '还没有内容的流程图：' },
+    { type: 'routine' },
   ],
 })
 </script>

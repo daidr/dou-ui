@@ -13,7 +13,7 @@ import {
   type FlowTransaction,
 } from '@dou-ui/flow'
 import { EyeIcon, PencilIcon, PlusIcon, SquareIcon } from '@dou-ui/icons'
-import { DouButton, DouDialog, DouPopover } from 'dou-ui'
+import { DouButton, DouCommand, DouDialog, DouPopover, type CommandItem } from 'dou-ui'
 import { NodeSelection } from 'prosemirror-state'
 import {
   computed,
@@ -328,12 +328,17 @@ const extensions = [...props.settings.extensions, bridge]
 
 /*
  * Adding nodes: the types the extensions offer (`palette`), from a button
- * at the top left; with the default extensions, a node of its own with an
- * input and an output, so what is added can be connected right away.
+ * at the top left. When none is offered (`flowKit()` alone), a node of its
+ * own with an input and an output, so what is added can be connected right
+ * away.
  */
+const offered = [
+  ...props.settings.extensions.flat(),
+  { nodeTypes: props.settings.editorProps.nodeTypes ?? [] },
+].some((extension) => extension.nodeTypes?.some((spec) => spec.palette))
 const nodeTypes = computed(() => {
   const given = (props.settings.editorProps.nodeTypes ?? []) as NodeTypeSpec[]
-  if (!props.settings.builtIn) return given
+  if (offered || !props.settings.fallbackNode) return given
   const name = text.value.node
   const step = defineNodeType({
     ...defaultNode,
@@ -344,16 +349,63 @@ const nodeTypes = computed(() => {
 })
 const full = useTemplateRef<InstanceType<typeof DouFlowEditor>>('full')
 const palette = computed(() => (props.editable ? (full.value?.paletteTypes ?? []) : []))
+/* several types: the same searchable list as when an edge is dropped on the canvas */
 const adding = shallowRef(false)
+const query = shallowRef('')
+const addTrigger = useTemplateRef<InstanceType<typeof DouButton>>('addTrigger')
+const command = useTemplateRef<InstanceType<typeof DouCommand>>('command')
+const items = computed<CommandItem[]>(() =>
+  palette.value.map((spec) => ({
+    value: spec.type,
+    label: spec.palette!.label,
+    group: spec.palette!.group,
+    description: spec.palette!.description,
+    keywords: spec.palette!.keywords,
+    icon: spec.palette!.icon,
+  })),
+)
+watch(adding, (value) => {
+  if (!value) return
+  query.value = ''
+  // a phone's keyboard would cover the list: search only with a mouse
+  if (!matchMedia('(pointer: coarse)').matches) void nextTick(() => command.value?.focus())
+})
 
 function addNode(type: string) {
   adding.value = false
   full.value?.insertNode(type)
 }
 function dragNode(type: string, event: PointerEvent) {
+  if (event.button !== 0) return
   full.value?.startInsertDrag(type, event)
   // the list goes once the node is dropped, or the drag ends otherwise
-  window.addEventListener('pointerup', () => (adding.value = false), { once: true })
+  window.addEventListener(
+    'pointerup',
+    () => {
+      if (!adding.value) return
+      adding.value = false
+      // a drag let go of (or cancelled) off the canvas: back to the button
+      void nextTick(() => {
+        const active = document.activeElement
+        if (!active || active === document.body)
+          (addTrigger.value?.$el as HTMLElement | undefined)?.focus({ preventScroll: true })
+      })
+    },
+    { once: true },
+  )
+}
+
+/** A label cut into the letters the search matched and the rest. */
+function parts(name: string, indices: number[]) {
+  const hit = new Set(indices)
+  const out: { text: string; match: boolean }[] = []
+  for (let i = 0; i < name.length; i++) {
+    const match = hit.has(i)
+    const last = out[out.length - 1]
+    if (last && last.match === match) last.text += name[i]
+    else out.push({ text: name[i]!, match })
+  }
+  return out
 }
 
 /* changing the height: drag the bar under the block, or the arrow keys on it */
@@ -502,25 +554,42 @@ function resetHeight() {
               {{ text.addNode }}
             </DouButton>
             <DouPopover v-else v-model:open="adding" placement="bottom-start">
-              <DouButton size="sm" variant="outline">
+              <DouButton ref="addTrigger" size="sm" variant="outline">
                 <template #leading><PlusIcon /></template>
                 {{ text.addNode }}
               </DouButton>
               <template #content>
-                <div class="dou-editor-board__types" role="group" :aria-label="text.addNode">
-                  <button
-                    v-for="spec in palette"
-                    :key="spec.type"
-                    type="button"
-                    class="dou-editor-board__type"
-                    :title="spec.palette?.description"
-                    @pointerdown="dragNode(spec.type, $event)"
-                    @click="addNode(spec.type)"
-                  >
-                    <component :is="spec.palette?.icon" v-if="spec.palette?.icon" />
-                    {{ spec.palette?.label ?? spec.type }}
-                  </button>
-                </div>
+                <DouCommand
+                  ref="command"
+                  v-model:query="query"
+                  class="dou-editor-board__types"
+                  :items="items"
+                  :placeholder="text.searchNodes"
+                  :aria-label="text.addNode"
+                  :empty-text="text.noNodes"
+                  :max-height="280"
+                  @select="addNode(String($event.value))"
+                >
+                  <template #item="{ item, indices }">
+                    <span
+                      class="dou-editor-board__type"
+                      @pointerdown="dragNode(String(item.value), $event)"
+                    >
+                      <span class="dou-flow-quick-add__icon">
+                        <component :is="item.icon" v-if="item.icon" />
+                      </span>
+                      <span class="dou-command__label">
+                        <template v-for="(part, at) in parts(item.label, indices)" :key="at">
+                          <mark v-if="part.match" class="dou-command__match">{{ part.text }}</mark>
+                          <template v-else>{{ part.text }}</template>
+                        </template>
+                      </span>
+                      <span v-if="item.description" class="dou-command__description">
+                        {{ item.description }}
+                      </span>
+                    </span>
+                  </template>
+                </DouCommand>
               </template>
             </DouPopover>
           </div>

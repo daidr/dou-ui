@@ -161,6 +161,8 @@ export interface EditorMessages {
     resize: string
     /** The button that adds a node to a flow, and the name of the node a flow block offers. */
     addNode: string
+    searchNodes: string
+    noNodes: string
     node: string
     /** On an empty flow in the fullscreen editor. */
     emptyFlow: string
@@ -335,8 +337,10 @@ const zhCN: EditorMessages = {
     view: '查看',
     resize: '拖动以调整高度',
     addNode: '添加节点',
+    searchNodes: '搜索节点',
+    noNodes: '没有匹配的节点',
     node: '节点',
-    emptyFlow: '点左上角的“添加节点”开始，或把它拖到想放的位置',
+    emptyFlow: '使用左上角的“添加节点”添加第一个节点，也可以按住按钮拖到画布上',
   },
   noResults: '没有匹配的块',
   addBlock: '在下方添加块',
@@ -502,8 +506,10 @@ const zhTW: EditorMessages = {
     view: '查看',
     resize: '拖曳以調整高度',
     addNode: '新增節點',
+    searchNodes: '搜尋節點',
+    noNodes: '沒有符合的節點',
     node: '節點',
-    emptyFlow: '點左上角的「新增節點」開始，或把它拖曳到想放的位置',
+    emptyFlow: '使用左上角的「新增節點」新增第一個節點，也可以按住按鈕拖曳到畫布上',
   },
   noResults: '沒有符合的區塊',
   addBlock: '在下方新增區塊',
@@ -669,8 +675,11 @@ const en: EditorMessages = {
     view: 'View',
     resize: 'Drag to change the height',
     addNode: 'Add node',
+    searchNodes: 'Search nodes',
+    noNodes: 'No matching nodes',
     node: 'Node',
-    emptyFlow: 'Start with “Add node” at the top left, or drag it where you want it',
+    emptyFlow:
+      'Use “Add node” at the top left to add the first node, or hold the button and drag it onto the canvas',
   },
   noResults: 'No matching blocks',
   addBlock: 'Add a block below',

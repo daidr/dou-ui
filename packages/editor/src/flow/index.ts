@@ -96,13 +96,17 @@ function readFences(root: HTMLElement, type: string) {
  * Needs `@dou-ui/flow` and its styles. For a whiteboard, `whiteboardBlock()`.
  */
 export function flowBlock(options: FlowBlockOptions): EditorExtension {
+  return boardBlock(options, true)
+}
+
+function boardBlock(options: FlowBlockOptions, fallbackNode: boolean): EditorExtension {
   const { type } = options
   const settings: BoardBlockSettings = {
     label: options.label,
     extensions: options.extensions ?? [flowKit()],
     editorProps: options.editorProps ?? {},
     height: options.height ?? 360,
-    builtIn: !options.extensions,
+    fallbackNode,
   }
   const View = defineComponent({
     name: 'DouEditorFlowBlockView',
@@ -195,24 +199,35 @@ export interface WhiteboardBlockOptions
  * ```
  */
 export function whiteboardBlock(options: WhiteboardBlockOptions = {}): EditorExtension {
-  return flowBlock({
-    type: 'whiteboard',
-    label: (m) => m.types.whiteboard,
-    extensions: [
-      flowKit(),
-      whiteboardKit({ upload: options.upload, onUploadError: options.onUploadError }),
-    ],
-    editorProps: options.editorProps,
-    height: options.height,
-    html: options.html,
-    menu:
-      options.menu === false
-        ? false
-        : {
-            icon: ShapesIcon,
-            hint: (m) => m.hints.whiteboard,
-            keywords: ['whiteboard', 'board', 'draw', 'flowchart', 'baiban', 'huatu', 'liuchengtu'],
-            ...options.menu,
-          },
-  })
+  return boardBlock(
+    {
+      type: 'whiteboard',
+      label: (m) => m.types.whiteboard,
+      extensions: [
+        flowKit(),
+        whiteboardKit({ upload: options.upload, onUploadError: options.onUploadError }),
+      ],
+      editorProps: options.editorProps,
+      height: options.height,
+      html: options.html,
+      menu:
+        options.menu === false
+          ? false
+          : {
+              icon: ShapesIcon,
+              hint: (m) => m.hints.whiteboard,
+              keywords: [
+                'whiteboard',
+                'board',
+                'draw',
+                'flowchart',
+                'baiban',
+                'huatu',
+                'liuchengtu',
+              ],
+              ...options.menu,
+            },
+    },
+    false,
+  )
 }

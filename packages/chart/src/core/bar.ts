@@ -19,17 +19,28 @@ const MAX_WIDTH = 56
 const GAP = 2
 /** Below this width (px), bars are drawn one column of pixels at a time. */
 const DENSE = 1.5
+/**
+ * Bands narrower than this (px) are filled by their bars, edge to edge: a
+ * pixel of room now and then between them would show as stripes.
+ */
+const SOLID = 2
+/** From this band width (px) on, bars leave their full share of room between them. */
+const SPACED = 12
 
 /**
  * Where a series' bars go in each x band: the offset of their near edge
- * from the band's center, and their width, in px.
+ * from the band's center, their width, and the room left between the
+ * bars of one band and the next, in px. The room grows with the band,
+ * from none below 2px to its full share from 12px, so zooming through
+ * never changes the look at once.
  */
 export function barPlacement(
   band: number,
   slot: { index: number; count: number } | null,
-): { offset: number; width: number } {
+): { offset: number; width: number; room: number } {
   const { index, count } = slot ?? { index: 0, count: 1 }
-  let group = band * (count > 1 ? GROUPED : SINGLE)
+  const spaced = Math.min(1, Math.max(0, (band - SOLID) / (SPACED - SOLID)))
+  let group = band * (1 - (1 - (count > 1 ? GROUPED : SINGLE)) * spaced)
   let gap = count > 1 && group / count >= GAP * 4 ? GAP : 0
   let width = (group - gap * (count - 1)) / count
   if (width > MAX_WIDTH) {
@@ -37,7 +48,7 @@ export function barPlacement(
     gap = count > 1 ? GAP * 2 : 0
     group = width * count + gap * (count - 1)
   }
-  return { offset: -group / 2 + index * (width + gap), width }
+  return { offset: -group / 2 + index * (width + gap), width, room: band - group }
 }
 
 /**
@@ -45,13 +56,15 @@ export function barPlacement(
  * The end away from 0 is rounded; in a stack, only the outermost slice's.
  * Bars narrower than a pixel and a half are merged per pixel column into
  * one bar from the lowest to the highest value there, which looks the
- * same and keeps a million bars as cheap as a few hundred.
+ * same and keeps a million bars as cheap as a few hundred. The room between
+ * bars is a whole number of pixels, and narrows with the bands down to
+ * none (square, slices touching), so hundreds of days read as one even shape.
  */
 export function drawBars(
   painter: Painter,
   series: ChartSeries<BarStyle>,
   view: ChartView,
-  placement = barPlacement(view.band, series.slot),
+  placement: { offset: number; width: number } = barPlacement(view.band, series.slot),
 ) {
   const { x: sx, y: sy, dpr, horizontal } = view
   const xs = series.x.values
@@ -75,12 +88,41 @@ export function drawBars(
   painter.beginPath()
 
   if (width < DENSE) {
-    // one column per pixel: from the lowest to the highest end of the bars in it
+    // one column per pixel: from the lowest to the highest end of the bars in it;
+    // a stack's slices all from the day its whole stack is tallest, so they still
+    // sit on one another (each slice's own lowest to highest would cover the others)
     let column = Number.NaN
     let lo = 0
     let hi = 0
+    let tallest = -1
+    let row = -1
     const flush = () => {
-      if (column === column && hi > lo) rect(column, column + 1, lo, hi)
+      if (column !== column) return
+      if (ends && row >= 0) {
+        const v1 = sy.map(top[row]!)
+        const v0 = base ? sy.map(base[row]!) : zero
+        lo = Math.min(v0, v1)
+        hi = Math.max(v0, v1)
+      }
+      if (hi > lo) rect(column, column + 1, lo, hi)
+    }
+    const add = (c: number, i: number, a: number, b: number) => {
+      const extent = ends ? ends.up[i]! - ends.down[i]! : 0
+      if (c !== column) {
+        flush()
+        column = c
+        lo = a
+        hi = b
+        tallest = extent
+        row = i
+      } else {
+        lo = Math.min(lo, a)
+        hi = Math.max(hi, b)
+        if (extent > tallest) {
+          tallest = extent
+          row = i
+        }
+      }
     }
     for (let i = from; i < to; i++) {
       const value = top[i]!
@@ -88,16 +130,15 @@ export function drawBars(
       if (value !== value || x !== x || (log && !(value > 0))) continue
       const v1 = sy.map(value)
       const v0 = base ? sy.map(base[i]!) : zero
-      const c = Math.floor(sx.map(x) + offset + width / 2)
-      if (c !== column) {
-        flush()
-        column = c
-        lo = Math.min(v0, v1)
-        hi = Math.max(v0, v1)
-      } else {
-        lo = Math.min(lo, v0, v1)
-        hi = Math.max(hi, v0, v1)
-      }
+      const a = Math.min(v0, v1)
+      const b = Math.max(v0, v1)
+      // the columns whose middles the bar covers; at least the one its middle is in
+      const left = sx.map(x) + offset
+      // (+ 0: -0.4 rounds up to -0)
+      const first = Math.ceil(left - 0.5) + 0
+      const last = Math.ceil(left + width - 0.5)
+      if (last <= first) add(Math.floor(left + width / 2), i, a, b)
+      else for (let c = first; c < last; c++) add(c, i, a, b)
     }
     flush()
     painter.fill()
@@ -105,7 +146,17 @@ export function drawBars(
     return
   }
 
-  const radius = Math.max(0, series.props.radius ?? 2)
+  // the room between one band's bars and the next, in whole device pixels: the
+  // same everywhere, so it can't come and go in stripes
+  const count = series.slot?.count ?? 1
+  const room = Math.round(Math.max(0, view.band - placement.width * count) * dpr) / dpr
+  const single = count === 1
+  // corners round, and stacked slices part, only as the room between bars opens
+  const radius = Math.min(Math.max(0, series.props.radius ?? 2), room * 2)
+  const parted = room >= 2
+  // grouped bars: each the same whole number of pixels wide
+  const across = Math.max(1 / dpr, Math.round(width * dpr) / dpr)
+  const half = Math.floor((room * dpr) / 2) / dpr
   const bar = (i: number) => {
     const value = top[i]!
     const x = xs[i]!
@@ -117,13 +168,22 @@ export function drawBars(
     }
     const from0 = base ? base[i]! : 0
     if (value === from0) return
-    const u0 = snap(sx.map(x) + offset)
-    const u1 = Math.max(u0 + 1 / dpr, snap(sx.map(x) + offset + width))
+    const center = sx.map(x)
+    let u0: number
+    let u1: number
+    if (single) {
+      // the band's edges, shared with the next band, less the room between them
+      u0 = snap(center - view.band / 2) + half
+      u1 = Math.max(u0 + 1 / dpr, snap(center + view.band / 2) - (room - half))
+    } else {
+      u0 = snap(center + offset + (width - across) / 2)
+      u1 = u0 + across
+    }
     let v0 = base ? sy.map(from0) : zero
     const v1 = sy.map(value)
     const length = Math.abs(v1 - v0)
     // a slice on another one leaves a hairline of room between them
-    if (base && from0 !== 0 && length > 2) v0 += v1 > v0 ? 1 : -1
+    if (base && from0 !== 0 && length > 2 && parted) v0 += v1 > v0 ? 1 : -1
     const outermost = !ends || (value > from0 ? value === ends.up[i] : value === ends.down[i])
     const r = outermost ? Math.min(radius, (u1 - u0) / 2, Math.abs(v1 - v0)) : 0
     if (r < 0.5) rect(u0, u1, v0, v1)
@@ -195,7 +255,7 @@ const LABEL_WIDTH = 8
 export function barLabels(
   series: ChartSeries<BarStyle>,
   view: ChartView,
-  placement = barPlacement(view.band, series.slot),
+  placement: { offset: number; width: number } = barPlacement(view.band, series.slot),
 ): ChartLabelAnchor[] {
   const { x: sx, y: sy, horizontal } = view
   const { offset, width } = placement

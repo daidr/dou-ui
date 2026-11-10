@@ -1,6 +1,6 @@
 {
   "name": "@dou-ui/chart",
-  "version": "0.1.0-alpha.12",
+  "version": "0.1.0-alpha.13",
   "description": "DouUI 的图表：折线、面积、柱状、散点与饼图",
   "keywords": [
     "vue",

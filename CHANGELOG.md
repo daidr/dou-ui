@@ -7,6 +7,40 @@ DouUI 的所有包（`dou-ui`、`@dou-ui/theme`、`@dou-ui/icons` 以及生态�
 
 这个文件由发版脚本生成：改动先以碎片文件记在 [`.changes/`](./.changes/README.md) 里，发布时汇总到这里。
 
+## 0.1.0-alpha.13 · 2026-11-10
+
+### 不兼容
+
+- **@dou-ui/flow**：`ports: 'sides'`（`sidePorts`）的端口改为和白板形状的锚点一样：起点在悬停或选中节点时显示，终点只在拉连线时显示。需要一直显示的，在组件里放 `<DouFlowPort visible="always">`，或者自己写端口列表。 ([#417](https://github.com/daidr/dou-ui/pull/417))
+- **@dou-ui/editor**：协同编辑时光标和选区改放在 awareness 的 `editor` 字段（原来是 `cursor`），和其他包按包名取字段一致。自己读写过 `cursor` 字段的代码改成 `editor`；各端要一起升级，否则新旧版本之间看不到对方的光标。 ([#424](https://github.com/daidr/dou-ui/pull/424))
+
+### 新增
+
+- **@dou-ui/editor**：块编辑器支持分栏：斜杠菜单里的“分栏”可以在旁边的面板里选择 2 到 5 栏（手机上在这一项下面展开）；块可以在栏之间拖动，拖到两栏之间新建一栏，拖动栏之间的竖线调整栏宽（也可以用键盘和触屏），区域窄于 480px 时各栏上下排列。分栏里不能再放分栏。斜杠菜单的选项新增 `choices`，可以在选项旁边选择变体，自己画变体时用 `BlockOptionChoicesProps` 和 `BlockOptionChoicesEmits`。`checkDocument` 新增 `invalid-columns`，扩展的 `context` 新增 `messages()`。 ([#416](https://github.com/daidr/dou-ui/pull/416))
+- **@dou-ui/flow**：端口新增显示时机 `visible`：写在端口声明（`FlowPortSpec`）或 `DouFlowPort` 上，`hover` 在悬停、选中节点或在节点里的输入框中输入时显示，`connecting` 只在拉连线时显示，只读时都不显示。自定义白板节点用 `ports: 'sides'` 就和内置形状有一样的锚点，缩放时大小也一样。 ([#417](https://github.com/daidr/dou-ui/pull/417))
+- **@dou-ui/dashboard**：`@dou-ui/dashboard/collaboration` 新增 `updateMap(map, next, { base, origin })`：不经过仪表盘把新版本写进共享文档，只写 `base` 到新版本之间的差别（增删格子、改了的键、改了位置的断点、挪了顺序的格子），其他人同时做的修改保留。`fillMap` 也可以传 `origin`。 ([#418](https://github.com/daidr/dou-ui/pull/418))
+- **@dou-ui/editor**：`@dou-ui/editor/collaboration` 新增 `cursorAt(map, head, { anchor, extensions })`：不经过编辑器，按块 id 和块内文字位置得到放进 awareness `editor` 字段的光标，服务器上写入文档的一方也能显示自己的光标和名字。同时导出 `EditorPresence`、`EditorPresencePlace`、`EditorCursorTarget` 类型，文档写明 `editor` 字段的结构。 ([#424](https://github.com/daidr/dou-ui/pull/424))
+
+### 改进
+
+- **@dou-ui/editor**：设置了 `--dou-editor-reading-width` 时，顶层的宽表格不再受正文宽度限制：左边和正文对齐，右边伸进正文右侧的空白；还放不下时左右滚动，左边先移到手柄栏边上，再滚动列。
+
+  表格左右滚动时，还有被遮住的列的一侧显示一道阴影，新增 `--dou-editor-scroll-shadow` 调整颜色。 ([#412](https://github.com/daidr/dou-ui/pull/412))
+
+- **@dou-ui/form-builder、@dou-ui/gantt**：`@dou-ui/form-builder/collaboration` 和 `@dou-ui/gantt/collaboration` 的 `fillMaps` 可以传 `origin`，作为这次 Yjs 事务的来源。 ([#418](https://github.com/daidr/dou-ui/pull/418))
+
+### 修复
+
+- **dou-ui、@dou-ui/theme**：DouCommand / DouCommandDialog 的 `item` 插槽放两行或更高的内容时，行会跟着长高，高亮底色盖住整行，滚动定位也按实际高度来，不再固定 36px、溢出到下一行。开启 `virtual`（超过 100 条时默认开启）时也一样：渲染过的行按实际高度计算，没渲染的按最先显示的几行估算，上方的行高度变化时看到的内容不动；新增 `itemSize`（数字或 `(item) => number`），传了就固定每一行的高度、不再测量，内容超出时开发环境会提示。DouCommandDialog 现在也会把 `virtual` 和 `itemSize` 传给里面的列表，不传 `virtual` 时和 DouCommand 一样超过 100 条自动开启。
+
+  `line-height: 1` 和 `white-space: nowrap` 从 `.dou-command__item` 挪到了默认的标签和说明上：`item` 插槽里的内容现在用继承的行高，长文字会换行；需要单行省略时在插槽内容上自己加 `white-space: nowrap`。 ([#411](https://github.com/daidr/dou-ui/pull/411))
+
+- **@dou-ui/editor**：块编辑器选中整块（`Esc` 或把手）后，复制和剪切带走的是整块，而不是其中的文字；选中的块里有表格时，之前只会带走第一格的文字。表格块的把手现在可以拖动。 ([#416](https://github.com/daidr/dou-ui/pull/416))
+- **@dou-ui/flow**：`updateMaps` 比较 `base` 和新流程时不再看对象里键的顺序：程序只是把 `data`、位置等对象的键换了顺序，不再被当成改动，冲掉别人同时做的修改。开发环境下传入的新流程就是 `base` 本身时会警告。 ([#418](https://github.com/daidr/dou-ui/pull/418))
+- **dou-ui、@dou-ui/theme**：DouChatInput 的 `/` 和 `@` 菜单里，选项的 `label` 太长时不再超出菜单，而是先换到第二行，两行放不下再显示省略号。`description` 和 `label` 平分一行的空间：较短的（如类型）保持完整，较长的在有空间时完整显示，两者都长时各占一半。菜单不再能横向滚动，左侧图标始终完整。鼠标悬停在被截断的文字上时显示全文。 ([#420](https://github.com/daidr/dou-ui/pull/420))
+- **dou-ui**：DouButton 的默认插槽、`leading` 或 `trailing` 没有渲染出内容时（比如里面只有一个 `v-if` 为假的数字），当作没有传这个插槽：有 `leading` 图标的按钮会变成和纯图标按钮一样的方形，也不再多出一个空的图标位。DouTag、DouCheckTag 和 DouLink 的 `leading` 插槽没有渲染出内容时，也不再留下空的图标位；DouLink 设了 `external` 而 `trailing` 没有渲染出内容时，仍显示外链箭头。 ([#421](https://github.com/daidr/dou-ui/pull/421))
+- **@dou-ui/flow**：白板上选中较小的形状时，角上的手柄不再盖住各边中点的锚点，从锚点拖动能拉出连线，不会变成调整大小；从角上和角的外侧仍能调整大小。在触屏上，手指按在白板选中形状的角手柄或旋转手柄上时，就由这个手柄处理，不会被浏览器交给旁边的锚点；其他地方按偏一点仍和以前一样。 ([#423](https://github.com/daidr/dou-ui/pull/423))
+
 ## 0.1.0-alpha.12 · 2026-11-09
 
 ### 新增

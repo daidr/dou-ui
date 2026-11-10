@@ -18,6 +18,10 @@
 
 <DocDemo src="input/prefix-suffix" />
 
+前缀或后缀里放 [Button](./button) 时，它是输入框自己的操作，和清空、显示密码的按钮一样：高度和圆角由输入框决定，按钮的 `size` 只影响文字大小和内边距。按钮在最前或最后时，会占掉那一侧的内边距，悬停的底色离输入框上、下和那一侧的距离相同。一般用 `ghost` 按钮。
+
+<DocDemo src="input/action" />
+
 ## 可清空
 
 `clearable` 在有内容且可编辑时显示清空按钮；清空后焦点回到输入框，并触发 `clear`。清空按钮的读屏标签来自 [全局配置](./config-provider) 的语言包。
@@ -67,10 +71,10 @@
 
 ### Slots
 
-| 名称     | 说明                       |
-| -------- | -------------------------- |
-| `prefix` | 文字前的内容，通常是图标   |
-| `suffix` | 文字后的内容，如单位或图标 |
+| 名称     | 说明                                   |
+| -------- | -------------------------------------- |
+| `prefix` | 文字前的内容，通常是图标，也可以是按钮 |
+| `suffix` | 文字后的内容，如单位、图标或按钮       |
 
 ### Exposes
 
@@ -83,12 +87,13 @@
 
 ### CSS 变量
 
-| 变量                       | 说明         |
-| -------------------------- | ------------ |
-| `--dou-input-height`       | 高度         |
-| `--dou-input-padding-x`    | 水平内边距   |
-| `--dou-input-radius`       | 圆角         |
-| `--dou-input-bg`           | 背景色       |
-| `--dou-input-border`       | 描边颜色     |
-| `--dou-input-border-focus` | 聚焦描边颜色 |
-| `--dou-input-ring`         | 聚焦光晕颜色 |
+| 变量                       | 说明                                 |
+| -------------------------- | ------------------------------------ |
+| `--dou-input-height`       | 高度                                 |
+| `--dou-input-padding-x`    | 水平内边距                           |
+| `--dou-input-radius`       | 圆角                                 |
+| `--dou-input-action-inset` | 前缀、后缀里的按钮离输入框内沿的距离 |
+| `--dou-input-bg`           | 背景色                               |
+| `--dou-input-border`       | 描边颜色                             |
+| `--dou-input-border-focus` | 聚焦描边颜色                         |
+| `--dou-input-ring`         | 聚焦光晕颜色                         |

@@ -12,6 +12,8 @@
     --dou-input-gap: var(--dou-control-gap-md);
     --dou-input-font-size: var(--dou-font-size-md);
     --dou-input-radius: var(--dou-radius-control);
+    /* how far a button at either end sits from the inner edge, on every side */
+    --dou-input-action-inset: 2px;
 
     --dou-input-bg: var(--dou-color-bg-surface);
     --dou-input-border: var(--dou-color-border);
@@ -200,6 +202,38 @@
       content: '';
       position: absolute;
       inset: -4px;
+    }
+  }
+
+  /*
+   * A button in the prefix or suffix is an action of the field, like the
+   * clear and reveal buttons: the field sets its height and corners, and a
+   * button at the very start or end takes the place of the padding on that
+   * side, so its hover fill sits as far from the top, bottom and end.
+   */
+  .dou-input__affix > .dou-button {
+    --dou-button-height: calc(var(--dou-input-height) - 2px - 2 * var(--dou-input-action-inset));
+    --dou-button-radius: max(
+      2px,
+      calc(var(--dou-input-radius) - 1px - var(--dou-input-action-inset))
+    );
+  }
+
+  .dou-input:has(> .dou-input__prefix > .dou-button:first-child) {
+    padding-inline-start: var(--dou-input-action-inset);
+  }
+
+  .dou-input:has(> .dou-input__suffix > .dou-button:last-child) {
+    padding-inline-end: var(--dou-input-action-inset);
+  }
+
+  /* the field keeps a button short, so on touch screens it takes taps from
+     at least 40px around its centre, like a small button */
+  @media (pointer: coarse) {
+    .dou-input__affix > .dou-button::after {
+      position: absolute;
+      inset: min(0px, calc(50% - 20px));
+      content: '';
     }
   }
 

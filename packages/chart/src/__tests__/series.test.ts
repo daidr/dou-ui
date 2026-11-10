@@ -182,6 +182,80 @@ describe('bars', () => {
     expect(count('fill')).toBe(1)
   })
 
+  it('fills narrow bands edge to edge, every pixel column covered', () => {
+    expect(barPlacement(3, null)).toEqual({ offset: -1.5, width: 3 })
+    const pair = [0, 1].map((index) => barPlacement(3, { index, count: 2 }))
+    expect(pair[1]!.offset).toBeCloseTo(pair[0]!.offset + pair[0]!.width)
+    // 300 days on 400px: bands of 1.33px, each column has a bar
+    const rows = Array.from({ length: 300 }, (_, i) => ({ x: i, v: 1 }))
+    const model = buildModel([input(0, { y: 'v' })], { data: rows, x: 'x' })
+    const [series] = resolve(model)
+    const view: ChartView = {
+      x: linearScale([-0.5, 299.5], [0, 400]),
+      y: linearScale([0, 1], [100, 0]),
+      horizontal: false,
+      band: 400 / 300,
+      point: () => [0, 0],
+      plot: { x: 0, y: 0, width: 400, height: 100 },
+      dpr: 1,
+      colors,
+    }
+    const { painter, calls } = recorder()
+    drawBars(painter, series as never, view)
+    const columns = calls.filter(([key]) => key === 'rect').map(([, [x]]) => x as number)
+    expect(columns).toEqual(Array.from({ length: 400 }, (_, c) => c))
+  })
+
+  it('draws bars a few pixels wide alike: square, touching, no room between slices', () => {
+    const rows = Array.from({ length: 100 }, (_, i) => ({ x: i, p: 1, q: 1 }))
+    const model = buildModel(
+      [input(0, { y: 'p', stack: true }), input(1, { y: 'q', stack: true })],
+      { data: rows, x: 'x' },
+    )
+    const [, q] = resolve(model)
+    const view: ChartView = {
+      x: linearScale([-0.5, 99.5], [0, 300]),
+      y: linearScale([0, 2], [100, 0]),
+      horizontal: false,
+      band: 3,
+      point: () => [0, 0],
+      plot: { x: 0, y: 0, width: 300, height: 100 },
+      dpr: 1,
+      colors,
+    }
+    const { painter, calls } = recorder()
+    drawBars(painter, q as never, view)
+    const rects = calls.filter(([key]) => key === 'rect').map(([, args]) => args as number[])
+    expect(calls.some(([key]) => key === 'arcTo')).toBe(false)
+    expect(rects).toHaveLength(100)
+    rects.forEach(([x, y, width, height], i) => {
+      expect(x).toBe(i * 3)
+      expect(width).toBe(3)
+      // from the top of the slice under it, with no hairline
+      expect(y! + height!).toBe(50)
+    })
+  })
+
+  it('draws bars wider than a band of 4px the same width each', () => {
+    const rows = Array.from({ length: 90 }, (_, i) => ({ x: i, v: 1 }))
+    const model = buildModel([input(0, { y: 'v' })], { data: rows, x: 'x' })
+    const [series] = resolve(model)
+    const view: ChartView = {
+      x: linearScale([-0.5, 89.5], [0, 560]),
+      y: linearScale([0, 1], [100, 0]),
+      horizontal: false,
+      band: 560 / 90,
+      point: () => [0, 0],
+      plot: { x: 0, y: 0, width: 560, height: 100 },
+      dpr: 1,
+      colors,
+    }
+    const { painter, calls } = recorder()
+    drawBars(painter, { ...series, props: { y: 'v', radius: 0 } } as never, view)
+    const widths = new Set(calls.filter(([key]) => key === 'rect').map(([, args]) => args[2]))
+    expect([...widths]).toEqual([4])
+  })
+
   it('lays x down the left side when horizontal', () => {
     const rows = [
       { k: '浦东新区', v: 3 },

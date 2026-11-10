@@ -730,11 +730,18 @@
     outline: none;
     cursor: ew-resize;
 
-    /* a finger-sized place to press */
+    /*
+     * a place to press the size of a fingertip, reaching out of the shown
+     * part: a narrow one (a week of years) can still be dragged by its middle
+     */
     &::before {
       position: absolute;
-      inset: -6px -8px;
+      inset: -6px -2px -6px -14px;
       content: '';
+    }
+
+    &.is-end::before {
+      inset: -6px -14px -6px -2px;
     }
 
     &:hover {
@@ -753,18 +760,30 @@
       cursor: ns-resize;
 
       &::before {
-        inset: -8px -6px;
+        inset: -14px -6px -2px;
+      }
+
+      &.is-end::before {
+        inset: -2px -6px -14px;
       }
     }
 
     /* a finger needs about 40px */
     @media (pointer: coarse) {
       &::before {
-        inset: -10px -16px;
+        inset: -10px 0 -10px -32px;
+      }
+
+      &.is-end::before {
+        inset: -10px -32px -10px 0;
       }
 
       .is-vertical > &::before {
-        inset: -16px -10px;
+        inset: -32px -10px 0;
+      }
+
+      .is-vertical > &.is-end::before {
+        inset: 0 -10px -32px;
       }
     }
   }

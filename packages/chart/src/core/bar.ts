@@ -19,6 +19,14 @@ const MAX_WIDTH = 56
 const GAP = 2
 /** Below this width (px), bars are drawn one column of pixels at a time. */
 const DENSE = 1.5
+/**
+ * Below this band width (px), bars fill their band and touch: gaps of a
+ * pixel or two between them would come and go with rounding, in stripes.
+ */
+const SOLID = 4
+
+/** Whether bars in bands this wide (px) fill them, edge to edge. */
+export const solidBars = (band: number) => band < SOLID
 
 /**
  * Where a series' bars go in each x band: the offset of their near edge
@@ -29,6 +37,7 @@ export function barPlacement(
   slot: { index: number; count: number } | null,
 ): { offset: number; width: number } {
   const { index, count } = slot ?? { index: 0, count: 1 }
+  if (solidBars(band)) return { offset: -band / 2 + (index * band) / count, width: band / count }
   let group = band * (count > 1 ? GROUPED : SINGLE)
   let gap = count > 1 && group / count >= GAP * 4 ? GAP : 0
   let width = (group - gap * (count - 1)) / count
@@ -45,7 +54,9 @@ export function barPlacement(
  * The end away from 0 is rounded; in a stack, only the outermost slice's.
  * Bars narrower than a pixel and a half are merged per pixel column into
  * one bar from the lowest to the highest value there, which looks the
- * same and keeps a million bars as cheap as a few hundred.
+ * same and keeps a million bars as cheap as a few hundred. Bars in narrow
+ * bands fill them, square and without the room between stacked slices, so
+ * hundreds of days read as one even shape.
  */
 export function drawBars(
   painter: Painter,
@@ -82,22 +93,32 @@ export function drawBars(
     const flush = () => {
       if (column === column && hi > lo) rect(column, column + 1, lo, hi)
     }
+    const add = (c: number, a: number, b: number) => {
+      if (c !== column) {
+        flush()
+        column = c
+        lo = a
+        hi = b
+      } else {
+        lo = Math.min(lo, a)
+        hi = Math.max(hi, b)
+      }
+    }
     for (let i = from; i < to; i++) {
       const value = top[i]!
       const x = xs[i]!
       if (value !== value || x !== x || (log && !(value > 0))) continue
       const v1 = sy.map(value)
       const v0 = base ? sy.map(base[i]!) : zero
-      const c = Math.floor(sx.map(x) + offset + width / 2)
-      if (c !== column) {
-        flush()
-        column = c
-        lo = Math.min(v0, v1)
-        hi = Math.max(v0, v1)
-      } else {
-        lo = Math.min(lo, v0, v1)
-        hi = Math.max(hi, v0, v1)
-      }
+      const a = Math.min(v0, v1)
+      const b = Math.max(v0, v1)
+      // the columns whose middles the bar covers; at least the one its middle is in
+      const left = sx.map(x) + offset
+      // (+ 0: -0.4 rounds up to -0)
+      const first = Math.ceil(left - 0.5) + 0
+      const last = Math.ceil(left + width - 0.5)
+      if (last <= first) add(Math.floor(left + width / 2), a, b)
+      else for (let c = first; c < last; c++) add(c, a, b)
     }
     flush()
     painter.fill()
@@ -105,7 +126,10 @@ export function drawBars(
     return
   }
 
-  const radius = Math.max(0, series.props.radius ?? 2)
+  const solid = solidBars(view.band)
+  const radius = solid ? 0 : Math.max(0, series.props.radius ?? 2)
+  // every bar the same whole number of pixels wide; filling their bands, edge to edge
+  const across = solid ? width : Math.max(1 / dpr, Math.round(width * dpr) / dpr)
   const bar = (i: number) => {
     const value = top[i]!
     const x = xs[i]!
@@ -117,13 +141,14 @@ export function drawBars(
     }
     const from0 = base ? base[i]! : 0
     if (value === from0) return
-    const u0 = snap(sx.map(x) + offset)
-    const u1 = Math.max(u0 + 1 / dpr, snap(sx.map(x) + offset + width))
+    const near = sx.map(x) + offset
+    const u0 = snap(solid ? near : near + (width - across) / 2)
+    const u1 = Math.max(u0 + 1 / dpr, solid ? snap(near + width) : u0 + across)
     let v0 = base ? sy.map(from0) : zero
     const v1 = sy.map(value)
     const length = Math.abs(v1 - v0)
     // a slice on another one leaves a hairline of room between them
-    if (base && from0 !== 0 && length > 2) v0 += v1 > v0 ? 1 : -1
+    if (base && from0 !== 0 && length > 2 && !solid) v0 += v1 > v0 ? 1 : -1
     const outermost = !ends || (value > from0 ? value === ends.up[i] : value === ends.down[i])
     const r = outermost ? Math.min(radius, (u1 - u0) / 2, Math.abs(v1 - v0)) : 0
     if (r < 0.5) rect(u0, u1, v0, v1)

@@ -214,7 +214,7 @@ const percent = (value: number) => Math.round(value * 1000) / 10
     <div
       v-for="(grip, i) in ['from', 'to'] as const"
       :key="grip"
-      :class="ns.e('range-handle')"
+      :class="[ns.e('range-handle'), ns.is(grip === 'from' ? 'start' : 'end')]"
       role="slider"
       tabindex="0"
       :aria-label="state.labels.value[i]"

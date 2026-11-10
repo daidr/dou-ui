@@ -218,7 +218,7 @@ async function timedDraw(change: () => void) {
 /** Moves the pointer a little each frame of a hover case. */
 let moves = 0
 
-function chartCase(n: number, series: 'line' | 'bar' | 'scatter' = 'line', zoom = false) {
+function chartCase(n: number, series: 'line' | 'bar' | 'stack' | 'scatter' = 'line', zoom = false) {
   let seed = 1
   const points = () => {
     const list = Array.from({ length: n })
@@ -226,7 +226,15 @@ function chartCase(n: number, series: 'line' | 'bar' | 'scatter' = 'line', zoom 
     for (let i = 0; i < n; i++) {
       seed = (seed * 16807) % 2147483647
       value += (seed / 2147483647 - 0.5) * 2
-      list[i] = { t: i * 1000, v: value, x: (seed % 100_000) / 1000 }
+      list[i] = {
+        t: i * 1000,
+        v: value,
+        x: (seed % 100_000) / 1000,
+        a: i,
+        b: 40 + (seed % 20),
+        c: 20 + (seed % 15),
+        d: 60 + (seed % 30),
+      }
     }
     return list
   }
@@ -241,7 +249,9 @@ function chartCase(n: number, series: 'line' | 'bar' | 'scatter' = 'line', zoom 
           ? [h(DouChartScatter, { y: 'v' })]
           : [
               h(DouChartAxis, { for: 'x', type: 'time' }),
-              series === 'bar' ? h(DouChartBar, { y: 'v' }) : h(DouChartLine, { y: 'v' }),
+              ...(series === 'stack'
+                ? ['a', 'b', 'c', 'd'].map((y) => h(DouChartBar, { y, stack: true }))
+                : [series === 'bar' ? h(DouChartBar, { y: 'v' }) : h(DouChartLine, { y: 'v' })]),
               ...(zoom
                 ? [
                     h(DouChartZoom, {
@@ -764,6 +774,37 @@ export const cases: Record<string, Case> = {
     act: async () => {
       const { data, next } = (window as any).chart
       await timedDraw(() => (data.value = next))
+    },
+  },
+  // four stacks of `n` bars each, as a cumulative flow of `n` days
+  'chart-stack': {
+    render: (n) => chartCase(n, 'stack'),
+    prepare: () => {
+      const state = (window as any).chart
+      state.next = state.points()
+    },
+    act: async () => {
+      const { data, next } = (window as any).chart
+      await timedDraw(() => (data.value = next))
+    },
+  },
+  // the pointer over four stacks of `n` bars: the slice under it brought forward
+  'chart-stack-hover': {
+    frames: 20,
+    render: (n) => chartCase(n, 'stack'),
+    act: async (root) => {
+      const el = root.querySelector<HTMLElement>('.dou-chart')!
+      const box = el.getBoundingClientRect()
+      await timedDraw(() =>
+        el.dispatchEvent(
+          new PointerEvent('pointermove', {
+            bubbles: true,
+            clientX: box.left + box.width * (0.6 + (moves++ % 20) / 100),
+            clientY: box.top + 200,
+            pointerType: 'mouse',
+          }),
+        ),
+      )
     },
   },
   // `n` points scattered over the plot: dots on one pixel drawn once

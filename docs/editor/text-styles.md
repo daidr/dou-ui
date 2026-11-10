@@ -80,3 +80,14 @@ const extensions = editorKit({ colors: false, align: false })
 | ------------------------------- | -------------------------------------------- |
 | `--dou-editor-color-<名称>`     | 文字颜色，例如 `--dou-editor-color-red`      |
 | `--dou-editor-highlight-<名称>` | 背景色，例如 `--dou-editor-highlight-yellow` |
+
+这些变量要写在编辑器和它的菜单上，菜单里的颜色预览才会跟着变；用 `dou-editor-palette` 显示导出内容时，也写在这个类上：
+
+```css
+.dou-editor,
+.dou-editor-menu,
+.dou-editor-palette {
+  --dou-editor-color-red: #a23b36;
+  --dou-editor-highlight-yellow: #f5e9b8;
+}
+```

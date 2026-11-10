@@ -2194,6 +2194,12 @@
     line-height: 1;
   }
 
+  /* on the tint of a hovered button or a highlighted item the border would fade into it */
+  .dou-editor-colors__button:is(:hover, [aria-expanded='true']) .dou-editor-colors__swatch,
+  .dou-dropdown__item:focus .dou-editor-colors__swatch {
+    border-color: var(--dou-color-border-strong);
+  }
+
   /* centred by its cap height, not its line box */
   .dou-editor-colors__letter {
     display: block;

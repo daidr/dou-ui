@@ -33,6 +33,13 @@ const popup = usePopup({
   closeOnOutside: true,
 })
 const { triggerRef, panelRef, rendered, theme, placement, panelStyle } = popup
+
+// It renders where the menu does; a menu kept in place still puts it under body,
+// so it is not clipped by the menu's own scrolling.
+const teleportTo = computed(() => {
+  const target = dropdown?.teleport?.()
+  return target && !target.disabled ? target.to : 'body'
+})
 const item = () => popup.reference() as HTMLElement | null
 
 // It closes with the menu it belongs to.
@@ -144,7 +151,7 @@ const classes = computed(() => [
       <span :class="[ns.e('suffix'), ns.e('arrow')]" aria-hidden="true"><ChevronRightIcon /></span>
     </div>
   </OnlyChild>
-  <Teleport v-if="rendered" to="body">
+  <Teleport v-if="rendered" :to="teleportTo">
     <Transition appear name="dou-floating">
       <div
         v-show="open"
@@ -152,7 +159,7 @@ const classes = computed(() => [
         ref="panelRef"
         role="menu"
         tabindex="-1"
-        :class="[ns.b(), ns.m('sub'), 'dou-floating']"
+        :class="[ns.b(), ns.m('sub'), 'dou-floating', dropdown?.panelClass?.()]"
         :style="panelStyle"
         :data-placement="placement"
         :data-dou-theme="theme"

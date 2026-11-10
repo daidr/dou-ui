@@ -1,6 +1,6 @@
 # ContextMenu 右键菜单
 
-在一块区域上点右键，在指针处弹出一列操作，代替浏览器自带的菜单。菜单项就是 [Dropdown](./dropdown) 的 `DouDropdownItem`，两种菜单长得一样、键盘行为也一样。
+在一块区域上点右键，在指针处弹出一列操作，代替浏览器自带的菜单。菜单项就是 [Dropdown](./dropdown) 的 `DouDropdownItem`，两种菜单长得一样、键盘行为也一样。`DouDropdownSub` 子菜单同样可用，它的渲染位置和 `class` 跟随右键菜单，见 [Dropdown 的子菜单](./dropdown#子菜单)。
 
 ## 基础用法
 

@@ -196,6 +196,10 @@ export interface DropdownContext {
   release: () => void
   /** Left or right out of the menu, when something such as a menubar handles that. */
   move?: (direction: 1 | -1) => void
+  /** The `class` given to the menu; its submenus carry it too, being put elsewhere. */
+  panelClass?: () => unknown
+  /** Where the menu renders; its submenus go to the same place. */
+  teleport?: () => { to: string | HTMLElement; disabled: boolean }
 }
 
 export const dropdownKey: InjectionKey<DropdownContext> = Symbol('DouDropdown')

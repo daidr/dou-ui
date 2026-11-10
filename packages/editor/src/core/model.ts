@@ -1,4 +1,5 @@
 import { Mark, type NodeType, type Node as PMNode, type Schema } from 'prosemirror-model'
+import { toRaw } from 'vue'
 import { isColor, type TextColor } from './colors'
 import type { ContentType, MarkType } from './schema'
 
@@ -341,7 +342,9 @@ export function inlineNodes(
 export function contentAttrs(type: NodeType, props: BlockProps = {}) {
   const attrs: Record<string, unknown> = {}
   for (const name of Object.keys(type.spec.attrs ?? {})) {
-    if (props[name] !== undefined) attrs[name] = props[name]
+    // a prop from a reactive document (an object one, e.g. a board) as its plain value:
+    // blocks are frozen, and a frozen proxy breaks every read
+    if (props[name] !== undefined) attrs[name] = toRaw(props[name])
   }
   const normalize = type.spec.normalizeProps as
     ((attrs: Record<string, unknown>) => Record<string, unknown>) | undefined

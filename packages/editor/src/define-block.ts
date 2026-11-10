@@ -166,9 +166,11 @@ export function vueNodeView(
       stopEvent: (event) => {
         const target = event.target as HTMLElement
         if (contentElement?.contains(target)) return false
-        return !!target.closest?.(
+        const control = target.closest?.(
           'input, textarea, select, button, a, [contenteditable="true"], [data-editor-control]',
         )
+        // only inside the block: the editor around it is contenteditable too
+        return !!control && control !== dom && dom.contains(control)
       },
       ignoreMutation: (mutation) => !contentElement || !contentElement.contains(mutation.target),
       destroy() {

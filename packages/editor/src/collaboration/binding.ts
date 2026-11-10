@@ -21,6 +21,7 @@ import { originKey } from '../core/editor'
 import { ownStepKey } from '../core/transaction'
 import { placeOf } from './cursors'
 import { keptIndexes, keysBetween, orderKeys } from './order'
+import { mergedPropsOf, newMerged, readMerged, writeMerged } from './merged-props'
 import { cellAt, cellStart, clearTable, readTable, writeTable } from './table'
 import { inlineFrom, insertInline, updateText, type Attributes } from './text'
 
@@ -39,6 +40,7 @@ import { inlineFrom, insertInline, updateText, type Attributes } from './text'
  *   }>
  *
  * Tables keep their rows, columns and cells in more entries; see `./table`.
+ * Props a block type merges item by item are maps too; see `./merged-props`.
  */
 
 export type YBlock = Y.Map<unknown>
@@ -82,10 +84,15 @@ function contentFrom(yblock: YBlock, schema: Schema): PMNode {
   const name = yblock.get('type') as string
   const known = schema.nodes[name]
   const type = known?.isInGroup('blockContent') ? known : schema.nodes.paragraph!
-  const props = (yblock.get('props') as Y.Map<unknown> | undefined)?.toJSON() ?? {}
+  const stored = yblock.get('props') as Y.Map<unknown> | undefined
+  const props = stored?.toJSON() ?? {}
+  const merged = mergedPropsOf(type)
   const attrs: Attributes = {}
-  for (const attr of Object.keys(type.spec.attrs ?? {}))
-    if (attr in props) attrs[attr] = props[attr]
+  for (const attr of Object.keys(type.spec.attrs ?? {})) {
+    if (!(attr in props)) continue
+    const lists = merged?.[attr]
+    attrs[attr] = lists ? readMerged(stored!.get(attr), lists) : props[attr]
+  }
   if (type.spec.rows) return readTable(yblock, type, attrs)
   if (!type.inlineContent) return type.create(attrs)
   const text = yblock.get('text') as Y.Text | undefined
@@ -102,8 +109,12 @@ function writeContent(yblock: YBlock, content: PMNode) {
     return
   }
   const props = new Y.Map<unknown>()
-  for (const [name, value] of Object.entries(content.attrs)) props.set(name, value)
+  const merged = mergedPropsOf(content.type)
   yblock.set('props', props)
+  for (const [name, value] of Object.entries(content.attrs)) {
+    const lists = merged?.[name]
+    props.set(name, lists ? newMerged(value, lists) : value)
+  }
   if (content.inlineContent) insertInline(text, 0, content, 0, content.content.size)
 }
 
@@ -117,8 +128,18 @@ function updateContent(yblock: YBlock, before: PMNode, after: PMNode): boolean {
     return writeTable(yblock, before.type === after.type ? before : null, after)
   clearTable(yblock)
   const props = yblock.get('props') as Y.Map<unknown>
+  const merged = mergedPropsOf(after.type)
   for (const [name, value] of Object.entries(after.attrs)) {
-    if (JSON.stringify(props.get(name)) !== JSON.stringify(value)) props.set(name, value)
+    const lists = merged?.[name]
+    if (lists)
+      writeMerged(
+        props,
+        name,
+        lists,
+        value,
+        before.type === after.type ? before.attrs[name] : undefined,
+      )
+    else if (JSON.stringify(props.get(name)) !== JSON.stringify(value)) props.set(name, value)
   }
   for (const name of Array.from(props.keys())) if (!(name in after.attrs)) props.delete(name)
 

@@ -40,6 +40,10 @@
       "types": "./dist/types/code/index.d.ts",
       "import": "./dist/code/index.js"
     },
+    "./flow": {
+      "types": "./dist/types/flow/index.d.ts",
+      "import": "./dist/flow/index.js"
+    },
     "./markdown": {
       "types": "./dist/types/markdown/index.d.ts",
       "import": "./dist/markdown/index.js"
@@ -59,6 +63,7 @@
   },
   "peerDependencies": {
     "@dou-ui/code": "workspace:*",
+    "@dou-ui/flow": "workspace:*",
     "dou-ui": "workspace:*",
     "vue": "^3.5.0",
     "yjs": "^13.6.0",
@@ -66,6 +71,9 @@
   },
   "peerDependenciesMeta": {
     "@dou-ui/code": {
+      "optional": true
+    },
+    "@dou-ui/flow": {
       "optional": true
     },
     "yjs": {
@@ -92,6 +100,7 @@
   },
   "devDependencies": {
     "@dou-ui/code": "workspace:*",
+    "@dou-ui/flow": "workspace:*",
     "@types/markdown-it": "^14.1.2",
     "markdown-it": "^14.1.0",
     "y-protocols": "^1.0.7",

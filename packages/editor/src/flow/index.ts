@@ -8,7 +8,14 @@ import { escapeHTML } from '../core/output'
 import { defineBlock } from '../define-block'
 import { editorLocales } from '../locale'
 import BoardBlock from './board-block.vue'
-import { boardOf, BOARD_OPEN_EVENT, type BoardBlockSettings } from './board'
+import {
+  boardOf,
+  BOARD_OPEN_EVENT,
+  checkBoardProps,
+  clampHeight,
+  heightOf,
+  type BoardBlockSettings,
+} from './board'
 
 export { boardOf } from './board'
 
@@ -48,22 +55,30 @@ function attrsOf(dom: HTMLElement, height: number) {
   } catch {
     // a board that can't be read is an empty one
   }
-  const stored = Number(JSON.parse(dom.getAttribute('data-prop-height') ?? 'null'))
-  return { board: board ? boardOf(board) : null, height: stored > 0 ? stored : height }
+  // `320`, or written by hand `320px`
+  const stored = Number.parseFloat(dom.getAttribute('data-prop-height') ?? '')
+  return { board: board ? boardOf(board) : null, height: stored > 0 ? clampHeight(stored) : height }
 }
 
 /** Turns ```dou-<type> fences from Markdown back into blocks. */
 function readFences(root: HTMLElement, type: string) {
   for (const code of root.querySelectorAll<HTMLElement>(`pre > code.language-${fence(type)}`)) {
-    let board: unknown
+    let written: unknown
     try {
-      board = JSON.parse(code.textContent ?? '')
+      written = JSON.parse(code.textContent ?? '')
     } catch {
       continue
+    }
+    // `{ height, board }`, or the board alone
+    const wrapped = !!written && typeof written === 'object' && 'board' in written
+    const { board, height } = (wrapped ? written : { board: written }) as {
+      board: unknown
+      height?: unknown
     }
     const element = root.ownerDocument.createElement('div')
     element.dataset.contentType = type
     element.setAttribute('data-prop-board', JSON.stringify(boardOf(board)))
+    if (typeof height === 'number') element.setAttribute('data-prop-height', String(height))
     code.parentElement!.replaceWith(element)
   }
 }
@@ -106,10 +121,17 @@ export function flowBlock(options: FlowBlockOptions): EditorExtension {
         ? undefined
         : { icon: WorkflowIcon, ...menu, label: menu?.label ?? options.label },
     spec: {
-      mergeProps: { board: ['nodes', 'edges'] },
+      mergeProps: { board: { lists: ['nodes', 'edges'], objects: ['data'] } },
+      // for `checkDocument`: what the block would read differently
+      checkProps: checkBoardProps,
       // what is copied, and what `blocksToHTML` writes
       parseDOM: [`div[data-content-type="${type}"]`, `figure[data-content-type="${type}"]`].map(
-        (tag) => ({ tag, getAttrs: (dom: HTMLElement) => attrsOf(dom, settings.height) }),
+        (tag) => ({
+          tag,
+          // before the figures of images, whatever the app's HTML puts inside
+          priority: 70,
+          getAttrs: (dom: HTMLElement) => attrsOf(dom, settings.height),
+        }),
       ),
     },
   })
@@ -133,13 +155,19 @@ export function flowBlock(options: FlowBlockOptions): EditorExtension {
         [type]: {
           html: (node, { children }) => {
             const board = boardOf(node.props.board)
-            if (options.html) return options.html(board, node) + children
             // written outside an editor: in Chinese, as the other output
-            const name = labelOf(options.label, editorLocales['zh-CN']!)
-            return `<figure data-content-type="${escapeHTML(type)}" data-prop-board="${escapeHTML(JSON.stringify(board))}" data-prop-height="${Number(node.props.height) || settings.height}"><figcaption>${escapeHTML(name)}</figcaption></figure>${children}`
+            const inside = options.html
+              ? options.html(board, node)
+              : `<figcaption>${escapeHTML(labelOf(options.label, editorLocales['zh-CN']!))}</figcaption>`
+            // the board stays on the figure, so pasting it reads back the block
+            return `<figure data-content-type="${escapeHTML(type)}" data-prop-board="${escapeHTML(JSON.stringify(board))}" data-prop-height="${heightOf(node.props.height, settings.height)}">${inside}</figure>${children}`
           },
           markdown: (node, { children }) => {
-            const written = `\`\`\`${fence(type)}\n${JSON.stringify(boardOf(node.props.board))}\n\`\`\``
+            const value = {
+              height: heightOf(node.props.height, settings.height),
+              board: boardOf(node.props.board),
+            }
+            const written = `\`\`\`${fence(type)}\n${JSON.stringify(value)}\n\`\`\``
             return children ? `${written}\n\n${children}` : written
           },
         },

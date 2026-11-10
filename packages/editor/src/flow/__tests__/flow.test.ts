@@ -12,6 +12,7 @@ import { resolveEditorExtensions } from '../../core/extension'
 import type { EditorDocument, PartialBlock } from '../../core/model'
 import DouEditor from '../../editor.vue'
 import type { EditorExpose } from '../../editor'
+import { checkDocument } from '../../document'
 import { editorKit } from '../../extensions/editor-kit'
 import { blocksToMarkdown, markdownToBlocks } from '../../markdown'
 import { boardOf, flowBlock, whiteboardBlock } from '../index'
@@ -65,6 +66,19 @@ function client(doc: Y.Doc) {
   views.push(view)
   return view
 }
+
+const ids = (view: EditorView) => boardIn(view).nodes.map((n) => n.id)
+
+const pointer = (type: string, x: number) =>
+  new PointerEvent(type, {
+    bubbles: true,
+    cancelable: true,
+    clientX: x,
+    clientY: 20,
+    button: 0,
+    pointerId: 7,
+    pointerType: 'mouse',
+  })
 
 const node = (board: FlowDocument, id: string) => board.nodes.find((n) => n.id === id)
 
@@ -132,6 +146,24 @@ describe('collaboration', () => {
     expect(getBlocks(a)).toEqual(getBlocks(b))
   })
 
+  it('merges changes to different keys of a node’s data, e.g. its text and its color', () => {
+    const { a, b, offline, online } = pair()
+    offline()
+    setBoard(a, (board) => ({
+      ...board,
+      nodes: board.nodes.map((n) => (n.id === 'n1' ? { ...n, data: { text: '甲改' } } : n)),
+    }))
+    setBoard(b, (board) => ({
+      ...board,
+      nodes: board.nodes.map((n) =>
+        n.id === 'n1' ? { ...n, data: { ...n.data, tone: 'success' } } : n,
+      ),
+    }))
+    online()
+    for (const view of [a, b])
+      expect(node(boardIn(view), 'n1')?.data).toEqual({ text: '甲改', tone: 'success' })
+  })
+
   it('keeps a node removed that someone else changed meanwhile', () => {
     const { a, b, offline, online } = pair()
     offline()
@@ -159,6 +191,23 @@ describe('collaboration', () => {
     for (const view of [a, b])
       expect(boardIn(view).nodes.map((n) => n.id)).toEqual(['n1', 'n2', 'na', 'nb'])
   })
+
+  it('keeps the nodes in their order, whatever their ids, as they are added and moved', () => {
+    const { a, b } = pair()
+    setBoard(a, (board) => ({
+      ...board,
+      nodes: [...board.nodes, { id: 'a0', type: 'text', x: 0, y: 0, data: { text: '后加' } }],
+    }))
+    expect(ids(a)).toEqual(['n1', 'n2', 'a0'])
+    expect(ids(b)).toEqual(['n1', 'n2', 'a0'])
+    // brought to the front: drawn last
+    setBoard(b, (board) => ({
+      ...board,
+      nodes: [board.nodes[1]!, board.nodes[2]!, board.nodes[0]!],
+    }))
+    expect(ids(a)).toEqual(['n2', 'a0', 'n1'])
+    expect(ids(b)).toEqual(['n2', 'a0', 'n1'])
+  })
 })
 
 describe('output', () => {
@@ -179,6 +228,9 @@ describe('output', () => {
       whiteboardBlock({ html: (board) => `<img alt="${board.nodes.length} 个图形">` }),
     ])
     expect(html).toContain('<img alt="2 个图形">')
+    const [, block] = htmlToBlocks(html, [editorKit(), whiteboardBlock()])
+    expect(block!.type).toBe('whiteboard')
+    expect(boardOf(block!.props.board)).toEqual(BOARD)
   })
 
   it('writes Markdown as a fenced block that reads back', () => {
@@ -187,6 +239,45 @@ describe('output', () => {
     const [, block] = markdownToBlocks(markdown, extensions)
     expect(block!.type).toBe('whiteboard')
     expect(boardOf(block!.props.board)).toEqual(BOARD)
+  })
+
+  it('keeps the height in Markdown and HTML', () => {
+    const blocks: PartialBlock[] = [
+      { id: 'w', type: 'whiteboard', props: { board: BOARD, height: 520 } },
+    ]
+    expect(
+      markdownToBlocks(blocksToMarkdown(blocks, extensions), extensions)[0]!.props.height,
+    ).toBe(520)
+    expect(htmlToBlocks(blocksToHTML(blocks, extensions), extensions)[0]!.props.height).toBe(520)
+    const typed = htmlToBlocks(
+      '<div data-content-type="whiteboard" data-prop-height="320px"></div>',
+      extensions,
+    )
+    expect(typed[0]!.props.height).toBe(320)
+  })
+
+  it('reports a board or height the block can’t use in checkDocument', () => {
+    const problems = checkDocument(
+      {
+        version: 1,
+        blocks: [
+          { id: 'w1', type: 'whiteboard', props: { board: 'nope', height: '大' } },
+          {
+            id: 'w2',
+            type: 'whiteboard',
+            props: { board: { version: 1, nodes: [1], edges: [] }, height: 99 },
+          },
+          { id: 'w3', type: 'whiteboard', props: { board: BOARD, height: 400 } },
+        ],
+      },
+      { extensions },
+    )
+    expect(problems.map((p) => [p.code, p.blockId, p.path])).toEqual([
+      ['invalid-props', 'w1', 'blocks[0].props.board'],
+      ['invalid-props', 'w1', 'blocks[0].props.height'],
+      ['invalid-props', 'w2', 'blocks[1].props.board.nodes'],
+      ['invalid-props', 'w2', 'blocks[1].props.height'],
+    ])
   })
 
   it('reads a board that is not a flow as an empty one', () => {
@@ -291,6 +382,50 @@ describe('in the editor', () => {
     expect(editor.redo()).toBe(true)
     expect(editor.redo()).toBe(true)
     expect(x()).toBe(30)
+  })
+
+  it('leaves no undo step for a drag cancelled with Escape', async () => {
+    const { view, flow, openBoard } = await open()
+    await openBoard()
+    const editor = flow()!.vm
+    editor.transact((tr) => tr.updateNode('n2', { x: 260 }))
+    const root = document.querySelector<HTMLElement>('.dou-dialog .dou-flow-editor')!
+    root.querySelector('[data-node-id="n1"]')!.dispatchEvent(pointer('pointerdown', 20))
+    for (const x of [40, 60, 80]) root.dispatchEvent(pointer('pointermove', x))
+    await nextTick()
+    const x = (id: string) => boardIn(view).nodes.find((n) => n.id === id)?.x
+    expect(x('n1')).not.toBe(0)
+    root.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    root.dispatchEvent(pointer('pointerup', 80))
+    await nextTick()
+    expect(x('n1')).toBe(0)
+    // the first undo takes back the change before the drag
+    expect(editor.undo()).toBe(true)
+    expect(x('n2')).toBe(200)
+  })
+
+  it('keeps a folded group out of the document, and out of the undo steps', async () => {
+    const { view, flow, openBoard } = await open()
+    await openBoard()
+    const editor = flow()!.vm
+    editor.transact((tr) => tr.updateNode('n1', { data: { text: '甲', collapsed: true } }))
+    await nextTick()
+    expect(boardIn(view).nodes.find((n) => n.id === 'n1')?.data).toEqual({ text: '甲' })
+    // shown folded here
+    const shown = flow()!.props('modelValue') as FlowDocument
+    expect(shown.nodes.find((n) => n.id === 'n1')?.data).toEqual({ text: '甲', collapsed: true })
+    expect(editor.undo()).toBe(false)
+    // a change besides: written, still unfolded in the document
+    editor.transact((tr) => tr.updateNode('n1', { x: 50 }))
+    await nextTick()
+    expect(boardIn(view).nodes.find((n) => n.id === 'n1')).toMatchObject({
+      x: 50,
+      data: { text: '甲' },
+    })
+    editor.transact((tr) => tr.updateNode('n1', { data: { text: '甲' } }))
+    await nextTick()
+    const unfolded = flow()!.props('modelValue') as FlowDocument
+    expect(unfolded.nodes.find((n) => n.id === 'n1')?.data).toEqual({ text: '甲' })
   })
 
   it('opens with Enter on the selected block', async () => {

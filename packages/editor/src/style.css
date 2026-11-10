@@ -2060,9 +2060,22 @@
     opacity: 1;
   }
 
+  /*
+   * on touch: 40px high around the handle only, so the rest of the bottom
+   * edge selects the block; and only once the block is selected, so a tap
+   * selects it first
+   */
   @media (pointer: coarse) {
     .dou-editor-board__resize {
-      height: 24px;
+      right: auto;
+      left: 50%;
+      width: 80px;
+      height: 40px;
+      transform: translateX(-50%);
+    }
+
+    .dou-editor-board:not(.is-selected) .dou-editor-board__resize {
+      pointer-events: none;
     }
 
     .dou-editor-board.is-selected .dou-editor-board__resize::after {

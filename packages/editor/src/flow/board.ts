@@ -43,6 +43,52 @@ export function boardOf(value: unknown): FlowDocument {
 export const clampHeight = (height: number) =>
   Math.round(Math.min(BOARD_HEIGHT.max, Math.max(BOARD_HEIGHT.min, height)))
 
+/** A block's `height` prop in px: the default when it isn't a positive number. */
+export const heightOf = (value: unknown, fallback: number) =>
+  typeof value === 'number' && value > 0 ? clampHeight(value) : fallback
+
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  !!value && typeof value === 'object' && !Array.isArray(value)
+
+/** What `checkDocument` reports of a block's props: a board or height it would read differently. */
+export function checkBoardProps(props: Record<string, unknown>) {
+  const problems: { prop: string; message: string }[] = []
+  const { board, height } = props
+  if (board != null) {
+    if (!isObject(board))
+      problems.push({
+        prop: 'board',
+        message: 'The board is not a flow document; it would be shown empty',
+      })
+    else
+      for (const list of ['nodes', 'edges'] as const) {
+        const items = board[list]
+        if (items === undefined) continue
+        if (!Array.isArray(items))
+          problems.push({
+            prop: `board.${list}`,
+            message: `"${list}" is not a list; it would be read as empty`,
+          })
+        else if (items.some((item) => !isObject(item)))
+          problems.push({
+            prop: `board.${list}`,
+            message: `Some ${list} are not objects; they would be left out`,
+          })
+      }
+  }
+  if (height != null && !(typeof height === 'number' && height > 0))
+    problems.push({
+      prop: 'height',
+      message: `The height ${JSON.stringify(height)} is not a positive number; the default would be used`,
+    })
+  else if (typeof height === 'number' && (height < BOARD_HEIGHT.min || height > BOARD_HEIGHT.max))
+    problems.push({
+      prop: 'height',
+      message: `The height ${height} is outside ${BOARD_HEIGHT.min}–${BOARD_HEIGHT.max}; it would be clamped`,
+    })
+  return problems
+}
+
 interface Found {
   pos: number
   node: PMNode

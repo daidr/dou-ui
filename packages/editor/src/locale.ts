@@ -155,7 +155,6 @@ export interface EditorMessages {
   /** Blocks holding a whiteboard or a flow (`@dou-ui/editor/flow`). */
   board: {
     empty: string
-    emptyReadonly: string
     start: string
     edit: string
     view: string
@@ -326,7 +325,6 @@ const zhCN: EditorMessages = {
   },
   board: {
     empty: '还没有内容',
-    emptyReadonly: '空白画板',
     start: '开始绘制',
     edit: '编辑',
     view: '查看',
@@ -491,11 +489,10 @@ const zhTW: EditorMessages = {
   },
   board: {
     empty: '還沒有內容',
-    emptyReadonly: '空白畫板',
     start: '開始繪製',
     edit: '編輯',
     view: '查看',
-    resize: '拖動以調整高度',
+    resize: '拖曳以調整高度',
   },
   noResults: '沒有符合的區塊',
   addBlock: '在下方新增區塊',
@@ -656,7 +653,6 @@ const en: EditorMessages = {
   },
   board: {
     empty: 'Nothing drawn yet',
-    emptyReadonly: 'Empty board',
     start: 'Start drawing',
     edit: 'Edit',
     view: 'View',

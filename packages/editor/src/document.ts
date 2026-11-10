@@ -15,6 +15,7 @@ export interface DocumentProblem {
     | 'unknown-mark'
     | 'unknown-inline'
     | 'invalid-columns'
+    | 'invalid-props'
   /** The block at fault, when it has an id. */
   blockId?: string
   /**
@@ -53,7 +54,8 @@ function shapeProblems(value: unknown, lists: string[]): DocumentProblem[] {
  * marks and inline nodes the extensions don't define, which the editor
  * would show as a paragraph or leave out, and columns the editor would
  * change on the next edit (a column outside a set of columns, a set with
- * fewer than two, columns in a column…).
+ * fewer than two, columns in a column…), and props a block type says it can't use
+ * (its spec's `checkProps`, e.g. a whiteboard's board that isn't a flow).
  */
 export function checkDocument(
   document: EditorDocument<PartialBlock>,
@@ -77,6 +79,7 @@ export function checkDocument(
       checkBlock(block, path, schema, ids, problems)
       const layout = layoutOfType(schema, block.type)
       checkLayout(block, layout, path, around, schema, problems)
+      checkProps(block, path, schema, problems)
       if (block.children)
         walk(block.children, `${path}.children`, {
           layout,
@@ -85,6 +88,31 @@ export function checkDocument(
     })
   walk(document.blocks, 'blocks', { layout: undefined, inColumn: false })
   return problems
+}
+
+/**
+ * Props a block type can't use, as its spec's `checkProps` tells: a
+ * whiteboard whose `board` isn't a flow document, a height that isn't a
+ * number… Each is `{ prop, message }`.
+ */
+function checkProps(
+  block: PartialBlock,
+  path: string,
+  schema: Schema,
+  problems: DocumentProblem[],
+) {
+  const type = block.type ?? 'paragraph'
+  const check = schema.nodes[type]?.spec.checkProps as
+    ((props: Record<string, unknown>) => { prop: string; message: string }[]) | undefined
+  if (!check || !block.props) return
+  for (const { prop, message } of check(block.props as Record<string, unknown>))
+    problems.push({
+      code: 'invalid-props',
+      blockId: block.id,
+      path: `${path}.props.${prop}`,
+      text: type,
+      message,
+    })
 }
 
 /** What a block sits in: the layout of its parent, and whether that is inside a column. */

@@ -90,8 +90,8 @@ function contentFrom(yblock: YBlock, schema: Schema): PMNode {
   const attrs: Attributes = {}
   for (const attr of Object.keys(type.spec.attrs ?? {})) {
     if (!(attr in props)) continue
-    const lists = merged?.[attr]
-    attrs[attr] = lists ? readMerged(stored!.get(attr), lists) : props[attr]
+    const spec = merged?.[attr]
+    attrs[attr] = spec ? readMerged(stored!.get(attr), spec) : props[attr]
   }
   if (type.spec.rows) return readTable(yblock, type, attrs)
   if (!type.inlineContent) return type.create(attrs)
@@ -112,8 +112,8 @@ function writeContent(yblock: YBlock, content: PMNode) {
   const merged = mergedPropsOf(content.type)
   yblock.set('props', props)
   for (const [name, value] of Object.entries(content.attrs)) {
-    const lists = merged?.[name]
-    props.set(name, lists ? newMerged(value, lists) : value)
+    const spec = merged?.[name]
+    props.set(name, spec ? newMerged(value, spec) : value)
   }
   if (content.inlineContent) insertInline(text, 0, content, 0, content.content.size)
 }
@@ -130,12 +130,12 @@ function updateContent(yblock: YBlock, before: PMNode, after: PMNode): boolean {
   const props = yblock.get('props') as Y.Map<unknown>
   const merged = mergedPropsOf(after.type)
   for (const [name, value] of Object.entries(after.attrs)) {
-    const lists = merged?.[name]
-    if (lists)
+    const spec = merged?.[name]
+    if (spec)
       writeMerged(
         props,
         name,
-        lists,
+        spec,
         value,
         before.type === after.type ? before.attrs[name] : undefined,
       )

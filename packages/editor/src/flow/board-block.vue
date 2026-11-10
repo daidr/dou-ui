@@ -3,8 +3,10 @@ import {
   DouFlowControls,
   DouFlowEditor,
   defineFlowExtension,
+  type FlowDocument,
   type FlowExtension,
   type FlowHistoryHandler,
+  type FlowNode,
   type FlowTransaction,
 } from '@dou-ui/flow'
 import { EyeIcon, PencilIcon } from '@dou-ui/icons'
@@ -34,6 +36,17 @@ import {
   type BoardBlockSettings,
 } from './board'
 
+/** The board with the groups this reader folded or unfolded. */
+function withFolded(board: FlowDocument, folded: Map<string, boolean>): FlowDocument {
+  if (!folded.size) return board
+  const nodes = board.nodes.map((node) => {
+    if (!folded.has(node.id)) return node
+    const { collapsed: _, ...data } = node.data ?? {}
+    return { ...node, data: folded.get(node.id) ? { ...data, collapsed: true } : data }
+  })
+  return { ...board, nodes }
+}
+
 const props = defineProps<{
   block: { id: string; type: string; props: BlockProps }
   updateProps: (props: BlockProps) => void
@@ -45,8 +58,21 @@ const props = defineProps<{
 const { view, messages } = useEditor()
 const text = computed(() => messages.value.board)
 const label = computed(() => labelOf(props.settings.label, messages.value))
-const board = computed(() => boardOf(props.block.props.board))
+const stored = computed(() => boardOf(props.block.props.board))
+/*
+ * Whether a group is folded is each reader's own view, as with toggles: it
+ * stays out of the document (what it holds there is kept), and is shown
+ * from here.
+ */
+const folded = shallowRef(new Map<string, boolean>())
+const board = computed(() => withFolded(stored.value, folded.value))
 const empty = computed(() => !board.value.nodes.length)
+
+/* the fullscreen editor */
+const open = shallowRef(false)
+watch(open, (value) => {
+  if (!value) shown.value = board.value
+})
 
 const root = useTemplateRef<HTMLElement>('root')
 const canvas = useTemplateRef<HTMLElement>('canvas')
@@ -94,21 +120,25 @@ onMounted(() => {
   }
 })
 onBeforeUnmount(() => {
+  settle()
   root.value?.removeEventListener(BOARD_OPEN_EVENT, openEditor)
   observer?.disconnect()
   resized?.disconnect()
   cancelAnimationFrame(frame)
 })
-watch(board, () => void nextTick(refit))
+/* what the preview shows: held while the fullscreen editor covers it, so it isn't redrawn each frame */
+const shown = shallowRef(board.value)
+watch(board, (value) => {
+  if (!open.value) shown.value = value
+})
+watch(shown, () => void nextTick(refit))
 watch(height, () => void nextTick(refit))
 
-/* the fullscreen editor */
-const open = shallowRef(false)
 function openEditor() {
   if (!props.editable && empty.value) return
   steps.undo = 0
   steps.redo = 0
-  lastGroup = undefined
+  pending = null
   open.value = true
 }
 
@@ -136,45 +166,117 @@ function onClosed() {
  * Changes on the board go into the document as they are made, so `v-model`,
  * collaboration and the other blocks see them, and into the editor's undo
  * history: undo in the fullscreen editor is the document's, one step per
- * change on the board. A drag's frames are one step, as in the flow editor.
+ * change on the board. The frames of a drag (or nudges with the arrow keys)
+ * go in outside the history; once it ends, the whole move is written again
+ * as one step, so a cancelled drag leaves none.
  */
 const GROUP_WINDOW = 1000
-let lastGroup: string | undefined
-let lastTime = 0
+/** A drag going on: its group, the board before it, and when its last frame came. */
+let pending: { group: string; start: unknown; time: number } | null = null
 /** The steps taken on the board since it was opened, and those undone. */
 const steps = { undo: 0, redo: 0 }
+
+/** The board as the document keeps it: groups folded as they are there; and what this reader folded. */
+function toDocument(next: FlowDocument): FlowDocument {
+  const before = new Map(stored.value.nodes.map((node) => [node.id, node]))
+  let changed: Map<string, boolean> | null = null
+  const nodes = next.nodes.map((node) => {
+    const mine = !!node.data?.collapsed
+    const theirs = before.get(node.id)?.data?.collapsed
+    if (mine === !!theirs) {
+      if (folded.value.has(node.id)) (changed ??= new Map(folded.value)).delete(node.id)
+      return node
+    }
+    if (folded.value.get(node.id) !== mine) (changed ??= new Map(folded.value)).set(node.id, mine)
+    const { collapsed: _, ...data } = node.data ?? {}
+    if (theirs !== undefined) return { ...node, data: { ...data, collapsed: theirs } }
+    // a node with no data before has none after
+    if (Object.keys(data).length || before.get(node.id)?.data) return { ...node, data }
+    const { data: __, ...rest } = node
+    return rest as FlowNode
+  })
+  if (changed) folded.value = changed
+  warnDataImages(next, before)
+  return { ...next, nodes }
+}
+
+let warned = false
+/** Pictures kept in the document as data URLs make it large: say so once, while developing. */
+function warnDataImages(next: FlowDocument, before: Map<string, FlowNode>) {
+  if (warned || process.env.NODE_ENV === 'production') return
+  const added = next.nodes.find(
+    (node) =>
+      typeof node.data?.src === 'string' &&
+      node.data.src.startsWith('data:') &&
+      before.get(node.id)?.data?.src !== node.data.src,
+  )
+  if (!added) return
+  warned = true
+  console.warn(
+    `[@dou-ui/editor] a picture on the "${props.block.type}" block is kept in the document as a data URL; pass \`upload\` to whiteboardBlock() to keep only its address`,
+  )
+}
+
+const currentBoard = () => {
+  const pos = contentPos()
+  return pos === null ? null : (view.value?.state.doc.nodeAt(pos)?.attrs.board ?? null)
+}
+
+/** Writes the board as one undo step of its own. */
+function record(next: unknown) {
+  const editor = view.value
+  const pos = contentPos()
+  if (!editor || pos === null) return
+  editor.dispatch(editor.state.tr.setNodeAttribute(pos, 'board', next).setMeta(ownStepKey, true))
+  steps.undo++
+  steps.redo = 0
+}
+
+/** Ends the drag going on: its change becomes one undo step. */
+function settle() {
+  const drag = pending
+  pending = null
+  const editor = view.value
+  const pos = contentPos()
+  if (!drag || !editor || pos === null) return
+  const end = currentBoard()
+  if (JSON.stringify(end) === JSON.stringify(drag.start)) return
+  // back to where it started, then to where it ended, in one go
+  editor.dispatch(
+    editor.state.tr.setNodeAttribute(pos, 'board', drag.start).setMeta('addToHistory', false),
+  )
+  record(end)
+}
 
 function forward(tr: FlowTransaction) {
   const editor = view.value
   const pos = contentPos()
   if (!editor || pos === null || !props.editable) return
-  const change = editor.state.tr.setNodeAttribute(pos, 'board', tr.doc)
-  if (tr.meta.history === false) change.setMeta('addToHistory', false)
-  else {
-    const group = tr.meta.group
-    const now = Date.now()
-    if (group && group === lastGroup && now - lastTime < GROUP_WINDOW)
-      // joins the step before, like the next frame of a drag
-      change.setMeta('appendedTransaction', editor.state.tr)
-    else {
-      if (!group) change.setMeta(ownStepKey, true)
-      steps.undo++
-      steps.redo = 0
-    }
-    lastGroup = group
-    lastTime = now
-  }
-  editor.dispatch(change)
+  const group = tr.meta.group
+  const next = toDocument(tr.doc)
+  // only folded or unfolded: nothing for the document
+  if (JSON.stringify(next) === JSON.stringify(currentBoard())) return
+  const quiet = () =>
+    editor.dispatch(
+      editor.state.tr.setNodeAttribute(pos, 'board', next).setMeta('addToHistory', false),
+    )
+  if (tr.meta.history === false) return quiet()
+  const now = Date.now()
+  if (pending && (pending.group !== group || now - pending.time >= GROUP_WINDOW)) settle()
+  if (!group) return record(next)
+  pending ??= { group, start: currentBoard(), time: now }
+  pending.time = now
+  quiet()
 }
 
 /** Undo or redo in the document; refused when it would change something besides this board. */
 function travel(kind: 'undo' | 'redo') {
+  settle()
   const editor = view.value
   if (!editor || !steps[kind]) return false
   const before = editor.state.doc
   const commands = historyCommands(editor.state)
   if (!commands[kind](editor.state, editor.dispatch, editor)) return false
-  lastGroup = undefined
   if (!onlyBoardChanged(before, editor.state.doc, props.block.id)) {
     // the board's own steps are used up: put back what was taken
     historyCommands(editor.state)[kind === 'undo' ? 'redo' : 'undo'](
@@ -193,8 +295,13 @@ function travel(kind: 'undo' | 'redo') {
 const history: FlowHistoryHandler = {
   undo: () => travel('undo'),
   redo: () => travel('redo'),
-  canUndo: () => steps.undo > 0,
-  canRedo: () => steps.redo > 0,
+  canUndo: () => steps.undo > 0 || !!pending,
+  canRedo: () => steps.redo > 0 && !pending,
+  // a cancelled drag: the board is already back where it started
+  drop: (group) => {
+    if (pending?.group === group) pending = null
+  },
+  close: settle,
 }
 const bridge: FlowExtension = defineFlowExtension({
   name: 'editor-board-history',
@@ -256,15 +363,15 @@ function resetHeight() {
     class="dou-editor-board"
     :class="{ 'is-selected': selected, 'is-empty': empty }"
     :style="{ height: `${height}px` }"
-    role="img"
-    :aria-label="label"
     @dblclick="openEditor"
   >
-    <div v-if="!empty" class="dou-editor-board__preview" inert>
+    <div v-if="!empty" class="dou-editor-board__preview" role="img" :aria-label="label">
       <DouFlowEditor
+        class="dou-editor-board__canvas"
+        inert
         v-if="seen"
         ref="preview"
-        :model-value="board"
+        :model-value="shown"
         v-bind="settings.editorProps"
         :extensions="settings.extensions"
         readonly
@@ -277,13 +384,10 @@ function resetHeight() {
         :searchable="false"
         :commentable="false"
         :pan-on-scroll="false"
-        :aria-label="label"
       />
     </div>
     <div v-else class="dou-editor-board__empty">
-      <span class="dou-editor-board__empty-text">{{
-        editable ? text.empty : text.emptyReadonly
-      }}</span>
+      <span class="dou-editor-board__empty-text">{{ text.empty }}</span>
       <DouButton v-if="editable" size="sm" variant="outline" @click="openEditor">
         <template #leading><PencilIcon /></template>
         {{ text.start }}
@@ -319,6 +423,7 @@ function resetHeight() {
       fullscreen
       destroy-on-close
       @opened="onOpened"
+      @close="settle"
       @closed="onClosed"
     >
       <div ref="canvas" class="dou-editor-board__editor" data-editor-control>
@@ -328,6 +433,7 @@ function resetHeight() {
           :extensions="extensions"
           :readonly="!editable"
           fit-view
+          :fit-min-zoom="0.1"
           :commentable="false"
           :aria-label="label"
           @transaction="forward"

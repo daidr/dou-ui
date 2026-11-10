@@ -2140,11 +2140,14 @@
   }
 
   /* the same list as when an edge is dropped on the canvas, in the popover */
+  /* the list reaches the popover's edges */
+  .dou-popover:has(> .dou-popover__content > .dou-editor-board__types) {
+    --dou-popover-padding: 0;
+  }
+
   .dou-editor-board__types {
     width: 260px;
     max-width: 100%;
-    /* the popover's padding: the list reaches its edges */
-    margin: -12px -14px;
 
     & .dou-command__search {
       height: 40px;
@@ -2152,7 +2155,24 @@
     }
   }
 
-  /* the whole row can be dragged onto the canvas */
+  .dou-editor-board__type-icon {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-color-bg-muted);
+    color: var(--dou-color-text-secondary);
+
+    & svg {
+      width: 14px;
+      height: 14px;
+    }
+  }
+
+  /* the whole row can be dragged onto the canvas: it covers the item's padding */
   .dou-editor-board__type {
     display: flex;
     flex: 1;
@@ -2160,10 +2180,8 @@
     gap: 8px;
     min-width: 0;
     align-self: stretch;
-
-    & .dou-command__label {
-      flex: none;
-    }
+    margin: -6px -10px;
+    padding: 6px 10px;
   }
 
   .dou-flow-editor__panels > .dou-editor-board__hint {

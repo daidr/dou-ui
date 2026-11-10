@@ -386,8 +386,10 @@ function dragNode(type: string, event: PointerEvent) {
       adding.value = false
       // a drag let go of (or cancelled) off the canvas: back to the button
       void nextTick(() => {
+        // the list may not be hidden yet: focus still in its search field
         const active = document.activeElement
-        if (!active || active === document.body)
+        const list = command.value?.$el as HTMLElement | undefined
+        if (!active || active === document.body || list?.contains(active))
           (addTrigger.value?.$el as HTMLElement | undefined)?.focus({ preventScroll: true })
       })
     },
@@ -575,7 +577,7 @@ function resetHeight() {
                       class="dou-editor-board__type"
                       @pointerdown="dragNode(String(item.value), $event)"
                     >
-                      <span class="dou-flow-quick-add__icon">
+                      <span class="dou-editor-board__type-icon">
                         <component :is="item.icon" v-if="item.icon" />
                       </span>
                       <span class="dou-command__label">

@@ -561,6 +561,23 @@ const card = (type: string, label: string, group: string) =>
     palette: { label, group, description: `${label}的说明` },
   })
 
+const reviewBlock = () =>
+  flowBlock({
+    type: 'review',
+    label: '审核',
+    extensions: [
+      flowKit(),
+      defineFlowExtension({
+        name: 'review',
+        nodeTypes: [
+          card('start', '开始', '起止'),
+          card('check', '审核', '处理'),
+          card('end', '结束', '起止'),
+        ],
+      }),
+    ],
+  })
+
 describe('adding nodes', () => {
   it('offers a node with ports in a flow block, added as one undo step', async () => {
     const { wrapper, view, flow } = await open([{ id: 'f', type: 'approval' }])
@@ -598,22 +615,7 @@ describe('adding nodes', () => {
   })
 
   it('lists several types in groups, searchable, each one added on choosing it', async () => {
-    const block = flowBlock({
-      type: 'review',
-      label: '审核',
-      extensions: [
-        flowKit(),
-        defineFlowExtension({
-          name: 'review',
-          nodeTypes: [
-            card('start', '开始', '起止'),
-            card('check', '审核', '处理'),
-            card('end', '结束', '起止'),
-          ],
-        }),
-      ],
-    })
-    const { wrapper, view } = await open([{ id: 'r', type: 'review' }], false, [block])
+    const { wrapper, view } = await open([{ id: 'r', type: 'review' }], false, [reviewBlock()])
     await wrapper.find('.dou-editor-board__empty button').trigger('click')
     await nextTick()
     await nextTick()
@@ -626,6 +628,26 @@ describe('adding nodes', () => {
     list.querySelector<HTMLElement>('.dou-editor-board__type')!.click()
     await nextTick()
     expect(nodesOf(view, 'r')).toHaveLength(1)
+  })
+
+  it('gives the focus back to the button when a drag from the list ends off the canvas', async () => {
+    const { wrapper } = await open([{ id: 'r', type: 'review' }], false, [reviewBlock()])
+    await wrapper.find('.dou-editor-board__empty button').trigger('click')
+    await nextTick()
+    await nextTick()
+    const trigger = addButton()[0]!
+    trigger.click()
+    await nextTick()
+    await nextTick()
+    const list = document.querySelector('.dou-editor-board__types')!
+    list.querySelector<HTMLInputElement>('input')!.focus()
+    list
+      .querySelector('.dou-editor-board__type')!
+      .dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerId: 3 }))
+    window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0, pointerId: 3 }))
+    await nextTick()
+    await nextTick()
+    expect(document.activeElement).toBe(trigger)
   })
 
   it('leaves the button out of a whiteboard, which has its own tools', async () => {

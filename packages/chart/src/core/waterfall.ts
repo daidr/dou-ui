@@ -71,9 +71,10 @@ function draw(
   const { top, base } = series
   if (!base) return
   const [from, to] = visibleRange(xs, series.x.sorted, sx.domain[0], sx.domain[1])
-  const { offset, width } = barPlacement(view.band, series.slot)
+  const { offset, width, room } = barPlacement(view.band, series.slot)
   const snap = (v: number) => Math.round(v * dpr) / dpr
-  const radius = Math.max(0, series.props.radius ?? 2)
+  // narrow bands leave little or no room between bars: no corners to round there either
+  const radius = Math.min(Math.max(0, series.props.radius ?? 2), (Math.round(room * dpr) / dpr) * 2)
   const p = (u: number, v: number): [number, number] => (horizontal ? [v, u] : [u, v])
 
   // the lines first, under the bars: from each bar's end to the next bar

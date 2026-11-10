@@ -38,6 +38,7 @@ const { state } = defineProps<{ state: ZoomLayerState }>()
 const ns = useNamespace('chart')
 const { brush, strip } = state
 const canvas = useTemplateRef<HTMLCanvasElement>('canvas')
+const rangeEl = useTemplateRef<HTMLElement>('range')
 
 watchPostEffect(() => {
   // not on `strip`: moving the shown part leaves the sketch as it is
@@ -85,14 +86,41 @@ let drag: {
 
 function along(event: PointerEvent): number {
   const s = strip.value!
-  const el = event.currentTarget as HTMLElement
-  const box = el.closest(`.${ns.e('range')}`)!.getBoundingClientRect()
+  const box = rangeEl.value!.getBoundingClientRect()
   return s.horizontal
     ? (event.clientY - box.top) / box.height
     : (event.clientX - box.left) / box.width
 }
 
-function onPointerDown(event: PointerEvent, grip: Grip | 'track') {
+/** How near a handle (px) a press takes it, by a finger and by a mouse. */
+const REACH = { touch: 20, mouse: 8 }
+
+/**
+ * What a press at `at` (0 to 1 along the strip) takes hold of: a handle
+ * when near it, the shown part when on it, or else the strip. Inside the
+ * shown part a handle takes only its outer quarter, so even a sliver of a
+ * week in years can be dragged by its middle; outside, a handle reaches
+ * as far as a finger, wherever it is drawn, at the chart's edge too.
+ */
+function gripAt(event: PointerEvent, at: number): Grip | 'track' {
+  const s = strip.value!
+  const length = s.horizontal ? s.rect.height : s.rect.width
+  const x = at * length
+  const a = s.from * length
+  const b = s.to * length
+  const reach = event.pointerType === 'mouse' ? REACH.mouse : REACH.touch
+  if (x > a && x < b) {
+    const inner = Math.min(reach, (b - a) / 4)
+    if (x - a <= inner) return 'from'
+    if (b - x <= inner) return 'to'
+    return 'window'
+  }
+  if (x <= a && a - x <= reach) return 'from'
+  if (x >= b && x - b <= reach) return 'to'
+  return 'track'
+}
+
+function onPointerDown(event: PointerEvent) {
   if (event.button !== 0 || !strip.value) return
   event.stopPropagation()
   event.preventDefault()
@@ -100,6 +128,7 @@ function onPointerDown(event: PointerEvent, grip: Grip | 'track') {
   const s = strip.value
   let { from, to } = s
   const at = along(event)
+  let grip = gripAt(event, at)
   if (grip === 'track') {
     // a press beside the shown part moves it there, and drags it from there
     const span = to - from
@@ -183,8 +212,9 @@ const percent = (value: number) => Math.round(value * 1000) / 10
   <div
     v-if="strip && parts"
     :class="[ns.e('range'), ns.is('vertical', strip.horizontal)]"
+    ref="range"
     :style="px(strip.rect)"
-    @pointerdown="(e) => onPointerDown(e, 'track')"
+    @pointerdown="onPointerDown"
     @pointermove="onPointerMove"
     @pointerup="onPointerUp"
     @pointercancel="onPointerCancel"
@@ -209,12 +239,11 @@ const percent = (value: number) => Math.round(value * 1000) / 10
       :style="
         px({ ...parts.window, x: parts.window.x - strip.rect.x, y: parts.window.y - strip.rect.y })
       "
-      @pointerdown="(e) => onPointerDown(e, 'window')"
     />
     <div
       v-for="(grip, i) in ['from', 'to'] as const"
       :key="grip"
-      :class="[ns.e('range-handle'), ns.is(grip === 'from' ? 'start' : 'end')]"
+      :class="ns.e('range-handle')"
       role="slider"
       tabindex="0"
       :aria-label="state.labels.value[i]"
@@ -228,7 +257,6 @@ const percent = (value: number) => Math.round(value * 1000) / 10
           ? { transform: `translate(0, ${parts.ends[i]! - strip.rect.y}px)` }
           : { transform: `translate(${parts.ends[i]! - strip.rect.x}px, 0)` }
       "
-      @pointerdown="(e) => onPointerDown(e, grip)"
       @keydown="(e) => onKeydown(e, grip)"
     />
   </div>

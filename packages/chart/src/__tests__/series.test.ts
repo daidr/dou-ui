@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { h, nextTick } from 'vue'
 import { DouChart, DouChartBar, DouChartLine, DouChartPie, defineChartSeries } from '..'
 import { barKind, barPlacement, drawBars } from '../core/bar'
+import { boxKind } from '../core/box'
+import { waterfallKind } from '../core/waterfall'
 import { layoutChart, type AxisConfig } from '../core/layout'
 import { buildModel, type SeriesInput } from '../core/model'
 import type { Painter } from '../core/painter'
@@ -42,6 +44,18 @@ const resolve = (model: ReturnType<typeof buildModel>): ChartSeries[] =>
   }))
 
 const colors = { surface: '#fff', grid: '#eee', baseline: '#ccc' }
+
+/** A view of `n` bands 2px wide. */
+const narrow = (n: number): ChartView => ({
+  x: linearScale([-0.5, n - 0.5], [0, n * 2]),
+  y: linearScale([0, 100], [100, 0]),
+  horizontal: false,
+  band: 2,
+  point: () => [0, 0],
+  plot: { x: 0, y: 0, width: n * 2, height: 100 },
+  dpr: 1,
+  colors,
+})
 
 describe('bars', () => {
   it('splits each band among series, a stack sharing one part', () => {
@@ -183,8 +197,8 @@ describe('bars', () => {
   })
 
   it('fills narrow bands edge to edge, every pixel column covered', () => {
-    expect(barPlacement(3, null)).toEqual({ offset: -1.5, width: 3 })
-    const pair = [0, 1].map((index) => barPlacement(3, { index, count: 2 }))
+    expect(barPlacement(2, null)).toEqual({ offset: -1, width: 2, room: 0 })
+    const pair = [0, 1].map((index) => barPlacement(2, { index, count: 2 }))
     expect(pair[1]!.offset).toBeCloseTo(pair[0]!.offset + pair[0]!.width)
     // 300 days on 400px: bands of 1.33px, each column has a bar
     const rows = Array.from({ length: 300 }, (_, i) => ({ x: i, v: 1 }))
@@ -204,6 +218,38 @@ describe('bars', () => {
     drawBars(painter, series as never, view)
     const columns = calls.filter(([key]) => key === 'rect').map(([, [x]]) => x as number)
     expect(columns).toEqual(Array.from({ length: 400 }, (_, c) => c))
+  })
+
+  it('keeps stacked slices on one another when bars are merged by pixel column', () => {
+    // two rows a column: a quiet one and a busy one
+    const rows = Array.from({ length: 400 }, (_, i) => ({
+      x: i,
+      p: i % 2 ? 10 : 1,
+      q: i % 2 ? 10 : 1,
+    }))
+    const model = buildModel(
+      [input(0, { y: 'p', stack: true }), input(1, { y: 'q', stack: true })],
+      { data: rows, x: 'x' },
+    )
+    const [p, q] = resolve(model)
+    const view: ChartView = {
+      x: linearScale([-0.5, 399.5], [0, 200]),
+      y: linearScale([0, 20], [200, 0]),
+      horizontal: false,
+      band: 0.5,
+      point: () => [0, 0],
+      plot: { x: 0, y: 0, width: 200, height: 200 },
+      dpr: 1,
+      colors,
+    }
+    const slices = (s: ChartSeries) => {
+      const { painter, calls } = recorder()
+      drawBars(painter, s as never, view)
+      return calls.filter(([key]) => key === 'rect').map(([, args]) => args as number[])
+    }
+    // the busy row's slices: 0 to 10 (y 200 to 100), then 10 to 20 (y 100 to 0)
+    for (const [, y, , height] of slices(p!)) expect([y, height]).toEqual([100, 100])
+    for (const [, y, , height] of slices(q!)) expect([y, height]).toEqual([0, 100])
   })
 
   it('draws bars a few pixels wide alike: square, touching, no room between slices', () => {
@@ -236,7 +282,20 @@ describe('bars', () => {
     })
   })
 
-  it('draws bars wider than a band of 4px the same width each', () => {
+  it('opens the room between bars little by little as the bands widen', () => {
+    let last = 0
+    for (let band = 1; band <= 20; band += 0.25) {
+      const { room } = barPlacement(band, null)
+      expect(room).toBeGreaterThanOrEqual(last)
+      // never a jump of more than a fraction of a pixel
+      expect(room - last).toBeLessThan(0.3)
+      last = room
+    }
+    expect(barPlacement(2, null).room).toBe(0)
+    expect(barPlacement(12, null).room).toBeCloseTo(12 * 0.4)
+  })
+
+  it('leaves the same whole pixels of room between every two bars', () => {
     const rows = Array.from({ length: 90 }, (_, i) => ({ x: i, v: 1 }))
     const model = buildModel([input(0, { y: 'v' })], { data: rows, x: 'x' })
     const [series] = resolve(model)
@@ -247,13 +306,43 @@ describe('bars', () => {
       band: 560 / 90,
       point: () => [0, 0],
       plot: { x: 0, y: 0, width: 560, height: 100 },
-      dpr: 1,
+      dpr: 2,
       colors,
     }
     const { painter, calls } = recorder()
     drawBars(painter, { ...series, props: { y: 'v', radius: 0 } } as never, view)
-    const widths = new Set(calls.filter(([key]) => key === 'rect').map(([, args]) => args[2]))
-    expect([...widths]).toEqual([4])
+    const rects = calls.filter(([key]) => key === 'rect').map(([, args]) => args as number[])
+    const gaps = new Set(rects.slice(1).map(([x], i) => x! - rects[i]![0]! - rects[i]![2]!))
+    expect([...gaps]).toEqual([1])
+  })
+
+  it('draws narrow waterfall bars square, and keeps box caps to their bands', () => {
+    const steps = Array.from({ length: 50 }, (_, x) => ({ x, v: x % 3 ? 2 : -1 }))
+    const [fall] = resolve(
+      buildModel([input(0, { y: 'v' }, waterfallKind)], { data: steps, x: 'x' }),
+    )
+    const falling = recorder()
+    waterfallKind.draw(falling.painter, fall as never, narrow(50))
+    expect(falling.count('arcTo')).toBe(0)
+
+    const samples = Array.from({ length: 50 }, (_, x) => ({ x, v: [10, 20, 30, 40, 50] }))
+    const [box] = resolve(
+      buildModel([input(0, { y: 'v' }, boxKind as never)], { data: samples, x: 'x' }),
+    )
+    const boxing = recorder()
+    boxKind.draw(boxing.painter, box as never, narrow(50))
+    // each cap: a move to its left end, a line to its right end, no wider than the band
+    const caps = boxing.calls
+      .map(([key, args], k) => [key, args, boxing.calls[k + 1]] as const)
+      .filter(
+        ([key, args, next]) =>
+          key === 'moveTo' &&
+          next?.[0] === 'lineTo' &&
+          (next[1] as number[])[1] === (args as number[])[1],
+      )
+      .map(([, args, next]) => (next![1] as number[])[0]! - (args as number[])[0]!)
+    expect(caps.length).toBeGreaterThan(0)
+    for (const cap of caps) expect(cap).toBeLessThanOrEqual(2)
   })
 
   it('lays x down the left side when horizontal', () => {

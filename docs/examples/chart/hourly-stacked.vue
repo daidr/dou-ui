@@ -22,11 +22,9 @@ function generate() {
   }
   for (let i = 0; i < hours; i++) {
     const hour = i % 24
-    // 白天和晚上各有一个高峰，凌晨最少
-    const daily = Math.max(
-      0.05,
-      Math.sin(((hour - 7) / 24) * Math.PI * 2) * 0.6 + (hour >= 19 && hour <= 22 ? 0.7 : 0.3),
-    )
+    // 中午和晚上各有一个高峰，晚上的更高，凌晨最少
+    const peak = (at, spread) => Math.exp(-(((hour - at) / spread) ** 2))
+    const daily = 0.08 + 0.55 * peak(12.5, 2) + 0.9 * peak(21, 1.8)
     const season = 1 + 0.25 * Math.sin((i / hours) * Math.PI * 2)
     time[i] = start + i * 3600_000
     columns.app[i] = Math.round(120 * daily * season * (0.8 + random() * 0.4))

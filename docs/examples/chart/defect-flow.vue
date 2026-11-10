@@ -43,7 +43,9 @@ function generate(days) {
 
 // 数据放在 shallowRef 里，Vue 不必为每一行创建响应式代理
 const rows = shallowRef(generate(730))
-const total = (items) => items.reduce((sum, item) => sum + item.value, 0)
+// 和各项的数字一样带千分位
+const number = new Intl.NumberFormat('zh-CN')
+const total = (items) => number.format(items.reduce((sum, item) => sum + item.value, 0))
 </script>
 
 <template>

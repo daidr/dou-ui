@@ -1996,12 +1996,10 @@
     background-color: color-mix(in oklab, var(--dou-editor-cursor-color) 20%, transparent);
   }
 
-  /* text and background colors: a palette that follows the scheme, deep and low in saturation;
-     the swatches carry it too, since a submenu is put under body, outside the menu */
+  /* text and background colors: a palette that follows the scheme, deep and low in saturation */
   .dou-editor,
   .dou-editor-menu,
-  .dou-editor-palette,
-  .dou-editor-colors__swatch {
+  .dou-editor-palette {
     --dou-editor-color-gray: color-mix(
       in srgb,
       #a3a7ad calc(100% * var(--dou-scheme-dark)),
@@ -2194,6 +2192,12 @@
     font-size: var(--dou-font-size-sm);
     font-weight: var(--dou-font-weight-bold);
     line-height: 1;
+  }
+
+  /* on the tint of a hovered button or a highlighted item the border would fade into it */
+  .dou-editor-colors__button:is(:hover, [aria-expanded='true']) .dou-editor-colors__swatch,
+  .dou-dropdown__item:focus .dou-editor-colors__swatch {
+    border-color: var(--dou-color-border-strong);
   }
 
   /* centred by its cap height, not its line box */

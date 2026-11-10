@@ -94,13 +94,16 @@ function along(event: PointerEvent): number {
 
 /** How near a handle (px) a press takes it, by a finger and by a mouse. */
 const REACH = { touch: 20, mouse: 8 }
+/** What is kept in the middle of the shown part to pan it by, at the least (px). */
+const MIDDLE = 6
 
 /**
  * What a press at `at` (0 to 1 along the strip) takes hold of: a handle
  * when near it, the shown part when on it, or else the strip. Inside the
  * shown part a handle takes only its outer quarter, so even a sliver of a
  * week in years can be dragged by its middle; outside, a handle reaches
- * as far as a finger, wherever it is drawn, at the chart's edge too.
+ * as far as a finger. A handle at the chart's edge has no room outside
+ * (the chart cuts it off), so it takes what it misses from inside instead.
  */
 function gripAt(event: PointerEvent, at: number): Grip | 'track' {
   const s = strip.value!
@@ -109,15 +112,36 @@ function gripAt(event: PointerEvent, at: number): Grip | 'track' {
   const a = s.from * length
   const b = s.to * length
   const reach = event.pointerType === 'mouse' ? REACH.mouse : REACH.touch
+  // the room past each end of the strip, to the chart's edges
+  const box = rangeEl.value!.getBoundingClientRect()
+  const chart = rangeEl.value!.closest(`.${ns.b()}`)?.getBoundingClientRect() ?? box
+  const [startRoom, endRoom] = s.horizontal
+    ? [box.top - chart.top, chart.bottom - box.bottom]
+    : [box.left - chart.left, chart.right - box.right]
+  const span = b - a
+  const inner = (outside: number) => Math.max(Math.min(reach, span / 4), reach - outside)
   if (x > a && x < b) {
-    const inner = Math.min(reach, (b - a) / 4)
-    if (x - a <= inner) return 'from'
-    if (b - x <= inner) return 'to'
+    let toFrom = inner(a + startRoom)
+    let toTo = inner(length - b + endRoom)
+    // more than the shown part leaves for its middle (6px to pan it by):
+    // shared out as each asks
+    const room = Math.max(0, span - MIDDLE)
+    const over = (toFrom + toTo) / room
+    if (over > 1) [toFrom, toTo] = [toFrom / over, toTo / over]
+    if (x - a <= toFrom) return 'from'
+    if (b - x <= toTo) return 'to'
     return 'window'
   }
   if (x <= a && a - x <= reach) return 'from'
   if (x >= b && x - b <= reach) return 'to'
   return 'track'
+}
+
+/** The pointer that `gripAt` would give for a mouse over the strip. */
+function cursorOf(grip: Grip | 'track'): string {
+  if (grip === 'window') return 'grab'
+  if (grip === 'track') return 'pointer'
+  return strip.value?.horizontal ? 'ns-resize' : 'ew-resize'
 }
 
 function onPointerDown(event: PointerEvent) {
@@ -149,6 +173,9 @@ function onPointerDown(event: PointerEvent) {
 }
 
 function onPointerMove(event: PointerEvent) {
+  // hovering: the pointer shows what a press here would take
+  if (!drag && strip.value && event.pointerType === 'mouse')
+    rangeEl.value!.style.cursor = cursorOf(gripAt(event, along(event)))
   if (!drag || event.pointerId !== drag.id) return
   const d = along(event) - drag.start
   state.show(...moved(drag.grip, drag.from, drag.to, d), false)

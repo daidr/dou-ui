@@ -218,6 +218,17 @@
       pointer-events: auto;
     }
 
+    /*
+     * A finger's 40px reach of each button goes down only: upward it would
+     * cover the bottom of the message before, e.g. its add-reaction button.
+     */
+    @media (pointer: coarse) {
+      & .dou-button.dou-button::after,
+      & .dou-copy-button.dou-copy-button::after {
+        top: 0;
+      }
+    }
+
     /* a tap leaves :hover behind on touch screens, so only a mouse hovers */
     @media (hover: hover) {
       .dou-chat-message--actions-hover:hover > .dou-chat-message__toolbar > & {

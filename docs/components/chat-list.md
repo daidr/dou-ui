@@ -100,3 +100,11 @@ function locate(id) {
 | `scrollToBottom`  | 滚动到底部并重新开始跟随                                                                                                                            | `(behavior?: ScrollBehavior) => void`                                                                                                            |
 | `scrollToMessage` | 直接跳到一条消息并停止跟随；传了 `items` 时传键，否则传元素或 DouChatMessage 的 `ref`；找不到或传 `null`、`undefined` 时忽略；`align` 默认 `center` | `(target: VirtualListKey \| Element \| ComponentPublicInstance \| null \| undefined, align?: 'start' \| 'center' \| 'end' \| 'nearest') => void` |
 | `atBottom`        | 当前是否在底部                                                                                                                                      | `boolean`                                                                                                                                        |
+
+### CSS 变量
+
+| 变量                          | 说明                                                                                                                     |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `--dou-chat-list-gap`         | 消息之间的间距，默认 `24px`。[ChatMessage](./chat-message) 的操作浮条高出消息 24px，不要小于这个值，否则浮条会压到上一条 |
+| `--dou-chat-list-padding`     | 列表四周的内边距，默认 `16px`                                                                                            |
+| `--dou-chat-list-padding-top` | 列表顶部的内边距，默认比 `--dou-chat-list-padding` 多 `12px`，给第一条消息的浮条留位置；不要小于 `28px`                  |

@@ -20,10 +20,10 @@
 
 ## 单行省略
 
-文字按大写字母的高度居中（见[视觉语言](/guide/visual-language#垂直居中)），文字盒比字形矮。在标签里自己做单行省略时，用 `overflow-x: clip` 只横向裁切；用 `overflow: hidden` 会切掉中文的上下部分。
+文字按大写字母的高度居中（见[视觉语言](/guide/visual-language#垂直居中)），文字盒比字形矮。在标签里自己做单行省略时，用 `overflow-x: clip` 只横向裁切；用 `overflow: hidden` 会切掉中文的上下部分。单选框本身默认随文字变宽，还要限制它的宽度（如 `max-width: 100%`，在 flex 布局里也可以用 `min-width: 0`），省略号才会出现。
 
 ```vue
-<DouRadio v-model="picked" :value="value">
+<DouRadio v-model="picked" :value="value" style="max-width: 100%">
   <span class="option-text">{{ text }}</span>
 </DouRadio>
 

@@ -221,11 +221,13 @@
     /*
      * A finger's 40px reach of each button goes down only: upward it would
      * cover the bottom of the message before, e.g. its add-reaction button.
+     * Down it reaches over the top of this message only while the bar shows.
      */
     @media (pointer: coarse) {
       & .dou-button.dou-button::after,
       & .dou-copy-button.dou-copy-button::after {
         top: 0;
+        bottom: -12px;
       }
     }
 

@@ -59,6 +59,16 @@
     padding: var(--dou-chat-list-gap) var(--dou-chat-list-padding) 0;
   }
 
+  /*
+   * with `items`, each message is placed with a transform, which sticky
+   * positioning doesn't follow: ChatMessage's actions stay over the top of
+   * their message instead of following a long one down
+   */
+  .dou-chat-list.is-virtual .dou-chat-message__toolbar {
+    position: relative;
+    top: auto;
+  }
+
   .dou-chat-list__scroll {
     position: absolute;
     bottom: 12px;

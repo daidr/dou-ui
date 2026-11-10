@@ -1,6 +1,6 @@
 {
   "name": "@dou-ui/theme",
-  "version": "0.1.0-alpha.14",
+  "version": "0.1.0-alpha.15",
   "description": "DouUI 的设计 Token、主题 API 与样式",
   "keywords": [
     "vue",

@@ -7,6 +7,26 @@ DouUI 的所有包（`dou-ui`、`@dou-ui/theme`、`@dou-ui/icons` 以及生态�
 
 这个文件由发版脚本生成：改动先以碎片文件记在 [`.changes/`](./.changes/README.md) 里，发布时汇总到这里。
 
+## 0.1.0-alpha.15 · 2026-11-10
+
+### 不兼容
+
+- **@dou-ui/editor**：块把手改成浮在正文左侧的圆角气泡，不再占用宽度，鼠标移到把手上才出现 `+`：`--dou-editor-gutter` 默认从 `56px`（触屏 `32px`）改为 `0`，正文从编辑器左边开始，把手放在外层容器的内边距里，放不下时移进正文。只读时不再强制为 `0`，设置的空白只读时也保留（只读时要去掉，另写 `.dou-editor.is-readonly { --dou-editor-gutter: 0px }`）；对比版本时为 `16px`。要保留原来的左侧空白：`.dou-editor { --dou-editor-gutter: 56px }`，触屏另加 `@media (pointer: coarse) { .dou-editor { --dou-editor-gutter: 32px } }`。宽表格向左滚动时，左边移到离编辑器左边 10px 处。 ([#431](https://github.com/daidr/dou-ui/pull/431))
+
+### 新增
+
+- **@dou-ui/editor**：块的 spec 新增 `checkProps`，`checkDocument` 用它把块类型不能使用的属性报告为 `invalid-props`；白板会报告不是流程文档的 `board` 和不是正数的 `height`。 ([#429](https://github.com/daidr/dou-ui/pull/429))
+- **@dou-ui/editor**：新增 `@dou-ui/editor/flow`：`whiteboardBlock()` 在文档里放一块白板，`flowBlock()` 放自定义节点的流程图。文档里显示预览，双击、点“编辑”或选中后按 `Enter` 在全屏编辑器里绘制，撤销与文档共用历史；协同编辑时按节点和连线合并。块的 spec 新增 `mergeProps`，自定义块的列表属性也能逐项合并。 ([#429](https://github.com/daidr/dou-ui/pull/429))
+- **@dou-ui/flow**：扩展的 `history` 新增可选的 `drop(group)` 与 `close()`：拖动被 `Esc` 取消、手势结束时调用，自定义撤销记录可以丢掉取消的拖动，把一次拖动合成一步。 ([#429](https://github.com/daidr/dou-ui/pull/429))
+
+### 修复
+
+- **@dou-ui/editor**：`v-model` 绑定的是 `ref` 时，值为对象的块属性不再在读取文档时报错。 ([#429](https://github.com/daidr/dou-ui/pull/429))
+- **@dou-ui/editor**：单击图片、附件、嵌入等没有文字的块时，选中整个块（此前点击没有反应）。 ([#429](https://github.com/daidr/dou-ui/pull/429))
+- **dou-ui**：`DouDropdownSub` 的子菜单面板现在带上 `DouDropdown`、`DouContextMenu` 上写的 `class`，并和外层菜单渲染到同一个地方（遵循 `teleport` 和全局配置），此前固定渲染到 `body`，在全屏元素里看不到。 ([#430](https://github.com/daidr/dou-ui/pull/430))
+- **@dou-ui/editor**：格式工具栏颜色菜单里，文字颜色和背景色两个子菜单的预览现在显示对应的颜色，此前都显示成默认的文字颜色。 ([#430](https://github.com/daidr/dou-ui/pull/430))
+- **@dou-ui/editor**：按 `Esc` 关掉块菜单后焦点回到正文，选中的块可以继续按 `Delete` 删除或复制；表格旁的块把手不再和表格的行把手重叠。 ([#431](https://github.com/daidr/dou-ui/pull/431))
+
 ## 0.1.0-alpha.14 · 2026-11-10
 
 ### 新增

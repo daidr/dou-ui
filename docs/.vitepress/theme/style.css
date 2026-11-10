@@ -677,6 +677,13 @@ body {
   align-items: stretch;
 }
 
+/* Chat messages float their actions above their top edge: room for the
+   first one's, and the same gap between messages as in a ChatList. */
+.doc-demo__stage--column:has(> .dou-chat-message) {
+  gap: 24px;
+  padding-top: 40px;
+}
+
 .doc-demo__toggle.dou-button {
   color: var(--dou-color-text-tertiary);
 }

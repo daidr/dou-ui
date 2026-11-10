@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ChevronLeftIcon, ChevronRightIcon, EditIcon, SmilePlusIcon } from '@dou-ui/icons'
-import { computed, nextTick, ref, useTemplateRef } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue'
 import { isComposing } from '../../utils/keyboard'
 import { useNamespace } from '../../utils/namespace'
 import { DouButton } from '../button'
@@ -73,7 +73,29 @@ const markdownSlots = () =>
       inner: name.slice(PREFIX.length),
     }))
 const isUser = computed(() => props.sender === 'user')
-const actionsShow = computed(() => props.actionsVisible ?? (isUser.value ? 'hover' : 'always'))
+const actionsShow = computed(() => props.actionsVisible ?? 'hover')
+
+// Without hover, a tap on the message shows its actions and a tap
+// anywhere else hides them. Taps on its own buttons and links, and
+// selecting text, leave them as they are.
+const touched = ref(false)
+const rootRef = useTemplateRef<HTMLElement>('root')
+const INTERACTIVE = 'button, a[href], input, textarea, select, summary, [role="button"]'
+function onPointerUp(event: PointerEvent) {
+  if (event.pointerType === 'mouse') return
+  const target = event.target as Element | null
+  if (target?.closest(INTERACTIVE)) return
+  if (getSelection()?.isCollapsed === false) return
+  touched.value = !touched.value
+}
+function onOutsidePointerDown(event: PointerEvent) {
+  if (!rootRef.value?.contains(event.target as Node)) touched.value = false
+}
+watch(touched, (on) => {
+  if (on) document.addEventListener('pointerdown', onOutsidePointerDown, true)
+  else document.removeEventListener('pointerdown', onOutsidePointerDown, true)
+})
+onBeforeUnmount(() => document.removeEventListener('pointerdown', onOutsidePointerDown, true))
 // the person's attachments sit above their bubble, not inside it
 const files = computed(() => (isUser.value ? parts.value.filter((p) => p.type === 'files') : []))
 const body = computed(() =>
@@ -219,9 +241,12 @@ const rest = (part: AnyPart) => {
       ns.is('editing', editing),
       ns.is('highlighted', highlighted),
       ns.is('reacting', pickerOpen),
+      ns.is('touched', touched),
     ]"
+    ref="root"
     :aria-busy="busy || undefined"
     :aria-current="highlighted || undefined"
+    @pointerup="onPointerUp"
   >
     <div v-if="files.length && !editing" :class="ns.e('files')">
       <template v-for="(part, index) in files" :key="`f${index}`">
@@ -395,50 +420,53 @@ const rest = (part: AnyPart) => {
       </DouTooltip>
     </div>
 
-    <div v-if="showActions && !editing" :class="ns.e('actions')">
-      <div
-        v-if="versions > 1"
-        :class="ns.e('versions')"
-        role="group"
-        :aria-label="t('chat.versions')"
-      >
-        <DouButton
-          variant="ghost"
-          size="sm"
-          :disabled="version <= 1"
-          :aria-label="t('chat.previousVersion')"
-          @click="step(-1)"
+    <!-- last in reading order, drawn at the top right of the message -->
+    <div v-if="showActions && !editing" :class="ns.e('toolbar')">
+      <div :class="ns.e('actions')">
+        <div
+          v-if="versions > 1"
+          :class="ns.e('versions')"
+          role="group"
+          :aria-label="t('chat.versions')"
         >
-          <ChevronLeftIcon />
-        </DouButton>
-        <span :class="ns.e('version')">{{ version }} / {{ versions }}</span>
-        <DouButton
-          variant="ghost"
-          size="sm"
-          :disabled="version >= versions"
-          :aria-label="t('chat.nextVersion')"
-          @click="step(1)"
-        >
-          <ChevronRightIcon />
-        </DouButton>
-      </div>
-      <DouCopyButton v-if="copyable && text" size="sm" :text="text" />
-      <DouTooltip v-if="editable && isUser" :content="t('chat.edit')">
-        <DouButton variant="ghost" size="sm" :aria-label="t('chat.edit')" @click="startEdit">
-          <EditIcon />
-        </DouButton>
-      </DouTooltip>
-      <DouTooltip v-if="addInActions" :content="t('chat.addReaction')">
-        <DouPopover v-model:open="pickerOpen" placement="top-start">
-          <DouButton variant="ghost" size="sm" :aria-label="t('chat.addReaction')">
-            <SmilePlusIcon />
+          <DouButton
+            variant="ghost"
+            size="sm"
+            :disabled="version <= 1"
+            :aria-label="t('chat.previousVersion')"
+            @click="step(-1)"
+          >
+            <ChevronLeftIcon />
           </DouButton>
-          <template #content="{ close }">
-            <slot name="reaction-picker" :react="react" :close="close" />
-          </template>
-        </DouPopover>
-      </DouTooltip>
-      <slot name="actions" />
+          <span :class="ns.e('version')">{{ version }} / {{ versions }}</span>
+          <DouButton
+            variant="ghost"
+            size="sm"
+            :disabled="version >= versions"
+            :aria-label="t('chat.nextVersion')"
+            @click="step(1)"
+          >
+            <ChevronRightIcon />
+          </DouButton>
+        </div>
+        <DouCopyButton v-if="copyable && text" size="sm" :text="text" />
+        <DouTooltip v-if="editable && isUser" :content="t('chat.edit')">
+          <DouButton variant="ghost" size="sm" :aria-label="t('chat.edit')" @click="startEdit">
+            <EditIcon />
+          </DouButton>
+        </DouTooltip>
+        <DouTooltip v-if="addInActions" :content="t('chat.addReaction')">
+          <DouPopover v-model:open="pickerOpen" placement="top-start">
+            <DouButton variant="ghost" size="sm" :aria-label="t('chat.addReaction')">
+              <SmilePlusIcon />
+            </DouButton>
+            <template #content="{ close }">
+              <slot name="reaction-picker" :react="react" :close="close" />
+            </template>
+          </DouPopover>
+        </DouTooltip>
+        <slot name="actions" />
+      </div>
     </div>
   </div>
 </template>

@@ -93,13 +93,34 @@ describe('DouChatMessage', () => {
     expect(wrapper.find('.dou-chat-message__actions .dou-copy-button').exists()).toBe(true)
   })
 
-  it('shows actions on hover for the person and always for the assistant by default', () => {
+  it('shows actions on hover for every message by default', () => {
     const user = mount(DouChatMessage, { props: { sender: 'user', content: '周六去哪' } })
     const assistant = mount(DouChatMessage, { props: { content: '去滴水湖骑车。' } })
     const system = mount(DouChatMessage, { props: { sender: 'system', content: '已切换模型' } })
     expect(user.classes()).toContain('dou-chat-message--actions-hover')
-    expect(assistant.classes()).toContain('dou-chat-message--actions-always')
-    expect(system.classes()).toContain('dou-chat-message--actions-always')
+    expect(assistant.classes()).toContain('dou-chat-message--actions-hover')
+    expect(system.classes()).toContain('dou-chat-message--actions-hover')
+  })
+
+  it('toggles the actions with a tap, but not with a click or a tap on a button', async () => {
+    const wrapper = mount(DouChatMessage, {
+      props: { content: '去滴水湖骑车。' },
+      attachTo: document.body,
+    })
+    const content = wrapper.get('.dou-chat-message__content')
+    await content.trigger('pointerup', { pointerType: 'mouse' })
+    expect(wrapper.classes()).not.toContain('is-touched')
+    await content.trigger('pointerup', { pointerType: 'touch' })
+    expect(wrapper.classes()).toContain('is-touched')
+    await wrapper.get('.dou-chat-message__actions button').trigger('pointerup', {
+      pointerType: 'touch',
+    })
+    expect(wrapper.classes()).toContain('is-touched')
+    // a tap anywhere else hides them
+    document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+    await wrapper.vm.$nextTick()
+    expect(wrapper.classes()).not.toContain('is-touched')
+    wrapper.unmount()
   })
 
   it('takes when the actions show from `actionsVisible`', async () => {
@@ -264,7 +285,7 @@ describe('DouChatMessage', () => {
       expect(order).toEqual([
         'dou-chat-message__content',
         'dou-chat-message__reactions',
-        'dou-chat-message__actions',
+        'dou-chat-message__toolbar',
       ])
     })
 

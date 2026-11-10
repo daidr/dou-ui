@@ -21,7 +21,7 @@ export type ChatMessageMarkdown = Pick<
 /** Who wrote the message. */
 export type ChatMessageSender = 'user' | 'assistant' | 'system'
 
-/** When the actions under a message show. */
+/** When the bar of actions over a message shows. */
 export type ChatMessageActionsVisible = 'always' | 'hover'
 
 /** One kind of reaction on a message, e.g. 👍 from three people. */
@@ -152,10 +152,10 @@ export interface ChatMessageProps {
   /** No part has arrived yet: show the waiting dots, like ChatBubble's. */
   loading?: boolean
   /**
-   * When the actions show: `'always'`, or `'hover'` while the pointer is
-   * over the message or focus is inside. Devices without hover always show
-   * them. Buttons from the `actions` slot follow along. Defaults to
-   * `'hover'` for the person's messages and `'always'` for the rest.
+   * When the bar of actions over the top right corner shows: `'always'`,
+   * or `'hover'` while the pointer is over the message, focus is inside,
+   * or after a tap on it on a touch screen. Buttons from the `actions`
+   * slot follow along. Defaults to `'hover'`.
    */
   actionsVisible?: ChatMessageActionsVisible
   /** Show a copy button among the actions, copying the text parts. */

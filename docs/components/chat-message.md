@@ -29,13 +29,13 @@
 
 ## 生成中
 
-`loading` 表示还没有收到任何内容，显示三个跳动的圆点。有片段正在输出（`streaming`、`thinking`，或执行步骤、任务计划、工具调用正在运行，即画面上在转圈）时，消息带 `aria-busy`，并且暂时不显示底部操作。
+`loading` 表示还没有收到任何内容，显示三个跳动的圆点。有片段正在输出（`streaming`、`thinking`，或执行步骤、任务计划、工具调用正在运行，即画面上在转圈）时，消息带 `aria-busy`，并且暂时不显示操作浮条。
 
 <DocDemo src="chat-message/loading" column />
 
 ## 操作
 
-助手消息下方默认始终显示操作，用户消息默认在鼠标悬停时显示，可以用 `actions-visible` 调整。内置的操作有：
+操作放在一个小浮条里，浮在消息的右上角，不占对话的位置：鼠标悬停、焦点在消息内时出现，触屏上点一下消息出现，点别处收起。消息很长、顶部已经滚出去时，浮条停在滚动区域的顶部，跟着消息走，不用滚回去找。内置的操作有：
 
 - 复制：`copyable` 默认开启，复制所有文字片段。
 - 编辑：用户消息设置 `editable` 后出现编辑按钮，在原位改写，回车或点击发送触发 `edit`，Esc 取消。
@@ -47,19 +47,19 @@
 
 ### 显示时机
 
-`actions-visible` 决定操作何时显示：`'always'` 始终显示，`'hover'` 在鼠标悬停或焦点在消息内时显示，`actions` 插槽追加的按钮也一样。不设置时，用户消息为 `'hover'`，其余消息为 `'always'`。想让整个对话统一，在插件选项或 [ConfigProvider](./config-provider) 的 `defaults` 里设置一次：
+`actions-visible` 决定浮条何时显示：默认 `'hover'`，在鼠标悬停、焦点在消息内或在触屏上点按消息后显示，`actions` 插槽追加的按钮也一样；`'always'` 让浮条一直显示。想让整个对话统一，在插件选项或 [ConfigProvider](./config-provider) 的 `defaults` 里设置一次：
 
 ```ts
 app.use(DouUI, {
   defaults: {
-    DouChatMessage: { actionsVisible: 'hover' },
+    DouChatMessage: { actionsVisible: 'always' },
   },
 })
 ```
 
-`'hover'` 下操作隐藏时仍然占着位置，显示出来时不会挤动下面的消息。触屏等无法悬停的设备上，操作始终显示。
+浮条会盖住上一条消息底部的一小块，隐藏时不挡点击。在触屏上点按消息里的按钮、链接或者选中文字时，浮条保持原样。
 
-<DocDemo src="chat-message/actions-hover" column />
+<DocDemo src="chat-message/actions-visible" column />
 
 ### 跟在文字后面的标记
 
@@ -75,7 +75,7 @@ app.use(DouUI, {
 
 点击一项触发 `react`，参数是这个表情。消息本身不改动 `reactions`，由应用决定加上还是收回自己的回应，再把新的数组传回来。
 
-提供 `reaction-picker` 插槽后才会出现“添加回应”按钮，点击后在弹出层里显示插槽的内容。放什么由应用决定，几个常用表情、完整的表情选择器或者自己的贴纸都可以。插槽参数里的 `react(emoji)` 触发 `react` 并关闭弹出层，`close` 只关闭弹出层。消息还没有任何回应时，这个按钮放在操作里，跟着 `actions-visible` 显示，不会给每条消息多占一行；有了回应以后，它跟在回应的最后面。
+提供 `reaction-picker` 插槽后才会出现“添加回应”按钮，点击后在弹出层里显示插槽的内容。放什么由应用决定，几个常用表情、完整的表情选择器或者自己的贴纸都可以。插槽参数里的 `react(emoji)` 触发 `react` 并关闭弹出层，`close` 只关闭弹出层。消息还没有任何回应时，这个按钮放在操作浮条里，跟着 `actions-visible` 显示，不会给每条消息多占一行；有了回应以后，它跟在回应的最后面。
 
 <DocDemo src="chat-message/reactions" column />
 
@@ -115,20 +115,20 @@ app.use(DouUI, {
 
 ### Props
 
-| 名称              | 说明                                                                           | 类型                                | 默认值                              |
-| ----------------- | ------------------------------------------------------------------------------ | ----------------------------------- | ----------------------------------- |
-| `sender`          | 发送方                                                                         | `'user' \| 'assistant' \| 'system'` | `'assistant'`                       |
-| `parts`           | 片段数组                                                                       | `ChatMessagePart[]`                 | —                                   |
-| `content`         | 只有一段文字时的简写                                                           | `string`                            | —                                   |
-| `loading`         | 还没有收到内容，显示等待圆点                                                   | `boolean`                           | `false`                             |
-| `copyable`        | 显示复制按钮                                                                   | `boolean`                           | `true`                              |
-| `actions-visible` | 操作何时显示，无法悬停的设备始终显示                                           | `'always' \| 'hover'`               | 用户消息 `'hover'`，其余 `'always'` |
-| `markdown`        | 文字和思考过程片段按 Markdown 渲染，对象为 Markdown 选项                       | `boolean \| ChatMessageMarkdown`    | `false`                             |
-| `editable`        | 用户消息显示编辑按钮                                                           | `boolean`                           | `false`                             |
-| `versions`        | 共有几个版本，大于 1 时显示切换器                                              | `number`                            | `1`                                 |
-| `version`         | 当前版本，从 1 开始，配合 `v-model:version`                                    | `number`                            | 最后一个版本                        |
-| `highlighted`     | 用主题色的描边框住这条消息，比如搜索定位到它时；关掉后淡出，减少动效时很快消失 | `boolean`                           | `false`                             |
-| `reactions`       | 消息下方的回应，见[回应](#回应)                                                | `ChatMessageReaction[]`             | —                                   |
+| 名称              | 说明                                                                           | 类型                                | 默认值        |
+| ----------------- | ------------------------------------------------------------------------------ | ----------------------------------- | ------------- |
+| `sender`          | 发送方                                                                         | `'user' \| 'assistant' \| 'system'` | `'assistant'` |
+| `parts`           | 片段数组                                                                       | `ChatMessagePart[]`                 | —             |
+| `content`         | 只有一段文字时的简写                                                           | `string`                            | —             |
+| `loading`         | 还没有收到内容，显示等待圆点                                                   | `boolean`                           | `false`       |
+| `copyable`        | 显示复制按钮                                                                   | `boolean`                           | `true`        |
+| `actions-visible` | 右上角操作浮条何时显示，`'hover'` 时触屏点按消息显示                           | `'always' \| 'hover'`               | `'hover'`     |
+| `markdown`        | 文字和思考过程片段按 Markdown 渲染，对象为 Markdown 选项                       | `boolean \| ChatMessageMarkdown`    | `false`       |
+| `editable`        | 用户消息显示编辑按钮                                                           | `boolean`                           | `false`       |
+| `versions`        | 共有几个版本，大于 1 时显示切换器                                              | `number`                            | `1`           |
+| `version`         | 当前版本，从 1 开始，配合 `v-model:version`                                    | `number`                            | 最后一个版本  |
+| `highlighted`     | 用主题色的描边框住这条消息，比如搜索定位到它时；关掉后淡出，减少动效时很快消失 | `boolean`                           | `false`       |
+| `reactions`       | 消息下方的回应，见[回应](#回应)                                                | `ChatMessageReaction[]`             | —             |
 
 ### Events
 

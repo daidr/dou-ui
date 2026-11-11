@@ -96,14 +96,15 @@ layout.value = moveDockTab(layout.value, value, target)
 <style>
 .side-dock {
   --dou-dock-group-padding-x: 0px;
+  --dou-dock-header-padding-x: 12px;
   --dou-dock-panel-gap: 0px;
 }
 </style>
 ```
 
-变量要设在 `DouDock` 本身或它的类名上，设在外层元素上不生效。`--dou-dock-group-padding-x` 为 0 时，标签行和面板内容都贴着组的左右边缘。
+变量要设在 `DouDock` 本身或它的类名上，设在外层元素上不生效。`--dou-dock-group-padding-x` 为 0 时面板内容贴着组的左右边缘；标签行离边缘的距离单独用 `--dou-dock-header-padding-x` 调，默认跟着 `--dou-dock-group-padding-x`。上面的例子里面板铺满整组，标签行仍然离边缘 12px，标签行下面的分隔线和面板一样宽，横贯整组。
 
-面板内容离组边缘的距离就是这两个内边距：面板在这段距离里最多留 4px 给内容的焦点框，内边距设为 0 时内容完全贴边，焦点框可能被组的边缘挡住一部分。Dock 里调标签行和面板的距离用 `--dou-dock-panel-gap`，设 `--dou-tabs-panel-gap` 不生效。
+面板内容离组边缘的距离就是 `--dou-dock-group-padding-x` 和 `--dou-dock-group-padding-bottom`：面板在这段距离里最多留 4px 给内容的焦点框，内边距设为 0 时内容完全贴边，焦点框可能被组的边缘挡住一部分。Dock 里调标签行和面板的距离用 `--dou-dock-panel-gap`，设 `--dou-tabs-panel-gap` 不生效。
 
 ## 键盘与读屏
 
@@ -156,11 +157,12 @@ layout.value = moveDockTab(layout.value, value, target)
 
 ### CSS 变量
 
-| 变量                              | 说明                                  |
-| --------------------------------- | ------------------------------------- |
-| `--dou-dock-group-padding-x`      | 每组左右的内边距，默认 12px           |
-| `--dou-dock-group-padding-bottom` | 每组底部的内边距，默认 4px            |
-| `--dou-dock-panel-gap`            | 每组标签行和面板之间的距离，默认 16px |
+| 变量                              | 说明                                                             |
+| --------------------------------- | ---------------------------------------------------------------- |
+| `--dou-dock-group-padding-x`      | 每组左右的内边距，默认 12px                                      |
+| `--dou-dock-group-padding-bottom` | 每组底部的内边距，默认 4px                                       |
+| `--dou-dock-header-padding-x`     | 每组标签行左右的内边距，默认和 `--dou-dock-group-padding-x` 相同 |
+| `--dou-dock-panel-gap`            | 每组标签行和面板之间的距离，默认 16px                            |
 
 ### 类型
 

@@ -43,6 +43,7 @@ const props = withDefaults(defineProps<ChatMessageProps>(), {
   sender: 'assistant',
   loading: false,
   copyable: true,
+  reactable: true,
   editable: false,
   markdown: false,
   actionsVisible: undefined,
@@ -146,7 +147,7 @@ function step(delta: number) {
 
 // reactions
 const reactions = computed(() => (props.reactions ?? []).filter((r) => r.count > 0))
-const canReact = computed(() => !!slots['reaction-picker'])
+const canReact = computed(() => props.reactable && !!slots['reaction-picker'])
 const pickerOpen = ref(false)
 if (process.env.NODE_ENV !== 'production') {
   watch(
@@ -429,7 +430,21 @@ const rest = (part: AnyPart) => {
         :key="reaction.emoji"
         :content="reactionLabel(reaction)"
       >
+        <!-- read only: the same chip, read out as one image with its label -->
+        <span
+          v-if="!reactable"
+          role="img"
+          tabindex="0"
+          :class="[ns.e('reaction'), ns.is('reacted', !!reaction.reacted), ns.is('readonly', true)]"
+          :aria-label="reactionLabel(reaction)"
+        >
+          <span :class="ns.e('reaction-emoji')">
+            <slot name="reaction" :reaction="reaction">{{ reaction.emoji }}</slot>
+          </span>
+          <span :class="ns.e('reaction-count')">{{ reaction.count }}</span>
+        </span>
         <button
+          v-else
           type="button"
           :class="[ns.e('reaction'), ns.is('reacted', !!reaction.reacted)]"
           :aria-pressed="!!reaction.reacted"

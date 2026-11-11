@@ -291,6 +291,26 @@ describe('DouChatMessage', () => {
       ])
     })
 
+    it('shows reactions read only, with no add button', async () => {
+      const wrapper = mount(DouChatMessage, {
+        props: { content: '周六去滴水湖。', reactions, reactable: false },
+        slots: { 'reaction-picker': () => h('i') },
+      })
+      const chips = wrapper.findAll('.dou-chat-message__reaction')
+      expect(chips.map((chip) => chip.text())).toEqual(['👍2', '🎉1'])
+      expect(chips[0]!.element.tagName).toBe('SPAN')
+      expect(chips[0]!.attributes('role')).toBe('img')
+      expect(chips[0]!.attributes('aria-label')).toBe('👍 2 人：戴兜和小王')
+      expect(chips[0]!.classes()).toEqual(expect.arrayContaining(['is-readonly', 'is-reacted']))
+      expect(chips[0]!.attributes('tabindex')).toBe('0')
+      await chips[0]!.trigger('click')
+      expect(wrapper.emitted('react')).toBeUndefined()
+      expect(wrapper.find('button[aria-label="添加回应"]').exists()).toBe(false)
+      // nor among the actions once there are none
+      await wrapper.setProps({ reactions: [] })
+      expect(wrapper.find('button[aria-label="添加回应"]').exists()).toBe(false)
+    })
+
     it('offers no add button without a picker', () => {
       const wrapper = mount(DouChatMessage, { props: { content: '好', reactions } })
       expect(wrapper.find('button[aria-label="添加回应"]').exists()).toBe(false)

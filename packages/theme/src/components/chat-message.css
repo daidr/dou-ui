@@ -281,7 +281,7 @@
     transition-duration: var(--dou-motion-duration-fast);
     transition-timing-function: var(--dou-motion-easing);
 
-    &:hover {
+    &:not(.is-readonly):hover {
       border-color: var(--dou-color-border-strong);
       background-color: color-mix(in oklab, var(--dou-color-text) 4%, var(--dou-color-bg-surface));
       color: var(--dou-color-text);
@@ -302,7 +302,7 @@
       color: var(--dou-color-primary-text);
     }
 
-    &.is-reacted:hover {
+    &.is-reacted:not(.is-readonly):hover {
       border-color: color-mix(in oklab, var(--dou-color-primary-text) 65%, var(--dou-color-border));
       background-color: color-mix(
         in oklab,
@@ -311,9 +311,14 @@
       );
     }
 
+    /* read only: the same chip, only not pressable */
+    &.is-readonly {
+      cursor: default;
+    }
+
     /* a finger gets a 40px target without spacing the chips apart */
     @media (pointer: coarse) {
-      &::after {
+      &:not(.is-readonly)::after {
         position: absolute;
         inset: -8px -2px;
         content: '';

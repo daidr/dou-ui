@@ -1,5 +1,6 @@
-import type { FlowDocument, FlowExtension } from '@dou-ui/flow'
+import type { FlowDocument, FlowEdge, FlowExtension, FlowNode } from '@dou-ui/flow'
 import type { Node as PMNode } from 'prosemirror-model'
+import type { BlockCommentAnchor, BlockCommentsSpec } from '../core/comments'
 import type { Label } from '../core/extension'
 import type { FlowBlockEditorProps } from './index'
 
@@ -16,6 +17,8 @@ export interface BoardBlockSettings {
   height: number
   /** When the extensions offer no node to add, offer one with ports (not on a whiteboard, which has its tools). */
   fallbackNode: boolean
+  /** Threads can be started and shown on the nodes and edges, with the document's comments. */
+  commentable: boolean
 }
 
 /** The items of a list that are objects. */
@@ -129,4 +132,99 @@ export function onlyBoardChanged(a: PMNode, b: PMNode, id: string): boolean {
   // the children of the block, if any
   if (before.node.childCount !== after.node.childCount) return false
   return before.node.childCount < 2 || before.node.child(1).eq(after.node.child(1))
+}
+
+/** Where a thread is on a board: a node (maybe a point on it) or an edge, as in `FlowCommentAnchor`. */
+export type BoardCommentTarget = { node: string; at?: { x: number; y: number } } | { edge: string }
+
+const threadIds = (item: { comments?: unknown }): string[] =>
+  Array.isArray(item.comments) ? item.comments.filter((id) => typeof id === 'string') : []
+
+/** What a node shows: its label, or a whiteboard shape's text. */
+const textOf = (data: Record<string, unknown> | undefined) => {
+  const text = data?.label ?? data?.text
+  return typeof text === 'string' ? text : ''
+}
+
+const pinOf = (node: FlowNode, id: string) => {
+  const pins = node.commentPins
+  const at = isObject(pins) && Object.hasOwn(pins, id) ? pins[id] : null
+  return isObject(at) && typeof at.x === 'number' && typeof at.y === 'number'
+    ? { x: at.x, y: at.y }
+    : null
+}
+
+/** `comments` (and `commentPins`) of a node or edge with only the ids `keep` says yes to. */
+function keepOn<T extends FlowNode | FlowEdge>(item: T, keep: (id: string) => boolean): T {
+  const ids = threadIds(item)
+  const kept = ids.filter(keep)
+  const pins = 'commentPins' in item && isObject(item.commentPins) ? item.commentPins : null
+  const keptPins = pins ? Object.fromEntries(Object.entries(pins).filter(([id]) => keep(id))) : null
+  if (
+    kept.length === ids.length &&
+    (!pins || Object.keys(keptPins!).length === Object.keys(pins).length)
+  )
+    return item
+  const { comments: _, commentPins: __, ...rest } = item as FlowNode
+  const next = { ...rest } as T
+  if (kept.length) next.comments = kept
+  if (keptPins && Object.keys(keptPins).length) (next as FlowNode).commentPins = keptPins
+  return next
+}
+
+/**
+ * How a board block keeps comment threads: on its nodes and edges, in their
+ * `comments` (and `commentPins`), as a `DouFlowEditor` does.
+ */
+export const boardComments: BlockCommentsSpec<BoardCommentTarget> = {
+  anchors(props) {
+    const board = boardOf(props.board)
+    const anchors: Record<string, BlockCommentAnchor<BoardCommentTarget>> = {}
+    for (const node of board.nodes) {
+      for (const id of threadIds(node)) {
+        const at = pinOf(node, id)
+        anchors[id] = {
+          text: textOf(node.data),
+          target: at ? { node: node.id, at } : { node: node.id },
+        }
+      }
+    }
+    for (const edge of board.edges)
+      for (const id of threadIds(edge))
+        anchors[id] ??= { text: edge.label ?? '', target: { edge: edge.id } }
+    return anchors
+  },
+  place(props, id, target) {
+    const board = boardOf(props.board)
+    const add = (ids: string[]) => [...ids.filter((other) => other !== id), id]
+    if ('node' in target) {
+      if (!board.nodes.some((node) => node.id === target.node)) return null
+      const nodes = board.nodes.map((node) => {
+        if (node.id !== target.node) return node
+        const next: FlowNode = { ...node, comments: add(threadIds(node)) }
+        if (target.at)
+          next.commentPins = {
+            ...(isObject(node.commentPins) ? node.commentPins : {}),
+            [id]: target.at,
+          }
+        return next
+      })
+      return { ...props, board: { ...board, nodes } }
+    }
+    if (!board.edges.some((edge) => edge.id === target.edge)) return null
+    const edges = board.edges.map((edge) =>
+      edge.id === target.edge ? { ...edge, comments: add(threadIds(edge)) } : edge,
+    )
+    return { ...props, board: { ...board, edges } }
+  },
+  strip(props, keep) {
+    if (props.board == null) return props
+    const board = boardOf(props.board)
+    const nodes = board.nodes.map((node) => keepOn(node, keep))
+    const edges = board.edges.map((edge) => keepOn(edge, keep))
+    const same =
+      nodes.every((node, i) => node === board.nodes[i]) &&
+      edges.every((edge, i) => edge === board.edges[i])
+    return same ? props : { ...props, board: { ...board, nodes, edges } }
+  },
 }

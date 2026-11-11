@@ -56,6 +56,41 @@ const active = ref<string | null>(null)
 
 被评论的文字整个删掉后，讨论仍然留在 `comments` 里，撤销删除时高亮会回来。用 `getCommentAnchors()` 可以查到每条讨论现在的位置，原文已删除的讨论返回 `null`，可以在侧栏里单独显示，或者自行清理。删除整条讨论时，文字上的高亮会一起去掉。
 
+## 白板和流程图里的讨论
+
+[白板与流程图](./whiteboard#评论)块里的图形和连线也能评论，讨论和文字上的放在同一个 `v-model:comments` 里，作者和 `v-model:activeComment` 也共用。讨论的 id 保存在图形和连线的 `comments` 字段里，和单独的[流程编辑器](/flow/comments)一样。
+
+`getCommentAnchors()` 对这些讨论返回所在块的 id 和块的类型（`type`），`text` 是图形或连线上的文字，`target` 是讨论在块里的位置，例如 `{ node: 'n1' }`。在评论列表里设置 `v-model:activeComment` 为这样一条讨论时，白板会打开全屏编辑器，并定位到那个图形。
+
+### 自定义块里的讨论
+
+自定义块也可以接入：在块的 spec 里写 `comments`，告诉编辑器讨论在块的属性里怎么保存。编辑器据此列出这些讨论的位置，粘贴副本时去掉它们，并在撤销、重做把属性恢复成旧值后把讨论放回原处：
+
+```ts
+defineBlock({
+  type: 'kanban',
+  props: { cards: [] },
+  component: KanbanBlock,
+  spec: {
+    comments: {
+      // 块里每条讨论在哪：显示的文字，和块自己描述的位置
+      anchors: (props) =>
+        Object.fromEntries(
+          props.cards.flatMap((card) =>
+            (card.comments ?? []).map((id) => [id, { text: card.title, target: card.id }]),
+          ),
+        ),
+      // 把讨论放回 target，target 已经不在时返回 null
+      place: (props, id, target) => addToCard(props, id, target),
+      // 只留下 keep(id) 为 true 的讨论
+      strip: (props, keep) => keepOnCards(props, keep),
+    },
+  },
+})
+```
+
+怎么发起和显示讨论由块的组件自己决定。组件里用 `useEditor().comments` 拿到 `threads`、`author`、`writable`（能否发起和回复）和 `active`（打开的讨论），把讨论的 id 写进自己的属性后调用 `apply(action, { anchored: true })` 保存这次修改；`open(id)` 打开或关闭一条讨论。编辑器不会在文字旁边为这些讨论弹出卡片，块需要监听 `active`，在自己的界面里打开它。删除整条讨论时，编辑器会用 `strip` 把它从块里去掉。
+
 ## 和侧栏联动
 
 `v-model:activeComment` 是当前打开的讨论。点击正文里高亮的文字会更新它；在侧栏里设置它，正文里会打开这条讨论。上面的示例用它做了一个评论列表，被评论的文字通过 `getCommentAnchors()` 读取。
@@ -126,11 +161,15 @@ collaboration({
 interface CommentAnchor {
   /** 所在块的 id（跨块时为第一个块） */
   block: string
-  /** 被评论的文字 */
+  /** 被评论的文字；块里的讨论为块给出的文字，例如图形上的文字 */
   text: string
-  /** 在 ProseMirror 文档里的起止位置 */
+  /** 在 ProseMirror 文档里的起止位置；块里的讨论为整个块的位置 */
   from: number
   to: number
+  /** 块里的讨论：块的类型 */
+  type?: string
+  /** 块里的讨论：块自己描述的位置，例如白板上的 { node: 'n1' } */
+  target?: unknown
 }
 ```
 

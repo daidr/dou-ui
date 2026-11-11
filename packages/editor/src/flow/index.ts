@@ -9,6 +9,7 @@ import { defineBlock } from '../define-block'
 import { editorLocales } from '../locale'
 import BoardBlock from './board-block.vue'
 import {
+  boardComments,
   boardOf,
   BOARD_OPEN_EVENT,
   checkBoardProps,
@@ -17,7 +18,7 @@ import {
   type BoardBlockSettings,
 } from './board'
 
-export { boardOf } from './board'
+export { boardOf, type BoardCommentTarget } from './board'
 
 /** The props of the fullscreen editor that a flow block may set. */
 export type FlowBlockEditorProps = Omit<
@@ -38,6 +39,12 @@ export interface FlowBlockOptions {
   menu?: (Omit<BlockOption, 'key' | 'type' | 'label'> & { key?: string; label?: Label }) | false
   /** The height of a new block in the document, in px. Defaults to `360`. */
   height?: number
+  /**
+   * Comment threads on the nodes and edges, with the document's
+   * `v-model:comments`, `author` and `commentable`. Defaults to `true`;
+   * `false` leaves them out of this block type.
+   */
+  commentable?: boolean
   /**
    * How a block is written in `blocksToHTML`, e.g. an `<img>` of a picture
    * of it the app keeps. By default a `<figure>` with its name, which
@@ -107,6 +114,7 @@ function boardBlock(options: FlowBlockOptions, fallbackNode: boolean): EditorExt
     editorProps: options.editorProps ?? {},
     height: options.height ?? 360,
     fallbackNode,
+    commentable: options.commentable !== false,
   }
   const View = defineComponent({
     name: 'DouEditorFlowBlockView',
@@ -129,6 +137,8 @@ function boardBlock(options: FlowBlockOptions, fallbackNode: boolean): EditorExt
       mergeProps: { board: { lists: ['nodes', 'edges'], objects: ['data'] } },
       // for `checkDocument`: what the block would read differently
       checkProps: checkBoardProps,
+      // threads on the nodes and edges, kept in the board
+      comments: settings.commentable ? boardComments : undefined,
       // what is copied, and what `blocksToHTML` writes
       parseDOM: [`div[data-content-type="${type}"]`, `figure[data-content-type="${type}"]`].map(
         (tag) => ({
@@ -184,7 +194,7 @@ function boardBlock(options: FlowBlockOptions, fallbackNode: boolean): EditorExt
 export interface WhiteboardBlockOptions
   extends
     Pick<WhiteboardKitOptions, 'upload' | 'onUploadError'>,
-    Pick<FlowBlockOptions, 'height' | 'html' | 'editorProps'> {
+    Pick<FlowBlockOptions, 'height' | 'html' | 'editorProps' | 'commentable'> {
   /** The slash menu entry, or `false` to leave it out. */
   menu?: FlowBlockOptions['menu']
 }
@@ -209,6 +219,7 @@ export function whiteboardBlock(options: WhiteboardBlockOptions = {}): EditorExt
       ],
       editorProps: options.editorProps,
       height: options.height,
+      commentable: options.commentable,
       html: options.html,
       menu:
         options.menu === false

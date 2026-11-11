@@ -139,7 +139,7 @@ export const highlight = defineEditorExtension({
 
 `context` 里有根据全部扩展生成的 `schema`，以及 `messages()`：返回编辑器当前语言的 `messages`，供插件写进文档结构的文字使用（例如给读屏的名称）；不在编辑器里（转换文档）时返回简体中文。
 
-块类型的节点定义除了 ProseMirror 的字段，还可以设置 `continues`（同 `defineBlock`）、`component`（渲染块的 Vue 组件）、`mergeProps`（协同编辑时按条目合并的属性，见[白板与流程图](./whiteboard#协同编辑)）和 `checkProps`（`checkDocument` 检查属性的函数，见[文档数据](./data)）。`checkProps` 接收块的 `props`，返回 `{ prop, message }` 的数组，`prop` 是出问题的属性名，可以写到属性里面一层，例如 `board.nodes`。
+块类型的节点定义除了 ProseMirror 的字段，还可以设置 `continues`（同 `defineBlock`）、`component`（渲染块的 Vue 组件）、`mergeProps`（协同编辑时按条目合并的属性，见[白板与流程图](./whiteboard#协同编辑)）、`checkProps`（`checkDocument` 检查属性的函数，见[文档数据](./data)）和 `comments`（块里保存讨论的方式，见[自定义块里的讨论](./comments#自定义块里的讨论)）。`checkProps` 接收块的 `props`，返回 `{ prop, message }` 的数组，`prop` 是出问题的属性名，可以写到属性里面一层，例如 `board.nodes`。
 
 `toolbar` 里的组件可以用 `useEditor()` 拿到编辑器的 `view` 和 `state`。组件里有下拉菜单时，用 `useToolbarMenu()` 得到的值绑定菜单的 `v-model:open`，菜单打开、焦点离开编辑器时工具栏不会收起：
 

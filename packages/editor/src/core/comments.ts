@@ -1,13 +1,45 @@
 import { Fragment, Slice, type Node as PMNode } from 'prosemirror-model'
+import { isHistoryTransaction } from 'prosemirror-history'
 import { Plugin, PluginKey, type EditorState, type Transaction } from 'prosemirror-state'
 import { Decoration, DecorationSet, type EditorView } from 'prosemirror-view'
 import { blockAround } from './blocks'
+import type { BlockProps } from './model'
 
 /*
  * Comment threads are anchored by a `comment` mark carrying the thread's
- * id on the text they are about. The threads themselves (comments,
- * replies, resolved) are kept outside the document.
+ * id on the text they are about, or inside a block that keeps them in its
+ * props (its spec's `comments`, e.g. the nodes of a whiteboard). The
+ * threads themselves (comments, replies, resolved) are kept outside the
+ * document.
  */
+
+/** Where a thread is inside a block: what to show for it, and the block's own description of the spot. */
+export interface BlockCommentAnchor<Target = unknown> {
+  /** The text of what the thread is about, e.g. a node's label; `''` when it has none. */
+  text: string
+  /** Where in the block, as the block describes it, e.g. `{ node: 'n1' }`. */
+  target: Target
+}
+
+/**
+ * How a block type keeps comment threads on what is inside it, in its
+ * props: the `comments` field of its spec. The block's component starts
+ * and shows those threads itself (see `useEditor().comments`); the editor
+ * lists them in `getCommentAnchors()`, leaves them out of pasted copies,
+ * and puts them back after undo and redo, which restore older props.
+ */
+export interface BlockCommentsSpec<Target = unknown> {
+  /** The threads in the block, by id. */
+  anchors: (props: BlockProps) => Record<string, BlockCommentAnchor<Target>>
+  /** The props with thread `id` on `target`; `null` when that isn't in the block any more. */
+  place: (props: BlockProps, id: string, target: Target) => BlockProps | null
+  /** The props with only the threads `keep` says yes to. */
+  strip: (props: BlockProps, keep: (id: string) => boolean) => BlockProps
+}
+
+/** The `comments` of a node's spec: a block type that keeps threads inside. */
+export const blockCommentsOf = (node: PMNode) =>
+  node.type.spec.comments as BlockCommentsSpec | undefined
 
 /** A range of the document, as positions. */
 export interface CommentRange {
@@ -17,12 +49,17 @@ export interface CommentRange {
 
 /** Where a thread is anchored: the block and the text it is about. */
 export interface CommentAnchor {
-  /** The id of the (first) block holding the text. */
+  /** The id of the (first) block holding the text, or of the block the thread is inside. */
   block: string
-  /** The text the thread is about. */
+  /** The text the thread is about; inside a block, what the block shows for it (e.g. a node's label). */
   text: string
+  /** The text's first and last positions; inside a block, the block's. */
   from: number
   to: number
+  /** Inside a block: the block's type. */
+  type?: string
+  /** Inside a block: where, as the block describes it (e.g. `{ node: 'n1' }` on a whiteboard). */
+  target?: unknown
 }
 
 export interface CommentPluginState {
@@ -92,6 +129,23 @@ function rangeLength(doc: PMNode, id: string, pos: number): number {
 export function commentAnchors(doc: PMNode): Map<string, CommentAnchor> {
   const anchors = new Map<string, CommentAnchor>()
   doc.descendants((node, pos) => {
+    const inside = blockCommentsOf(node)
+    if (inside) {
+      const block = (doc.resolve(pos).parent.attrs.id as string | undefined) ?? ''
+      for (const [id, at] of Object.entries(inside.anchors(node.attrs))) {
+        if (anchors.has(id)) continue
+        const to = pos + node.nodeSize
+        anchors.set(id, {
+          block,
+          text: at.text,
+          from: pos,
+          to,
+          type: node.type.name,
+          target: at.target,
+        })
+      }
+      return false
+    }
     if (!node.isText) return true
     for (const mark of node.marks) {
       if (mark.type.name !== 'comment') continue
@@ -140,11 +194,32 @@ export function anchorComment(view: EditorView, range: CommentRange, id: string)
   view.dispatch(tr)
 }
 
-/** Takes a removed thread's anchor off the text. */
+/** Sets the props of the block content at `pos` that differ in `next`. */
+function setProps(tr: Transaction, pos: number, before: BlockProps, next: BlockProps) {
+  for (const [name, value] of Object.entries(next))
+    if (Object.hasOwn(before, name) && before[name] !== value) tr.setNodeAttribute(pos, name, value)
+}
+
+/** The id of the block around the content node at `pos`. */
+const blockIdAt = (doc: PMNode, pos: number) =>
+  (doc.resolve(pos).parent.attrs.id as string | undefined) ?? ''
+
+/** Takes a removed thread's anchor off the text, or out of the block it is inside. */
 export function unanchorComment(view: EditorView, id: string) {
   const type = view.state.schema.marks.comment!
   const tr = view.state.tr
   view.state.doc.descendants((node, pos) => {
+    const inside = blockCommentsOf(node)
+    if (inside) {
+      if (Object.hasOwn(inside.anchors(node.attrs), id))
+        setProps(
+          tr,
+          pos,
+          node.attrs,
+          inside.strip(node.attrs, (other) => other !== id),
+        )
+      return false
+    }
     if (!node.isText) return true
     const mark = node.marks.find((m) => m.type === type && m.attrs.id === id)
     if (mark) tr.removeMark(pos, pos + node.nodeSize, mark)
@@ -169,21 +244,29 @@ function dropCopiedComments(slice: Slice, state: EditorState, known: ReadonlySet
   let any = false
   slice.content.descendants((node) => {
     if (node.marks.some((mark) => mark.type.name === 'comment')) any = true
+    const inside = blockCommentsOf(node)
+    if (inside && Object.keys(inside.anchors(node.attrs)).length) any = true
     return !any
   })
   if (!any) return slice
   state.doc.descendants((node) => {
     for (const mark of node.marks) if (mark.type.name === 'comment') inDoc.add(mark.attrs.id)
+    const inside = blockCommentsOf(node)
+    if (inside) for (const id of Object.keys(inside.anchors(node.attrs))) inDoc.add(id)
     return true
   })
   const keep = (id: string) => !inDoc.has(id) && (!known || known.has(id))
   const strip = (fragment: Fragment): Fragment => {
     const nodes: PMNode[] = []
     fragment.forEach((node) => {
+      const inside = blockCommentsOf(node)
       if (node.isText) {
         nodes.push(
           node.mark(node.marks.filter((m) => m.type.name !== 'comment' || keep(m.attrs.id))),
         )
+      } else if (inside) {
+        const attrs = { ...node.attrs, ...inside.strip(node.attrs, keep) }
+        nodes.push(node.type.create(attrs, strip(node.content), node.marks))
       } else nodes.push(node.copy(strip(node.content)))
     })
     return Fragment.from(nodes)
@@ -191,9 +274,52 @@ function dropCopiedComments(slice: Slice, state: EditorState, known: ReadonlySet
   return new Slice(strip(slice.content), slice.openStart, slice.openEnd)
 }
 
+/** The threads inside each block that keeps them, by block id. */
+function blockAnchors(doc: PMNode) {
+  const found = new Map<string, Record<string, BlockCommentAnchor>>()
+  doc.descendants((node, pos) => {
+    const inside = blockCommentsOf(node)
+    if (!inside) return true
+    const anchors = inside.anchors(node.attrs)
+    if (Object.keys(anchors).length) found.set(blockIdAt(doc, pos), anchors)
+    return false
+  })
+  return found
+}
+
+/**
+ * Undo and redo bring back a block's props as they were, without the
+ * threads started inside it since (those aren't steps of the history):
+ * they are put back where they were, if that is still there.
+ */
+function keepBlockComments(before: PMNode, state: EditorState): Transaction | null {
+  const had = blockAnchors(before)
+  if (!had.size) return null
+  const tr = state.tr
+  state.doc.descendants((node, pos) => {
+    const inside = blockCommentsOf(node)
+    if (!inside) return true
+    const anchors = had.get(blockIdAt(state.doc, pos))
+    if (!anchors) return false
+    const now = inside.anchors(node.attrs)
+    let props: BlockProps = node.attrs
+    for (const [id, at] of Object.entries(anchors)) {
+      if (Object.hasOwn(now, id)) continue
+      props = inside.place(props, id, at.target) ?? props
+    }
+    if (props !== node.attrs) setProps(tr, pos, node.attrs, props)
+    return false
+  })
+  return tr.docChanged ? tr.setMeta('addToHistory', false) : null
+}
+
 export function commentPlugin(options: CommentPluginOptions): Plugin<CommentPluginState> {
   return new Plugin<CommentPluginState>({
     key: commentKey,
+    appendTransaction: (trs, before, state) =>
+      trs.some((tr) => tr.docChanged && isHistoryTransaction(tr))
+        ? keepBlockComments(before.doc, state)
+        : null,
     state: {
       init: () => ({ pending: null, decorations: DecorationSet.empty }),
       apply(tr: Transaction, value: CommentPluginState): CommentPluginState {

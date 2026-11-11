@@ -845,10 +845,15 @@ describe('comments on the nodes and edges', () => {
   })
 
   it('leaves a removed thread off its node through undo and redo', async () => {
-    const { view, openBoard } = await withComments(commented({ comments: ['t1'] }), [thread('t1')])
+    const { view, comments, openBoard } = await withComments(commented({ comments: ['t1'] }), [
+      thread('t1'),
+    ])
     await openBoard()
     const flow = fullscreen()!.vm
     flow.transact((tr) => tr.updateNode('n2', { x: 300 }))
+    // the thread deleted, as the card's delete button does
+    comments.value = []
+    await nextTick()
     unanchorComment(view, 't1')
     const n1 = () => boardIn(view).nodes.find((n) => n.id === 'n1')!
     expect(n1().comments).toBeUndefined()
@@ -857,6 +862,34 @@ describe('comments on the nodes and edges', () => {
     expect(n1().comments).toBeUndefined()
     expect(flow.redo()).toBe(true)
     expect(n1().comments).toBeUndefined()
+  })
+
+  it('brings a thread back with its node when the removal is undone', async () => {
+    const { view, editor, openBoard } = await withComments(commented({ comments: ['t1'] }), [
+      thread('t1'),
+    ])
+    await openBoard()
+    const flow = fullscreen()!.vm
+    flow.transact((tr) => tr.removeNode('n1'))
+    expect(editor.value!.getCommentAnchors().t1).toBeNull()
+    expect(flow.undo()).toBe(true)
+    expect(boardIn(view).nodes.find((n) => n.id === 'n1')!.comments).toEqual(['t1'])
+    expect(editor.value!.getCommentAnchors().t1).toMatchObject({ target: { node: 'n1' } })
+  })
+
+  it('keeps a thread on a new node through undo and redo of adding it', async () => {
+    const { view, editor, openBoard } = await withComments(START, [])
+    await openBoard()
+    const flow = fullscreen()!.vm
+    flow.transact((tr) => tr.addNode({ ...BOARD.nodes[0]!, id: 'n3', x: 400 }))
+    flow.comment({ node: 'n3' })
+    await nextTick()
+    await send('t1')
+    expect(flow.undo()).toBe(true)
+    expect(boardIn(view).nodes.some((n) => n.id === 'n3')).toBe(false)
+    expect(flow.redo()).toBe(true)
+    expect(boardIn(view).nodes.find((n) => n.id === 'n3')!.comments).toEqual(['t1'])
+    expect(editor.value!.getCommentAnchors().t1).toMatchObject({ target: { node: 'n3' } })
   })
 
   it('takes a removed thread off its node', async () => {

@@ -298,9 +298,15 @@ function blockAnchors(doc: PMNode) {
  * Undo and redo bring back a block's props as they were, threads included,
  * but starting and deleting threads aren't steps of the history: each block
  * keeps the threads it had before, put back where they were if that is
- * still there. A block brought back by the undo keeps what it comes with.
+ * still there, and those it comes back with that are still threads (on a
+ * node brought back, say), not those deleted since. A block brought back by
+ * the undo keeps what it comes with.
  */
-function keepBlockComments(before: PMNode, state: EditorState): Transaction | null {
+function keepBlockComments(
+  before: PMNode,
+  state: EditorState,
+  known: ReadonlySet<string> | null,
+): Transaction | null {
   const had = blockAnchors(before)
   if (!had.size) return null
   const tr = state.tr
@@ -309,7 +315,10 @@ function keepBlockComments(before: PMNode, state: EditorState): Transaction | nu
     if (!inside) return true
     const anchors = had.get(blockIdAt(state.doc, pos))
     if (!anchors) return false
-    let props = inside.strip(node.attrs, (id) => Object.hasOwn(anchors, id))
+    let props = inside.strip(
+      node.attrs,
+      (id) => Object.hasOwn(anchors, id) || !known || known.has(id),
+    )
     const now = inside.anchors(props)
     for (const [id, at] of Object.entries(anchors)) {
       if (Object.hasOwn(now, id)) continue
@@ -326,7 +335,7 @@ export function commentPlugin(options: CommentPluginOptions): Plugin<CommentPlug
     key: commentKey,
     appendTransaction: (trs, before, state) =>
       trs.some((tr) => tr.docChanged && isHistoryTransaction(tr))
-        ? keepBlockComments(before.doc, state)
+        ? keepBlockComments(before.doc, state, options.known())
         : null,
     state: {
       init: () => ({ pending: null, decorations: DecorationSet.empty }),

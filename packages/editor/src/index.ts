@@ -25,7 +25,12 @@ export type {
   EditorTransactionMeta,
 } from './core/transaction'
 export type { BlockChanges } from './core/changes'
-export type { CommentAnchor, CommentRange } from './core/comments'
+export type {
+  BlockCommentAnchor,
+  BlockCommentsSpec,
+  CommentAnchor,
+  CommentRange,
+} from './core/comments'
 export { editorLocales, useEditorMessages } from './locale'
 export type { EditorMessages, EditorMessagesOverride } from './locale'
 export { filterOptions } from './catalog'

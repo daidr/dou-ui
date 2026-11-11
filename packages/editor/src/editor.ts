@@ -244,7 +244,13 @@ export interface EditorComments {
   selection: () => CommentRange | null
   /** Start a thread on the selected text, or open the one the cursor is in. */
   start: () => boolean
-  apply: (action: CommentAction) => void
+  /**
+   * Make a change to the threads. A new thread goes on the text being
+   * commented on; with `anchored`, its block already put it inside (see
+   * `BlockCommentsSpec`). A removed thread is taken off its text or block.
+   */
+  apply: (action: CommentAction, options?: { anchored?: boolean }) => void
+  /** Open a thread: beside its text, or inside its block, which watches `active`. */
   open: (id: string | null) => void
   /** Close the card, dropping a thread not yet started. */
   close: () => void

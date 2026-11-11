@@ -53,17 +53,37 @@
     }
 
     /*
-     * The row of tabs sits its own padding away from the group's edges:
-     * further in than the panel keeps its hairline as wide as the panel,
-     * closer out stretches it along.
+     * The row of tabs spans the whole group and keeps its own padding from
+     * the group's edges. Its hairline runs as far out as the panel or the
+     * row, whichever reaches further: one line as wide as the panel, one as
+     * wide as the row, laid under the tabs. No sums of the two values, so a
+     * plain `0` works for either.
      */
     & > .dou-tabs > .dou-tabs__header {
-      --dou-dock-header-shift: calc(
-        var(--dou-dock-header-padding-x) - var(--dou-dock-group-padding-x)
-      );
+      position: relative;
+      z-index: 0;
+      margin-inline: calc(-1 * var(--dou-dock-group-padding-x));
+      padding-inline: var(--dou-dock-header-padding-x);
+      border-bottom-color: transparent;
 
-      margin-inline: min(0px, var(--dou-dock-header-shift));
-      padding-inline: max(0px, var(--dou-dock-header-shift));
+      &::before,
+      &::after {
+        position: absolute;
+        bottom: -1px;
+        z-index: -1;
+        height: 1px;
+        background-color: var(--dou-color-border);
+        content: '';
+        pointer-events: none;
+      }
+
+      &::before {
+        inset-inline: var(--dou-dock-group-padding-x);
+      }
+
+      &::after {
+        inset-inline: var(--dou-dock-header-padding-x);
+      }
     }
 
     /*

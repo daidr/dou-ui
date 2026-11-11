@@ -43,6 +43,7 @@ const props = withDefaults(defineProps<ChatMessageProps>(), {
   sender: 'assistant',
   loading: false,
   copyable: true,
+  reactable: true,
   editable: false,
   markdown: false,
   actionsVisible: undefined,
@@ -146,7 +147,7 @@ function step(delta: number) {
 
 // reactions
 const reactions = computed(() => (props.reactions ?? []).filter((r) => r.count > 0))
-const canReact = computed(() => !props.reactionsReadonly && !!slots['reaction-picker'])
+const canReact = computed(() => props.reactable && !!slots['reaction-picker'])
 const pickerOpen = ref(false)
 if (process.env.NODE_ENV !== 'production') {
   watch(
@@ -431,8 +432,9 @@ const rest = (part: AnyPart) => {
       >
         <!-- read only: the same chip, read out as one image with its label -->
         <span
-          v-if="reactionsReadonly"
+          v-if="!reactable"
           role="img"
+          tabindex="0"
           :class="[ns.e('reaction'), ns.is('reacted', !!reaction.reacted), ns.is('readonly', true)]"
           :aria-label="reactionLabel(reaction)"
         >

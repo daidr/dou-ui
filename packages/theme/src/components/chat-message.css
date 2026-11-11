@@ -318,7 +318,7 @@
 
     /* a finger gets a 40px target without spacing the chips apart */
     @media (pointer: coarse) {
-      &::after {
+      &:not(.is-readonly)::after {
         position: absolute;
         inset: -8px -2px;
         content: '';

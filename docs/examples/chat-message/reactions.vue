@@ -25,7 +25,7 @@ function toggle(list, emoji) {
     sender="user"
     content="周六上午九点在世纪公园 7 号门集合，骑到滴水湖。"
     :reactions="mine"
-    reactions-readonly
+    :reactable="false"
   />
   <DouChatMessage
     content="收到。上海周六多云，22–27°C，东南风 3 级，适合骑行。记得带水和防晒。"

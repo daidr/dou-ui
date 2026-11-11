@@ -109,6 +109,37 @@ watch(
     if (here(id) && !open.value) openEditor()
   },
 )
+/*
+ * The preview can't be pressed (it is inert and lets the pointer through to
+ * the block), but its comment markers look like buttons: a click or tap on
+ * one opens the board at its thread.
+ */
+const markerCursor = shallowRef(false)
+function markerAt(event: MouseEvent): string | null {
+  if (!flowComments.value) return null
+  const markers = root.value?.querySelectorAll<HTMLElement>(
+    '.dou-editor-board__preview [data-thread]',
+  )
+  for (const marker of markers ?? []) {
+    const box = marker.getBoundingClientRect()
+    if (
+      event.clientX >= box.left &&
+      event.clientX <= box.right &&
+      event.clientY >= box.top &&
+      event.clientY <= box.bottom
+    )
+      return marker.dataset.thread ?? null
+  }
+  return null
+}
+function onPreviewClick(event: MouseEvent) {
+  const id = markerAt(event)
+  if (id) comments.open(id)
+}
+function onPreviewMove(event: PointerEvent) {
+  if (event.pointerType === 'mouse') markerCursor.value = !!markerAt(event)
+}
+
 function onActive(id: string | null) {
   if (id !== boardActive.value) comments.open(id)
 }
@@ -517,8 +548,11 @@ function resetHeight() {
     ref="root"
     class="dou-editor-board"
     :class="{ 'is-selected': selected, 'is-empty': empty }"
-    :style="{ height: `${height}px` }"
+    :style="{ height: `${height}px`, cursor: markerCursor ? 'pointer' : undefined }"
     @dblclick="openEditor"
+    @click="onPreviewClick"
+    @pointermove="onPreviewMove"
+    @pointerleave="markerCursor = false"
   >
     <div v-if="!empty" class="dou-editor-board__preview" role="img" :aria-label="label">
       <DouFlowEditor

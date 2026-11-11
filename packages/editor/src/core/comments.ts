@@ -37,6 +37,14 @@ export interface BlockCommentsSpec<Target = unknown> {
   strip: (props: BlockProps, keep: (id: string) => boolean) => BlockProps
 }
 
+declare module 'prosemirror-model' {
+  interface NodeSpec {
+    /** Comment threads kept inside the block's props, see `BlockCommentsSpec`. */
+    // oxlint-disable-next-line typescript/no-explicit-any -- each block type has its own target
+    comments?: BlockCommentsSpec<any>
+  }
+}
+
 /** The `comments` of a node's spec: a block type that keeps threads inside. */
 export const blockCommentsOf = (node: PMNode) =>
   node.type.spec.comments as BlockCommentsSpec | undefined
@@ -280,17 +288,17 @@ function blockAnchors(doc: PMNode) {
   doc.descendants((node, pos) => {
     const inside = blockCommentsOf(node)
     if (!inside) return true
-    const anchors = inside.anchors(node.attrs)
-    if (Object.keys(anchors).length) found.set(blockIdAt(doc, pos), anchors)
+    found.set(blockIdAt(doc, pos), inside.anchors(node.attrs))
     return false
   })
   return found
 }
 
 /**
- * Undo and redo bring back a block's props as they were, without the
- * threads started inside it since (those aren't steps of the history):
- * they are put back where they were, if that is still there.
+ * Undo and redo bring back a block's props as they were, threads included,
+ * but starting and deleting threads aren't steps of the history: each block
+ * keeps the threads it had before, put back where they were if that is
+ * still there. A block brought back by the undo keeps what it comes with.
  */
 function keepBlockComments(before: PMNode, state: EditorState): Transaction | null {
   const had = blockAnchors(before)
@@ -301,8 +309,8 @@ function keepBlockComments(before: PMNode, state: EditorState): Transaction | nu
     if (!inside) return true
     const anchors = had.get(blockIdAt(state.doc, pos))
     if (!anchors) return false
-    const now = inside.anchors(node.attrs)
-    let props: BlockProps = node.attrs
+    let props = inside.strip(node.attrs, (id) => Object.hasOwn(anchors, id))
+    const now = inside.anchors(props)
     for (const [id, at] of Object.entries(anchors)) {
       if (Object.hasOwn(now, id)) continue
       props = inside.place(props, id, at.target) ?? props

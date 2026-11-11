@@ -129,6 +129,8 @@ function boardBlock(options: FlowBlockOptions, fallbackNode: boolean): EditorExt
     props: { board: null, height: settings.height },
     content: 'none',
     component: View,
+    // threads on the nodes and edges, kept in the board
+    comments: settings.commentable ? boardComments : undefined,
     menu:
       options.menu === false
         ? undefined
@@ -137,8 +139,6 @@ function boardBlock(options: FlowBlockOptions, fallbackNode: boolean): EditorExt
       mergeProps: { board: { lists: ['nodes', 'edges'], objects: ['data'] } },
       // for `checkDocument`: what the block would read differently
       checkProps: checkBoardProps,
-      // threads on the nodes and edges, kept in the board
-      comments: settings.commentable ? boardComments : undefined,
       // what is copied, and what `blocksToHTML` writes
       parseDOM: [`div[data-content-type="${type}"]`, `figure[data-content-type="${type}"]`].map(
         (tag) => ({

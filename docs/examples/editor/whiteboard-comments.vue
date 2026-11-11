@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { DouEditor, editorKit, type EditorDocument, type PartialBlock } from '@dou-ui/editor'
-import { whiteboardBlock } from '@dou-ui/editor/flow'
+import { whiteboardBlock, type BoardCommentTarget } from '@dou-ui/editor/flow'
 import type { CommentThread } from 'dou-ui'
 import { computed, onMounted, ref, useTemplateRef, watch } from 'vue'
 
@@ -38,7 +38,7 @@ const doc = ref<EditorDocument<PartialBlock>>({
               width: 150,
               height: 72,
               data: { text: '送帆布袋' },
-              comments: ['gift'],
+              comments: ['t-gift'],
             },
             {
               id: 'close',
@@ -62,7 +62,7 @@ const doc = ref<EditorDocument<PartialBlock>>({
 
 const threads = ref<CommentThread[]>([
   {
-    id: 'gift',
+    id: 't-gift',
     comments: [
       { id: 'g1', author: qing, body: '一百个够吗？去年排了两百多人。', createdAt: minutes(20) },
     ],
@@ -71,14 +71,20 @@ const threads = ref<CommentThread[]>([
 const active = ref<string | null>(null)
 const editor = useTemplateRef<InstanceType<typeof DouEditor>>('editor')
 
-// 讨论在哪：文字上的是被评论的文字，白板上的是图形的文字
+// 讨论在哪：文字上的是被评论的文字，白板上的是图形或连线上的文字
+const where = (text: string, target: BoardCommentTarget) =>
+  `白板：${text || ('edge' in target ? '连线' : '图形')}`
 const quotes = ref<Record<string, string>>({})
 function readQuotes() {
   const anchors = editor.value?.getCommentAnchors() ?? {}
   quotes.value = Object.fromEntries(
     Object.entries(anchors).map(([id, anchor]) => [
       id,
-      !anchor ? '（原文已删除）' : anchor.type ? `白板：${anchor.text || '图形'}` : anchor.text,
+      !anchor
+        ? '（评论的内容已删除）'
+        : anchor.type
+          ? where(anchor.text, anchor.target as BoardCommentTarget)
+          : anchor.text,
     ]),
   )
 }

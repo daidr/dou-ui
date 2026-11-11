@@ -48,7 +48,7 @@ const extensions = [editorKit({ codeBlock: false, divider: false })]
 
 组件里放一个 `<EditorContent />`，块的文字会显示在这里，可以像其他块一样编辑。组件里的其他部分不属于可编辑区域，按钮、输入框等可以正常使用。
 
-块的 `props` 保存在文档里，和内置块的 `props` 一样出现在 `v-model` 的数据中。组件通过 `updateProps` 修改它们，修改会进入撤销记录，协同编辑时也会同步给其他人。不要把块的状态放在组件自己的变量里，否则撤销和协同都拿不到这些状态。
+块的 `props` 保存在文档里，和内置块的 `props` 一样出现在 `v-model` 的数据中。组件通过 `updateProps` 修改它们，修改会进入撤销记录，协同编辑时也会同步给其他人。不该被撤销的修改（例如把讨论的 id 写进属性）传 `{ history: false }`，这次修改不进撤销记录，但仍会保存和同步。不要把块的状态放在组件自己的变量里，否则撤销和协同都拿不到这些状态。
 
 没有文字的块（例如图片、嵌入的网页）把 `content` 设为 `'none'`，组件里不需要 `<EditorContent />`。
 
@@ -62,16 +62,17 @@ const extensions = [editorKit({ codeBlock: false, divider: false })]
 | `component` | 渲染块的组件                                                                                               | `Component`          | —          |
 | `continues` | 在块末尾按 `Enter` 时，新块沿用同一类型，和列表一样；相邻的同类块之间也按[列表间距](./#间距和阅读宽度)排列 | `boolean`            | `false`    |
 | `menu`      | 块菜单中的选项，不设置时不出现在菜单里                                                                     | `BlockOption`        | —          |
+| `comments`  | 块里保存讨论的方式，见[自定义块里的讨论](./comments#自定义块里的讨论)                                      | `BlockCommentsSpec`  | —          |
 | `spec`      | 覆盖生成的 ProseMirror 节点定义，例如用 `parseDOM` 识别粘贴来的内容                                        | `Partial<NodeSpec>`  | —          |
 
 ### 组件的 Props
 
-| 名称          | 说明                                   | 类型                                          |
-| ------------- | -------------------------------------- | --------------------------------------------- |
-| `block`       | 块的 id、类型和当前的 `props`          | `{ id: string; type: string; props: object }` |
-| `updateProps` | 修改块的 `props`，只需要传入改动的部分 | `(props: object) => void`                     |
-| `selected`    | 块被整体选中（点击没有文字的块时）     | `boolean`                                     |
-| `editable`    | 编辑器是否可编辑，只读时为 `false`     | `boolean`                                     |
+| 名称          | 说明                                                                    | 类型                                                       |
+| ------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `block`       | 块的 id、类型和当前的 `props`                                           | `{ id: string; type: string; props: object }`              |
+| `updateProps` | 修改块的 `props`，只需要传入改动的部分；`history: false` 时不进撤销记录 | `(props: object, options?: { history?: boolean }) => void` |
+| `selected`    | 块被整体选中（点击没有文字的块时）                                      | `boolean`                                                  |
+| `editable`    | 编辑器是否可编辑，只读时为 `false`                                      | `boolean`                                                  |
 
 在块组件里调用 `useEditor()` 可以拿到编辑器的 `view`（ProseMirror 的 `EditorView`）和当前语言包的文案 `messages`。
 

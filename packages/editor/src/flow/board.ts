@@ -1,4 +1,10 @@
-import type { FlowDocument, FlowEdge, FlowExtension, FlowNode } from '@dou-ui/flow'
+import type {
+  FlowCommentAnchor,
+  FlowDocument,
+  FlowEdge,
+  FlowExtension,
+  FlowNode,
+} from '@dou-ui/flow'
 import type { Node as PMNode } from 'prosemirror-model'
 import type { BlockCommentAnchor, BlockCommentsSpec } from '../core/comments'
 import type { Label } from '../core/extension'
@@ -134,8 +140,11 @@ export function onlyBoardChanged(a: PMNode, b: PMNode, id: string): boolean {
   return before.node.childCount < 2 || before.node.child(1).eq(after.node.child(1))
 }
 
-/** Where a thread is on a board: a node (maybe a point on it) or an edge, as in `FlowCommentAnchor`. */
-export type BoardCommentTarget = { node: string; at?: { x: number; y: number } } | { edge: string }
+/**
+ * Where a thread is on a board, as the flow editor's `getCommentAnchors`
+ * gives it: a node, maybe a point on it with its number there, or an edge.
+ */
+export type BoardCommentTarget = FlowCommentAnchor
 
 const threadIds = (item: { comments?: unknown }): string[] =>
   Array.isArray(item.comments) ? item.comments.filter((id) => typeof id === 'string') : []
@@ -181,11 +190,13 @@ export const boardComments: BlockCommentsSpec<BoardCommentTarget> = {
     const board = boardOf(props.board)
     const anchors: Record<string, BlockCommentAnchor<BoardCommentTarget>> = {}
     for (const node of board.nodes) {
+      // pins are numbered on the node in the order they were made, from 1
+      let number = 0
       for (const id of threadIds(node)) {
         const at = pinOf(node, id)
         anchors[id] = {
           text: textOf(node.data),
-          target: at ? { node: node.id, at } : { node: node.id },
+          target: at ? { node: node.id, at, number: ++number } : { node: node.id },
         }
       }
     }

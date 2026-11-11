@@ -39,7 +39,7 @@ const extensions = [editorKit(), whiteboardBlock()]
 
 <DocDemo src="editor/whiteboard-comments" column />
 
-文档里的预览会在有讨论的图形和连线上显示标记。在侧栏的评论列表里打开一条白板上的讨论时，白板会打开全屏编辑器，定位到那个图形并打开讨论；关闭全屏编辑器时讨论一起收起。
+文档里的预览会在有讨论的图形和连线上显示标记，点标记会打开全屏编辑器并打开那条讨论。在侧栏的评论列表里打开一条白板上的讨论时，白板会打开全屏编辑器，定位到那个图形并打开讨论；关闭全屏编辑器时讨论一起收起。
 
 讨论的 id 保存在图形和连线的 `comments` 字段里，协同编辑时跟着图形一起合并。和文字上的讨论一样，评论不进撤销记录：撤销白板上的修改不会撤掉讨论；复制粘贴出的白板副本不带讨论。不需要评论的块类型，用 `whiteboardBlock({ commentable: false })` 或 `flowBlock({ commentable: false })` 关掉。
 

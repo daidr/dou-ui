@@ -8,7 +8,7 @@ import {
   type FlowNode,
 } from '@dou-ui/flow'
 import { mount } from '@vue/test-utils'
-import type { CommentAction, CommentThread } from 'dou-ui'
+import { DouDialog, type CommentAction, type CommentThread } from 'dou-ui'
 import type { EditorView } from 'prosemirror-view'
 import { afterEach, describe, expect, it } from 'vitest'
 import { defineComponent, h, nextTick, ref, type ComponentInternalInstance } from 'vue'
@@ -748,7 +748,7 @@ describe('comments on the nodes and edges', () => {
     }
     expect(boardComments.anchors({ board })).toEqual({
       t1: { text: '甲', target: { node: 'n1' } },
-      t2: { text: '甲', target: { node: 'n1', at: { x: 0.5, y: 0.25 } } },
+      t2: { text: '甲', target: { node: 'n1', at: { x: 0.5, y: 0.25 }, number: 1 } },
       t3: { text: '然后', target: { edge: 'e1' } },
     })
     const stripped = boardOf(boardComments.strip({ board }, (id) => id === 't2').board)
@@ -811,6 +811,17 @@ describe('comments on the nodes and edges', () => {
     await nextTick()
     await nextTick()
     expect(fullscreen()).toBeTruthy()
+    // closing the editor, as its button would
+    let dialog = (
+      document.querySelector('.dou-dialog .dou-flow-editor') as unknown as Record<
+        string,
+        ComponentInternalInstance
+      >
+    )['__vueParentComponent']!
+    while (dialog.type !== DouDialog) dialog = dialog.parent!
+    ;(dialog.vnode.props!.onClose as () => void)()
+    await nextTick()
+    expect(active.value).toBeNull()
   })
 
   it('keeps a thread through undo and redo of the board’s changes', async () => {
@@ -831,6 +842,21 @@ describe('comments on the nodes and edges', () => {
     expect(flow.redo()).toBe(true)
     expect(flow.redo()).toBe(true)
     expect(nodeOf('n1')).toMatchObject({ x: 40, comments: ['t1'] })
+  })
+
+  it('leaves a removed thread off its node through undo and redo', async () => {
+    const { view, openBoard } = await withComments(commented({ comments: ['t1'] }), [thread('t1')])
+    await openBoard()
+    const flow = fullscreen()!.vm
+    flow.transact((tr) => tr.updateNode('n2', { x: 300 }))
+    unanchorComment(view, 't1')
+    const n1 = () => boardIn(view).nodes.find((n) => n.id === 'n1')!
+    expect(n1().comments).toBeUndefined()
+    expect(flow.undo()).toBe(true)
+    expect(boardIn(view).nodes.find((n) => n.id === 'n2')!.x).toBe(200)
+    expect(n1().comments).toBeUndefined()
+    expect(flow.redo()).toBe(true)
+    expect(n1().comments).toBeUndefined()
   })
 
   it('takes a removed thread off its node', async () => {

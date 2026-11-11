@@ -179,6 +179,13 @@ export interface ChatMessageProps {
    * takes back the person's reaction itself.
    */
   reactions?: ChatMessageReaction[]
+  /**
+   * Show `reactions` without letting the person react, e.g. on their own
+   * messages or in an archived conversation: the chips look the same and
+   * keep the hover text, but cannot be pressed, and there is no
+   * add-reaction button even with a `reaction-picker` slot.
+   */
+  reactionsReadonly?: boolean
 }
 
 export interface ChatMessageEmits {

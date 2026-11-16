@@ -1,15 +1,17 @@
 import { mount } from '@vue/test-utils'
 import type { CommentAction, CommentThread } from 'dou-ui'
+import { undoDepth } from 'prosemirror-history'
 import { TextSelection } from 'prosemirror-state'
 import type { EditorView } from 'prosemirror-view'
 import { afterEach, describe, expect, it } from 'vitest'
-import { nextTick } from 'vue'
+import { defineComponent, nextTick } from 'vue'
 import * as Y from 'yjs'
 import { collaboration, fillMap } from '../collaboration'
 import { findBlockById } from '../core/blocks'
 import { createEditorView, getBlocks } from '../core/editor'
 import { resolveEditorExtensions } from '../core/extension'
 import { blocksToDoc, docToBlocks, type PartialBlock } from '../core/model'
+import { defineBlock, type BlockViewProps } from '../define-block'
 import DouEditor from '../editor.vue'
 import { editorKit } from '../extensions/editor-kit'
 
@@ -394,5 +396,87 @@ describe('comments with collaboration', () => {
       { type: 'text', text: '第三' },
       { type: 'text', text: '季度收入', comments: ['y'] },
     ])
+  })
+})
+
+describe('threads inside a block of your own', () => {
+  type Card = { id: string; text: string; comments?: string[] }
+  const cardsOf = (props: Record<string, unknown>) => (props.cards ?? []) as Card[]
+  let viewProps: BlockViewProps | null = null
+  const board = defineBlock<string>({
+    type: 'cards',
+    props: { cards: [] },
+    content: 'none',
+    component: defineComponent({
+      props: ['block', 'selected', 'editable', 'updateProps'],
+      setup(props) {
+        viewProps = props as unknown as BlockViewProps
+        return () => null
+      },
+    }),
+    comments: {
+      anchors: (props) =>
+        Object.fromEntries(
+          cardsOf(props).flatMap((card) =>
+            (card.comments ?? []).map((id) => [id, { text: card.text, target: card.id }]),
+          ),
+        ),
+      place(props, id, target) {
+        const cards = cardsOf(props)
+        if (!cards.some((card) => card.id === target)) return null
+        return {
+          cards: cards.map((card) =>
+            card.id === target ? { ...card, comments: [...(card.comments ?? []), id] } : card,
+          ),
+        }
+      },
+      strip: (props, keep) => ({
+        cards: cardsOf(props).map((card) => ({
+          ...card,
+          comments: (card.comments ?? []).filter(keep),
+        })),
+      }),
+    },
+  })
+
+  it('lists them, and keeps a change made with `history: false` out of undo', async () => {
+    const { wrapper, view } = mountEditor({
+      modelValue: {
+        version: 1,
+        blocks: [
+          {
+            id: 'k',
+            type: 'cards',
+            props: {
+              cards: [
+                { id: 'c1', text: '采购', comments: ['t1'] },
+                { id: 'c2', text: '布置' },
+              ],
+            },
+          },
+        ],
+      },
+      comments: [thread('t1')],
+      extensions: [editorKit(), board],
+    })
+    await nextTick()
+    const anchors = (
+      wrapper.vm as unknown as { getCommentAnchors: () => object }
+    ).getCommentAnchors()
+    expect(anchors).toEqual({
+      t1: expect.objectContaining({ block: 'k', type: 'cards', text: '采购', target: 'c1' }),
+    })
+    const before = undoDepth(view.state)
+    viewProps!.updateProps(
+      {
+        cards: [
+          { id: 'c1', text: '采购', comments: ['t1'] },
+          { id: 'c2', text: '布置', comments: ['t2'] },
+        ],
+      },
+      { history: false },
+    )
+    expect(undoDepth(view.state)).toBe(before)
+    expect(cardsOf(findBlockById(view.state.doc, 'k')!.content.attrs)[1]!.comments).toEqual(['t2'])
   })
 })

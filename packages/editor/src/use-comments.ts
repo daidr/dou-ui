@@ -121,9 +121,9 @@ export function useEditorComments(options: {
     open(null)
   }
 
-  function apply(action: CommentAction) {
+  function apply(action: CommentAction, how: { anchored?: boolean } = {}) {
     const current = view.value
-    if (action.type === 'create') {
+    if (action.type === 'create' && !how.anchored) {
       const range = pending.value
       if (!current || !range) return
       anchorComment(current, range, action.thread.id)

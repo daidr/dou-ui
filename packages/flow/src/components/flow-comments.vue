@@ -95,11 +95,31 @@ watch(away, async (now) => {
   if (el?.isConnected && (!at || at === document.body)) el.focus({ preventScroll: true })
 })
 
+/** Narrower than this, the card can't sit beside a node: it goes under (or over) the whole node. */
+const NARROW = 600
+
 const anchor: VirtualElement = {
   getBoundingClientRect() {
     const marker = current.value
     const el = marker && markerEls.get(marker.key)
-    return el ? el.getBoundingClientRect() : new DOMRect()
+    if (!el) return new DOMRect()
+    const rect = el.getBoundingClientRect()
+    const root = layer.value
+    if (!root || root.clientWidth >= NARROW || !('node' in marker.anchor)) return rect
+    // on a phone, the card would cover the node it is about
+    const node = root
+      .closest('.dou-flow-editor')
+      ?.querySelector(`[data-node-id="${CSS.escape(marker.anchor.node)}"]`)
+    if (!node) return rect
+    const box = node.getBoundingClientRect()
+    const left = Math.min(rect.left, box.left)
+    const top = Math.min(rect.top, box.top)
+    return new DOMRect(
+      left,
+      top,
+      Math.max(rect.right, box.right) - left,
+      Math.max(rect.bottom, box.bottom) - top,
+    )
   },
 }
 
@@ -209,6 +229,7 @@ const label = (marker: FlowCommentMarker) =>
       :style="{ translate: `${marker.x}px ${marker.y}px` }"
       :aria-label="label(marker)"
       :aria-expanded="current?.key === marker.key"
+      :data-thread="marker.threads[0]"
       @click="press(marker, $event)"
     >
       <span v-if="marker.number" class="dou-flow-editor__comment-count">{{ marker.number }}</span>

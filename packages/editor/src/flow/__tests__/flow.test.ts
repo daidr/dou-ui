@@ -5,14 +5,17 @@ import {
   flowKit,
   type FlowDocument,
   type FlowEditorExpose,
+  type FlowNode,
 } from '@dou-ui/flow'
 import { mount } from '@vue/test-utils'
+import { DouDialog, type CommentAction, type CommentThread } from 'dou-ui'
 import type { EditorView } from 'prosemirror-view'
 import { afterEach, describe, expect, it } from 'vitest'
 import { defineComponent, h, nextTick, ref, type ComponentInternalInstance } from 'vue'
 import * as Y from 'yjs'
 import { collaboration, fillMap } from '../../collaboration'
 import { findBlockById } from '../../core/blocks'
+import { unanchorComment } from '../../core/comments'
 import { blocksToHTML, htmlToBlocks } from '../../core/convert'
 import { createEditorView, getBlocks } from '../../core/editor'
 import { resolveEditorExtensions, type EditorExtension } from '../../core/extension'
@@ -22,6 +25,7 @@ import type { EditorExpose } from '../../editor'
 import { checkDocument } from '../../document'
 import { editorKit } from '../../extensions/editor-kit'
 import { blocksToMarkdown, markdownToBlocks } from '../../markdown'
+import { boardComments } from '../board'
 import { boardOf, flowBlock, whiteboardBlock } from '../index'
 
 const BOARD: FlowDocument = {
@@ -660,5 +664,264 @@ describe('adding nodes', () => {
     const { openBoard } = await open(START, true)
     await openBoard()
     expect(addButton()).toHaveLength(0)
+  })
+})
+
+/** The blocks of `START`, with `on` on node n1. */
+const commented = (on: Partial<FlowNode>): PartialBlock[] => [
+  { id: 'p', content: '前面' },
+  {
+    id: 'w',
+    type: 'whiteboard',
+    props: {
+      board: { ...BOARD, nodes: BOARD.nodes.map((n) => (n.id === 'n1' ? { ...n, ...on } : n)) },
+    },
+  },
+]
+
+describe('comments on the nodes and edges', () => {
+  const dai = { id: 'dai', name: '戴兜' }
+  const thread = (id: string): CommentThread => ({
+    id,
+    comments: [
+      { id: `${id}-1`, author: dai, body: '看一下', createdAt: '2026-11-11T08:00:00.000Z' },
+    ],
+  })
+  async function withComments(blocks = START, threads: CommentThread[] = [], readonly = false) {
+    const value = ref<EditorDocument<PartialBlock>>({ version: 1, blocks })
+    const comments = ref(threads)
+    const active = ref<string | null>(null)
+    const actions: CommentAction[] = []
+    const editor = ref<EditorExpose>()
+    const extensions = [editorKit(), whiteboardBlock()]
+    const wrapper = mount(
+      defineComponent(
+        () => () =>
+          h(DouEditor, {
+            ref: editor,
+            modelValue: value.value,
+            'onUpdate:modelValue': (next: EditorDocument) => (value.value = next),
+            comments: comments.value,
+            'onUpdate:comments': (next: CommentThread[]) => (comments.value = next),
+            activeComment: active.value,
+            'onUpdate:activeComment': (id: string | null) => (active.value = id),
+            onCommentAction: (action: CommentAction) => actions.push(action),
+            author: dai,
+            readonly,
+            extensions,
+          }),
+      ),
+      { attachTo: document.body },
+    )
+    wrappers.push(wrapper)
+    await nextTick()
+    const view = editor.value!.view as EditorView
+    const openBoard = async () => {
+      wrapper.element
+        .querySelector('.dou-editor-board')!
+        .dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))
+      await nextTick()
+      await nextTick()
+    }
+    return { view, editor, comments, active, actions, openBoard }
+  }
+
+  /** Sends the first comment of the thread being started, as the card's button would. */
+  async function send(id: string) {
+    const box = document.querySelector('.dou-dialog .dou-comment-thread')!
+    const instance = (box as unknown as Record<string, ComponentInternalInstance>)[
+      '__vueParentComponent'
+    ]!
+    const onAction = instance.vnode.props!.onAction as (action: CommentAction) => void
+    onAction({ type: 'create', thread: thread(id) })
+    await nextTick()
+  }
+
+  it('describes where threads are kept on a board', () => {
+    const board: FlowDocument = {
+      ...BOARD,
+      nodes: [
+        { ...BOARD.nodes[0]!, comments: ['t1', 't2'], commentPins: { t2: { x: 0.5, y: 0.25 } } },
+        BOARD.nodes[1]!,
+      ],
+      edges: [{ ...BOARD.edges[0]!, label: '然后', comments: ['t3'] }],
+    }
+    expect(boardComments.anchors({ board })).toEqual({
+      t1: { text: '甲', target: { node: 'n1' } },
+      t2: { text: '甲', target: { node: 'n1', at: { x: 0.5, y: 0.25 }, number: 1 } },
+      t3: { text: '然后', target: { edge: 'e1' } },
+    })
+    const stripped = boardOf(boardComments.strip({ board }, (id) => id === 't2').board)
+    expect(stripped.nodes[0]).toMatchObject({
+      comments: ['t2'],
+      commentPins: { t2: { x: 0.5, y: 0.25 } },
+    })
+    expect(stripped.edges[0]).not.toHaveProperty('comments')
+    // nothing to strip: the same props back
+    const plain = { board: BOARD }
+    expect(boardComments.strip(plain, () => false)).toBe(plain)
+    const placed = boardComments.place(plain, 't4', { node: 'n2', at: { x: 0, y: 1 } })!
+    expect(boardOf(placed.board).nodes[1]).toMatchObject({
+      comments: ['t4'],
+      commentPins: { t4: { x: 0, y: 1 } },
+    })
+    expect(boardComments.place(plain, 't4', { node: 'gone' })).toBeNull()
+    expect(boardComments.place(plain, 't4', { edge: 'gone' })).toBeNull()
+  })
+
+  it('starts a thread on a node in the fullscreen editor, kept with the document’s', async () => {
+    const { view, editor, comments, active, actions, openBoard } = await withComments()
+    await openBoard()
+    const flow = fullscreen()!
+    expect(flow.props('comments')).toEqual([])
+    expect(flow.props('author')).toEqual(dai)
+    expect(flow.props('commentable')).toBe(true)
+    expect(flow.vm.comment({ node: 'n1' })).toBe(true)
+    await nextTick()
+    await send('t1')
+    expect(boardIn(view).nodes[0]!.comments).toEqual(['t1'])
+    expect(comments.value.map((t) => t.id)).toEqual(['t1'])
+    expect(actions.map((a) => a.type)).toEqual(['create'])
+    expect(active.value).toBe('t1')
+    expect(editor.value!.getCommentAnchors()).toEqual({
+      t1: expect.objectContaining({
+        block: 'w',
+        text: '甲',
+        type: 'whiteboard',
+        target: { node: 'n1' },
+      }),
+    })
+    // not an undo step
+    expect(flow.vm.undo()).toBe(false)
+  })
+
+  it('starts one in a read-only document too', async () => {
+    const { view, openBoard } = await withComments(START, [], true)
+    await openBoard()
+    expect(fullscreen()!.vm.comment({ node: 'n2' })).toBe(true)
+    await nextTick()
+    await send('t1')
+    expect(boardIn(view).nodes[1]!.comments).toEqual(['t1'])
+  })
+
+  it('opens the board at a thread chosen outside, and closes the thread with it', async () => {
+    const { active } = await withComments(commented({ comments: ['t1'] }), [thread('t1')])
+    expect(fullscreen()).toBeUndefined()
+    active.value = 't1'
+    await nextTick()
+    await nextTick()
+    expect(fullscreen()).toBeTruthy()
+    // closing the editor, as its button would
+    let dialog = (
+      document.querySelector('.dou-dialog .dou-flow-editor') as unknown as Record<
+        string,
+        ComponentInternalInstance
+      >
+    )['__vueParentComponent']!
+    while (dialog.type !== DouDialog) dialog = dialog.parent!
+    ;(dialog.vnode.props!.onClose as () => void)()
+    await nextTick()
+    expect(active.value).toBeNull()
+  })
+
+  it('keeps a thread through undo and redo of the board’s changes', async () => {
+    const { view, openBoard } = await withComments(START, [])
+    await openBoard()
+    const flow = fullscreen()!.vm
+    flow.transact((tr) => tr.updateNode('n1', { x: 40 }))
+    flow.comment({ node: 'n1' })
+    await nextTick()
+    await send('t1')
+    flow.transact((tr) => tr.updateNode('n2', { x: 300 }))
+    const nodeOf = (id: string) => boardIn(view).nodes.find((n) => n.id === id)!
+    expect(flow.undo()).toBe(true)
+    expect(nodeOf('n2').x).toBe(200)
+    expect(nodeOf('n1').comments).toEqual(['t1'])
+    expect(flow.undo()).toBe(true)
+    expect(nodeOf('n1')).toMatchObject({ x: 0, comments: ['t1'] })
+    expect(flow.redo()).toBe(true)
+    expect(flow.redo()).toBe(true)
+    expect(nodeOf('n1')).toMatchObject({ x: 40, comments: ['t1'] })
+  })
+
+  it('leaves a removed thread off its node through undo and redo', async () => {
+    const { view, comments, openBoard } = await withComments(commented({ comments: ['t1'] }), [
+      thread('t1'),
+    ])
+    await openBoard()
+    const flow = fullscreen()!.vm
+    flow.transact((tr) => tr.updateNode('n2', { x: 300 }))
+    // the thread deleted, as the card's delete button does
+    comments.value = []
+    await nextTick()
+    unanchorComment(view, 't1')
+    const n1 = () => boardIn(view).nodes.find((n) => n.id === 'n1')!
+    expect(n1().comments).toBeUndefined()
+    expect(flow.undo()).toBe(true)
+    expect(boardIn(view).nodes.find((n) => n.id === 'n2')!.x).toBe(200)
+    expect(n1().comments).toBeUndefined()
+    expect(flow.redo()).toBe(true)
+    expect(n1().comments).toBeUndefined()
+  })
+
+  it('brings a thread back with its node when the removal is undone', async () => {
+    const { view, editor, openBoard } = await withComments(commented({ comments: ['t1'] }), [
+      thread('t1'),
+    ])
+    await openBoard()
+    const flow = fullscreen()!.vm
+    flow.transact((tr) => tr.removeNode('n1'))
+    expect(editor.value!.getCommentAnchors().t1).toBeNull()
+    expect(flow.undo()).toBe(true)
+    expect(boardIn(view).nodes.find((n) => n.id === 'n1')!.comments).toEqual(['t1'])
+    expect(editor.value!.getCommentAnchors().t1).toMatchObject({ target: { node: 'n1' } })
+  })
+
+  it('keeps a thread on a new node through undo and redo of adding it', async () => {
+    const { view, editor, openBoard } = await withComments(START, [])
+    await openBoard()
+    const flow = fullscreen()!.vm
+    flow.transact((tr) => tr.addNode({ ...BOARD.nodes[0]!, id: 'n3', x: 400 }))
+    flow.comment({ node: 'n3' })
+    await nextTick()
+    await send('t1')
+    expect(flow.undo()).toBe(true)
+    expect(boardIn(view).nodes.some((n) => n.id === 'n3')).toBe(false)
+    expect(flow.redo()).toBe(true)
+    expect(boardIn(view).nodes.find((n) => n.id === 'n3')!.comments).toEqual(['t1'])
+    expect(editor.value!.getCommentAnchors().t1).toMatchObject({ target: { node: 'n3' } })
+  })
+
+  it('takes a removed thread off its node', async () => {
+    const { view } = await withComments(commented({ comments: ['t1', 't2'] }), [
+      thread('t1'),
+      thread('t2'),
+    ])
+    unanchorComment(view, 't1')
+    expect(boardIn(view).nodes[0]!.comments).toEqual(['t2'])
+  })
+
+  it('leaves the threads out of a pasted copy of the block', async () => {
+    const { view } = await withComments(commented({ comments: ['t1'] }), [thread('t1')])
+    const block = findBlockById(view.state.doc, 'w')!
+    const copied = view.state.doc.slice(block.pos, block.pos + block.node.nodeSize)
+    let pasted = copied
+    view.someProp('transformPasted', (transform) => {
+      pasted = transform(pasted, view, false)
+    })
+    let kept: unknown = 'none'
+    pasted.content.descendants((child) => {
+      if (child.type.name === 'whiteboard') kept = boardOf(child.attrs.board).nodes[0]!.comments
+      return true
+    })
+    expect(kept).toBeUndefined()
+  })
+
+  it('leaves them out with `commentable: false`', () => {
+    const { schema } = resolveEditorExtensions([
+      editorKit(),
+      whiteboardBlock({ commentable: false }),
+    ])
+    expect(schema.nodes.whiteboard!.spec.comments).toBeUndefined()
   })
 })

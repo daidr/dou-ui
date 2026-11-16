@@ -14,6 +14,7 @@ import {
   type InjectionKey,
   type PropType,
 } from 'vue'
+import type { BlockCommentsSpec } from './core/comments'
 import type { BlockOption, EditorExtension, Label, MountComponent } from './core/extension'
 import type { BlockProps } from './core/model'
 
@@ -21,14 +22,18 @@ import type { BlockProps } from './core/model'
 export interface BlockViewProps {
   /** The block's id, type and current props. */
   block: { id: string; type: string; props: BlockProps }
-  /** Change props; the change goes into the document, the undo history and collaboration. */
-  updateProps: (props: BlockProps) => void
+  /**
+   * Change props; the change goes into the document, the undo history and
+   * collaboration. `history: false` keeps it out of the undo history, e.g.
+   * for the id of a comment thread put inside the block.
+   */
+  updateProps: (props: BlockProps, options?: { history?: boolean }) => void
   /** The block is selected as a whole (a block without text was clicked). */
   selected: boolean
   editable: boolean
 }
 
-export interface DefineBlockOptions {
+export interface DefineBlockOptions<Target = unknown> {
   type: string
   /** The props and their defaults. They are stored in the document, as `Block.props`. */
   props?: Record<string, unknown>
@@ -38,6 +43,11 @@ export interface DefineBlockOptions {
   component?: Component
   /** `Enter` at the end continues with the same type, like a list. */
   continues?: boolean
+  /**
+   * Comment threads on what is inside the block, kept in its props: how
+   * to find, put back and strip them. See `BlockCommentsSpec`.
+   */
+  comments?: BlockCommentsSpec<Target>
   /** Entries for the slash menu and the “turn into” menus; one is made from `menu` when given. */
   menu?: Omit<BlockOption, 'key' | 'type'> & { key?: string }
   /** Override the ProseMirror spec, e.g. `parseDOM` for pasting HTML from elsewhere. */
@@ -125,12 +135,14 @@ export function vueNodeView(
       block: { id: idOf(), type, props: { ...node.attrs } },
       selected: false,
       editable: view.editable,
-      updateProps(props) {
+      updateProps(props, options) {
         const pos = getPos()
         if (pos === undefined) return
         const current = view.state.doc.nodeAt(pos)
         if (!current) return
-        view.dispatch(view.state.tr.setNodeMarkup(pos, undefined, { ...current.attrs, ...props }))
+        const tr = view.state.tr.setNodeMarkup(pos, undefined, { ...current.attrs, ...props })
+        if (options?.history === false) tr.setMeta('addToHistory', false)
+        view.dispatch(tr)
       },
     })
     const Root = defineComponent({
@@ -185,7 +197,9 @@ export function vueNodeView(
  * Declare a block type rendered by a Vue component (or by plain DOM), with
  * its props stored in the document. Returns an extension for `extensions`.
  */
-export function defineBlock(options: DefineBlockOptions): EditorExtension {
+export function defineBlock<Target = unknown>(
+  options: DefineBlockOptions<Target>,
+): EditorExtension {
   const { type } = options
   const props = options.props ?? {}
   const names = Object.keys(props)
@@ -195,6 +209,7 @@ export function defineBlock(options: DefineBlockOptions): EditorExtension {
     ...(inline ? { content: 'inline*', defining: true } : { atom: true, selectable: true }),
     continues: options.continues,
     component: options.component,
+    comments: options.comments,
     parseDOM: [
       {
         tag: `div[data-content-type="${type}"]`,

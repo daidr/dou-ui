@@ -12,6 +12,7 @@ import {
   type FlowNode,
   type FlowTransaction,
 } from '@dou-ui/flow'
+import type { CommentAction, CommentThread } from 'dou-ui'
 import { EyeIcon, PencilIcon, PlusIcon, SquareIcon } from '@dou-ui/icons'
 import { DouButton, DouCommand, DouDialog, DouPopover, type CommandItem } from 'dou-ui'
 import { NodeSelection } from 'prosemirror-state'
@@ -33,6 +34,7 @@ import { useEditor } from '../editor'
 import {
   BOARD_HEIGHT,
   BOARD_OPEN_EVENT,
+  boardComments,
   boardOf,
   clampHeight,
   onlyBoardChanged,
@@ -58,7 +60,7 @@ const props = defineProps<{
   settings: BoardBlockSettings
 }>()
 
-const { view, messages } = useEditor()
+const { view, messages, comments } = useEditor()
 const text = computed(() => messages.value.board)
 const label = computed(() => labelOf(props.settings.label, messages.value))
 const stored = computed(() => boardOf(props.block.props.board))
@@ -73,9 +75,82 @@ const empty = computed(() => !board.value.nodes.length)
 
 /* the fullscreen editor */
 const open = shallowRef(false)
+/** The fullscreen editor is in place (its dialog done opening). */
+const opened = shallowRef(false)
 watch(open, (value) => {
   if (!value) shown.value = board.value
 })
+
+/*
+ * Comment threads on the nodes and edges: the document's threads, author
+ * and open thread, shown by the flow editors. The ids are kept on the nodes
+ * and edges (see `boardComments`); a thread opened from outside, e.g. a
+ * list of the document's comments, opens the fullscreen editor at it.
+ */
+const flowComments = computed(() =>
+  props.settings.commentable && comments.enabled.value
+    ? (comments.threads.value as CommentThread[])
+    : undefined,
+)
+const threadsHere = computed(
+  () =>
+    new Set(
+      props.settings.commentable ? Object.keys(boardComments.anchors(props.block.props)) : [],
+    ),
+)
+const here = (id: string | null): id is string => !!id && threadsHere.value.has(id)
+/** The open thread, when it is on this board and the fullscreen editor shows it. */
+const boardActive = computed(() =>
+  opened.value && here(comments.active.value) ? comments.active.value : null,
+)
+watch(
+  () => comments.active.value,
+  (id) => {
+    if (here(id) && !open.value) openEditor()
+  },
+)
+/*
+ * The preview can't be pressed (it is inert and lets the pointer through to
+ * the block), but its comment markers look like buttons: a click or tap on
+ * one opens the board at its thread.
+ */
+const markerCursor = shallowRef(false)
+function markerAt(event: MouseEvent): string | null {
+  if (!flowComments.value) return null
+  const markers = root.value?.querySelectorAll<HTMLElement>(
+    '.dou-editor-board__preview [data-thread]',
+  )
+  for (const marker of markers ?? []) {
+    const box = marker.getBoundingClientRect()
+    if (
+      event.clientX >= box.left &&
+      event.clientX <= box.right &&
+      event.clientY >= box.top &&
+      event.clientY <= box.bottom
+    )
+      return marker.dataset.thread ?? null
+  }
+  return null
+}
+function onPreviewClick(event: MouseEvent) {
+  const id = markerAt(event)
+  if (id) comments.open(id)
+}
+function onPreviewMove(event: PointerEvent) {
+  if (event.pointerType === 'mouse') markerCursor.value = !!markerAt(event)
+}
+
+function onActive(id: string | null) {
+  if (id !== boardActive.value) comments.open(id)
+}
+function onCommentAction(action: CommentAction) {
+  comments.apply(action, { anchored: true })
+}
+function onClose() {
+  settle()
+  opened.value = false
+  if (here(comments.active.value)) comments.open(null)
+}
 
 const root = useTemplateRef<HTMLElement>('root')
 const canvas = useTemplateRef<HTMLElement>('canvas')
@@ -152,6 +227,7 @@ const contentPos = () => {
 
 /** The keys go to the canvas from the start: a tool's letter, `Esc` letting go of a selection. */
 function onOpened() {
+  opened.value = true
   canvas.value?.querySelector<HTMLElement>('.dou-flow-editor')?.focus({ preventScroll: true })
 }
 
@@ -254,11 +330,20 @@ function settle() {
 function forward(tr: FlowTransaction) {
   const editor = view.value
   const pos = contentPos()
-  if (!editor || pos === null || !props.editable) return
+  // a thread put on or taken off a node is written in a read-only document too, as on text
+  const comment = tr.meta.origin === 'comment'
+  if (!editor || pos === null || (!props.editable && !comment)) return
   const group = tr.meta.group
   const next = toDocument(tr.doc)
   // only folded or unfolded: nothing for the document
   if (JSON.stringify(next) === JSON.stringify(currentBoard())) return
+  // not a step of the undo history, nor part of a drag going on
+  if (comment) {
+    editor.dispatch(
+      editor.state.tr.setNodeAttribute(pos, 'board', next).setMeta('addToHistory', false),
+    )
+    return
+  }
   const now = Date.now()
   if (pending && (pending.group !== group || now - pending.time >= GROUP_WINDOW)) {
     // a cancelled drag putting the board back: part of its step
@@ -463,8 +548,11 @@ function resetHeight() {
     ref="root"
     class="dou-editor-board"
     :class="{ 'is-selected': selected, 'is-empty': empty }"
-    :style="{ height: `${height}px` }"
+    :style="{ height: `${height}px`, cursor: markerCursor ? 'pointer' : undefined }"
     @dblclick="openEditor"
+    @click="onPreviewClick"
+    @pointermove="onPreviewMove"
+    @pointerleave="markerCursor = false"
   >
     <div v-if="!empty" class="dou-editor-board__preview" role="img" :aria-label="label">
       <DouFlowEditor
@@ -484,6 +572,7 @@ function resetHeight() {
         :max-zoom="1"
         :bordered="false"
         :searchable="false"
+        :comments="flowComments"
         :commentable="false"
         :pan-on-scroll="false"
       />
@@ -525,7 +614,7 @@ function resetHeight() {
       fullscreen
       destroy-on-close
       @opened="onOpened"
-      @close="settle"
+      @close="onClose"
       @closed="onClosed"
     >
       <div ref="canvas" class="dou-editor-board__editor" data-editor-control>
@@ -539,9 +628,14 @@ function resetHeight() {
           fit-view
           :fit-min-zoom="0.1"
           :simple-zoom="0.1"
-          :commentable="false"
+          :comments="flowComments"
+          :author="comments.author.value"
+          :commentable="comments.writable.value"
+          :active-comment="boardActive"
           :aria-label="label"
           @transaction="forward"
+          @update:active-comment="onActive"
+          @comment-action="onCommentAction"
         >
           <DouFlowControls />
           <div v-if="palette.length" class="dou-editor-board__add">

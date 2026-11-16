@@ -7,6 +7,12 @@ DouUI 的所有包（`dou-ui`、`@dou-ui/theme`、`@dou-ui/icons` 以及生态�
 
 这个文件由发版脚本生成：改动先以碎片文件记在 [`.changes/`](./.changes/README.md) 里，发布时汇总到这里。
 
+## 0.1.0-alpha.19 · 2026-11-16
+
+### 修复
+
+- **@dou-ui/form-builder**：表单设计器中的单选字段使用单选圆圈图标，不再显示收音机图标。 ([#454](https://github.com/daidr/dou-ui/pull/454))
+
 ## 0.1.0-alpha.18 · 2026-11-16
 
 ### 新增

@@ -88,7 +88,11 @@ describe('dev warning prefixes', () => {
           /(?:console\.(?:warn|error)|(?<!function )\bdevWarn)\(\s*/g,
         )) {
           const rest = text.slice(match.index + match[0].length)
-          if (relative(root, file) === FORWARD.file && rest.startsWith(FORWARD.arg)) continue
+          if (
+            relative(root, file).replaceAll('\\', '/') === FORWARD.file &&
+            rest.startsWith(FORWARD.arg)
+          )
+            continue
           if (!/^['"`]/.test(rest) && !/^(?:PREFIX|prefix\()/.test(rest))
             bare.push(`${relative(root, file)}:${lineOf(text, match.index)}`)
         }

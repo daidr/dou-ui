@@ -91,3 +91,61 @@ export function orderKeys(keys: (string | null)[]): string[] {
   }
   return result as string[]
 }
+
+/**
+ * Keys only for items inserted or moved between base and written. Other
+ * surviving items retain the room's order, including its new items.
+ */
+export function changedOrderKeys(
+  before: string[],
+  after: string[],
+  current: Map<string, string | null>,
+  compareIds?: (a: string, b: string) => number,
+): Map<string, string> {
+  const old = new Map(before.map((id, index) => [id, String(index).padStart(12, '0')]))
+  const stays = keptIndexes(after.map((id) => old.get(id) ?? null))
+  const moved = new Set(after.filter((id, index) => current.has(id) && !stays.has(index)))
+  if (!moved.size) return new Map()
+  const ordered = [...current.keys()].filter((id) => !moved.has(id))
+  ordered.sort((a, b) => {
+    const left = current.get(a) ?? ''
+    const right = current.get(b) ?? ''
+    return left === right
+      ? compareIds
+        ? compareIds(a, b)
+        : a < b
+          ? -1
+          : a > b
+            ? 1
+            : 0
+      : left < right
+        ? -1
+        : 1
+  })
+  // Linked neighbours avoid repeated scans/splices when many items move.
+  const links = new Map<string, { previous: string | null; next: string | null }>()
+  let head = ordered[0] ?? null
+  ordered.forEach((id, index) =>
+    links.set(id, { previous: ordered[index - 1] ?? null, next: ordered[index + 1] ?? null }),
+  )
+  let previous: string | null = null
+  for (const id of after) {
+    if (moved.has(id)) {
+      const next = previous === null ? head : links.get(previous)!.next
+      links.set(id, { previous, next })
+      if (previous === null) head = id
+      else links.get(previous)!.next = id
+      if (next !== null) links.get(next)!.previous = id
+    }
+    if (links.has(id)) previous = id
+  }
+  const result: string[] = []
+  for (let id = head; id !== null; id = links.get(id)!.next) result.push(id)
+  const keys = result.map((id) => (moved.has(id) ? null : (current.get(id) ?? null)))
+  const next = orderKeys(keys)
+  return new Map(
+    result.flatMap((id, index) =>
+      current.get(id) !== next[index] ? [[id, next[index]!] as const] : [],
+    ),
+  )
+}

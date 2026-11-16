@@ -1,6 +1,6 @@
 import type { NodeType } from 'prosemirror-model'
 import * as Y from 'yjs'
-import { keysBetween, orderKeys } from './order'
+import { changedOrderKeys, keysBetween } from './order'
 
 /*
  * Props whose lists of `{ id }` items merge item by item when edited
@@ -147,22 +147,19 @@ function writeList(map: Shared, after: unknown[], objects: readonly string[], be
   const gone = before ? Array.from(old.keys()) : Array.from(map.keys())
   for (const id of gone) if (!ids.has(id)) map.delete(id)
   for (const item of items) writeItem(map, item, objects, before ? old.get(item.id) : undefined)
-  // An unchanged base order must not undo a move made in the room.
-  const oldIds = [...old.keys()]
-  if (before && items.length === oldIds.length && items.every((item, i) => item.id === oldIds[i]))
-    return
-  // places: only those of the items that moved, or have none yet
-  const stored = items
-    .map((item) => map.get(item.id))
-    .filter((fields): fields is Shared => fields instanceof Y.Map)
-  const keys = stored.map((fields) => {
+  const current = new Map<string, string | null>()
+  for (const [id, fields] of map) {
+    if (!(fields instanceof Y.Map)) continue
     const order = fields.get(ORDER)
-    return typeof order === 'string' ? order : null
-  })
-  const next = orderKeys(keys)
-  stored.forEach((fields, i) => {
-    if (keys[i] !== next[i]) fields.set(ORDER, next[i])
-  })
+    current.set(id, typeof order === 'string' ? order : null)
+  }
+  const keys = changedOrderKeys(
+    [...old.keys()],
+    items.map((item) => item.id),
+    current,
+    (a, b) => a.localeCompare(b),
+  )
+  for (const [id, key] of keys) (map.get(id) as Shared).set(ORDER, key)
 }
 
 /** A new item, for a map not yet in the document (which can't be read). */

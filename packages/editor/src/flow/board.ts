@@ -39,11 +39,11 @@ const isObject = (value: unknown): value is Record<string, unknown> =>
 /** Edges need two readable endpoints that refer to nodes in this board. */
 function edgesOf(value: unknown, nodes: FlowNode[]): FlowEdge[] {
   const ids = new Set(nodes.map((node) => node.id).filter((id) => typeof id === 'string'))
-  const endpoint = (value: unknown) =>
-    isObject(value) &&
-    typeof value.node === 'string' &&
-    ids.has(value.node) &&
-    (value.port === undefined || typeof value.port === 'string')
+  const endpoint = (end: unknown) =>
+    isObject(end) &&
+    typeof end.node === 'string' &&
+    ids.has(end.node) &&
+    (end.port === undefined || typeof end.port === 'string')
   return objects<FlowEdge>(value).filter(
     (edge) =>
       typeof edge.id === 'string' && !!edge.id && endpoint(edge.source) && endpoint(edge.target),

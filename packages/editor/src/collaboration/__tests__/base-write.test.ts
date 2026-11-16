@@ -222,6 +222,255 @@ describe('updateMap writes from its base inside a changed block', () => {
     expect(read().rows!.map((row) => row.id)).toEqual(['b'])
   })
 
+  it.each([
+    ['😀abc', '😀abcZ', '😁abc', '😁abcZ'],
+    ['A😀BCD', 'PRE A😀BCD', 'A😁BCD', 'PRE A😁BCD'],
+  ])('does not split a surrogate pair while rebasing %s', (initial, current, written, expected) => {
+    const { map, base, read } = setup({ id: 'p', content: initial })
+    updateMap(map, documentOf({ id: 'p', content: current }), options)
+    updateMap(map, documentOf({ id: 'p', content: written }), { ...options, base })
+    expect(plain(read())).toBe(expected)
+  })
+
+  it('retains a common island after large edits on both sides', () => {
+    const initial = 'a'.repeat(400) + ' KEEP ' + 'b'.repeat(400)
+    const written = 'c'.repeat(400) + ' KEEP ' + 'd'.repeat(400)
+    const { map, base, read } = setup({ id: 'p', content: initial })
+    updateMap(map, documentOf({ id: 'p', content: initial.replace('KEEP', 'ROOM') }), options)
+    updateMap(map, documentOf({ id: 'p', content: written }), { ...options, base })
+    expect(plain(read())).toBe(written.replace('KEEP', 'ROOM'))
+  })
+
+  it.each([false, true])(
+    'retains an unchanged comment island, with a room edit: %s',
+    (roomEdit) => {
+      const { map, base, read } = setup({
+        id: 'p',
+        content: [
+          { type: 'text', text: 'aa ' },
+          { type: 'text', text: 'keep', comments: ['t1'] },
+          { type: 'text', text: ' zz' },
+        ],
+      })
+      if (roomEdit) ((map.get('p') as Y.Map<unknown>).get('text') as Y.Text).insert(10, ' ROOM')
+      updateMap(map, documentOf({ id: 'p', content: 'AA keep ZZ' }), { ...options, base })
+      expect(plain(read())).toBe('AA keep ZZ' + (roomEdit ? ' ROOM' : ''))
+      expect(read().content).toContainEqual({ type: 'text', text: 'keep', comments: ['t1'] })
+    },
+  )
+
+  it('keeps the identity of text between two edits even when the room matches base', () => {
+    const { map, base } = setup({ id: 'p', content: 'aa keep zz' })
+    const value = (map.get('p') as Y.Map<unknown>).get('text') as Y.Text
+    const position = Y.createRelativePositionFromTypeIndex(value, 4)
+    updateMap(map, documentOf({ id: 'p', content: 'AA keep ZZ' }), { ...options, base })
+    expect(Y.createAbsolutePositionFromRelativePosition(position, map.doc!)?.index).toBe(4)
+  })
+
+  it.each(['delete', 'add'])(
+    'keeps the room board order while the writer only changes membership: %s',
+    (operation) => {
+      const board = initialBoard()
+      board.edges = []
+      board.nodes.push({ id: 'c', type: 'shape', x: 300, y: 0, data: { text: '丙' } })
+      const { map, base, read } = setup({ id: 'w', type: 'whiteboard', props: { board } })
+      updateMap(
+        map,
+        documentOf({
+          id: 'w',
+          type: 'whiteboard',
+          props: {
+            board: {
+              ...board,
+              nodes: board.nodes.map((_, index) => board.nodes[board.nodes.length - 1 - index]!),
+            },
+          },
+        }),
+        options,
+      )
+      const nodes =
+        operation === 'delete'
+          ? board.nodes.slice(0, 2)
+          : [...board.nodes, { id: 'd', type: 'shape', x: 400, y: 0, data: { text: '丁' } }]
+      updateMap(
+        map,
+        documentOf({ id: 'w', type: 'whiteboard', props: { board: { ...board, nodes } } }),
+        { ...options, base },
+      )
+      const result = boardOf(read().props.board).nodes.map((node) => node.id)
+      expect(result.filter((id) => id !== 'd')).toEqual(
+        operation === 'delete' ? ['b', 'a'] : ['c', 'b', 'a'],
+      )
+    },
+  )
+
+  it.each(['delete', 'add'])(
+    'keeps the room row order while the writer only changes membership: %s',
+    (operation) => {
+      const table: PartialBlock = {
+        id: 't',
+        type: 'table',
+        props: { columns: [{ id: 'x' }] },
+        rows: [
+          { id: 'a', cells: ['a'] },
+          { id: 'b', cells: ['b'] },
+          { id: 'c', cells: ['c'] },
+        ],
+      }
+      const { map, base, read } = setup(table)
+      updateMap(
+        map,
+        documentOf({
+          ...table,
+          rows: table.rows!.map((_, index) => table.rows![table.rows!.length - 1 - index]!),
+        }),
+        options,
+      )
+      const rows =
+        operation === 'delete'
+          ? table.rows!.slice(0, 2)
+          : [...table.rows!, { id: 'd', cells: ['d'] }]
+      updateMap(map, documentOf({ ...table, rows }), { ...options, base })
+      expect(
+        read()
+          .rows!.map((row) => row.id)
+          .filter((id) => id !== 'd'),
+      ).toEqual(operation === 'delete' ? ['b', 'a'] : ['c', 'b', 'a'])
+    },
+  )
+
+  it('keeps a table-cell comment island when a Markdown write changes both ends', () => {
+    const table: PartialBlock = {
+      id: 't',
+      type: 'table',
+      props: { columns: [{ id: 'x' }] },
+      rows: [
+        {
+          id: 'a',
+          cells: [
+            {
+              content: [
+                { type: 'text', text: 'aa ' },
+                { type: 'text', text: 'keep', comments: ['t1'] },
+                { type: 'text', text: ' zz' },
+              ],
+            },
+          ],
+        },
+      ],
+    }
+    const { map, base, read } = setup(table)
+    updateMap(map, documentOf({ ...table, rows: [{ id: 'a', cells: ['AA keep ZZ'] }] }), {
+      ...options,
+      base,
+    })
+    expect(read().rows![0]!.cells[0]!.content).toContainEqual({
+      type: 'text',
+      text: 'keep',
+      comments: ['t1'],
+    })
+  })
+
+  it('can unmerge after rows in a merge were reordered', () => {
+    const table: PartialBlock = {
+      id: 't',
+      type: 'table',
+      props: { columns: [{ id: 'x' }] },
+      rows: [
+        { id: 'a', cells: [{ content: 'a', rowspan: 2 }] },
+        { id: 'b', cells: [''] },
+      ],
+    }
+    const { map, read } = setup(table)
+    updateMap(
+      map,
+      documentOf({
+        ...table,
+        rows: [
+          { id: 'b', cells: [{ content: 'a', rowspan: 2 }] },
+          { id: 'a', cells: [''] },
+        ],
+      }),
+      options,
+    )
+    updateMap(
+      map,
+      documentOf({
+        ...table,
+        rows: [
+          { id: 'b', cells: ['a'] },
+          { id: 'a', cells: [''] },
+        ],
+      }),
+      options,
+    )
+    expect(read().rows!.map((row) => row.cells[0]!.rowspan ?? 1)).toEqual([1, 1])
+  })
+
+  it.each(['paragraph', 'table'])(
+    'rejects a comparison-limit failure before any map write: %s',
+    (kind) => {
+      const initial = Array.from({ length: 6000 }, (_, i) => String.fromCodePoint(0x3400 + i)).join(
+        '',
+      )
+      const rewritten = Array.from(
+        { length: initial.length },
+        (_, index) => initial[initial.length - 1 - index]!,
+      ).join('')
+      const block: PartialBlock =
+        kind === 'paragraph'
+          ? { id: 'heavy', content: initial }
+          : {
+              id: 'heavy',
+              type: 'table',
+              props: { columns: [{ id: 'x' }, { id: 'y' }] },
+              rows: [{ id: 'r', cells: ['first', initial] }],
+            }
+      const ydoc = new Y.Doc()
+      const map = ydoc.getMap('document')
+      fillMap(
+        map,
+        {
+          version: 1,
+          blocks: [{ id: 'first', content: 'first' }, block, { id: 'removed', content: 'last' }],
+        },
+        options,
+      )
+      const base = readMap(map, options)
+      const saved = Y.encodeStateAsUpdate(ydoc)
+      let updates = 0
+      ydoc.on('update', () => updates++)
+      const written: PartialBlock =
+        kind === 'paragraph'
+          ? { ...block, content: rewritten }
+          : {
+              ...block,
+              props: { columns: [{ id: 'x', width: 200 }, { id: 'y' }] },
+              rows: [{ id: 'r', cells: ['first!', rewritten] }],
+            }
+      expect(() =>
+        updateMap(
+          map,
+          {
+            version: 1,
+            blocks: [{ id: 'first', content: 'changed' }, written, { id: 'new', content: 'new' }],
+          },
+          { ...options, base },
+        ),
+      ).toThrow(/\[@dou-ui\/editor\] updateMap cannot safely merge/)
+      expect(Y.encodeStateAsUpdate(ydoc)).toEqual(saved)
+      expect(updates).toBe(0)
+    },
+  )
+
+  it('handles a large replacement with disjoint characters without a quadratic search', () => {
+    const { map, base, read } = setup({ id: 'p', content: 'a'.repeat(50_000) })
+    const start = performance.now()
+    updateMap(map, documentOf({ id: 'p', content: 'b'.repeat(50_000) }), { ...options, base })
+    expect(plain(read())).toBe('b'.repeat(50_000))
+    expect(performance.now() - start).toBeLessThan(1000)
+  })
+
   it('uses current content as the baseline when the block type changes', () => {
     const { map, base, read } = setup({ id: 'p', content: '正文' })
     updateMap(map, documentOf({ id: 'p', content: '房间正文' }), options)

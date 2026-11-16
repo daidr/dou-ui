@@ -1,7 +1,7 @@
 import { Mark, type Node as PMNode, type Schema } from 'prosemirror-model'
 import type * as Y from 'yjs'
 import { Mapping, StepMap, Transform } from 'prosemirror-transform'
-import { diffLists } from './inline-diff'
+import { diffLists, type DiffBudget } from './inline-diff'
 
 /* inline content ↔ Y.Text */
 
@@ -127,15 +127,39 @@ export function updateText(text: Y.Text, before: PMNode, after: PMNode) {
 }
 
 /** Inline characters and embeds, with offsets matching ProseMirror and Y.Text. */
-function units(node: PMNode): string[] {
-  const result: string[] = []
-  node.forEach((child) => {
-    if (child.isText)
-      for (let i = 0; i < child.text!.length; i++) result.push('t:' + child.text![i])
-    else result.push('n:' + JSON.stringify([child.type.name, child.attrs]))
+function units(node: PMNode) {
+  const values: string[] = []
+  const offsets: number[] = []
+  node.forEach((child, at) => {
+    if (child.isText) {
+      let offset = at
+      for (const character of child.text!) {
+        offsets.push(offset)
+        values.push('t:' + character)
+        offset += character.length
+      }
+    } else {
+      offsets.push(at)
+      values.push('n:' + JSON.stringify([child.type.name, child.attrs]))
+    }
   })
-  return result
+  offsets.push(node.content.size)
+  return { values, offsets }
 }
+
+/** Exact content changes, at UTF-16 offsets, never inside a surrogate pair. */
+export function inlineChanges(before: PMNode, after: PMNode, budget?: DiffBudget): InlineChange[] {
+  const a = units(before)
+  const b = units(after)
+  return diffLists(a.values, b.values, budget).map(([from, to, start, end]) => [
+    a.offsets[from]!,
+    a.offsets[to]!,
+    b.offsets[start]!,
+    b.offsets[end]!,
+  ])
+}
+
+export type TextUpdatePlan = (text: Y.Text) => void
 
 const markKey = (mark: Mark) =>
   mark.type.name === COMMENT ? COMMENT_PREFIX + mark.attrs.id : mark.type.name
@@ -162,13 +186,17 @@ const mappingOf = (changes: InlineChange[]) => {
  * mapped through the room's edits first; overlapping replacements use
  * written content, while edits elsewhere and their marks remain intact.
  */
-export function updateTextFromBase(text: Y.Text, base: PMNode, written: PMNode, current: PMNode) {
-  if (base.content.eq(current.content)) return updateText(text, current, written)
-  if (base.content.eq(written.content)) return
-  const a = units(base)
-  const b = units(written)
-  const remote = diffLists(a, units(current), 256)
-  const own = diffLists(a, b, 256)
+export function prepareTextFromBase(
+  base: PMNode,
+  written: PMNode,
+  current: PMNode,
+  budget?: DiffBudget,
+): TextUpdatePlan {
+  written = keepInlineComments(base, written, budget)
+  const writes: TextUpdatePlan[] = []
+  if (base.content.eq(written.content)) return () => {}
+  const remote = base.content.eq(current.content) ? [] : inlineChanges(base, current, budget)
+  const own = inlineChanges(base, written, budget)
   const roomMap = mappingOf(remote)
   const writtenMap = mappingOf(own)
   // An edit inside a replacement conflicts with that replacement as a
@@ -199,8 +227,10 @@ export function updateTextFromBase(text: Y.Text, base: PMNode, written: PMNode, 
     const writtenStart = writtenMap.map(from, -1)
     const writtenEnd = writtenMap.map(to, 1)
     tr.replaceWith(start, end, written.content.cut(writtenStart, writtenEnd))
-    if (end > start) text.delete(start, end - start)
-    if (writtenEnd > writtenStart) insertInline(text, start, written, writtenStart, writtenEnd)
+    writes.push((text) => {
+      if (end > start) text.delete(start, end - start)
+      if (writtenEnd > writtenStart) insertInline(text, start, written, writtenStart, writtenEnd)
+    })
   }
   // Formatting is a field change, not a text replacement. Only marks
   // actually changed by the writer are applied to surviving characters.
@@ -211,7 +241,10 @@ export function updateTextFromBase(text: Y.Text, base: PMNode, written: PMNode, 
   written.forEach((node) => {
     formatted ||= node.marks.length > 0
   })
-  if (!formatted) return
+  if (!formatted)
+    return (text) => {
+      for (const write of writes) write(text)
+    }
   let run: { from: number; to: number; remove: Mark[]; add: Mark[]; key: string } | null = null
   const flush = () => {
     if (!run) return
@@ -220,7 +253,8 @@ export function updateTextFromBase(text: Y.Text, base: PMNode, written: PMNode, 
     for (const mark of run.add)
       attributes[markKey(mark)] =
         mark.type.name === COMMENT || !Object.keys(mark.attrs).length ? true : { ...mark.attrs }
-    text.format(run.from, run.to - run.from, attributes)
+    const { from, to } = run
+    writes.push((text) => text.format(from, to - from, attributes))
     run = null
   }
   const baseRuns = markRuns(base)
@@ -228,7 +262,7 @@ export function updateTextFromBase(text: Y.Text, base: PMNode, written: PMNode, 
   let baseRun = 0
   let writtenRun = 0
   let changed = 0
-  for (let i = 0; i < a.length; i++) {
+  for (let i = 0; i < base.content.size; i++) {
     while (changed < own.length && own[changed]![1] <= i) changed++
     if (changed < own.length && own[changed]![0] <= i && i < own[changed]![1]) continue
     const j = writtenMap.map(i, 1)
@@ -255,4 +289,54 @@ export function updateTextFromBase(text: Y.Text, base: PMNode, written: PMNode, 
     }
   }
   flush()
+  return (text) => {
+    for (const write of writes) write(text)
+  }
+}
+
+/** Used after a complete preflight, so no diff can fail after a map write. */
+export function updateTextFromBase(text: Y.Text, base: PMNode, written: PMNode, current: PMNode) {
+  prepareTextFromBase(base, written, current)(text)
+}
+
+/**
+ * `after` with the comment marks of `before` on all unchanged inline
+ * fragments, when `after` has none: a version read from Markdown, which
+ * doesn't carry them, leaves the threads where the text stays the same.
+ */
+export function keepInlineComments(before: PMNode, after: PMNode, budget?: DiffBudget): PMNode {
+  const type = after.type.schema.marks.comment
+  if (!type || !after.inlineContent || !before.inlineContent || before.type !== after.type)
+    return after
+  let theirs = false
+  after.descendants((node) => {
+    if (type.isInSet(node.marks)) theirs = true
+  })
+  if (theirs) return after
+  const ranges: { from: number; to: number; mark: Mark }[] = []
+  before.forEach((child, pos) => {
+    for (const mark of child.marks)
+      if (mark.type === type) ranges.push({ from: pos, to: pos + child.nodeSize, mark })
+  })
+  if (!ranges.length) return after
+  const changes = inlineChanges(before, after, budget)
+  const same: { from: number; to: number; shift: number }[] = []
+  let left = 0
+  let right = 0
+  for (const [from, to, , end] of changes) {
+    if (from > left) same.push({ from: left, to: from, shift: right - left })
+    left = to
+    right = end
+  }
+  if (left < before.content.size)
+    same.push({ from: left, to: before.content.size, shift: right - left })
+  const tr = new Transform(after)
+  for (const { from, to, mark } of ranges) {
+    for (const fragment of same) {
+      const start = Math.max(from, fragment.from)
+      const end = Math.min(to, fragment.to)
+      if (end > start) tr.addMark(start + fragment.shift, end + fragment.shift, mark)
+    }
+  }
+  return tr.doc
 }

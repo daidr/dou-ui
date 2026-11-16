@@ -7,6 +7,18 @@ DouUI 的所有包（`dou-ui`、`@dou-ui/theme`、`@dou-ui/icons` 以及生态�
 
 这个文件由发版脚本生成：改动先以碎片文件记在 [`.changes/`](./.changes/README.md) 里，发布时汇总到这里。
 
+## 0.1.0-alpha.18 · 2026-11-16
+
+### 新增
+
+- **dou-ui、@dou-ui/theme**：DouDock 新增 CSS 变量 `--dou-dock-header-padding-x`，单独调每组标签行左右的内边距，默认跟随 `--dou-dock-group-padding-x`。面板内容贴边铺满时，标签行仍然可以离组边缘一段距离。 ([#448](https://github.com/daidr/dou-ui/pull/448))
+- **@dou-ui/editor、@dou-ui/flow**：文档里的白板和流程图块可以评论：全屏编辑器里右键图形或连线、点工具栏按钮或按 `Ctrl/⌘+Alt+M` 发起讨论，也可以钉在图形里的某一点。讨论和文字上的共用 `v-model:comments`、作者和 `v-model:activeComment`；在评论列表里打开白板上的讨论，或点白板预览上的讨论标记，会打开全屏编辑器并定位到图形。`getCommentAnchors()` 对这些讨论多返回 `type` 和 `target`。自定义块可以给 `defineBlock` 传 `comments` 接入同一套能力，块组件的 `updateProps` 新增 `{ history: false }`，修改不进撤销记录；`whiteboardBlock` 和 `flowBlock` 新增 `commentable` 选项。流程编辑器在窄屏上打开讨论时，卡片不再盖住被评论的图形。 ([#451](https://github.com/daidr/dou-ui/pull/451))
+
+### 修复
+
+- **@dou-ui/editor**：`updateMap` 传入 `base` 时，同一个块只写入 `base` 到新版本之间改变的属性和文字片段，保留房间里其他人改过的白板节点、节点字段、文字和表格内容。其他人在前面增删文字后，写入位置也会跟着调整。文字差异过于复杂时会在修改共享文档前抛出错误，可以拆成更小的修改后重试。 ([#453](https://github.com/daidr/dou-ui/pull/453))
+- **@dou-ui/editor**：白板和流程图块中缺少端点、端点格式不对或引用不存在节点的连线会被忽略，不再导致整块空白；`checkDocument` 会报告这些连线。 ([#453](https://github.com/daidr/dou-ui/pull/453))
+
 ## 0.1.0-alpha.17 · 2026-11-11
 
 ### 新增

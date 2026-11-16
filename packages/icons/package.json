@@ -1,6 +1,6 @@
 {
   "name": "@dou-ui/icons",
-  "version": "0.1.0-alpha.17",
+  "version": "0.1.0-alpha.18",
   "description": "为 DouUI 绘制的 Vue 3 线性图标库，也可以单独使用",
   "keywords": [
     "vue",

@@ -1,11 +1,4 @@
-import {
-  Fragment,
-  type Mark,
-  type Node as PMNode,
-  type ResolvedPos,
-  type Schema,
-} from 'prosemirror-model'
-import { Transform } from 'prosemirror-transform'
+import { Fragment, type Node as PMNode, type ResolvedPos, type Schema } from 'prosemirror-model'
 import {
   Plugin,
   PluginKey,
@@ -22,8 +15,17 @@ import { joinStepKey, ownStepKey } from '../core/transaction'
 import { placeOf } from './cursors'
 import { keptIndexes, keysBetween, orderKeys } from './order'
 import { mergedPropsOf, newMerged, readMerged, writeMerged } from './merged-props'
-import { cellAt, cellStart, clearTable, readTable, writeTable } from './table'
-import { inlineFrom, insertInline, updateText, type Attributes } from './text'
+import { cellAt, cellStart, clearTable, prepareTableText, readTable, writeTable } from './table'
+import {
+  inlineFrom,
+  insertInline,
+  keepInlineComments as keepComments,
+  prepareTextFromBase,
+  updateText,
+  type Attributes,
+  type TextUpdatePlan,
+} from './text'
+import { createDiffBudget } from './inline-diff'
 
 /*
  * How a document is stored in Yjs. Every block is one entry of a `Y.Map`,
@@ -122,10 +124,16 @@ function writeContent(yblock: YBlock, content: PMNode) {
  * Bring a stored block's type, props and text from `before` to `after`.
  * Returns whether the stored block holds more than `after` shows (see `writeTable`).
  */
-function updateContent(yblock: YBlock, before: PMNode, after: PMNode): boolean {
+function updateContent(
+  yblock: YBlock,
+  before: PMNode,
+  after: PMNode,
+  current = before,
+  plans?: Map<Y.Text, TextUpdatePlan>,
+): boolean {
   if (before.type !== after.type) yblock.set('type', after.type.name)
   if (after.type.spec.rows)
-    return writeTable(yblock, before.type === after.type ? before : null, after)
+    return writeTable(yblock, before.type === after.type ? before : null, after, plans)
   clearTable(yblock)
   const props = yblock.get('props') as Y.Map<unknown>
   const merged = mergedPropsOf(after.type)
@@ -139,7 +147,11 @@ function updateContent(yblock: YBlock, before: PMNode, after: PMNode): boolean {
         value,
         before.type === after.type ? before.attrs[name] : undefined,
       )
-    else if (JSON.stringify(props.get(name)) !== JSON.stringify(value)) props.set(name, value)
+    else if (
+      before.type !== after.type ||
+      JSON.stringify(before.attrs[name]) !== JSON.stringify(value)
+    )
+      props.set(name, value)
   }
   for (const name of Array.from(props.keys())) if (!(name in after.attrs)) props.delete(name)
 
@@ -148,7 +160,9 @@ function updateContent(yblock: YBlock, before: PMNode, after: PMNode): boolean {
     if (text.length) text.delete(0, text.length)
     return false
   }
-  updateText(text, before, after)
+  const plan = plans?.get(text)
+  if (plan) plan(text)
+  else updateText(text, current, after)
   return false
 }
 
@@ -507,48 +521,6 @@ function matchBlocks(before: Index, after: Index): Map<string, string> {
   return match
 }
 
-/**
- * `after` with the comment marks of `before` on the text both start and
- * end with, when `after` has none: a version read from Markdown, which
- * doesn't carry them, leaves the threads where the text stays the same.
- */
-function keepComments(before: PMNode, after: PMNode): PMNode {
-  const type = after.type.schema.marks.comment
-  if (!type || !after.inlineContent || !before.inlineContent || before.type !== after.type)
-    return after
-  let theirs = false
-  after.descendants((node) => {
-    if (type.isInSet(node.marks)) theirs = true
-  })
-  if (theirs) return after
-  const ranges: { from: number; to: number; mark: Mark }[] = []
-  before.forEach((child, pos) => {
-    for (const mark of child.marks)
-      if (mark.type === type) ranges.push({ from: pos, to: pos + child.nodeSize, mark })
-  })
-  if (!ranges.length) return after
-  const a = before.textBetween(0, before.content.size, '', '￼')
-  const b = after.textBetween(0, after.content.size, '', '￼')
-  let head = 0
-  while (head < a.length && head < b.length && a[head] === b[head]) head++
-  let tail = 0
-  while (
-    tail < a.length - head &&
-    tail < b.length - head &&
-    a[a.length - 1 - tail] === b[b.length - 1 - tail]
-  )
-    tail++
-  const tr = new Transform(after)
-  const shift = b.length - a.length
-  for (const { from, to, mark } of ranges) {
-    // the start both share, and the end, moved by what changed between
-    if (from < head) tr.addMark(from, Math.min(to, head), mark)
-    const end = a.length - tail
-    if (to > end) tr.addMark(Math.max(from, end) + shift, to + shift, mark)
-  }
-  return tr.doc
-}
-
 /** Every block id in `index` under `id`, at any depth. */
 function descendants(index: Index, id: string, out: string[] = []): string[] {
   for (const child of index.children.get(id) ?? []) {
@@ -602,6 +574,36 @@ export function updateDoc(map: Y.Map<YBlock>, doc: PMNode, schema: Schema, base?
   const kept = new Set(stored.values())
   const inDoc = new Set(toBase.values())
 
+  // Plan every content change before touching the shared map. Exact
+  // diff has a work limit; exceeding it must reject the whole write.
+  const budget = createDiffBudget()
+  const contentUpdates = new Map<string, { before: PMNode; after: PMNode; current: PMNode }>()
+  const textPlans = new Map<Y.Text, TextUpdatePlan>()
+  for (const [id, placed] of to.blocks) {
+    if (gone.has(id)) continue
+    const target = stored.get(id)!
+    const there = now.blocks.get(target)?.content
+    if (!there) continue
+    const old = toBase.get(id)
+    const was = old !== undefined ? from.blocks.get(old)!.content : null
+    const compared = was ? keepComments(was, placed.content, budget) : placed.content
+    if (was && compared.eq(was)) continue
+    const before = was && was.type === there.type && was.type === placed.content.type ? was : there
+    const after = before === was ? compared : keepComments(before, placed.content, budget)
+    const yblock = map.get(target)!
+    contentUpdates.set(id, { before, after, current: there })
+    if (after.type.spec.rows) {
+      prepareTableText(yblock, before.type === after.type ? before : null, after, textPlans, budget)
+    } else if (after.inlineContent) {
+      const text = yblock.get('text') as Y.Text
+      const currentInline = there.inlineContent
+        ? there
+        : after.type.create(after.attrs, inlineFrom(text, schema, !!after.type.spec.code))
+      const baseInline = before.inlineContent ? before : currentInline
+      textPlans.set(text, prepareTextFromBase(baseInline, after, currentInline, budget))
+    }
+  }
+
   // removed: what `base` had and `doc` hasn't, with what is stored under it
   for (const old of from.blocks.keys()) {
     const there = inDoc.has(old) ? null : nowOf(old)
@@ -621,11 +623,8 @@ export function updateDoc(map: Y.Map<YBlock>, doc: PMNode, schema: Schema, base?
       writeContent(created, placed.content)
       continue
     }
-    const old = toBase.get(id)
-    const was = old !== undefined ? from.blocks.get(old)!.content : null
-    if (was && keepComments(was, placed.content).eq(was)) continue
-    const there = now.blocks.get(target)!.content
-    updateContent(yblock!, there, keepComments(there, placed.content))
+    const update = contentUpdates.get(id)
+    if (update) updateContent(yblock!, update.before, update.after, update.current, textPlans)
   }
 
   // places: in each list of `doc`, the blocks new there or out of their order in `base`

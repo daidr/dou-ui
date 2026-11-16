@@ -8,8 +8,15 @@ import {
   type RowsSpec,
   type TableGrid,
 } from '../core/model'
-import { orderKeys } from './order'
-import { inlineFrom, insertInline, updateText } from './text'
+import { changedOrderKeys } from './order'
+import type { DiffBudget } from './inline-diff'
+import {
+  inlineFrom,
+  insertInline,
+  prepareTextFromBase,
+  updateText,
+  type TextUpdatePlan,
+} from './text'
 
 /*
  * How a table is stored: rows, columns, cells and merged cells apart, so
@@ -38,6 +45,14 @@ interface StoredMerge {
   rows: string[]
   columns: string[]
 }
+
+const mergeKey = (merge: StoredMerge, rows?: Set<string>, columns?: Set<string>) =>
+  JSON.stringify([
+    // oxlint-disable-next-line unicorn/no-array-sort -- sorts a fresh filtered list
+    merge.rows.filter((id) => !rows || rows.has(id)).sort(),
+    // oxlint-disable-next-line unicorn/no-array-sort -- sorts a fresh filtered list
+    merge.columns.filter((id) => !columns || columns.has(id)).sort(),
+  ])
 
 interface Rect {
   id: string
@@ -154,16 +169,40 @@ export function readTable(yblock: YEntry, type: NodeType, props: BlockProps): PM
 function writeOrder(map: Y.Map<YEntry>, before: string[], ids: string[]) {
   const kept = new Set(ids)
   for (const id of before) if (!kept.has(id)) map.delete(id)
-  const keys = ids.map((id) => (map.get(id)?.get('order') as string | undefined) ?? null)
-  const next = orderKeys(keys)
-  ids.forEach((id, index) => {
-    let entry = map.get(id)
-    if (!entry) {
-      entry = new Y.Map<unknown>()
-      map.set(id, entry)
-    }
-    if (keys[index] !== next[index]) entry.set('order', next[index])
-  })
+  const old = new Set(before)
+  const live = ids.filter((id) => map.has(id) || !old.has(id))
+  for (const id of live) if (!map.has(id)) map.set(id, new Y.Map<unknown>())
+  const current = new Map(
+    [...map].map(([id, fields]) => [id, (fields.get('order') as string | undefined) ?? null]),
+  )
+  const keys = changedOrderKeys(before, live, current)
+  for (const [id, key] of keys) map.get(id)!.set('order', key)
+}
+
+/** Build all cell writes without changing the map, including any diff failures. */
+export function prepareTableText(
+  yblock: YEntry,
+  before: PMNode | null,
+  after: PMNode,
+  plans: Map<Y.Text, TextUpdatePlan>,
+  budget?: DiffBudget,
+) {
+  if (!before) return
+  const spec = after.type.spec.rows as RowsSpec
+  const old = spec.grid(before)
+  const grid = spec.grid(after)
+  const previous = new Map(
+    old.cells.map((cell) => [cellKey(old.rows[cell.row]!, old.columns[cell.col]!.id), cell.node]),
+  )
+  const cells = yblock.get('cells') as Y.Map<Y.Text> | undefined
+  for (const cell of grid.cells) {
+    const key = cellKey(grid.rows[cell.row]!, grid.columns[cell.col]!.id)
+    const base = previous.get(key)
+    const text = cells?.get(key)
+    if (!base || !text || base.content.eq(cell.node.content)) continue
+    const current = cell.node.type.create(null, inlineFrom(text, cell.node.type.schema, false))
+    plans.set(text, prepareTextFromBase(base, cell.node, current, budget))
+  }
 }
 
 /**
@@ -171,7 +210,12 @@ function writeOrder(map: Y.Map<YEntry>, before: string[], ids: string[]) {
  * for a new one). Returns whether cells that became visible hold text the
  * editor doesn't show yet, typed by someone else while they were merged away.
  */
-export function writeTable(yblock: YEntry, before: PMNode | null, after: PMNode): boolean {
+export function writeTable(
+  yblock: YEntry,
+  before: PMNode | null,
+  after: PMNode,
+  plans?: Map<Y.Text, TextUpdatePlan>,
+): boolean {
   const spec = after.type.spec.rows as RowsSpec
   const grid = spec.grid(after)
   const old: TableGrid | null = before ? spec.grid(before) : null
@@ -182,8 +226,9 @@ export function writeTable(yblock: YEntry, before: PMNode | null, after: PMNode)
     yblock.set('props', props)
   }
   for (const [name, value] of Object.entries(grid.props))
-    if (JSON.stringify(props.get(name)) !== JSON.stringify(value)) props.set(name, value)
-  for (const name of Array.from(props.keys())) if (!(name in grid.props)) props.delete(name)
+    if (!old || JSON.stringify(old.props[name]) !== JSON.stringify(value)) props.set(name, value)
+  for (const name of Array.from(props.keys()))
+    if (!(name in grid.props) && (!old || name in old.props)) props.delete(name)
 
   const rowsMap = part<YEntry>(yblock, 'rows')
   const colsMap = part<YEntry>(yblock, 'columns')
@@ -195,14 +240,22 @@ export function writeTable(yblock: YEntry, before: PMNode | null, after: PMNode)
 
   writeOrder(rowsMap, oldRows, grid.rows)
   writeOrder(colsMap, oldCols, colIds)
+  const oldColumns = new Map(old?.columns.map((column) => [column.id, column]))
   for (const column of grid.columns) {
-    const entry = colsMap.get(column.id)!
+    const entry = colsMap.get(column.id)
+    if (!entry) continue
+    const previous = oldColumns.get(column.id)
     for (const [name, value] of Object.entries(column) as [string, unknown][]) {
       if (name === 'id') continue
-      if (JSON.stringify(entry.get(name)) !== JSON.stringify(value)) entry.set(name, value)
+      if (
+        !previous ||
+        JSON.stringify((previous as Record<string, unknown>)[name]) !== JSON.stringify(value)
+      )
+        entry.set(name, value)
     }
     for (const name of Array.from(entry.keys()))
-      if (name !== 'order' && !(name in column)) entry.delete(name)
+      if (name !== 'order' && !(name in column) && (!previous || name in previous))
+        entry.delete(name)
   }
 
   // the cells of deleted rows and columns go with them
@@ -216,6 +269,17 @@ export function writeTable(yblock: YEntry, before: PMNode | null, after: PMNode)
   // merged cells: keep the stored ones still shown, add the new ones
   const stored = mergeRects(merges, grid.rows, colIds)
   const shown = new Set(stored.map(rectKey))
+  const baseMerges = new Set<string>()
+  for (const cell of old?.cells ?? []) {
+    if (cell.rowspan * cell.colspan < 2) continue
+    baseMerges.add(
+      mergeKey({
+        rows: old!.rows.slice(cell.row, cell.row + cell.rowspan),
+        columns: oldCols.slice(cell.col, cell.col + cell.colspan),
+      }),
+    )
+  }
+  const wantedMerges = new Set<string>()
   const wanted = new Set<string>()
   const created: string[] = []
   for (const cell of grid.cells) {
@@ -227,14 +291,17 @@ export function writeTable(yblock: YEntry, before: PMNode | null, after: PMNode)
       right: cell.col + cell.colspan,
     }
     const key = rectKey(rect)
-    wanted.add(key)
-    if (shown.has(key)) continue
-    const id = createId()
-    created.push(id)
-    merges.set(id, {
+    const value = {
       rows: grid.rows.slice(rect.top, rect.bottom),
       columns: colIds.slice(rect.left, rect.right),
-    })
+    }
+    const stable = mergeKey(value)
+    wantedMerges.add(stable)
+    wanted.add(key)
+    if (baseMerges.has(stable) || shown.has(key)) continue
+    const id = createId()
+    created.push(id)
+    merges.set(id, value)
     // merging moved the covered cells' text into this one
     for (let r = rect.top; r < rect.bottom; r++) {
       for (let c = rect.left; c < rect.right; c++) {
@@ -246,7 +313,12 @@ export function writeTable(yblock: YEntry, before: PMNode | null, after: PMNode)
   }
   const kept = new Set(created)
   for (const rect of stored) if (wanted.has(rectKey(rect))) kept.add(rect.id)
-  for (const id of Array.from(merges.keys())) if (!kept.has(id)) merges.delete(id)
+  const baseRows = new Set(old?.rows ?? [])
+  const baseColumns = new Set(oldCols)
+  for (const [id, merge] of merges) {
+    const stable = mergeKey(merge, baseRows, baseColumns)
+    if (!kept.has(id) && baseMerges.has(stable) && !wantedMerges.has(stable)) merges.delete(id)
+  }
 
   // cell text
   const oldCells = new Map<string, PMNode>()
@@ -254,6 +326,7 @@ export function writeTable(yblock: YEntry, before: PMNode | null, after: PMNode)
     oldCells.set(cellKey(old!.rows[cell.row]!, oldCols[cell.col]!), cell.node)
   let revealed = false
   for (const cell of grid.cells) {
+    if (!rowsMap.has(grid.rows[cell.row]!) || !colsMap.has(colIds[cell.col]!)) continue
     const key = cellKey(grid.rows[cell.row]!, colIds[cell.col]!)
     const node = cell.node
     let text = cells.get(key)
@@ -265,7 +338,11 @@ export function writeTable(yblock: YEntry, before: PMNode | null, after: PMNode)
     }
     const previous = oldCells.get(key)
     if (previous) {
-      if (previous !== node && !previous.content.eq(node.content)) updateText(text, previous, node)
+      if (previous !== node && !previous.content.eq(node.content)) {
+        const plan = plans?.get(text)
+        if (plan) plan(text)
+        else updateText(text, previous, node)
+      }
     } else if (node.content.size) {
       // shown again or reused: the editor's content wins
       text.delete(0, text.length)

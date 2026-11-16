@@ -23,7 +23,7 @@ import { placeOf } from './cursors'
 import { keptIndexes, keysBetween, orderKeys } from './order'
 import { mergedPropsOf, newMerged, readMerged, writeMerged } from './merged-props'
 import { cellAt, cellStart, clearTable, readTable, writeTable } from './table'
-import { inlineFrom, insertInline, updateText, type Attributes } from './text'
+import { inlineFrom, insertInline, updateTextFromBase, type Attributes } from './text'
 
 /*
  * How a document is stored in Yjs. Every block is one entry of a `Y.Map`,
@@ -122,7 +122,7 @@ function writeContent(yblock: YBlock, content: PMNode) {
  * Bring a stored block's type, props and text from `before` to `after`.
  * Returns whether the stored block holds more than `after` shows (see `writeTable`).
  */
-function updateContent(yblock: YBlock, before: PMNode, after: PMNode): boolean {
+function updateContent(yblock: YBlock, before: PMNode, after: PMNode, current = before): boolean {
   if (before.type !== after.type) yblock.set('type', after.type.name)
   if (after.type.spec.rows)
     return writeTable(yblock, before.type === after.type ? before : null, after)
@@ -139,7 +139,11 @@ function updateContent(yblock: YBlock, before: PMNode, after: PMNode): boolean {
         value,
         before.type === after.type ? before.attrs[name] : undefined,
       )
-    else if (JSON.stringify(props.get(name)) !== JSON.stringify(value)) props.set(name, value)
+    else if (
+      before.type !== after.type ||
+      JSON.stringify(before.attrs[name]) !== JSON.stringify(value)
+    )
+      props.set(name, value)
   }
   for (const name of Array.from(props.keys())) if (!(name in after.attrs)) props.delete(name)
 
@@ -148,7 +152,7 @@ function updateContent(yblock: YBlock, before: PMNode, after: PMNode): boolean {
     if (text.length) text.delete(0, text.length)
     return false
   }
-  updateText(text, before, after)
+  updateTextFromBase(text, before, after, current)
   return false
 }
 
@@ -625,7 +629,8 @@ export function updateDoc(map: Y.Map<YBlock>, doc: PMNode, schema: Schema, base?
     const was = old !== undefined ? from.blocks.get(old)!.content : null
     if (was && keepComments(was, placed.content).eq(was)) continue
     const there = now.blocks.get(target)!.content
-    updateContent(yblock!, there, keepComments(there, placed.content))
+    const before = was && was.type === there.type && was.type === placed.content.type ? was : there
+    updateContent(yblock!, before, keepComments(before, placed.content), there)
   }
 
   // places: in each list of `doc`, the blocks new there or out of their order in `base`

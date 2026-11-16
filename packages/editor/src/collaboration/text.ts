@@ -1,5 +1,7 @@
 import { Mark, type Node as PMNode, type Schema } from 'prosemirror-model'
 import type * as Y from 'yjs'
+import { Mapping, StepMap, Transform } from 'prosemirror-transform'
+import { diffLists } from './inline-diff'
 
 /* inline content ↔ Y.Text */
 
@@ -122,4 +124,135 @@ export function updateText(text: Y.Text, before: PMNode, after: PMNode) {
   }
   if (end.a > start) text.delete(start, end.a - start)
   if (end.b > start) insertInline(text, start, after, start, end.b)
+}
+
+/** Inline characters and embeds, with offsets matching ProseMirror and Y.Text. */
+function units(node: PMNode): string[] {
+  const result: string[] = []
+  node.forEach((child) => {
+    if (child.isText)
+      for (let i = 0; i < child.text!.length; i++) result.push('t:' + child.text![i])
+    else result.push('n:' + JSON.stringify([child.type.name, child.attrs]))
+  })
+  return result
+}
+
+const markKey = (mark: Mark) =>
+  mark.type.name === COMMENT ? COMMENT_PREFIX + mark.attrs.id : mark.type.name
+
+const markRuns = (node: PMNode) => {
+  const result: { end: number; marks: readonly Mark[] }[] = []
+  node.forEach((child, at) => result.push({ end: at + child.nodeSize, marks: child.marks }))
+  return result
+}
+
+type InlineChange = [number, number, number, number]
+const mappingOf = (changes: InlineChange[]) => {
+  const mapping = new Mapping()
+  let shift = 0
+  for (const [from, to, start, end] of changes) {
+    mapping.appendMap(new StepMap([from + shift, to - from, end - start]))
+    shift += end - start - (to - from)
+  }
+  return mapping
+}
+
+/**
+ * Apply base → written edits to the current inline content. Offsets are
+ * mapped through the room's edits first; overlapping replacements use
+ * written content, while edits elsewhere and their marks remain intact.
+ */
+export function updateTextFromBase(text: Y.Text, base: PMNode, written: PMNode, current: PMNode) {
+  if (base.content.eq(current.content)) return updateText(text, current, written)
+  if (base.content.eq(written.content)) return
+  const a = units(base)
+  const b = units(written)
+  const remote = diffLists(a, units(current), 256)
+  const own = diffLists(a, b, 256)
+  const roomMap = mappingOf(remote)
+  const writtenMap = mappingOf(own)
+  // An edit inside a replacement conflicts with that replacement as a
+  // whole. Join such edits before mapping, so their ranges cannot cross.
+  const ranges: { from: number; to: number }[] = []
+  let remoteAt = 0
+  for (const [start, end] of own) {
+    let from = start
+    let to = end
+    while (remoteAt < remote.length && remote[remoteAt]![1] <= from) remoteAt++
+    for (let i = remoteAt; i < remote.length; i++) {
+      const [left, right] = remote[i]!
+      if (left >= to) break
+      if (left < to && right > from) {
+        from = Math.min(from, left)
+        to = Math.max(to, right)
+      }
+    }
+    const last = ranges[ranges.length - 1]
+    if (last && from <= last.to) last.to = Math.max(last.to, to)
+    else ranges.push({ from, to })
+  }
+  const tr = new Transform(current)
+  for (let i = ranges.length - 1; i >= 0; i--) {
+    const { from, to } = ranges[i]!
+    const start = roomMap.map(from, 1)
+    const end = Math.max(start, roomMap.map(to, -1))
+    const writtenStart = writtenMap.map(from, -1)
+    const writtenEnd = writtenMap.map(to, 1)
+    tr.replaceWith(start, end, written.content.cut(writtenStart, writtenEnd))
+    if (end > start) text.delete(start, end - start)
+    if (writtenEnd > writtenStart) insertInline(text, start, written, writtenStart, writtenEnd)
+  }
+  // Formatting is a field change, not a text replacement. Only marks
+  // actually changed by the writer are applied to surviving characters.
+  let formatted = false
+  base.forEach((node) => {
+    formatted ||= node.marks.length > 0
+  })
+  written.forEach((node) => {
+    formatted ||= node.marks.length > 0
+  })
+  if (!formatted) return
+  let run: { from: number; to: number; remove: Mark[]; add: Mark[]; key: string } | null = null
+  const flush = () => {
+    if (!run) return
+    const attributes: Attributes = {}
+    for (const mark of run.remove) attributes[markKey(mark)] = null
+    for (const mark of run.add)
+      attributes[markKey(mark)] =
+        mark.type.name === COMMENT || !Object.keys(mark.attrs).length ? true : { ...mark.attrs }
+    text.format(run.from, run.to - run.from, attributes)
+    run = null
+  }
+  const baseRuns = markRuns(base)
+  const writtenRuns = markRuns(written)
+  let baseRun = 0
+  let writtenRun = 0
+  let changed = 0
+  for (let i = 0; i < a.length; i++) {
+    while (changed < own.length && own[changed]![1] <= i) changed++
+    if (changed < own.length && own[changed]![0] <= i && i < own[changed]![1]) continue
+    const j = writtenMap.map(i, 1)
+    while (baseRuns[baseRun] && baseRuns[baseRun]!.end <= i) baseRun++
+    while (writtenRuns[writtenRun] && writtenRuns[writtenRun]!.end <= j) writtenRun++
+    const was = baseRuns[baseRun]?.marks ?? []
+    const next = writtenRuns[writtenRun]?.marks ?? []
+    const old = new Map(was.map((mark) => [markKey(mark), mark]))
+    const fresh = new Map(next.map((mark) => [markKey(mark), mark]))
+    const remove = was.filter((mark) => !fresh.get(markKey(mark))?.eq(mark))
+    const add = next.filter((mark) => !old.get(markKey(mark))?.eq(mark))
+    if (!remove.length && !add.length) continue
+    const from = tr.mapping.map(roomMap.map(i, 1), 1)
+    const to = tr.mapping.map(roomMap.map(i + 1, -1), -1)
+    if (to <= from) continue
+    const key = JSON.stringify([
+      remove.map((mark) => mark.toJSON()),
+      add.map((mark) => mark.toJSON()),
+    ])
+    if (run && run.to === from && run.key === key) run.to = to
+    else {
+      flush()
+      run = { from, to, remove, add, key }
+    }
+  }
+  flush()
 }

@@ -9,7 +9,7 @@ import {
   type TableGrid,
 } from '../core/model'
 import { orderKeys } from './order'
-import { inlineFrom, insertInline, updateText } from './text'
+import { inlineFrom, insertInline, updateTextFromBase } from './text'
 
 /*
  * How a table is stored: rows, columns, cells and merged cells apart, so
@@ -38,6 +38,8 @@ interface StoredMerge {
   rows: string[]
   columns: string[]
 }
+
+const mergeKey = (merge: StoredMerge) => JSON.stringify([merge.rows, merge.columns])
 
 interface Rect {
   id: string
@@ -154,9 +156,12 @@ export function readTable(yblock: YEntry, type: NodeType, props: BlockProps): PM
 function writeOrder(map: Y.Map<YEntry>, before: string[], ids: string[]) {
   const kept = new Set(ids)
   for (const id of before) if (!kept.has(id)) map.delete(id)
-  const keys = ids.map((id) => (map.get(id)?.get('order') as string | undefined) ?? null)
+  const old = new Set(before)
+  const live = ids.filter((id) => map.has(id) || !old.has(id))
+  if (before.length === ids.length && before.every((id, index) => id === ids[index])) return
+  const keys = live.map((id) => (map.get(id)?.get('order') as string | undefined) ?? null)
   const next = orderKeys(keys)
-  ids.forEach((id, index) => {
+  live.forEach((id, index) => {
     let entry = map.get(id)
     if (!entry) {
       entry = new Y.Map<unknown>()
@@ -182,8 +187,9 @@ export function writeTable(yblock: YEntry, before: PMNode | null, after: PMNode)
     yblock.set('props', props)
   }
   for (const [name, value] of Object.entries(grid.props))
-    if (JSON.stringify(props.get(name)) !== JSON.stringify(value)) props.set(name, value)
-  for (const name of Array.from(props.keys())) if (!(name in grid.props)) props.delete(name)
+    if (!old || JSON.stringify(old.props[name]) !== JSON.stringify(value)) props.set(name, value)
+  for (const name of Array.from(props.keys()))
+    if (!(name in grid.props) && (!old || name in old.props)) props.delete(name)
 
   const rowsMap = part<YEntry>(yblock, 'rows')
   const colsMap = part<YEntry>(yblock, 'columns')
@@ -195,14 +201,22 @@ export function writeTable(yblock: YEntry, before: PMNode | null, after: PMNode)
 
   writeOrder(rowsMap, oldRows, grid.rows)
   writeOrder(colsMap, oldCols, colIds)
+  const oldColumns = new Map(old?.columns.map((column) => [column.id, column]))
   for (const column of grid.columns) {
-    const entry = colsMap.get(column.id)!
+    const entry = colsMap.get(column.id)
+    if (!entry) continue
+    const previous = oldColumns.get(column.id)
     for (const [name, value] of Object.entries(column) as [string, unknown][]) {
       if (name === 'id') continue
-      if (JSON.stringify(entry.get(name)) !== JSON.stringify(value)) entry.set(name, value)
+      if (
+        !previous ||
+        JSON.stringify((previous as Record<string, unknown>)[name]) !== JSON.stringify(value)
+      )
+        entry.set(name, value)
     }
     for (const name of Array.from(entry.keys()))
-      if (name !== 'order' && !(name in column)) entry.delete(name)
+      if (name !== 'order' && !(name in column) && (!previous || name in previous))
+        entry.delete(name)
   }
 
   // the cells of deleted rows and columns go with them
@@ -216,6 +230,17 @@ export function writeTable(yblock: YEntry, before: PMNode | null, after: PMNode)
   // merged cells: keep the stored ones still shown, add the new ones
   const stored = mergeRects(merges, grid.rows, colIds)
   const shown = new Set(stored.map(rectKey))
+  const baseMerges = new Set<string>()
+  for (const cell of old?.cells ?? []) {
+    if (cell.rowspan * cell.colspan < 2) continue
+    baseMerges.add(
+      mergeKey({
+        rows: old!.rows.slice(cell.row, cell.row + cell.rowspan),
+        columns: oldCols.slice(cell.col, cell.col + cell.colspan),
+      }),
+    )
+  }
+  const wantedMerges = new Set<string>()
   const wanted = new Set<string>()
   const created: string[] = []
   for (const cell of grid.cells) {
@@ -227,14 +252,17 @@ export function writeTable(yblock: YEntry, before: PMNode | null, after: PMNode)
       right: cell.col + cell.colspan,
     }
     const key = rectKey(rect)
-    wanted.add(key)
-    if (shown.has(key)) continue
-    const id = createId()
-    created.push(id)
-    merges.set(id, {
+    const value = {
       rows: grid.rows.slice(rect.top, rect.bottom),
       columns: colIds.slice(rect.left, rect.right),
-    })
+    }
+    const stable = mergeKey(value)
+    wantedMerges.add(stable)
+    wanted.add(key)
+    if (baseMerges.has(stable) || shown.has(key)) continue
+    const id = createId()
+    created.push(id)
+    merges.set(id, value)
     // merging moved the covered cells' text into this one
     for (let r = rect.top; r < rect.bottom; r++) {
       for (let c = rect.left; c < rect.right; c++) {
@@ -246,7 +274,10 @@ export function writeTable(yblock: YEntry, before: PMNode | null, after: PMNode)
   }
   const kept = new Set(created)
   for (const rect of stored) if (wanted.has(rectKey(rect))) kept.add(rect.id)
-  for (const id of Array.from(merges.keys())) if (!kept.has(id)) merges.delete(id)
+  for (const [id, merge] of merges) {
+    const stable = mergeKey(merge)
+    if (!kept.has(id) && baseMerges.has(stable) && !wantedMerges.has(stable)) merges.delete(id)
+  }
 
   // cell text
   const oldCells = new Map<string, PMNode>()
@@ -254,6 +285,7 @@ export function writeTable(yblock: YEntry, before: PMNode | null, after: PMNode)
     oldCells.set(cellKey(old!.rows[cell.row]!, oldCols[cell.col]!), cell.node)
   let revealed = false
   for (const cell of grid.cells) {
+    if (!rowsMap.has(grid.rows[cell.row]!) || !colsMap.has(colIds[cell.col]!)) continue
     const key = cellKey(grid.rows[cell.row]!, colIds[cell.col]!)
     const node = cell.node
     let text = cells.get(key)
@@ -265,7 +297,10 @@ export function writeTable(yblock: YEntry, before: PMNode | null, after: PMNode)
     }
     const previous = oldCells.get(key)
     if (previous) {
-      if (previous !== node && !previous.content.eq(node.content)) updateText(text, previous, node)
+      if (previous !== node && !previous.content.eq(node.content)) {
+        const currentNode = node.type.create(null, inlineFrom(text, node.type.schema, false))
+        updateTextFromBase(text, previous, node, currentNode)
+      }
     } else if (node.content.size) {
       // shown again or reused: the editor's content wins
       text.delete(0, text.length)

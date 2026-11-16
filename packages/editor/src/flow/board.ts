@@ -33,21 +33,39 @@ const objects = <T>(list: unknown) =>
     ? (list.filter((item) => item && typeof item === 'object' && !Array.isArray(item)) as T[])
     : []
 
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  !!value && typeof value === 'object' && !Array.isArray(value)
+
+/** Edges need two readable endpoints that refer to nodes in this board. */
+function edgesOf(value: unknown, nodes: FlowNode[]): FlowEdge[] {
+  const ids = new Set(nodes.map((node) => node.id).filter((id) => typeof id === 'string'))
+  const endpoint = (value: unknown) =>
+    isObject(value) &&
+    typeof value.node === 'string' &&
+    ids.has(value.node) &&
+    (value.port === undefined || typeof value.port === 'string')
+  return objects<FlowEdge>(value).filter(
+    (edge) =>
+      typeof edge.id === 'string' && !!edge.id && endpoint(edge.source) && endpoint(edge.target),
+  )
+}
+
 /**
  * A block's `board` prop as a flow document; one that is missing or not
  * shaped like one is read as an empty flow (nodes and edges that aren't
- * objects are left out).
+ * objects, and edges without valid endpoints, are left out).
  */
 export function boardOf(value: unknown): FlowDocument {
   const source =
     value && typeof value === 'object' && !Array.isArray(value)
       ? (value as Partial<FlowDocument>)
       : {}
+  const nodes = objects<FlowNode>(source.nodes)
   return {
     ...source,
     version: 1,
-    nodes: objects(source.nodes),
-    edges: objects(source.edges),
+    nodes,
+    edges: edgesOf(source.edges, nodes),
   } as FlowDocument
 }
 
@@ -57,9 +75,6 @@ export const clampHeight = (height: number) =>
 /** A block's `height` prop in px: the default when it isn't a positive number. */
 export const heightOf = (value: unknown, fallback: number) =>
   typeof value === 'number' && value > 0 ? clampHeight(value) : fallback
-
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  !!value && typeof value === 'object' && !Array.isArray(value)
 
 /** What `checkDocument` reports of a block's props: a board or height it would read differently. */
 export function checkBoardProps(props: Record<string, unknown>) {
@@ -84,6 +99,15 @@ export function checkBoardProps(props: Record<string, unknown>) {
           problems.push({
             prop: `board.${list}`,
             message: `Some ${list} are not objects; they would be left out`,
+          })
+        else if (
+          list === 'edges' &&
+          edgesOf(items, objects<FlowNode>(board.nodes)).length !== items.length
+        )
+          problems.push({
+            prop: 'board.edges',
+            message:
+              'Some edges have no id, invalid endpoints, or refer to missing nodes; they would be left out',
           })
       }
   }

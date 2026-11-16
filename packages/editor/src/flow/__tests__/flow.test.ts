@@ -297,6 +297,33 @@ describe('output', () => {
       { id: 'x', x: 0, y: 0 },
     ])
   })
+
+  it('leaves out malformed and dangling edges while keeping valid board content', () => {
+    const invalid = [
+      { id: 'missing-target', source: { node: 'n1' } },
+      { id: 'missing-source', target: { node: 'n2' } },
+      { id: 'null-target', source: { node: 'n1' }, target: null },
+      { id: 'bad-endpoint', source: 'n1', target: { node: 'n2' } },
+      { id: 'missing-node', source: {}, target: { node: 'n2' } },
+      { id: 'dangling', source: { node: 'gone' }, target: { node: 'n2' } },
+      { id: 'bad-port', source: { node: 'n1', port: 42 }, target: { node: 'n2' } },
+      { source: { node: 'n1' }, target: { node: 'n2' } },
+    ]
+    const board = { ...BOARD, edges: [...BOARD.edges, ...invalid] }
+    expect(boardOf(board)).toEqual(BOARD)
+    const problems = checkDocument(
+      { version: 1, blocks: [{ id: 'w', type: 'whiteboard', props: { board } }] },
+      { extensions },
+    )
+    expect(problems).toEqual([
+      expect.objectContaining({
+        code: 'invalid-props',
+        path: 'blocks[0].props.board.edges',
+      }),
+    ])
+    // Reading never changes the source data saved in the document.
+    expect(board.edges).toHaveLength(9)
+  })
 })
 
 /** The fullscreen editor, whose node view renders apart from the wrapper's tree. */
@@ -350,6 +377,25 @@ async function open(blocks = START, readonly = false, more: EditorExtension[] = 
 }
 
 describe('in the editor', () => {
+  it('shows valid nodes and opens a board imported from Markdown with incomplete edges', async () => {
+    const extensions = [editorKit(), whiteboardBlock()]
+    const board = {
+      ...BOARD,
+      edges: [...BOARD.edges, { id: 'broken', source: { node: 'n1' } }],
+    }
+    const blocks = markdownToBlocks(
+      `\u0060\u0060\u0060dou-whiteboard\n${JSON.stringify({ board })}\n\u0060\u0060\u0060`,
+      extensions,
+    )
+    const { block, openBoard, flow, value } = await open(blocks)
+    expect(block().querySelector('.dou-editor-board__preview')).toBeTruthy()
+    await openBoard()
+    expect(flow()!.props('modelValue')).toEqual(BOARD)
+    expect(document.querySelector('.dou-dialog [data-node-id="n1"]')).toBeTruthy()
+    expect(document.querySelector('.dou-dialog [data-node-id="n2"]')).toBeTruthy()
+    expect((value.value.blocks[0]!.props!.board as typeof board).edges).toEqual(BOARD.edges)
+  })
+
   it('offers the whiteboard and the app’s flow in the slash menu', () => {
     const types = resolveEditorExtensions([
       editorKit(),

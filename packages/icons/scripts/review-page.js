@@ -81,11 +81,12 @@ const coverage = (canvas) => {
       for (let j = i + 1; j < P.length; j++) {
         const p = P[i]
         const q = P[j]
-        const target = p[5] !== q[5] ? BADGE_CLEARANCE : MIN_GAP
+        const acrossBadge = p[5] !== q[5]
+        const target = acrossBadge ? BADGE_CLEARANCE : MIN_GAP
         const reach = target + p[4] + q[4]
         if (Math.abs(p[0] - q[0]) > reach || Math.abs(p[1] - q[1]) > reach) continue
-        const d = Math.hypot(p[0] - q[0], p[1] - q[1]) - p[4] - q[4]
-        if (d >= target || d < TOUCH) continue
+        const d = Math.max(0, Math.hypot(p[0] - q[0], p[1] - q[1]) - p[4] - q[4])
+        if (d >= target || (!acrossBadge && d < TOUCH)) continue
         // the same stroke bending round a corner is not a gap
         if (p[2] === q[2] && Math.abs(p[3] - q[3]) < d * 1.6 + 0.3) continue
         candidates.push([d, i, j])
@@ -118,11 +119,12 @@ const coverage = (canvas) => {
       if (spots.length >= 6) break
       const close = (a, b) => Math.hypot(P[a][0] - P[b][0], P[a][1] - P[b][1]) < 2.5
       if (spots.some((s) => close(s.i, i) || close(s.j, j))) continue
-      if (joined(i, j, Math.max(2.5, d * 1.8))) continue
+      if (P[i][5] === P[j][5] && joined(i, j, Math.max(2.5, d * 1.8))) continue
       spots.push({ d: Math.round(d * 100) / 100, i, j })
     }
     return spots.map(({ d, i, j }) => ({
       d,
+      acrossBadge: P[i][5] !== P[j][5],
       x: Math.round((P[i][0] + P[j][0]) * 5) / 10,
       y: Math.round((P[i][1] + P[j][1]) * 5) / 10,
     }))
@@ -173,7 +175,7 @@ const coverage = (canvas) => {
         `bbox x ${b.x.toFixed(2)}–${right.toFixed(2)}  y ${b.y.toFixed(2)}–${bottom.toFixed(2)}  (${b.width.toFixed(2)}×${b.height.toFixed(2)})${out ? '  超出 2.5–21.5' : edge ? '  越过 3–21' : ''}`,
         `墨量 ${ink.toFixed(2)}×${heavy ? '  偏重' : ''}`,
         found.length
-          ? `间隙 ${found.map((g) => `${g.d}@${g.x},${g.y}`).join('  ')}${found.some((g) => g.d < JOINT) ? '  接点未对准' : ''}${merge.some((g) => g.d >= JOINT) ? '  粘连' : merge.length ? '' : '  偏紧'}`
+          ? `间隙 ${found.map((g) => `${g.d}@${g.x},${g.y}`).join('  ')}${found.some((g) => g.d < JOINT && !g.acrossBadge) ? '  接点未对准' : ''}${found.some((g) => g.d < JOINT && g.acrossBadge) ? '  角标与主体相碰' : ''}${merge.some((g) => g.d >= JOINT) ? '  粘连' : merge.length ? '' : '  偏紧'}`
           : icon.querySelector('[data-badge]')
             ? `间隙达标（角标与主体 ${BADGE_CLEARANCE}，其余 ${MIN_GAP}）`
             : `间隙 ≥ ${MIN_GAP}`,

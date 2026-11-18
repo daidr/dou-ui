@@ -8,6 +8,7 @@
 // - ink: the share of the 24px canvas the icon covers, against the set's median;
 // and draws the 16px render at 1× device pixels, enlarged, so blur shows.
 const stroke = (size) => 0.75 + size / 32
+const BADGE_CLEARANCE = 3.25
 
 const coverage = (canvas) => {
   const { data } = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height)
@@ -45,17 +46,18 @@ const coverage = (canvas) => {
     return canvas
   }
 
-  // Points along every stroke: [x, y, curve, length along it, extra radius of a dot]
+  // [x, y, curve, distance along curve, extra dot radius, belongs to a badge]
   const sample = (group) => {
     const points = []
     let curve = 0
     for (const el of group.children) {
       curve++
       const dot = el.getAttribute('class') === 'dot'
+      const badge = el.hasAttribute('data-badge')
       const length = el.getTotalLength()
       if (dot || length < 0.05) {
         const b = el.getBBox()
-        points.push([b.x + b.width / 2, b.y + b.height / 2, curve, 0, dot ? 0.375 : 0])
+        points.push([b.x + b.width / 2, b.y + b.height / 2, curve, 0, dot ? 0.375 : 0, badge])
         continue
       }
       const n = Math.max(2, Math.ceil(length / STEP))
@@ -65,7 +67,7 @@ const coverage = (canvas) => {
         const p = el.getPointAtLength(s)
         // a jump means a new subpath
         if (prev && Math.hypot(p.x - prev.x, p.y - prev.y) > STEP * 3) curve++
-        points.push([p.x, p.y, curve, s, 0])
+        points.push([p.x, p.y, curve, s, 0, badge])
         prev = p
       }
     }
@@ -79,9 +81,12 @@ const coverage = (canvas) => {
       for (let j = i + 1; j < P.length; j++) {
         const p = P[i]
         const q = P[j]
-        if (Math.abs(p[0] - q[0]) > MIN_GAP || Math.abs(p[1] - q[1]) > MIN_GAP) continue
-        const d = Math.hypot(p[0] - q[0], p[1] - q[1]) - p[4] - q[4]
-        if (d >= MIN_GAP || d < TOUCH) continue
+        const acrossBadge = p[5] !== q[5]
+        const target = acrossBadge ? BADGE_CLEARANCE : MIN_GAP
+        const reach = target + p[4] + q[4]
+        if (Math.abs(p[0] - q[0]) > reach || Math.abs(p[1] - q[1]) > reach) continue
+        const d = Math.max(0, Math.hypot(p[0] - q[0], p[1] - q[1]) - p[4] - q[4])
+        if (d >= target || (!acrossBadge && d < TOUCH)) continue
         // the same stroke bending round a corner is not a gap
         if (p[2] === q[2] && Math.abs(p[3] - q[3]) < d * 1.6 + 0.3) continue
         candidates.push([d, i, j])
@@ -114,11 +119,12 @@ const coverage = (canvas) => {
       if (spots.length >= 6) break
       const close = (a, b) => Math.hypot(P[a][0] - P[b][0], P[a][1] - P[b][1]) < 2.5
       if (spots.some((s) => close(s.i, i) || close(s.j, j))) continue
-      if (joined(i, j, Math.max(2.5, d * 1.8))) continue
+      if (P[i][5] === P[j][5] && joined(i, j, Math.max(2.5, d * 1.8))) continue
       spots.push({ d: Math.round(d * 100) / 100, i, j })
     }
     return spots.map(({ d, i, j }) => ({
       d,
+      acrossBadge: P[i][5] !== P[j][5],
       x: Math.round((P[i][0] + P[j][0]) * 5) / 10,
       y: Math.round((P[i][1] + P[j][1]) * 5) / 10,
     }))
@@ -133,46 +139,53 @@ const coverage = (canvas) => {
     const out = b.x < 2.49 || b.y < 2.49 || right > 21.51 || bottom > 21.51
     const edge = !out && (b.x < 2.98 || b.y < 2.98 || right > 21.02 || bottom > 21.02)
 
-    const found = gaps(icon)
-    const marks = card.querySelector('.gaps')
-    for (const g of found) {
-      const ring = document.createElementNS(NS, 'circle')
-      ring.setAttribute('cx', g.x)
-      ring.setAttribute('cy', g.y)
-      ring.setAttribute('r', 1.6)
-      ring.setAttribute('class', g.d < MERGE ? 'merge' : 'tight')
-      marks.append(ring)
-    }
-
     const body = card.dataset.body
     const ink = coverage(await render(body, 24)) / INK_MEDIAN
     const pixels = await render(body, 16)
     pixels.className = 'px'
     card.querySelector('.pixels').append(pixels)
 
-    const merge = found.filter((g) => g.d < MERGE)
-    const heavy = ink > INK_LIMIT
-    window.boxes[card.dataset.name] = {
-      x: b.x,
-      y: b.y,
-      w: b.width,
-      h: b.height,
-      out,
-      edge,
-      gaps: found,
-      ink: Math.round(ink * 100) / 100,
-    }
+    function updateGaps() {
+      const found = gaps(icon)
+      const marks = card.querySelector('.gaps')
+      marks.replaceChildren()
+      for (const g of found) {
+        const ring = document.createElementNS(NS, 'circle')
+        ring.setAttribute('cx', g.x)
+        ring.setAttribute('cy', g.y)
+        ring.setAttribute('r', 1.6)
+        ring.setAttribute('class', g.d < MERGE ? 'merge' : 'tight')
+        marks.append(ring)
+      }
 
-    const lines = [
-      `bbox x ${b.x.toFixed(2)}–${right.toFixed(2)}  y ${b.y.toFixed(2)}–${bottom.toFixed(2)}  (${b.width.toFixed(2)}×${b.height.toFixed(2)})${out ? '  超出 2.5–21.5' : edge ? '  越过 3–21' : ''}`,
-      `墨量 ${ink.toFixed(2)}×${heavy ? '  偏重' : ''}`,
-      found.length
-        ? `间隙 ${found.map((g) => `${g.d}@${g.x},${g.y}`).join('  ')}${found.some((g) => g.d < JOINT) ? '  接点未对准' : ''}${merge.some((g) => g.d >= JOINT) ? '  粘连' : merge.length ? '' : '  偏紧'}`
-        : '间隙 ≥ 3.5',
-    ]
-    const note = card.querySelector('.b')
-    note.innerHTML = lines.map((line) => `<div>${line}</div>`).join('')
-    if (out || merge.length) note.classList.add('bad')
+      const merge = found.filter((g) => g.d < MERGE)
+      const heavy = ink > INK_LIMIT
+      window.boxes[card.dataset.name] = {
+        x: b.x,
+        y: b.y,
+        w: b.width,
+        h: b.height,
+        out,
+        edge,
+        gaps: found,
+        ink: Math.round(ink * 100) / 100,
+      }
+
+      const lines = [
+        `bbox x ${b.x.toFixed(2)}–${right.toFixed(2)}  y ${b.y.toFixed(2)}–${bottom.toFixed(2)}  (${b.width.toFixed(2)}×${b.height.toFixed(2)})${out ? '  超出 2.5–21.5' : edge ? '  越过 3–21' : ''}`,
+        `墨量 ${ink.toFixed(2)}×${heavy ? '  偏重' : ''}`,
+        found.length
+          ? `间隙 ${found.map((g) => `${g.d}@${g.x},${g.y}`).join('  ')}${found.some((g) => g.d < JOINT && !g.acrossBadge) ? '  接点未对准' : ''}${found.some((g) => g.d < JOINT && g.acrossBadge) ? '  角标与主体相碰' : ''}${merge.some((g) => g.d >= JOINT) ? '  粘连' : merge.length ? '' : '  偏紧'}`
+          : icon.querySelector('[data-badge]')
+            ? `间隙达标（角标与主体 ${BADGE_CLEARANCE}，其余 ${MIN_GAP}）`
+            : `间隙 ≥ ${MIN_GAP}`,
+      ]
+      const note = card.querySelector('.b')
+      note.innerHTML = lines.map((line) => `<div>${line}</div>`).join('')
+      note.classList.toggle('bad', out || merge.length > 0)
+    }
+    updateGaps()
+    card.addEventListener('badgechange', updateGaps)
   }
   window.done = true
 })()

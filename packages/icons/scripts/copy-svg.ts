@@ -15,6 +15,7 @@ for (const file of await readdir(source)) {
   await Bun.write(
     new URL(target, outDir),
     svg
+      .replaceAll(/\sdata-badge="[^"]*"/g, '')
       .replaceAll('class="dot"', 'stroke-width="2.25"')
       .replaceAll('class="fill"', 'fill="currentColor"'),
   )

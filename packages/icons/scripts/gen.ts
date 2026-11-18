@@ -67,6 +67,8 @@ function parseSvg(file: string, svg: string): Node[] {
       return ''
     }
     const shape = parseAttrs(body)
+    // A review-only marker groups the strokes that make up a corner badge.
+    delete shape['data-badge']
     // A dot is a zero-length line: `<path class="dot" d="M12 8h.01" />`.
     if (shape.class === 'dot') {
       const at = tag === 'path' && shape.d?.match(/^M(-?[\d.]+)[ ,](-?[\d.]+)h\.01$/)

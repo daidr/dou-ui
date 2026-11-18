@@ -3,6 +3,6 @@
   <path d="M3.5 10h17" />
   <path d="M8 3v4" />
   <path d="M16 3v4" />
-  <circle cx="17" cy="17" r="4" />
-  <path d="M17 15.5V17l1.25 .75" />
+  <circle data-badge="dial" cx="17" cy="17" r="4" />
+  <path data-badge="dial" d="M17 15.5V17l1.25 .75" />
 </svg>

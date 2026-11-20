@@ -17,6 +17,8 @@
     --dou-popover-radius: var(--dou-radius-container);
     --dou-popover-max-width: 360px;
 
+    /* Keep intrinsic sizing independent of the left offset set by positioning. */
+    width: max-content;
     max-width: min(var(--dou-popover-max-width), calc(100vw - 16px));
     padding: var(--dou-popover-padding);
     border: 1px solid var(--dou-popover-border);

@@ -34,11 +34,23 @@ try {
         // Dispatch inside the page to keep the popover open while updating its slot.
         for (const content of ['long', 'short', 'long']) {
           const frames = await page.evaluate(async (id) => {
+            const panel = document.querySelector('.dou-popover')
+            const resized = new Promise((resolve) => {
+              const observer = new ResizeObserver(() => {
+                observer.disconnect()
+                // Let Vue flush positioning updates from this layout's observers,
+                // before the browser paints or runs another animation frame.
+                queueMicrotask(resolve)
+              })
+              observer.observe(panel)
+            })
             document.getElementById(id).click()
+            await resized
             const samples = []
+            const first = panel.getBoundingClientRect()
+            samples.push({ width: panel.offsetWidth, left: first.left, right: first.right })
             for (let i = 0; i < 16; i++) {
               await new Promise(requestAnimationFrame)
-              const panel = document.querySelector('.dou-popover')
               const rect = panel.getBoundingClientRect()
               samples.push({ width: panel.offsetWidth, left: rect.left, right: rect.right })
             }
@@ -51,8 +63,8 @@ try {
           )
           const last = frames.at(-1)
           assert.ok(
-            last.left >= 7.5 && last.right <= viewportWidth - 7.5,
-            `${label}: outside viewport`,
+            frames.every((frame) => frame.left >= 7.5 && frame.right <= viewportWidth - 7.5),
+            `${label} ${content}: outside viewport before positioning settles`,
           )
           if (width === '320' || width === '20rem')
             assert.equal(last.width, Math.min(320, viewportWidth - 16), label)

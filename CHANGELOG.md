@@ -7,6 +7,24 @@ DouUI 的所有包（`dou-ui`、`@dou-ui/theme`、`@dou-ui/icons` 以及生态�
 
 这个文件由发版脚本生成：改动先以碎片文件记在 [`.changes/`](./.changes/README.md) 里，发布时汇总到这里。
 
+## 0.1.0-alpha.21 · 2026-11-21
+
+### 新增
+
+- **@dou-ui/icons**：新增 6 枚工作台与协作交互图标（panel-left-close、panel-left-open、panel-right-close、panel-right-open、kbd、pin-check），并将 filter、clock（含 clock-pause）、smile-plus、link-plus、keyframe 等 13 枚带角标图标统一为与原图标重合定位并局部截断避让，避免按钮状态切换时主体跳动。 ([#463](https://github.com/daidr/dou-ui/pull/463))
+- **@dou-ui/icons**：新增 6 枚安全认证与隐私图标（key-round、lock-alert、lock-x、incognito、cctv、firewall）。 ([#467](https://github.com/daidr/dou-ui/pull/467))
+- **@dou-ui/icons**：新增 5 枚物流与供应链图标（ship、forklift、package-open、package-search、truck-check），将 truck、package、package-check、package-plus 补充归入 logistics 分类，并同步优化 truck 车厢与车轮间隙使其与 truck-check 共用骨架。 ([#468](https://github.com/daidr/dou-ui/pull/468))
+- **@dou-ui/icons**：新增 4 枚商务与企业办公图标（handshake、file-signature、receipt-check、briefcase-x），并将已有 briefcase、contact、receipt 图标补充归入 business 分类。 ([#469](https://github.com/daidr/dou-ui/pull/469))
+- **@dou-ui/icons**：新增 5 枚建筑与城市设施图标（apartment、bridge、building-2、construction、hotel），并将已有的 building 与 landmark 补充归入 buildings 分类。 ([#470](https://github.com/daidr/dou-ui/pull/470))
+- **@dou-ui/icons**：新增 4 枚顶部与底部面板展开/收起图标（panel-top-close、panel-top-open、panel-bottom-close、panel-bottom-open），并将已有的 align-left、align-right、align-top、align-bottom 补充归入 layout 分类。 ([#471](https://github.com/daidr/dou-ui/pull/471))
+- **@dou-ui/icons**：新增 6 枚几何与 3D 形状图标（cone、pyramid、sphere、ellipse、parallelogram、heart-half）。 ([#472](https://github.com/daidr/dou-ui/pull/472))
+- **@dou-ui/icons**：新增 5 枚进阶 BI 图表图标（heatmap、treemap、sankey-chart、bubble-chart、network-chart），归入 charts 分类。 ([#473](https://github.com/daidr/dou-ui/pull/473))
+- **@dou-ui/icons**：新增 4 枚文本与代码检索图标（case-upper、case-lower、list-filter、search-off），并将已有的 letter-case 补充归入 search 分类。 ([#474](https://github.com/daidr/dou-ui/pull/474))
+
+### 修复
+
+- **@dou-ui/theme**：DouMarkdown 不再覆盖插槽中 DouLink 等组件的链接样式，并移除 DouLink 文字标签上重复继承的下划线：在 DouMarkdown 内渲染 soft 变体的 DouLink 时默认保持无下划线，显式开启下划线时整段文字颜色深浅一致。 ([#466](https://github.com/daidr/dou-ui/pull/466))
+
 ## 0.1.0-alpha.20 · 2026-11-21
 
 ### 新增

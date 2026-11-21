@@ -7,6 +7,19 @@ DouUI 的所有包（`dou-ui`、`@dou-ui/theme`、`@dou-ui/icons` 以及生态�
 
 这个文件由发版脚本生成：改动先以碎片文件记在 [`.changes/`](./.changes/README.md) 里，发布时汇总到这里。
 
+## 0.1.0-alpha.20 · 2026-11-21
+
+### 新增
+
+- **@dou-ui/icons**：新增 31 枚图标，涵盖表单字段、表格操作、连接与同步、编辑和数据集成，包括单值与范围滑块、冻结行列、语言和 Webhook。 ([#456](https://github.com/daidr/dou-ui/pull/456))
+- **@dou-ui/icons**：新增 6 枚 AI 与 Agent 场景图标（bot-message、bot-off、brain-circuit、wand-sparkles、scan-text、message-code），同步优化 `brain` 轮廓并精简 `bot` 去掉嘴巴以统一同族视觉，同时为已有 `workflow` 图标补充 `ai` 分类。 ([#458](https://github.com/daidr/dou-ui/pull/458))
+- **@dou-ui/icons**：新增 6 枚开发与工程运维图标（bug-play、bug-off、scroll-text、file-env、braces-code、square-stack），并同步优化 bug 头部间隙与 layers / layers-plus 的圆角形态。 ([#459](https://github.com/daidr/dou-ui/pull/459))
+- **@dou-ui/icons**：新增 5 枚教育与知识学习场景图标（chalkboard、certificate、microscope、notebook-tabs、compass-drafting），并将已有 `graduation-cap` 图标补充归入 `education` 分类。 ([#462](https://github.com/daidr/dou-ui/pull/462))
+
+### 修复
+
+- **dou-ui、@dou-ui/theme**：修复 Popover 靠近视口边缘时，内容更新导致面板逐帧变宽的问题；浮层尺寸变化后在绘制前更新定位，避免短暂越出视口。 ([#461](https://github.com/daidr/dou-ui/pull/461))
+
 ## 0.1.0-alpha.19 · 2026-11-16
 
 ### 修复

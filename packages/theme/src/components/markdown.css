@@ -73,7 +73,10 @@
       color: var(--dou-color-text-tertiary);
     }
 
-    & :where(a, .dou-markdown__link) {
+    /* Plain Markdown anchors only: DouUI components such as DouLink or
+       DouChatCitation rendered inside slots own their own color, underline
+       and focus chrome. */
+    & :where(a:not([class*='dou-']), .dou-markdown__link) {
       color: inherit;
       text-decoration-line: underline;
       text-decoration-color: color-mix(in oklab, currentColor 32%, transparent);
@@ -82,11 +85,11 @@
       transition: text-decoration-color var(--dou-motion-duration-fast) var(--dou-motion-easing);
     }
 
-    & :where(a:hover) {
+    & :where(a:not([class*='dou-']):hover) {
       text-decoration-color: currentColor;
     }
 
-    & :where(a:focus-visible) {
+    & :where(a:not([class*='dou-']):focus-visible) {
       border-radius: 2px;
       outline: 2px solid var(--dou-color-focus);
       outline-offset: 2px;

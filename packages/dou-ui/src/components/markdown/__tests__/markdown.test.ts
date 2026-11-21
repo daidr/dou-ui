@@ -7,6 +7,7 @@ import {
   DouChatMessage,
   DouCodeBlock,
   DouConfigProvider,
+  DouLink,
   DouMarkdown,
 } from '../../../index'
 
@@ -275,6 +276,51 @@ describe('DouMarkdown citations and links', () => {
     const buttons = wrapper.findAll('button')
     expect(buttons.map((b) => b.attributes('data-to'))).toEqual(['/docs', 'none'])
     expect(buttons[0]!.text()).toBe('文档')
+  })
+
+  it('lets soft DouLink in the `link` slot manage underline and keep leading icon with first char', () => {
+    const soft = mount(DouMarkdown, {
+      props: { content: '查看 [PR #463](https://example.com/pull/463)。' },
+      slots: {
+        link: ({ href, children }: { href?: string; children: unknown }) =>
+          h(
+            DouLink,
+            { href, variant: 'soft' },
+            {
+              leading: () => h('i', { class: 'pr-icon', 'aria-hidden': 'true' }),
+              default: () => [children as never],
+            },
+          ),
+      },
+    })
+    const link = soft.get('a.dou-link')
+    expect(link.classes()).toEqual(
+      expect.arrayContaining(['dou-link--soft', 'dou-link--underline-none']),
+    )
+    expect(link.get('.dou-link__lead').text()).toBe('P')
+    expect(link.find('.dou-link__lead .pr-icon').exists()).toBe(true)
+    expect(link.get('.dou-link__label').text()).toBe('R #463')
+
+    const underlined = mount(DouMarkdown, {
+      props: { content: '查看 [PR #463](https://example.com/pull/463)。' },
+      slots: {
+        link: ({ href, children }: { href?: string; children: unknown }) =>
+          h(
+            DouLink,
+            { href, variant: 'soft', underline: 'always' },
+            {
+              leading: () => h('i', { class: 'pr-icon', 'aria-hidden': 'true' }),
+              default: () => [children as never],
+            },
+          ),
+      },
+    })
+    const uLink = underlined.get('a.dou-link')
+    expect(uLink.classes()).toEqual(
+      expect.arrayContaining(['dou-link--soft', 'dou-link--underline-always']),
+    )
+    expect(uLink.get('.dou-link__lead').text()).toBe('P')
+    expect(uLink.get('.dou-link__label').text()).toBe('R #463')
   })
 })
 

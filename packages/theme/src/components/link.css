@@ -56,12 +56,9 @@
     }
   }
 
-  .dou-link__label {
-    text-decoration-line: inherit;
-    text-decoration-color: inherit;
-    text-decoration-thickness: inherit;
-  }
-
+  /* Underlines propagate from `.dou-link` itself (both inline-flex and
+     inline soft variants); re-declaring `text-decoration-line: inherit` on
+     `.dou-link__label` would stack a second translucent line over the label. */
   .dou-link--underline-always {
     text-decoration-line: underline;
     text-decoration-color: var(--dou-link-underline);

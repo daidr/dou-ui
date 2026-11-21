@@ -42,6 +42,46 @@ describe('link.css', () => {
     for (const declaration of ['appearance: none', 'padding: 0', 'border: 0', 'background: none'])
       expect(rule).toContain(declaration)
   })
+
+  // Underlines propagate from `.dou-link` itself. Re-declaring them on
+  // `.dou-link__label` stacks a second translucent line over the middle
+  // characters of a soft link while leaving `.dou-link__lead` / `trail` lighter.
+  it('does not paint a second underline on .dou-link__label', () => {
+    expect(css).not.toMatch(/\.dou-link__label\s*\{[^}]*text-decoration-line\s*:/)
+  })
+})
+
+describe('links inside DouMarkdown', () => {
+  const markdownCss = readFileSync(resolve(here, 'components/markdown.css'), 'utf8').replace(
+    /\/\*[\s\S]*?\*\//g,
+    '',
+  )
+
+  it('styles plain Markdown anchors without overriding DouUI link components', () => {
+    expect(markdownCss).toMatch(
+      /& :where\(a:not\(\[class\*='dou-'\]\), \.dou-markdown__link\)\s*\{[^}]*text-decoration-line:\s*underline/,
+    )
+    expect(markdownCss).toMatch(/& :where\(a:not\(\[class\*='dou-'\]\):hover\)\s*\{/)
+    expect(markdownCss).toMatch(/& :where\(a:not\(\[class\*='dou-'\]\):focus-visible\)\s*\{/)
+
+    // Verify selector matching directly against DOM nodes
+    const root = document.createElement('div')
+    root.className = 'dou-markdown'
+    root.innerHTML = [
+      '<a id="plain" href="/docs">文档</a>',
+      '<span id="pending" class="dou-markdown__link">流式</span>',
+      '<a id="soft" class="dou-link dou-link--neutral dou-link--soft dou-link--underline-none" href="/pr">PR #463</a>',
+      '<a id="text" class="dou-link dou-link--primary dou-link--text dou-link--underline-always" href="/pr">PR #463</a>',
+      '<a id="citation" class="dou-chat-citation" href="/src">1</a>',
+    ].join('')
+
+    const selector = ".dou-markdown :where(a:not([class*='dou-']), .dou-markdown__link)"
+    expect(root.querySelector('#plain')!.matches(selector)).toBe(true)
+    expect(root.querySelector('#pending')!.matches(selector)).toBe(true)
+    expect(root.querySelector('#soft')!.matches(selector)).toBe(false)
+    expect(root.querySelector('#text')!.matches(selector)).toBe(false)
+    expect(root.querySelector('#citation')!.matches(selector)).toBe(false)
+  })
 })
 
 describe('icons of a soft link', () => {

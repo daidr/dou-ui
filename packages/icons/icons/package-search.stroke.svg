@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M12 21 4 16.5v-9L12 3l8 4.5v3.5" />
+  <path d="M4 7.5 12 12l8-4.5" />
+  <path d="M12 12v9" />
+  <path d="m8 5.25 8 4.5" />
+  <path data-badge="lens" d="M15.5 16.75a2.25 2.25 0 1 0 4.5 0a2.25 2.25 0 1 0-4.5 0" />
+  <path data-badge="lens" d="m19.34 18.34 1.66 1.66" />
+</svg>

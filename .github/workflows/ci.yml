@@ -96,6 +96,9 @@ jobs:
       # the browser is kept between runs on the runner, so this is quick after the first
       - run: bunx playwright install chromium
 
+      - name: Browser layout regression
+        run: bun run test:browser
+
       # the cases with a budget (frame times of large charts): fails when one is over it
       - name: Bench
         run: bun run bench:check

@@ -158,7 +158,9 @@ export function useFloating(
     window.addEventListener('scroll', schedule, { capture: true, passive: true })
     window.addEventListener('resize', schedule, { passive: true })
     if (typeof ResizeObserver !== 'undefined') {
-      observer = new ResizeObserver(schedule)
+      // ResizeObserver already runs after layout and before paint. Deferring it
+      // to rAF paints the resized panel once at the previous size's position.
+      observer = new ResizeObserver(update)
       const anchor = reference()
       if (anchor instanceof Element) observer.observe(anchor)
       if (floating.value) observer.observe(floating.value)

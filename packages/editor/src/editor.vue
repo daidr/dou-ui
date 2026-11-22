@@ -138,6 +138,7 @@ const {
   comments,
   plugin: commentPlugin,
   anchors,
+  scrollToComment,
 } = useEditorComments({
   props,
   emit,
@@ -581,6 +582,7 @@ defineExpose<EditorExpose>({
   },
   comment: () => comments.start(),
   getCommentAnchors: anchors,
+  scrollToComment,
   restore,
   nextChange: () => goToChange(1),
   previousChange: () => goToChange(-1),
@@ -599,7 +601,7 @@ const highlightCSS = computed(() => {
   if (!comments.enabled.value) return ''
   const open = comments.threads.value.filter((thread) => !thread.resolved)
   if (!open.length) return ''
-  let css = `${open.map((thread) => highlighted(thread.id)).join(',')}{background-color:var(--dou-editor-comment-bg);border-bottom-color:var(--dou-editor-comment-line)}`
+  let css = `${open.map((thread) => highlighted(thread.id)).join(',')}{background-color:var(--dou-editor-comment-bg);border-bottom-color:var(--dou-editor-comment-line);--dou-editor-code-py:0;--dou-editor-code-bg:var(--dou-editor-comment-code-bg);--dou-editor-code-border:var(--dou-editor-comment-code-border)}`
   const active = comments.active.value
   if (active && open.some((thread) => thread.id === active))
     css += `${highlighted(active)}{background-color:var(--dou-editor-comment-bg-active)}`

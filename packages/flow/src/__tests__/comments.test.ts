@@ -634,4 +634,89 @@ describe('DouFlowEditor pinned comments', () => {
     expect(before.x - after.x).toBe(40)
     expect(before.y - after.y).toBe(30)
   })
+
+  it('makes newly created node, edge and pinned anchors readable synchronously inside @comment-action', async () => {
+    const seen: { type: string; id: string; anchor: unknown }[] = []
+    const tool = ref<WhiteboardTool>('comment')
+    const { wrapper, editor } = setup({
+      extensions: [flowKit(), whiteboardKit({ tool })],
+      onCommentAction: (action: CommentAction) => {
+        const id = action.type === 'create' ? action.thread.id : action.threadId
+        seen.push({ type: action.type, id, anchor: editor.value!.getCommentAnchors()[id] })
+      },
+    })
+    await ticks()
+
+    // 1. Pinned comment created via whiteboard comment tool click
+    const root = wrapper.find('.dou-flow-editor').element
+    const node = wrapper.find('[data-node-id="b"]').element
+    node.dispatchEvent(press('pointerdown', 350, 15))
+    root.dispatchEvent(press('pointerup', 350, 15))
+    await ticks()
+    wrapper.findComponent(DouCommentThread).vm.$emit('action', {
+      type: 'create',
+      thread: {
+        id: 'pin-sync',
+        comments: [{ id: 'ps1', author: me, body: '白板钉子', createdAt: at }],
+      },
+    })
+    expect(seen.at(-1)).toEqual({
+      type: 'create',
+      id: 'pin-sync',
+      anchor: { node: 'b', at: { x: 0.25, y: 0.25 }, number: 1 },
+    })
+
+    // 2. Plain node comment
+    await ticks()
+    expect(editor.value!.comment({ node: 'b' })).toBe(true)
+    await ticks()
+    wrapper.findComponent(DouCommentThread).vm.$emit('action', {
+      type: 'create',
+      thread: {
+        id: 'node-sync',
+        comments: [{ id: 'ns1', author: me, body: '节点', createdAt: at }],
+      },
+    })
+    expect(seen.at(-1)).toEqual({
+      type: 'create',
+      id: 'node-sync',
+      anchor: { node: 'b' },
+    })
+
+    // 3. Edge comment + immediate remove
+    await ticks()
+    editor.value!.transact((tr) =>
+      tr.addEdge({
+        id: 'e2',
+        source: { node: 'a', port: 'out' },
+        target: { node: 'b', port: 'in' },
+      }),
+    )
+    await ticks()
+    expect(editor.value!.comment({ edge: 'e2' })).toBe(true)
+    await ticks()
+    wrapper.findComponent(DouCommentThread).vm.$emit('action', {
+      type: 'create',
+      thread: {
+        id: 'edge-sync',
+        comments: [{ id: 'es1', author: me, body: '连线', createdAt: at }],
+      },
+    })
+    expect(seen.at(-1)).toEqual({
+      type: 'create',
+      id: 'edge-sync',
+      anchor: { edge: 'e2' },
+    })
+
+    await ticks()
+    wrapper.findComponent(DouCommentThread).vm.$emit('action', {
+      type: 'remove',
+      threadId: 'edge-sync',
+    })
+    expect(seen.at(-1)).toEqual({
+      type: 'remove',
+      id: 'edge-sync',
+      anchor: undefined,
+    })
+  })
 })

@@ -212,6 +212,12 @@ export interface EditorExpose {
   /** Where each thread is anchored; `null` for a thread whose text was deleted. */
   getCommentAnchors: () => Record<string, CommentAnchor | null>
   /**
+   * Scroll the anchor of comment thread `id` into view (opening any collapsed
+   * toggles around it). Returns `false` when comments are off or `id` has no
+   * anchor in the document.
+   */
+  scrollToComment: (id: string, options?: ScrollIntoViewOptions) => boolean
+  /**
    * Replace the document with `doc`, e.g. an older version, as one
    * change undo takes back. With collaboration only the blocks that differ
    * are written, and everyone sees it. The `transaction` event has origin

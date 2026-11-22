@@ -58,6 +58,11 @@ onMounted(readQuotes)
 watch(threads, readQuotes, { flush: 'post' })
 
 const open = computed(() => threads.value.filter((thread) => !thread.resolved))
+
+function selectThread(id: string) {
+  active.value = id
+  editor.value?.scrollToComment(id)
+}
 </script>
 
 <template>
@@ -80,7 +85,7 @@ const open = computed(() => threads.value.filter((thread) => !thread.resolved))
         type="button"
         class="comments-demo__item"
         :class="{ 'is-active': thread.id === active }"
-        @click="active = thread.id"
+        @click="selectThread(thread.id)"
       >
         <span class="comments-demo__quote">{{ quotes[thread.id] }}</span>
         <span class="comments-demo__text">

@@ -174,16 +174,18 @@ function reset() {
 
 ### CSS 变量
 
-| 变量                         | 说明                                                                 |
-| ---------------------------- | -------------------------------------------------------------------- |
-| `--dou-editor-font-size`     | 正文字号                                                             |
-| `--dou-editor-match`         | 查找结果的底色                                                       |
-| `--dou-editor-match-current` | 当前查找结果的描边                                                   |
-| `--dou-editor-line-height`   | 正文行高                                                             |
-| `--dou-editor-gutter`        | 正文左侧的空白，默认 `0`，对比版本时 `16px`，见[基础用法](#基础用法) |
-| `--dou-editor-indent`        | 每一级缩进的宽度，也是列表符号的宽度                                 |
-| `--dou-editor-block-gap`     | 相邻两块之间的距离，默认 `4px`                                       |
-| `--dou-editor-list-gap`      | 同一列表里相邻两项之间的距离，默认 `4px`                             |
-| `--dou-editor-reading-width` | 正文的最大宽度，超出时居中，默认 `none`                              |
-| `--dou-editor-selected`      | 选中的块的底色                                                       |
-| `--dou-editor-scroll-shadow` | 表格左右还有被遮住的列时，那一侧阴影的颜色                           |
+| 变量                               | 说明                                                                 |
+| ---------------------------------- | -------------------------------------------------------------------- |
+| `--dou-editor-font-size`           | 正文字号                                                             |
+| `--dou-editor-match`               | 查找结果的底色                                                       |
+| `--dou-editor-match-current`       | 当前查找结果的描边                                                   |
+| `--dou-editor-line-height`         | 正文行高                                                             |
+| `--dou-editor-gutter`              | 正文左侧的空白，默认 `0`，对比版本时 `16px`，见[基础用法](#基础用法) |
+| `--dou-editor-indent`              | 每一级缩进的宽度，也是列表符号的宽度                                 |
+| `--dou-editor-block-gap`           | 相邻两块之间的距离，默认 `4px`                                       |
+| `--dou-editor-list-gap`            | 同一列表里相邻两项之间的距离，默认 `4px`                             |
+| `--dou-editor-reading-width`       | 正文的最大宽度，超出时居中，默认 `none`                              |
+| `--dou-editor-selected`            | 选中的块的底色                                                       |
+| `--dou-editor-scroll-shadow`       | 表格左右还有被遮住的列时，那一侧阴影的颜色                           |
+| `--dou-editor-table-col-min-width` | 自动列宽表格未指定宽度列的最小宽度，默认 `96px`                      |
+| `--dou-editor-table-col-max-width` | 自动列宽表格未指定宽度列的最大宽度，默认 `min(320px, 70vw)`          |

@@ -58,11 +58,11 @@ const active = ref<string | null>(null)
 
 ## 和侧栏联动
 
-`v-model:activeComment` 是当前打开的讨论。点击正文里高亮的文字会更新它；在侧栏里设置它，正文里会打开这条讨论。上面的示例用它做了一个评论列表，被评论的文字通过 `getCommentAnchors()` 读取。
+`v-model:activeComment` 是当前打开的讨论。点击正文里高亮的文字会更新它；在侧栏里设置它，正文里会打开这条讨论。点击侧栏项时，可以同时调用 `scrollToComment(id)` 把对应正文或块滚动到视野里（所在折叠块也会自动展开）。上面的示例用它做了一个评论列表，被评论的文字通过 `getCommentAnchors()` 读取。
 
 ## 保存到服务器
 
-每次修改评论都会触发 `commentAction` 事件，参数是这次修改（`CommentAction`，见 [CommentThread](/components/comment-thread#数据格式)），比如“回复了某条讨论”。可以直接发给服务器，也可以用来通知被回复的人。
+每次修改评论都会触发 `commentAction` 事件，参数是这次修改（`CommentAction`，见 [CommentThread](/components/comment-thread#数据格式)），比如“回复了某条讨论”。可以直接发给服务器，也可以用来通知被回复的人。在 `commentAction` 回调里调用 `getCommentAnchors()` 时，新建或删除后的锚点已经同步更新，无需等待下一次渲染即可读取。
 
 ```vue
 <DouEditor
@@ -184,10 +184,11 @@ defineBlock<string>({
 
 ### Editor Exposes
 
-| 名称                | 说明                                                                                                                                | 类型                                          |
-| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
-| `comment`           | 对选中的文字发起讨论，打开输入框；光标在被评论的文字里时打开那条讨论；都不是时返回 `false`                                          | `() => boolean`                               |
-| `getCommentAnchors` | 每条讨论所在的位置，原文已删除的为 `null`。返回值不是响应式的，在 `change`（包括协同时别人的修改）和 `update:comments` 之后重新读取 | `() => Record<string, CommentAnchor \| null>` |
+| 名称                | 说明                                                                                                                                                                               | 类型                                                       |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `comment`           | 对选中的文字发起讨论，打开输入框；光标在被评论的文字里时打开那条讨论；都不是时返回 `false`                                                                                         | `() => boolean`                                            |
+| `getCommentAnchors` | 每条讨论所在的位置，原文已删除的为 `null`。返回值不是响应式的，在 `commentAction` 回调内即可同步读到最新锚点，也会在 `change`（包括协同时别人的修改）和 `update:comments` 之后更新 | `() => Record<string, CommentAnchor \| null>`              |
+| `scrollToComment`   | 把指定讨论对应的文字或块滚动到视野里，并展开包裹它的折叠块；未开启评论或讨论没有锚点时返回 `false`                                                                                 | `(id: string, options?: ScrollIntoViewOptions) => boolean` |
 
 ```ts
 interface CommentAnchor {
@@ -220,8 +221,10 @@ interface BlockCommentsSpec<Target> {
 
 ### CSS 变量
 
-| 变量                             | 说明                   |
-| -------------------------------- | ---------------------- |
-| `--dou-editor-comment-bg`        | 被评论文字的背景       |
-| `--dou-editor-comment-bg-active` | 打开的讨论的文字背景   |
-| `--dou-editor-comment-line`      | 被评论文字的下划线颜色 |
+| 变量                               | 说明                         |
+| ---------------------------------- | ---------------------------- |
+| `--dou-editor-comment-bg`          | 被评论文字的背景             |
+| `--dou-editor-comment-bg-active`   | 打开的讨论的文字背景         |
+| `--dou-editor-comment-line`        | 被评论文字的下划线颜色       |
+| `--dou-editor-comment-code-bg`     | 评论高亮内行内代码的背景色   |
+| `--dou-editor-comment-code-border` | 评论高亮内行内代码的描边颜色 |

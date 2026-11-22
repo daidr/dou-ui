@@ -44,12 +44,45 @@
     border-bottom: 1px solid var(--dou-color-border);
   }
 
+  .dou-tabs__tablist {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: stretch;
+    min-width: 0;
+  }
+
+  .dou-tabs__pinned {
+    position: relative;
+    display: flex;
+    flex-shrink: 0;
+    gap: var(--dou-tabs-gap);
+    padding: 4px 0 6px;
+    margin-bottom: -1px;
+
+    &.is-divided {
+      margin-inline-end: 8px;
+      padding-inline-end: 9px;
+
+      &::after {
+        content: '';
+        position: absolute;
+        inset-inline-end: 0;
+        top: calc(4px + (var(--dou-tabs-height) - 16px) / 2);
+        width: 1px;
+        height: 16px;
+        background-color: var(--dou-color-border);
+        pointer-events: none;
+      }
+    }
+  }
+
   .dou-tabs__list {
     position: relative;
     display: flex;
     flex: 1 1 auto;
     gap: var(--dou-tabs-gap);
     min-width: 0;
+    min-height: var(--dou-tabs-height);
     /* room for the hover tint above and the underline below */
     padding: 4px 0 6px;
     margin-bottom: -1px;
@@ -110,7 +143,7 @@
   }
 
   /* an icon alone: a square tab, its label in a tooltip; one that closes widens for the button */
-  .dou-tabs.is-icon-only .dou-tabs__tab.is-icon-alone {
+  .dou-tabs__tab.is-icon-alone {
     justify-content: center;
     width: var(--dou-tabs-height);
     padding: 0;
@@ -384,6 +417,20 @@
     }
   }
 
+  .dou-tabs__overflow-divider {
+    flex-shrink: 0;
+    height: 1px;
+    margin: 2px 6px;
+    background-color: var(--dou-color-border);
+  }
+
+  .dou-tabs__overflow-pin {
+    flex-shrink: 0;
+    width: 12px;
+    height: 12px;
+    color: var(--dou-color-text-tertiary);
+  }
+
   .dou-tabs__overflow-check {
     flex-shrink: 0;
     width: 14px;
@@ -475,15 +522,42 @@
       border-inline-end: 1px solid var(--dou-color-border);
     }
 
+    & .dou-tabs__tablist {
+      flex-direction: column;
+      flex: 0 0 auto;
+    }
+
+    & .dou-tabs__pinned {
+      flex-direction: column;
+      padding: 0 6px 0 0;
+      margin: 0 -1px 0 0;
+
+      &.is-divided {
+        margin-inline-end: -1px;
+        margin-bottom: 6px;
+        padding-inline-end: 6px;
+        padding-bottom: 7px;
+
+        &::after {
+          top: auto;
+          bottom: 0;
+          inset-inline: 0 6px;
+          width: auto;
+          height: 1px;
+        }
+      }
+    }
+
     & .dou-tabs__list {
       flex-direction: column;
       flex: 0 0 auto;
+      min-height: 0;
       padding: 0 6px 0 0;
       margin: 0 -1px 0 0;
       overflow: visible;
     }
 
-    & .dou-tabs__tab {
+    & .dou-tabs__tab:not(.is-icon-alone) {
       justify-content: flex-start;
     }
 
@@ -517,6 +591,20 @@
     & > .dou-tabs__header {
       border-inline-end: 0;
       border-inline-start: 1px solid var(--dou-color-border);
+    }
+
+    & .dou-tabs__pinned {
+      padding: 0 0 0 6px;
+      margin: 0 0 0 -1px;
+
+      &.is-divided {
+        margin-inline: -1px 0;
+        padding-inline: 6px 0;
+
+        &::after {
+          inset-inline: 6px 0;
+        }
+      }
     }
 
     & .dou-tabs__list {
@@ -572,6 +660,11 @@
 
     &.is-vertical {
       & > .dou-tabs__header {
+        min-height: 0;
+      }
+
+      & .dou-tabs__tablist {
+        flex: 0 1 auto;
         min-height: 0;
       }
 

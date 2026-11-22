@@ -1,7 +1,8 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { DouTabPanel, DouTabs } from '../../../index'
+import { activeTabDrag, pressTab } from '../tab-drag'
 import type { TabsMoveEvent } from '../tabs'
 
 const make = (props: Record<string, unknown> = {}) => {
@@ -102,5 +103,104 @@ describe('DouTabs draggable', () => {
     await settle()
     expect(wrapper.findAll('[role="tab"]').map((tab) => tab.text())).toEqual(['sz', 'sh', 'bj'])
     wrapper.unmount()
+  })
+
+  it('ignores modifier keys in pressTab', () => {
+    const el = document.createElement('button')
+    document.body.append(el)
+    const onStart = vi.fn<() => void>()
+    for (const init of [
+      { ctrlKey: true },
+      { metaKey: true },
+      { shiftKey: true },
+      { altKey: true },
+    ]) {
+      pressTab(new PointerEvent('pointerdown', { button: 0, clientX: 0, clientY: 0, ...init }), {
+        el,
+        root: el,
+        drag: () => ({
+          value: 'a',
+          label: 'A',
+          group: 'g',
+          name: 'n',
+          index: 0,
+          source: el,
+        }),
+        onStart,
+      })
+      window.dispatchEvent(new PointerEvent('pointermove', { clientX: 20, clientY: 0 }))
+      window.dispatchEvent(new PointerEvent('pointerup'))
+    }
+    expect(onStart).not.toHaveBeenCalled()
+    expect(activeTabDrag.value).toBeNull()
+    el.remove()
+  })
+
+  it('shows the drop marker and accepts a drop on an empty tab list', async () => {
+    const moves: TabsMoveEvent[] = []
+    const target = mount(
+      defineComponent({
+        setup: () => () =>
+          h(DouTabs, {
+            draggable: true,
+            group: 'empty-drop',
+            name: 'empty',
+            onMove: (event: TabsMoveEvent) => moves.push(event),
+          }),
+      }),
+      { attachTo: document.body },
+    )
+    const sourceEl = document.createElement('button')
+    document.body.append(sourceEl)
+    const header = target.get('.dou-tabs__header').element as HTMLElement
+    const list = target.get('.dou-tabs__list').element as HTMLElement
+    Object.defineProperties(list, {
+      scrollWidth: { configurable: true, get: () => 200 },
+      clientWidth: { configurable: true, get: () => 200 },
+    })
+    const origElementFromPoint = document.elementFromPoint
+    document.elementFromPoint = () => header
+    const origRaf = window.requestAnimationFrame
+    const origCancelRaf = window.cancelAnimationFrame
+    let rafCb: FrameRequestCallback | undefined
+    window.requestAnimationFrame = ((cb: FrameRequestCallback) => {
+      rafCb = cb
+      return 1
+    }) as typeof window.requestAnimationFrame
+    window.cancelAnimationFrame = () => {}
+
+    try {
+      pressTab(new PointerEvent('pointerdown', { button: 0, clientX: 10, clientY: 10 }), {
+        el: sourceEl,
+        root: sourceEl,
+        drag: () => ({
+          value: 'doc',
+          label: '文档',
+          group: 'empty-drop',
+          name: undefined,
+          index: -1,
+          source: sourceEl,
+        }),
+      })
+      window.dispatchEvent(new PointerEvent('pointermove', { clientX: 40, clientY: 10 }))
+      rafCb?.(16)
+      await nextTick()
+
+      expect(target.classes()).toContain('is-drop-target')
+      const marker = target.get('.dou-tabs__list .dou-tabs__marker')
+      expect(marker.attributes('style')).toContain('translateX(1px)')
+
+      window.dispatchEvent(new PointerEvent('pointerup'))
+      await nextTick()
+      expect(moves).toEqual([
+        { value: 'doc', from: { name: undefined, index: -1 }, to: { name: 'empty', index: 0 } },
+      ])
+    } finally {
+      document.elementFromPoint = origElementFromPoint
+      window.requestAnimationFrame = origRaf
+      window.cancelAnimationFrame = origCancelRaf
+      sourceEl.remove()
+      target.unmount()
+    }
   })
 })

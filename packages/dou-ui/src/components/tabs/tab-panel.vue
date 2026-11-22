@@ -19,6 +19,7 @@ const props = withDefaults(defineProps<TabPanelProps>(), {
   disabled: false,
   closable: undefined,
   draggable: undefined,
+  pinned: false,
   eager: false,
 })
 const slots = defineSlots<TabPanelSlots>()

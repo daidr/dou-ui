@@ -25,7 +25,7 @@ import {
   selectDockTab,
   splitDockTab,
 } from './layout'
-import { pressTab } from '../tabs/tab-drag'
+import { isIgnoredDragPress, pressTab } from '../tabs/tab-drag'
 import type { SplitterLimit } from '../splitter/splitter'
 import type { TabDrag } from '../tabs/tab-drag'
 import type { TabsMoveEvent, TabsValue } from '../tabs/tabs'
@@ -100,11 +100,19 @@ function canDrop(drag: TabDrag, target: DockGroup, side: DockSide | 'center') {
   return true
 }
 
+function pinnedInsertIndex(target: DockGroup) {
+  let index = 0
+  for (let i = 0; i < target.tabs.length; i++) {
+    if (panels.value.get(target.tabs[i]!)?.pinned) index = i + 1
+  }
+  return index
+}
+
 function drop(drag: TabDrag, target: DockGroup, side: DockSide | 'center') {
   const from = locate(drag.value) ?? null
   if (!canDrop(drag, target, side)) return
   if (side === 'center') {
-    const index = target.tabs.length
+    const index = drag.pinned ? pinnedInsertIndex(target) : target.tabs.length
     commit(moveDockTab(latest, drag.value, target.id, index))
     emit('move', { value: drag.value, from, to: { group: target.id, index } })
     use(target.id)
@@ -185,8 +193,25 @@ watch(
 /* dragging something from outside the dock in */
 
 const root = useTemplateRef<HTMLElement>('root')
+const RAPID_REPEAT_MS = 400
+const RAPID_REPEAT_PX = 8
+let lastDropPress: { time: number; x: number; y: number } | null = null
+
+function isRapidRepeat(event: PointerEvent) {
+  const now = Date.now()
+  const x = event.clientX
+  const y = event.clientY
+  const repeated =
+    event.detail > 1 ||
+    (lastDropPress !== null &&
+      now - lastDropPress.time <= RAPID_REPEAT_MS &&
+      Math.hypot(x - lastDropPress.x, y - lastDropPress.y) <= RAPID_REPEAT_PX)
+  lastDropPress = { time: now, x, y }
+  return repeated
+}
 
 function startDrop(event: PointerEvent, item: DockDropItem) {
+  if (isIgnoredDragPress(event)) return
   // `currentTarget` is gone once the handler returns, after an `await`: then the element pressed
   const target = event.currentTarget ?? event.target
   if (!(target instanceof HTMLElement || target instanceof SVGElement)) {
@@ -204,6 +229,7 @@ function startDrop(event: PointerEvent, item: DockDropItem) {
       )
     return
   }
+  if (isRapidRepeat(event)) return
   const label = item.label ?? entry?.label ?? String(item.value)
   // the browser's own drag of a link or an image would take the pointer away
   target.addEventListener('dragstart', noNativeDrag)
@@ -229,9 +255,13 @@ function startDrop(event: PointerEvent, item: DockDropItem) {
         name: from?.group,
         index: from?.index ?? -1,
         source: target,
+        pinned: !!entry?.pinned,
       }
     },
-    onStart: () => (dragged = true),
+    onStart: () => {
+      dragged = true
+      lastDropPress = null
+    },
     onEnd() {
       if (!dragged) return
       // the release that ends a drag is not a click on the element

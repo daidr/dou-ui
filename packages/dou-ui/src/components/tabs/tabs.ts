@@ -96,6 +96,12 @@ export interface TabPanelProps {
   /** Whether this tab can be dragged, overriding the tabs' `draggable`. */
   draggable?: boolean
   /**
+   * Pin this tab to the start of the tab bar so it stays visible while other
+   * tabs scroll. A pinned tab with an `icon` shows the icon alone with a
+   * tooltip, and is not closable unless `closable: true` is set on the panel.
+   */
+  pinned?: boolean
+  /**
    * Render the content before the panel is first shown, instead of on
    * first show. For content that must exist while hidden, e.g. form
    * fields that are checked on submit.

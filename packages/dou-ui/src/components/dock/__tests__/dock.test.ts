@@ -367,7 +367,7 @@ describe('DouDock', () => {
   it('switches and closes overflowing tabs of a group from its overflow popover', async () => {
     const { wrapper, layout, events } = make({ closable: true })
     await nextTick()
-    const list = wrapper.get('[data-dock-group="a"] [role="tablist"]').element as HTMLElement
+    const list = wrapper.get('[data-dock-group="a"] .dou-tabs__list').element as HTMLElement
     Object.defineProperties(list, {
       clientWidth: { configurable: true, get: () => 80 },
       scrollWidth: { configurable: true, get: () => 240 },
@@ -396,5 +396,80 @@ describe('DouDock', () => {
     expect(events.at(-1)).toEqual(['remove', 'thread', 'a'])
     wrapper.unmount()
     document.body.innerHTML = ''
+  })
+
+  it('supports pinned tabs with compact icons, reorder, and cross-group drops', async () => {
+    const PinIconA = defineComponent({ setup: () => () => h('svg', { class: 'pin-icon-a' }) })
+    const PinIconB = defineComponent({ setup: () => () => h('svg', { class: 'pin-icon-b' }) })
+    const pinnedPanels = [
+      { value: 'files', label: '文件', icon: PinIconA, pinned: true },
+      { value: 'changes', label: '变更', icon: PinIconB, pinned: true },
+      { value: 'thread', label: '需求讨论' },
+      { value: 'plan', label: '发布计划' },
+    ]
+    const layout = ref<DockNode>({
+      type: 'split',
+      direction: 'horizontal',
+      size: 60,
+      start: { type: 'group', id: 'a', tabs: ['files', 'changes', 'thread'], active: 'thread' },
+      end: { type: 'group', id: 'b', tabs: ['plan'], active: 'plan' },
+    })
+    const events: unknown[][] = []
+    const wrapper = mount(
+      defineComponent({
+        setup: () => () =>
+          h(
+            DouDock,
+            {
+              panels: pinnedPanels,
+              closable: true,
+              modelValue: layout.value,
+              'onUpdate:modelValue': (value: DockNode) => (layout.value = value),
+              onMove: (e: unknown) => events.push(['move', e]),
+            },
+            { default: ({ value }: { value: string }) => `${value} 内容` },
+          ),
+      }),
+      { attachTo: document.body },
+    )
+    await nextTick()
+
+    const groupA = wrapper.get('[data-dock-group="a"]')
+    const pinnedTabs = groupA.findAll('.dou-tabs__pinned [role="tab"]')
+    const regularTabs = groupA.findAll('.dou-tabs__list [role="tab"]')
+    expect(pinnedTabs).toHaveLength(2)
+    expect(regularTabs).toHaveLength(1)
+    expect(pinnedTabs[0]!.classes()).toContain('is-pinned')
+    expect(pinnedTabs[0]!.classes()).toContain('is-icon-alone')
+    expect(pinnedTabs[0]!.attributes('aria-label')).toBe('文件')
+    // pinned tabs are not closable by default even when dock has closable: true
+    expect(pinnedTabs[0]!.find('.dou-tabs__close').exists()).toBe(false)
+    expect(regularTabs[0]!.find('.dou-tabs__close').exists()).toBe(true)
+
+    // keyboard reorder within pinned area
+    await pinnedTabs[0]!.trigger('keydown', { key: 'ArrowRight', altKey: true })
+    expect(layout.value.type === 'split' && layout.value.start).toMatchObject({
+      tabs: ['changes', 'files', 'thread'],
+    })
+    expect(events.at(-1)).toEqual([
+      'move',
+      { value: 'files', from: { group: 'a', index: 0 }, to: { group: 'a', index: 1 } },
+    ])
+
+    // cross-group move of a pinned tab into group b (which has no pinned tabs yet)
+    const [, secondTabs] = wrapper.findAllComponents({ name: 'DouTabs' })
+    secondTabs!.vm.$emit('move', {
+      value: 'files',
+      from: { name: 'a', index: 1 },
+      to: { name: 'b', index: 0 },
+    })
+    await nextTick()
+    expect(layout.value.type === 'split' && layout.value.end).toMatchObject({
+      tabs: ['files', 'plan'],
+      active: 'files',
+    })
+    expect(wrapper.findAll('[data-dock-group="b"] .dou-tabs__pinned [role="tab"]')).toHaveLength(1)
+
+    wrapper.unmount()
   })
 })

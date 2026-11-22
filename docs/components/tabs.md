@@ -46,6 +46,14 @@
 
 <DocDemo src="tabs/overflow" column />
 
+## 固定标签
+
+在 `DouTabPanel` 上设置 `pinned` 可以将常用入口标签固定在标签行最前方的独立区域，普通标签横向滚动时固定标签始终可见，且点击固定标签不会改变普通标签行的滚动位置。
+
+带 `icon` 的固定标签默认显示为紧凑的纯图标按钮，并通过提示展示完整标题；未传 `icon` 时保留文字。固定标签默认不继承 `DouTabs` 的 `closable`（显式在面板上设 `closable: true` 时仍可关闭）。固定标签与普通标签在同一个 `role="tablist"` 内，支持无缝的方向键、`Home` / `End` 键盘焦点导航，拖动或按 `Alt` 加方向键可在固定区内部排序并跨组拖拽；溢出弹层中固定标签置顶显示并以分隔线与普通标签区分。
+
+<DocDemo src="tabs/pinned" column />
+
 ## 竖排
 
 `placement="start"` 把标签竖排在面板左侧，`"end"` 放在右侧。指示线移到标签列的边上，方向键改为 `↑` `↓`。面板总是和标签列一样高，内容再短也一直延伸到底。
@@ -124,15 +132,16 @@
 
 ### TabPanel Props
 
-| 名称        | 说明                                  | 类型               | 默认值  |
-| ----------- | ------------------------------------- | ------------------ | ------- |
-| `value`     | 面板的值                              | `string \| number` | —       |
-| `label`     | 标签文字                              | `string`           | `value` |
-| `icon`      | 标签文字前的图标组件                  | `Component`        | —       |
-| `disabled`  | 禁用                                  | `boolean`          | `false` |
-| `closable`  | 显示关闭按钮，覆盖 Tabs 的 `closable` | `boolean`          | —       |
-| `draggable` | 能否拖动，覆盖 Tabs 的 `draggable`    | `boolean`          | —       |
-| `eager`     | 一开始就渲染内容，不等第一次显示      | `boolean`          | `false` |
+| 名称        | 说明                                                                       | 类型               | 默认值  |
+| ----------- | -------------------------------------------------------------------------- | ------------------ | ------- |
+| `value`     | 面板的值                                                                   | `string \| number` | —       |
+| `label`     | 标签文字                                                                   | `string`           | `value` |
+| `icon`      | 标签文字前的图标组件                                                       | `Component`        | —       |
+| `disabled`  | 禁用                                                                       | `boolean`          | `false` |
+| `closable`  | 显示关闭按钮，覆盖 Tabs 的 `closable`                                      | `boolean`          | —       |
+| `draggable` | 能否拖动，覆盖 Tabs 的 `draggable`                                         | `boolean`          | —       |
+| `pinned`    | 固定在标签行起始位置，不随普通标签滚动；带 `icon` 时紧凑显示且默认不可关闭 | `boolean`          | `false` |
+| `eager`     | 一开始就渲染内容，不等第一次显示                                           | `boolean`          | `false` |
 
 ### TabPanel Slots
 

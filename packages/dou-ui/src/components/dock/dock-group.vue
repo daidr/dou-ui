@@ -86,6 +86,7 @@ const label = (value: string | number) => dock.panel(value)?.label ?? String(val
         :closable="dock.panel(value)?.closable"
         :disabled="dock.panel(value)?.disabled"
         :draggable="dock.panel(value)?.draggable"
+        :pinned="dock.panel(value)?.pinned"
       >
         <template v-if="slotted.label" #label="{ selected }">
           <Outlet :render="() => dock.slots.label?.({ value, selected })" />

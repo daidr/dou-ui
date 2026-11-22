@@ -7,6 +7,40 @@ DouUI 的所有包（`dou-ui`、`@dou-ui/theme`、`@dou-ui/icons` 以及生态�
 
 这个文件由发版脚本生成：改动先以碎片文件记在 [`.changes/`](./.changes/README.md) 里，发布时汇总到这里。
 
+## 0.1.0-alpha.22 · 2026-11-22
+
+### 新增
+
+- **@dou-ui/code**：`DouCodeDiff` 工具栏新增 `#title` 插槽与 `stickyToolbar` 属性，支持单行标题与原生滚动吸顶（根容器改用 `overflow: clip`），并在组件实例上暴露只读的 `anyHideable` 和 `hiddenCount` 折叠状态。 ([#477](https://github.com/daidr/dou-ui/pull/477))
+- **dou-ui、@dou-ui/theme**：`DouSplitter` 新增 `unit`（`'percent' | 'px'`）与 `singlePane`（`'start' | 'end' | null`）：像素模式下在容器缩放时自动维持面板像素尺寸并扣除 1px 分隔线宽度；单栏模式下隐藏分隔条与非活跃面板同时保持双栏挂载，活跃面板占满整个容器。 ([#503](https://github.com/daidr/dou-ui/pull/503))
+- **dou-ui、@dou-ui/theme**：`DouPopover` 新增 `openOnTap` 属性，支持在 `hover` 触发模式下关闭触屏或触控笔轻点弹出，避免遮挡触发元素自身的主动作；同时默认按视口可用高度（`--dou-floating-available`）限制最大高度并使内容区内部纵向滚动，支持通过 `maxHeight` 属性或 `--dou-popover-max-height` 自定义高度上限，并修正侧向定位时的可用垂直高度计算。 ([#504](https://github.com/daidr/dou-ui/pull/504))
+- **dou-ui、@dou-ui/theme**：`DouChatList` 新增 `bottomInset`、`bottomFade` 属性与 `--dou-chat-list-bottom-inset`、`--dou-chat-list-bottom-fade`、`--dou-chat-list-scroll-offset` CSS 变量，用于悬浮底部输入框场景，自动联动普通与虚拟列表底部留白、视口 `scroll-padding-block-end`、定位消息对齐高度、回到底部按钮偏移以及可选的底部渐隐遮罩。 ([#505](https://github.com/daidr/dou-ui/pull/505))
+- **dou-ui、@dou-ui/theme**：`DouChatPlan` 新增 `showHeader` 属性，设为 `false` 时隐藏顶部标题栏、保持列表展开并自动补齐顶部内边距，便于在消息或卡片中嵌入轻量任务进度清单；`DouChatMessage` 的 `plan` 段落类型同步支持 `showHeader`。 ([#505](https://github.com/daidr/dou-ui/pull/505))
+- **dou-ui、@dou-ui/theme**：`DouCodeBlock` 新增 `maxHeight` 限高纵向滚动（无标题栏复制按钮自动吸顶并避让滚动条）与 `autoScroll` 自动贴底跟随（`streaming` 下默认开启，上滚暂停、回到底部恢复），并暴露 `body`、`atBottom`、`scrollToBottom()` 及 `atBottomChange` 事件。 ([#507](https://github.com/daidr/dou-ui/pull/507))
+- **@dou-ui/code**：`DouCodeEditor` 与 `DouCodeDiff` 新增 `scrollY` 属性（默认 `true`），设为 `false` 时禁用内部纵向滚动并保留长行横向滚动，适配外层虚拟列表或统一滚动容器。 ([#507](https://github.com/daidr/dou-ui/pull/507))
+- **dou-ui、@dou-ui/theme**：`DouImagePreview` 支持移动端双指捏合围绕中点缩放（含最小/最大倍率超界阻尼与松手回弹）、放大态单指/鼠标拖动平移与边界夹紧回弹、未放大时点击遮罩关闭、触屏与桌面双击围绕点击位置切换缩放，以及触控板捏合（`Ctrl` + 滚轮）连续平滑缩放。 ([#509](https://github.com/daidr/dou-ui/pull/509))
+- **@dou-ui/editor**：`DouEditor` 新增 `scrollToComment(id, options?)` 实例方法，可将指定评论对应的正文或块滚动到可视区域内，并自动展开包裹它的折叠块。 ([#510](https://github.com/daidr/dou-ui/pull/510))
+
+### 改进
+
+- **dou-ui、@dou-ui/theme**：`DouTabs` 横向标签栏溢出时支持鼠标滚轮直接横向滚动（保留原生横向滚动与缩放手势，未溢出时不拦截外层滚动），并移除左右翻页箭头，改为在右侧显示下箭头按钮，点击弹出 `DouPopover` 垂直标签页列表以快速查看、切换和关闭标签；`DouDock` 各分组同步受益。 ([#481](https://github.com/daidr/dou-ui/pull/481))
+- **dou-ui、@dou-ui/theme**：`DouLink` 的 `variant="soft"` 在无 `href` 时改为渲染带 `role="button"` 与键盘 Enter/Space 激活的行内元素，可随段落文本自然跨行折断且点击不误触外层 `<label>`；同时新增 `wrap` 属性，让 `variant="text"` 链接也能以同样方式跨行折断。 ([#506](https://github.com/daidr/dou-ui/pull/506))
+- **@dou-ui/theme**：`DouMenu` 新增 `--dou-menu-padding-y`、`--dou-menu-actions-top` 与 `--dou-menu-actions-height` 变量，设置 `--dou-menu-item-height: auto` 渲染自定义多行菜单项时，右侧操作区可随内边距与首行高度自然对齐首行而不再贴死顶边。 ([#506](https://github.com/daidr/dou-ui/pull/506))
+- **dou-ui、@dou-ui/theme**：- `DouTabs` 与 `DouDock` 新增原生固定标签（`pinned`）支持：固定标签停留在非滚动的独立起始区域，不随普通标签横向滚动且不干扰普通区滚动位置，带图标时默认以紧凑图标与提示展示并默认不可关闭，支持固定区排序、跨分组拖拽、无缝键盘导航及与溢出列表弹层的协同展示。
+  - 修复 `DouTabs` 横向空标签列表高度塌陷导致拖拽插入指示线被垂直裁切的问题，并使 `pressTab` 与 `DouDock.startDrop` 默认忽略修饰键点击及双击/三击选词等连续按下手势，避免干扰原生文本选择与辅助点击。 ([#508](https://github.com/daidr/dou-ui/pull/508))
+
+### 修复
+
+- **dou-ui、@dou-ui/theme**：`DouVirtualList` 可见项改为正常文档流配合顶部和底部占位高度排版，并为滚动容器补充 `overflow-anchor: none`，列表项内部元素现在可以原生使用 `position: sticky` 吸顶；`DouChatList` 虚拟模式下长消息的操作浮条也随之恢复吸顶跟随。 ([#478](https://github.com/daidr/dou-ui/pull/478))
+- **@dou-ui/theme**：修复 `DouSplitter` 折叠态及拖拽、禁用、方向手柄等样式使用后代选择器的问题，改为直接子选择器，避免外层折叠或状态变化时误影响嵌套子分栏的面板与分隔条。 ([#503](https://github.com/daidr/dou-ui/pull/503))
+- **dou-ui**：`DouChatInput` 粘贴文件时优先读取 `clipboardData.items`，未提取到文件时自动回退读取 `clipboardData.files` 并统一触发 `attach`；选择 `/` 命令后不再用旧光标位置覆盖父组件在 `command` 回调里修改 `v-model` 或在 `nextTick` 中设置的选区与焦点。 ([#505](https://github.com/daidr/dou-ui/pull/505))
+- **@dou-ui/theme**：`DouButton` 内部 `.dou-button__label` 补充 `min-width: 0`、`overflow-x: clip` 与 `text-overflow: ellipsis`，限制按钮宽度时默认插槽长文本与内部弹性子节点都能正常收缩并省略截断。 ([#506](https://github.com/daidr/dou-ui/pull/506))
+- **@dou-ui/theme**：`DouDropdown` 自动隐藏位于菜单首尾、紧跟分组小标题下方以及连续重复的 `.dou-dropdown__separator` 分割线，前置动态插槽为空时不再出现孤立的顶部分割线。 ([#506](https://github.com/daidr/dou-ui/pull/506))
+- **dou-ui、@dou-ui/theme、@dou-ui/form-builder**：`DouFormItem` 标签改为首行基线对齐并启用 `overflow-wrap: anywhere`，多行标签下必填星号与可选标记不再垂直居中偏移，超长无空格标签也会自动断行不撑破容器；水平与行内布局保持首行与控件垂直居中，在 `DouForm` 设置固定 `label-width` 时也支持多行折行。 ([#506](https://github.com/daidr/dou-ui/pull/506))
+- **dou-ui、@dou-ui/theme**：修复 `DouCodeBlock` 无标题栏时复制按钮被 `.dou-copy-button` 的 `position: relative` 覆盖的问题，提高悬浮定位与过渡规则的优先级，使其稳定停留在代码块右上角。 ([#507](https://github.com/daidr/dou-ui/pull/507))
+- **@dou-ui/editor、@dou-ui/flow**：`DouEditor` 与 `DouFlowEditor` 触发 `commentAction` 事件时，`getCommentAnchors()` 可在回调中同步读到新建或移除后的最新锚点，无需等待 `v-model` 回传或下一帧渲染。 ([#510](https://github.com/daidr/dou-ui/pull/510))
+- **@dou-ui/editor**：`DouEditor` 中被未解决评论或待提交评论高亮包裹的行内代码改为半透明背景与描边并收紧上下内边距，避免遮挡评论底色与下划线；自动列宽表格为未指定宽度的列提供默认最小/最大列宽约束与 `overflow-wrap: anywhere` 断行，同时保持手动拖拽列宽优先。 ([#510](https://github.com/daidr/dou-ui/pull/510))
+
 ## 0.1.0-alpha.21 · 2026-11-21
 
 ### 新增

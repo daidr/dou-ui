@@ -12,13 +12,14 @@ import {
   ZoomInIcon,
   ZoomOutIcon,
 } from '@dou-ui/icons'
-import { computed, ref, useId, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, ref, useId, useTemplateRef, watch } from 'vue'
 import { useModal } from '../../composables/use-modal'
 import { useNamespace } from '../../utils/namespace'
+import { useTeleport } from '../../utils/teleport'
 import { useLocale } from '../config-provider/use-config'
 import type { ImagePreviewProps } from './image'
-import { clampScale, downloadImage, normalizePreview, stepScale } from './preview'
-import { useTeleport } from '../../utils/teleport'
+import { downloadImage, normalizePreview } from './preview'
+import { usePreviewViewport } from './use-preview-viewport'
 
 defineOptions({ name: 'DouImagePreview', inheritAttrs: false })
 
@@ -46,30 +47,44 @@ const current = computed(() => list.value[Math.min(index.value, count.value - 1)
 
 /* the view */
 
-const scale = ref(1)
-const rotate = ref(0)
-const flip = ref({ x: 1, y: 1 })
-const offset = ref({ x: 0, y: 0 })
 const failed = ref(false)
+const root = useTemplateRef<HTMLElement>('root')
+const stage = useTemplateRef<HTMLElement>('stage')
+const image = useTemplateRef<HTMLImageElement>('image')
 
-function reset() {
-  scale.value = 1
-  rotate.value = 0
-  flip.value = { x: 1, y: 1 }
-  offset.value = { x: 0, y: 0 }
-}
+const {
+  scale,
+  flip,
+  interacting,
+  dragging,
+  canPan,
+  transform,
+  reset,
+  zoom,
+  turn,
+  mirror,
+  syncBounds,
+  canCloseOnMask,
+  consumeMaskClick,
+  onPointerdown,
+  onPointermove,
+  onPointerup,
+  onPointercancel,
+  onDblclick,
+  onWheel,
+} = usePreviewViewport({
+  stageRef: stage,
+  imageRef: image,
+  active: () => open.value && !!current.value && !failed.value,
+  minScale: () => props.minScale,
+  maxScale: () => props.maxScale,
+})
+
 watch([index, open], () => {
   reset()
   failed.value = false
+  if (open.value) void nextTick(syncBounds)
 })
-
-function zoom(direction: 1 | -1) {
-  scale.value = clampScale(stepScale(scale.value, direction), props.minScale, props.maxScale)
-  if (scale.value <= 1) offset.value = { x: 0, y: 0 }
-}
-const turn = (by: number) => (rotate.value += by)
-// Mirrored along the screen's axes, whichever way the picture is turned.
-const mirror = (axis: 'x' | 'y') => (flip.value = { ...flip.value, [axis]: -flip.value[axis] })
 
 const canPrev = computed(() => count.value > 1 && (props.loop || index.value > 0))
 const canNext = computed(() => count.value > 1 && (props.loop || index.value < count.value - 1))
@@ -83,13 +98,12 @@ function close() {
   emit('close')
 }
 
-const root = useTemplateRef<HTMLElement>('root')
 const { rendered, zIndex, theme, maskListeners } = useModal({
   open,
   root,
   panel: root,
   closeOnEscape: true,
-  closeOnMask: () => props.closeOnMask,
+  closeOnMask: () => props.closeOnMask && canCloseOnMask(),
   lockScroll: true,
   requestClose: close,
 })
@@ -117,43 +131,17 @@ function onKeydown(event: KeyboardEvent) {
   action()
 }
 
-let wheelAt = 0
-function onWheel(event: WheelEvent) {
-  event.preventDefault()
-  // Trackpads send a stream of tiny deltas; take one step per gesture tick.
-  const now = event.timeStamp
-  if (now - wheelAt < 40) return
-  wheelAt = now
-  zoom(event.deltaY < 0 ? 1 : -1)
+function onStagePointerdown(event: PointerEvent) {
+  maskListeners.onPointerdown(event)
+  onPointerdown(event)
 }
 
-let drag: { x: number; y: number; from: { x: number; y: number } } | undefined
-function onPointerdown(event: PointerEvent) {
-  if (event.button !== 0 || scale.value <= 1) return
-  event.preventDefault()
-  ;(event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId)
-  drag = { x: event.clientX, y: event.clientY, from: offset.value }
-}
-function onPointermove(event: PointerEvent) {
-  if (!drag) return
-  offset.value = {
-    x: drag.from.x + event.clientX - drag.x,
-    y: drag.from.y + event.clientY - drag.y,
+function onStageClick(event: MouseEvent) {
+  if (consumeMaskClick()) {
+    maskListeners.onClick(event)
   }
 }
-function onPointerup() {
-  drag = undefined
-}
-function onDblclick() {
-  if (scale.value === 1) scale.value = clampScale(2, props.minScale, props.maxScale)
-  else reset()
-}
 
-const transform = computed(
-  () =>
-    `translate(${offset.value.x}px, ${offset.value.y}px) scale(${scale.value}) ` +
-    `scale(${flip.value.x}, ${flip.value.y}) rotate(${rotate.value}deg)`,
-)
 const label = computed(() =>
   count.value > 1
     ? t('image.counter', { index: Math.min(index.value, count.value - 1) + 1, total: count.value })
@@ -178,20 +166,32 @@ const label = computed(() =>
         :data-dou-theme="theme"
         @keydown="onKeydown"
       >
-        <div :class="ns.e('stage')" v-bind="maskListeners" @wheel="onWheel">
+        <div
+          ref="stage"
+          :class="[ns.e('stage'), ns.is('movable', canPan), ns.is('dragging', dragging)]"
+          @pointerdown="onStagePointerdown"
+          @pointermove="onPointermove"
+          @pointerup="onPointerup"
+          @pointercancel="onPointercancel"
+          @click="onStageClick"
+          @wheel="onWheel"
+        >
           <img
             v-if="current && !failed"
+            ref="image"
             :key="current.src"
-            :class="[ns.e('image'), ns.is('movable', scale > 1)]"
+            :class="[
+              ns.e('image'),
+              ns.is('movable', canPan),
+              ns.is('dragging', dragging),
+              ns.is('interacting', interacting),
+            ]"
             :src="current.src"
             :alt="current.alt ?? ''"
             :style="{ transform }"
             draggable="false"
+            @load="syncBounds"
             @error="failed = true"
-            @pointerdown="onPointerdown"
-            @pointermove="onPointermove"
-            @pointerup="onPointerup"
-            @pointercancel="onPointerup"
             @dblclick="onDblclick"
           />
           <div v-else-if="current" :class="ns.e('error')">{{ t('image.error') }}</div>

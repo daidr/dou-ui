@@ -38,7 +38,7 @@ describe('menu.css', () => {
       /inset-block-start:\s*var\(--dou-menu-actions-top,\s*var\(--dou-menu-padding-y,\s*0px\)\)/,
     )
     expect(actions).toMatch(
-      /height:\s*var\(--dou-menu-actions-height,\s*var\(--dou-menu-item-height\)\)/,
+      /height:\s*var\(\s*--dou-menu-actions-height,\s*calc\(var\(--dou-menu-item-height\)\s*-\s*2\s*\*\s*var\(--dou-menu-padding-y,\s*0px\)\)\s*\)/,
     )
   })
 })

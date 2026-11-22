@@ -214,7 +214,10 @@
     display: flex;
     align-items: center;
     gap: 4px;
-    height: var(--dou-menu-actions-height, var(--dou-menu-item-height));
+    height: var(
+      --dou-menu-actions-height,
+      calc(var(--dou-menu-item-height) - 2 * var(--dou-menu-padding-y, 0px))
+    );
   }
 
   /* touch hit areas reach 8px past a small button: keep them apart */

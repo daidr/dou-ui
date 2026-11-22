@@ -44,9 +44,6 @@ afterEach(() => {
   delete (HTMLElement.prototype as { offsetHeight?: number }).offsetHeight
 })
 
-const spacerHeight = (wrapper: ReturnType<typeof mount>, selector: string) =>
-  wrapper.get(selector).attributes('style')
-
 describe('DouVirtualList with measured items', () => {
   const items = Array.from({ length: 100 }, (_, index) => ({ id: index }))
 
@@ -56,16 +53,43 @@ describe('DouVirtualList with measured items', () => {
       slots: { default: () => 'x' },
       attachTo: document.body,
     })
-    expect(spacerHeight(wrapper, '.dou-virtual-list__spacer')).toContain('height: 5000px')
     const rendered = wrapper.findAll('.dou-virtual-list__item')
-    expect(rendered[0]!.attributes('style')).not.toContain('height')
+    expect(rendered).toHaveLength(4)
+    expect(rendered[0]!.attributes('style')).toBeUndefined()
+    expect(wrapper.get('.dou-virtual-list__pad').attributes('style')).toContain(
+      `height: ${(100 - rendered.length) * 50}px`,
+    )
     for (const item of rendered) item.element.setAttribute('data-height', '80')
     resizeAll()
     await nextTick()
-    const count = rendered.length
-    expect(spacerHeight(wrapper, '.dou-virtual-list__spacer')).toContain(
-      `height: ${count * 80 + (100 - count) * 50}px`,
+    // at 80px each, only 3 items cover the 200px viewport; item 3 moves into the trailing pad at its measured 80px
+    const shown = wrapper.findAll('.dou-virtual-list__item')
+    expect(shown).toHaveLength(3)
+    expect(wrapper.get('.dou-virtual-list__pad').attributes('style')).toContain(
+      `height: ${80 + (100 - rendered.length) * 50}px`,
     )
+    wrapper.unmount()
+  })
+
+  it('adjusts scrollTop when an item above the viewport changes height', async () => {
+    const wrapper = mount(DouVirtualList, {
+      props: { items, itemKey: 'id', estimateSize: 50, height: 200, overscan: 2 },
+      slots: { default: () => 'x' },
+      attachTo: document.body,
+    })
+    const el = wrapper.element as HTMLElement
+    Object.defineProperty(el, 'scrollHeight', { configurable: true, get: () => 5000 })
+    Object.defineProperty(el, 'clientHeight', { configurable: true, get: () => 200 })
+    el.scrollTop = 500
+    await wrapper.trigger('scroll')
+    const rendered = wrapper.findAll('.dou-virtual-list__item')
+    // first = 10, overscan = 2 -> indices 8..15; items 8 and 9 sit above scrollTop 500
+    expect(Number(rendered[0]!.attributes('data-index'))).toBe(8)
+    for (const item of rendered) item.element.setAttribute('data-height', '50')
+    rendered[0]!.element.setAttribute('data-height', '80')
+    resizeAll()
+    await nextTick()
+    expect(el.scrollTop).toBe(530)
     wrapper.unmount()
   })
 })

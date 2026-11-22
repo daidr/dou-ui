@@ -22,6 +22,12 @@
 
 不传 `height` 时列表撑满父元素，父元素需要有确定的高度。
 
+## 项内吸顶
+
+可见项按正常文档流排版，列表项内部可以直接使用 `position: sticky`（例如长分组或多个文件的标题栏），滚到下一项时自然顶替。
+
+<DocDemo src="virtual-list/sticky" column />
+
 ## 跳转到某一项
 
 `scrollToIndex(index, align)` 把某一项滚进视口。`align` 默认 `'nearest'`，已经可见时不动，否则只滚最少的距离；也可以是 `'start'`、`'center'`、`'end'`。

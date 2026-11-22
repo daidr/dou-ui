@@ -98,6 +98,10 @@ const visible = computed(() => {
     return { item, index, key: keyOf(item, index) }
   })
 })
+const spacerBefore = computed(() => offsets.value.start(range.value.from))
+const spacerAfter = computed(() =>
+  Math.max(0, offsets.value.total - offsets.value.start(range.value.to)),
+)
 
 const style = computed(() =>
   props.height === undefined
@@ -202,7 +206,13 @@ defineExpose<VirtualListExpose>({
 
 <template>
   <div ref="el" tabindex="0" :class="ns.b()" :style="style" @scroll="onScroll">
-    <div v-if="items.length" :class="ns.e('spacer')" :style="{ height: `${offsets.total}px` }">
+    <div v-if="items.length" :class="ns.e('spacer')">
+      <div
+        v-if="spacerBefore > 0"
+        :class="ns.e('pad')"
+        aria-hidden="true"
+        :style="{ height: `${spacerBefore}px` }"
+      />
       <div
         v-for="entry in visible"
         :key="entry.key"
@@ -211,13 +221,16 @@ defineExpose<VirtualListExpose>({
         "
         :class="ns.e('item')"
         :data-index="entry.index"
-        :style="{
-          transform: `translateY(${offsets.start(entry.index)}px)`,
-          height: sizeOf(entry.index),
-        }"
+        :style="measured ? undefined : { height: sizeOf(entry.index) }"
       >
         <slot :item="entry.item" :index="entry.index" />
       </div>
+      <div
+        v-if="spacerAfter > 0"
+        :class="ns.e('pad')"
+        aria-hidden="true"
+        :style="{ height: `${spacerAfter}px` }"
+      />
     </div>
     <slot v-else name="empty" />
   </div>

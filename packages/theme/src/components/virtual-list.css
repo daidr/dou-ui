@@ -1,15 +1,18 @@
 /*
  * VirtualList
  *
- * Only the items near the viewport are in the page. A spacer as tall as
- * every item together keeps the scrollbar honest, and each rendered item
- * is placed at its own offset. The list draws no surface of its own.
+ * Only the items near the viewport are in the page. Leading and trailing
+ * pads stand in for the rest so rendered items stay in normal flow and
+ * sticky headers inside an item work natively. The list draws no surface
+ * of its own.
  */
 @layer dou.components {
   .dou-virtual-list {
     position: relative;
     overflow-y: auto;
     overscroll-behavior: contain;
+    /* a virtual list keeps its own place when items above change height */
+    overflow-anchor: none;
     outline: none;
   }
 
@@ -24,10 +27,13 @@
     width: 100%;
   }
 
+  .dou-virtual-list__pad {
+    width: 100%;
+    pointer-events: none;
+  }
+
   .dou-virtual-list__item {
-    position: absolute;
-    top: 0;
-    left: 0;
+    display: flow-root;
     box-sizing: border-box;
     width: 100%;
   }

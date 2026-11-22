@@ -25,7 +25,7 @@ export interface Position {
   x: number
   y: number
   placement: Placement
-  /** The room left on the chosen side, for capping the height of long content. */
+  /** The vertical room left for the panel, for capping the height of long content. */
   available: number
 }
 
@@ -90,11 +90,15 @@ export function computePosition(
     x = clamp(x, padding, Math.max(padding, viewport.width - padding - width))
   }
 
+  const maxAvailable = viewport.height - padding * 2
+  const availableHeight =
+    side === 'top' || side === 'bottom' ? Math.min(room(side), maxAvailable) : maxAvailable
+
   return {
     x: Math.round(x),
     y: Math.round(y),
     placement: (align ? `${side}-${align}` : side) as Placement,
-    available: Math.max(0, Math.floor(room(side))),
+    available: Math.max(0, Math.floor(availableHeight)),
   }
 }
 
@@ -109,6 +113,15 @@ export interface UseFloatingOptions {
   offset?: MaybeRefOrGetter<number>
   /** Make the floating element at least as wide as the reference. */
   sameWidth?: MaybeRefOrGetter<boolean>
+}
+
+function collectScrollOffsets(root: HTMLElement): Array<[Element, number, number]> {
+  const saved: Array<[Element, number, number]> = []
+  if (root.scrollTop || root.scrollLeft) saved.push([root, root.scrollTop, root.scrollLeft])
+  for (const el of root.querySelectorAll('*')) {
+    if (el.scrollTop || el.scrollLeft) saved.push([el, el.scrollTop, el.scrollLeft])
+  }
+  return saved
 }
 
 /**
@@ -126,22 +139,60 @@ export function useFloating(
     const anchor = reference()
     const target = floating.value
     if (!anchor || !target) return
+    // Wait until `v-show` / `<Transition>` reveals a re-opened panel: measuring
+    // while `display: none` sees 0×0 and would lock `--dou-floating-available`
+    // to an unflipped side before the panel is shown.
+    if (target.style.display === 'none') {
+      if (toValue(options.open)) schedule()
+      return
+    }
     const box = anchor.getBoundingClientRect()
     if (toValue(options.sameWidth)) target.style.minWidth = `${box.width}px`
-    position.value = computePosition(
-      box,
-      { width: target.offsetWidth, height: target.offsetHeight },
-      toValue(options.placement),
-      {
-        offset: toValue(options.offset) ?? 8,
-        padding: 8,
-        flip: true,
-        viewport: {
-          width: document.documentElement.clientWidth,
-          height: document.documentElement.clientHeight,
-        },
+    // Measure natural size without our own height cap so flip decisions see the
+    // panel's real needed height even when previously clamped to a tighter side.
+    // Removing the cap can temporarily expand scrollable descendants and clamp
+    // their scroll offset to 0, so save and restore any active scroll positions.
+    const previousAvailable = target.style.getPropertyValue('--dou-floating-available')
+    const savedScroll = previousAvailable ? collectScrollOffsets(target) : null
+    if (previousAvailable) target.style.removeProperty('--dou-floating-available')
+    const naturalWidth = target.offsetWidth
+    const naturalHeight = target.offsetHeight
+    const floatingOptions: PositionOptions = {
+      offset: toValue(options.offset) ?? 8,
+      padding: 8,
+      flip: true,
+      viewport: {
+        width: document.documentElement.clientWidth,
+        height: document.documentElement.clientHeight,
       },
+    }
+    const desired = computePosition(
+      box,
+      { width: naturalWidth, height: naturalHeight },
+      toValue(options.placement),
+      floatingOptions,
     )
+    target.style.setProperty('--dou-floating-available', `${desired.available}px`)
+    const actualWidth = target.offsetWidth
+    const actualHeight = target.offsetHeight
+    if (savedScroll?.length) {
+      for (const [el, top, left] of savedScroll) {
+        if (el.scrollTop !== top) el.scrollTop = top
+        if (el.scrollLeft !== left) el.scrollLeft = left
+      }
+    }
+    position.value =
+      actualWidth === naturalWidth && actualHeight === naturalHeight
+        ? desired
+        : {
+            ...computePosition(
+              box,
+              { width: actualWidth, height: actualHeight },
+              desired.placement,
+              { ...floatingOptions, flip: false },
+            ),
+            available: desired.available,
+          }
   }
 
   let frame = 0
@@ -152,10 +203,19 @@ export function useFloating(
       update()
     })
   }
+  const onScroll = (event: Event) => {
+    const panel = floating.value
+    const scrollTarget = event.target
+    if (panel && scrollTarget instanceof Node && panel.contains(scrollTarget)) {
+      const anchor = reference()
+      if (!(anchor instanceof Node) || !scrollTarget.contains(anchor)) return
+    }
+    schedule()
+  }
 
   let observer: ResizeObserver | undefined
   function start() {
-    window.addEventListener('scroll', schedule, { capture: true, passive: true })
+    window.addEventListener('scroll', onScroll, { capture: true, passive: true })
     window.addEventListener('resize', schedule, { passive: true })
     if (typeof ResizeObserver !== 'undefined') {
       // ResizeObserver already runs after layout and before paint. Deferring it
@@ -167,7 +227,7 @@ export function useFloating(
     }
   }
   function stop() {
-    window.removeEventListener('scroll', schedule, { capture: true })
+    window.removeEventListener('scroll', onScroll, { capture: true })
     window.removeEventListener('resize', schedule)
     observer?.disconnect()
     observer = undefined

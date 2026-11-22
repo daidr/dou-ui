@@ -363,4 +363,38 @@ describe('DouDock', () => {
     rect.mockRestore()
     warn.mockRestore()
   })
+
+  it('switches and closes overflowing tabs of a group from its overflow popover', async () => {
+    const { wrapper, layout, events } = make({ closable: true })
+    await nextTick()
+    const list = wrapper.get('[data-dock-group="a"] [role="tablist"]').element as HTMLElement
+    Object.defineProperties(list, {
+      clientWidth: { configurable: true, get: () => 80 },
+      scrollWidth: { configurable: true, get: () => 240 },
+    })
+    list.dispatchEvent(new Event('scroll'))
+    await nextTick()
+
+    await wrapper.get('[data-dock-group="a"] .dou-tabs__overflow').trigger('click')
+    await nextTick()
+    await nextTick()
+
+    const popover = document.querySelector<HTMLElement>('.dou-tabs__overflow-popover')!
+    const items = popover.querySelectorAll<HTMLElement>('.dou-tabs__overflow-item')
+    expect(items).toHaveLength(2)
+    items[1]!.querySelector<HTMLButtonElement>('.dou-tabs__overflow-select')!.click()
+    await nextTick()
+    expect(layout.value.type === 'split' && layout.value.start).toMatchObject({ active: 'plan' })
+
+    await wrapper.get('[data-dock-group="a"] .dou-tabs__overflow').trigger('click')
+    await nextTick()
+    await nextTick()
+    popover
+      .querySelectorAll<HTMLElement>('.dou-tabs__overflow-item')[0]!
+      .querySelector<HTMLButtonElement>('.dou-tabs__overflow-close')!
+      .click()
+    expect(events.at(-1)).toEqual(['remove', 'thread', 'a'])
+    wrapper.unmount()
+    document.body.innerHTML = ''
+  })
 })

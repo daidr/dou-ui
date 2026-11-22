@@ -135,12 +135,20 @@ describe('DouTabs', () => {
   })
 })
 
-/** Give the tab list a layout: 300px wide, 900px of tabs, each tab 100px. */
-function layout(list: HTMLElement) {
+function wheelWithModifier(modifier: 'ctrlKey' | 'metaKey') {
+  const event = new WheelEvent('wheel', { deltaY: 60, deltaX: 0, cancelable: true })
+  Object.defineProperty(event, modifier, { value: true })
+  return event
+}
+
+/** Give the tab list a layout: `clientWidth` wide, `scrollWidth` of tabs, each tab 100px. */
+function layout(list: HTMLElement, options: { clientWidth?: number; scrollWidth?: number } = {}) {
   let left = 0
+  let clientWidth = options.clientWidth ?? 300
+  let scrollWidth = options.scrollWidth ?? 900
   Object.defineProperties(list, {
-    clientWidth: { configurable: true, get: () => 300 },
-    scrollWidth: { configurable: true, get: () => 900 },
+    clientWidth: { configurable: true, get: () => clientWidth },
+    scrollWidth: { configurable: true, get: () => scrollWidth },
     scrollLeft: {
       configurable: true,
       get: () => left,
@@ -149,14 +157,11 @@ function layout(list: HTMLElement) {
       },
     },
   })
-  const calls: { to: number[]; by: number[] } = { to: [], by: [] }
-  list.scrollTo = ((options: ScrollToOptions) => {
-    calls.to.push(options.left!)
-    left = options.left!
+  const calls: { to: number[] } = { to: [] }
+  list.scrollTo = ((scrollOptions: ScrollToOptions) => {
+    calls.to.push(scrollOptions.left!)
+    left = scrollOptions.left!
   }) as typeof list.scrollTo
-  list.scrollBy = ((options: ScrollToOptions) => {
-    calls.by.push(options.left!)
-  }) as typeof list.scrollBy
   // tabs are matched by their label, since a re-render may replace them
   const proto = HTMLButtonElement.prototype
   Object.defineProperties(proto, {
@@ -171,6 +176,14 @@ function layout(list: HTMLElement) {
   })
   return {
     calls,
+    get left() {
+      return left
+    },
+    resize(nextClientWidth: number, nextScrollWidth = scrollWidth) {
+      clientWidth = nextClientWidth
+      scrollWidth = nextScrollWidth
+      list.dispatchEvent(new Event('scroll'))
+    },
     scrollTo(value: number) {
       left = value
       list.dispatchEvent(new Event('scroll'))
@@ -178,49 +191,118 @@ function layout(list: HTMLElement) {
   }
 }
 
-const manyTabs = (value: string) =>
-  mount(DouTabs, {
-    props: { modelValue: value },
-    slots: {
-      default: () =>
-        Array.from({ length: 9 }, (_, index) =>
-          h(DouTabPanel, { value: `t${index}`, label: `标签 ${index}` }, () => `内容 ${index}`),
-        ),
-    },
-    attachTo: document.body,
-  })
+const manyTabs = (value: string, props: Record<string, unknown> = {}) =>
+  mount(
+    defineComponent({
+      setup() {
+        const current = ref<string | number | undefined>(value)
+        return () =>
+          h(
+            DouTabs,
+            {
+              ...props,
+              modelValue: current.value,
+              'onUpdate:modelValue': (v: string | number | undefined) => (current.value = v),
+            },
+            {
+              default: () =>
+                Array.from({ length: 9 }, (_, index) =>
+                  h(
+                    DouTabPanel,
+                    {
+                      value: `t${index}`,
+                      label: `标签 ${index}`,
+                      disabled: index === 2,
+                      closable: index === 0 ? false : undefined,
+                    },
+                    () => `内容 ${index}`,
+                  ),
+                ),
+              ...(props.withExtra
+                ? { extra: () => h('span', { class: 'probe-extra' }, '更多') }
+                : {}),
+            },
+          )
+      },
+    }),
+    { attachTo: document.body },
+  )
 
 describe('DouTabs overflow', () => {
   afterEach(() => {
     const proto = HTMLButtonElement.prototype as unknown as Record<string, unknown>
     delete proto.offsetLeft
     delete proto.offsetWidth
+    document.body.innerHTML = ''
   })
 
-  it('fades the edges and shows arrows on the side with more tabs', async () => {
-    const wrapper = manyTabs('t0')
+  it('fades the edges and shows a single overflow button before add and extra', async () => {
+    const wrapper = manyTabs('t0', { addable: true, withExtra: true })
+    await nextTick()
+    await nextTick()
     const list = wrapper.get('[role="tablist"]').element as HTMLElement
-    const { calls, scrollTo } = layout(list)
+    const { scrollTo, resize } = layout(list)
     scrollTo(0)
     await nextTick()
+
     expect(list.classList).toContain('is-fade-end')
     expect(list.classList).not.toContain('is-fade-start')
-    const [prev, next] = wrapper.findAll('.dou-tabs__scroll')
-    expect(prev!.attributes('disabled')).toBeDefined()
-    expect(prev!.attributes('tabindex')).toBe('-1')
-    await next!.trigger('click')
-    expect(calls.by).toEqual([240])
+    expect(wrapper.find('.dou-tabs__scroll').exists()).toBe(false)
+    expect(wrapper.findAll('.dou-tabs__overflow')).toHaveLength(1)
+
+    const children = [...wrapper.get('.dou-tabs__header').element.children]
+    const listIndex = children.indexOf(list)
+    const overflowIndex = children.indexOf(wrapper.get('.dou-tabs__overflow').element)
+    const addIndex = children.indexOf(wrapper.get('.dou-tabs__add').element)
+    const extraIndex = children.indexOf(wrapper.get('.dou-tabs__extra').element)
+    expect(listIndex).toBeLessThan(overflowIndex)
+    expect(overflowIndex).toBeLessThan(addIndex)
+    expect(addIndex).toBeLessThan(extraIndex)
 
     scrollTo(600)
     await nextTick()
     expect(list.classList).toContain('is-fade-start')
     expect(list.classList).not.toContain('is-fade-end')
-    expect(wrapper.findAll('.dou-tabs__scroll')[1]!.attributes('disabled')).toBeDefined()
+    expect(wrapper.findAll('.dou-tabs__overflow')).toHaveLength(1)
+
+    // hides automatically once the row fits again
+    resize(1000, 900)
+    await nextTick()
+    expect(wrapper.find('.dou-tabs__overflow').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('keeps the overflow button even in a narrow header', async () => {
+    const wrapper = manyTabs('t0')
+    const header = wrapper.get('.dou-tabs__header').element as HTMLElement
+    Object.defineProperty(header, 'clientWidth', { configurable: true, value: 120 })
+    const list = wrapper.get('[role="tablist"]').element as HTMLElement
+    const { scrollTo } = layout(list, { clientWidth: 100, scrollWidth: 900 })
+    scrollTo(0)
+    await nextTick()
+    expect(list.classList).toContain('is-fade-end')
+    expect(wrapper.find('.dou-tabs__overflow').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('has no overflow button when the tabs fit', async () => {
+    const wrapper = make()
+    await nextTick()
+    expect(wrapper.find('.dou-tabs__overflow').exists()).toBe(false)
     wrapper.unmount()
   })
 
   it('scrolls the selected tab into view, clear of the faded edge', async () => {
-    const wrapper = manyTabs('t0')
+    const wrapper = mount(DouTabs, {
+      props: { modelValue: 't0' },
+      slots: {
+        default: () =>
+          Array.from({ length: 9 }, (_, index) =>
+            h(DouTabPanel, { value: `t${index}`, label: `标签 ${index}` }, () => `内容 ${index}`),
+          ),
+      },
+      attachTo: document.body,
+    })
     const list = wrapper.get('[role="tablist"]').element as HTMLElement
     const { calls } = layout(list)
     await wrapper.setProps({ modelValue: 't6' })
@@ -231,24 +313,188 @@ describe('DouTabs overflow', () => {
     wrapper.unmount()
   })
 
-  it('has no arrows in a row too narrow to show a tab beside them', async () => {
+  it('converts vertical wheel deltaY to horizontal scroll when overflowing', async () => {
     const wrapper = manyTabs('t0')
-    const header = wrapper.get('.dou-tabs__header').element as HTMLElement
-    Object.defineProperty(header, 'clientWidth', { configurable: true, value: 120 })
+    await nextTick()
+    await nextTick()
+    const list = wrapper.get('[role="tablist"]').element as HTMLElement
+    const state = layout(list)
+    state.scrollTo(0)
+    await nextTick()
+
+    const down = new WheelEvent('wheel', { deltaY: 120, deltaX: 0, cancelable: true })
+    list.dispatchEvent(down)
+    expect(down.defaultPrevented).toBe(true)
+    expect(state.left).toBe(120)
+    await nextTick()
+    expect(list.classList).toContain('is-fade-start')
+    expect(list.classList).toContain('is-fade-end')
+
+    // DOM_DELTA_LINE scales to pixels
+    const lineDown = new WheelEvent('wheel', {
+      deltaY: 5,
+      deltaX: 0,
+      deltaMode: 1,
+      cancelable: true,
+    })
+    list.dispatchEvent(lineDown)
+    expect(lineDown.defaultPrevented).toBe(true)
+    expect(state.left).toBe(200)
+
+    // native horizontal wheel / trackpad gesture is not intercepted
+    const horizontal = new WheelEvent('wheel', { deltaX: 40, deltaY: 0, cancelable: true })
+    list.dispatchEvent(horizontal)
+    expect(horizontal.defaultPrevented).toBe(false)
+    expect(state.left).toBe(200)
+
+    // zoom gestures with ctrlKey or metaKey are not intercepted
+    const ctrlZoom = wheelWithModifier('ctrlKey')
+    list.dispatchEvent(ctrlZoom)
+    expect(ctrlZoom.defaultPrevented).toBe(false)
+
+    const metaZoom = wheelWithModifier('metaKey')
+    list.dispatchEvent(metaZoom)
+    expect(metaZoom.defaultPrevented).toBe(false)
+
+    // does not intercept when there is no horizontal overflow
+    state.resize(1000, 900)
+    const noOverflow = new WheelEvent('wheel', { deltaY: 120, deltaX: 0, cancelable: true })
+    list.dispatchEvent(noOverflow)
+    expect(noOverflow.defaultPrevented).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('opens a vertical tab list popover to switch, close and respect beforeLeave', async () => {
+    const ProbeIcon = defineComponent({ setup: () => () => h('svg', { class: 'probe-icon' }) })
+    let allow = false
+    const current = ref<string | number | undefined>('t0')
+    const removed: unknown[] = []
+    const wrapper = mount(
+      defineComponent({
+        setup: () => () =>
+          h(
+            DouTabs,
+            {
+              modelValue: current.value,
+              'onUpdate:modelValue': (v: string | number | undefined) => (current.value = v),
+              closable: true,
+              beforeLeave: async () => allow,
+              onRemove: (v: string | number) => removed.push(v),
+            },
+            () => [
+              h(DouTabPanel, { value: 't0', label: '标签 0', icon: ProbeIcon, closable: false }),
+              h(
+                DouTabPanel,
+                { value: 't1', label: '标签 1' },
+                {
+                  label: ({ selected }: { selected: boolean }) => `自定义 1${selected ? '*' : ''}`,
+                },
+              ),
+              h(DouTabPanel, { value: 't2', label: '标签 2', disabled: true }),
+              ...Array.from({ length: 6 }, (_, i) =>
+                h(DouTabPanel, { value: `t${i + 3}`, label: `标签 ${i + 3}` }),
+              ),
+            ],
+          ),
+      }),
+      { attachTo: document.body },
+    )
+    const list = wrapper.get('[role="tablist"]').element as HTMLElement
+    const { calls, scrollTo } = layout(list)
+    scrollTo(0)
+    await nextTick()
+
+    await wrapper.get('.dou-tabs__overflow').trigger('click')
+    await nextTick()
+    await nextTick()
+
+    const popover = document.querySelector<HTMLElement>('.dou-tabs__overflow-popover')
+    expect(popover).not.toBeNull()
+    expect(popover!.style.display).not.toBe('none')
+
+    const items = [...popover!.querySelectorAll<HTMLElement>('.dou-tabs__overflow-item')]
+    expect(items).toHaveLength(9)
+    // active item, icon, custom #label slot, disabled state
+    expect(items[0]!.classList).toContain('is-selected')
+    expect(items[0]!.querySelector('.dou-tabs__overflow-icon.probe-icon')).not.toBeNull()
+    expect(items[0]!.querySelector('.dou-tabs__overflow-check')).not.toBeNull()
+    expect(items[0]!.querySelector('.dou-tabs__overflow-close')).toBeNull()
+    expect(items[1]!.querySelector('.dou-tabs__overflow-label')?.textContent).toBe('自定义 1')
+    expect(items[1]!.querySelector('.dou-tabs__overflow-close')).not.toBeNull()
+    expect(items[2]!.classList).toContain('is-disabled')
+    expect(items[2]!.querySelector<HTMLButtonElement>('.dou-tabs__overflow-select')?.disabled).toBe(
+      true,
+    )
+    expect(items[2]!.querySelector('.dou-tabs__overflow-close')).toBeNull()
+
+    // closing from the popover emits remove without selecting or closing the popover
+    items[1]!.querySelector<HTMLButtonElement>('.dou-tabs__overflow-close')!.click()
+    await nextTick()
+    expect(removed).toEqual(['t1'])
+    expect(current.value).toBe('t0')
+    expect(popover!.style.display).not.toBe('none')
+
+    // blocked by beforeLeave: does not switch or close
+    items[6]!.querySelector<HTMLButtonElement>('.dou-tabs__overflow-select')!.click()
+    await new Promise((done) => setTimeout(done))
+    await nextTick()
+    expect(current.value).toBe('t0')
+    expect(popover!.style.display).not.toBe('none')
+
+    // allowed by beforeLeave: switches, scrolls selected tab into view, and closes popover
+    allow = true
+    items[6]!.querySelector<HTMLButtonElement>('.dou-tabs__overflow-select')!.click()
+    await new Promise((done) => setTimeout(done))
+    await nextTick()
+    await nextTick()
+    expect(current.value).toBe('t6')
+    expect(popover!.style.display).toBe('none')
+    expect(calls.to.at(-1)).toBe(432)
+    wrapper.unmount()
+  })
+
+  it('supports keyboard navigation, closing and escape in the overflow popover', async () => {
+    const wrapper = manyTabs('t0', { closable: true })
     const list = wrapper.get('[role="tablist"]').element as HTMLElement
     const { scrollTo } = layout(list)
     scrollTo(0)
     await nextTick()
-    // the row still scrolls and fades, by swiping, the wheel or the arrow keys
-    expect(list.classList).toContain('is-fade-end')
-    expect(wrapper.find('.dou-tabs__scroll').exists()).toBe(false)
-    wrapper.unmount()
-  })
 
-  it('has no arrows when the tabs fit', async () => {
-    const wrapper = make()
+    const trigger = wrapper.get('.dou-tabs__overflow')
+    ;(trigger.element as HTMLElement).focus()
+    await trigger.trigger('keydown', { key: 'ArrowDown' })
     await nextTick()
-    expect(wrapper.find('.dou-tabs__scroll').exists()).toBe(false)
+    await nextTick()
+
+    const popover = document.querySelector<HTMLElement>('.dou-tabs__overflow-popover')!
+    const buttons = () => [
+      ...popover.querySelectorAll<HTMLButtonElement>('.dou-tabs__overflow-select'),
+    ]
+    expect(document.activeElement).toBe(buttons()[0])
+
+    // ArrowDown skips disabled t2 when stepping from t1
+    buttons()[0]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
+    expect(document.activeElement).toBe(buttons()[1])
+    buttons()[1]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
+    expect(document.activeElement).toBe(buttons()[3])
+
+    // Delete triggers remove on a closable item
+    const tabs = wrapper.findComponent(DouTabs)
+    buttons()[3]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true }))
+    expect(tabs.emitted('remove')).toEqual([['t3']])
+
+    // End / Home jump to last / first enabled item
+    buttons()[3]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }))
+    expect(document.activeElement).toBe(buttons()[8])
+    buttons()[8]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true }))
+    expect(document.activeElement).toBe(buttons()[0])
+
+    // Escape closes the popover and returns focus to the trigger
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await nextTick()
+    expect(popover.style.display).toBe('none')
+    expect(document.activeElement).toBe(trigger.element)
+    wrapper.unmount()
   })
 
   it('measures the underline again when the selected tab grows on its own', async () => {

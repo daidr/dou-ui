@@ -13,8 +13,7 @@ export const en: Locale = {
     decimalSeparator: '.',
   },
   tabs: {
-    scrollPrev: 'Scroll tabs back',
-    scrollNext: 'Scroll tabs forward',
+    more: 'All tabs',
     close: 'Close',
     add: 'New tab',
     moved: '{label} moved to position {position} of {total}',

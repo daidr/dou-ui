@@ -15,7 +15,7 @@ import {
   useTemplateRef,
   watch,
 } from 'vue'
-import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, PlusIcon } from '@dou-ui/icons'
+import { CheckIcon, ChevronDownIcon, CloseIcon, PlusIcon } from '@dou-ui/icons'
 import { useReducedMotion } from '../../composables/use-motion'
 import { announce } from '../../utils/announce'
 import { useNamespace } from '../../utils/namespace'
@@ -23,6 +23,7 @@ import { scrollPositionOf } from '../../utils/scroll'
 import { devWarn } from '../../utils/status-check'
 import { useLocale } from '../config-provider/use-config'
 import { useFormSize } from '../form/use-form-item'
+import { DouPopover } from '../popover'
 import { DouTooltip } from '../tooltip'
 import { pressTab, registerTabDropZone } from './tab-drag'
 import { tabsKey } from './tabs'
@@ -81,8 +82,12 @@ function sync() {
 function reorder() {
   if (!sync()) triggerRef(panels)
 }
-// The panels may have been put in a new order, e.g. after a `move`.
-onUpdated(sync)
+// The panels may have been put in a new order, e.g. after a `move`, or a
+// tab's label may have changed width.
+onUpdated(() => {
+  sync()
+  updateOverflow()
+})
 
 const firstEnabled = computed(() => panels.value.find((entry) => !entry.props.disabled))
 const selected = computed(() => model.value ?? firstEnabled.value?.props.value)
@@ -104,11 +109,12 @@ async function select(entry: TabPanelEntry) {
   if (entry.props.disabled) return
   await selectValue(entry.props.value)
 }
-async function selectValue(next: TabsValue) {
-  if (next === selected.value) return
-  if (props.beforeLeave && !(await props.beforeLeave(next, selected.value))) return
+async function selectValue(next: TabsValue): Promise<boolean> {
+  if (next === selected.value) return true
+  if (props.beforeLeave && !(await props.beforeLeave(next, selected.value))) return false
   model.value = next
   emit('change', next)
+  return true
 }
 
 const isClosable = (entry: TabPanelEntry) =>
@@ -427,38 +433,167 @@ function measure() {
   }
 }
 
-// When the tabs do not fit, the list scrolls sideways: the edges fade and
-// arrows appear on the side that has more, and the selected tab is kept in view.
-const overflow = ref({ start: false, end: false })
+// When the tabs do not fit, the list scrolls sideways: the edges fade,
+// the wheel scrolls it horizontally, a button at the end opens the full list
+// in a popover, and the selected tab is kept in view.
+const overflow = ref({ start: false, end: false, any: false })
+const hasOverflow = computed(() => !vertical.value && overflow.value.any)
+const overflowOpen = ref(false)
 const reduced = useReducedMotion()
 
-// Arrows in a narrow row would leave no room for a single tab: there the
-// row scrolls by swiping, the wheel or the keyboard alone.
-const ARROWS_MIN_WIDTH = 160
-const arrows = ref(true)
+function setOverflow(start: boolean, end: boolean, any: boolean) {
+  const prev = overflow.value
+  if (prev.start === start && prev.end === end && prev.any === any) return
+  overflow.value = { start, end, any }
+}
 
 function updateOverflow() {
-  // a header not laid out yet has no width to go by
-  const width = headerRef.value?.clientWidth || Infinity
-  arrows.value = width >= ARROWS_MIN_WIDTH
   const list = listRef.value
   if (!list) {
-    overflow.value = { start: false, end: false }
+    setOverflow(false, false, false)
     return
   }
   if (vertical.value) {
-    // a column only overflows with a fixed `height`; there it fades but has no arrows
+    // a column only overflows with a fixed `height`; there it fades without a popover
     const max = list.scrollHeight - list.clientHeight
     // kept in range while the column bounces
     const top = scrollPositionOf(list).top
-    overflow.value = { start: top > 1, end: top < max - 1 }
+    setOverflow(top > 1, top < max - 1, false)
     return
   }
   const max = list.scrollWidth - list.clientWidth
   // from the start, also right to left, and kept in range while the row bounces
   const left = Math.abs(scrollPositionOf(list).left)
   // a sub-pixel remainder is not something to scroll to
-  overflow.value = { start: left > 1, end: left < max - 1 }
+  setOverflow(left > 1, left < max - 1, max > 1)
+}
+
+watch(hasOverflow, (value) => {
+  if (!value) overflowOpen.value = false
+})
+
+function onWheel(event: WheelEvent) {
+  if (vertical.value || event.ctrlKey || event.metaKey) return
+  const list = listRef.value
+  if (!list) return
+  const max = list.scrollWidth - list.clientWidth
+  if (max <= 1) return
+  // Let native horizontal scrolling (trackpad or tilt wheel) pass through.
+  if (event.deltaX !== 0 || event.deltaY === 0) return
+  const scale = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? list.clientWidth : 1
+  const delta = event.deltaY * scale
+  const rtl = getComputedStyle(list).direction === 'rtl'
+  const next = rtl
+    ? Math.min(0, Math.max(-max, list.scrollLeft - delta))
+    : Math.min(max, Math.max(0, list.scrollLeft + delta))
+  event.preventDefault()
+  if (next !== list.scrollLeft) {
+    list.scrollLeft = next
+    updateOverflow()
+  }
+}
+
+const overflowItems = new Map<number, HTMLButtonElement>()
+function setOverflowItem(uid: number, el: unknown) {
+  if (el instanceof HTMLButtonElement) overflowItems.set(uid, el)
+  else overflowItems.delete(uid)
+}
+
+let pendingOverflowFocus: 'selected' | 'first' | 'last' = 'selected'
+let focusOverflowAfterRemove: TabsValue | undefined
+
+function focusOverflowItem(target: 'selected' | 'first' | 'last' | TabsValue = 'selected') {
+  const enabled = panels.value.filter((panel) => !panel.props.disabled)
+  if (!enabled.length) return
+  let entry: TabPanelEntry | undefined
+  if (target === 'first') entry = enabled[0]
+  else if (target === 'last') entry = enabled.at(-1)
+  else if (target === 'selected') {
+    entry = enabled.find((panel) => panel.props.value === selected.value) ?? enabled[0]
+  } else {
+    entry = enabled.find((panel) => panel.props.value === target) ?? enabled[0]
+  }
+  const el = entry && overflowItems.get(entry.uid)
+  if (!el) return
+  el.scrollIntoView?.({ block: 'nearest' })
+  el.focus({ preventScroll: true })
+}
+
+watch(overflowOpen, (open) => {
+  if (!open) return
+  const target = pendingOverflowFocus
+  pendingOverflowFocus = 'selected'
+  void nextTick(() => focusOverflowItem(target))
+})
+
+watch(
+  panels,
+  () => {
+    if (focusOverflowAfterRemove === undefined) return
+    const target = focusOverflowAfterRemove
+    focusOverflowAfterRemove = undefined
+    if (!overflowOpen.value) return
+    focusOverflowItem(target)
+  },
+  { flush: 'post' },
+)
+
+function onOverflowTriggerKeydown(event: KeyboardEvent) {
+  if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
+  event.preventDefault()
+  const target = event.key === 'ArrowUp' ? 'last' : 'selected'
+  if (overflowOpen.value) {
+    focusOverflowItem(target)
+    return
+  }
+  pendingOverflowFocus = target
+  overflowOpen.value = true
+}
+
+function onOverflowItemKeydown(event: KeyboardEvent, entry: TabPanelEntry) {
+  const enabled = panels.value.filter((panel) => !panel.props.disabled)
+  const index = enabled.indexOf(entry)
+  let target: TabPanelEntry | undefined
+  switch (event.key) {
+    case 'ArrowDown':
+      target = enabled[(index + 1) % enabled.length]
+      break
+    case 'ArrowUp':
+      target = enabled[(index - 1 + enabled.length) % enabled.length]
+      break
+    case 'Home':
+      target = enabled[0]
+      break
+    case 'End':
+      target = enabled.at(-1)
+      break
+    case 'Delete':
+    case 'Backspace': {
+      if (!isClosable(entry)) return
+      event.preventDefault()
+      const neighbor = enabled[index + 1] ?? enabled[index - 1]
+      focusOverflowAfterRemove = neighbor?.props.value
+      remove(entry)
+      return
+    }
+    default:
+      return
+  }
+  if (!target) return
+  event.preventDefault()
+  const el = overflowItems.get(target.uid)
+  el?.scrollIntoView?.({ block: 'nearest' })
+  el?.focus({ preventScroll: true })
+}
+
+async function selectFromOverflow(entry: TabPanelEntry, event: MouseEvent) {
+  if (entry.props.disabled) return
+  const moved = await selectValue(entry.props.value)
+  if (!moved) return
+  overflowOpen.value = false
+  await nextTick()
+  reveal(settled.value)
+  if (event.detail === 0) tabElement(entry)?.focus({ preventScroll: true })
 }
 
 function reveal(smooth: boolean) {
@@ -486,15 +621,6 @@ function reveal(smooth: boolean) {
   list.scrollTo({
     left: Math.max(0, target),
     behavior: smooth && !reduced.value ? 'smooth' : 'auto',
-  })
-}
-
-function scrollByPage(direction: 1 | -1) {
-  const list = listRef.value
-  if (!list) return
-  list.scrollBy({
-    left: direction * list.clientWidth * 0.8,
-    behavior: reduced.value ? 'auto' : 'smooth',
   })
 }
 
@@ -564,17 +690,6 @@ const indicatorStyle = computed(() => {
     :style="rootStyle"
   >
     <div ref="header" :class="ns.e('header')">
-      <button
-        v-if="!vertical && arrows && (overflow.start || overflow.end)"
-        type="button"
-        tabindex="-1"
-        :class="[ns.e('scroll'), ns.is('start', true)]"
-        :disabled="!overflow.start"
-        :aria-label="t('tabs.scrollPrev')"
-        @click="scrollByPage(-1)"
-      >
-        <ChevronLeftIcon />
-      </button>
       <div
         ref="list"
         :class="[
@@ -585,6 +700,7 @@ const indicatorStyle = computed(() => {
         role="tablist"
         :aria-orientation="vertical ? 'vertical' : 'horizontal'"
         @scroll.passive="updateOverflow"
+        @wheel="onWheel"
       >
         <template v-for="entry in panels" :key="entry.uid">
           <TabTip :entry="entry">
@@ -639,17 +755,75 @@ const indicatorStyle = computed(() => {
         <span :class="ns.e('indicator')" :style="indicatorStyle" aria-hidden="true" />
         <span v-if="draggable" :class="ns.e('marker')" :style="markerStyle" aria-hidden="true" />
       </div>
-      <button
-        v-if="!vertical && arrows && (overflow.start || overflow.end)"
-        type="button"
-        tabindex="-1"
-        :class="[ns.e('scroll'), ns.is('end', true)]"
-        :disabled="!overflow.end"
-        :aria-label="t('tabs.scrollNext')"
-        @click="scrollByPage(1)"
+      <DouPopover
+        v-if="hasOverflow"
+        v-model:open="overflowOpen"
+        placement="bottom-end"
+        trigger="click"
+        :offset="6"
+        :class="[ns.e('overflow-popover'), ns.m(size)]"
       >
-        <ChevronRightIcon />
-      </button>
+        <button
+          type="button"
+          :class="[ns.e('overflow'), ns.is('open', overflowOpen)]"
+          :aria-label="t('tabs.more')"
+          @keydown="onOverflowTriggerKeydown"
+        >
+          <ChevronDownIcon aria-hidden="true" />
+        </button>
+        <template #content>
+          <div :class="ns.e('overflow-list')" role="list" :aria-label="t('tabs.more')">
+            <div
+              v-for="entry in panels"
+              :key="entry.uid"
+              role="listitem"
+              :class="[
+                ns.e('overflow-item'),
+                ns.is('selected', entry.props.value === selected),
+                ns.is('disabled', !!entry.props.disabled),
+                ns.is('closable', isClosable(entry)),
+              ]"
+            >
+              <button
+                :ref="(el) => setOverflowItem(entry.uid, el)"
+                type="button"
+                :class="ns.e('overflow-select')"
+                :disabled="entry.props.disabled"
+                :aria-current="entry.props.value === selected ? 'true' : undefined"
+                :aria-keyshortcuts="isClosable(entry) ? 'Delete' : undefined"
+                @click="selectFromOverflow(entry, $event)"
+                @keydown="onOverflowItemKeydown($event, entry)"
+              >
+                <component
+                  :is="entry.props.icon"
+                  v-if="entry.props.icon"
+                  :class="ns.e('overflow-icon')"
+                  aria-hidden="true"
+                />
+                <span :class="ns.e('overflow-label')">
+                  <TabLabel :entry="entry" :selected="entry.props.value === selected" />
+                </span>
+                <CheckIcon
+                  v-if="entry.props.value === selected"
+                  :class="ns.e('overflow-check')"
+                  aria-hidden="true"
+                />
+              </button>
+              <button
+                v-if="isClosable(entry)"
+                type="button"
+                tabindex="-1"
+                :class="ns.e('overflow-close')"
+                :aria-label="`${t('tabs.close')} ${labelText(entry)}`"
+                :title="t('tabs.close')"
+                @click.stop="remove(entry)"
+              >
+                <CloseIcon aria-hidden="true" />
+              </button>
+            </div>
+          </div>
+        </template>
+      </DouPopover>
       <button
         v-if="addable"
         type="button"

@@ -733,7 +733,12 @@ describe('comments on the nodes and edges', () => {
       { id: `${id}-1`, author: dai, body: '看一下', createdAt: '2026-11-11T08:00:00.000Z' },
     ],
   })
-  async function withComments(blocks = START, threads: CommentThread[] = [], readonly = false) {
+  async function withComments(
+    blocks = START,
+    threads: CommentThread[] = [],
+    readonly = false,
+    onAction?: (action: CommentAction) => void,
+  ) {
     const value = ref<EditorDocument<PartialBlock>>({ version: 1, blocks })
     const comments = ref(threads)
     const active = ref<string | null>(null)
@@ -751,7 +756,10 @@ describe('comments on the nodes and edges', () => {
             'onUpdate:comments': (next: CommentThread[]) => (comments.value = next),
             activeComment: active.value,
             'onUpdate:activeComment': (id: string | null) => (active.value = id),
-            onCommentAction: (action: CommentAction) => actions.push(action),
+            onCommentAction: (action: CommentAction) => {
+              actions.push(action)
+              onAction?.(action)
+            },
             author: dai,
             readonly,
             extensions,
@@ -961,6 +969,22 @@ describe('comments on the nodes and edges', () => {
       return true
     })
     expect(kept).toBeUndefined()
+  })
+
+  it('exposes the board comment anchor synchronously inside @comment-action on create', async () => {
+    let seenAnchor: unknown
+    const { editor, openBoard } = await withComments(START, [], false, (action) => {
+      if (action.type === 'create') seenAnchor = editor.value!.getCommentAnchors()[action.thread.id]
+    })
+    await openBoard()
+    fullscreen()!.vm.comment({ node: 'n1', at: { x: 0.5, y: 0.25 } })
+    await nextTick()
+    await send('wb-sync')
+    expect(seenAnchor).toMatchObject({
+      block: 'w',
+      type: 'whiteboard',
+      target: { node: 'n1', at: { x: 0.5, y: 0.25 }, number: 1 },
+    })
   })
 
   it('leaves them out with `commentable: false`', () => {

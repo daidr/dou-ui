@@ -38,6 +38,19 @@
     --dou-editor-comment-bg: color-mix(in oklab, var(--dou-color-warning) 18%, transparent);
     --dou-editor-comment-bg-active: color-mix(in oklab, var(--dou-color-warning) 36%, transparent);
     --dou-editor-comment-line: color-mix(in oklab, var(--dou-color-warning) 72%, transparent);
+    --dou-editor-comment-code-bg: color-mix(
+      in oklab,
+      var(--dou-color-text) calc(6% + 4% * var(--dou-scheme-dark)),
+      transparent
+    );
+    --dou-editor-comment-code-border: color-mix(
+      in oklab,
+      var(--dou-color-text) calc(12% + 6% * var(--dou-scheme-dark)),
+      transparent
+    );
+    /* auto-sized table columns: at least CELL_MIN_WIDTH, capped so long tokens wrap */
+    --dou-editor-table-col-min-width: 96px;
+    --dou-editor-table-col-max-width: min(320px, 70vw);
 
     position: relative;
     box-sizing: border-box;
@@ -628,12 +641,19 @@
     }
 
     & :not(pre) > code {
-      padding: 0.1em 0.3em;
+      padding: var(--dou-editor-code-py, 0.1em) 0.3em;
       border-radius: 4px;
-      background-color: var(--dou-color-bg-muted);
-      box-shadow: inset 0 0 0 1px var(--dou-color-border-subtle);
+      background-color: var(--dou-editor-code-bg, var(--dou-color-bg-muted));
+      box-shadow: inset 0 0 0 1px var(--dou-editor-code-border, var(--dou-color-border-subtle));
       font-family: var(--dou-font-family-mono);
       font-size: 0.875em;
+    }
+
+    /* pending comment decoration may sit inside inline code when only part of it is selected */
+    & :not(pre) > code:has(.dou-editor__comment-pending) {
+      --dou-editor-code-py: 0;
+      --dou-editor-code-bg: var(--dou-editor-comment-code-bg);
+      --dou-editor-code-border: var(--dou-editor-comment-code-border);
     }
   }
 
@@ -663,6 +683,9 @@
   }
 
   .dou-editor__comment-pending {
+    --dou-editor-code-py: 0;
+    --dou-editor-code-bg: var(--dou-editor-comment-code-bg);
+    --dou-editor-code-border: var(--dou-editor-comment-code-border);
     background-color: color-mix(in oklab, var(--dou-color-focus) 16%, transparent);
   }
 
@@ -1358,6 +1381,10 @@
     font-size: inherit;
     line-height: inherit;
 
+    & col:not([style*='width:']) {
+      min-inline-size: var(--dou-editor-table-col-min-width, 96px);
+    }
+
     & td,
     & th {
       position: relative;
@@ -1368,6 +1395,12 @@
       text-align: start;
       vertical-align: top;
       white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    & :is(td, th):not([data-colwidth], [colspan], .column-resize-dragging) {
+      min-inline-size: var(--dou-editor-table-col-min-width, 96px);
+      max-inline-size: var(--dou-editor-table-col-max-width, min(320px, 70vw));
     }
 
     & th {

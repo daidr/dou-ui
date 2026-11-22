@@ -178,6 +178,23 @@ const same = (a: string[], b: string[]) => a.length === b.length && a.every((id,
 
 // Node types --------------------------------------------------------------------
 
+/*
+ * A bound v-model only catches up when the parent renders, so changes made
+ * in the same tick (a drag frame, then a change from another person, or
+ * reading comment anchors right inside `@comment-action`) build on the latest
+ * commit instead.
+ */
+let latest: FlowDocument | null = null
+const docOf = (): FlowDocument => latest ?? toRaw(doc.value)
+/** The document as extensions and comments see it: the latest commit, even before `v-model` catches up. */
+const currentDoc = customRef<FlowDocument>(() => ({
+  get: () => {
+    const value = doc.value
+    return latest ?? value
+  },
+  set: (value) => (doc.value = value),
+}))
+
 // Comments: their keys and menu items come as one more extension, while there are comments.
 const {
   comments,
@@ -187,7 +204,7 @@ const {
 } = useFlowComments({
   props,
   emit,
-  doc,
+  doc: currentDoc,
   selection,
   messages,
   transact,
@@ -288,22 +305,6 @@ function pruneSelection(next: FlowDocument, sel = selection.value): FlowSelectio
     edges: sel.edges.filter((id) => edges.has(id)),
   }
 }
-
-/*
- * A bound v-model only catches up when the parent renders, so changes made
- * in the same tick (a drag frame, then a change from another person) build
- * on the latest commit instead.
- */
-let latest: FlowDocument | null = null
-const docOf = (): FlowDocument => latest ?? toRaw(doc.value)
-/** The document as extensions see it: the latest commit, even before `v-model` catches up. */
-const currentDoc = customRef<FlowDocument>(() => ({
-  get: () => {
-    const value = doc.value
-    return latest ?? value
-  },
-  set: (value) => (doc.value = value),
-}))
 
 /** Runs the extensions' `transaction` hooks; `false` when one cancelled the change. */
 function check(tr: FlowTransaction) {

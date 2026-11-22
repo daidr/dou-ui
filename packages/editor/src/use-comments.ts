@@ -1,7 +1,12 @@
-import { applyCommentAction, type CommentAction, type CommentThread } from 'dou-ui'
+import {
+  applyCommentAction,
+  useReducedMotion,
+  type CommentAction,
+  type CommentThread,
+} from 'dou-ui'
 import { TextSelection, type EditorState } from 'prosemirror-state'
 import type { EditorView } from 'prosemirror-view'
-import { computed, shallowRef, watch, type ShallowRef } from 'vue'
+import { computed, nextTick, shallowRef, watch, type ShallowRef } from 'vue'
 import {
   anchorComment,
   commentAnchors,
@@ -14,6 +19,7 @@ import {
 } from './core/comments'
 import type { CommentsProvider } from './core/extension'
 import type { EditorComments, EditorEmits, EditorProps } from './editor'
+import { toggleKey } from './extensions/toggle/state'
 
 type Emit = <K extends keyof EditorEmits>(event: K, ...args: EditorEmits[K]) => void
 
@@ -56,9 +62,29 @@ export function useEditorComments(options: {
   const threads = computed<readonly CommentThread[]>(
     () => provider?.threads.value ?? props.comments ?? [],
   )
+  /*
+   * `v-model:comments` catches up after the parent renders, so reads in the
+   * same tick (such as `getCommentAnchors()` inside `@comment-action`) see
+   * the latest applied list immediately.
+   */
+  let latestThreads: readonly CommentThread[] | null = null
+  watch(
+    () => props.comments,
+    () => {
+      latestThreads = null
+    },
+    { flush: 'sync' },
+  )
+  const currentThreads = (): readonly CommentThread[] => {
+    const value = threads.value
+    return latestThreads ?? value
+  }
   const enabled = computed(() => !!provider || props.comments !== undefined)
   const writable = computed(() => enabled.value && !!props.author && props.commentable !== false)
   const known = computed(() => new Set(threads.value.map((thread) => thread.id)))
+  const currentKnown = () =>
+    latestThreads ? new Set(latestThreads.map((thread) => thread.id)) : known.value
+  const reducedMotion = useReducedMotion()
 
   // the shared document's threads, mirrored to `v-model:comments`
   if (provider)
@@ -129,7 +155,12 @@ export function useEditorComments(options: {
       anchorComment(current, range, action.thread.id)
     } else if (current && action.type === 'remove') unanchorComment(current, action.threadId)
     if (provider) provider.apply(action)
-    else emit('update:comments', applyCommentAction(threads.value, action))
+    else {
+      const next = applyCommentAction(currentThreads(), action)
+      if (!latestThreads) void nextTick(() => (latestThreads = null))
+      latestThreads = next
+      emit('update:comments', next)
+    }
     emit('commentAction', action)
     if (action.type === 'create') {
       open(action.thread.id)
@@ -138,12 +169,12 @@ export function useEditorComments(options: {
   }
 
   const isOpen = (id: string) => {
-    const thread = threads.value.find((item) => item.id === id)
+    const thread = currentThreads().find((item) => item.id === id)
     return !!thread && !thread.resolved
   }
 
   const plugin = commentPlugin({
-    known: () => (enabled.value ? known.value : null),
+    known: () => (enabled.value ? currentKnown() : null),
     onClick: (ids) => {
       if (pending.value && view.value) setPendingComment(view.value, null)
       open(ids.find(isOpen) ?? null)
@@ -158,8 +189,56 @@ export function useEditorComments(options: {
   function anchors(): Record<string, CommentAnchor | null> {
     const found = view.value ? commentAnchors(view.value.state.doc) : new Map()
     return Object.fromEntries(
-      threads.value.map((thread) => [thread.id, found.get(thread.id) ?? null]),
+      currentThreads().map((thread) => [thread.id, found.get(thread.id) ?? null]),
     )
+  }
+
+  function scrollToComment(id: string, scrollOptions?: ScrollIntoViewOptions): boolean {
+    const current = view.value
+    if (!current || !enabled.value) return false
+    const anchor = anchors()[id]
+    if (!anchor) return false
+    // open any collapsed toggle around the anchor so the element is laid out before scrolling
+    const toggleState = toggleKey.getState(current.state)
+    if (toggleState?.closed.size) {
+      const $pos = current.state.doc.resolve(anchor.from)
+      for (let depth = $pos.depth - 1; depth > 0; depth--) {
+        if ($pos.node(depth).type.name !== 'blockGroup') continue
+        const blockId = $pos.node(depth - 1).attrs.id as string | undefined
+        if (blockId && toggleState.closed.has(blockId))
+          current.dispatch(
+            current.state.tr.setMeta(toggleKey, blockId).setMeta('addToHistory', false),
+          )
+      }
+    }
+    let target: HTMLElement | null = null
+    if (!anchor.type) {
+      target = current.dom.querySelector<HTMLElement>(`[data-comment="${CSS.escape(id)}"]`)
+      if (!target) {
+        const at = current.domAtPos(anchor.from).node
+        target = at instanceof HTMLElement ? at : at.parentElement
+      }
+    }
+    if (!target && anchor.block)
+      target = current.dom.querySelector<HTMLElement>(
+        `[data-block-id="${CSS.escape(anchor.block)}"]`,
+      )
+    if (!target) {
+      const dom = current.nodeDOM(anchor.from)
+      if (dom instanceof HTMLElement) target = dom
+    }
+    if (!target) return false
+    const behavior =
+      scrollOptions?.behavior === 'smooth' && reducedMotion.value
+        ? 'auto'
+        : (scrollOptions?.behavior ?? (reducedMotion.value ? 'auto' : 'smooth'))
+    target.scrollIntoView?.({
+      block: 'center',
+      inline: 'nearest',
+      ...scrollOptions,
+      behavior,
+    })
+    return true
   }
 
   const comments: EditorComments = {
@@ -177,5 +256,5 @@ export function useEditorComments(options: {
     close,
   }
 
-  return { comments, plugin, anchors }
+  return { comments, plugin, anchors, scrollToComment }
 }

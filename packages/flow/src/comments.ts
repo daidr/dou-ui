@@ -6,7 +6,15 @@ import {
   type CommentThread,
   type ContextMenuItem,
 } from 'dou-ui'
-import { computed, shallowRef, type ComputedRef, type Ref, type ShallowRef } from 'vue'
+import {
+  computed,
+  nextTick,
+  shallowRef,
+  watch,
+  type ComputedRef,
+  type Ref,
+  type ShallowRef,
+} from 'vue'
 import type { FlowCommentAnchor, FlowEditorEmits, FlowEditorProps } from './context'
 import { defineFlowExtension, type FlowExtension } from './core/extension'
 import type { FlowToolbarItem } from './core/menu'
@@ -87,7 +95,7 @@ const idsOf = (item: { comments?: unknown }): string[] =>
 export function useFlowComments(options: {
   props: FlowEditorProps
   emit: Emit
-  doc: ComputedRef<FlowDocument>
+  doc: Ref<FlowDocument>
   selection: Ref<FlowSelection>
   messages: ComputedRef<FlowMessages>
   transact: (fn: (tr: FlowTransaction) => void, meta?: FlowTransactionMeta) => FlowTransaction
@@ -99,6 +107,23 @@ export function useFlowComments(options: {
   const { props, emit, doc, selection, messages, transact, carry, shownOn } = options
 
   const threads = computed<readonly CommentThread[]>(() => props.comments ?? [])
+  /*
+   * `v-model:comments` catches up after the parent renders, so reads in the
+   * same tick (such as `getCommentAnchors()` inside `@comment-action`) see
+   * the latest applied list immediately.
+   */
+  let latestThreads: readonly CommentThread[] | null = null
+  watch(
+    () => props.comments,
+    () => {
+      latestThreads = null
+    },
+    { flush: 'sync' },
+  )
+  const currentThreads = (): readonly CommentThread[] => {
+    const value = threads.value
+    return latestThreads ?? value
+  }
   const enabled = computed(() => props.comments !== undefined)
   const writable = computed(() => enabled.value && !!props.author && props.commentable !== false)
 
@@ -239,15 +264,16 @@ export function useFlowComments(options: {
   }
 
   function anchorOf(id: string): FlowCommentAnchor | null {
-    const node = doc.value.nodes.find((n) => idsOf(n).includes(id))
+    const current = doc.value
+    const node = current.nodes.find((n) => idsOf(n).includes(id))
     if (node) {
       const at = pinOf(node, id)
       if (!at) return { node: node.id }
-      const known = new Set(threads.value.map((t) => t.id))
+      const known = new Set(currentThreads().map((t) => t.id))
       const pinned = idsOf(node).filter((other) => known.has(other) && pinOf(node, other))
       return { node: node.id, at, number: pinned.indexOf(id) + 1 }
     }
-    const edge = doc.value.edges.find((e) => idsOf(e).includes(id))
+    const edge = current.edges.find((e) => idsOf(e).includes(id))
     return edge ? { edge: edge.id } : null
   }
 
@@ -261,7 +287,10 @@ export function useFlowComments(options: {
       const anchor = anchorOf(action.threadId)
       if (anchor) mark(anchor, action.threadId, false)
     }
-    emit('update:comments', applyCommentAction(threads.value, action))
+    const next = applyCommentAction(currentThreads(), action)
+    if (!latestThreads) void nextTick(() => (latestThreads = null))
+    latestThreads = next
+    emit('update:comments', next)
     emit('commentAction', action)
     if (action.type === 'create') {
       open(action.thread.id)
@@ -270,7 +299,7 @@ export function useFlowComments(options: {
   }
 
   function anchors(): Record<string, FlowCommentAnchor | null> {
-    return Object.fromEntries(threads.value.map((thread) => [thread.id, anchorOf(thread.id)]))
+    return Object.fromEntries(currentThreads().map((thread) => [thread.id, anchorOf(thread.id)]))
   }
 
   /** Whether `anchor` has something to offer: a thread to open, or one to start. */

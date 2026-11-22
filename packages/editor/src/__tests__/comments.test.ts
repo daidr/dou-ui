@@ -1,19 +1,25 @@
+import { readFileSync } from 'node:fs'
+import { dirname, resolve as resolvePath } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { mount } from '@vue/test-utils'
 import type { CommentAction, CommentThread } from 'dou-ui'
 import { undoDepth } from 'prosemirror-history'
 import { TextSelection } from 'prosemirror-state'
 import type { EditorView } from 'prosemirror-view'
-import { afterEach, describe, expect, it } from 'vitest'
-import { defineComponent, nextTick } from 'vue'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { defineComponent, h, nextTick, ref } from 'vue'
 import * as Y from 'yjs'
 import { collaboration, fillMap } from '../collaboration'
 import { findBlockById } from '../core/blocks'
+import type { CommentAnchor } from '../core/comments'
 import { createEditorView, getBlocks } from '../core/editor'
 import { resolveEditorExtensions } from '../core/extension'
-import { blocksToDoc, docToBlocks, type PartialBlock } from '../core/model'
+import { blocksToDoc, docToBlocks, type EditorDocument, type PartialBlock } from '../core/model'
 import { defineBlock, type BlockViewProps } from '../define-block'
+import type { EditorExpose } from '../editor'
 import DouEditor from '../editor.vue'
 import { editorKit } from '../extensions/editor-kit'
+import { isToggleOpen } from '../extensions/toggle/state'
 
 const dai = { id: 'dai', name: '戴兜' }
 const qing = { id: 'qing', name: '阿青' }
@@ -478,5 +484,185 @@ describe('threads inside a block of your own', () => {
     )
     expect(undoDepth(view.state)).toBe(before)
     expect(cardsOf(findBlockById(view.state.doc, 'k')!.content.attrs)[1]!.comments).toEqual(['t2'])
+  })
+
+  it('scrolls to a block comment anchor via scrollToComment', async () => {
+    const { wrapper } = mountEditor({
+      modelValue: {
+        version: 1,
+        blocks: [
+          {
+            id: 'k',
+            type: 'cards',
+            props: { cards: [{ id: 'c1', text: '采购', comments: ['t1'] }] },
+          },
+        ],
+      },
+      comments: [thread('t1')],
+      extensions: [editorKit(), board],
+    })
+    await nextTick()
+    const block = (wrapper.element as HTMLElement).querySelector<HTMLElement>(
+      '[data-block-id="k"]',
+    )!
+    const spy = vi.fn<(options?: boolean | ScrollIntoViewOptions) => void>()
+    block.scrollIntoView = spy
+    const editor = wrapper.vm as unknown as EditorExpose
+    expect(editor.scrollToComment('t1')).toBe(true)
+    expect(spy).toHaveBeenCalledTimes(1)
+    expect(spy).toHaveBeenCalledWith({ block: 'center', inline: 'nearest', behavior: 'smooth' })
+  })
+})
+
+describe('comment-action anchor readiness and scrollToComment', () => {
+  it('exposes the new anchor synchronously inside @comment-action on create and drops it on remove', async () => {
+    const doc = ref<EditorDocument<PartialBlock>>({
+      version: 1,
+      blocks: [{ id: 'a', content: '第三季度收入' }],
+    })
+    const comments = ref<CommentThread[]>([])
+    const active = ref<string | null>(null)
+    const editor = ref<EditorExpose>()
+    const seenOnCreate: Record<string, CommentAnchor | null>[] = []
+    const seenOnRemove: Record<string, CommentAnchor | null>[] = []
+
+    const wrapper = mount(
+      defineComponent(
+        () => () =>
+          h(DouEditor, {
+            ref: editor,
+            modelValue: doc.value,
+            'onUpdate:modelValue': (next: EditorDocument) => (doc.value = next),
+            comments: comments.value,
+            'onUpdate:comments': (next: CommentThread[]) => (comments.value = next),
+            activeComment: active.value,
+            'onUpdate:activeComment': (id: string | null) => (active.value = id),
+            onCommentAction: (action: CommentAction) => {
+              if (action.type === 'create') seenOnCreate.push(editor.value!.getCommentAnchors())
+              if (action.type === 'remove') seenOnRemove.push(editor.value!.getCommentAnchors())
+            },
+            author: dai,
+          }),
+      ),
+      { attachTo: document.body },
+    )
+    wrappers.push(wrapper)
+    await nextTick()
+
+    const view = editor.value!.view!
+    select(view, 'a', '季度')
+    expect(editor.value!.comment()).toBe(true)
+    await flush()
+
+    const created = thread('c1', '数字要核对')
+    act(wrapper, { type: 'create', thread: created })
+
+    // read synchronously during @comment-action before Vue flushes v-model:comments
+    expect(seenOnCreate).toHaveLength(1)
+    expect(seenOnCreate[0]!.c1).toMatchObject({ block: 'a', text: '季度' })
+
+    await flush()
+    act(wrapper, { type: 'remove', threadId: 'c1' })
+    expect(seenOnRemove).toHaveLength(1)
+    expect(seenOnRemove[0]!.c1).toBeUndefined()
+  })
+
+  it('scrolls to commented text, opens collapsed toggles around it, and handles missing anchors', async () => {
+    const { wrapper, view } = mountEditor({
+      modelValue: {
+        version: 1,
+        blocks: [
+          {
+            id: 'p1',
+            content: [
+              { type: 'text', text: '普通' },
+              { type: 'text', text: 'code', marks: ['code'], comments: ['t1'] },
+            ],
+          },
+          {
+            id: 'tg',
+            type: 'toggle',
+            content: '折叠区',
+            children: [
+              {
+                id: 'inside',
+                content: [{ type: 'text', text: '隐藏评论', comments: ['t2'] }],
+              },
+            ],
+          },
+        ],
+      },
+      comments: [thread('t1'), thread('t2'), thread('gone')],
+      author: dai,
+    })
+    await nextTick()
+
+    const editor = wrapper.vm as unknown as EditorExpose
+    const mark1 = view.dom.querySelector<HTMLElement>('[data-comment="t1"]')!
+    const spy1 = vi.fn<(options?: boolean | ScrollIntoViewOptions) => void>()
+    mark1.scrollIntoView = spy1
+    expect(editor.scrollToComment('t1')).toBe(true)
+    expect(spy1).toHaveBeenCalledWith({ block: 'center', inline: 'nearest', behavior: 'smooth' })
+
+    expect(editor.scrollToComment('t1', { block: 'start', behavior: 'instant' })).toBe(true)
+    expect(spy1).toHaveBeenLastCalledWith({
+      block: 'start',
+      inline: 'nearest',
+      behavior: 'instant',
+    })
+
+    // t2 sits inside a toggle that starts collapsed
+    expect(isToggleOpen(view.state, 'tg')).toBe(false)
+    const mark2 = view.dom.querySelector<HTMLElement>('[data-comment="t2"]')!
+    const spy2 = vi.fn<(options?: boolean | ScrollIntoViewOptions) => void>()
+    mark2.scrollIntoView = spy2
+    expect(editor.scrollToComment('t2')).toBe(true)
+    expect(isToggleOpen(view.state, 'tg')).toBe(true)
+    expect(spy2).toHaveBeenCalledTimes(1)
+
+    expect(editor.scrollToComment('gone')).toBe(false)
+    expect(editor.scrollToComment('unknown')).toBe(false)
+  })
+
+  it('returns false from scrollToComment when comments are disabled', async () => {
+    const { wrapper } = mountEditor({
+      modelValue: { version: 1, blocks: [{ id: 'a', content: '纯文本' }] },
+    })
+    await nextTick()
+    const editor = wrapper.vm as unknown as EditorExpose
+    expect(editor.scrollToComment('t1')).toBe(false)
+  })
+
+  it('ships inline-code comment transparency and auto-column table constraints in style.css', async () => {
+    const css = readFileSync(
+      resolvePath(dirname(fileURLToPath(import.meta.url)), '../style.css'),
+      'utf8',
+    )
+    expect(css).toContain('--dou-editor-comment-code-bg')
+    expect(css).toContain('padding: var(--dou-editor-code-py, 0.1em) 0.3em;')
+    expect(css).toContain(':not(pre) > code:has(.dou-editor__comment-pending)')
+    expect(css).toContain("col:not([style*='width:'])")
+    expect(css).toContain('overflow-wrap: anywhere;')
+    expect(css).toContain(':is(td, th):not([data-colwidth], [colspan], .column-resize-dragging)')
+
+    const { wrapper } = mountEditor({
+      modelValue: [
+        {
+          id: 'a',
+          content: [
+            { type: 'text', text: 'openCode', marks: ['code'], comments: ['t1'] },
+            { type: 'text', text: 'resolvedCode', marks: ['code'], comments: ['t2'] },
+          ],
+        },
+      ],
+      comments: [thread('t1'), { ...thread('t2'), resolved: { by: dai, at: 'x' } }],
+      author: dai,
+    })
+    await nextTick()
+    const highlight = wrapper.find('style').text()
+    expect(highlight).toContain('[data-comment=t1]')
+    expect(highlight).toContain('--dou-editor-code-py:0')
+    expect(highlight).toContain('--dou-editor-code-bg:var(--dou-editor-comment-code-bg)')
+    expect(highlight).not.toContain('t2')
   })
 })

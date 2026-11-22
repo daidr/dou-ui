@@ -232,6 +232,19 @@
     height: 1px;
     margin: var(--dou-dropdown-inset) calc(var(--dou-dropdown-inset) * -1);
     background-color: var(--dou-color-border);
+
+    /*
+     * A separator only parts two items: hide one left alone at either end
+     * (such as when a leading slot renders nothing), right under a group
+     * heading, or doubled up back to back.
+     */
+    &:first-child,
+    &:last-child,
+    & + .dou-dropdown__separator,
+    &:not(:has(~ :not(.dou-dropdown__separator))),
+    .dou-dropdown__group-label + & {
+      display: none;
+    }
   }
 
   /* an item that opens a submenu keeps its highlight while the submenu is open */

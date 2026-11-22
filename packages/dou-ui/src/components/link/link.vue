@@ -23,6 +23,7 @@ defineOptions({ name: 'DouLink' })
 const props = withDefaults(defineProps<LinkProps>(), {
   tone: 'neutral',
   variant: 'text',
+  wrap: false,
   underline: undefined,
   disabled: false,
   external: false,
@@ -32,9 +33,13 @@ const slots = defineSlots<LinkSlots>()
 
 const ns = useNamespace('link')
 
-// Without an address there is nowhere to go: the link is an action, so it is
-// a button, which takes focus and responds to Enter and Space.
+// Without an address there is nowhere to go: the link is an action. When it
+// needs to break across lines (`soft` or `wrap`), it cannot be a `<button>`
+// (an atomic inline box that never fragments across lines), so it renders as
+// an inline `<span role="button">` with keyboard Enter/Space support.
 const isButton = computed(() => !props.href)
+const wraps = computed(() => props.variant === 'soft' || props.wrap)
+const isInlineButton = computed(() => isButton.value && wraps.value)
 
 if (process.env.NODE_ENV !== 'production')
   watchEffect(() => {
@@ -103,15 +108,15 @@ function walk(nodes: unknown[], edge: Edge, take: boolean): Walk {
 // and go; `Nodes` only puts the result down.
 const parts = () => {
   const label = (slots.default?.() ?? []) as unknown[]
-  const soft = props.variant === 'soft'
+  const inlineFlow = wraps.value
   // a slot that renders nothing counts as not passed: no empty icon, and
   // an external link keeps its arrow
   const leading = filled(slots.leading)
   const own = filled(slots.trailing)
   const arrow = !own
   const trailing = own ?? (props.external && !isButton.value ? h(ArrowUpRightIcon) : undefined)
-  const head = walk(label, 'start', soft && !!leading)
-  const tail = walk(head.nodes, 'end', soft && !!trailing)
+  const head = walk(label, 'start', inlineFlow && !!leading)
+  const tail = walk(head.nodes, 'end', inlineFlow && !!trailing)
   const icon = (content: unknown, external = false) =>
     h(
       'span',
@@ -124,7 +129,7 @@ const parts = () => {
   const before = leading ? icon(leading) : undefined
   const after = trailing ? icon(trailing, arrow) : undefined
   const body = h('span', { class: ns.e('label') }, tail.nodes as VNode[])
-  if (!soft) return [before, body, after]
+  if (!inlineFlow) return [before, body, after]
   // a single character between two icons: all three break as one
   if (before && after && head.char && !tail.char)
     return [h('span', { class: [ns.e('lead'), ns.e('trail')] }, [before, head.char, body, after])]
@@ -141,36 +146,82 @@ const classes = computed(() => [
   ns.m(props.tone),
   ns.m(props.variant),
   ns.m(`underline-${props.underline ?? (props.variant === 'soft' ? 'none' : 'always')}`),
+  ns.is('wrap', props.wrap),
   ns.is('disabled', props.disabled),
 ])
 
-const attrs = computed(() =>
-  isButton.value
-    ? { type: 'button', disabled: props.disabled }
-    : {
-        href: props.disabled ? undefined : props.href,
-        target: props.external ? '_blank' : undefined,
-        rel: props.external ? 'noopener noreferrer' : undefined,
-        'aria-disabled': props.disabled || undefined,
-      },
-)
+const attrs = computed(() => {
+  if (!isButton.value) {
+    return {
+      href: props.disabled ? undefined : props.href,
+      target: props.external ? '_blank' : undefined,
+      rel: props.external ? 'noopener noreferrer' : undefined,
+      'aria-disabled': props.disabled || undefined,
+    }
+  }
+  if (isInlineButton.value) {
+    return {
+      role: 'button',
+      tabindex: props.disabled ? undefined : 0,
+      'aria-disabled': props.disabled || undefined,
+    }
+  }
+  return { type: 'button', disabled: props.disabled }
+})
+
+let spacePressed = false
 
 function onClick(event: MouseEvent) {
   if (props.disabled) {
     event.preventDefault()
     return
   }
+  // A <span> inside a <label> (such as DouCheckbox) would otherwise toggle the
+  // labeled control on click; a native <button> does not.
+  if (isInlineButton.value) event.preventDefault()
   emit('click', event)
+}
+
+function onKeydown(event: KeyboardEvent) {
+  if (!isInlineButton.value || props.disabled || event.defaultPrevented) return
+  if (event.target !== event.currentTarget) return
+  if (event.altKey || event.ctrlKey || event.metaKey) return
+  if (event.key === 'Enter') {
+    event.preventDefault()
+    ;(event.currentTarget as HTMLElement).click()
+  } else if (event.key === ' ' || event.key === 'Spacebar') {
+    // Prevent page scroll on Space down and activate on keyup, matching native buttons.
+    event.preventDefault()
+    spacePressed = true
+  } else if (event.key === 'Escape') {
+    spacePressed = false
+  }
+}
+
+function onKeyup(event: KeyboardEvent) {
+  if (!isInlineButton.value || !spacePressed) return
+  if (event.key !== ' ' && event.key !== 'Spacebar') return
+  spacePressed = false
+  if (props.disabled || event.defaultPrevented || event.target !== event.currentTarget) return
+  event.preventDefault()
+  ;(event.currentTarget as HTMLElement).click()
+}
+
+function onBlur() {
+  spacePressed = false
 }
 </script>
 
 <template>
   <component
-    :is="isButton ? 'button' : 'a'"
+    :is="isButton ? (isInlineButton ? 'span' : 'button') : 'a'"
     ref="root"
     :class="classes"
     v-bind="attrs"
     @click="onClick"
+    @keydown="onKeydown"
+    @keyup="onKeyup"
+    @blur="onBlur"
   >
     <Nodes :nodes="parts()" />
   </component>

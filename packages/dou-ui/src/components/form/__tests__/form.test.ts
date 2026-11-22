@@ -345,7 +345,7 @@ describe('DouForm', () => {
     const { wrapper } = setup({ layout: 'horizontal', labelAlign: 'end', labelWidth: 120 })
     const form = wrapper.get('form')
     expect(form.classes()).toEqual(
-      expect.arrayContaining(['dou-form--horizontal', 'dou-form--label-end']),
+      expect.arrayContaining(['dou-form--horizontal', 'dou-form--label-end', 'is-fixed-label']),
     )
     expect(form.attributes('style')).toContain('--dou-form-label-width: 120px')
     expect(form.attributes('novalidate')).toBeDefined()

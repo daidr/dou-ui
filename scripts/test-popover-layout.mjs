@@ -79,6 +79,94 @@ try {
       }
     }
   }
+
+  for (const scenario of [
+    {
+      label: 'scroll near-bottom flips top and clamps to viewport',
+      viewport: { width: 640, height: 360 },
+      query: { mode: 'scroll', anchor: 'bottom', placement: 'bottom-start' },
+      expectedPlacement: 'top-start',
+    },
+    {
+      label: 'scroll near-top clamps below trigger',
+      viewport: { width: 640, height: 360 },
+      query: { mode: 'scroll', anchor: 'top', placement: 'bottom-start' },
+      expectedPlacement: 'bottom-start',
+    },
+    {
+      label: 'scroll side placement uses vertical viewport height',
+      viewport: { width: 390, height: 360 },
+      query: { mode: 'scroll', anchor: 'side', placement: 'right' },
+      expectedPlacement: 'right',
+    },
+    {
+      label: 'scroll respects maxHeight prop',
+      viewport: { width: 640, height: 844 },
+      query: { mode: 'scroll', anchor: 'top', placement: 'bottom-start', maxHeight: '180' },
+      expectedPlacement: 'bottom-start',
+      expectedMaxHeight: 180,
+    },
+  ]) {
+    const page = await browser.newPage({
+      viewport: scenario.viewport,
+      reducedMotion: 'reduce',
+    })
+    const errors = []
+    page.on('pageerror', (error) => errors.push(error.message))
+    const query = new URLSearchParams(scenario.query)
+    await page.goto(`http://127.0.0.1:${address.port}/popover-layout.html?${query}`)
+    await page.locator('#show').click()
+    await page.locator('.dou-popover').waitFor({ state: 'visible' })
+    const metrics = await page.evaluate(async () => {
+      await new Promise(requestAnimationFrame)
+      await new Promise(requestAnimationFrame)
+      const panel = document.querySelector('.dou-popover')
+      const title = panel.querySelector('.dou-popover__title')
+      const content = panel.querySelector('.dou-popover__content')
+      const rect = panel.getBoundingClientRect()
+      const titleBefore = title.getBoundingClientRect().top
+      content.scrollTop = 120
+      const titleAfter = title.getBoundingClientRect().top
+      return {
+        placement: panel.dataset.placement,
+        top: rect.top,
+        bottom: rect.bottom,
+        height: rect.height,
+        available: parseFloat(panel.style.getPropertyValue('--dou-floating-available')),
+        scrollHeight: content.scrollHeight,
+        clientHeight: content.clientHeight,
+        scrollTop: content.scrollTop,
+        titlePinned: Math.abs(titleBefore - titleAfter) < 0.5,
+      }
+    })
+    assert.equal(metrics.placement, scenario.expectedPlacement, scenario.label)
+    assert.ok(
+      metrics.top >= 7.5 && metrics.bottom <= scenario.viewport.height - 7.5,
+      `${scenario.label}: outside viewport (${metrics.top}..${metrics.bottom})`,
+    )
+    const ceiling = scenario.expectedMaxHeight
+      ? Math.min(scenario.expectedMaxHeight, metrics.available)
+      : metrics.available
+    assert.ok(
+      metrics.height <= ceiling + 1,
+      `${scenario.label}: height ${metrics.height} exceeded ${ceiling}`,
+    )
+    if (scenario.query.anchor === 'side') {
+      assert.ok(
+        metrics.available >= scenario.viewport.height - 20,
+        `${scenario.label}: side placement available ${metrics.available} was not vertical room`,
+      )
+    }
+    assert.ok(
+      metrics.scrollHeight > metrics.clientHeight,
+      `${scenario.label}: content did not become scrollable`,
+    )
+    assert.ok(metrics.scrollTop > 0, `${scenario.label}: content could not scroll`)
+    assert.ok(metrics.titlePinned, `${scenario.label}: title did not stay pinned while scrolling`)
+    assert.deepEqual(errors, [], scenario.label)
+    process.stdout.write(`PASS ${scenario.label}\n`)
+    await page.close()
+  }
 } finally {
   await browser?.close()
   await server.close()

@@ -18,9 +18,15 @@
 
 默认按内容的自然宽度显示，内容更新后重新计算宽度；最宽为 360px，并在视口两侧各留出 8px。通过 `width` 指定宽度，数字按 px 处理，也可以传入 `20rem` 等 CSS 长度。`--dou-popover-max-width` 可以调整最大宽度，指定的 `width` 仍受这个上限和视口宽度约束。
 
+## 高度与滚动
+
+卡片默认按当前视口的可用高度（`--dou-floating-available`）限制最大高度，标题固定在顶部，超出部分在内容区内纵向滚动，不再溢出视口。通过 `maxHeight` 或 `--dou-popover-max-height` 可以设定更矮的上限（数字按 px 处理，也可以传入 `20rem` 等 CSS 长度），最终高度仍不会超过视口可用空间。
+
+<DocDemo src="popover/scroll" />
+
 ## 触发方式
 
-`trigger` 为 `hover` 时指向即打开，指针可以从触发元素移到卡片上；触屏和触控笔没有悬停，改为轻点打开、再点一下或点别处收起，键盘上按 `Enter` 或空格也能打开（触发元素是链接时，`Enter` 照常打开链接）；`manual` 完全交给 `v-model:open`。
+`trigger` 为 `hover` 时指向即打开，指针可以从触发元素移到卡片上；触屏和触控笔没有悬停，默认改为轻点打开、再点一下或点别处收起。如果触发元素本身有点击主动作（例如列表项切换或导航链接），可以把 `openOnTap` 设为 `false`，关闭触屏轻点弹出，仅保留桌面端悬停预览与键盘操作。键盘上按 `Enter` 或空格也能打开（触发元素是链接时，`Enter` 照常打开链接）；`manual` 完全交给 `v-model:open`。
 
 <DocDemo src="popover/trigger" />
 
@@ -32,19 +38,21 @@
 
 ### Props
 
-| 名称        | 说明                           | 类型                             | 默认值     |
-| ----------- | ------------------------------ | -------------------------------- | ---------- |
-| `open`      | 是否打开，配合 `v-model:open`  | `boolean`                        | `false`    |
-| `title`     | 标题，同时为卡片命名           | `string`                         | —          |
-| `content`   | 正文                           | `string`                         | —          |
-| `placement` | 首选的一侧                     | `Placement`                      | `'bottom'` |
-| `trigger`   | 打开方式                       | `'click' \| 'hover' \| 'manual'` | `'click'`  |
-| `disabled`  | 不再打开                       | `boolean`                        | `false`    |
-| `width`     | 卡片宽度；数字为 px            | `string \| number`               | —          |
-| `showDelay` | `hover` 时多久打开，毫秒       | `number`                         | `100`      |
-| `hideDelay` | `hover` 时离开后多久关闭，毫秒 | `number`                         | `150`      |
-| `offset`    | 与触发元素的间距，px           | `number`                         | `8`        |
-| `teleport`  | 渲染到哪里；`false` 为原地渲染 | `string \| HTMLElement \| false` | `'body'`   |
+| 名称        | 说明                                                 | 类型                             | 默认值     |
+| ----------- | ---------------------------------------------------- | -------------------------------- | ---------- |
+| `open`      | 是否打开，配合 `v-model:open`                        | `boolean`                        | `false`    |
+| `title`     | 标题，同时为卡片命名                                 | `string`                         | —          |
+| `content`   | 正文                                                 | `string`                         | —          |
+| `placement` | 首选的一侧                                           | `Placement`                      | `'bottom'` |
+| `trigger`   | 打开方式                                             | `'click' \| 'hover' \| 'manual'` | `'click'`  |
+| `disabled`  | 不再打开                                             | `boolean`                        | `false`    |
+| `width`     | 卡片宽度；数字为 px                                  | `string \| number`               | —          |
+| `maxHeight` | 卡片最大高度；数字为 px，仍受视口可用空间约束        | `string \| number`               | —          |
+| `showDelay` | `hover` 时多久打开，毫秒                             | `number`                         | `100`      |
+| `hideDelay` | `hover` 时离开后多久关闭，毫秒                       | `number`                         | `150`      |
+| `offset`    | 与触发元素的间距，px                                 | `number`                         | `8`        |
+| `openOnTap` | `hover` 模式下触屏或触控笔轻点触发元素时是否打开卡片 | `boolean`                        | `true`     |
+| `teleport`  | 渲染到哪里；`false` 为原地渲染                       | `string \| HTMLElement \| false` | `'body'`   |
 
 ### Slots
 
@@ -63,10 +71,11 @@
 
 ### CSS 变量
 
-| 变量                      | 说明     |
-| ------------------------- | -------- |
-| `--dou-popover-bg`        | 底色     |
-| `--dou-popover-border`    | 描边颜色 |
-| `--dou-popover-padding`   | 内边距   |
-| `--dou-popover-radius`    | 圆角     |
-| `--dou-popover-max-width` | 最大宽度 |
+| 变量                       | 说明     |
+| -------------------------- | -------- |
+| `--dou-popover-bg`         | 底色     |
+| `--dou-popover-border`     | 描边颜色 |
+| `--dou-popover-padding`    | 内边距   |
+| `--dou-popover-radius`     | 圆角     |
+| `--dou-popover-max-width`  | 最大宽度 |
+| `--dou-popover-max-height` | 最大高度 |

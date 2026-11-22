@@ -25,7 +25,7 @@ export interface Position {
   x: number
   y: number
   placement: Placement
-  /** The room left on the chosen side, for capping the height of long content. */
+  /** The vertical room left for the panel, for capping the height of long content. */
   available: number
 }
 
@@ -90,11 +90,15 @@ export function computePosition(
     x = clamp(x, padding, Math.max(padding, viewport.width - padding - width))
   }
 
+  const maxAvailable = viewport.height - padding * 2
+  const availableHeight =
+    side === 'top' || side === 'bottom' ? Math.min(room(side), maxAvailable) : maxAvailable
+
   return {
     x: Math.round(x),
     y: Math.round(y),
     placement: (align ? `${side}-${align}` : side) as Placement,
-    available: Math.max(0, Math.floor(room(side))),
+    available: Math.max(0, Math.floor(availableHeight)),
   }
 }
 

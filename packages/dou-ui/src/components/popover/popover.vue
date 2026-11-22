@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, mergeProps, useId, useSlots } from 'vue'
+import type { CSSProperties } from 'vue'
 import { getTabbable } from '../../composables/use-focus-trap'
 import { usePopup } from '../../composables/use-popup'
 import { useNamespace } from '../../utils/namespace'
@@ -16,6 +17,7 @@ const props = withDefaults(defineProps<PopoverProps>(), {
   showDelay: 100,
   hideDelay: 150,
   offset: 8,
+  openOnTap: true,
   teleport: undefined,
 })
 const teleportTarget = useTeleport(() => props.teleport)
@@ -36,6 +38,7 @@ const popup = usePopup({
   offset: () => props.offset,
   showDelay: () => props.showDelay,
   hideDelay: () => props.hideDelay,
+  tap: () => props.openOnTap,
 })
 const { triggerRef, panelRef, rendered, theme, placement, panelStyle, panelListeners } = popup
 
@@ -89,9 +92,14 @@ const triggerProps = computed(() =>
 )
 
 const panelClasses = computed(() => [ns.b(), 'dou-floating', ns.is('titled', hasTitle.value)])
-const width = computed(() =>
-  typeof props.width === 'number' ? `${props.width}px` : (props.width ?? undefined),
-)
+const cssSize = (value: string | number | undefined) =>
+  typeof value === 'number' ? `${value}px` : (value ?? undefined)
+const panelSizeStyle = computed<CSSProperties>(() => ({
+  width: cssSize(props.width),
+  ...(props.maxHeight !== undefined && {
+    '--dou-popover-max-height': cssSize(props.maxHeight),
+  }),
+}))
 
 defineExpose<PopoverExpose>({ open: () => popup.show(), close: () => popup.dismiss() })
 </script>
@@ -107,7 +115,7 @@ defineExpose<PopoverExpose>({ open: () => popup.show(), close: () => popup.dismi
         role="dialog"
         :aria-labelledby="hasTitle ? titleId : undefined"
         :class="panelClasses"
-        :style="[panelStyle, { width }]"
+        :style="[panelStyle, panelSizeStyle]"
         :data-placement="placement"
         :data-dou-theme="theme"
         v-bind="{ ...$attrs, ...panelListeners }"

@@ -59,7 +59,13 @@ describe('computePosition', () => {
     expect(sub.x).toBe(8)
   })
 
-  it('reports the room left on the chosen side', () => {
+  it('reports the vertical room left for capping height across placements', () => {
     expect(computePosition(reference, size, 'bottom', options).available).toBe(452)
+    expect(computePosition(reference, size, 'top', options).available).toBe(284)
+    // side placements span the viewport vertically rather than being capped by horizontal space
+    expect(computePosition({ ...reference, x: 20 }, size, 'left', options).available).toBe(784)
+    expect(computePosition({ ...reference, x: 880 }, size, 'right', options).available).toBe(784)
+    // offscreen triggers still cap available height to the viewport
+    expect(computePosition({ ...reference, y: 900 }, size, 'top', options).available).toBe(784)
   })
 })

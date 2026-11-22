@@ -114,6 +114,12 @@ export function usePopup(options: UsePopupOptions) {
   /** The panel was opened by a tap, and stays until tapped away. */
   const tapped = ref(false)
   watch(open, (value) => value || (tapped.value = false))
+  watch(
+    () => toValue(options.tap),
+    (value) => {
+      if (value === false) press = null
+    },
+  )
 
   useLayer({
     open,

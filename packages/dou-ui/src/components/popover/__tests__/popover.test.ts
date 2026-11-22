@@ -1,6 +1,6 @@
 import { mount } from '@vue/test-utils'
 import { h, nextTick } from 'vue'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DouPopover } from '../../../index'
 
 const panel = () => document.querySelector<HTMLElement>('.dou-popover')
@@ -161,6 +161,123 @@ describe('DouPopover', () => {
     document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
     await nextTick()
     expect(wrapper.props('open')).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('skips touch and pen taps on a hover card when openOnTap is false, keeping hover, keyboard and primary click', async () => {
+    vi.useFakeTimers()
+    try {
+      const clicked = vi.fn<() => void>()
+      const wrapper = mount(DouPopover, {
+        props: {
+          open: false,
+          'onUpdate:open': (value: boolean) => wrapper.setProps({ open: value }),
+          trigger: 'hover' as const,
+          openOnTap: false,
+          showDelay: 50,
+          hideDelay: 50,
+          content: '预览信息',
+        },
+        slots: {
+          default: () => h('button', { id: 'trigger', onClick: clicked }, '切换项目'),
+        },
+        attachTo: document.body,
+      })
+      const trigger = wrapper.get('#trigger')
+
+      // touch tap runs the trigger's own click without opening the popover
+      await trigger.trigger('pointerenter', { pointerType: 'touch' })
+      await trigger.trigger('pointerdown', { pointerType: 'touch' })
+      await trigger.trigger('click', { detail: 1 })
+      vi.advanceTimersByTime(100)
+      await nextTick()
+      expect(clicked).toHaveBeenCalledTimes(1)
+      expect(wrapper.props('open')).toBe(false)
+      expect(trigger.attributes('aria-expanded')).toBeUndefined()
+
+      // pen tap also stays closed
+      await trigger.trigger('pointerdown', { pointerType: 'pen' })
+      await trigger.trigger('click', { detail: 1 })
+      expect(clicked).toHaveBeenCalledTimes(2)
+      expect(wrapper.props('open')).toBe(false)
+
+      // mouse hover still opens and closes as usual
+      await trigger.trigger('pointerenter', { pointerType: 'mouse' })
+      vi.advanceTimersByTime(50)
+      await nextTick()
+      expect(wrapper.props('open')).toBe(true)
+
+      await trigger.trigger('pointerleave', { pointerType: 'mouse' })
+      vi.advanceTimersByTime(50)
+      await nextTick()
+      expect(wrapper.props('open')).toBe(false)
+
+      // keyboard Enter/Space still toggles the hover card
+      await trigger.trigger('click', { detail: 0 })
+      expect(wrapper.props('open')).toBe(true)
+      expect(trigger.attributes('aria-expanded')).toBe('true')
+      await trigger.trigger('click', { detail: 0 })
+      expect(wrapper.props('open')).toBe(false)
+
+      // re-enabling openOnTap reactively restores tap-to-open
+      await wrapper.setProps({ openOnTap: true })
+      await trigger.trigger('pointerdown', { pointerType: 'touch' })
+      await trigger.trigger('click', { detail: 1 })
+      expect(wrapper.props('open')).toBe(true)
+
+      wrapper.unmount()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('does not block link navigation on touch when openOnTap is false', async () => {
+    const wrapper = mount(DouPopover, {
+      props: {
+        open: false,
+        'onUpdate:open': (value: boolean) => wrapper.setProps({ open: value }),
+        trigger: 'hover' as const,
+        openOnTap: false,
+        content: '预览信息',
+      },
+      slots: {
+        default: () => h('a', { id: 'link', href: '#project' }, '项目'),
+      },
+      attachTo: document.body,
+    })
+    const link = wrapper.get('#link').element
+    link.dispatchEvent(new PointerEvent('pointerdown', { pointerType: 'touch', bubbles: true }))
+    const click = new MouseEvent('click', { detail: 1, bubbles: true, cancelable: true })
+    link.dispatchEvent(click)
+    await nextTick()
+    expect(click.defaultPrevented).toBe(false)
+    expect(wrapper.props('open')).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('still toggles on touch tap when trigger is click even if openOnTap is false', async () => {
+    const wrapper = withModel({ trigger: 'click', openOnTap: false })
+    const trigger = wrapper.get('#trigger')
+    await trigger.trigger('pointerdown', { pointerType: 'touch' })
+    await trigger.trigger('click', { detail: 1 })
+    expect(wrapper.props('open')).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('applies maxHeight as --dou-popover-max-height and sets --dou-floating-available', async () => {
+    const wrapper = withModel({ open: true, maxHeight: 240 })
+    await nextTick()
+    const dialog = panel()!
+    expect(dialog.style.getPropertyValue('--dou-popover-max-height')).toBe('240px')
+    expect(dialog.style.getPropertyValue('--dou-floating-available')).toMatch(/^\d+px$/)
+
+    await wrapper.setProps({ maxHeight: '20rem' })
+    await nextTick()
+    expect(dialog.style.getPropertyValue('--dou-popover-max-height')).toBe('20rem')
+
+    await wrapper.setProps({ maxHeight: undefined })
+    await nextTick()
+    expect(dialog.style.getPropertyValue('--dou-popover-max-height')).toBe('')
     wrapper.unmount()
   })
 })

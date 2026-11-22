@@ -154,8 +154,12 @@ function isNearBottom(el: HTMLElement) {
 function onBodyScroll() {
   const el = bodyRef.value
   if (!el) return
-  const near = isNearBottom(el)
-  if (near) {
+  const distance = distanceToBottom(el)
+  const near = distance <= AT_BOTTOM_THRESHOLD
+  if (el.scrollTop < lastScrollTop && distance > 1) {
+    scrollingToBottom = false
+    following = false
+  } else if (near) {
     following = true
     scrollingToBottom = false
   } else if (scrollingToBottom && el.scrollTop >= lastScrollTop) {
@@ -182,14 +186,17 @@ function scrollToBottom(behavior: ScrollBehavior = 'auto') {
   following = true
   const maxTop = Math.max(0, el.scrollHeight - el.clientHeight)
   if (behavior === 'smooth' && typeof el.scrollTo === 'function') {
-    scrollingToBottom = true
     el.scrollTo({ top: el.scrollHeight, behavior })
+    const near = isNearBottom(el)
+    scrollingToBottom = !near
+    lastScrollTop = el.scrollTop
+    atBottom.value = near
   } else {
     scrollingToBottom = false
     el.scrollTop = maxTop
+    lastScrollTop = el.scrollTop
+    atBottom.value = true
   }
-  lastScrollTop = el.scrollTop
-  atBottom.value = true
 }
 
 function follow() {
@@ -200,6 +207,7 @@ function follow() {
     atBottom.value = isNearBottom(el)
     return
   }
+  scrollingToBottom = false
   el.scrollTop = Math.max(0, el.scrollHeight - el.clientHeight)
   lastScrollTop = el.scrollTop
   atBottom.value = true

@@ -1,5 +1,5 @@
 import { effectScope, nextTick, ref } from 'vue'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { computePosition, useFloating } from '../use-floating'
 import type { PositionOptions } from '../use-floating'
 
@@ -146,6 +146,124 @@ describe('useFloating', () => {
       expect(floating.placement.value).toBe('top-start')
     } finally {
       scope.stop()
+      if (originalClientHeight)
+        Object.defineProperty(document.documentElement, 'clientHeight', originalClientHeight)
+      if (originalClientWidth)
+        Object.defineProperty(document.documentElement, 'clientWidth', originalClientWidth)
+    }
+  })
+
+  it('ignores internal scroll events and preserves scroll offsets during external updates', async () => {
+    const scope = effectScope()
+    const open = ref(false)
+    const anchor = document.createElement('button')
+    const panel = document.createElement('div')
+    const content = document.createElement('div')
+    panel.appendChild(content)
+    document.body.append(anchor, panel)
+
+    let anchorY = 200
+    anchor.getBoundingClientRect = () =>
+      ({
+        x: 40,
+        y: anchorY,
+        top: anchorY,
+        left: 40,
+        width: 100,
+        height: 32,
+        right: 140,
+        bottom: anchorY + 32,
+        toJSON: () => ({}),
+      }) as DOMRect
+
+    const naturalHeight = 420
+    let scrollTop = 0
+    let scrollLeft = 0
+    Object.defineProperty(content, 'scrollTop', {
+      configurable: true,
+      get: () => scrollTop,
+      set: (value: number) => {
+        scrollTop = value
+      },
+    })
+    Object.defineProperty(content, 'scrollLeft', {
+      configurable: true,
+      get: () => scrollLeft,
+      set: (value: number) => {
+        scrollLeft = value
+      },
+    })
+    Object.defineProperty(panel, 'offsetWidth', { configurable: true, get: () => 260 })
+    Object.defineProperty(panel, 'offsetHeight', {
+      configurable: true,
+      get: () => {
+        const cap = parseFloat(panel.style.getPropertyValue('--dou-floating-available'))
+        if (!Number.isFinite(cap)) {
+          // Simulate browser clamping scrollTop to 0 when the panel temporarily expands.
+          scrollTop = 0
+          scrollLeft = 0
+          return naturalHeight
+        }
+        return Math.min(naturalHeight, cap)
+      },
+    })
+
+    const originalClientHeight = Object.getOwnPropertyDescriptor(
+      document.documentElement,
+      'clientHeight',
+    )
+    const originalClientWidth = Object.getOwnPropertyDescriptor(
+      document.documentElement,
+      'clientWidth',
+    )
+    Object.defineProperty(document.documentElement, 'clientWidth', {
+      configurable: true,
+      get: () => 1000,
+    })
+    Object.defineProperty(document.documentElement, 'clientHeight', {
+      configurable: true,
+      get: () => 600,
+    })
+
+    const rafSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+      cb(0)
+      return 1
+    })
+
+    try {
+      const floating = scope.run(() =>
+        useFloating(() => anchor, ref<HTMLElement | null>(panel), {
+          open,
+          placement: 'bottom-start',
+        }),
+      )!
+
+      open.value = true
+      await nextTick()
+      rafSpy.mockClear()
+
+      content.scrollTop = 140
+      content.scrollLeft = 24
+
+      // Scrolling inside the floating panel must not schedule repositioning.
+      content.dispatchEvent(new Event('scroll'))
+      expect(rafSpy).not.toHaveBeenCalled()
+      expect(content.scrollTop).toBe(140)
+      expect(content.scrollLeft).toBe(24)
+
+      // External scrolling updates position and restores inner scroll offsets
+      // even if removing `--dou-floating-available` temporarily clamped them to 0.
+      anchorY = 240
+      window.dispatchEvent(new Event('scroll'))
+      expect(rafSpy).toHaveBeenCalledTimes(1)
+      expect(floating.style.value.top).toBe(`${240 + 32 + 8}px`)
+      expect(content.scrollTop).toBe(140)
+      expect(content.scrollLeft).toBe(24)
+    } finally {
+      rafSpy.mockRestore()
+      scope.stop()
+      anchor.remove()
+      panel.remove()
       if (originalClientHeight)
         Object.defineProperty(document.documentElement, 'clientHeight', originalClientHeight)
       if (originalClientWidth)

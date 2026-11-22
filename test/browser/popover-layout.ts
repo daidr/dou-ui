@@ -16,10 +16,12 @@ createApp({
     const content = ref('Hi')
     if (mode === 'scroll') {
       const anchor = ref(params.get('anchor') ?? 'bottom')
+      const itemCount = Number(params.get('items')) || 30
       const triggerStyle = () => {
         const style: Record<string, string> = { position: 'fixed', left: '24px' }
         if (anchor.value === 'top') style.top = '16px'
         else if (anchor.value === 'side') style.top = '120px'
+        else if (anchor.value === 'mid') style.top = '280px'
         else style.bottom = '16px'
         return style
       }
@@ -47,7 +49,7 @@ createApp({
               h(
                 'div',
                 { id: 'scroll-items' },
-                Array.from({ length: 30 }, (_, i) =>
+                Array.from({ length: itemCount }, (_, i) =>
                   h('div', { style: { height: '28px', lineHeight: '28px' } }, `Task #${i + 1}`),
                 ),
               ),

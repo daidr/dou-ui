@@ -106,6 +106,12 @@ try {
       expectedPlacement: 'bottom-start',
       expectedMaxHeight: 180,
     },
+    {
+      label: 'scroll medium content (between available and viewport) keeps scrollTop across frames',
+      viewport: { width: 640, height: 600 },
+      query: { mode: 'scroll', anchor: 'mid', placement: 'bottom-start', items: '14' },
+      expectedPlacement: 'bottom-start',
+    },
   ]) {
     const page = await browser.newPage({
       viewport: scenario.viewport,
@@ -126,6 +132,16 @@ try {
       const rect = panel.getBoundingClientRect()
       const titleBefore = title.getBoundingClientRect().top
       content.scrollTop = 120
+      const scrollTopImmediate = content.scrollTop
+      // Wait for any capture-phase scroll listener and scheduled rAF update.
+      await new Promise(requestAnimationFrame)
+      await new Promise(requestAnimationFrame)
+      const scrollTopAfterRaf = content.scrollTop
+      // Also force an external reposition via resize and ensure scrollTop survives.
+      window.dispatchEvent(new Event('resize'))
+      await new Promise(requestAnimationFrame)
+      await new Promise(requestAnimationFrame)
+      const scrollTopAfterResize = content.scrollTop
       const titleAfter = title.getBoundingClientRect().top
       return {
         placement: panel.dataset.placement,
@@ -135,7 +151,9 @@ try {
         available: parseFloat(panel.style.getPropertyValue('--dou-floating-available')),
         scrollHeight: content.scrollHeight,
         clientHeight: content.clientHeight,
-        scrollTop: content.scrollTop,
+        scrollTopImmediate,
+        scrollTopAfterRaf,
+        scrollTopAfterResize,
         titlePinned: Math.abs(titleBefore - titleAfter) < 0.5,
       }
     })
@@ -161,7 +179,15 @@ try {
       metrics.scrollHeight > metrics.clientHeight,
       `${scenario.label}: content did not become scrollable`,
     )
-    assert.ok(metrics.scrollTop > 0, `${scenario.label}: content could not scroll`)
+    assert.ok(metrics.scrollTopImmediate > 0, `${scenario.label}: content could not scroll`)
+    assert.ok(
+      Math.abs(metrics.scrollTopAfterRaf - metrics.scrollTopImmediate) < 1,
+      `${scenario.label}: scrollTop jumped after rAF (${metrics.scrollTopImmediate} -> ${metrics.scrollTopAfterRaf})`,
+    )
+    assert.ok(
+      Math.abs(metrics.scrollTopAfterResize - metrics.scrollTopImmediate) < 1,
+      `${scenario.label}: scrollTop jumped after resize (${metrics.scrollTopImmediate} -> ${metrics.scrollTopAfterResize})`,
+    )
     assert.ok(metrics.titlePinned, `${scenario.label}: title did not stay pinned while scrolling`)
     assert.deepEqual(errors, [], scenario.label)
     process.stdout.write(`PASS ${scenario.label}\n`)

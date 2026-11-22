@@ -15,6 +15,12 @@ export interface DockPanel {
   disabled?: boolean
   /** Whether the tab can be dragged; `false` keeps it in its place. Defaults to `true`. */
   draggable?: boolean
+  /**
+   * Pin this tab to the start of its group's tab bar so it stays visible while
+   * other tabs scroll. A pinned tab with an `icon` shows the icon alone with a
+   * tooltip, and is not closable unless `closable: true` is set on the panel.
+   */
+  pinned?: boolean
 }
 
 /** The smallest a group may get, by direction: `width` across a side-by-side split, `height` across a stacked one. */

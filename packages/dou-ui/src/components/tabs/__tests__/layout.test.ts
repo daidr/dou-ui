@@ -33,7 +33,7 @@ describe('DouTabs height', () => {
       },
       attachTo: document.body,
     })
-    const list = wrapper.get('[role="tablist"]').element as HTMLElement
+    const list = wrapper.get('.dou-tabs__list').element as HTMLElement
     let top = 0
     const to: number[] = []
     Object.defineProperties(list, {

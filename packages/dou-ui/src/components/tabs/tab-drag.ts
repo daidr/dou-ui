@@ -15,6 +15,8 @@ export interface TabDrag {
   index: number
   /** The tabs it comes from, to tell a move within them from one between tabs. */
   source: object
+  /** Whether the dragged tab is pinned. */
+  pinned?: boolean
 }
 
 /** A place a tab can be dropped on: a row of tabs, or a group of a dock. */
@@ -79,12 +81,21 @@ export interface StartTabDragOptions {
 }
 
 /**
+ * Whether a pointerdown should not start a tab drag: non-primary buttons and
+ * modifier-key clicks keep their native behavior (context menu, open in new
+ * tab, range select, etc.).
+ */
+export function isIgnoredDragPress(event: PointerEvent) {
+  return event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey
+}
+
+/**
  * Watch a press on a tab and turn it into a drag once the pointer moves
  * far enough. On touch the press has to be held first, so a swipe still
  * scrolls the row of tabs.
  */
 export function pressTab(event: PointerEvent, options: StartTabDragOptions) {
-  if (event.button !== 0 || activeTabDrag.value) return
+  if (isIgnoredDragPress(event) || activeTabDrag.value) return
   const start = { x: event.clientX, y: event.clientY }
   const press = event.pointerType === 'touch'
   let ready = !press

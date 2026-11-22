@@ -240,7 +240,8 @@ describe('DouTabs overflow', () => {
     const wrapper = manyTabs('t0', { addable: true, withExtra: true })
     await nextTick()
     await nextTick()
-    const list = wrapper.get('[role="tablist"]').element as HTMLElement
+    const tablist = wrapper.get('[role="tablist"]').element as HTMLElement
+    const list = wrapper.get('.dou-tabs__list').element as HTMLElement
     const { scrollTo, resize } = layout(list)
     scrollTo(0)
     await nextTick()
@@ -251,7 +252,7 @@ describe('DouTabs overflow', () => {
     expect(wrapper.findAll('.dou-tabs__overflow')).toHaveLength(1)
 
     const children = [...wrapper.get('.dou-tabs__header').element.children]
-    const listIndex = children.indexOf(list)
+    const listIndex = children.indexOf(tablist)
     const overflowIndex = children.indexOf(wrapper.get('.dou-tabs__overflow').element)
     const addIndex = children.indexOf(wrapper.get('.dou-tabs__add').element)
     const extraIndex = children.indexOf(wrapper.get('.dou-tabs__extra').element)
@@ -276,7 +277,7 @@ describe('DouTabs overflow', () => {
     const wrapper = manyTabs('t0')
     const header = wrapper.get('.dou-tabs__header').element as HTMLElement
     Object.defineProperty(header, 'clientWidth', { configurable: true, value: 120 })
-    const list = wrapper.get('[role="tablist"]').element as HTMLElement
+    const list = wrapper.get('.dou-tabs__list').element as HTMLElement
     const { scrollTo } = layout(list, { clientWidth: 100, scrollWidth: 900 })
     scrollTo(0)
     await nextTick()
@@ -303,7 +304,7 @@ describe('DouTabs overflow', () => {
       },
       attachTo: document.body,
     })
-    const list = wrapper.get('[role="tablist"]').element as HTMLElement
+    const list = wrapper.get('.dou-tabs__list').element as HTMLElement
     const { calls } = layout(list)
     await wrapper.setProps({ modelValue: 't6' })
     await nextTick()
@@ -317,7 +318,7 @@ describe('DouTabs overflow', () => {
     const wrapper = manyTabs('t0')
     await nextTick()
     await nextTick()
-    const list = wrapper.get('[role="tablist"]').element as HTMLElement
+    const list = wrapper.get('.dou-tabs__list').element as HTMLElement
     const state = layout(list)
     state.scrollTo(0)
     await nextTick()
@@ -399,7 +400,7 @@ describe('DouTabs overflow', () => {
       }),
       { attachTo: document.body },
     )
-    const list = wrapper.get('[role="tablist"]').element as HTMLElement
+    const list = wrapper.get('.dou-tabs__list').element as HTMLElement
     const { calls, scrollTo } = layout(list)
     scrollTo(0)
     await nextTick()
@@ -455,7 +456,7 @@ describe('DouTabs overflow', () => {
 
   it('supports keyboard navigation, closing and escape in the overflow popover', async () => {
     const wrapper = manyTabs('t0', { closable: true })
-    const list = wrapper.get('[role="tablist"]').element as HTMLElement
+    const list = wrapper.get('.dou-tabs__list').element as HTMLElement
     const { scrollTo } = layout(list)
     scrollTo(0)
     await nextTick()

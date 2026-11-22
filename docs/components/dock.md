@@ -46,9 +46,15 @@
 
 `value` 要在 `panels` 里有对应的一项，标签的文字从那里取；`label` 是拖动时跟着指针的文字，不设时也取 `panels` 里的。`panels` 可以先列好所有可能打开的项，Dock 只显示布局里有的。Dock 的 `draggable` 为 `false`，或这一项在 `panels` 里 `disabled`、`draggable: false` 时，`startDrop` 什么也不做。
 
-拖动结束时松开的那一下不算点击，所以元素上的 `click` 可以照常用来打开它，键盘用户按 `Enter` 或空格也是这样打开的。链接和图片在拖动时不会被浏览器自己拖走。在触屏上，给元素设上 `touch-action: pan-y`（竖着排的列表）之类的值，滑动仍然滚动列表，按住才开始拖。只支持页面里的元素，不支持从系统拖文件进来。
+拖动结束时松开的那一下不算点击，所以元素上的 `click` 可以照常用来打开它，键盘用户按 `Enter` 或空格也是这样打开的。按下 `Ctrl` / `Meta` / `Shift` / `Alt` 修饰键或快速双击/三击选词时，`startDrop` 会自动忽略，不干扰原生辅助点击和文本选择。链接和图片在拖动时不会被浏览器自己拖走。在触屏上，给元素设上 `touch-action: pan-y`（竖着排的列表）之类的值，滑动仍然滚动列表，按住才开始拖。只支持页面里的元素，不支持从系统拖文件进来。
 
 <DocDemo src="dock/external" style="padding: 0; height: 320px; overflow: hidden" />
+
+## 固定标签
+
+在 `panels` 的面板配置上设置 `pinned: true`，该标签会固定在所在分组标签行最左侧，不随普通标签横向滚动。带 `icon` 的固定标签显示为紧凑图标加提示，默认不可关闭；支持在固定区内部拖动排序、拖到其他分组的固定区，以及拖到边缘拆出新组。
+
+<DocDemo src="dock/pinned" style="padding: 0; height: 340px; overflow: hidden" />
 
 ## 用菜单或按钮拆分
 
@@ -202,5 +208,6 @@ interface DockPanel {
   closable?: boolean
   disabled?: boolean
   draggable?: boolean
+  pinned?: boolean
 }
 ```

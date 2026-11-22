@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import {
   computed,
-  h,
   nextTick,
   onBeforeUnmount,
   onMounted,
@@ -15,7 +14,7 @@ import {
   useTemplateRef,
   watch,
 } from 'vue'
-import { CheckIcon, ChevronDownIcon, CloseIcon, PlusIcon } from '@dou-ui/icons'
+import { CheckIcon, ChevronDownIcon, CloseIcon, PinIcon, PlusIcon } from '@dou-ui/icons'
 import { useReducedMotion } from '../../composables/use-motion'
 import { announce } from '../../utils/announce'
 import { useNamespace } from '../../utils/namespace'
@@ -24,7 +23,7 @@ import { devWarn } from '../../utils/status-check'
 import { useLocale } from '../config-provider/use-config'
 import { useFormSize } from '../form/use-form-item'
 import { DouPopover } from '../popover'
-import { DouTooltip } from '../tooltip'
+import TabButton from './tab-button.vue'
 import { pressTab, registerTabDropZone } from './tab-drag'
 import { tabsKey } from './tabs'
 import type { FunctionalComponent, VNode } from 'vue'
@@ -89,7 +88,11 @@ onUpdated(() => {
   updateOverflow()
 })
 
-const firstEnabled = computed(() => panels.value.find((entry) => !entry.props.disabled))
+const pinnedPanels = computed(() => panels.value.filter((entry) => !!entry.props.pinned))
+const regularPanels = computed(() => panels.value.filter((entry) => !entry.props.pinned))
+const orderedPanels = computed(() => [...pinnedPanels.value, ...regularPanels.value])
+
+const firstEnabled = computed(() => orderedPanels.value.find((entry) => !entry.props.disabled))
 const selected = computed(() => model.value ?? firstEnabled.value?.props.value)
 
 const key = (value: TabsValue) => String(value).replace(/\s+/g, '-')
@@ -118,25 +121,32 @@ async function selectValue(next: TabsValue): Promise<boolean> {
 }
 
 const isClosable = (entry: TabPanelEntry) =>
-  !entry.props.disabled && (entry.props.closable ?? props.closable)
+  !entry.props.disabled && (entry.props.closable ?? (entry.props.pinned ? false : props.closable))
 
 function remove(entry: TabPanelEntry) {
   if (isClosable(entry)) emit('remove', entry.props.value)
 }
 
-const listRef = useTemplateRef<HTMLElement>('list')
-const headerRef = useTemplateRef<HTMLElement>('header')
-const tabElements = new Map<number, HTMLElement>()
+type TabDropZoneKind = 'pinned' | 'regular'
 
-function setTabElement(uid: number, el: unknown) {
-  if (el instanceof HTMLElement) tabElements.set(uid, el)
-  else tabElements.delete(uid)
+const listRef = useTemplateRef<HTMLElement>('list')
+const pinnedRef = useTemplateRef<HTMLElement>('pinned')
+const headerRef = useTemplateRef<HTMLElement>('header')
+// Kept separate by zone so toggling a panel's `pinned` state mounts its new
+// button before the old one unmounts without the unmount clearing the new ref.
+const pinnedTabElements = new Map<number, HTMLElement>()
+const regularTabElements = new Map<number, HTMLElement>()
+
+function setTabElement(zone: TabDropZoneKind, uid: number, el: unknown) {
+  const map = zone === 'pinned' ? pinnedTabElements : regularTabElements
+  if (el instanceof HTMLElement) map.set(uid, el)
+  else map.delete(uid)
 }
 function tabElement(entry: TabPanelEntry) {
-  return tabElements.get(entry.uid)
+  return (entry.props.pinned ? pinnedTabElements : regularTabElements).get(entry.uid)
 }
 
-/** The label slot of a panel, rendered inside its tab. */
+/** The label slot of a panel, rendered inside its overflow list item. */
 const TabLabel: FunctionalComponent<{ entry: TabPanelEntry; selected: boolean }> = ({
   entry,
   selected: isSelected,
@@ -144,8 +154,12 @@ const TabLabel: FunctionalComponent<{ entry: TabPanelEntry; selected: boolean }>
 
 const labelText = (entry: TabPanelEntry) => entry.props.label ?? String(entry.props.value)
 
-/** With `iconOnly`, whether the tab shows its icon alone; without an icon it keeps its text. */
+/**
+ * Whether the tab shows its icon alone (with label in a tooltip):
+ * pinned tabs with an icon always do; with `iconOnly`, every tab with an icon does.
+ */
 function iconAlone(entry: TabPanelEntry) {
+  if (entry.props.pinned) return !!entry.props.icon
   if (!props.iconOnly) return false
   if (entry.props.icon) {
     // the label slot cannot name an icon: the tab would be read out as its value
@@ -162,18 +176,14 @@ function iconAlone(entry: TabPanelEntry) {
   return false
 }
 
-// With `iconOnly`, the label shows in a tooltip: beside a column, above a row.
-const tipPlacement = computed(() =>
+// With `iconOnly` or pinned icon tabs, the label shows in a tooltip: beside a column, above a row.
+const tipPlacement = computed<'top' | 'right' | 'left'>(() =>
   props.placement === 'start' ? 'right' : props.placement === 'end' ? 'left' : 'top',
 )
-const TabTip: FunctionalComponent<{ entry: TabPanelEntry }> = ({ entry }, { slots: tip }) =>
-  iconAlone(entry)
-    ? h(DouTooltip, { content: labelText(entry), placement: tipPlacement.value }, tip)
-    : tip.default?.()
 
 function onKeydown(event: KeyboardEvent, entry: TabPanelEntry) {
   if (event.altKey && isDraggable(entry) && moveByKey(event, entry)) return
-  const enabled = panels.value.filter((panel) => !panel.props.disabled)
+  const enabled = orderedPanels.value.filter((panel) => !panel.props.disabled)
   const index = enabled.indexOf(entry)
   let target: TabPanelEntry | undefined
   const [prev, next] = vertical.value ? ['ArrowUp', 'ArrowDown'] : ['ArrowLeft', 'ArrowRight']
@@ -232,7 +242,7 @@ function onPointerdown(event: PointerEvent, entry: TabPanelEntry) {
   if (!el) return
   pressTab(event, {
     el,
-    root: listRef.value,
+    root: headerRef.value,
     drag: () => ({
       value: entry.props.value,
       label: labelText(entry),
@@ -240,6 +250,7 @@ function onPointerdown(event: PointerEvent, entry: TabPanelEntry) {
       name: props.name,
       index: panels.value.indexOf(entry),
       source: self,
+      pinned: !!entry.props.pinned,
     }),
     onStart: () => (draggingUid.value = entry.uid),
     onEnd: () => {
@@ -250,11 +261,23 @@ function onPointerdown(event: PointerEvent, entry: TabPanelEntry) {
   })
 }
 
-/** Where a tab dropped now would go: before the tab at `index`, or after the last. */
-const marker = ref<{ index: number; at: number } | null>(null)
+interface TabDropMarker {
+  /** Which logical zone the dragged tab lands in. */
+  zone: TabDropZoneKind
+  /** Insertion slot inside `zone`. */
+  slot: number
+  at: number
+}
 
-function insertionAt(x: number, y: number) {
-  const entries = panels.value
+/** Where a tab dropped now would go: before the tab at `slot` of its zone, or after the last. */
+const marker = ref<TabDropMarker | null>(null)
+
+function zoneEntries(zone: TabDropZoneKind) {
+  return zone === 'pinned' ? pinnedPanels.value : regularPanels.value
+}
+
+function insertionAt(zone: TabDropZoneKind, x: number, y: number) {
+  const entries = zoneEntries(zone)
   const index = entries.findIndex((entry) => {
     const rect = tabElement(entry)?.getBoundingClientRect()
     if (!rect) return false
@@ -272,14 +295,28 @@ const fromHere = (drag: TabDrag) =>
   (drag.name !== undefined && drag.name === props.name && drag.group === props.group)
 
 /** Whether dropping there leaves the tab where it is. */
-const stays = (drag: TabDrag, index: number) =>
-  fromHere(drag) && (index === drag.index || index === drag.index + 1)
+function stays(drag: TabDrag, zone: TabDropZoneKind, slot: number) {
+  if (!fromHere(drag)) return false
+  const entries = zoneEntries(zone)
+  const currentIndex = entries.findIndex((entry) => entry.props.value === drag.value)
+  return currentIndex >= 0 && (slot === currentIndex || slot === currentIndex + 1)
+}
 
-function markerOffset(index: number) {
-  const entries = panels.value
-  const style = getComputedStyle(listRef.value!)
+/** Map a visual zone slot back to an insertion index in `panels.value`. */
+function rawInsertIndex(zone: TabDropZoneKind, slot: number) {
+  const entries = zoneEntries(zone)
+  if (!entries.length) return zone === 'pinned' ? 0 : panels.value.length
+  const before = entries[slot]
+  if (before) return panels.value.indexOf(before)
+  const last = entries.at(-1)!
+  return panels.value.indexOf(last) + 1
+}
+
+function markerOffset(zone: TabDropZoneKind, slot: number, container: HTMLElement) {
+  const entries = zoneEntries(zone)
+  const style = getComputedStyle(container)
   const gap = Number.parseFloat(vertical.value ? style.rowGap : style.columnGap) || 0
-  const before = entries[index] && tabElement(entries[index])
+  const before = entries[slot] && tabElement(entries[slot])
   if (before) return (vertical.value ? before.offsetTop : before.offsetLeft) - gap / 2
   const last = entries.at(-1)
   const after = last && tabElement(last)
@@ -313,28 +350,40 @@ const dropZone = registerTabDropZone({
   accepts: (drag) =>
     drag.source === self || (props.draggable && !!props.group && drag.group === props.group),
   over(drag, x, y) {
-    scrollNearEdge(x, y)
-    const index = insertionAt(x, y)
-    if (stays(drag, index)) {
+    const zone: TabDropZoneKind = drag.pinned ? 'pinned' : 'regular'
+    if (zone === 'regular') scrollNearEdge(x, y)
+    const slot = insertionAt(zone, x, y)
+    if (stays(drag, zone, slot)) {
       marker.value = null
       return
     }
-    // kept inside the row, which cuts off what sticks out
-    const list = listRef.value!
-    const end = (vertical.value ? list.scrollHeight : list.scrollWidth) - 2
-    const at = Math.min(Math.max(markerOffset(index), 1), end)
-    if (marker.value?.index !== index || marker.value.at !== at) marker.value = { index, at }
+    let at = 1
+    if (zone === 'regular' || pinnedPanels.value.length > 0) {
+      const container = zone === 'pinned' ? pinnedRef.value : listRef.value
+      if (container) {
+        // kept inside the row, which cuts off what sticks out
+        const end = Math.max(
+          1,
+          (vertical.value ? container.scrollHeight : container.scrollWidth) - 2,
+        )
+        at = Math.min(Math.max(markerOffset(zone, slot, container), 1), end)
+      }
+    }
+    if (marker.value?.zone !== zone || marker.value.slot !== slot || marker.value.at !== at) {
+      marker.value = { zone, slot, at }
+    }
   },
   leave: () => (marker.value = null),
   drop(drag) {
-    const index = marker.value?.index
+    const current = marker.value
     marker.value = null
-    if (index === undefined) return
+    if (!current) return
     const within = fromHere(drag)
+    const raw = rawInsertIndex(current.zone, current.slot)
     emit('move', {
       value: drag.value,
       from: { name: drag.name, index: drag.index },
-      to: { name: props.name, index: within && index > drag.index ? index - 1 : index },
+      to: { name: props.name, index: within && raw > drag.index ? raw - 1 : raw },
     })
     // dragging a tab is using it
     void selectValue(drag.value)
@@ -351,9 +400,21 @@ onUpdated(() => dropZone.update())
 onBeforeUnmount(() => dropZone.remove())
 
 const markerStyle = computed(() => {
-  const at = marker.value?.at
-  if (at === undefined) return { display: 'none' }
-  return { transform: vertical.value ? `translateY(${at}px)` : `translateX(${at}px)` }
+  if (marker.value?.zone !== 'regular') return { display: 'none' }
+  return {
+    transform: vertical.value
+      ? `translateY(${marker.value.at}px)`
+      : `translateX(${marker.value.at}px)`,
+  }
+})
+
+const pinnedMarkerStyle = computed(() => {
+  if (marker.value?.zone !== 'pinned') return { display: 'none' }
+  return {
+    transform: vertical.value
+      ? `translateY(${marker.value.at}px)`
+      : `translateX(${marker.value.at}px)`,
+  }
 })
 
 /** A tab moved with the keyboard keeps the focus once it is in its new place. */
@@ -361,30 +422,39 @@ let focusAfterMove: TabsValue | undefined
 
 function moveByKey(event: KeyboardEvent, entry: TabPanelEntry) {
   const [prev, next] = vertical.value ? ['ArrowUp', 'ArrowDown'] : ['ArrowLeft', 'ArrowRight']
-  const entries = panels.value
-  const index = entries.indexOf(entry)
+  const zone: TabDropZoneKind = entry.props.pinned ? 'pinned' : 'regular'
+  const entries = zoneEntries(zone)
+  const zoneIndex = entries.indexOf(entry)
   const last = entries.length - 1
-  const target =
+  const targetSlot =
     event.key === prev
-      ? index - 1
+      ? zoneIndex - 1
       : event.key === next
-        ? index + 1
+        ? zoneIndex + 1
         : event.key === 'Home'
           ? 0
           : event.key === 'End'
             ? last
             : null
-  if (target === null) return false
+  if (targetSlot === null) return false
   event.preventDefault()
-  if (target < 0 || target > last || target === index) return true
+  if (targetSlot < 0 || targetSlot > last || targetSlot === zoneIndex) return true
+  const fromIndex = panels.value.indexOf(entry)
+  const anchor = entries[targetSlot]!
+  const toIndex = panels.value.indexOf(anchor)
   focusAfterMove = entry.props.value
   emit('move', {
     value: entry.props.value,
-    from: { name: props.name, index },
-    to: { name: props.name, index: target },
+    from: { name: props.name, index: fromIndex },
+    to: { name: props.name, index: toIndex },
   })
+  const position = (zone === 'pinned' ? 0 : pinnedPanels.value.length) + targetSlot + 1
   announce(
-    t('tabs.moved', { label: labelText(entry), position: target + 1, total: entries.length }),
+    t('tabs.moved', {
+      label: labelText(entry),
+      position,
+      total: orderedPanels.value.length,
+    }),
   )
   return true
 }
@@ -413,23 +483,37 @@ function keyShortcuts(entry: TabPanelEntry) {
 
 // The underline slides between the tabs. It is measured from the
 // selected tab, like the selection of a segmented control.
-const indicator = ref<{ left: number; top: number; width: number; height: number } | null>(null)
+interface IndicatorBox {
+  left: number
+  top: number
+  width: number
+  height: number
+}
+const indicator = ref<IndicatorBox | null>(null)
+const pinnedIndicator = ref<IndicatorBox | null>(null)
 const settled = ref(false)
 
 function measure() {
-  const list = listRef.value
-  const entry = panels.value.find((panel) => panel.props.value === selected.value)
+  const entry = orderedPanels.value.find((panel) => panel.props.value === selected.value)
   const tab = entry && tabElement(entry)
   watchTab(tab)
-  if (!list || !tab) {
+  if (!entry || !tab) {
     indicator.value = null
+    pinnedIndicator.value = null
     return
   }
-  indicator.value = {
+  const box: IndicatorBox = {
     left: tab.offsetLeft,
     top: tab.offsetTop,
     width: tab.offsetWidth,
     height: tab.offsetHeight,
+  }
+  if (entry.props.pinned) {
+    pinnedIndicator.value = box
+    indicator.value = null
+  } else {
+    indicator.value = box
+    pinnedIndicator.value = null
   }
 }
 
@@ -503,7 +587,7 @@ let pendingOverflowFocus: 'selected' | 'first' | 'last' = 'selected'
 let focusOverflowAfterRemove: TabsValue | undefined
 
 function focusOverflowItem(target: 'selected' | 'first' | 'last' | TabsValue = 'selected') {
-  const enabled = panels.value.filter((panel) => !panel.props.disabled)
+  const enabled = orderedPanels.value.filter((panel) => !panel.props.disabled)
   if (!enabled.length) return
   let entry: TabPanelEntry | undefined
   if (target === 'first') entry = enabled[0]
@@ -551,7 +635,7 @@ function onOverflowTriggerKeydown(event: KeyboardEvent) {
 }
 
 function onOverflowItemKeydown(event: KeyboardEvent, entry: TabPanelEntry) {
-  const enabled = panels.value.filter((panel) => !panel.props.disabled)
+  const enabled = orderedPanels.value.filter((panel) => !panel.props.disabled)
   const index = enabled.indexOf(entry)
   let target: TabPanelEntry | undefined
   switch (event.key) {
@@ -598,9 +682,9 @@ async function selectFromOverflow(entry: TabPanelEntry, event: MouseEvent) {
 
 function reveal(smooth: boolean) {
   const list = listRef.value
-  const entry = panels.value.find((panel) => panel.props.value === selected.value)
+  const entry = orderedPanels.value.find((panel) => panel.props.value === selected.value)
   const tab = entry && tabElement(entry)
-  if (!list || !tab) return
+  if (!list || !tab || entry.props.pinned) return
   // leave room for the faded edge, so the tab is not under it
   const margin = 32
   if (vertical.value) {
@@ -627,12 +711,18 @@ function reveal(smooth: boolean) {
 let observer: ResizeObserver | undefined
 // the selected tab is watched too: its label can grow while the row keeps its size
 let watchedTab: HTMLElement | undefined
+let watchedPinned: HTMLElement | undefined
 function watchTab(tab: HTMLElement | undefined) {
   if (tab === watchedTab) return
   if (watchedTab) observer?.unobserve(watchedTab)
   watchedTab = tab
   if (tab) observer?.observe(tab)
 }
+watch(pinnedRef, (el) => {
+  if (watchedPinned) observer?.unobserve(watchedPinned)
+  watchedPinned = el ?? undefined
+  if (watchedPinned) observer?.observe(watchedPinned)
+})
 onMounted(() => {
   measure()
   updateOverflow()
@@ -644,12 +734,24 @@ onMounted(() => {
       updateOverflow()
     })
     observer.observe(listRef.value)
+    if (pinnedRef.value) {
+      watchedPinned = pinnedRef.value
+      observer.observe(watchedPinned)
+    }
     if (watchedTab) observer.observe(watchedTab)
   }
 })
 onBeforeUnmount(() => observer?.disconnect())
 watch(
-  [selected, panels, size, () => props.placement, () => props.iconOnly, () => props.height],
+  [
+    selected,
+    panels,
+    pinnedPanels,
+    size,
+    () => props.placement,
+    () => props.iconOnly,
+    () => props.height,
+  ],
   () =>
     nextTick(() => {
       measure()
@@ -666,13 +768,14 @@ const rootStyle = computed(() =>
       },
 )
 
-const indicatorStyle = computed(() => {
-  const box = indicator.value
+function styleForIndicator(box: IndicatorBox | null) {
   if (!box) return { display: 'none' }
   return vertical.value
     ? { transform: `translateY(${box.top}px)`, height: `${box.height}px` }
     : { transform: `translateX(${box.left}px)`, width: `${box.width}px` }
-})
+}
+const indicatorStyle = computed(() => styleForIndicator(indicator.value))
+const pinnedIndicatorStyle = computed(() => styleForIndicator(pinnedIndicator.value))
 </script>
 
 <template>
@@ -691,69 +794,82 @@ const indicatorStyle = computed(() => {
   >
     <div ref="header" :class="ns.e('header')">
       <div
-        ref="list"
-        :class="[
-          ns.e('list'),
-          ns.is('fade-start', overflow.start),
-          ns.is('fade-end', overflow.end),
-        ]"
+        :class="ns.e('tablist')"
         role="tablist"
         :aria-orientation="vertical ? 'vertical' : 'horizontal'"
-        @scroll.passive="updateOverflow"
-        @wheel="onWheel"
       >
-        <template v-for="entry in panels" :key="entry.uid">
-          <TabTip :entry="entry">
-            <button
-              :id="tabId(entry.props.value)"
-              :ref="(el) => setTabElement(entry.uid, el)"
-              type="button"
-              role="tab"
-              :class="[
-                ns.e('tab'),
-                ns.is('selected', entry.props.value === selected),
-                ns.is('disabled', !!entry.props.disabled),
-                ns.is('closable', isClosable(entry)),
-                ns.is('icon-alone', iconAlone(entry)),
-                ns.is('draggable', isDraggable(entry)),
-                ns.is('dragging', draggingUid === entry.uid),
-              ]"
-              :aria-selected="entry.props.value === selected"
-              :aria-controls="panelId(entry.props.value)"
-              :aria-label="iconAlone(entry) ? labelText(entry) : undefined"
-              :aria-disabled="entry.props.disabled || undefined"
-              :tabindex="entry.props.value === selected ? 0 : -1"
-              :aria-keyshortcuts="keyShortcuts(entry)"
-              @click="onClick(entry)"
-              @pointerdown="onPointerdown($event, entry)"
-              @keydown="onKeydown($event, entry)"
-            >
-              <component
-                :is="entry.props.icon"
-                v-if="entry.props.icon"
-                :class="ns.e('icon')"
-                aria-hidden="true"
-              />
-              <span v-if="!iconAlone(entry)" :class="ns.e('label')">
-                <TabLabel :entry="entry" :selected="entry.props.value === selected" />
-              </span>
-              <!-- not a button of its own: a tab cannot hold one; `Delete` closes it from the keyboard.
-               An icon alone already has the label's tooltip, so the close button goes without. -->
-              <DouTooltip
-                v-if="isClosable(entry)"
-                :content="t('tabs.close')"
-                shortcut="delete"
-                :disabled="iconAlone(entry)"
-              >
-                <span :class="ns.e('close')" aria-hidden="true" @click.stop="remove(entry)">
-                  <CloseIcon />
-                </span>
-              </DouTooltip>
-            </button>
-          </TabTip>
-        </template>
-        <span :class="ns.e('indicator')" :style="indicatorStyle" aria-hidden="true" />
-        <span v-if="draggable" :class="ns.e('marker')" :style="markerStyle" aria-hidden="true" />
+        <div
+          v-if="pinnedPanels.length || marker?.zone === 'pinned'"
+          ref="pinned"
+          :class="[
+            ns.e('pinned'),
+            ns.is(
+              'divided',
+              pinnedPanels.length > 0 && (regularPanels.length > 0 || marker?.zone === 'regular'),
+            ),
+          ]"
+        >
+          <TabButton
+            v-for="entry in pinnedPanels"
+            :key="entry.uid"
+            :entry="entry"
+            :tab-id="tabId(entry.props.value)"
+            :panel-id="panelId(entry.props.value)"
+            :label-text="labelText(entry)"
+            :selected="entry.props.value === selected"
+            :closable="isClosable(entry)"
+            :icon-alone="iconAlone(entry)"
+            :draggable="isDraggable(entry)"
+            :dragging="draggingUid === entry.uid"
+            :tip-placement="tipPlacement"
+            :key-shortcuts="keyShortcuts(entry)"
+            :set-el="(el) => setTabElement('pinned', entry.uid, el)"
+            @click="onClick(entry)"
+            @pointerdown="onPointerdown($event, entry)"
+            @keydown="onKeydown($event, entry)"
+            @remove="remove(entry)"
+          />
+          <span :class="ns.e('indicator')" :style="pinnedIndicatorStyle" aria-hidden="true" />
+          <span
+            v-if="draggable"
+            :class="ns.e('marker')"
+            :style="pinnedMarkerStyle"
+            aria-hidden="true"
+          />
+        </div>
+        <div
+          ref="list"
+          :class="[
+            ns.e('list'),
+            ns.is('fade-start', overflow.start),
+            ns.is('fade-end', overflow.end),
+          ]"
+          @scroll.passive="updateOverflow"
+          @wheel="onWheel"
+        >
+          <TabButton
+            v-for="entry in regularPanels"
+            :key="entry.uid"
+            :entry="entry"
+            :tab-id="tabId(entry.props.value)"
+            :panel-id="panelId(entry.props.value)"
+            :label-text="labelText(entry)"
+            :selected="entry.props.value === selected"
+            :closable="isClosable(entry)"
+            :icon-alone="iconAlone(entry)"
+            :draggable="isDraggable(entry)"
+            :dragging="draggingUid === entry.uid"
+            :tip-placement="tipPlacement"
+            :key-shortcuts="keyShortcuts(entry)"
+            :set-el="(el) => setTabElement('regular', entry.uid, el)"
+            @click="onClick(entry)"
+            @pointerdown="onPointerdown($event, entry)"
+            @keydown="onKeydown($event, entry)"
+            @remove="remove(entry)"
+          />
+          <span :class="ns.e('indicator')" :style="indicatorStyle" aria-hidden="true" />
+          <span v-if="draggable" :class="ns.e('marker')" :style="markerStyle" aria-hidden="true" />
+        </div>
       </div>
       <DouPopover
         v-if="hasOverflow"
@@ -773,54 +889,65 @@ const indicatorStyle = computed(() => {
         </button>
         <template #content>
           <div :class="ns.e('overflow-list')" role="list" :aria-label="t('tabs.more')">
-            <div
-              v-for="entry in panels"
-              :key="entry.uid"
-              role="listitem"
-              :class="[
-                ns.e('overflow-item'),
-                ns.is('selected', entry.props.value === selected),
-                ns.is('disabled', !!entry.props.disabled),
-                ns.is('closable', isClosable(entry)),
-              ]"
-            >
-              <button
-                :ref="(el) => setOverflowItem(entry.uid, el)"
-                type="button"
-                :class="ns.e('overflow-select')"
-                :disabled="entry.props.disabled"
-                :aria-current="entry.props.value === selected ? 'true' : undefined"
-                :aria-keyshortcuts="isClosable(entry) ? 'Delete' : undefined"
-                @click="selectFromOverflow(entry, $event)"
-                @keydown="onOverflowItemKeydown($event, entry)"
+            <template v-for="(entry, index) in orderedPanels" :key="entry.uid">
+              <div
+                v-if="index === pinnedPanels.length && pinnedPanels.length > 0"
+                role="separator"
+                :class="ns.e('overflow-divider')"
+              />
+              <div
+                role="listitem"
+                :class="[
+                  ns.e('overflow-item'),
+                  ns.is('selected', entry.props.value === selected),
+                  ns.is('disabled', !!entry.props.disabled),
+                  ns.is('closable', isClosable(entry)),
+                  ns.is('pinned', !!entry.props.pinned),
+                ]"
               >
-                <component
-                  :is="entry.props.icon"
-                  v-if="entry.props.icon"
-                  :class="ns.e('overflow-icon')"
-                  aria-hidden="true"
-                />
-                <span :class="ns.e('overflow-label')">
-                  <TabLabel :entry="entry" :selected="entry.props.value === selected" />
-                </span>
-                <CheckIcon
-                  v-if="entry.props.value === selected"
-                  :class="ns.e('overflow-check')"
-                  aria-hidden="true"
-                />
-              </button>
-              <button
-                v-if="isClosable(entry)"
-                type="button"
-                tabindex="-1"
-                :class="ns.e('overflow-close')"
-                :aria-label="`${t('tabs.close')} ${labelText(entry)}`"
-                :title="t('tabs.close')"
-                @click.stop="remove(entry)"
-              >
-                <CloseIcon aria-hidden="true" />
-              </button>
-            </div>
+                <button
+                  :ref="(el) => setOverflowItem(entry.uid, el)"
+                  type="button"
+                  :class="ns.e('overflow-select')"
+                  :disabled="entry.props.disabled"
+                  :aria-current="entry.props.value === selected ? 'true' : undefined"
+                  :aria-keyshortcuts="isClosable(entry) ? 'Delete' : undefined"
+                  @click="selectFromOverflow(entry, $event)"
+                  @keydown="onOverflowItemKeydown($event, entry)"
+                >
+                  <component
+                    :is="entry.props.icon"
+                    v-if="entry.props.icon"
+                    :class="ns.e('overflow-icon')"
+                    aria-hidden="true"
+                  />
+                  <span :class="ns.e('overflow-label')">
+                    <TabLabel :entry="entry" :selected="entry.props.value === selected" />
+                  </span>
+                  <PinIcon
+                    v-if="entry.props.pinned"
+                    :class="ns.e('overflow-pin')"
+                    aria-hidden="true"
+                  />
+                  <CheckIcon
+                    v-if="entry.props.value === selected"
+                    :class="ns.e('overflow-check')"
+                    aria-hidden="true"
+                  />
+                </button>
+                <button
+                  v-if="isClosable(entry)"
+                  type="button"
+                  tabindex="-1"
+                  :class="ns.e('overflow-close')"
+                  :aria-label="`${t('tabs.close')} ${labelText(entry)}`"
+                  :title="t('tabs.close')"
+                  @click.stop="remove(entry)"
+                >
+                  <CloseIcon aria-hidden="true" />
+                </button>
+              </div>
+            </template>
           </div>
         </template>
       </DouPopover>

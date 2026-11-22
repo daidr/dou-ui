@@ -72,6 +72,7 @@ function pointerEvent(
     clientX?: number
     clientY?: number
     button?: number
+    buttons?: number
     isPrimary?: boolean
   } = {},
 ) {
@@ -83,6 +84,7 @@ function pointerEvent(
     clientX: init.clientX ?? 0,
     clientY: init.clientY ?? 0,
     button: init.button ?? 0,
+    buttons: init.buttons ?? (type === 'pointerdown' || type === 'pointermove' ? 1 : 0),
     isPrimary: init.isPrimary ?? false,
   })
 }
@@ -517,6 +519,224 @@ describe('DouImagePreview gestures and trackpad zoom', () => {
     expect(image.classList.contains('is-dragging')).toBe(false)
     expect(image.classList.contains('is-interacting')).toBe(false)
     expect(parseTransform(image.style.transform).x).toBe(400)
+
+    wrapper.unmount()
+  })
+
+  it('cleans up mouse press released outside the stage or when primary button is up', async () => {
+    const { wrapper, stage, image } = await mountPreview()
+
+    image.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, clientX: 400, clientY: 300 }))
+    await nextTick()
+
+    // Press on stage, do not move past DRAG_THRESHOLD, release on window (e.g. over toolbar/outside).
+    image.dispatchEvent(
+      pointerEvent('pointerdown', {
+        pointerId: 1,
+        pointerType: 'mouse',
+        clientX: 400,
+        clientY: 300,
+        buttons: 1,
+        isPrimary: true,
+      }),
+    )
+    window.dispatchEvent(
+      pointerEvent('pointerup', {
+        pointerId: 1,
+        pointerType: 'mouse',
+        clientX: 401,
+        clientY: 300,
+        buttons: 0,
+      }),
+    )
+    // Hovering back across stage must not trigger sticky dragging.
+    stage.dispatchEvent(
+      pointerEvent('pointermove', {
+        pointerId: 1,
+        pointerType: 'mouse',
+        clientX: 520,
+        clientY: 300,
+        buttons: 0,
+      }),
+    )
+    await nextTick()
+    expect(image.classList.contains('is-dragging')).toBe(false)
+    expect(parseTransform(image.style.transform).x).toBe(0)
+
+    // Even if pointerup was missed completely, mouse pointermove with buttons === 0 cleans up.
+    image.dispatchEvent(
+      pointerEvent('pointerdown', {
+        pointerId: 2,
+        pointerType: 'mouse',
+        clientX: 400,
+        clientY: 300,
+        buttons: 1,
+        isPrimary: true,
+      }),
+    )
+    stage.dispatchEvent(
+      pointerEvent('pointermove', {
+        pointerId: 2,
+        pointerType: 'mouse',
+        clientX: 520,
+        clientY: 300,
+        buttons: 0,
+      }),
+    )
+    await nextTick()
+    expect(image.classList.contains('is-dragging')).toBe(false)
+    expect(parseTransform(image.style.transform).x).toBe(0)
+
+    wrapper.unmount()
+  })
+
+  it('allows 4px–10px finger jitter during touch double-tap in both fit and zoomed states', async () => {
+    vi.useFakeTimers()
+    const { wrapper, stage, image } = await mountPreview()
+
+    // First tap with 6px jitter, second tap with 7px jitter (within TAP_SLOP=10px).
+    image.dispatchEvent(
+      pointerEvent('pointerdown', { pointerId: 1, clientX: 300, clientY: 250, isPrimary: true }),
+    )
+    stage.dispatchEvent(pointerEvent('pointermove', { pointerId: 1, clientX: 306, clientY: 250 }))
+    vi.advanceTimersByTime(40)
+    stage.dispatchEvent(pointerEvent('pointerup', { pointerId: 1, clientX: 306, clientY: 250 }))
+
+    vi.advanceTimersByTime(100)
+    image.dispatchEvent(
+      pointerEvent('pointerdown', { pointerId: 2, clientX: 304, clientY: 252, isPrimary: true }),
+    )
+    stage.dispatchEvent(pointerEvent('pointermove', { pointerId: 2, clientX: 311, clientY: 252 }))
+    vi.advanceTimersByTime(40)
+    stage.dispatchEvent(pointerEvent('pointerup', { pointerId: 2, clientX: 311, clientY: 252 }))
+    await nextTick()
+    expect(parseTransform(image.style.transform).scale).toBe(2)
+
+    // Zoomed state: double-tap with 6px jitter resets back to 1x instead of entering pan.
+    vi.advanceTimersByTime(400)
+    image.dispatchEvent(
+      pointerEvent('pointerdown', { pointerId: 3, clientX: 400, clientY: 300, isPrimary: true }),
+    )
+    stage.dispatchEvent(pointerEvent('pointermove', { pointerId: 3, clientX: 406, clientY: 300 }))
+    vi.advanceTimersByTime(40)
+    stage.dispatchEvent(pointerEvent('pointerup', { pointerId: 3, clientX: 406, clientY: 300 }))
+
+    vi.advanceTimersByTime(100)
+    image.dispatchEvent(
+      pointerEvent('pointerdown', { pointerId: 4, clientX: 402, clientY: 300, isPrimary: true }),
+    )
+    stage.dispatchEvent(pointerEvent('pointermove', { pointerId: 4, clientX: 408, clientY: 300 }))
+    vi.advanceTimersByTime(40)
+    stage.dispatchEvent(pointerEvent('pointerup', { pointerId: 4, clientX: 408, clientY: 300 }))
+    await nextTick()
+    expect(parseTransform(image.style.transform).scale).toBe(1)
+    expect(parseTransform(image.style.transform).x).toBe(0)
+
+    wrapper.unmount()
+  })
+
+  it('keeps continuous trackpad scroll smooth across speedups, throttles discrete wheel, and ignores wheel during active pointers', async () => {
+    vi.useFakeTimers()
+    const { wrapper, stage, image } = await mountPreview()
+
+    // Start continuous pixel-mode trackpad stream with small delta, then accelerate past 40px.
+    stage.dispatchEvent(wheelEvent({ ctrlKey: false, deltaY: -10, clientX: 400, clientY: 300 }))
+    vi.advanceTimersByTime(16)
+    stage.dispatchEvent(wheelEvent({ ctrlKey: false, deltaY: -60, clientX: 400, clientY: 300 }))
+    await nextTick()
+    expect(image.classList.contains('is-interacting')).toBe(true)
+    const continuousScale = parseTransform(image.style.transform).scale
+    expect(continuousScale).toBeCloseTo(Math.exp(70 * 0.0025), 3)
+
+    // Wait for idle, reset, and check discrete wheel throttling (40ms).
+    vi.advanceTimersByTime(150)
+    document.querySelector<HTMLButtonElement>('[aria-label="还原"]')!.click()
+    await nextTick()
+
+    stage.dispatchEvent(wheelEvent({ ctrlKey: false, deltaY: -100, clientX: 400, clientY: 300 }))
+    vi.advanceTimersByTime(10)
+    stage.dispatchEvent(wheelEvent({ ctrlKey: false, deltaY: -100, clientX: 400, clientY: 300 }))
+    await nextTick()
+    expect(parseTransform(image.style.transform).scale).toBe(1.25)
+
+    // Wheel during an active pointer drag is ignored and does not disturb interacting state.
+    image.dispatchEvent(
+      pointerEvent('pointerdown', { pointerId: 1, clientX: 400, clientY: 300, isPrimary: true }),
+    )
+    stage.dispatchEvent(pointerEvent('pointermove', { pointerId: 1, clientX: 430, clientY: 300 }))
+    await nextTick()
+    expect(image.classList.contains('is-interacting')).toBe(true)
+    const beforeWheel = parseTransform(image.style.transform)
+
+    vi.advanceTimersByTime(60)
+    stage.dispatchEvent(wheelEvent({ ctrlKey: false, deltaY: -100, clientX: 400, clientY: 300 }))
+    await nextTick()
+    expect(image.classList.contains('is-interacting')).toBe(true)
+    expect(parseTransform(image.style.transform).scale).toBe(beforeWheel.scale)
+
+    stage.dispatchEvent(pointerEvent('pointerup', { pointerId: 1, clientX: 430, clientY: 300 }))
+    wrapper.unmount()
+  })
+
+  it('transitions smoothly between over-edge single-finger pan and two-finger pinch without double rubberband jump', async () => {
+    const { wrapper, stage, image } = await mountPreview()
+
+    image.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, clientX: 400, clientY: 300 }))
+    await nextTick()
+
+    // Single-finger drag well past right bound (maxX=400, rawOffset=550).
+    image.dispatchEvent(
+      pointerEvent('pointerdown', { pointerId: 1, clientX: 100, clientY: 300, isPrimary: true }),
+    )
+    stage.dispatchEvent(pointerEvent('pointermove', { pointerId: 1, clientX: 650, clientY: 300 }))
+    await nextTick()
+    const overPanX = parseTransform(image.style.transform).x
+    expect(overPanX).toBeGreaterThan(400)
+
+    // Add second finger and move midpoint right by 1px with same distance -> must not jump backwards.
+    stage.dispatchEvent(
+      pointerEvent('pointerdown', { pointerId: 2, clientX: 750, clientY: 300, isPrimary: false }),
+    )
+    stage.dispatchEvent(pointerEvent('pointermove', { pointerId: 1, clientX: 651, clientY: 300 }))
+    stage.dispatchEvent(pointerEvent('pointermove', { pointerId: 2, clientX: 751, clientY: 300 }))
+    await nextTick()
+    const afterPinchJoinX = parseTransform(image.style.transform).x
+    expect(afterPinchJoinX).toBeGreaterThanOrEqual(overPanX)
+    expect(afterPinchJoinX - overPanX).toBeLessThan(2)
+
+    // Lift second finger back to single-finger pan and move right by 1px -> must not jump backwards.
+    stage.dispatchEvent(pointerEvent('pointerup', { pointerId: 2, clientX: 751, clientY: 300 }))
+    stage.dispatchEvent(pointerEvent('pointermove', { pointerId: 1, clientX: 652, clientY: 300 }))
+    await nextTick()
+    const afterPinchLeaveX = parseTransform(image.style.transform).x
+    expect(afterPinchLeaveX).toBeGreaterThanOrEqual(afterPinchJoinX)
+    expect(afterPinchLeaveX - afterPinchJoinX).toBeLessThan(2)
+
+    stage.dispatchEvent(pointerEvent('pointerup', { pointerId: 1, clientX: 652, clientY: 300 }))
+    await nextTick()
+    expect(parseTransform(image.style.transform).x).toBe(400)
+
+    wrapper.unmount()
+  })
+
+  it('rotates pan offset in the matching screen direction when mirrored along one axis', async () => {
+    const { wrapper, root, image } = await mountPreview()
+
+    // Double-click at (260, 260) -> focal (-140, -40) -> 2x with offset (+140, +40).
+    image.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, clientX: 260, clientY: 260 }))
+    await nextTick()
+    expect(parseTransform(image.style.transform)).toMatchObject({ scale: 2, x: 140, y: 40 })
+
+    // Horizontal mirror flips offset.x to -140, offset.y stays +40.
+    root.querySelector<HTMLButtonElement>('[aria-label="水平翻转"]')!.click()
+    await nextTick()
+    expect(parseTransform(image.style.transform)).toMatchObject({ x: -140, y: 40 })
+
+    // With flip = (-1, 1), rotate +90deg turns the image counter-clockwise on screen (-90deg),
+    // so (-140, 40) rotates to (40, 140) rather than (-40, -140).
+    root.querySelector<HTMLButtonElement>('[aria-label="向右旋转"]')!.click()
+    await nextTick()
+    expect(parseTransform(image.style.transform)).toMatchObject({ x: 40, y: 140, rotate: 90 })
 
     wrapper.unmount()
   })

@@ -35,6 +35,7 @@ interface ActivePointer {
   pointerType: string
   hold: PointerHold
   capturedMouse: boolean
+  sawMouseButtons: boolean
 }
 
 interface MeasuredGeometry {
@@ -56,8 +57,9 @@ interface SingleGestureStart {
 interface PinchGestureStart {
   distance: number
   midpoint: Point
-  scale: number
-  offset: Point
+  rawScale: number
+  displayedScale: number
+  rawOffset: Point
 }
 
 const DRAG_THRESHOLD = 4
@@ -67,6 +69,7 @@ const DOUBLE_TAP_DELAY = 300
 const DOUBLE_TAP_DISTANCE = 32
 const TOUCH_DBLCLICK_SUPPRESS_MS = 500
 const WHEEL_IDLE_MS = 120
+const WHEEL_STEP_THROTTLE_MS = 40
 const ZOOM_EPSILON = 0.001
 
 const parsePx = (value: string) => Number.parseFloat(value) || 0
@@ -91,12 +94,15 @@ export function usePreviewViewport(options: UsePreviewViewportOptions) {
   let pinchStart: PinchGestureStart | null = null
   let lastPinchMidpoint: Point | null = null
   let gestureGeometry: MeasuredGeometry | null = null
+  let gestureRawScale = 1
+  let gestureRawOffset: Point = { x: 0, y: 0 }
   let lastTouchTap: { time: number; x: number; y: number } | null = null
   let lastTouchZoomAt = 0
   let suppressMaskClick = false
   let needsSettle = false
   let wheelIdleTimer: ReturnType<typeof setTimeout> | undefined
-  let blurAttached = false
+  let lastStepWheelAt = 0
+  let windowListenersAttached = false
 
   function measureGeometry(): MeasuredGeometry {
     const stage = options.stageRef.value
@@ -224,16 +230,28 @@ export function usePreviewViewport(options: UsePreviewViewportOptions) {
     }
   }
 
-  function attachBlur() {
-    if (blurAttached || typeof window === 'undefined') return
-    blurAttached = true
-    window.addEventListener('blur', handleWindowBlur)
+  function handleWindowPointerup(event: PointerEvent) {
+    endPointer(event.pointerId, event.clientX, event.clientY, false)
   }
 
-  function detachBlur() {
-    if (!blurAttached || typeof window === 'undefined') return
-    blurAttached = false
+  function handleWindowPointercancel(event: PointerEvent) {
+    endPointer(event.pointerId, event.clientX, event.clientY, true)
+  }
+
+  function attachWindowListeners() {
+    if (windowListenersAttached || typeof window === 'undefined') return
+    windowListenersAttached = true
+    window.addEventListener('blur', handleWindowBlur)
+    window.addEventListener('pointerup', handleWindowPointerup)
+    window.addEventListener('pointercancel', handleWindowPointercancel)
+  }
+
+  function detachWindowListeners() {
+    if (!windowListenersAttached || typeof window === 'undefined') return
+    windowListenersAttached = false
     window.removeEventListener('blur', handleWindowBlur)
+    window.removeEventListener('pointerup', handleWindowPointerup)
+    window.removeEventListener('pointercancel', handleWindowPointercancel)
   }
 
   function releasePointer(entry: ActivePointer) {
@@ -247,12 +265,14 @@ export function usePreviewViewport(options: UsePreviewViewportOptions) {
   function clearPointers() {
     for (const entry of activePointers.values()) releasePointer(entry)
     activePointers.clear()
-    detachBlur()
+    detachWindowListeners()
     mode = 'idle'
     singleStart = null
     pinchStart = null
     lastPinchMidpoint = null
     gestureGeometry = null
+    gestureRawScale = scale.value
+    gestureRawOffset = { ...offset.value }
     needsSettle = false
     interacting.value = false
     dragging.value = false
@@ -272,6 +292,8 @@ export function usePreviewViewport(options: UsePreviewViewportOptions) {
     }
     scale.value = settledScale
     offset.value = clampToViewport(nextOffset, settledScale, measured)
+    gestureRawScale = settledScale
+    gestureRawOffset = { ...offset.value }
     lastPinchMidpoint = null
   }
 
@@ -285,11 +307,14 @@ export function usePreviewViewport(options: UsePreviewViewportOptions) {
     clearWheelTimer()
     clearPointers()
     lastTouchTap = null
+    lastStepWheelAt = 0
     suppressMaskClick = false
     scale.value = 1
     rotate.value = 0
     flip.value = { x: 1, y: 1 }
     offset.value = { x: 0, y: 0 }
+    gestureRawScale = 1
+    gestureRawOffset = { x: 0, y: 0 }
   }
 
   function zoom(direction: 1 | -1) {
@@ -305,6 +330,8 @@ export function usePreviewViewport(options: UsePreviewViewportOptions) {
     })
     scale.value = nextScale
     offset.value = clampToViewport(nextOffset, nextScale, geometry)
+    gestureRawScale = nextScale
+    gestureRawOffset = { ...offset.value }
   }
 
   function turn(by: number) {
@@ -314,13 +341,15 @@ export function usePreviewViewport(options: UsePreviewViewportOptions) {
     lastTouchTap = null
     const nextRotate = rotate.value + by
     const geometry = measureGeometry()
+    const screenAngle = by * flip.value.x * flip.value.y
     rotate.value = nextRotate
     offset.value = clampToViewport(
-      rotateOffset(offset.value, by),
+      rotateOffset(offset.value, screenAngle),
       scale.value,
       geometry,
       nextRotate,
     )
+    gestureRawOffset = { ...offset.value }
   }
 
   function mirror(axis: 'x' | 'y') {
@@ -335,6 +364,7 @@ export function usePreviewViewport(options: UsePreviewViewportOptions) {
         : { x: offset.value.x, y: -offset.value.y || 0 }
     const geometry = measureGeometry()
     offset.value = clampToViewport(nextOffset, scale.value, geometry)
+    gestureRawOffset = { ...offset.value }
   }
 
   function toggleZoomAt(clientX: number, clientY: number) {
@@ -347,6 +377,8 @@ export function usePreviewViewport(options: UsePreviewViewportOptions) {
     if (Math.abs(targetScale - fitScale) <= ZOOM_EPSILON) {
       scale.value = targetScale
       offset.value = { x: 0, y: 0 }
+      gestureRawScale = targetScale
+      gestureRawOffset = { x: 0, y: 0 }
       return
     }
     const focal = toFocal(clientX, clientY, geometry)
@@ -357,6 +389,8 @@ export function usePreviewViewport(options: UsePreviewViewportOptions) {
     )
     scale.value = targetScale
     offset.value = clampToViewport(nextOffset, targetScale, geometry)
+    gestureRawScale = targetScale
+    gestureRawOffset = { ...offset.value }
   }
 
   function beginPinch() {
@@ -373,8 +407,9 @@ export function usePreviewViewport(options: UsePreviewViewportOptions) {
     pinchStart = {
       distance,
       midpoint,
-      scale: scale.value,
-      offset: { ...offset.value },
+      rawScale: gestureRawScale,
+      displayedScale: scale.value,
+      rawOffset: { ...gestureRawOffset },
     }
     lastPinchMidpoint = midpoint
     singleStart = null
@@ -407,19 +442,22 @@ export function usePreviewViewport(options: UsePreviewViewportOptions) {
       pointerType: event.pointerType,
       hold,
       capturedMouse: false,
+      sawMouseButtons: event.pointerType === 'mouse' && (event.buttons & 1) !== 0,
     }
     activePointers.set(event.pointerId, entry)
-    attachBlur()
+    attachWindowListeners()
 
     if (activePointers.size === 1) {
       gestureGeometry = measureGeometry()
+      gestureRawScale = scale.value
+      gestureRawOffset = { ...offset.value }
       suppressMaskClick = false
       mode = 'pending'
       singleStart = {
         pointerId: event.pointerId,
         x: event.clientX,
         y: event.clientY,
-        offset: { ...offset.value },
+        offset: { ...gestureRawOffset },
         time: Date.now(),
         onImage: event.target === options.imageRef.value,
         pointerType: event.pointerType,
@@ -437,6 +475,11 @@ export function usePreviewViewport(options: UsePreviewViewportOptions) {
   function onPointermove(event: PointerEvent) {
     const entry = activePointers.get(event.pointerId)
     if (!entry) return
+    if (entry.pointerType === 'mouse' && entry.sawMouseButtons && (event.buttons & 1) === 0) {
+      endPointer(event.pointerId, event.clientX, event.clientY, true)
+      return
+    }
+
     entry.x = event.clientX
     entry.y = event.clientY
 
@@ -447,25 +490,28 @@ export function usePreviewViewport(options: UsePreviewViewportOptions) {
       const geometry = gestureGeometry ?? measureGeometry()
       const distance = Math.max(Math.hypot(p1.x - p2.x, p1.y - p2.y), 1)
       const midpoint = toFocal((p1.x + p2.x) / 2, (p1.y + p2.y) / 2, geometry)
-      const rawScale = pinchStart.scale * (distance / pinchStart.distance)
-      const nextScale = rubberbandScale(rawScale, safeMinScale(), safeMaxScale())
-      const rawOffset = zoomAroundPoint(
-        { scale: pinchStart.scale, offset: pinchStart.offset },
+      const nextRawScale = pinchStart.rawScale * (distance / pinchStart.distance)
+      const nextScale = rubberbandScale(nextRawScale, safeMinScale(), safeMaxScale())
+      const nextRawOffset = zoomAroundPoint(
+        { scale: pinchStart.displayedScale, offset: pinchStart.rawOffset },
         nextScale,
         pinchStart.midpoint,
         midpoint,
       )
+      gestureRawScale = nextRawScale
+      gestureRawOffset = nextRawOffset
       scale.value = nextScale
       offset.value = hasMeasuredGeometry(geometry)
-        ? rubberbandOffset(rawOffset, boundsFor(nextScale, geometry))
-        : rawOffset
+        ? rubberbandOffset(nextRawOffset, boundsFor(nextScale, geometry))
+        : nextRawOffset
       lastPinchMidpoint = midpoint
       return
     }
 
     if (mode === 'pending' && singleStart && singleStart.pointerId === event.pointerId) {
       const dist = Math.hypot(event.clientX - singleStart.x, event.clientY - singleStart.y)
-      if (dist <= DRAG_THRESHOLD) return
+      const threshold = singleStart.pointerType === 'touch' ? TAP_SLOP : DRAG_THRESHOLD
+      if (dist <= threshold) return
       suppressMaskClick = true
       lastTouchTap = null
       if (!canPan.value) return
@@ -490,6 +536,7 @@ export function usePreviewViewport(options: UsePreviewViewportOptions) {
         x: singleStart.offset.x + (event.clientX - singleStart.x),
         y: singleStart.offset.y + (event.clientY - singleStart.y),
       }
+      gestureRawOffset = rawOffset
       offset.value = hasMeasuredGeometry(geometry)
         ? rubberbandOffset(rawOffset, boundsFor(scale.value, geometry))
         : rawOffset
@@ -518,7 +565,7 @@ export function usePreviewViewport(options: UsePreviewViewportOptions) {
           pointerId: remaining.id,
           x: remaining.x,
           y: remaining.y,
-          offset: { ...offset.value },
+          offset: { ...gestureRawOffset },
           time: Date.now(),
           onImage: false,
           pointerType: remaining.pointerType,
@@ -531,7 +578,7 @@ export function usePreviewViewport(options: UsePreviewViewportOptions) {
       return
     }
 
-    detachBlur()
+    detachWindowListeners()
     const endedMode = mode
     const endedSingle = singleStart
     const shouldSettle = needsSettle
@@ -600,12 +647,14 @@ export function usePreviewViewport(options: UsePreviewViewportOptions) {
 
   function onWheel(event: WheelEvent) {
     event.preventDefault()
-    if (!options.active()) return
+    if (!options.active() || activePointers.size > 0) return
     const delta = normalizeWheelDelta(event)
     if (delta === 0) return
 
     lastTouchTap = null
-    const continuous = event.ctrlKey || (event.deltaMode === 0 && Math.abs(delta) < 40)
+    const continuous =
+      event.ctrlKey ||
+      (event.deltaMode === 0 && (wheelIdleTimer !== undefined || Math.abs(delta) < 40))
     const geometry =
       continuous && wheelIdleTimer !== undefined && gestureGeometry
         ? gestureGeometry
@@ -620,8 +669,10 @@ export function usePreviewViewport(options: UsePreviewViewportOptions) {
       clearWheelTimer()
       wheelIdleTimer = setTimeout(() => {
         wheelIdleTimer = undefined
-        interacting.value = false
-        gestureGeometry = null
+        if (activePointers.size === 0) {
+          interacting.value = false
+          gestureGeometry = null
+        }
       }, WHEEL_IDLE_MS)
       nextScale = clamp(
         scale.value * wheelScaleFactor(delta, event.ctrlKey),
@@ -629,6 +680,9 @@ export function usePreviewViewport(options: UsePreviewViewportOptions) {
         safeMaxScale(),
       )
     } else {
+      const now = Date.now()
+      if (now - lastStepWheelAt < WHEEL_STEP_THROTTLE_MS) return
+      lastStepWheelAt = now
       clearWheelTimer()
       interacting.value = false
       gestureGeometry = null
@@ -646,6 +700,8 @@ export function usePreviewViewport(options: UsePreviewViewportOptions) {
     )
     scale.value = nextScale
     offset.value = clampToViewport(nextOffset, nextScale, geometry)
+    gestureRawScale = nextScale
+    gestureRawOffset = { ...offset.value }
   }
 
   function canCloseOnMask(): boolean {

@@ -20,13 +20,13 @@
 
 `actions` 插槽在底部左侧，适合放添加附件、联网搜索、选择模型这类按钮。`header` 插槽在文字上方，可以放 [ChatAttachments](./chat-attachments)。
 
-在输入框里粘贴文件，或把文件拖进来时，会触发 `attach`，参数是文件列表。只有附件没有文字也想允许发送时，用 `canSubmit` 自己决定能否发送。
+在输入框里粘贴图片或其他常见文件，或把文件拖进来时，会触发 `attach`，参数是文件列表；粘贴时会优先读取 `clipboardData.items`，为空时自动回退读取 `clipboardData.files`。只有附件没有文字也想允许发送时，用 `canSubmit` 自己决定能否发送。
 
 <DocDemo src="chat-input/actions" column />
 
 ## 命令与引用
 
-`commands` 是以 `/` 开头时弹出的命令菜单，选中后输入的 `/…` 会被删掉，并触发 `command`，应用可以据此切换模式，比如在 `header` 插槽里显示一个标签。`mentions` 是输入 `@` 后弹出的引用菜单，选中后会把输入的 `@…` 换成 `@值 ` 并触发 `mention`。
+`commands` 是以 `/` 开头时弹出的命令菜单，选中后输入的 `/…` 会被删掉，并触发 `command`，应用可以据此切换模式（比如在 `header` 插槽里显示一个标签），或者向 `v-model` 插入常用语片段。如果父组件在 `command` 回调里修改了 `v-model` 或在 `nextTick` 里调整了选区，组件不会再用原来的光标位置覆盖回去。`mentions` 是输入 `@` 后弹出的引用菜单，选中后会把输入的 `@…` 换成 `@值 ` 并触发 `mention`。
 
 菜单可以用上下方向键选择，回车或 Tab 确认，Esc 或点击外部关闭。菜单和其他[浮层](../guide/overlays)一样渲染在页面最上层，默认在输入框上方，空间不够时换到下方，不会被外层的 `overflow: hidden` 裁掉。
 

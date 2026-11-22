@@ -296,22 +296,27 @@ function pick(option: ChatInputOption) {
   if (!current || option.disabled) return
   const before = model.value.slice(0, current.start)
   const after = model.value.slice(current.end)
-  let caret: number
-  if (current.trigger === '/') {
-    model.value = before + after.replace(/^\s+/, '')
-    caret = before.length
-    emit('command', option)
-  } else {
-    const inserted = `@${option.value} `
-    model.value = before + inserted + after.replace(/^\s+/, '')
-    caret = before.length + inserted.length
-    emit('mention', option)
-  }
+  const inserted = current.trigger === '/' ? '' : `@${option.value} `
+  const nextValue = before + inserted + after.replace(/^\s+/, '')
+  const caret = before.length + inserted.length
+  const focusedBefore = document.activeElement
+  model.value = nextValue
   token.value = null
+  // Queue before emitting so a parent `nextTick` in the listener runs after
+  // this one, and skip resetting the caret if the listener changed the text.
   void nextTick(() => {
-    textareaRef.value?.focus()
-    textareaRef.value?.setSelectionRange(caret, caret)
+    const el = textareaRef.value
+    if (!el) return
+    const activeEl = document.activeElement
+    const movedElsewhere =
+      activeEl && activeEl !== focusedBefore && activeEl !== document.body && activeEl !== el
+    if (!movedElsewhere && activeEl !== el) el.focus()
+    if (model.value === nextValue && el.value === nextValue) {
+      el.setSelectionRange(caret, caret)
+    }
   })
+  if (current.trigger === '/') emit('command', option)
+  else emit('mention', option)
 }
 
 function onMenuKeydown(event: KeyboardEvent): boolean {
@@ -352,8 +357,15 @@ const filesOf = (list: DataTransferItemList | undefined) =>
     .map((item) => item.getAsFile())
     .filter((file): file is File => !!file)
 
+function pastedFilesOf(data: DataTransfer | null | undefined): File[] {
+  const fromItems = filesOf(data?.items)
+  if (fromItems.length) return fromItems
+  return [...(data?.files ?? [])]
+}
+
 function onPaste(event: ClipboardEvent) {
-  const files = filesOf(event.clipboardData?.items)
+  if (disabled.value) return
+  const files = pastedFilesOf(event.clipboardData)
   if (!files.length) return
   // keep the file's name from being pasted as text
   event.preventDefault()

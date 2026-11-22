@@ -63,7 +63,7 @@ export interface ImagePreviewProps {
   loop?: boolean
   minScale?: number
   maxScale?: number
-  /** Close when the dark area around the picture is clicked. */
+  /** Close when the dark area around the picture is clicked while not zoomed in. */
   closeOnMask?: boolean
   teleport?: string | HTMLElement | false
   /**

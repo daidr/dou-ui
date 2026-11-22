@@ -185,6 +185,20 @@
     justify-content: center;
     overflow: hidden;
     padding: 56px 72px 80px;
+    user-select: none;
+    touch-action: none;
+
+    &.is-movable {
+      cursor: grab;
+    }
+
+    &.is-dragging {
+      cursor: grabbing;
+    }
+
+    @media (max-width: 640px) {
+      padding: 56px 16px 84px;
+    }
   }
 
   .dou-image-preview__image {
@@ -192,17 +206,22 @@
     max-height: 100%;
     border-radius: 2px;
     box-shadow: 0 16px 48px rgb(0 0 0 / 0.4);
+    transform-origin: center center;
     transition: transform var(--dou-motion-duration-normal) var(--dou-motion-easing);
     user-select: none;
     touch-action: none;
 
     &.is-movable {
       cursor: grab;
+    }
 
-      &:active {
-        cursor: grabbing;
-        transition: none;
-      }
+    &.is-dragging {
+      cursor: grabbing;
+    }
+
+    &.is-interacting {
+      transition: none;
+      will-change: transform;
     }
   }
 
@@ -281,6 +300,9 @@
     display: flex;
     align-items: center;
     gap: 2px;
+    box-sizing: border-box;
+    max-width: calc(100vw - 24px);
+    overflow-x: auto;
     padding: 4px;
     border: 1px solid var(--dou-image-preview-chrome-border);
     border-radius: var(--dou-radius-full);
@@ -288,9 +310,16 @@
     box-shadow: 0 8px 24px rgb(0 0 0 / 0.32);
     translate: -50% 0;
     white-space: nowrap;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
   }
 
   .dou-image-preview__tool {
+    position: relative;
+    flex-shrink: 0;
     width: 32px;
     height: 32px;
     border-radius: var(--dou-radius-full);
@@ -298,6 +327,14 @@
 
     &:hover:not(:disabled) {
       background-color: var(--dou-image-preview-chrome-hover);
+    }
+
+    @media (pointer: coarse) {
+      &::after {
+        content: '';
+        position: absolute;
+        inset: -4px;
+      }
     }
 
     & > svg {
@@ -314,6 +351,7 @@
 
   .dou-image-preview__counter,
   .dou-image-preview__scale {
+    flex-shrink: 0;
     min-width: 44px;
     padding: 0 6px;
     color: rgb(255 255 255 / 0.72);
@@ -328,6 +366,7 @@
   }
 
   .dou-image-preview__divider {
+    flex-shrink: 0;
     width: 1px;
     height: 16px;
     margin: 0 4px;

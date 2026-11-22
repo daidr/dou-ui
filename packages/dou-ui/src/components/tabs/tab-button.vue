@@ -33,6 +33,7 @@ const emit = defineEmits<{
 
 const ns = useNamespace('tabs')
 const { t } = useLocale()
+const onButtonRef = (el: unknown) => props.setEl(el)
 
 /** The label slot of a panel, rendered inside its tab. */
 const TabLabel: FunctionalComponent = () =>
@@ -49,7 +50,7 @@ const TabTip: FunctionalComponent = (_, { slots: tip }) =>
   <TabTip>
     <button
       :id="tabId"
-      :ref="setEl"
+      :ref="onButtonRef"
       type="button"
       role="tab"
       :class="[

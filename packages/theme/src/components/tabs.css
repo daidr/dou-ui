@@ -49,6 +49,7 @@
     flex: 1 1 auto;
     align-items: stretch;
     min-width: 0;
+    isolation: isolate;
   }
 
   .dou-tabs__pinned {
@@ -81,9 +82,10 @@
     display: flex;
     flex: 1 1 auto;
     gap: var(--dou-tabs-gap);
+    box-sizing: border-box;
     min-width: 0;
-    min-height: var(--dou-tabs-height);
-    /* room for the hover tint above and the underline below */
+    /* room for a tab row plus the 4px top / 6px bottom padding, even under a global border-box reset */
+    min-height: calc(var(--dou-tabs-height) + 10px);
     padding: 4px 0 6px;
     margin-bottom: -1px;
     overflow-x: auto;
@@ -720,6 +722,7 @@
 
   .dou-tabs__marker {
     position: absolute;
+    z-index: 1;
     top: 4px;
     left: -1px;
     width: 2px;

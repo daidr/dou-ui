@@ -482,4 +482,219 @@ describe('DouTabs pinned tabs', () => {
       target.unmount()
     }
   })
+
+  it('keeps button refs intact when a panel toggles pinned dynamically', async () => {
+    const pinned = ref(false)
+    const current = ref<string | number | undefined>('doc1')
+    const wrapper = mount(
+      defineComponent({
+        setup: () => () =>
+          h(
+            DouTabs,
+            {
+              modelValue: current.value,
+              'onUpdate:modelValue': (v: string | number | undefined) => (current.value = v),
+              draggable: true,
+            },
+            () => [
+              h(DouTabPanel, {
+                value: 'doc1',
+                label: '文档一',
+                icon: FileIcon,
+                pinned: pinned.value,
+              }),
+              h(DouTabPanel, { value: 'doc2', label: '文档二' }),
+            ],
+          ),
+      }),
+      { attachTo: document.body },
+    )
+    await settle()
+
+    expect(wrapper.find('.dou-tabs__pinned').exists()).toBe(false)
+    expect(wrapper.get('.dou-tabs__list .dou-tabs__indicator').attributes('style')).not.toContain(
+      'display: none',
+    )
+
+    // Toggle false -> true: new pinned button mounts before old regular button unmounts
+    pinned.value = true
+    await settle()
+
+    const pinnedTab = wrapper.get('.dou-tabs__pinned [role="tab"]')
+    const regularTab = wrapper.get('.dou-tabs__list [role="tab"]')
+    expect(wrapper.get('.dou-tabs__pinned .dou-tabs__indicator').attributes('style')).not.toContain(
+      'display: none',
+    )
+    expect(wrapper.get('.dou-tabs__list .dou-tabs__indicator').attributes('style')).toContain(
+      'display: none',
+    )
+
+    // Keyboard navigation focuses the newly pinned button
+    ;(regularTab.element as HTMLElement).focus()
+    await regularTab.trigger('keydown', { key: 'ArrowLeft' })
+    await settle()
+    expect(current.value).toBe('doc1')
+    expect(document.activeElement).toBe(pinnedTab.element)
+
+    // Pointer drag starts on the newly pinned button
+    pinnedTab.element.dispatchEvent(
+      new PointerEvent('pointerdown', { button: 0, clientX: 0, clientY: 0, bubbles: true }),
+    )
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 20, clientY: 0 }))
+    await nextTick()
+    expect(pinnedTab.classes()).toContain('is-dragging')
+    window.dispatchEvent(new PointerEvent('pointerup'))
+    await nextTick()
+
+    // Toggle true -> false: moves back to regular list with indicator intact
+    pinned.value = false
+    await settle()
+    expect(wrapper.find('.dou-tabs__pinned').exists()).toBe(false)
+    expect(wrapper.get('.dou-tabs__list .dou-tabs__indicator').attributes('style')).not.toContain(
+      'display: none',
+    )
+
+    wrapper.unmount()
+  })
+
+  it('keeps button refs intact when toggling pinned in a detached mount', async () => {
+    const pinned = ref(false)
+    const wrapper = mount(
+      defineComponent({
+        setup: () => () =>
+          h(DouTabs, { modelValue: 'doc1' }, () => [
+            h(DouTabPanel, {
+              value: 'doc1',
+              label: '文档一',
+              icon: FileIcon,
+              pinned: pinned.value,
+            }),
+            h(DouTabPanel, { value: 'doc2', label: '文档二' }),
+          ]),
+      }),
+    )
+    await settle()
+
+    pinned.value = true
+    await settle()
+    expect(wrapper.get('.dou-tabs__pinned .dou-tabs__indicator').attributes('style')).not.toContain(
+      'display: none',
+    )
+    expect(wrapper.get('.dou-tabs__list .dou-tabs__indicator').attributes('style')).toContain(
+      'display: none',
+    )
+
+    pinned.value = false
+    await settle()
+    expect(wrapper.get('.dou-tabs__list .dou-tabs__indicator').attributes('style')).not.toContain(
+      'display: none',
+    )
+    wrapper.unmount()
+  })
+
+  it.each([false, true])(
+    'shows the pinned drop marker outside a scrolled regular list when target has no pinned tabs (vertical=%s)',
+    async (vertical) => {
+      const moves: TabsMoveEvent[] = []
+      const target = mount(
+        defineComponent({
+          setup: () => () =>
+            h(
+              DouTabs,
+              {
+                draggable: true,
+                group: 'workspace',
+                name: vertical ? 'group-v' : 'group-h',
+                placement: vertical ? 'start' : 'top',
+                height: vertical ? 200 : undefined,
+                onMove: (event: TabsMoveEvent) => moves.push(event),
+              },
+              () =>
+                Array.from({ length: 6 }, (_, index) =>
+                  h(DouTabPanel, { value: `t${index}`, label: `标签 ${index}` }),
+                ),
+            ),
+        }),
+        { attachTo: document.body },
+      )
+      await settle()
+
+      const header = target.get('.dou-tabs__header').element as HTMLElement
+      const listEl = target.get('.dou-tabs__list').element as HTMLElement
+      if (vertical) {
+        Object.defineProperties(listEl, {
+          clientHeight: { configurable: true, get: () => 200 },
+          scrollHeight: { configurable: true, get: () => 600 },
+          scrollTop: { configurable: true, get: () => 160, set: () => {} },
+        })
+      } else {
+        Object.defineProperties(listEl, {
+          clientWidth: { configurable: true, get: () => 200 },
+          scrollWidth: { configurable: true, get: () => 800 },
+          scrollLeft: { configurable: true, get: () => 220, set: () => {} },
+        })
+      }
+      listEl.dispatchEvent(new Event('scroll'))
+      await nextTick()
+      expect(target.get('.dou-tabs__list').classes()).toContain('is-fade-start')
+
+      const origElementFromPoint = document.elementFromPoint
+      document.elementFromPoint = () => header
+      const origRaf = window.requestAnimationFrame
+      const origCancelRaf = window.cancelAnimationFrame
+      let rafCb: FrameRequestCallback | undefined
+      window.requestAnimationFrame = ((cb: FrameRequestCallback) => {
+        rafCb = cb
+        return 1
+      }) as typeof window.requestAnimationFrame
+      window.cancelAnimationFrame = () => {}
+
+      const sourceEl = document.createElement('button')
+      document.body.append(sourceEl)
+
+      try {
+        pressTab(new PointerEvent('pointerdown', { button: 0, clientX: 0, clientY: 10 }), {
+          el: sourceEl,
+          root: sourceEl,
+          drag: () => ({
+            value: 'files',
+            label: '文件',
+            group: 'workspace',
+            name: 'source',
+            index: 0,
+            source: sourceEl,
+            pinned: true,
+          }),
+        })
+        window.dispatchEvent(new PointerEvent('pointermove', { clientX: 40, clientY: 10 }))
+        rafCb?.(16)
+        await nextTick()
+
+        // Marker mounts in the non-scrolling .dou-tabs__pinned container (never masked or scrolled off)
+        const pinnedContainer = target.get('.dou-tabs__pinned')
+        expect(pinnedContainer.classes()).not.toContain('is-divided')
+        expect(pinnedContainer.get('.dou-tabs__marker').attributes('style')).toContain(
+          vertical ? 'translateY(1px)' : 'translateX(1px)',
+        )
+        expect(target.get('.dou-tabs__list .dou-tabs__marker').attributes('style')).toContain(
+          'display: none',
+        )
+
+        window.dispatchEvent(new PointerEvent('pointerup'))
+        await nextTick()
+        expect(moves.at(-1)).toEqual({
+          value: 'files',
+          from: { name: 'source', index: 0 },
+          to: { name: vertical ? 'group-v' : 'group-h', index: 0 },
+        })
+        expect(target.find('.dou-tabs__pinned').exists()).toBe(false)
+      } finally {
+        document.elementFromPoint = origElementFromPoint
+        window.requestAnimationFrame = origRaf
+        window.cancelAnimationFrame = origCancelRaf
+        sourceEl.remove()
+        target.unmount()
+      }
+    },
+  )
 })

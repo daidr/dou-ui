@@ -127,17 +127,23 @@ function remove(entry: TabPanelEntry) {
   if (isClosable(entry)) emit('remove', entry.props.value)
 }
 
+type TabDropZoneKind = 'pinned' | 'regular'
+
 const listRef = useTemplateRef<HTMLElement>('list')
 const pinnedRef = useTemplateRef<HTMLElement>('pinned')
 const headerRef = useTemplateRef<HTMLElement>('header')
-const tabElements = new Map<number, HTMLElement>()
+// Kept separate by zone so toggling a panel's `pinned` state mounts its new
+// button before the old one unmounts without the unmount clearing the new ref.
+const pinnedTabElements = new Map<number, HTMLElement>()
+const regularTabElements = new Map<number, HTMLElement>()
 
-function setTabElement(uid: number, el: unknown) {
-  if (el instanceof HTMLElement) tabElements.set(uid, el)
-  else tabElements.delete(uid)
+function setTabElement(zone: TabDropZoneKind, uid: number, el: unknown) {
+  const map = zone === 'pinned' ? pinnedTabElements : regularTabElements
+  if (el instanceof HTMLElement) map.set(uid, el)
+  else map.delete(uid)
 }
 function tabElement(entry: TabPanelEntry) {
-  return tabElements.get(entry.uid)
+  return (entry.props.pinned ? pinnedTabElements : regularTabElements).get(entry.uid)
 }
 
 /** The label slot of a panel, rendered inside its overflow list item. */
@@ -255,13 +261,9 @@ function onPointerdown(event: PointerEvent, entry: TabPanelEntry) {
   })
 }
 
-type TabDropZoneKind = 'pinned' | 'regular'
-
 interface TabDropMarker {
   /** Which logical zone the dragged tab lands in. */
   zone: TabDropZoneKind
-  /** Which container renders the marker (falls back to `regular` when no pinned area exists yet). */
-  renderZone: TabDropZoneKind
   /** Insertion slot inside `zone`. */
   slot: number
   at: number
@@ -355,21 +357,20 @@ const dropZone = registerTabDropZone({
       marker.value = null
       return
     }
-    const hasPinnedContainer = zone === 'pinned' && !!pinnedRef.value
-    const container = hasPinnedContainer ? pinnedRef.value! : listRef.value!
-    // kept inside the row, which cuts off what sticks out
-    const end = Math.max(1, (vertical.value ? container.scrollHeight : container.scrollWidth) - 2)
-    const offset =
-      zone === 'pinned' && !hasPinnedContainer ? 0 : markerOffset(zone, slot, container)
-    const at = Math.min(Math.max(offset, 1), end)
-    const renderZone: TabDropZoneKind = hasPinnedContainer ? 'pinned' : 'regular'
-    if (
-      marker.value?.zone !== zone ||
-      marker.value.renderZone !== renderZone ||
-      marker.value.slot !== slot ||
-      marker.value.at !== at
-    ) {
-      marker.value = { zone, renderZone, slot, at }
+    let at = 1
+    if (zone === 'regular' || pinnedPanels.value.length > 0) {
+      const container = zone === 'pinned' ? pinnedRef.value : listRef.value
+      if (container) {
+        // kept inside the row, which cuts off what sticks out
+        const end = Math.max(
+          1,
+          (vertical.value ? container.scrollHeight : container.scrollWidth) - 2,
+        )
+        at = Math.min(Math.max(markerOffset(zone, slot, container), 1), end)
+      }
+    }
+    if (marker.value?.zone !== zone || marker.value.slot !== slot || marker.value.at !== at) {
+      marker.value = { zone, slot, at }
     }
   },
   leave: () => (marker.value = null),
@@ -399,7 +400,7 @@ onUpdated(() => dropZone.update())
 onBeforeUnmount(() => dropZone.remove())
 
 const markerStyle = computed(() => {
-  if (marker.value?.renderZone !== 'regular') return { display: 'none' }
+  if (marker.value?.zone !== 'regular') return { display: 'none' }
   return {
     transform: vertical.value
       ? `translateY(${marker.value.at}px)`
@@ -408,7 +409,7 @@ const markerStyle = computed(() => {
 })
 
 const pinnedMarkerStyle = computed(() => {
-  if (marker.value?.renderZone !== 'pinned') return { display: 'none' }
+  if (marker.value?.zone !== 'pinned') return { display: 'none' }
   return {
     transform: vertical.value
       ? `translateY(${marker.value.at}px)`
@@ -798,11 +799,14 @@ const pinnedIndicatorStyle = computed(() => styleForIndicator(pinnedIndicator.va
         :aria-orientation="vertical ? 'vertical' : 'horizontal'"
       >
         <div
-          v-if="pinnedPanels.length"
+          v-if="pinnedPanels.length || marker?.zone === 'pinned'"
           ref="pinned"
           :class="[
             ns.e('pinned'),
-            ns.is('divided', regularPanels.length > 0 || marker?.zone === 'regular'),
+            ns.is(
+              'divided',
+              pinnedPanels.length > 0 && (regularPanels.length > 0 || marker?.zone === 'regular'),
+            ),
           ]"
         >
           <TabButton
@@ -819,7 +823,7 @@ const pinnedIndicatorStyle = computed(() => styleForIndicator(pinnedIndicator.va
             :dragging="draggingUid === entry.uid"
             :tip-placement="tipPlacement"
             :key-shortcuts="keyShortcuts(entry)"
-            :set-el="(el) => setTabElement(entry.uid, el)"
+            :set-el="(el) => setTabElement('pinned', entry.uid, el)"
             @click="onClick(entry)"
             @pointerdown="onPointerdown($event, entry)"
             @keydown="onKeydown($event, entry)"
@@ -857,7 +861,7 @@ const pinnedIndicatorStyle = computed(() => styleForIndicator(pinnedIndicator.va
             :dragging="draggingUid === entry.uid"
             :tip-placement="tipPlacement"
             :key-shortcuts="keyShortcuts(entry)"
-            :set-el="(el) => setTabElement(entry.uid, el)"
+            :set-el="(el) => setTabElement('regular', entry.uid, el)"
             @click="onClick(entry)"
             @pointerdown="onPointerdown($event, entry)"
             @keydown="onKeydown($event, entry)"

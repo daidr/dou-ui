@@ -6,11 +6,23 @@
 
 <DocDemo src="splitter/basic" style="padding: 0; height: 240px; overflow: hidden" />
 
-`v-model` 是第一个面板占的百分比。需要三栏或更多时，像上面这样嵌套。Splitter 会撑满父元素，记得给父元素一个高度。
+`v-model` 默认是第一个面板占的百分比。需要三栏或更多时，像上面这样嵌套。Splitter 会撑满父元素，记得给父元素一个高度。
+
+## 像素尺寸模式
+
+设置 `unit="px"` 后，`v-model`、数字形式的 `min` / `max` / `minEnd` 以及 `step` 都按像素计算，适合边栏、文件树等需要固定像素宽度并持久化的区域。容器尺寸变化时，组件会自动维持第一个面板的像素大小并扣除 1px 分隔线宽度；容器缩小到放不下时，显示尺寸会临时收紧，但 `v-model` 保持不变，待容器变宽后自动恢复。
+
+<DocDemo src="splitter/pixel" style="padding: 0; height: 200px; overflow: hidden" />
+
+## 单栏切换模式
+
+设置 `single-pane` 为 `'start'` 或 `'end'` 可在窄屏或移动端视图下只显示其中一栏并自动占满 100% 宽度（垂直方向为 100% 高度），同时隐藏分隔线与非活跃面板。隐藏面板不会卸载，输入草稿与组件状态都会保留；设为 `null` 或 `undefined` 时恢复双栏并还原之前的分栏尺寸与折叠状态。
+
+<DocDemo src="splitter/single-pane" style="padding: 0; height: 220px; overflow: hidden" />
 
 ## 尺寸限制
 
-`min` 和 `max` 限制第一个面板的大小，`minEnd` 限制第二个面板的最小尺寸。数字是百分比，`'240px'` 这样的字符串是像素。百分比相对 Splitter 自身的大小计算，嵌套时里层的面板会越来越小，需要保证最小宽度时用像素。
+`min` 和 `max` 限制第一个面板的大小，`minEnd` 限制第二个面板的最小尺寸。数字默认按当前 `unit` 解释（百分比模式为百分比，像素模式为像素），`'240px'` 这样的字符串始终按像素计算。百分比相对 Splitter 自身的大小计算，嵌套时里层的面板会越来越小，需要保证最小宽度时用像素。
 
 ```vue
 <DouSplitter v-model="size" min="200px" min-end="240px">…</DouSplitter>
@@ -26,31 +38,33 @@
 
 ## 键盘与读屏
 
-分隔线是 `role="separator"`，可以聚焦，`aria-valuenow` 是第一个面板的百分比，并通过 `aria-controls` 指向它。
+分隔线是 `role="separator"`，可以聚焦，`aria-valuenow` 反映第一个面板当前的尺寸（按 `unit` 为百分比或像素），并通过 `aria-controls` 指向它。单栏模式下分隔线会隐藏并移出焦点顺序。
 
-| 按键                      | 行为                        |
-| ------------------------- | --------------------------- |
-| `←` `→`（垂直时 `↑` `↓`） | 移动 `step`（默认 1%）      |
-| `Shift` + 方向键          | 移动十倍                    |
-| `Home` `End`              | 移到最小 / 最大             |
-| `Enter`                   | 折叠或展开（`collapsible`） |
+| 按键                      | 行为                                            |
+| ------------------------- | ----------------------------------------------- |
+| `←` `→`（垂直时 `↑` `↓`） | 移动 `step`（百分比模式默认 1%，像素默认 10px） |
+| `Shift` + 方向键          | 移动十倍                                        |
+| `Home` `End`              | 移到最小 / 最大                                 |
+| `Enter`                   | 折叠或展开（`collapsible`）                     |
 
 ## API
 
 ### Splitter Props
 
-| 名称          | 说明                               | 类型                         | 默认值         |
-| ------------- | ---------------------------------- | ---------------------------- | -------------- |
-| `modelValue`  | 第一个面板的百分比，配合 `v-model` | `number`                     | `50`           |
-| `direction`   | 左右排列还是上下排列               | `'horizontal' \| 'vertical'` | `'horizontal'` |
-| `min`         | 第一个面板的最小尺寸               | `number \| '${number}px'`    | `0`            |
-| `max`         | 第一个面板的最大尺寸               | `number \| '${number}px'`    | `100`          |
-| `minEnd`      | 第二个面板的最小尺寸               | `number \| '${number}px'`    | `0`            |
-| `collapsible` | 可以折叠第一个面板                 | `boolean`                    | `false`        |
-| `collapsed`   | 是否折叠，配合 `v-model:collapsed` | `boolean`                    | `false`        |
-| `step`        | 方向键每次移动的百分比             | `number`                     | `1`            |
-| `disabled`    | 禁止调整                           | `boolean`                    | `false`        |
-| `ariaLabel`   | 分隔线的名称                       | `string`                     | 语言包         |
+| 名称          | 说明                                                   | 类型                         | 默认值                          |
+| ------------- | ------------------------------------------------------ | ---------------------------- | ------------------------------- |
+| `modelValue`  | 第一个面板的尺寸（按 `unit` 解释），配合 `v-model`     | `number`                     | 百分比模式 `50`，像素模式 `240` |
+| `direction`   | 左右排列还是上下排列                                   | `'horizontal' \| 'vertical'` | `'horizontal'`                  |
+| `unit`        | 尺寸与数字限值的单位                                   | `'percent' \| 'px'`          | `'percent'`                     |
+| `min`         | 第一个面板的最小尺寸                                   | `number \| '${number}px'`    | `0`                             |
+| `max`         | 第一个面板的最大尺寸                                   | `number \| '${number}px'`    | 百分比模式 `100`，像素模式不限  |
+| `minEnd`      | 第二个面板的最小尺寸                                   | `number \| '${number}px'`    | `0`                             |
+| `collapsible` | 可以折叠第一个面板                                     | `boolean`                    | `false`                         |
+| `collapsed`   | 是否折叠，配合 `v-model:collapsed`                     | `boolean`                    | `false`                         |
+| `singlePane`  | 单栏显示指定面板，保持双栏挂载并隐藏分隔线与另一侧面板 | `'start' \| 'end' \| null`   | `null`                          |
+| `step`        | 方向键每次移动的步长（按 `unit` 解释）                 | `number`                     | 百分比模式 `1`，像素模式 `10`   |
+| `disabled`    | 禁止调整                                               | `boolean`                    | `false`                         |
+| `ariaLabel`   | 分隔线的名称                                           | `string`                     | 语言包                          |
 
 ### Splitter Events
 

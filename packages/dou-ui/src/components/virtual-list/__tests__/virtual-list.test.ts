@@ -115,4 +115,22 @@ describe('DouVirtualList', () => {
     })
     expect(wrapper.text()).toBe('空')
   })
+
+  it('respects scroll-padding-block-end when aligning an item to the end', () => {
+    const rows = Array.from({ length: 30 }, (_, index) => ({ id: index }))
+    const wrapper = mount(DouVirtualList, {
+      props: { items: rows, itemSize: 40, height: 240 },
+      slots: { default: ({ item }: { item: { id: number } }) => String(item.id) },
+      attachTo: document.body,
+    })
+    const el = wrapper.get('.dou-virtual-list').element as HTMLElement
+    el.style.scrollPaddingBlockEnd = '80px'
+    const exposed = wrapper.vm as unknown as {
+      scrollToIndex: (index: number, align?: 'start' | 'center' | 'end' | 'nearest') => void
+    }
+    // item 10 occupies [400, 440]; visible height is 240 - 80 = 160 -> scrollTop = 440 - 160 = 280
+    exposed.scrollToIndex(10, 'end')
+    expect(el.scrollTop).toBe(280)
+    wrapper.unmount()
+  })
 })

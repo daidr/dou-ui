@@ -186,7 +186,10 @@ function scrollToIndex(index: number, align: VirtualListAlign = 'nearest', settl
   const { start } = offsets.value
   const top = start(index)
   const bottom = start(index + 1)
-  const height = viewport.value
+  const endPadding = elRef.value
+    ? Number.parseFloat(getComputedStyle(elRef.value).scrollPaddingBlockEnd) || 0
+    : 0
+  const height = Math.max(0, viewport.value - endPadding)
   const current = scrollTop.value
   let target = current
   if (align === 'start') target = top

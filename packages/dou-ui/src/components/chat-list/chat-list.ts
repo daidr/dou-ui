@@ -29,6 +29,19 @@ export interface ChatListProps<T = any> {
   /** Show a button that scrolls back down while the list is away from the bottom. */
   showScrollButton?: boolean
   /**
+   * Extra space reserved at the bottom, e.g. for a floating composer over the
+   * list. Adds to bottom padding, sets `scroll-padding-block-end` on the
+   * viewport, and lifts the scroll-to-bottom button by the same amount. Accepts
+   * a px number or any CSS length; can also be set via `--dou-chat-list-bottom-inset`.
+   */
+  bottomInset?: number | string
+  /**
+   * Fade messages out at the bottom edge so text does not peek past the rounded
+   * corners of a floating composer. Placed using `--dou-chat-list-bottom-inset`
+   * and `--dou-chat-list-bottom-fade`.
+   */
+  bottomFade?: boolean
+  /**
    * The messages as data, drawn one by one with the `item` slot. Only the
    * messages in or near view are in the page, so long conversations stay
    * light; each is measured once rendered.

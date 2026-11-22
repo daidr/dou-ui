@@ -143,4 +143,52 @@ describe('DouChatList', () => {
     expect(scrollToIndex).toHaveBeenCalledWith(30, 'center')
     list.unmount()
   })
+
+  it('exposes bottomInset as a CSS variable and toggles the bottomFade class', async () => {
+    const wrapper = mount(DouChatList)
+    expect(wrapper.attributes('style')).toBeUndefined()
+    expect(wrapper.classes()).not.toContain('is-bottom-fade')
+
+    await wrapper.setProps({ bottomInset: 120, bottomFade: true })
+    expect(wrapper.attributes('style')).toContain('--dou-chat-list-bottom-inset: 120px')
+    expect(wrapper.classes()).toContain('is-bottom-fade')
+
+    await wrapper.setProps({ bottomInset: '8rem' })
+    expect(wrapper.attributes('style')).toContain('--dou-chat-list-bottom-inset: 8rem')
+  })
+
+  it('keeps following the bottom when bottomInset changes while at bottom', async () => {
+    const wrapper = mount(DouChatList, { attachTo: document.body })
+    const el = wrapper.get('.dou-chat-list__viewport').element as HTMLElement
+    sized(el, 1000)
+    el.scrollTop = 900
+    await wrapper.get('.dou-chat-list__viewport').trigger('scroll')
+
+    sized(el, 1140)
+    await wrapper.setProps({ bottomInset: 140 })
+    await nextTick()
+    expect(el.scrollTop).toBe(1140)
+    wrapper.unmount()
+  })
+
+  it('respects scroll-padding-block-end when scrolling to a message', () => {
+    const wrapper = mount(DouChatList, {
+      slots: { default: '<p id="one">一</p><p id="two">二</p>' },
+      attachTo: document.body,
+    })
+    const viewport = wrapper.get('.dou-chat-list__viewport').element as HTMLElement
+    const target = wrapper.get('#two').element as HTMLElement
+    sized(viewport, 1000, 300)
+    viewport.style.scrollPaddingBlockEnd = '100px'
+    viewport.getBoundingClientRect = () =>
+      ({ top: 0, bottom: 300, height: 300, left: 0, right: 400, width: 400 }) as DOMRect
+    target.getBoundingClientRect = () =>
+      ({ top: 400, bottom: 450, height: 50, left: 0, right: 400, width: 400 }) as DOMRect
+
+    const exposed = wrapper.vm as unknown as ChatListExpose
+    exposed.scrollToMessage(target, 'end')
+    // visible height above the floating composer is 300 - 100 = 200
+    expect(viewport.scrollTop).toBe(250)
+    wrapper.unmount()
+  })
 })

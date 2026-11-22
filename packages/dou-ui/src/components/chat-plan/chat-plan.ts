@@ -18,9 +18,11 @@ export interface ChatPlanProps {
   items?: ChatPlanItem[]
   /** Defaults to the locale's "Plan". */
   title?: string
+  /** Show the header bar with icon, title and counter. Off hides the header and keeps the list open. */
+  showHeader?: boolean
   /** Let the header fold the list away. Off gives a plain panel that always shows the steps. */
   collapsible?: boolean
-  /** Expanded or not. Bound with `v-model:open`; open by default. Ignored when not `collapsible`. */
+  /** Expanded or not. Bound with `v-model:open`; open by default. Ignored when not `collapsible` or `showHeader` is false. */
   open?: boolean
   /**
    * The run is going on now. Off once the turn has ended or been stopped: a

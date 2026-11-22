@@ -20,6 +20,7 @@ defineOptions({ name: 'DouChatPlan' })
 
 const props = withDefaults(defineProps<ChatPlanProps>(), {
   items: () => [],
+  showHeader: true,
   collapsible: true,
   open: undefined,
   live: true,
@@ -32,20 +33,22 @@ const { t } = useLocale()
 const id = useId()
 
 const inner = ref(true)
-const open = computed(() => !props.collapsible || (props.open ?? inner.value))
+const canCollapse = computed(() => props.showHeader && props.collapsible)
+const open = computed(() => !canCollapse.value || (props.open ?? inner.value))
 function toggle() {
   inner.value = !open.value
   emit('update:open', inner.value)
 }
 
-// Say once, while developing, that `open` does nothing on a plain panel.
+// Say once, while developing, that `open` does nothing when the list cannot fold.
 // The app's bundler replaces this, as for Vue's own warnings.
 if (process.env.NODE_ENV !== 'production') {
   let warned = false
   watchEffect(() => {
-    if (warned || props.collapsible || props.open === undefined) return
+    if (warned || canCollapse.value || props.open === undefined) return
     warned = true
-    console.warn('[dou-ui] DouChatPlan: `open` is ignored when `collapsible` is false.')
+    const reason = props.collapsible ? '`showHeader`' : '`collapsible`'
+    console.warn(`[dou-ui] DouChatPlan: \`open\` is ignored when ${reason} is false.`)
   })
 }
 
@@ -60,13 +63,15 @@ const running = computed(() => planRunning(props.items, props.live))
   <div
     :class="[
       ns.b(),
-      ns.is('collapsible', collapsible),
+      ns.is('collapsible', canCollapse),
       ns.is('open', open),
       ns.is('running', running),
+      ns.is('headless', !showHeader),
     ]"
   >
     <component
       :is="collapsible ? 'button' : 'div'"
+      v-if="showHeader"
       :id="`${id}-header`"
       :class="ns.e('header')"
       :type="collapsible ? 'button' : undefined"
@@ -85,7 +90,8 @@ const running = computed(() => planRunning(props.items, props.live))
         :id="`${id}-panel`"
         role="region"
         :class="ns.e('panel')"
-        :aria-labelledby="`${id}-header`"
+        :aria-labelledby="showHeader ? `${id}-header` : undefined"
+        :aria-label="showHeader ? undefined : title || t('chat.plan')"
       >
         <ol :class="ns.e('list')">
           <li

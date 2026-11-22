@@ -28,9 +28,8 @@ export interface Locale {
     decimalSeparator: string
   }
   tabs: {
-    /** Buttons that scroll a row of tabs too long to fit. */
-    scrollPrev: string
-    scrollNext: string
+    /** The button that opens the list of all tabs when a row overflows. */
+    more: string
     /** Hint on the close button of a tab. */
     close: string
     /** The button that adds a tab. */

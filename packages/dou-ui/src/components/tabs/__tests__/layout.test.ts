@@ -61,8 +61,8 @@ describe('DouTabs height', () => {
       await nextTick()
       expect(list.classList).toContain('is-fade-end')
       expect(list.classList).not.toContain('is-fade-start')
-      // a column scrolls with the wheel; it has no arrows
-      expect(wrapper.find('.dou-tabs__scroll').exists()).toBe(false)
+      // a column scrolls with the wheel; it has no overflow button
+      expect(wrapper.find('.dou-tabs__overflow').exists()).toBe(false)
 
       await wrapper.setProps({ modelValue: 't7' })
       await nextTick()

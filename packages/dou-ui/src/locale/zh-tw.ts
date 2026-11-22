@@ -13,8 +13,7 @@ export const zhTW: Locale = {
     decimalSeparator: '.',
   },
   tabs: {
-    scrollPrev: '向前捲動分頁',
-    scrollNext: '向後捲動分頁',
+    more: '所有分頁',
     close: '關閉',
     add: '新增分頁',
     moved: '{label}移到位置 {position}，共 {total} 項',

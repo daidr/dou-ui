@@ -13,10 +13,9 @@ export const zhCN: Locale = {
     decimalSeparator: '.',
   },
   tabs: {
+    more: '全部标签页',
     close: '关闭',
     add: '新建标签页',
-    scrollPrev: '向前滚动标签',
-    scrollNext: '向后滚动标签',
     moved: '{label}移到位置 {position}，共 {total} 项',
   },
   input: {

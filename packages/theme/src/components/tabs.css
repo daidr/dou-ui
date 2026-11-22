@@ -213,35 +213,28 @@
     }
   }
 
-  /* the arrows sit tight against the row they scroll */
-  .dou-tabs__scroll {
+  /* overflow trigger at the end of a horizontal row */
+  .dou-tabs__overflow {
     position: relative;
     display: inline-flex;
     flex-shrink: 0;
     align-items: center;
     justify-content: center;
-    width: 24px;
+    width: calc(var(--dou-tabs-height) - 4px);
     height: calc(var(--dou-tabs-height) - 4px);
     padding: 0;
     margin-bottom: 2px;
+    margin-inline-start: -8px;
     border: 0;
     border-radius: var(--dou-radius-control);
     background: transparent;
     color: var(--dou-color-text-secondary);
     cursor: pointer;
-    transition-property: background-color, color, opacity;
+    transition-property: background-color, color;
     transition-duration: var(--dou-motion-duration-fast);
     transition-timing-function: var(--dou-motion-easing);
 
-    &.is-start {
-      margin-right: -8px;
-    }
-
-    &.is-end {
-      margin-left: -8px;
-    }
-
-    /* on touch screens, a 40px target around the arrow without changing the layout */
+    /* on touch screens, a 40px target around the trigger without changing the layout */
     @media (pointer: coarse) {
       &::after {
         content: '';
@@ -251,18 +244,184 @@
     }
 
     & > svg {
-      width: 16px;
-      height: 16px;
+      width: var(--dou-tabs-icon-size);
+      height: var(--dou-tabs-icon-size);
+      transition: transform var(--dou-motion-duration-fast) var(--dou-motion-easing);
     }
 
-    &:hover:not(:disabled) {
+    &:hover,
+    &.is-open {
       background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
       color: var(--dou-color-text);
     }
 
+    &.is-open > svg {
+      transform: rotate(180deg);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: -2px;
+    }
+  }
+
+  .dou-tabs__overflow + .dou-tabs__add {
+    margin-inline-start: -8px;
+  }
+
+  /* vertical list of all tabs inside the overflow popover */
+  .dou-popover.dou-tabs__overflow-popover {
+    --dou-popover-padding: 4px;
+    --dou-popover-radius: calc(var(--dou-radius-control) + 4px);
+    --dou-popover-max-width: 280px;
+    --dou-tabs-overflow-row: var(--dou-control-height-md);
+    --dou-tabs-overflow-font-size: var(--dou-font-size-md);
+    --dou-tabs-overflow-icon-size: 16px;
+
+    min-width: 180px;
+    color: var(--dou-color-text);
+    font-size: var(--dou-tabs-overflow-font-size);
+    line-height: 1;
+
+    &.dou-tabs--sm {
+      --dou-tabs-overflow-row: var(--dou-control-height-sm);
+      --dou-tabs-overflow-font-size: var(--dou-font-size-sm);
+      --dou-tabs-overflow-icon-size: 14px;
+    }
+
+    &.dou-tabs--lg {
+      --dou-tabs-overflow-row: var(--dou-control-height-lg);
+      --dou-tabs-overflow-font-size: var(--dou-font-size-lg);
+    }
+  }
+
+  .dou-tabs__overflow-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: min(calc(var(--dou-floating-available, 100vh) - 10px), 320px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .dou-tabs__overflow-item {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    box-sizing: border-box;
+    min-height: var(--dou-tabs-overflow-row);
+    border-radius: var(--dou-radius-control);
+    color: var(--dou-color-text-secondary);
+    transition-property: background-color, color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    &.is-selected {
+      background-color: color-mix(in oklab, var(--dou-color-text) 5%, transparent);
+      color: var(--dou-color-text);
+      font-weight: var(--dou-font-weight-medium);
+    }
+
+    &:not(.is-disabled):hover,
+    &:not(.is-disabled):has(.dou-tabs__overflow-select:focus-visible) {
+      background-color: color-mix(in oklab, var(--dou-color-text) 8%, transparent);
+      color: var(--dou-color-text);
+    }
+
+    &.is-disabled {
+      color: var(--dou-color-text-disabled);
+    }
+  }
+
+  .dou-tabs__overflow-select {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    gap: 8px;
+    box-sizing: border-box;
+    min-width: 0;
+    height: var(--dou-tabs-overflow-row);
+    padding: 0 8px;
+    border: 0;
+    border-radius: var(--dou-radius-control);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+    outline: none;
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: -2px;
+    }
+
     &:disabled {
-      opacity: 0.35;
-      cursor: default;
+      cursor: not-allowed;
+    }
+  }
+
+  .dou-tabs__overflow-item.is-closable .dou-tabs__overflow-select {
+    padding-inline-end: 4px;
+  }
+
+  .dou-tabs__overflow-icon {
+    flex-shrink: 0;
+    width: var(--dou-tabs-overflow-icon-size);
+    height: var(--dou-tabs-overflow-icon-size);
+  }
+
+  .dou-tabs__overflow-label {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    line-height: 1.4;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    & > * {
+      vertical-align: middle;
+    }
+  }
+
+  .dou-tabs__overflow-check {
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
+    color: var(--dou-color-text);
+  }
+
+  .dou-tabs__overflow-close {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    margin-inline-end: 4px;
+    padding: 0;
+    border: 0;
+    border-radius: calc(var(--dou-radius-control) - 2px);
+    background: transparent;
+    color: var(--dou-color-text-tertiary);
+    cursor: pointer;
+    transition-property: background-color, color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    & > svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    &:hover {
+      background-color: color-mix(in oklab, var(--dou-color-text) 10%, transparent);
+      color: var(--dou-color-text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: -2px;
     }
   }
 

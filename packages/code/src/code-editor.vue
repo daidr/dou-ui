@@ -159,6 +159,7 @@ const props = withDefaults(defineProps<CodeEditorProps>(), {
   tabIndents: true,
   gutter: true,
   bordered: true,
+  scrollY: true,
 })
 const emit = defineEmits<CodeEditorEmits>()
 const ns = useNamespace('code-editor')
@@ -3638,7 +3639,13 @@ function extendTo(point: { x: number; y: number }) {
 function autoScroll() {
   if (!drag || !scroller.value) return
   const rect = scroller.value.getBoundingClientRect()
-  const dy = drag.y < rect.top ? drag.y - rect.top : drag.y > rect.bottom ? drag.y - rect.bottom : 0
+  const dy = props.scrollY
+    ? drag.y < rect.top
+      ? drag.y - rect.top
+      : drag.y > rect.bottom
+        ? drag.y - rect.bottom
+        : 0
+    : 0
   const dx =
     drag.x < rect.left + gutterWidth.value
       ? drag.x - rect.left - gutterWidth.value
@@ -3646,8 +3653,8 @@ function autoScroll() {
         ? drag.x - rect.right
         : 0
   if (dy || dx) {
-    scroller.value.scrollTop += dy / 2
-    scroller.value.scrollLeft += dx / 2
+    if (dy) scroller.value.scrollTop += dy / 2
+    if (dx) scroller.value.scrollLeft += dx / 2
     onScroll()
     extendTo(drag)
   }
@@ -4464,12 +4471,14 @@ function followViewport() {
   const bottom = view.top + view.height - covered
   const visibleTop = Math.max(rect.top, view.top)
   const visibleBottom = Math.min(rect.bottom, bottom)
-  if (at.bottom + room > visibleBottom && visibleBottom - visibleTop >= lh * 3) {
-    el.scrollTop += (at.bottom + room - visibleBottom) / ratio.value
-    onScroll()
-  } else if (at.top - lh / 2 < visibleTop && visibleBottom - visibleTop >= lh * 3) {
-    el.scrollTop -= (visibleTop - at.top + lh / 2) / ratio.value
-    onScroll()
+  if (props.scrollY) {
+    if (at.bottom + room > visibleBottom && visibleBottom - visibleTop >= lh * 3) {
+      el.scrollTop += (at.bottom + room - visibleBottom) / ratio.value
+      onScroll()
+    } else if (at.top - lh / 2 < visibleTop && visibleBottom - visibleTop >= lh * 3) {
+      el.scrollTop -= (visibleTop - at.top + lh / 2) / ratio.value
+      onScroll()
+    }
   }
   // Whatever the editor couldn't scroll, the page does.
   const after = coordsAtPos(mainRange(state.value.selection).head)
@@ -4558,7 +4567,9 @@ const MINI_PAD = 6
 const minimapCanvas = ref<HTMLCanvasElement>()
 /** The editor's own width, minimap included. */
 const rootWidth = ref(0)
-const minimapOn = computed(() => !!props.minimap && mounted.value && rootWidth.value >= 480)
+const minimapOn = computed(
+  () => !!props.minimap && props.scrollY && mounted.value && rootWidth.value >= 480,
+)
 
 /** Where the minimap is: the row at its top (fractional), and the part in view as a box. */
 const minimap = computed(() => {
@@ -4760,9 +4771,10 @@ function onMinimapUp(event: PointerEvent) {
 function onScroll() {
   const el = scroller.value
   if (!el) return
+  if (!props.scrollY && el.scrollTop !== 0) el.scrollTop = 0
   // iOS reports positions past either end while the content bounces back
   const { top, left } = scrollPositionOf(el)
-  scrollTop.value = top
+  scrollTop.value = props.scrollY ? top : 0
   scrollLeft.value = left
   updateClip()
 }
@@ -4776,11 +4788,13 @@ function scrollIntoView(pos = mainRange(state.value.selection).head) {
   const view = el.clientHeight
   if (view < lh * 3) return
   const at = place(line.number, line.text, pos - line.from)
-  const y = at.top - shift.value
-  const top = el.scrollTop * ratio.value
-  const margin = Math.min(lh, view / 4)
-  if (y - margin < top) el.scrollTop = Math.max(0, (y - margin) / ratio.value)
-  else if (y + lh + margin > top + view) el.scrollTop = (y + lh + margin - view) / ratio.value
+  if (props.scrollY) {
+    const y = at.top - shift.value
+    const top = el.scrollTop * ratio.value
+    const margin = Math.min(lh, view / 4)
+    if (y - margin < top) el.scrollTop = Math.max(0, (y - margin) / ratio.value)
+    else if (y + lh + margin > top + view) el.scrollTop = (y + lh + margin - view) / ratio.value
+  }
   const x = pad.x + at.x
   const width = el.clientWidth - gutterWidth.value
   if (x - measure.cell * 2 < el.scrollLeft) el.scrollLeft = Math.max(0, x - measure.cell * 4)
@@ -4788,6 +4802,18 @@ function scrollIntoView(pos = mainRange(state.value.selection).head) {
     el.scrollLeft = x + measure.cell * 4 - width
   onScroll()
 }
+
+watch(
+  () => props.scrollY,
+  (enabled) => {
+    const el = scroller.value
+    if (!enabled && el) {
+      if (el.scrollTop !== 0) el.scrollTop = 0
+      scrollTop.value = 0
+      updateClip()
+    }
+  },
+)
 
 let clipFrame = 0
 /** For an editor taller than the window, draws only the lines inside the window. */
@@ -5015,6 +5041,7 @@ defineExpose<CodeEditorExpose>(api)
       ns.is('foldable', foldable),
       ns.is('wrap', wrap),
       ns.is('bordered', bordered),
+      ns.is('scroll-y', scrollY),
     ]"
     :style="{
       '--dou-code-editor-gutter': `${gutterWidth}px`,

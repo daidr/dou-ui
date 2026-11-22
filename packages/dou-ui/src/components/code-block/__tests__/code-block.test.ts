@@ -1,8 +1,11 @@
+import { readFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { flushPromises, mount } from '@vue/test-utils'
-import { h } from 'vue'
-import { describe, expect, it } from 'vitest'
+import { h, nextTick } from 'vue'
+import { describe, expect, it, vi } from 'vitest'
 import { DouCodeBlock, DouConfigProvider } from '../../../index'
-import type { CodeBlockHighlighter } from '../../../index'
+import type { CodeBlockExpose, CodeBlockHighlighter } from '../../../index'
 import { htmlLines, parseLines } from '../lines'
 
 const code = 'const a = 1\n\nconsole.log(a)\n'
@@ -103,5 +106,290 @@ describe('DouCodeBlock', () => {
     await toggle.trigger('click')
     expect(wrapper.classes()).not.toContain('is-folded')
     expect(toggle.text()).toBe('收起')
+  })
+
+  it('positions the headless copy button with higher specificity than .dou-copy-button', () => {
+    const wrapper = mount(DouCodeBlock, { props: { code: 'echo hi' } })
+    const copy = wrapper.get('.dou-code-block__copy')
+    expect(copy.element.parentElement).toBe(wrapper.element)
+    expect(copy.classes()).toContain('dou-copy-button')
+
+    const css = readFileSync(
+      resolve(
+        dirname(fileURLToPath(import.meta.url)),
+        '../../../../../theme/src/components/code-block.css',
+      ),
+      'utf8',
+    ).replace(/\/\*[\s\S]*?\*\//g, '')
+
+    const copyStart = css.indexOf('.dou-code-block > .dou-code-block__copy {')
+    expect(copyStart).toBeGreaterThan(-1)
+    const copyBlock = css.slice(copyStart, css.indexOf('.dou-code-block:is(:hover', copyStart))
+    expect(copyBlock).toMatch(/position:\s*absolute/)
+    expect(copyBlock).toMatch(/top:\s*6px/)
+    expect(copyBlock).toMatch(
+      /right:\s*calc\(6px \+ var\(--dou-code-block-scrollbar-width, 0px\)\)/,
+    )
+    expect(copyBlock).toMatch(/transition-property:[^;]*opacity/)
+  })
+
+  it('supports maxHeight vertical scrolling and offsets the copy button for the scrollbar', async () => {
+    const wrapper = mount(DouCodeBlock, {
+      props: { code: 'line 1\nline 2', maxHeight: 200 },
+    })
+    expect(wrapper.classes()).toContain('is-scrollable')
+    expect(wrapper.attributes('style')).toContain('--dou-code-block-max-height: 200px')
+    const body = wrapper.get('.dou-code-block__body')
+    expect(body.attributes('tabindex')).toBe('0')
+
+    Object.defineProperty(body.element, 'offsetWidth', { configurable: true, value: 320 })
+    Object.defineProperty(body.element, 'clientWidth', { configurable: true, value: 305 })
+    await wrapper.setProps({ maxHeight: '16rem' })
+    await nextTick()
+    expect(wrapper.attributes('style')).toContain('--dou-code-block-max-height: 16rem')
+    expect(wrapper.attributes('style')).toContain('--dou-code-block-scrollbar-width: 15px')
+
+    await wrapper.setProps({ maxHeight: undefined })
+    await nextTick()
+    expect(wrapper.classes()).not.toContain('is-scrollable')
+    expect(body.attributes('tabindex')).toBeUndefined()
+    expect(wrapper.attributes('style') ?? '').not.toContain('--dou-code-block-scrollbar-width')
+
+    const css = readFileSync(
+      resolve(
+        dirname(fileURLToPath(import.meta.url)),
+        '../../../../../theme/src/components/code-block.css',
+      ),
+      'utf8',
+    ).replace(/\/\*[\s\S]*?\*\//g, '')
+    const scrollStart = css.indexOf('.dou-code-block.is-scrollable .dou-code-block__body {')
+    expect(scrollStart).toBeGreaterThan(-1)
+    const scrollBlock = css.slice(
+      scrollStart,
+      css.indexOf('.dou-code-block.is-folded', scrollStart),
+    )
+    expect(scrollBlock).toMatch(/max-height:\s*var\(--dou-code-block-max-height\)/)
+    expect(scrollBlock).toMatch(/overflow-y:\s*auto/)
+  })
+
+  it('auto-follows streaming output, pauses on manual scroll up, and resumes at bottom or via scrollToBottom', async () => {
+    const wrapper = mount(DouCodeBlock, {
+      props: {
+        code: 'line 1\nline 2\nline 3',
+        maxHeight: 160,
+        streaming: true,
+      },
+    })
+    const vm = wrapper.vm as unknown as CodeBlockExpose
+    const body = wrapper.get('.dou-code-block__body')
+    expect(vm.body).toBe(body.element)
+
+    let scrollHeight = 400
+    Object.defineProperty(body.element, 'clientHeight', { configurable: true, get: () => 160 })
+    Object.defineProperty(body.element, 'scrollHeight', {
+      configurable: true,
+      get: () => scrollHeight,
+    })
+
+    // Appending code while following pins to the bottom.
+    scrollHeight = 460
+    await wrapper.setProps({ code: 'line 1\nline 2\nline 3\nline 4' })
+    await nextTick()
+    expect(body.element.scrollTop).toBe(300)
+    expect(vm.atBottom).toBe(true)
+
+    // User scrolls up to inspect history: auto-follow pauses.
+    body.element.scrollTop = 80
+    await body.trigger('scroll')
+    expect(vm.atBottom).toBe(false)
+    expect(wrapper.emitted('atBottomChange')).toEqual([[false]])
+
+    scrollHeight = 520
+    await wrapper.setProps({ code: 'line 1\nline 2\nline 3\nline 4\nline 5' })
+    await nextTick()
+    expect(body.element.scrollTop).toBe(80)
+    expect(vm.atBottom).toBe(false)
+
+    // Scrolling back near the bottom resumes auto-follow.
+    body.element.scrollTop = 350 // distance 520 - 350 - 160 = 10 <= 24
+    await body.trigger('scroll')
+    expect(vm.atBottom).toBe(true)
+    expect(wrapper.emitted('atBottomChange')).toEqual([[false], [true]])
+
+    scrollHeight = 600
+    await wrapper.setProps({ code: 'line 1\nline 2\nline 3\nline 4\nline 5\nline 6' })
+    await nextTick()
+    expect(body.element.scrollTop).toBe(440)
+
+    // Upward wheel also pauses following immediately, and scrollToBottom resumes it.
+    await body.trigger('wheel', { deltaY: -40 })
+    scrollHeight = 660
+    await wrapper.setProps({ code: 'line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7' })
+    await nextTick()
+    expect(body.element.scrollTop).toBe(440)
+
+    vm.scrollToBottom()
+    expect(body.element.scrollTop).toBe(500)
+    expect(vm.atBottom).toBe(true)
+
+    scrollHeight = 720
+    await wrapper.setProps({
+      code: 'line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8',
+    })
+    await nextTick()
+    expect(body.element.scrollTop).toBe(560)
+  })
+
+  it('respects explicit autoScroll overrides regardless of streaming', async () => {
+    const disabled = mount(DouCodeBlock, {
+      props: { code: 'a\nb', maxHeight: 120, streaming: true, autoScroll: false },
+    })
+    const bodyA = disabled.get('.dou-code-block__body').element
+    Object.defineProperty(bodyA, 'clientHeight', { configurable: true, value: 120 })
+    Object.defineProperty(bodyA, 'scrollHeight', { configurable: true, value: 320 })
+    await disabled.setProps({ code: 'a\nb\nc' })
+    await nextTick()
+    expect(bodyA.scrollTop).toBe(0)
+
+    const enabled = mount(DouCodeBlock, {
+      props: { code: 'a\nb', maxHeight: 120, streaming: false, autoScroll: true },
+    })
+    const bodyB = enabled.get('.dou-code-block__body').element
+    Object.defineProperty(bodyB, 'clientHeight', { configurable: true, value: 120 })
+    Object.defineProperty(bodyB, 'scrollHeight', { configurable: true, value: 320 })
+    await enabled.setProps({ code: 'a\nb\nc' })
+    await nextTick()
+    expect(bodyB.scrollTop).toBe(200)
+
+    const plain = mount(DouCodeBlock, {
+      props: { code: 'a\nb', maxHeight: 120 },
+    })
+    const bodyC = plain.get('.dou-code-block__body').element
+    Object.defineProperty(bodyC, 'clientHeight', { configurable: true, value: 120 })
+    Object.defineProperty(bodyC, 'scrollHeight', { configurable: true, value: 320 })
+    await plain.setProps({ code: 'a\nb\nc' })
+    await nextTick()
+    expect(bodyC.scrollTop).toBe(0)
+  })
+
+  it('does not prematurely report atBottom during smooth scrollToBottom and handles interruption', async () => {
+    const wrapper = mount(DouCodeBlock, {
+      props: { code: 'line 1\nline 2\nline 3', maxHeight: 160, streaming: true },
+    })
+    const vm = wrapper.vm as unknown as CodeBlockExpose
+    const body = wrapper.get('.dou-code-block__body')
+
+    let scrollHeight = 520
+    Object.defineProperty(body.element, 'clientHeight', { configurable: true, get: () => 160 })
+    Object.defineProperty(body.element, 'scrollHeight', {
+      configurable: true,
+      get: () => scrollHeight,
+    })
+
+    // Simulate browser async smooth scrollTo (does not jump scrollTop immediately).
+    const scrollToSpy = vi.fn<(options?: ScrollToOptions) => void>()
+    Object.defineProperty(body.element, 'scrollTo', {
+      configurable: true,
+      value: scrollToSpy,
+    })
+
+    // Start pinned at bottom, then user scrolls up.
+    await wrapper.setProps({ code: 'line 1\nline 2\nline 3\nline 4' })
+    await nextTick()
+    expect(body.element.scrollTop).toBe(360)
+
+    body.element.scrollTop = 80
+    await body.trigger('scroll')
+    expect(vm.atBottom).toBe(false)
+    expect(wrapper.emitted('atBottomChange')).toEqual([[false]])
+
+    // Calling scrollToBottom('smooth') while far from bottom must not flicker atBottom to true.
+    vm.scrollToBottom('smooth')
+    expect(scrollToSpy).toHaveBeenCalledWith({ top: 520, behavior: 'smooth' })
+    expect(vm.atBottom).toBe(false)
+    expect(wrapper.emitted('atBottomChange')).toEqual([[false]])
+
+    // Mid-flight smooth scroll frame stays atBottom=false with no extra emissions.
+    body.element.scrollTop = 220
+    await body.trigger('scroll')
+    expect(vm.atBottom).toBe(false)
+    expect(wrapper.emitted('atBottomChange')).toEqual([[false]])
+
+    // Interrupting smooth scroll upward pauses following; new content does not snap to bottom.
+    body.element.scrollTop = 180
+    await body.trigger('scroll')
+    scrollHeight = 580
+    await wrapper.setProps({ code: 'line 1\nline 2\nline 3\nline 4\nline 5' })
+    await nextTick()
+    expect(body.element.scrollTop).toBe(180)
+    expect(vm.atBottom).toBe(false)
+    expect(wrapper.emitted('atBottomChange')).toEqual([[false]])
+
+    // Starting smooth scroll again and reaching the bottom emits atBottomChange(true) once.
+    vm.scrollToBottom('smooth')
+    expect(vm.atBottom).toBe(false)
+    body.element.scrollTop = 410 // distance 580 - 410 - 160 = 10 <= 24
+    await body.trigger('scroll')
+    expect(vm.atBottom).toBe(true)
+    expect(wrapper.emitted('atBottomChange')).toEqual([[false], [true]])
+
+    // Subsequent streaming output resumes auto-following to the bottom.
+    scrollHeight = 640
+    await wrapper.setProps({ code: 'line 1\nline 2\nline 3\nline 4\nline 5\nline 6' })
+    await nextTick()
+    expect(body.element.scrollTop).toBe(480)
+  })
+
+  it('pauses following on small upward scroll within threshold, but keeps following when clamped by shorter content', async () => {
+    const wrapper = mount(DouCodeBlock, {
+      props: { code: 'line 1\nline 2\nline 3', maxHeight: 160, streaming: true },
+    })
+    const vm = wrapper.vm as unknown as CodeBlockExpose
+    const body = wrapper.get('.dou-code-block__body')
+
+    let scrollHeight = 460
+    Object.defineProperty(body.element, 'clientHeight', { configurable: true, get: () => 160 })
+    Object.defineProperty(body.element, 'scrollHeight', {
+      configurable: true,
+      get: () => scrollHeight,
+    })
+
+    // Pin to bottom: scrollTop = 300.
+    await wrapper.setProps({ code: 'line 1\nline 2\nline 3\nline 4' })
+    await nextTick()
+    expect(body.element.scrollTop).toBe(300)
+
+    // Small upward scroll of 12px (still within 24px threshold) must pause following.
+    await body.trigger('wheel', { deltaY: -12 })
+    body.element.scrollTop = 288
+    await body.trigger('scroll')
+
+    // Next streaming append must NOT pull scrollTop back to bottom.
+    scrollHeight = 520
+    await wrapper.setProps({ code: 'line 1\nline 2\nline 3\nline 4\nline 5' })
+    await nextTick()
+    expect(body.element.scrollTop).toBe(288)
+    expect(vm.atBottom).toBe(false)
+
+    // Scrolling downward back near the bottom resumes following.
+    body.element.scrollTop = 350 // distance 520 - 350 - 160 = 10 <= 24
+    await body.trigger('scroll')
+    expect(vm.atBottom).toBe(true)
+
+    scrollHeight = 560
+    await wrapper.setProps({ code: 'line 1\nline 2\nline 3\nline 4\nline 5\nline 6' })
+    await nextTick()
+    expect(body.element.scrollTop).toBe(400)
+
+    // Content shrinks so browser clamps scrollTop down while distance stays 0: must keep following.
+    scrollHeight = 360
+    body.element.scrollTop = 200
+    await body.trigger('scroll')
+
+    scrollHeight = 420
+    await wrapper.setProps({ code: 'line 1\nline 2\nline 3\nline 4' })
+    await nextTick()
+    expect(body.element.scrollTop).toBe(260)
+    expect(vm.atBottom).toBe(true)
   })
 })

@@ -99,6 +99,11 @@
     scrollbar-width: thin;
   }
 
+  .dou-code-editor:not(.is-scroll-y) > .dou-code-editor__body > .dou-code-editor__scroller {
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
   .dou-code-editor__minimap {
     position: relative;
     flex: none;

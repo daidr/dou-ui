@@ -30,6 +30,11 @@ export interface CodeBlockProps {
   wrap?: boolean
   /** Fold the block beyond this many lines, with a button to show the rest. */
   maxLines?: number
+  /**
+   * Limit the body height and scroll vertically inside it. Accepts a px
+   * number or any CSS length (such as `'240px'` or `'40vh'`).
+   */
+  maxHeight?: number | string
   /** Show a copy button. */
   copyable?: boolean
   /**
@@ -39,10 +44,21 @@ export interface CodeBlockProps {
    */
   streaming?: boolean
   /**
+   * Keep the scrollable body pinned to the bottom as code grows. Scrolling up
+   * pauses following until the bottom is reached again. Defaults to `true`
+   * while `streaming` is on, and `false` otherwise.
+   */
+  autoScroll?: boolean
+  /**
    * The hairline frame and rounded corners. Off, the block takes no border
    * at all, for a card or panel that already has an edge. On by default.
    */
   bordered?: boolean
+}
+
+export interface CodeBlockEmits {
+  /** Whether the scrollable body is at the bottom changed. */
+  atBottomChange: [atBottom: boolean]
 }
 
 export interface CodeBlockSlots {
@@ -50,4 +66,13 @@ export interface CodeBlockSlots {
   title?: () => unknown
   /** Placed at the end of the header, before the copy button. */
   actions?: () => unknown
+}
+
+export interface CodeBlockExpose {
+  /** The scrolling body element. */
+  readonly body: HTMLElement | null
+  /** Scroll to the bottom and resume auto-following. */
+  scrollToBottom: (behavior?: ScrollBehavior) => void
+  /** Whether the body is currently at the bottom. */
+  readonly atBottom: boolean
 }

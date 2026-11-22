@@ -9,8 +9,8 @@ const files = ref([
   {
     path: 'src/shipping/fee-calculator.ts',
     from: 'src/shipping/fee.ts',
-    original: `// 戴兜维护\nconst BASE_FEE = 6\nconst CITY = '上海'\n\n${makeLines('rule', 18)}\n`,
-    modified: `// 戴兜维护\nconst BASE_FEE = 8\nconst CITY = '上海'\nconst REMOTE_FEE = 10\n\n${makeLines('rule', 18)}\n`,
+    original: `// 戴兜维护\nconst BASE_FEE = 6\nconst CITY = '上海'\nconst NOTE = '上海华东仓默认按首重计费，超出部分根据分区阶梯自动换算并保留两位小数，支持长行横向滚动查看完整说明'\n\n${makeLines('rule', 18)}\n`,
+    modified: `// 戴兜维护\nconst BASE_FEE = 8\nconst CITY = '上海'\nconst REMOTE_FEE = 10\nconst NOTE = '上海华东仓默认按首重计费，超出部分根据分区阶梯自动换算并保留两位小数，支持长行横向滚动查看完整说明'\n\n${makeLines('rule', 18)}\n`,
   },
   {
     path: 'src/shipping/regions/east-china-delivery-zones.ts',
@@ -31,6 +31,7 @@ const files = ref([
       :language="javascript"
       :bordered="false"
       :collapse-unchanged="false"
+      :scroll-y="false"
       sticky-toolbar
       mode="inline"
       class="demo-diff-item"

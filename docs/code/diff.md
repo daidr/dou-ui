@@ -38,6 +38,8 @@
 
 加上 `sticky-toolbar` 后，外层容器滚动时工具栏会吸附在顶部（可通过 `--dou-code-diff-toolbar-top` 调整吸顶偏移，通过 `--dou-code-diff-toolbar-bg` 调整吸顶时的背景色）。组件根容器使用 `overflow: clip` 裁切圆角，不会阻断内部元素的 `position: sticky`。
 
+在 `DouVirtualList` 或其他外层统一滚动的列表中使用时，可以同时加上 `:scroll-y="false"` 禁用内部纵向滚动，让内容按实际行数完整展开并由外层承担纵向滚动，同时保留长行的横向滚动体验。
+
 <DocDemo src="code/diff-sticky" column />
 
 ## 批注
@@ -96,6 +98,7 @@ const hunks = diffText('上海\n戴兜\n', '上海\n阿青\n')
 | `toolbar`           | 显示工具栏                                                                                     | `boolean`                                            | `true`   |
 | `stickyToolbar`     | 外层滚动容器滚动时让工具栏吸附在顶部                                                           | `boolean`                                            | `false`  |
 | `bordered`          | 整体的外框和圆角；关闭后去掉外框和圆角，聚焦时也不再画出边框，工具栏和左右两栏之间的分隔线保留 | `boolean`                                            | `true`   |
+| `scrollY`           | 是否允许内部编辑器纵向滚动；关闭后禁用纵向滚动并保留长行横向滚动，适配外层虚拟列表统一滚动     | `boolean`                                            | `true`   |
 | `tabSize`           | 制表位宽度                                                                                     | `number`                                             | `2`      |
 | `messages`          | 改写界面上的文字                                                                               | `Partial<CodeMessages>`                              | —        |
 

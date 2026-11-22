@@ -26,7 +26,7 @@ app.use(DouCodeEditor)
 
 <DocDemo src="code/basic" column />
 
-编辑器的高度随内容增长。内容较多时，用 CSS 给编辑器设置 `height` 或 `max-height`，超出的部分在编辑器内滚动。
+编辑器的高度随内容增长。内容较多时，用 CSS 给编辑器设置 `height` 或 `max-height`，超出的部分在编辑器内滚动。如果把编辑器放进外层滚动容器或虚拟列表中、希望由外层统一控制纵向滚动，可以设置 `:scroll-y="false"` 禁用内部纵向滚动并保留长行横向滚动。
 
 字符串里的 `\r\n` 和 `\r` 都按换行读入，`v-model` 交回的字符串统一使用 `\n`。
 
@@ -83,6 +83,7 @@ app.use(DouCodeEditor)
 | `lineNumbers`       | 显示行号                                                                                                    | `boolean`                          | `true`                |
 | `gutter`            | 显示行号左侧的栏（行号、折叠箭头、问题图标）；关闭后问题只有波浪线                                          | `boolean`                          | `true`                |
 | `bordered`          | 外框和圆角；关闭后去掉外框和圆角，用于放进已有边框的容器，见[去掉外框](/guide/theming#去掉外框与调整内边距) | `boolean`                          | `true`                |
+| `scrollY`           | 是否允许内部纵向滚动；关闭后禁用纵向滚动并保留长行横向滚动，适配外层滚动容器或虚拟列表统一滚动              | `boolean`                          | `true`                |
 | `activeLine`        | 给光标所在行加底色                                                                                          | `boolean`                          | `true`                |
 | `tabSize`           | 制表位宽度                                                                                                  | `number`                           | `2`                   |
 | `indentWithTabs`    | 用制表符缩进                                                                                                | `boolean`                          | `false`               |

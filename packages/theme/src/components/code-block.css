@@ -64,20 +64,27 @@
   }
 
   /* without a header the copy button floats in the corner, shown on hover or focus */
-  .dou-code-block__copy {
+  .dou-code-block > .dou-code-block__copy {
     position: absolute;
     top: 6px;
-    right: 6px;
+    right: calc(6px + var(--dou-code-block-scrollbar-width, 0px));
     z-index: 1;
+    background-color: color-mix(in oklab, var(--dou-code-block-bg) 85%, transparent);
     opacity: 0;
-    transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
+    transition-property: color, background-color, border-color, opacity;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    &:hover:not(:disabled) {
+      background-color: color-mix(in oklab, var(--dou-color-text) 6%, var(--dou-code-block-bg));
+    }
   }
   .dou-code-block:is(:hover, :focus-within) > .dou-code-block__copy,
-  .dou-code-block__copy.is-copied {
+  .dou-code-block > .dou-code-block__copy.is-copied {
     opacity: 1;
   }
   @media (hover: none) {
-    .dou-code-block__copy {
+    .dou-code-block > .dou-code-block__copy {
       opacity: 1;
     }
   }
@@ -178,11 +185,26 @@
     }
   }
 
+  .dou-code-block.is-scrollable .dou-code-block__body {
+    box-sizing: border-box;
+    max-height: var(--dou-code-block-max-height);
+    overflow-y: auto;
+    scrollbar-width: thin;
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: -2px;
+    }
+  }
+
   /* folded: show the first lines, fading out into the expand button */
   .dou-code-block.is-folded .dou-code-block__body {
-    max-height: calc(
-      var(--dou-code-block-max-lines) * var(--dou-code-block-line-height) * 1em +
-        var(--dou-code-block-padding-y)
+    max-height: min(
+      var(--dou-code-block-max-height, 100000px),
+      calc(
+        var(--dou-code-block-max-lines) * var(--dou-code-block-line-height) * 1em +
+          var(--dou-code-block-padding-y)
+      )
     );
     overflow-y: hidden;
     mask-image: linear-gradient(to bottom, #000 calc(100% - 40px), transparent);

@@ -1,9 +1,25 @@
 <script setup lang="ts">
-import { computed, ref, shallowRef, useId, watchEffect } from 'vue'
+import {
+  computed,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  shallowRef,
+  useId,
+  useTemplateRef,
+  watch,
+  watchEffect,
+} from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useGlobalConfig, useLocale } from '../config-provider/use-config'
 import { DouCopyButton } from '../copy-button'
-import type { CodeBlockHighlighter, CodeBlockProps, CodeBlockSlots } from './code-block'
+import type {
+  CodeBlockEmits,
+  CodeBlockExpose,
+  CodeBlockHighlighter,
+  CodeBlockProps,
+  CodeBlockSlots,
+} from './code-block'
 import { htmlLines, parseLines, plainLines } from './lines'
 
 defineOptions({ name: 'DouCodeBlock' })
@@ -14,10 +30,13 @@ const props = withDefaults(defineProps<CodeBlockProps>(), {
   lineNumbers: false,
   startLine: 1,
   wrap: false,
+  maxHeight: undefined,
   copyable: true,
   streaming: false,
+  autoScroll: undefined,
   bordered: true,
 })
+const emit = defineEmits<CodeBlockEmits>()
 const slots = defineSlots<CodeBlockSlots>()
 
 const ns = useNamespace('code-block')
@@ -94,6 +113,122 @@ const expanded = ref(false)
 const foldable = computed(() => props.maxLines !== undefined && rows.value.length > props.maxLines)
 const folded = computed(() => foldable.value && !expanded.value)
 
+const maxHeightValue = computed(() => {
+  if (props.maxHeight === undefined || props.maxHeight === '') return undefined
+  return typeof props.maxHeight === 'number' ? `${props.maxHeight}px` : props.maxHeight
+})
+const scrollable = computed(() => maxHeightValue.value !== undefined)
+
+const bodyRef = useTemplateRef<HTMLElement>('body')
+const codeRef = useTemplateRef<HTMLElement>('codeEl')
+const scrollbarWidth = ref(0)
+
+function syncScrollbarWidth() {
+  const el = bodyRef.value
+  if (!el || !scrollable.value || folded.value) {
+    scrollbarWidth.value = 0
+    return
+  }
+  scrollbarWidth.value = Math.max(0, el.offsetWidth - el.clientWidth)
+}
+
+const AT_BOTTOM_THRESHOLD = 24
+const shouldAutoScroll = computed(() => props.autoScroll ?? props.streaming)
+const atBottom = ref(true)
+watch(atBottom, (value) => emit('atBottomChange', value))
+
+// Following is a choice of the reader: scrolling up pauses it, and reaching
+// the bottom resumes it. Appending content alone never turns it off.
+let following = true
+let scrollingToBottom = false
+let lastScrollTop = 0
+
+function distanceToBottom(el: HTMLElement) {
+  return el.scrollHeight - el.scrollTop - el.clientHeight
+}
+
+function isNearBottom(el: HTMLElement) {
+  return distanceToBottom(el) <= AT_BOTTOM_THRESHOLD
+}
+
+function onBodyScroll() {
+  const el = bodyRef.value
+  if (!el) return
+  const distance = distanceToBottom(el)
+  const near = distance <= AT_BOTTOM_THRESHOLD
+  if (el.scrollTop < lastScrollTop && distance > 1) {
+    scrollingToBottom = false
+    following = false
+  } else if (near) {
+    following = true
+    scrollingToBottom = false
+  } else if (scrollingToBottom && el.scrollTop >= lastScrollTop) {
+    following = true
+  } else if (el.scrollTop !== lastScrollTop) {
+    scrollingToBottom = false
+    following = false
+  }
+  lastScrollTop = el.scrollTop
+  atBottom.value = near
+}
+
+function onBodyWheel(event: WheelEvent) {
+  const el = bodyRef.value
+  if (event.deltaY < 0 && el && el.scrollHeight > el.clientHeight) {
+    following = false
+    scrollingToBottom = false
+  }
+}
+
+function scrollToBottom(behavior: ScrollBehavior = 'auto') {
+  const el = bodyRef.value
+  if (!el) return
+  following = true
+  const maxTop = Math.max(0, el.scrollHeight - el.clientHeight)
+  if (behavior === 'smooth' && typeof el.scrollTo === 'function') {
+    el.scrollTo({ top: el.scrollHeight, behavior })
+    const near = isNearBottom(el)
+    scrollingToBottom = !near
+    lastScrollTop = el.scrollTop
+    atBottom.value = near
+  } else {
+    scrollingToBottom = false
+    el.scrollTop = maxTop
+    lastScrollTop = el.scrollTop
+    atBottom.value = true
+  }
+}
+
+function follow() {
+  syncScrollbarWidth()
+  const el = bodyRef.value
+  if (!el) return
+  if (!shouldAutoScroll.value || !following || folded.value) {
+    atBottom.value = isNearBottom(el)
+    return
+  }
+  scrollingToBottom = false
+  el.scrollTop = Math.max(0, el.scrollHeight - el.clientHeight)
+  lastScrollTop = el.scrollTop
+  atBottom.value = true
+}
+
+let resizeObserver: ResizeObserver | undefined
+onMounted(() => {
+  follow()
+  if (typeof ResizeObserver === 'undefined') return
+  resizeObserver = new ResizeObserver(follow)
+  if (bodyRef.value) resizeObserver.observe(bodyRef.value)
+  if (codeRef.value) resizeObserver.observe(codeRef.value)
+})
+onBeforeUnmount(() => resizeObserver?.disconnect())
+
+watch(
+  [() => props.code, lines, maxHeightValue, () => props.wrap, folded, shouldAutoScroll],
+  follow,
+  { flush: 'post' },
+)
+
 const title = computed(() => props.filename ?? (props.lang === 'text' ? '' : props.lang))
 const hasHeader = computed(() => !!(slots.title || title.value || slots.actions))
 
@@ -102,14 +237,39 @@ const classes = computed(() => [
   ns.is('wrap', props.wrap),
   ns.is('numbered', props.lineNumbers),
   ns.is('folded', folded.value),
+  ns.is('scrollable', scrollable.value),
   ns.is('headless', !hasHeader.value),
   ns.is('streaming', props.streaming),
   ns.is('bordered', props.bordered),
 ])
+
+const rootStyle = computed(() => {
+  const style: Record<string, string | number> = {}
+  if (foldable.value && props.maxLines !== undefined) {
+    style['--dou-code-block-max-lines'] = props.maxLines
+  }
+  if (maxHeightValue.value !== undefined) {
+    style['--dou-code-block-max-height'] = maxHeightValue.value
+  }
+  if (scrollbarWidth.value > 0) {
+    style['--dou-code-block-scrollbar-width'] = `${scrollbarWidth.value}px`
+  }
+  return Object.keys(style).length ? style : undefined
+})
+
+defineExpose<CodeBlockExpose>({
+  get body() {
+    return bodyRef.value
+  },
+  scrollToBottom,
+  get atBottom() {
+    return atBottom.value
+  },
+})
 </script>
 
 <template>
-  <div :class="classes" :style="foldable ? { '--dou-code-block-max-lines': maxLines } : undefined">
+  <div :class="classes" :style="rootStyle">
     <div v-if="hasHeader" :class="ns.e('header')">
       <span :class="ns.e('title')">
         <slot name="title">{{ title }}</slot>
@@ -120,8 +280,16 @@ const classes = computed(() => [
       </span>
     </div>
     <DouCopyButton v-else-if="copyable" :class="ns.e('copy')" :text="code" size="sm" />
-    <div :id="bodyId" :class="ns.e('body')" :data-lang="lang">
-      <code :class="ns.e('code')">
+    <div
+      :id="bodyId"
+      ref="body"
+      :class="ns.e('body')"
+      :data-lang="lang"
+      :tabindex="scrollable && !folded ? 0 : undefined"
+      @scroll.passive="onBodyScroll"
+      @wheel.passive="onBodyWheel"
+    >
+      <code ref="codeEl" :class="ns.e('code')">
         <span
           v-for="row in rows"
           :key="row.number"

@@ -85,6 +85,13 @@ describe('links inside DouMarkdown', () => {
 })
 
 describe('icons of a soft link', () => {
+  it('sets display: inline for both soft and wrap links so they break across lines', () => {
+    const start = css.indexOf(':is(.dou-link--soft, .dou-link.is-wrap) {')
+    expect(start).toBeGreaterThan(-1)
+    const block = css.slice(start, css.indexOf('& > .dou-link__lead', start))
+    expect(block).toMatch(/display:\s*inline/)
+  })
+
   // a flex container takes its baseline from its first item; an empty item
   // one em tall makes that the bottom of the icon box, whatever the content
   it('sit on the text by the bottom of a one-em box, not by their content', () => {

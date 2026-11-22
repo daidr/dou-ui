@@ -11,17 +11,26 @@ export type LinkVariant = 'text' | 'soft'
 export interface LinkProps {
   /**
    * Where the link goes. Without it the link is an action and renders as
-   * `<button type="button">`; listen to `click`.
+   * `<button type="button">` (or an inline `<span role="button">` when
+   * `variant="soft"` or `wrap` is enabled so it can break across lines);
+   * listen to `click`.
    */
   href?: string
   /** What the link means. */
   tone?: LinkTone
   /**
    * How it is set apart. A `soft` link breaks with the line like text, its
-   * fill drawn on each line, and deepens on hover. Without an `href` it is a
-   * button, which never breaks: it wraps as one piece.
+   * fill drawn on each line, and deepens on hover — both with and without an
+   * `href`.
    */
   variant?: LinkVariant
+  /**
+   * Allow a `text` link to break across lines with surrounding prose, the way
+   * a `soft` link does. Without an `href` it renders as an inline
+   * `<span role="button">` with keyboard Enter/Space support instead of a
+   * non-wrapping `<button>`.
+   */
+  wrap?: boolean
   /**
    * When the underline shows. A resting underline is faint and deepens on
    * hover. Defaults to `always`, or `none` for a `soft` link.

@@ -272,6 +272,10 @@
   }
 
   .dou-button__label {
+    min-width: 0;
+    /* clip inline only: glyphs overflow the trimmed line box vertically */
+    overflow-x: clip;
+    text-overflow: ellipsis;
     /*
      * Center on the cap height instead of the font's ascent and descent,
      * which vary by platform and by the fallback font that draws CJK text.

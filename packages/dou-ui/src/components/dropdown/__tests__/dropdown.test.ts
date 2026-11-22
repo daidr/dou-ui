@@ -401,4 +401,30 @@ describe('DouDropdown', () => {
     expect(firstItem().querySelector('.dou-dropdown__description')).toBeNull()
     wrapper.unmount()
   })
+
+  it('keeps a leading divided item separator at first-child when preceding dynamic content is empty', async () => {
+    const hasExtra = ref(false)
+    const wrapper = mount(DouDropdown, {
+      props: { open: true },
+      slots: {
+        default: () => h('button', '更多'),
+        menu: () => [
+          hasExtra.value ? h(DouDropdownItem, { value: 'extra' }, () => '额外操作') : null,
+          h(DouDropdownItem, { value: 'fixed', divided: true }, () => '固定项'),
+        ],
+      },
+      attachTo: document.body,
+    })
+    await nextTick()
+    const menu = document.querySelector('[role="menu"]')!
+    const separator = menu.querySelector('.dou-dropdown__separator')!
+    expect(menu.firstElementChild).toBe(separator)
+    expect(separator.matches(':first-child')).toBe(true)
+
+    hasExtra.value = true
+    await nextTick()
+    expect(menu.firstElementChild?.textContent).toBe('额外操作')
+    expect(separator.previousElementSibling?.textContent).toBe('额外操作')
+    wrapper.unmount()
+  })
 })

@@ -239,4 +239,90 @@ describe('DouLink', () => {
     host.remove()
     warn.mockRestore()
   })
+
+  it('renders a wrapping soft link without href as an inline button with keyboard support', async () => {
+    const wrapper = mount(DouLink, {
+      props: { variant: 'soft' },
+      slots: { leading: '<i>i</i>', default: '长标题讨论串' },
+      attachTo: document.body,
+    })
+    expect(wrapper.element.tagName).toBe('SPAN')
+    expect(wrapper.attributes('role')).toBe('button')
+    expect(wrapper.attributes('tabindex')).toBe('0')
+    expect(wrapper.attributes('aria-disabled')).toBeUndefined()
+    // leading icon stays attached to the first character just like an <a> soft link
+    expect(wrapper.get('.dou-link__lead').text()).toBe('i长')
+    expect(wrapper.get('.dou-link__label').text()).toBe('标题讨论串')
+
+    // click emits and cancels default so a surrounding <label> (e.g. Checkbox) is not toggled
+    const click = new MouseEvent('click', { bubbles: true, cancelable: true })
+    wrapper.element.dispatchEvent(click)
+    expect(click.defaultPrevented).toBe(true)
+    expect(wrapper.emitted('click')).toHaveLength(1)
+
+    // Enter activates on keydown
+    const enter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+    wrapper.element.dispatchEvent(enter)
+    expect(enter.defaultPrevented).toBe(true)
+    expect(wrapper.emitted('click')).toHaveLength(2)
+
+    // Space prevents scrolling on keydown and activates on keyup
+    const spaceDown = new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true })
+    wrapper.element.dispatchEvent(spaceDown)
+    expect(spaceDown.defaultPrevented).toBe(true)
+    expect(wrapper.emitted('click')).toHaveLength(2)
+    const spaceUp = new KeyboardEvent('keyup', { key: ' ', bubbles: true, cancelable: true })
+    wrapper.element.dispatchEvent(spaceUp)
+    expect(wrapper.emitted('click')).toHaveLength(3)
+
+    // Escape cancels a held Space press
+    wrapper.element.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', cancelable: true }))
+    wrapper.element.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }))
+    wrapper.element.dispatchEvent(new KeyboardEvent('keyup', { key: ' ', cancelable: true }))
+    expect(wrapper.emitted('click')).toHaveLength(3)
+
+    wrapper.unmount()
+  })
+
+  it('disables an inline button link with aria-disabled and blocks keyboard activation', async () => {
+    const wrapper = mount(DouLink, {
+      props: { variant: 'soft', disabled: true },
+      slots: { default: '不可用动作' },
+      attachTo: document.body,
+    })
+    expect(wrapper.element.tagName).toBe('SPAN')
+    expect(wrapper.attributes('role')).toBe('button')
+    expect(wrapper.attributes('tabindex')).toBeUndefined()
+    expect(wrapper.attributes('aria-disabled')).toBe('true')
+    await wrapper.trigger('click')
+    await wrapper.trigger('keydown', { key: 'Enter' })
+    await wrapper.trigger('keydown', { key: ' ' })
+    await wrapper.trigger('keyup', { key: ' ' })
+    expect(wrapper.emitted('click')).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('supports wrap on text links both with and without href', async () => {
+    const action = mount(DouLink, {
+      props: { wrap: true },
+      slots: { leading: '<i>i</i>', default: '服务条款与隐私政策' },
+      attachTo: document.body,
+    })
+    expect(action.element.tagName).toBe('SPAN')
+    expect(action.attributes('role')).toBe('button')
+    expect(action.attributes('tabindex')).toBe('0')
+    expect(action.classes()).toContain('is-wrap')
+    expect(action.get('.dou-link__lead').text()).toBe('i服')
+    action.element.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', cancelable: true }))
+    expect(action.emitted('click')).toHaveLength(1)
+    action.unmount()
+
+    const anchor = mount(DouLink, {
+      props: { href: '/terms', wrap: true },
+      slots: { default: '服务条款与隐私政策' },
+    })
+    expect(anchor.element.tagName).toBe('A')
+    expect(anchor.classes()).toContain('is-wrap')
+    anchor.unmount()
+  })
 })

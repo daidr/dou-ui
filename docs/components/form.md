@@ -114,7 +114,7 @@ schema 自己决定空值是否合法，必填标记则无法从 schema 推断�
 <DouForm required-mark="optional">...</DouForm>
 ```
 
-星号对读屏软件隐藏，必填状态通过控件上的 `aria-required` 传达。
+星号对读屏软件隐藏，必填状态通过控件上的 `aria-required` 传达。标签折成多行时，星号与可选标记始终与第一行基线对齐，超长无空格的标签也会自动断行，不会撑破容器。
 
 ## 尺寸与禁用
 

@@ -134,6 +134,7 @@ const classes = computed(() => [
   ns.b(),
   ns.m(props.layout),
   ns.m(`label-${props.labelAlign}`),
+  ns.is('fixed-label', !!labelWidth.value),
   ns.is('disabled', props.disabled),
   ns.is('readonly', props.readonly),
 ])

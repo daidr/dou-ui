@@ -76,12 +76,13 @@
 
   .dou-form-item__label {
     display: flex;
-    align-items: center;
+    align-items: baseline;
     gap: 4px;
     color: var(--dou-form-item-label-color);
     font-size: var(--dou-form-item-label-size);
     font-weight: var(--dou-font-weight-medium);
     line-height: 1.4;
+    overflow-wrap: anywhere;
   }
 
   /*
@@ -101,10 +102,12 @@
   }
 
   .dou-form-item__asterisk {
+    flex-shrink: 0;
     color: var(--dou-form-item-error-color);
   }
 
   .dou-form-item__optional {
+    flex-shrink: 0;
     color: var(--dou-color-text-tertiary);
     font-weight: var(--dou-font-weight-regular);
   }
@@ -147,11 +150,13 @@
     }
   }
 
-  /* Beside the field, the label and the first row of the field share a line. */
+  /* Beside the field, the label's first line sits centered on the control's height. */
   .dou-form--horizontal,
   .dou-form--inline {
     & .dou-form-item__label {
+      box-sizing: border-box;
       min-height: var(--dou-form-item-control-height);
+      padding-block-start: calc((var(--dou-form-item-control-height) - 1cap) / 2);
       white-space: nowrap;
     }
 
@@ -162,6 +167,10 @@
 
   .dou-form--horizontal > .dou-divider {
     grid-column: 1 / -1;
+  }
+
+  .dou-form--horizontal.is-fixed-label .dou-form-item__label {
+    white-space: normal;
   }
 
   .dou-form--horizontal .dou-form-item {

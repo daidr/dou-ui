@@ -80,7 +80,6 @@
     --dou-link-fill: var(--dou-link-soft);
     --dou-link-fill-hover: color-mix(in oklab, var(--dou-link-tone) 6%, var(--dou-link-soft));
 
-    display: inline;
     padding-inline: 4px;
     border-radius: calc(var(--dou-radius-control) - 2px);
     background-color: var(--dou-link-fill);
@@ -93,15 +92,16 @@
         background-color: var(--dou-link-fill-hover);
       }
     }
+  }
 
-    /* a button never breaks across lines and stands as tall as its line
-       height: take the height of the text itself, as the inline <a> does */
-    &:is(button) {
-      line-height: normal;
-    }
+  /*
+   * Wrapping links (`soft` and `wrap`) stay inline so they break across lines
+   * with surrounding prose. Each icon and the character beside it break as
+   * one, so an icon is never left alone at the end of a line.
+   */
+  :is(.dou-link--soft, .dou-link.is-wrap) {
+    display: inline;
 
-    /* each icon and the character beside it break as one, so an icon is
-       never left alone at the end of a line */
     & > .dou-link__lead,
     & > .dou-link__trail {
       white-space: nowrap;

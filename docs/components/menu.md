@@ -47,7 +47,7 @@
 
 ## 项上的操作
 
-`actions` 插槽给某一项加上它自己的按钮，比如“看完了”“还要改”，参数为 `{ item, selected }`；不需要按钮的项什么都不返回即可。按钮渲染在项的旁边，不在项里面，所以可以用 Tab 单独聚焦，点击时也不会选中这一项。按钮显示在这一行的末尾，项的文字会给它们让出位置。
+`actions` 插槽给某一项加上它自己的按钮，比如“看完了”“还要改”，参数为 `{ item, selected }`；不需要按钮的项什么都不返回即可。按钮渲染在项的旁边，不在项里面，所以可以用 Tab 单独聚焦，点击时也不会选中这一项。按钮显示在这一行的末尾，项的文字会给它们让出位置。设置 `--dou-menu-item-height: auto` 渲染自定义多行菜单项时，可以通过 `--dou-menu-padding-y` 统一设置上下内边距，并配合 `--dou-menu-actions-height`（或 `--dou-menu-actions-top`）让操作区与首行居中对齐。
 
 `actions-visible` 控制按钮什么时候显示：`hover`（默认）在悬停这一行、焦点在这一项或它的按钮上，或者这一项是当前项时显示；`always` 始终显示。无法悬停的设备上始终显示。只在竖向菜单里显示，折叠后和弹出的子菜单里没有。
 
@@ -141,11 +141,14 @@ function onItemContextmenu(item: MenuItemOption, event: MouseEvent) {
 
 ### CSS 变量
 
-| 变量                           | 说明                             |
-| ------------------------------ | -------------------------------- |
-| `--dou-menu-item-height`       | 行高                             |
-| `--dou-menu-indent`            | 每一级的缩进                     |
-| `--dou-menu-selected-bg`       | 当前项的底色                     |
-| `--dou-menu-title-height`      | 带说明的项里名称那一行的高度     |
-| `--dou-menu-description-gap`   | 带说明的项里名称与说明之间的间距 |
-| `--dou-menu-description-width` | 菜单不设宽度时，为说明留出的宽度 |
+| 变量                           | 说明                                                                         |
+| ------------------------------ | ---------------------------------------------------------------------------- |
+| `--dou-menu-item-height`       | 行高                                                                         |
+| `--dou-menu-padding-y`         | 菜单项的上下内边距，也作为操作区的默认顶部偏移                               |
+| `--dou-menu-indent`            | 每一级的缩进                                                                 |
+| `--dou-menu-selected-bg`       | 当前项的底色                                                                 |
+| `--dou-menu-title-height`      | 带说明的项里名称那一行的高度                                                 |
+| `--dou-menu-description-gap`   | 带说明的项里名称与说明之间的间距                                             |
+| `--dou-menu-description-width` | 菜单不设宽度时，为说明留出的宽度                                             |
+| `--dou-menu-actions-top`       | `actions` 操作区距行顶的偏移，默认跟随 `--dou-menu-padding-y`（`0px`）       |
+| `--dou-menu-actions-height`    | `actions` 操作区的垂直居中高度，默认扣除上下 `--dou-menu-padding-y` 后的行高 |

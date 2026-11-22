@@ -15,19 +15,24 @@ createApp({
   setup() {
     const content = ref('Hi')
     if (mode === 'scroll') {
-      const anchor = params.get('anchor') ?? 'bottom'
-      const triggerStyle: Record<string, string> = { position: 'fixed' }
-      if (anchor === 'top') {
-        triggerStyle.top = '16px'
-        triggerStyle.left = '24px'
-      } else if (anchor === 'side') {
-        triggerStyle.top = '120px'
-        triggerStyle.left = '24px'
-      } else {
-        triggerStyle.bottom = '16px'
-        triggerStyle.left = '24px'
+      const anchor = ref(params.get('anchor') ?? 'bottom')
+      const triggerStyle = () => {
+        const style: Record<string, string> = { position: 'fixed', left: '24px' }
+        if (anchor.value === 'top') style.top = '16px'
+        else if (anchor.value === 'side') style.top = '120px'
+        else style.bottom = '16px'
+        return style
       }
-      return () =>
+      return () => [
+        h(
+          'button',
+          {
+            id: 'move-bottom',
+            style: { position: 'fixed', top: '16px', right: '16px' },
+            onClick: () => (anchor.value = 'bottom'),
+          },
+          'Move bottom',
+        ),
         h(
           DouPopover,
           {
@@ -37,7 +42,7 @@ createApp({
             maxHeight,
           },
           {
-            default: () => h('button', { id: 'show', style: triggerStyle }, 'Show'),
+            default: () => h('button', { id: 'show', style: triggerStyle() }, 'Show'),
             content: () =>
               h(
                 'div',
@@ -47,7 +52,8 @@ createApp({
                 ),
               ),
           },
-        )
+        ),
+      ]
     }
     return () => [
       h('button', { id: 'long', onClick: () => (content.value = long) }, 'Long content'),

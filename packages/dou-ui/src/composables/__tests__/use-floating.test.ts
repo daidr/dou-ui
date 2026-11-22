@@ -1,5 +1,6 @@
+import { effectScope, nextTick, ref } from 'vue'
 import { describe, expect, it } from 'vitest'
-import { computePosition } from '../use-floating'
+import { computePosition, useFloating } from '../use-floating'
 import type { PositionOptions } from '../use-floating'
 
 const options: PositionOptions = {
@@ -67,5 +68,88 @@ describe('computePosition', () => {
     expect(computePosition({ ...reference, x: 880 }, size, 'right', options).available).toBe(784)
     // offscreen triggers still cap available height to the viewport
     expect(computePosition({ ...reference, y: 900 }, size, 'top', options).available).toBe(784)
+  })
+})
+
+describe('useFloating', () => {
+  it('measures natural height without stale available cap when flipping', async () => {
+    const scope = effectScope()
+    const open = ref(false)
+    const anchor = document.createElement('button')
+    const panel = document.createElement('div')
+
+    let anchorY = 740
+    anchor.getBoundingClientRect = () =>
+      ({
+        x: 40,
+        y: anchorY,
+        top: anchorY,
+        left: 40,
+        width: 100,
+        height: 32,
+        right: 140,
+        bottom: anchorY + 32,
+        toJSON: () => ({}),
+      }) as DOMRect
+
+    // Simulate CSS clamping height to `--dou-floating-available` when present.
+    const naturalHeight = 220
+    Object.defineProperty(panel, 'offsetWidth', { configurable: true, get: () => 260 })
+    Object.defineProperty(panel, 'offsetHeight', {
+      configurable: true,
+      get: () => {
+        const cap = parseFloat(panel.style.getPropertyValue('--dou-floating-available'))
+        return Number.isFinite(cap) ? Math.min(naturalHeight, cap) : naturalHeight
+      },
+    })
+
+    const originalClientHeight = Object.getOwnPropertyDescriptor(
+      document.documentElement,
+      'clientHeight',
+    )
+    const originalClientWidth = Object.getOwnPropertyDescriptor(
+      document.documentElement,
+      'clientWidth',
+    )
+    Object.defineProperty(document.documentElement, 'clientWidth', {
+      configurable: true,
+      get: () => 1000,
+    })
+    Object.defineProperty(document.documentElement, 'clientHeight', {
+      configurable: true,
+      get: () => 800,
+    })
+
+    try {
+      const floating = scope.run(() =>
+        useFloating(() => anchor, ref<HTMLElement | null>(panel), {
+          open,
+          placement: 'bottom-start',
+        }),
+      )!
+
+      // Pre-seed a tight cap as if previously measured near the bottom edge.
+      panel.style.setProperty('--dou-floating-available', '12px')
+      open.value = true
+      await nextTick()
+
+      // Must ignore the stale 12px cap, see the real 220px height and flip above.
+      expect(floating.placement.value).toBe('top-start')
+      expect(floating.style.value['--dou-floating-available' as never]).toBe('724px')
+      expect(floating.style.value.top).toBe(`${740 - 220 - 8}px`)
+
+      // When `display: none` is still set (e.g. before Transition reveals), keep
+      // the previous valid position rather than measuring 0x0.
+      anchorY = 740
+      panel.style.display = 'none'
+      floating.update()
+      expect(floating.placement.value).toBe('top-start')
+    } finally {
+      scope.stop()
+      if (originalClientHeight)
+        Object.defineProperty(document.documentElement, 'clientHeight', originalClientHeight)
+      if (originalClientWidth)
+        Object.defineProperty(document.documentElement, 'clientWidth', originalClientWidth)
+    }
   })
 })

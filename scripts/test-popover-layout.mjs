@@ -167,6 +167,50 @@ try {
     process.stdout.write(`PASS ${scenario.label}\n`)
     await page.close()
   }
+
+  // Re-opening after moving a trigger from top to bottom must measure natural
+  // height and flip upward rather than staying trapped in the tiny bottom room.
+  {
+    const label = 'scroll reopen near-bottom flips upward'
+    const page = await browser.newPage({
+      viewport: { width: 640, height: 480 },
+      reducedMotion: 'reduce',
+    })
+    const errors = []
+    page.on('pageerror', (error) => errors.push(error.message))
+    const query = new URLSearchParams({
+      mode: 'scroll',
+      anchor: 'top',
+      placement: 'bottom-start',
+      maxHeight: '220',
+    })
+    await page.goto(`http://127.0.0.1:${address.port}/popover-layout.html?${query}`)
+    await page.locator('#show').click()
+    await page.locator('.dou-popover').waitFor({ state: 'visible' })
+    await page.locator('#show').click()
+    await page.locator('.dou-popover').waitFor({ state: 'hidden' })
+    await page.locator('#move-bottom').click()
+    await page.locator('#show').click()
+    await page.locator('.dou-popover').waitFor({ state: 'visible' })
+    const metrics = await page.evaluate(async () => {
+      await new Promise(requestAnimationFrame)
+      await new Promise(requestAnimationFrame)
+      const panel = document.querySelector('.dou-popover')
+      const rect = panel.getBoundingClientRect()
+      return {
+        placement: panel.dataset.placement,
+        height: rect.height,
+        top: rect.top,
+        bottom: rect.bottom,
+      }
+    })
+    assert.equal(metrics.placement, 'top-start', label)
+    assert.ok(metrics.height >= 218 && metrics.height <= 222, `${label}: got ${metrics.height}`)
+    assert.ok(metrics.top >= 7.5 && metrics.bottom <= 480 - 7.5, label)
+    assert.deepEqual(errors, [], label)
+    process.stdout.write(`PASS ${label}\n`)
+    await page.close()
+  }
 } finally {
   await browser?.close()
   await server.close()

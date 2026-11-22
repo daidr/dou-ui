@@ -130,22 +130,51 @@ export function useFloating(
     const anchor = reference()
     const target = floating.value
     if (!anchor || !target) return
+    // Wait until `v-show` / `<Transition>` reveals a re-opened panel: measuring
+    // while `display: none` sees 0×0 and would lock `--dou-floating-available`
+    // to an unflipped side before the panel is shown.
+    if (target.style.display === 'none') {
+      if (toValue(options.open)) schedule()
+      return
+    }
     const box = anchor.getBoundingClientRect()
     if (toValue(options.sameWidth)) target.style.minWidth = `${box.width}px`
-    position.value = computePosition(
-      box,
-      { width: target.offsetWidth, height: target.offsetHeight },
-      toValue(options.placement),
-      {
-        offset: toValue(options.offset) ?? 8,
-        padding: 8,
-        flip: true,
-        viewport: {
-          width: document.documentElement.clientWidth,
-          height: document.documentElement.clientHeight,
-        },
+    // Measure natural size without our own height cap so flip decisions see the
+    // panel's real needed height even when previously clamped to a tighter side.
+    const previousAvailable = target.style.getPropertyValue('--dou-floating-available')
+    if (previousAvailable) target.style.removeProperty('--dou-floating-available')
+    const naturalWidth = target.offsetWidth
+    const naturalHeight = target.offsetHeight
+    const floatingOptions: PositionOptions = {
+      offset: toValue(options.offset) ?? 8,
+      padding: 8,
+      flip: true,
+      viewport: {
+        width: document.documentElement.clientWidth,
+        height: document.documentElement.clientHeight,
       },
+    }
+    const desired = computePosition(
+      box,
+      { width: naturalWidth, height: naturalHeight },
+      toValue(options.placement),
+      floatingOptions,
     )
+    target.style.setProperty('--dou-floating-available', `${desired.available}px`)
+    const actualWidth = target.offsetWidth
+    const actualHeight = target.offsetHeight
+    position.value =
+      actualWidth === naturalWidth && actualHeight === naturalHeight
+        ? desired
+        : {
+            ...computePosition(
+              box,
+              { width: actualWidth, height: actualHeight },
+              desired.placement,
+              { ...floatingOptions, flip: false },
+            ),
+            available: desired.available,
+          }
   }
 
   let frame = 0

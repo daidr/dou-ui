@@ -31,9 +31,12 @@ describe('DouVirtualList', () => {
     // 320 / 32 = 10 in view, 2 below
     expect(rendered).toHaveLength(12)
     expect(rendered[0]!.text()).toBe('第 0 项')
-    expect(wrapper.get('.dou-virtual-list__spacer').attributes('style')).toContain(
-      'height: 32000px',
-    )
+    expect(rendered[0]!.attributes('style')).not.toContain('transform')
+    const pads = wrapper.findAll('.dou-virtual-list__pad')
+    // at scrollTop 0 there is only a trailing pad for the remaining 988 items
+    expect(pads).toHaveLength(1)
+    expect(pads[0]!.attributes('aria-hidden')).toBe('true')
+    expect(pads[0]!.attributes('style')).toContain(`height: ${(1000 - 12) * 32}px`)
     expect(wrapper.attributes('style')).toContain('height: 320px')
     wrapper.unmount()
   })
@@ -44,17 +47,38 @@ describe('DouVirtualList', () => {
     wrapper.unmount()
   })
 
-  it('follows the scroll position', async () => {
+  it('follows the scroll position with leading and trailing pads in normal flow', async () => {
     const wrapper = make()
     const el = wrapper.element as HTMLElement
-    // happy-dom lays nothing out; a browser reports the spacer's height
-    Object.defineProperty(el, 'scrollHeight', { get: () => 320_000 })
+    // happy-dom lays nothing out; a browser reports the total flow height
+    Object.defineProperty(el, 'scrollHeight', { get: () => 32_000 })
     el.scrollTop = 3200
     await wrapper.trigger('scroll')
     const rendered = wrapper.findAll('.dou-virtual-list__item')
+    // first = 100, last = 109, overscan = 2 -> indices 98..111
+    expect(rendered).toHaveLength(14)
     expect(rendered[0]!.text()).toBe('第 98 项')
-    expect(rendered[2]!.attributes('style')).toContain('translateY(3200px)')
+    expect(rendered[2]!.text()).toBe('第 100 项')
+    for (const item of rendered) expect(item.attributes('style')).not.toContain('transform')
+    const pads = wrapper.findAll('.dou-virtual-list__pad')
+    expect(pads).toHaveLength(2)
+    expect(pads[0]!.attributes('style')).toContain(`height: ${98 * 32}px`)
+    expect(pads[1]!.attributes('style')).toContain(`height: ${(1000 - 112) * 32}px`)
     expect(wrapper.emitted('scroll')).toHaveLength(1)
+    wrapper.unmount()
+  })
+
+  it('omits the trailing pad once the last item is rendered', async () => {
+    const wrapper = make()
+    const vm = wrapper.vm as unknown as { scrollToIndex: (index: number, align?: string) => void }
+    vm.scrollToIndex(999, 'end')
+    await nextTick()
+    const rendered = wrapper.findAll('.dou-virtual-list__item')
+    expect(rendered.at(-1)!.text()).toBe('第 999 项')
+    const pads = wrapper.findAll('.dou-virtual-list__pad')
+    expect(pads).toHaveLength(1)
+    const firstIndex = Number(rendered[0]!.attributes('data-index'))
+    expect(pads[0]!.attributes('style')).toContain(`height: ${firstIndex * 32}px`)
     wrapper.unmount()
   })
 
@@ -73,12 +97,14 @@ describe('DouVirtualList', () => {
 
   it('supports a height per item', () => {
     const wrapper = make({ itemSize: (_: unknown, index: number) => (index % 2 ? 40 : 20) })
-    expect(wrapper.get('.dou-virtual-list__spacer').attributes('style')).toContain(
-      'height: 30000px',
-    )
-    const second = wrapper.findAll('.dou-virtual-list__item')[1]!
+    const rendered = wrapper.findAll('.dou-virtual-list__item')
+    const second = rendered[1]!
     expect(second.attributes('style')).toContain('height: 40px')
-    expect(second.attributes('style')).toContain('translateY(20px)')
+    expect(second.attributes('style')).not.toContain('transform')
+    const renderedHeight = rendered.reduce((sum, _, index) => sum + (index % 2 ? 40 : 20), 0)
+    const pads = wrapper.findAll('.dou-virtual-list__pad')
+    expect(pads).toHaveLength(1)
+    expect(pads[0]!.attributes('style')).toContain(`height: ${30000 - renderedHeight}px`)
     wrapper.unmount()
   })
 

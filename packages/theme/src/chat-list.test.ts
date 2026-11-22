@@ -20,10 +20,10 @@ describe('chat message actions in a chat list', () => {
     expect(toolbar).toMatch(/position:\s*sticky/)
   })
 
-  it('stay put with `items`, whose messages are placed with a transform', () => {
-    const virtual = rule(read('chat-list'), '.dou-chat-list.is-virtual .dou-chat-message__toolbar')
-    expect(virtual).toMatch(/position:\s*relative/)
-    expect(virtual).toMatch(/top:\s*auto/)
+  it('keeps toolbar sticky with `items` since virtual list items stay in normal flow', () => {
+    expect(read('chat-list')).not.toMatch(
+      /\.dou-chat-list\.is-virtual\s+\.dou-chat-message__toolbar/,
+    )
   })
 
   it('leave room above the first message for its actions', () => {

@@ -89,4 +89,42 @@ describe('DouChatPlan', () => {
     expect(row.get('.dou-chat-plan__mark svg').attributes('aria-label')).toBe('等待中')
     expect(wrapper.get('.dou-chat-plan__count').text()).toBe('0 / 2')
   })
+
+  it('hides the header bar and keeps the list open when showHeader is false', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const wrapper = mount(DouChatPlan, {
+      props: { items, showHeader: false },
+    })
+    expect(wrapper.classes()).toContain('is-headless')
+    expect(wrapper.classes()).toContain('is-open')
+    expect(wrapper.classes()).not.toContain('is-collapsible')
+    expect(wrapper.find('.dou-chat-plan__header').exists()).toBe(false)
+    const panel = wrapper.get('.dou-chat-plan__panel')
+    expect(panel.attributes('style') ?? '').not.toContain('display: none')
+    expect(panel.attributes('aria-labelledby')).toBeUndefined()
+    expect(panel.attributes('aria-label')).toBe('任务计划')
+    expect(wrapper.findAll('.dou-chat-plan__item')).toHaveLength(4)
+    expect(warn).not.toHaveBeenCalled()
+
+    await wrapper.setProps({ title: '当前步骤' })
+    expect(panel.attributes('aria-label')).toBe('当前步骤')
+    warn.mockRestore()
+  })
+
+  it('ignores open and warns once when showHeader is false', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const wrapper = mount(DouChatPlan, {
+      props: { items, showHeader: false, open: false },
+    })
+    expect(wrapper.classes()).toContain('is-open')
+    expect(wrapper.get('.dou-chat-plan__panel').attributes('style') ?? '').not.toContain(
+      'display: none',
+    )
+    await wrapper.setProps({ open: true })
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn).toHaveBeenCalledWith(
+      '[dou-ui] DouChatPlan: `open` is ignored when `showHeader` is false.',
+    )
+    warn.mockRestore()
+  })
 })

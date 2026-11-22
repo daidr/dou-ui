@@ -60,6 +60,12 @@ function locate(id) {
 
 <DocDemo src="chat-list/locate" column />
 
+## 悬浮输入框
+
+底部输入框悬浮覆盖在消息列表上方时，传入 `bottom-inset`（或通过 CSS 变量 `--dou-chat-list-bottom-inset` 设置）可以同时联动四处尺寸：在默认插槽与虚拟列表模式下为最后一条消息增加底部留白、对齐滚动容器的 `scroll-padding-block-end`、将回到底部按钮抬高到输入框上方，并在开启 `bottom-fade` 时让消息在底部渐隐，避免文字从悬浮输入框的圆角缝隙透出。
+
+<DocDemo src="chat-list/floating-input" column />
+
 ## 读屏
 
 滚动区域带 `role="log"` 和 `tabindex="0"`，可以用键盘聚焦后上下滚动。
@@ -68,14 +74,16 @@ function locate(id) {
 
 ### Props
 
-| 名称               | 说明                                 | 类型                                                     | 默认值 |
-| ------------------ | ------------------------------------ | -------------------------------------------------------- | ------ |
-| `autoScroll`       | 停在底部时随新内容自动滚动           | `boolean`                                                | `true` |
-| `threshold`        | 距离底部多少像素以内算作在底部       | `number`                                                 | `24`   |
-| `showScrollButton` | 离开底部时显示回到底部按钮           | `boolean`                                                | `true` |
-| `items`            | 消息数据，传入后只渲染看得见的消息   | `T[]`                                                    | —      |
-| `itemKey`          | 唯一键所在的属性，或返回唯一键的函数 | `string \| (item: T, index: number) => string \| number` | 下标   |
-| `estimateSize`     | 未渲染消息的估算高度（px）           | `number \| (item: T, index: number) => number`           | `120`  |
+| 名称               | 说明                                                                          | 类型                                                     | 默认值  |
+| ------------------ | ----------------------------------------------------------------------------- | -------------------------------------------------------- | ------- |
+| `autoScroll`       | 停在底部时随新内容自动滚动                                                    | `boolean`                                                | `true`  |
+| `threshold`        | 距离底部多少像素以内算作在底部                                                | `number`                                                 | `24`    |
+| `showScrollButton` | 离开底部时显示回到底部按钮                                                    | `boolean`                                                | `true`  |
+| `bottomInset`      | 底部额外预留高度，如悬浮输入框高度；传数字按 px 处理，也可直接用 CSS 变量设置 | `number \| string`                                       | —       |
+| `bottomFade`       | 是否开启底部渐隐遮罩，避免消息文字从悬浮输入框圆角缝隙透出                    | `boolean`                                                | `false` |
+| `items`            | 消息数据，传入后只渲染看得见的消息                                            | `T[]`                                                    | —       |
+| `itemKey`          | 唯一键所在的属性，或返回唯一键的函数                                          | `string \| (item: T, index: number) => string \| number` | 下标    |
+| `estimateSize`     | 未渲染消息的估算高度（px）                                                    | `number \| (item: T, index: number) => number`           | `120`   |
 
 ### Events
 
@@ -103,8 +111,11 @@ function locate(id) {
 
 ### CSS 变量
 
-| 变量                          | 说明                                                                                                                     |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `--dou-chat-list-gap`         | 消息之间的间距，默认 `24px`。[ChatMessage](./chat-message) 的操作浮条高出消息 24px，不要小于这个值，否则浮条会压到上一条 |
-| `--dou-chat-list-padding`     | 列表四周的内边距，默认 `16px`                                                                                            |
-| `--dou-chat-list-padding-top` | 列表顶部的内边距，默认比 `--dou-chat-list-padding` 多 `12px`，给第一条消息的浮条留位置；不要小于 `28px`                  |
+| 变量                            | 说明                                                                                                                     |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `--dou-chat-list-gap`           | 消息之间的间距，默认 `24px`。[ChatMessage](./chat-message) 的操作浮条高出消息 24px，不要小于这个值，否则浮条会压到上一条 |
+| `--dou-chat-list-padding`       | 列表四周的内边距，默认 `16px`                                                                                            |
+| `--dou-chat-list-padding-top`   | 列表顶部的内边距，默认比 `--dou-chat-list-padding` 多 `12px`，给第一条消息的浮条留位置；不要小于 `28px`                  |
+| `--dou-chat-list-bottom-inset`  | 底部额外留白高度，默认 `0px`；同时联动列表底部留白、视口 `scroll-padding-block-end`、回到底部按钮偏移与底部渐隐位置      |
+| `--dou-chat-list-bottom-fade`   | 开启 `bottomFade` 时底部渐隐过渡带的高度，默认 `32px`                                                                    |
+| `--dou-chat-list-scroll-offset` | 回到底部按钮相对底部留白之上的基础间距，默认 `12px`                                                                      |

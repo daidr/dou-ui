@@ -68,6 +68,7 @@ export interface ChatPlanPart {
   type: 'plan'
   items: ChatPlanItem[]
   title?: string
+  showHeader?: boolean
   collapsible?: boolean
   live?: boolean
 }

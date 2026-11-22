@@ -26,17 +26,24 @@
 
 <DocDemo src="chat-plan/panel" column />
 
+## 隐藏头部
+
+当外层消息或卡片已经说明这是步骤清单时，将 `show-header` 设为 `false` 可以省略顶部标题栏，只展示步骤列表并自动补齐顶部内边距。隐藏头部后列表始终展开，`open` 不再生效，`title` 仍会作为 `region` 的无障碍名称使用。
+
+<DocDemo src="chat-plan/headless" column />
+
 ## API
 
 ### Props
 
-| 名称          | 说明                                                               | 类型             | 默认值     |
-| ------------- | ------------------------------------------------------------------ | ---------------- | ---------- |
-| `items`       | 步骤                                                               | `ChatPlanItem[]` | `[]`       |
-| `title`       | 标题                                                               | `string`         | `任务计划` |
-| `collapsible` | 是否可以点击标题收起，为 `false` 时始终展开                        | `boolean`        | `true`     |
-| `open`        | 是否展开，配合 `v-model:open`；`collapsible` 为 `false` 时不起作用 | `boolean`        | `true`     |
-| `live`        | 是否正在运行，为 `false` 时 `running` 的步骤静止显示               | `boolean`        | `true`     |
+| 名称          | 说明                                                                               | 类型             | 默认值     |
+| ------------- | ---------------------------------------------------------------------------------- | ---------------- | ---------- |
+| `items`       | 步骤                                                                               | `ChatPlanItem[]` | `[]`       |
+| `title`       | 标题；隐藏头部时作为区域的无障碍名称                                               | `string`         | `任务计划` |
+| `showHeader`  | 是否显示顶部标题栏，为 `false` 时隐藏头部并始终展开                                | `boolean`        | `true`     |
+| `collapsible` | 是否可以点击标题收起，为 `false` 时始终展开                                        | `boolean`        | `true`     |
+| `open`        | 是否展开，配合 `v-model:open`；`collapsible` 或 `showHeader` 为 `false` 时不起作用 | `boolean`        | `true`     |
+| `live`        | 是否正在运行，为 `false` 时 `running` 的步骤静止显示                               | `boolean`        | `true`     |
 
 ### ChatPlanItem
 

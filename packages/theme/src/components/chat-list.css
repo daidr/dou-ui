@@ -14,6 +14,14 @@
      * first message's above it, so they stay inside the list.
      */
     --dou-chat-list-padding-top: calc(var(--dou-chat-list-padding) + 12px);
+    /*
+     * Extra space reserved at the bottom, e.g. for a floating composer over
+     * the list: adds to bottom padding, aligns scroll-padding-block-end, and
+     * lifts the scroll-to-bottom button by the same amount.
+     */
+    --dou-chat-list-bottom-inset: 0px;
+    --dou-chat-list-bottom-fade: 32px;
+    --dou-chat-list-scroll-offset: 12px;
 
     position: relative;
     display: flex;
@@ -26,6 +34,7 @@
     min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
+    scroll-padding-block-end: var(--dou-chat-list-bottom-inset);
     outline: none;
 
     &:focus-visible {
@@ -34,12 +43,24 @@
     }
   }
 
+  .dou-chat-list.is-bottom-fade .dou-chat-list__viewport {
+    mask-image: linear-gradient(
+      to bottom,
+      #000 0%,
+      #000 calc(100% - max(var(--dou-chat-list-bottom-inset), var(--dou-chat-list-bottom-fade))),
+      transparent
+        calc(100% - max(0px, var(--dou-chat-list-bottom-inset) - var(--dou-chat-list-bottom-fade))),
+      transparent 100%
+    );
+  }
+
   .dou-chat-list__content {
     display: flex;
     flex-direction: column;
     gap: var(--dou-chat-list-gap);
     padding: var(--dou-chat-list-padding);
     padding-top: var(--dou-chat-list-padding-top);
+    padding-bottom: calc(var(--dou-chat-list-padding) + var(--dou-chat-list-bottom-inset));
   }
 
   /*
@@ -50,7 +71,7 @@
   .dou-chat-list.is-virtual .dou-virtual-list__spacer {
     box-sizing: content-box;
     margin-top: calc(var(--dou-chat-list-padding-top) - var(--dou-chat-list-gap));
-    padding-bottom: var(--dou-chat-list-padding);
+    padding-bottom: calc(var(--dou-chat-list-padding) + var(--dou-chat-list-bottom-inset));
   }
 
   .dou-chat-list.is-virtual .dou-virtual-list__item {
@@ -61,7 +82,7 @@
 
   .dou-chat-list__scroll {
     position: absolute;
-    bottom: 12px;
+    inset-block-end: calc(var(--dou-chat-list-scroll-offset) + var(--dou-chat-list-bottom-inset));
     left: 50%;
     translate: -50% 0;
   }

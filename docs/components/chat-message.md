@@ -18,7 +18,7 @@
 | `reasoning` | [ChatReasoning](./chat-reasoning)     | `text`、`thinking`、`duration`                                          |
 | `tool`      | [ChatToolCall](./chat-tool-call)      | `name`、`title`、`status`、`input`、`output`、`live`                    |
 | `steps`     | [ChatSteps](./chat-steps)             | `items`、`live`、`title`                                                |
-| `plan`      | [ChatPlan](./chat-plan)               | `items`、`title`、`collapsible`、`live`                                 |
+| `plan`      | [ChatPlan](./chat-plan)               | `items`、`title`、`showHeader`、`collapsible`、`live`                   |
 | `sources`   | [ChatSources](./chat-sources)         | `items`                                                                 |
 | `files`     | [ChatAttachments](./chat-attachments) | `files`                                                                 |
 | `artifact`  | [ChatArtifact](./chat-artifact)       | `id`、`title`、`kind`、`description`、`status`、`active`                |

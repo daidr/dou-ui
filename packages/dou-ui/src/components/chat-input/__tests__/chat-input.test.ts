@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { nextTick } from 'vue'
+import { defineComponent, h, nextTick, ref } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DouChatInput } from '../../../index'
 import { findToken } from '../chat-input'
@@ -454,6 +454,239 @@ describe('DouChatInput', () => {
     const file = new File(['x'], 'a.txt', { type: 'text/plain' })
     await wrapper.trigger('drop', { dataTransfer: { files: [file], types: ['Files'] } })
     expect(wrapper.emitted('attach')).toEqual([[[file]]])
+  })
+
+  describe('pasting files', () => {
+    it('reads files from clipboardData.items and does not duplicate clipboardData.files', async () => {
+      const wrapper = mount(DouChatInput)
+      const file = new File(['img'], 'shot.png', { type: 'image/png' })
+      const preventDefault = vi.fn<() => void>()
+      await wrapper.get('textarea').trigger('paste', {
+        preventDefault,
+        clipboardData: {
+          items: [{ kind: 'file', getAsFile: () => file }],
+          files: [file],
+        },
+      })
+      expect(preventDefault).toHaveBeenCalledTimes(1)
+      expect(wrapper.emitted('attach')).toEqual([[[file]]])
+    })
+
+    it('falls back to clipboardData.files when clipboardData.items has no file entries', async () => {
+      const wrapper = mount(DouChatInput)
+      const pdf = new File(['%PDF'], 'report.pdf', { type: 'application/pdf' })
+      const preventDefault = vi.fn<() => void>()
+      await wrapper.get('textarea').trigger('paste', {
+        preventDefault,
+        clipboardData: {
+          items: [{ kind: 'string', getAsFile: () => null }],
+          files: [pdf],
+        },
+      })
+      expect(preventDefault).toHaveBeenCalledTimes(1)
+      expect(wrapper.emitted('attach')).toEqual([[[pdf]]])
+    })
+
+    it('falls back to clipboardData.files when clipboardData.items is missing', async () => {
+      const wrapper = mount(DouChatInput)
+      const zip = new File(['PK'], 'archive.zip', { type: 'application/zip' })
+      const preventDefault = vi.fn<() => void>()
+      await wrapper.get('textarea').trigger('paste', {
+        preventDefault,
+        clipboardData: { files: [zip] },
+      })
+      expect(preventDefault).toHaveBeenCalledTimes(1)
+      expect(wrapper.emitted('attach')).toEqual([[[zip]]])
+    })
+
+    it('leaves plain text pastes alone and ignores pastes when disabled', async () => {
+      const wrapper = mount(DouChatInput)
+      const preventDefault = vi.fn<() => void>()
+      await wrapper.get('textarea').trigger('paste', {
+        preventDefault,
+        clipboardData: {
+          items: [{ kind: 'string', getAsFile: () => null }],
+          files: [],
+        },
+      })
+      expect(preventDefault).not.toHaveBeenCalled()
+      expect(wrapper.emitted('attach')).toBeUndefined()
+
+      await wrapper.setProps({ disabled: true })
+      const file = new File(['x'], 'a.txt', { type: 'text/plain' })
+      await wrapper.get('textarea').trigger('paste', {
+        preventDefault,
+        clipboardData: { files: [file] },
+      })
+      expect(preventDefault).not.toHaveBeenCalled()
+      expect(wrapper.emitted('attach')).toBeUndefined()
+    })
+  })
+
+  describe('command caret placement', () => {
+    it('resets the caret to where the slash command was removed when the parent leaves the text alone', async () => {
+      const Host = defineComponent({
+        setup() {
+          const text = ref('/总 后面还有字')
+          return () =>
+            h(DouChatInput, {
+              modelValue: text.value,
+              'onUpdate:modelValue': (value: unknown) => (text.value = value as string),
+              commands: [{ value: 'summarize', label: '总结' }],
+              teleport: false,
+            })
+        },
+      })
+      const wrapper = mount(Host, { attachTo: document.body })
+      const textarea = wrapper.get('textarea')
+      const el = textarea.element as HTMLTextAreaElement
+      el.focus()
+      el.setSelectionRange(2, 2)
+      await textarea.trigger('keyup')
+      await textarea.trigger('keydown', { key: 'Enter' })
+      await nextTick()
+      expect(el.value).toBe('后面还有字')
+      expect(el.selectionStart).toBe(0)
+      expect(el.selectionEnd).toBe(0)
+      wrapper.unmount()
+    })
+
+    it('does not overwrite the caret when the parent inserts text in @command and sets selection in nextTick', async () => {
+      const Host = defineComponent({
+        setup() {
+          const text = ref('/周报 附注')
+          const inputRef = ref<{ textarea: HTMLTextAreaElement | null } | null>(null)
+          function onCommand() {
+            const snippet = '本周进展：'
+            text.value = snippet + text.value
+            void nextTick(() => {
+              const el = inputRef.value?.textarea
+              el?.focus()
+              el?.setSelectionRange(snippet.length, snippet.length)
+            })
+          }
+          return () =>
+            h(DouChatInput, {
+              ref: inputRef,
+              modelValue: text.value,
+              'onUpdate:modelValue': (value: unknown) => (text.value = value as string),
+              commands: [{ value: 'weekly', label: '周报模板' }],
+              teleport: false,
+              onCommand,
+            })
+        },
+      })
+      const wrapper = mount(Host, { attachTo: document.body })
+      const textarea = wrapper.get('textarea')
+      const el = textarea.element as HTMLTextAreaElement
+      el.focus()
+      el.setSelectionRange(3, 3)
+      await textarea.trigger('keyup')
+      await textarea.trigger('keydown', { key: 'Enter' })
+      await nextTick()
+      await nextTick()
+      expect(el.value).toBe('本周进展：附注')
+      expect(el.selectionStart).toBe(5)
+      expect(el.selectionEnd).toBe(5)
+      wrapper.unmount()
+    })
+
+    it('keeps the caret at the end of inserted text when the parent updates v-model without touching selection', async () => {
+      const Host = defineComponent({
+        setup() {
+          const text = ref('/周报')
+          return () =>
+            h(DouChatInput, {
+              modelValue: text.value,
+              'onUpdate:modelValue': (value: unknown) => (text.value = value as string),
+              commands: [{ value: 'weekly', label: '周报模板' }],
+              teleport: false,
+              onCommand: () => {
+                text.value = '本周进展：'
+              },
+            })
+        },
+      })
+      const wrapper = mount(Host, { attachTo: document.body })
+      const textarea = wrapper.get('textarea')
+      const el = textarea.element as HTMLTextAreaElement
+      el.focus()
+      el.setSelectionRange(3, 3)
+      await textarea.trigger('keyup')
+      await textarea.trigger('keydown', { key: 'Enter' })
+      await nextTick()
+      expect(el.value).toBe('本周进展：')
+      expect(el.selectionStart).toBe(5)
+      expect(el.selectionEnd).toBe(5)
+      wrapper.unmount()
+    })
+
+    it('lets a parent nextTick selection win even when the text stays the same', async () => {
+      const Host = defineComponent({
+        setup() {
+          const text = ref('/全选 保留文本')
+          const inputRef = ref<{ textarea: HTMLTextAreaElement | null } | null>(null)
+          return () =>
+            h(DouChatInput, {
+              ref: inputRef,
+              modelValue: text.value,
+              'onUpdate:modelValue': (value: unknown) => (text.value = value as string),
+              commands: [{ value: 'select', label: '全选' }],
+              teleport: false,
+              onCommand: () => {
+                void nextTick(() => {
+                  const el = inputRef.value?.textarea
+                  el?.setSelectionRange(0, el.value.length)
+                })
+              },
+            })
+        },
+      })
+      const wrapper = mount(Host, { attachTo: document.body })
+      const textarea = wrapper.get('textarea')
+      const el = textarea.element as HTMLTextAreaElement
+      el.focus()
+      el.setSelectionRange(3, 3)
+      await textarea.trigger('keyup')
+      await textarea.trigger('keydown', { key: 'Enter' })
+      await nextTick()
+      await nextTick()
+      expect(el.value).toBe('保留文本')
+      expect(el.selectionStart).toBe(0)
+      expect(el.selectionEnd).toBe(4)
+      wrapper.unmount()
+    })
+
+    it('does not steal focus when the parent moves focus elsewhere in @command', async () => {
+      const other = document.createElement('input')
+      document.body.appendChild(other)
+      const Host = defineComponent({
+        setup() {
+          const text = ref('/管理')
+          return () =>
+            h(DouChatInput, {
+              modelValue: text.value,
+              'onUpdate:modelValue': (value: unknown) => (text.value = value as string),
+              commands: [{ value: 'manage', label: '管理片段' }],
+              teleport: false,
+              onCommand: () => {
+                other.focus()
+              },
+            })
+        },
+      })
+      const wrapper = mount(Host, { attachTo: document.body })
+      const textarea = wrapper.get('textarea')
+      const el = textarea.element as HTMLTextAreaElement
+      el.focus()
+      el.setSelectionRange(3, 3)
+      await textarea.trigger('keyup')
+      await textarea.trigger('keydown', { key: 'Enter' })
+      await nextTick()
+      expect(document.activeElement).toBe(other)
+      wrapper.unmount()
+      other.remove()
+    })
   })
 
   it('renders the menu on top of the page, so a clipping parent cannot hide it', async () => {

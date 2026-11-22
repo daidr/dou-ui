@@ -47,6 +47,14 @@ describe('DouChatMessage', () => {
     expect(wrapper.get('.dou-chat-plan__header').element.tagName).toBe('DIV')
   })
 
+  it('passes showHeader through to a plan part', () => {
+    const wrapper = mount(DouChatMessage, {
+      props: { parts: [{ type: 'plan', items: [{ label: '查天气' }], showHeader: false }] },
+    })
+    expect(wrapper.find('.dou-chat-plan__header').exists()).toBe(false)
+    expect(wrapper.get('.dou-chat-plan').classes()).toContain('is-headless')
+  })
+
   it('forwards confirmations and artifacts', async () => {
     const confirm = { type: 'confirm' as const, id: 1, title: '删除？' }
     const artifact = { type: 'artifact' as const, id: 'a', title: '计划.md' }

@@ -2,7 +2,7 @@
 import type { HTMLAttributes } from 'vue'
 import type { ForwardedAttributes } from '../../utils/install'
 import { ArrowDownIcon } from '@dou-ui/icons'
-import { onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { DouVirtualList } from '../virtual-list'
 import type { VirtualListAlign, VirtualListExpose } from '../virtual-list'
 import { virtualItemKey } from '../virtual-list/virtual-list'
@@ -36,6 +36,8 @@ const props = withDefaults(
     autoScroll: true,
     threshold: 24,
     showScrollButton: true,
+    bottomInset: undefined,
+    bottomFade: false,
     items: undefined,
     itemKey: undefined,
     estimateSize: 120,
@@ -47,6 +49,14 @@ defineSlots<ChatListSlots<T>>()
 const ns = useNamespace('chat-list')
 const reducedMotion = useReducedMotion()
 const { t } = useLocale()
+
+const rootStyle = computed(() => {
+  if (props.bottomInset === undefined) return undefined
+  return {
+    '--dou-chat-list-bottom-inset':
+      typeof props.bottomInset === 'number' ? `${props.bottomInset}px` : props.bottomInset,
+  }
+})
 
 const plainViewport = useTemplateRef<HTMLElement>('viewport')
 const plainContent = useTemplateRef<HTMLElement>('content')
@@ -183,6 +193,10 @@ function observeContent() {
   if (content) observer.observe(content)
 }
 watch(() => props.items?.length, observeContent, { flush: 'post' })
+watch(
+  () => props.bottomInset,
+  () => void nextTick(follow),
+)
 
 // Jump straight to the message, by key or by element alike: a virtual list
 // only knows where an item is once it is rendered, so it cannot glide there.
@@ -199,13 +213,19 @@ function scrollToMessage(
     const box = el.getBoundingClientRect()
     const item = node.getBoundingClientRect()
     const top = item.top - box.top + el.scrollTop
-    const offsets = { start: top, end: top + item.height - el.clientHeight }
-    let to = top - (el.clientHeight - item.height) / 2
+    const bottomInset = Number.parseFloat(getComputedStyle(el).scrollPaddingBlockEnd) || 0
+    const visibleHeight = Math.max(0, el.clientHeight - bottomInset)
+    const offsets = { start: top, end: top + item.height - visibleHeight }
+    let to = top - (visibleHeight - item.height) / 2
     if (align === 'start') to = offsets.start
     else if (align === 'end') to = offsets.end
     else if (align === 'nearest')
       to =
-        item.top < box.top ? offsets.start : item.bottom > box.bottom ? offsets.end : el.scrollTop
+        item.top < box.top
+          ? offsets.start
+          : item.bottom > box.bottom - bottomInset
+            ? offsets.end
+            : el.scrollTop
     // the reader asked to look elsewhere: new content must not pull them away
     following = false
     el.scrollTop = Math.max(0, to)
@@ -239,7 +259,15 @@ defineExpose<ChatListExpose>({
 </script>
 
 <template>
-  <div :class="[ns.b(), ns.is('at-bottom', atBottom), ns.is('virtual', !!items)]">
+  <div
+    :class="[
+      ns.b(),
+      ns.is('at-bottom', atBottom),
+      ns.is('virtual', !!items),
+      ns.is('bottom-fade', bottomFade),
+    ]"
+    :style="rootStyle"
+  >
     <DouVirtualList
       v-if="items"
       ref="list"

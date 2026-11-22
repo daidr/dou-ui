@@ -72,6 +72,7 @@ const props = withDefaults(defineProps<CodeDiffProps>(), {
   toolbar: true,
   stickyToolbar: false,
   bordered: true,
+  scrollY: true,
   messages: undefined,
 })
 const emit = defineEmits<CodeDiffEmits>()
@@ -440,7 +441,8 @@ const annotationsB = annotations('b')
 const annotationsEndB = annotations('b', true)
 
 // Both sides scroll together; they are the same height, line for line.
-const link = createScrollLink()
+const linkXY = createScrollLink('xy')
+const linkX = createScrollLink('x')
 function onScroll(event: Event) {
   if (view.value !== 'split') return
   if (spans.value.length) schedulePlace()
@@ -450,7 +452,7 @@ function onScroll(event: Event) {
   const other = (from === sideA.value ? sideB.value : sideA.value)?.querySelector<HTMLElement>(
     '.dou-code-editor__scroller',
   )
-  if (other) link.follow(source, other)
+  if (other) (props.scrollY ? linkXY : linkX).follow(source, other)
 }
 
 // ---------------------------------------------------------------- inline
@@ -1103,9 +1105,10 @@ function onSpanWheel(event: WheelEvent) {
   const dy = event.deltaY * unit
   const dx = event.deltaX * unit
   const canY =
-    dy < 0
+    props.scrollY &&
+    (dy < 0
       ? scroller.scrollTop > 0
-      : dy > 0 && scroller.scrollTop + scroller.clientHeight < scroller.scrollHeight - 1
+      : dy > 0 && scroller.scrollTop + scroller.clientHeight < scroller.scrollHeight - 1)
   const canX =
     dx < 0
       ? scroller.scrollLeft > 0
@@ -1247,7 +1250,7 @@ defineExpose<CodeDiffExpose>({
 <template>
   <div
     ref="root"
-    :class="[ns.b(), ns.m(view), ns.is('bordered', bordered)]"
+    :class="[ns.b(), ns.m(view), ns.is('bordered', bordered), ns.is('scroll-y', scrollY)]"
     role="group"
     :aria-label="messages.diff"
   >
@@ -1333,6 +1336,7 @@ defineExpose<CodeDiffExpose>({
           :foldable="false"
           :active-line="false"
           :bordered="false"
+          :scroll-y="scrollY"
           readonly
           @transaction="revealAt('a', $event)"
         />
@@ -1354,6 +1358,7 @@ defineExpose<CodeDiffExpose>({
           :foldable="false"
           :active-line="false"
           :bordered="false"
+          :scroll-y="scrollY"
           :readonly="!editable"
           @update:model-value="onModifiedInput"
           @transaction="revealAt('b', $event)"
@@ -1393,6 +1398,7 @@ defineExpose<CodeDiffExpose>({
         :foldable="false"
         :active-line="false"
         :bordered="false"
+        :scroll-y="scrollY"
         :wrap="wrap"
         readonly
         @transaction="revealAt('inline', $event)"

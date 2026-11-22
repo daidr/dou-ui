@@ -52,6 +52,14 @@ app.use(DouUI, {
 
 <DocDemo src="code-block/fold" column />
 
+## 限高滚动与流式贴底
+
+`maxHeight` 限制代码块正文的最大高度，超出后在内部纵向滚动；没有标题栏时，右上角复制按钮自动悬浮吸顶并避让纵向滚动条。
+
+适合终端输出、实时日志这类场景：配合 `streaming` 使用时，`autoScroll` 默认开启，内容持续追加会自动贴底跟随；手动向上滚动回看历史内容时暂停跟随，重新滚回底部或调用 `scrollToBottom()` 后恢复跟随。也可以显式设置 `autoScroll` 覆盖默认行为。
+
+<DocDemo src="code-block/scroll" column />
+
 ## 在对话中使用
 
 [ChatMessage](./chat-message) 的 `part` 插槽可以用 CodeBlock 渲染代码片段。
@@ -75,9 +83,17 @@ app.use(DouUI, {
 | `highlightLines` | 标出的行                                                                                                    | `number[] \| string`                                        | —               |
 | `wrap`           | 长行自动换行                                                                                                | `boolean`                                                   | `false`         |
 | `maxLines`       | 超过这么多行时折叠                                                                                          | `number`                                                    | —               |
+| `maxHeight`      | 限制正文最大高度并在内部纵向滚动；传入数字按 px 处理                                                        | `number \| string`                                          | —               |
 | `copyable`       | 显示复制按钮                                                                                                | `boolean`                                                   | `true`          |
 | `streaming`      | 代码还在逐步到达，只高亮完整的行                                                                            | `boolean`                                                   | `false`         |
+| `autoScroll`     | 内容增长时自动贴底跟随，向上滚动暂停，滚回底部恢复；未传入时跟随 `streaming` 开启                           | `boolean`                                                   | 同 `streaming`  |
 | `bordered`       | 外框和圆角；关闭后去掉外框和圆角，用于放进已有边框的容器，见[去掉外框](/guide/theming#去掉外框与调整内边距) | `boolean`                                                   | `true`          |
+
+### Events
+
+| 名称             | 说明                       | 参数                |
+| ---------------- | -------------------------- | ------------------- |
+| `atBottomChange` | 正文是否处于底部状态变化时 | `atBottom: boolean` |
 
 ### Slots
 
@@ -85,6 +101,14 @@ app.use(DouUI, {
 | --------- | ------------------------------ |
 | `title`   | 替换标题栏中的文件名或语言     |
 | `actions` | 标题栏右侧、复制按钮之前的内容 |
+
+### Exposes
+
+| 名称                        | 说明                                  |
+| --------------------------- | ------------------------------------- |
+| `body`                      | 正文滚动容器元素（只读）              |
+| `atBottom`                  | 当前是否处于底部附近（只读）          |
+| `scrollToBottom(behavior?)` | 滚到底部并恢复自动跟随，默认 `'auto'` |
 
 ### CSS 变量
 

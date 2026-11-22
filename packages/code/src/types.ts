@@ -48,6 +48,14 @@ export interface CodeEditorProps {
    * default.
    */
   bordered?: boolean
+  /**
+   * Lets the editor scroll vertically inside its own box. Off, vertical
+   * scrolling is disabled (`overflow-y: hidden`) while horizontal scrolling
+   * stays on (`overflow-x: auto`), so the content expands to its full line
+   * count and an outer scroll container (such as `DouVirtualList`) owns
+   * vertical scrolling. On by default.
+   */
+  scrollY?: boolean
   /** Tints the line with the cursor. */
   activeLine?: boolean
   /** Columns per tab stop, also the width of one indent. */
@@ -298,6 +306,14 @@ export interface CodeDiffProps {
    * sides stay. On by default.
    */
   bordered?: boolean
+  /**
+   * Lets the inner editors scroll vertically. Off, vertical scrolling is
+   * disabled (`overflow-y: hidden`) while horizontal scrolling stays on
+   * (`overflow-x: auto`), so the diff expands to its full line count and an
+   * outer scroll container (such as `DouVirtualList`) owns vertical scrolling.
+   * On by default.
+   */
+  scrollY?: boolean
   messages?: Partial<CodeMessages>
 }
 

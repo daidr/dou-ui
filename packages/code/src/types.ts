@@ -6,6 +6,7 @@ import type {
   CodeGutterMarker,
 } from './extension'
 import type { CodeCommand } from './core/commands'
+import type { CodeDiffHunk } from './core/diff'
 import type { CodeKeymap } from './core/keymap'
 import type { CodeSearchQuery } from './core/search'
 import type { CodeSelection } from './core/selection'
@@ -286,6 +287,11 @@ export interface CodeDiffProps {
   /** The toolbar above: change count, previous and next, expand, and the view toggle. On by default. */
   toolbar?: boolean
   /**
+   * Keeps the toolbar stuck to the top of the enclosing scroll container while
+   * scrolling through a long diff. Off by default.
+   */
+  stickyToolbar?: boolean
+  /**
    * The hairline frame and rounded corners around the whole diff. Off,
    * the diff takes no border at all and no focus edge, for a panel or
    * card that already has one; the lines between the toolbar and the
@@ -362,4 +368,32 @@ export interface CodeDiffWidget {
 export interface CodeDiffEmits {
   'update:modelValue': [value: string]
   'update:mode': [mode: 'split' | 'inline']
+}
+
+export interface CodeDiffSlots {
+  /**
+   * Leading content in the toolbar, such as a file path. Overflows with an
+   * ellipsis, moving the change counts beside the toolbar buttons.
+   */
+  title?: () => unknown
+}
+
+export interface CodeDiffExpose {
+  /** The changes found now. */
+  readonly hunks: readonly CodeDiffHunk[]
+  /** Whether any run of unchanged lines can be collapsed under the current settings. */
+  readonly anyHideable: boolean
+  /** How many unchanged lines are currently hidden behind collapse bars. */
+  readonly hiddenCount: number
+  /** Moves to the next change; `false` when there is none. */
+  next: () => boolean
+  /** Moves to the previous change; `false` when there is none. */
+  previous: () => boolean
+  /** Shows every unchanged line. */
+  expandAll: () => void
+  /** Hides the runs of unchanged lines again. */
+  collapseAll: () => void
+  /** The editors drawn now: both sides, or the inline one as `modified`. */
+  readonly original: CodeEditorExpose | undefined
+  readonly modified: CodeEditorExpose | undefined
 }

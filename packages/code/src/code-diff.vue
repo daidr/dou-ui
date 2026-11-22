@@ -38,10 +38,12 @@ import {
 import { format, useCodeMessages } from './locale'
 import type {
   CodeDiffEmits,
+  CodeDiffExpose,
   CodeDiffGutter,
   CodeDiffHoverMarker,
   CodeDiffProps,
   CodeDiffSide,
+  CodeDiffSlots,
   CodeDiffWidget,
   CodeEditorExpose,
 } from './types'
@@ -68,10 +70,12 @@ const props = withDefaults(defineProps<CodeDiffProps>(), {
   widgets: undefined,
   tabSize: 2,
   toolbar: true,
+  stickyToolbar: false,
   bordered: true,
   messages: undefined,
 })
 const emit = defineEmits<CodeDiffEmits>()
+const slots = defineSlots<CodeDiffSlots>()
 
 const ns = useNamespace('code-diff')
 const messages = useCodeMessages(() => props.messages)
@@ -150,6 +154,8 @@ interface Unchanged {
   a: number
   b: number
   count: number
+  /** Whether this run is long enough to collapse under `collapseUnchanged`. */
+  hideable: boolean
   /** Where its hidden part starts, from its first line, and how long it is (0 when nothing is hidden). */
   hideFrom: number
   hideCount: number
@@ -191,17 +197,21 @@ const unchanged = computed<Unchanged[]>(() => {
   const rule = collapse.value
   const push = (a: number, b: number, count: number, before: boolean, after: boolean) => {
     if (count <= 0) return
+    let hideable = false
     let hideFrom = 0
     let hideCount = 0
-    if (rule && list.length && !allOpen.value && !opened.has(a)) {
+    if (rule && list.length) {
       const from = before ? rule.context : 0
       const to = count - (after ? rule.context : 0)
       if (to - from >= rule.minLines) {
-        hideFrom = from
-        hideCount = to - from
+        hideable = true
+        if (!allOpen.value && !opened.has(a)) {
+          hideFrom = from
+          hideCount = to - from
+        }
       }
     }
-    out.push({ a, b, count, hideFrom, hideCount, key: a })
+    out.push({ a, b, count, hideable, hideFrom, hideCount, key: a })
   }
   // A line with a marker or widget stays in view, with context around it, like a change.
   const kept = annotatedLines.value
@@ -226,7 +236,7 @@ const unchanged = computed<Unchanged[]>(() => {
   return out
 })
 const hiddenCount = computed(() => unchanged.value.reduce((sum, run) => sum + run.hideCount, 0))
-const anyHideable = computed(() => !!collapse.value && hunks.value.length > 0)
+const anyHideable = computed(() => unchanged.value.some((run) => run.hideable))
 
 function open(key: number) {
   opened.add(key)
@@ -1198,17 +1208,27 @@ const summary = computed(() =>
   hunks.value.length ? format(messages.value.diffStats, stats.value) : messages.value.diffNoChanges,
 )
 
-defineExpose({
+defineExpose<CodeDiffExpose>({
   /** The changes found now. */
   get hunks() {
     return hunks.value
+  },
+  /** Whether any run of unchanged lines can be collapsed under the current settings. */
+  get anyHideable() {
+    return anyHideable.value
+  },
+  /** How many unchanged lines are currently hidden behind collapse bars. */
+  get hiddenCount() {
+    return hiddenCount.value
   },
   /** Moves to the next change; `false` when there is none. */
   next,
   /** Moves to the previous change. */
   previous,
   /** Shows every unchanged line. */
-  expandAll: () => (allOpen.value = true),
+  expandAll: () => {
+    allOpen.value = true
+  },
   /** Hides the runs of unchanged lines again. */
   collapseAll: () => {
     allOpen.value = false
@@ -1231,7 +1251,10 @@ defineExpose({
     role="group"
     :aria-label="messages.diff"
   >
-    <div v-if="toolbar" :class="ns.e('toolbar')">
+    <div v-if="toolbar" :class="[ns.e('toolbar'), ns.is('sticky', stickyToolbar)]">
+      <div v-if="slots.title" :class="ns.e('title')">
+        <slot name="title" />
+      </div>
       <span :class="ns.e('stats')">
         <template v-if="hunks.length">
           <span :class="[ns.e('count'), 'is-added']" aria-hidden="true">+{{ stats.added }}</span>

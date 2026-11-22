@@ -1424,6 +1424,8 @@
     );
     --dou-code-diff-added-word: color-mix(in oklab, var(--dou-color-success-text) 30%, transparent);
     --dou-code-diff-border: var(--dou-color-border);
+    --dou-code-diff-toolbar-bg: var(--dou-color-bg-surface);
+    --dou-code-diff-toolbar-top: 0px;
 
     position: relative;
     display: flex;
@@ -1431,7 +1433,8 @@
     box-sizing: border-box;
     width: 100%;
     min-width: 0;
-    overflow: hidden;
+    /* clip cuts the rounded corners without creating a scroll container that blocks sticky children */
+    overflow: clip;
     border: 1px solid var(--dou-code-diff-border);
     border-radius: var(--dou-radius-container);
     background-color: var(--dou-color-bg-surface);
@@ -1458,7 +1461,21 @@
       min-height: 44px;
     }
     border-bottom: 1px solid var(--dou-code-diff-border);
+    background-color: var(--dou-code-diff-toolbar-bg);
     font-size: var(--dou-font-size-sm);
+    &.is-sticky {
+      position: sticky;
+      top: var(--dou-code-diff-toolbar-top);
+      z-index: 4;
+    }
+  }
+  .dou-code-diff__title {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin-inline-end: 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .dou-code-diff__stats {
     display: flex;
@@ -1468,6 +1485,10 @@
     min-width: 0;
     overflow: hidden;
     white-space: nowrap;
+  }
+  .dou-code-diff__title + .dou-code-diff__stats {
+    flex: none;
+    margin-inline-end: 4px;
   }
   .dou-code-diff__count {
     font-family: var(--dou-font-family-mono);
@@ -1493,6 +1514,7 @@
     white-space: nowrap;
   }
   .dou-code-diff__toolbar .dou-button {
+    flex: none;
     @media (pointer: coarse) {
       position: relative;
       min-width: 36px;
@@ -1512,6 +1534,8 @@
     grid-template-rows: minmax(0, 1fr);
     grid-template-columns: minmax(0, 1fr);
     min-height: 0;
+    /* keeps the inner editors', gutters' and widgets' z-index below a sticky toolbar */
+    isolation: isolate;
   }
   .dou-code-diff--split > .dou-code-diff__body {
     grid-template-rows: auto minmax(0, 1fr);

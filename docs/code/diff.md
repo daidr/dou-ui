@@ -32,6 +32,14 @@
 
 `F7` / `Shift` + `F7` 跳到下一处 / 上一处改动。
 
+## 标题与吸顶工具栏
+
+在多文件对比列表里，可以通过 `#title` 插槽把文件路径、重命名来源等内容放到工具栏左侧，避免再额外叠一行标题栏：传入 `#title` 后，标题区域占满左侧并在过长时显示省略号，增删统计（`+N −M`）自动移到右侧按钮之前。
+
+加上 `sticky-toolbar` 后，外层容器滚动时工具栏会吸附在顶部（可通过 `--dou-code-diff-toolbar-top` 调整吸顶偏移，通过 `--dou-code-diff-toolbar-bg` 调整吸顶时的背景色）。组件根容器使用 `overflow: clip` 裁切圆角，不会阻断内部元素的 `position: sticky`。
+
+<DocDemo src="code/diff-sticky" column />
+
 ## 批注
 
 `gutters` 在行号左侧加列，`widgets` 在行与行之间放[小部件](/code/extensions#行间小部件)，适合做审阅评论、断点这类需要标在某一侧某一行上的内容。每个标记和小部件都用 `side`（`'original'` 或 `'modified'`）和 `line` 指明位置，行号是那一侧文本自己的行号。两种显示方式下，组件都会把它们放到对应的行上：
@@ -86,6 +94,7 @@ const hunks = diffText('上海\n戴兜\n', '上海\n阿青\n')
 | `gutters`           | 行号左侧的列，标记可以在任一侧，见[批注](#批注)                                                | `CodeDiffGutter[]`                                   | —        |
 | `widgets`           | 行间小部件，可以在任一侧或横跨两栏，见[批注](#批注)                                            | `CodeDiffWidget[]`                                   | —        |
 | `toolbar`           | 显示工具栏                                                                                     | `boolean`                                            | `true`   |
+| `stickyToolbar`     | 外层滚动容器滚动时让工具栏吸附在顶部                                                           | `boolean`                                            | `false`  |
 | `bordered`          | 整体的外框和圆角；关闭后去掉外框和圆角，聚焦时也不再画出边框，工具栏和左右两栏之间的分隔线保留 | `boolean`                                            | `true`   |
 | `tabSize`           | 制表位宽度                                                                                     | `number`                                             | `2`      |
 | `messages`          | 改写界面上的文字                                                                               | `Partial<CodeMessages>`                              | —        |
@@ -122,17 +131,27 @@ const hunks = diffText('上海\n戴兜\n', '上海\n阿青\n')
 | `label`    | 光标移到这一行时读出的名称，例如“戴兜的评论”             | `string`                   |
 | `span`     | 并排时 `both` 横跨两栏，默认 `side` 只占自己那一栏       | `'side' \| 'both'`         |
 
+### CodeDiff Slots
+
+| 名称    | 说明                                                                                                      |
+| ------- | --------------------------------------------------------------------------------------------------------- |
+| `title` | 工具栏左侧的标题区域（如文件路径），过长时自动省略截断，并将增删统计移到操作按钮之前（随 `toolbar` 显隐） |
+
 ### CodeDiff Exposes
 
 | 名称                           | 说明                                             |
 | ------------------------------ | ------------------------------------------------ |
-| `hunks`                        | 当前的改动列表                                   |
+| `hunks`                        | 当前的改动列表（只读）                           |
+| `anyHideable`                  | 当前设置下是否存在可收起的未改动行区段（只读）   |
+| `hiddenCount`                  | 当前被折叠条隐藏的未改动总行数（只读）           |
 | `next()`、`previous()`         | 跳到下一处、上一处改动                           |
 | `expandAll()`、`collapseAll()` | 展开、收起全部未改动的行                         |
 | `original`、`modified`         | 两侧的编辑器实例；`inline` 视图中只有 `modified` |
 
 ### CSS 变量
 
-| 名称                     | 说明                                                | 默认值                    |
-| ------------------------ | --------------------------------------------------- | ------------------------- |
-| `--dou-code-diff-border` | 外框和内部分隔线的颜色；只想去掉外框时用 `bordered` | `var(--dou-color-border)` |
+| 名称                          | 说明                                                | 默认值                        |
+| ----------------------------- | --------------------------------------------------- | ----------------------------- |
+| `--dou-code-diff-border`      | 外框和内部分隔线的颜色；只想去掉外框时用 `bordered` | `var(--dou-color-border)`     |
+| `--dou-code-diff-toolbar-bg`  | 工具栏背景色，吸顶时遮挡下方滚过的代码与批注        | `var(--dou-color-bg-surface)` |
+| `--dou-code-diff-toolbar-top` | `stickyToolbar` 开启时工具栏距离滚动容器顶部的偏移  | `0px`                         |

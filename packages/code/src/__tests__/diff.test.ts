@@ -1,6 +1,9 @@
+import { readFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { type DOMWrapper, mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { defineComponent, h, nextTick, ref } from 'vue'
+import { computed, defineComponent, h, nextTick, ref } from 'vue'
 import { DouCodeDiff, DouCodeEditor, defineCodeExtension, diffText } from '../index'
 
 /** Applies the hunks of `a` → `b` to `a`'s lines; must give back `b`. */
@@ -771,5 +774,169 @@ describe('the hide extension field', () => {
       (wrapper.vm as unknown as { selection: { ranges: { head: number }[] } }).selection.ranges[0]!
         .head,
     ).toBe(6)
+  })
+})
+
+describe('DouCodeDiff toolbar, sticky and collapse state', () => {
+  it('renders the title slot before the stats when provided, and omits the wrapper otherwise', async () => {
+    const { wrapper: plain } = setup()
+    await nextTick()
+    expect(plain.find('.dou-code-diff__title').exists()).toBe(false)
+
+    const titled = mount(DouCodeDiff, {
+      props: { original: 'a\nb', modelValue: 'a\nc', mode: 'split' },
+      slots: { title: () => h('span', { class: 'path' }, 'src/shipping.ts') },
+      attachTo: document.body,
+    })
+    await nextTick()
+    const toolbar = titled.find('.dou-code-diff__toolbar')
+    const children = [...toolbar.element.children]
+    expect(children[0]!.classList.contains('dou-code-diff__title')).toBe(true)
+    expect(children[0]!.textContent).toBe('src/shipping.ts')
+    expect(children[1]!.classList.contains('dou-code-diff__stats')).toBe(true)
+
+    const hidden = mount(DouCodeDiff, {
+      props: { original: 'a', modelValue: 'b', toolbar: false },
+      slots: { title: () => 'src/shipping.ts' },
+      attachTo: document.body,
+    })
+    await nextTick()
+    expect(hidden.find('.dou-code-diff__toolbar').exists()).toBe(false)
+    expect(hidden.find('.dou-code-diff__title').exists()).toBe(false)
+  })
+
+  it('toggles sticky-toolbar class and uses clip + sticky rules in stylesheet', async () => {
+    const sticky = ref(false)
+    const wrapper = mount(
+      defineComponent(
+        () => () =>
+          h(DouCodeDiff, {
+            original: 'a\nb',
+            modelValue: 'a\nc',
+            stickyToolbar: sticky.value,
+          }),
+      ),
+      { attachTo: document.body },
+    )
+    await nextTick()
+    expect(wrapper.find('.dou-code-diff__toolbar').classes()).not.toContain('is-sticky')
+    sticky.value = true
+    await nextTick()
+    expect(wrapper.find('.dou-code-diff__toolbar').classes()).toContain('is-sticky')
+
+    const css = readFileSync(
+      resolve(dirname(fileURLToPath(import.meta.url)), '../style.css'),
+      'utf8',
+    ).replace(/\/\*[\s\S]*?\*\//g, '')
+    const diffStart = css.indexOf('.dou-code-diff {')
+    const diffBlock = css.slice(diffStart, css.indexOf('.dou-code-diff__toolbar {', diffStart))
+    expect(diffBlock).toMatch(/overflow:\s*clip/)
+    expect(diffBlock).not.toMatch(/overflow:\s*hidden/)
+    expect(diffBlock).toContain('--dou-code-diff-toolbar-bg')
+    expect(diffBlock).toContain('--dou-code-diff-toolbar-top')
+
+    const toolbarStart = css.indexOf('.dou-code-diff__toolbar {')
+    const toolbarBlock = css.slice(
+      toolbarStart,
+      css.indexOf('.dou-code-diff__title {', toolbarStart),
+    )
+    expect(toolbarBlock).toMatch(/background-color:\s*var\(--dou-code-diff-toolbar-bg\)/)
+    expect(toolbarBlock).toMatch(/position:\s*sticky/)
+    expect(toolbarBlock).toMatch(/top:\s*var\(--dou-code-diff-toolbar-top\)/)
+    expect(toolbarBlock).toMatch(/z-index:\s*\d+/)
+
+    const titleStart = css.indexOf('.dou-code-diff__title {')
+    const titleBlock = css.slice(titleStart, css.indexOf('}', titleStart))
+    expect(titleBlock).toMatch(/text-overflow:\s*ellipsis/)
+    expect(titleBlock).toMatch(/min-width:\s*0/)
+
+    const bodyStart = css.indexOf('.dou-code-diff__body {')
+    const bodyBlock = css.slice(bodyStart, css.indexOf('}', bodyStart))
+    expect(bodyBlock).toMatch(/isolation:\s*isolate/)
+  })
+
+  it('exposes reactive read-only anyHideable and hiddenCount', async () => {
+    const collapseUnchanged = ref<boolean>(true)
+    const diff = ref<InstanceType<typeof DouCodeDiff>>()
+    const wrapper = mount(
+      defineComponent(() => {
+        const snapshot = computed(() => ({
+          anyHideable: diff.value?.anyHideable ?? false,
+          hiddenCount: diff.value?.hiddenCount ?? 0,
+        }))
+        return () =>
+          h('div', [
+            h('output', JSON.stringify(snapshot.value)),
+            h(DouCodeDiff, {
+              ref: diff,
+              original,
+              modelValue: changed,
+              mode: 'split',
+              collapseUnchanged: collapseUnchanged.value,
+            }),
+          ])
+      }),
+      { attachTo: document.body },
+    )
+    await nextTick()
+    await nextTick()
+
+    expect(diff.value!.anyHideable).toBe(true)
+    expect(diff.value!.hiddenCount).toBe(10)
+    expect(wrapper.find('output').text()).toBe(
+      JSON.stringify({ anyHideable: true, hiddenCount: 10 }),
+    )
+
+    // Read-only exposed getters reject writes in strict mode.
+    expect(() => {
+      ;(diff.value as unknown as { hiddenCount: number }).hiddenCount = 0
+    }).toThrow(TypeError)
+    expect(() => {
+      ;(diff.value as unknown as { anyHideable: boolean }).anyHideable = false
+    }).toThrow(TypeError)
+
+    diff.value!.expandAll()
+    await nextTick()
+    expect(diff.value!.anyHideable).toBe(true)
+    expect(diff.value!.hiddenCount).toBe(0)
+    expect(wrapper.find('output').text()).toBe(
+      JSON.stringify({ anyHideable: true, hiddenCount: 0 }),
+    )
+
+    diff.value!.collapseAll()
+    await nextTick()
+    expect(diff.value!.anyHideable).toBe(true)
+    expect(diff.value!.hiddenCount).toBe(10)
+    expect(wrapper.find('output').text()).toBe(
+      JSON.stringify({ anyHideable: true, hiddenCount: 10 }),
+    )
+
+    // Opening a single collapse bar updates hiddenCount while keeping anyHideable true.
+    await wrapper.find('.dou-code-diff__bar').trigger('click')
+    await nextTick()
+    expect(diff.value!.anyHideable).toBe(true)
+    expect(diff.value!.hiddenCount).toBe(0)
+
+    collapseUnchanged.value = false
+    await nextTick()
+    expect(diff.value!.anyHideable).toBe(false)
+    expect(diff.value!.hiddenCount).toBe(0)
+    expect(wrapper.find('output').text()).toBe(
+      JSON.stringify({ anyHideable: false, hiddenCount: 0 }),
+    )
+  })
+
+  it('reports anyHideable=false when no unchanged run is long enough to collapse', async () => {
+    const short = setup({ original: 'a\nb\nc\nd\ne', modelValue: 'a\nb\nC\nd\ne' })
+    await nextTick()
+    expect(short.diff.value!.anyHideable).toBe(false)
+    expect(short.diff.value!.hiddenCount).toBe(0)
+    // Only previous, next and view toggle are shown when nothing can collapse.
+    expect(short.wrapper.findAll('.dou-code-diff__toolbar button')).toHaveLength(3)
+
+    const same = setup({ original, modelValue: original })
+    await nextTick()
+    expect(same.diff.value!.anyHideable).toBe(false)
+    expect(same.diff.value!.hiddenCount).toBe(0)
   })
 })

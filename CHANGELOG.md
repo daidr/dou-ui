@@ -7,6 +7,22 @@ DouUI 的所有包（`dou-ui`、`@dou-ui/theme`、`@dou-ui/icons` 以及生态�
 
 这个文件由发版脚本生成：改动先以碎片文件记在 [`.changes/`](./.changes/README.md) 里，发布时汇总到这里。
 
+## 0.1.0-alpha.23 · 2026-11-23
+
+### 新增
+
+- **@dou-ui/icons**：新增餐饮（food）、健康医疗（health）与生活家居（lifestyle）三个分类，并新增 18 枚对应场景图标（utensils、wine、cake、cup-soda、pill、stethoscope、heart-pulse、briefcase-medical、syringe、bandage、bed、sofa、lamp-desk、bath、leaf、sprout、paw-print、dumbbell）。 ([#512](https://github.com/daidr/dou-ui/pull/512))
+- **@dou-ui/icons**：新增 18 枚 AI 与智能体工作流图标（`agent-swarm`、`prompt-template`、`system-prompt`、`context-window`、`memory-bank`、`tool-call`、`thought-chain`、`knowledge-base`、`vector-search`、`doc-chunk`、`model-switch`、`model-router`、`shield-sparkle`、`multimodal`、`human-in-loop`、`token-meter`、`eval-score`、`agent-trace`）。 ([#513](https://github.com/daidr/dou-ui/pull/513))
+- **@dou-ui/icons**：新增 17 枚商务办公与财务图标（`file-invoice`、`file-dollar`、`file-percent`、`file-badge`、`receipt-text`、`receipt-x`、`piggy-bank`、`hand-coins`、`wallet-cards`、`wallet-plus`、`credit-card-x`、`badge-dollar`、`gavel`、`briefcase-clock`、`lectern`、`podium`、`megaphone-off`）。 ([#514](https://github.com/daidr/dou-ui/pull/514))
+- **@dou-ui/icons**：新增 16 枚教育科研与知识管理图标（atom、dna、telescope、prism、protractor、set-square、petri-dish、bunsen-burner、abacus、exam、quiz、report-card、timetable、citation、flashcards、index-card），并将已有的 mind-map 图标补充归入 notes 分类。 ([#515](https://github.com/daidr/dou-ui/pull/515))
+- **@dou-ui/icons**：新增 17 枚物流出行与建筑地点图标：物流出行新增 bike、bus、subway、high-speed-rail、ferry、charging-station、taxi、package-return、delivery-sign、cargo-container、weight-scale、conveyor-belt；建筑地点新增 museum、shopping-mall、stadium、airport、train-station。 ([#517](https://github.com/daidr/dou-ui/pull/517))
+- **dou-ui、@dou-ui/theme**：`DouChatMessage` 新增 `status` 属性与 `status` 插槽：用户消息在 `sending` 时于气泡（或纯附件区）左侧下方显示加载指示并隐藏右上角操作栏，`sent` 后平滑消失，`error` 时在同一位置显示失败图标；通过 `status` 插槽可自定义状态指示或重试入口。 ([#519](https://github.com/daidr/dou-ui/pull/519))
+
+### 修复
+
+- **@dou-ui/icons**：修复 `trophy` 图标左右杯耳下端点穿入杯身轮廓的问题，使其精准对齐杯身弧线。 ([#514](https://github.com/daidr/dou-ui/pull/514))
+- **dou-ui**：修复 `DouChatList`、`DouVirtualList` 与 `useTouchScroll` 在 iOS 触摸滑动或顶部回弹期间异步加载顶部历史消息时滚动锚定失效、补偿被误判丢弃、重复触发 `topReached` 以及变高消息测量与 `scrollTop` 失步导致连锁上跳的问题。 ([#520](https://github.com/daidr/dou-ui/pull/520))
+
 ## 0.1.0-alpha.22 · 2026-11-22
 
 ### 新增

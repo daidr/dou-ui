@@ -177,6 +177,7 @@ function follow() {
     if (el) atBottom.value = distanceToBottom(el) <= props.threshold
     return
   }
+  touch.clearShift(el)
   el.scrollTop = el.scrollHeight
   lastTop = el.scrollTop
   atBottom.value = true
@@ -222,9 +223,12 @@ function scrollToMessage(
     const el = viewportRef.value
     const node = elementOf(target)
     if (!el || !node || !el.contains(node)) return
+    const pending = touch.pendingShift(el)
     const box = el.getBoundingClientRect()
     const item = node.getBoundingClientRect()
-    const top = item.top - box.top + el.scrollTop
+    // Content is visually shifted by `translateY(-pending)` while a dropped
+    // touch shift is pending, so add `pending` back to recover layout offset.
+    const top = item.top - box.top + el.scrollTop + pending
     const bottomInset = Number.parseFloat(getComputedStyle(el).scrollPaddingBlockEnd) || 0
     const visibleHeight = Math.max(0, el.clientHeight - bottomInset)
     const offsets = { start: top, end: top + item.height - visibleHeight }
@@ -237,7 +241,7 @@ function scrollToMessage(
           ? offsets.start
           : item.bottom > box.bottom - bottomInset
             ? offsets.end
-            : el.scrollTop
+            : el.scrollTop + pending
     // the reader asked to look elsewhere: new content must not pull them away
     following = false
     touch.clearShift(el)

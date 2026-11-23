@@ -373,6 +373,95 @@ describe('shiftScroll', () => {
 
     wrapper.unmount()
   })
+
+  it('does not record a fake pendingShift when a laid-out short container clamps scrollTop to 0', () => {
+    vi.useFakeTimers()
+    let touchScroll!: ReturnType<typeof useTouchScroll>
+    const wrapper = mount(
+      defineComponent({
+        setup() {
+          touchScroll = useTouchScroll()
+          return () => h('div')
+        },
+      }),
+      { attachTo: document.body },
+    )
+    const el = document.createElement('div')
+    document.body.append(el)
+    // Container is laid out (clientHeight > 0), content fits inside viewport (scrollHeight <= clientHeight)
+    sized(el, { height: 240, client: 400 })
+    let top = 0
+    Object.defineProperty(el, 'scrollTop', {
+      configurable: true,
+      get: () => top,
+      set: (value: number) => {
+        const max = Math.max(0, el.scrollHeight - el.clientHeight)
+        top = Math.min(Math.max(0, value), max)
+      },
+    })
+
+    touch('touchstart')
+    touchScroll.shiftScroll(el, 80)
+    expect(top).toBe(0)
+    expect(touchScroll.pendingShift(el)).toBe(0)
+    touch('touchend')
+    vi.advanceTimersByTime(200)
+    expect(top).toBe(0)
+    expect(touchScroll.pendingShift(el)).toBe(0)
+    wrapper.unmount()
+  })
+
+  it('preserves and folds a follow-up shift when a prior small shift already dropped on its first scroll event', () => {
+    vi.useFakeTimers()
+    let touchScroll!: ReturnType<typeof useTouchScroll>
+    const wrapper = mount(
+      defineComponent({
+        setup() {
+          touchScroll = useTouchScroll()
+          return () => h('div')
+        },
+      }),
+      { attachTo: document.body },
+    )
+    const el = document.createElement('div')
+    document.body.append(el)
+    sized(el, { height: 20_000, client: 600 })
+    let top = 0
+    let writes = 0
+    Object.defineProperty(el, 'scrollTop', {
+      configurable: true,
+      get: () => top,
+      set: (value: number) => {
+        writes++
+        top = value
+      },
+    })
+
+    touch('touchstart')
+    // No step yet; shift +120px is accepted transiently, then iOS snaps scrollTop back to 0
+    touchScroll.shiftScroll(el, 120)
+    expect(top).toBe(120)
+    expect(writes).toBe(1)
+    top = 0
+    el.dispatchEvent(new Event('scroll'))
+    // Follow-up ResizeObserver shift arrives before a second scroll event
+    touchScroll.shiftScroll(el, 40)
+    // Must fold into pendingShift (120 + 40 = 160) without overwriting el.scrollTop again
+    expect(writes).toBe(1)
+    expect(top).toBe(0)
+    expect(touchScroll.pendingShift(el)).toBe(160)
+
+    // Subsequent negative correction folds cleanly too
+    touchScroll.shiftScroll(el, -20)
+    expect(writes).toBe(1)
+    expect(touchScroll.pendingShift(el)).toBe(140)
+
+    touch('touchend')
+    vi.advanceTimersByTime(200)
+    expect(top).toBe(140)
+    expect(touchScroll.pendingShift(el)).toBe(0)
+    wrapper.unmount()
+  })
 })
 
 describe('loading earlier items at the top', () => {
@@ -723,6 +812,129 @@ describe('loading earlier items at the top', () => {
     // On settle, resolveShifts + makeLost must restore scrollTop BEFORE reachTop runs
     expect(top).toBe(120)
     expect(wrapper.emitted('topReached')).toHaveLength(1)
+    wrapper.unmount()
+  })
+
+  it('clears pendingShift in DouChatList follow() before auto-scrolling to bottom', async () => {
+    vi.useFakeTimers()
+    let touchScroll!: ReturnType<typeof useTouchScroll>
+    const wrapper = mount(
+      defineComponent({
+        setup() {
+          touchScroll = useTouchScroll()
+          return () => h(DouChatList, null, { default: () => h('p', '消息') })
+        },
+      }),
+      { attachTo: document.body },
+    )
+    const el = wrapper.get('.dou-chat-list__viewport').element as HTMLElement
+    sized(el, { height: 2000, client: 400 })
+    let top = 1600
+    let drop = true
+    Object.defineProperty(el, 'scrollTop', {
+      configurable: true,
+      get: () => top,
+      set: (value: number) => {
+        if (!drop) top = value
+      },
+    })
+
+    // Start at bottom (following = true), then an item above grows by 150px during touch
+    el.dispatchEvent(new Event('scroll'))
+    touch('touchstart')
+    sized(el, { height: 2150, client: 400 })
+    touchScroll.shiftScroll(el, 150)
+    await nextTick()
+    expect(touchScroll.pendingShift(el)).toBe(150)
+    expect(wrapper.get('.dou-chat-list__content').attributes('style')).toContain(
+      'translateY(-150px)',
+    )
+
+    // New content grows while following = true -> follow() clears pendingShift before scrolling
+    drop = false
+    sized(el, { height: 2200, client: 400 })
+    resizeAll()
+    await nextTick()
+    expect(touchScroll.pendingShift(el)).toBe(0)
+    expect(wrapper.get('.dou-chat-list__content').attributes('style')).toBeUndefined()
+    expect(top).toBe(2200)
+
+    touch('touchend')
+    vi.advanceTimersByTime(200)
+    expect(top).toBe(2200)
+    wrapper.unmount()
+  })
+
+  it('accounts for pendingShift in DouChatList scrollToMessage(element) for start and nearest alignments', async () => {
+    vi.useFakeTimers()
+    let touchScroll!: ReturnType<typeof useTouchScroll>
+    const chatRef = ref<{
+      scrollToMessage: (target: Element, align?: 'start' | 'center' | 'end' | 'nearest') => void
+    }>()
+    const wrapper = mount(
+      defineComponent({
+        setup() {
+          touchScroll = useTouchScroll()
+          return () =>
+            h(
+              DouChatList,
+              { ref: chatRef },
+              {
+                default: () => [h('p', { id: 'msg-a' }, 'A'), h('p', { id: 'msg-b' }, 'B')],
+              },
+            )
+        },
+      }),
+      { attachTo: document.body },
+    )
+    const el = wrapper.get('.dou-chat-list__viewport').element as HTMLElement
+    const target = wrapper.get('#msg-b').element as HTMLElement
+    sized(el, { height: 5000, client: 400 })
+    let top = 100
+    let drop = true
+    Object.defineProperty(el, 'scrollTop', {
+      configurable: true,
+      get: () => top,
+      set: (value: number) => {
+        if (!drop) top = value
+      },
+    })
+
+    // Create a dropped pendingShift of +600px: content has translateY(-600px)
+    touch('touchstart')
+    touchScroll.shiftScroll(el, 600)
+    await nextTick()
+    expect(touchScroll.pendingShift(el)).toBe(600)
+
+    // Layout offset of #msg-b is 1000px (height 50px).
+    // With scrollTop = 100 and translateY(-600px), its visual top is 1000 - 100 - 600 = 300px (inside 0..400).
+    el.getBoundingClientRect = () =>
+      ({ top: 0, bottom: 400, height: 400, left: 0, right: 400, width: 400 }) as DOMRect
+    target.getBoundingClientRect = () =>
+      ({ top: 300, bottom: 350, height: 50, left: 0, right: 400, width: 400 }) as DOMRect
+
+    // 1. align = 'nearest' when already visible: clearing translateY(-600px) must keep visual position -> scrollTop = 100 + 600 = 700
+    drop = false
+    chatRef.value!.scrollToMessage(target, 'nearest')
+    expect(touchScroll.pendingShift(el)).toBe(0)
+    expect(top).toBe(700)
+
+    // 2. align = 'start' with another pendingShift of +500px:
+    //    scrollTop = 100, pending = 500, layout offset = 1000 -> visual top = 1000 - 100 - 500 = 400
+    top = 100
+    drop = true
+    touchScroll.shiftScroll(el, 500)
+    await nextTick()
+    expect(touchScroll.pendingShift(el)).toBe(500)
+    target.getBoundingClientRect = () =>
+      ({ top: 400, bottom: 450, height: 50, left: 0, right: 400, width: 400 }) as DOMRect
+    drop = false
+    chatRef.value!.scrollToMessage(target, 'start')
+    expect(touchScroll.pendingShift(el)).toBe(0)
+    expect(top).toBe(1000)
+
+    touch('touchend')
+    vi.advanceTimersByTime(200)
     wrapper.unmount()
   })
 })

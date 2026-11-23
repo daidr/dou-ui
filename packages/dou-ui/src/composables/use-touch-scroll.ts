@@ -130,6 +130,17 @@ function wasDropped(shift: Shift, top: number, step: number) {
   return decelerating || bouncing || variableDrag
 }
 
+function isDroppedAt(shift: Shift, top: number, settled: boolean) {
+  const toDist = Math.abs(top - shift.to)
+  if (toDist <= 1) return false
+  const fromDist = Math.abs(top - shift.from)
+  const restDist = Math.abs(top - Math.max(0, shift.from))
+  const nearFrom = Math.min(fromDist, restDist)
+  if (settled && nearFrom <= 1) return true
+  if (toDist <= 24) return false
+  return (shift.from <= 0 && top <= 1) || (nearFrom * 3 < toDist && nearFrom <= 80)
+}
+
 /**
  * When the scroll is over, a move still unchecked counts as dropped when the
  * scroller rests where it was before (including 0 after a negative top bounce)
@@ -137,19 +148,7 @@ function wasDropped(shift: Shift, top: number, step: number) {
  */
 function resolveShifts() {
   for (const [el, shift] of shifts) {
-    const top = el.scrollTop
-    const toDist = Math.abs(top - shift.to)
-    if (toDist <= 1) continue
-    const fromDist = Math.abs(top - shift.from)
-    const restDist = Math.abs(top - Math.max(0, shift.from))
-    const nearFrom = Math.min(fromDist, restDist)
-    if (
-      nearFrom <= 1 ||
-      (shift.from <= 0 && top <= 1 && shift.to > 24) ||
-      (toDist > 24 && nearFrom * 3 < toDist && nearFrom <= 80)
-    ) {
-      addLost(el, shift.delta)
-    }
+    if (isDroppedAt(shift, el.scrollTop, true)) addLost(el, shift.delta)
   }
   shifts.clear()
   steps = new WeakMap()
@@ -197,23 +196,27 @@ function onScroll(event: Event) {
   if (moving.value && !touching) settleLater()
 }
 
+function foldLost(el: HTMLElement, from: number, delta: number, maxTop: number) {
+  const existing = lost.get(el) ?? 0
+  const logicalBase = Math.max(0, from) + existing
+  const logicalTarget = Math.min(Math.max(0, logicalBase + delta), maxTop)
+  const nextLost = existing + (logicalTarget - logicalBase)
+  if (Math.abs(nextLost) < 0.5) lost.delete(el)
+  else lost.set(el, nextLost)
+  lostVersion.value++
+}
+
 function shiftScroll(el: HTMLElement, delta: number) {
   if (Math.abs(delta) < 0.5) return
   const from = el.scrollTop
-  const maxTop = el.scrollHeight > el.clientHeight ? el.scrollHeight - el.clientHeight : Infinity
+  const maxTop = el.clientHeight > 0 ? Math.max(0, el.scrollHeight - el.clientHeight) : Infinity
 
   // Once a shift for `el` is already known to be dropped during this touch
   // scroll, fold follow-up shifts (including negative ResizeObserver
   // corrections when items measure shorter than estimated) directly into the
   // pending offset relative to the logical scroll position.
   if (moving.value && lost.has(el)) {
-    const existing = lost.get(el)!
-    const logicalBase = Math.max(0, from) + existing
-    const logicalTarget = Math.min(Math.max(0, logicalBase + delta), maxTop)
-    const nextLost = existing + (logicalTarget - logicalBase)
-    if (Math.abs(nextLost) < 0.5) lost.delete(el)
-    else lost.set(el, nextLost)
-    lostVersion.value++
+    foldLost(el, from, delta, maxTop)
     return
   }
 
@@ -228,9 +231,16 @@ function shiftScroll(el: HTMLElement, delta: number) {
       shiftStep = last.step
     } else {
       // One scroll event already occurred after `last` without a known step;
-      // resolve `last` conservatively before starting a fresh shift.
+      // resolve `last` before starting a fresh shift. If `last` was dropped,
+      // record it and fold the follow-up `delta` into `lost` right away.
       shifts.delete(el)
-      if (clearlyDroppedWithoutStep(last, last.first!)) addLost(el, last.delta)
+      if (isDroppedAt(last, last.first!, false)) {
+        addLost(el, last.delta)
+        if (lost.has(el)) {
+          foldLost(el, from, delta, maxTop)
+          return
+        }
+      }
     }
   }
 

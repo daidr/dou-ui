@@ -244,6 +244,135 @@ describe('shiftScroll', () => {
     expect(top).toBe(959)
     wrapper.unmount()
   })
+
+  it('recovers a large dropped move across top bounce reversal, top clamping, and variable drag', () => {
+    vi.useFakeTimers()
+    let touchScroll!: ReturnType<typeof useTouchScroll>
+    const wrapper = mount(
+      defineComponent({
+        setup() {
+          touchScroll = useTouchScroll()
+          return () => h('div')
+        },
+      }),
+      { attachTo: document.body },
+    )
+    const el = document.createElement('div')
+    document.body.append(el)
+    sized(el, { height: 20_000, client: 600 })
+    let top = 0
+    Object.defineProperty(el, 'scrollTop', {
+      configurable: true,
+      get: () => top,
+      set: (value: number) => {
+        top = value
+      },
+    })
+    const scroll = (next: number) => {
+      top = next
+      el.dispatchEvent(new Event('scroll'))
+    }
+
+    // 1. Top rubber-band bounce reversal: from = -20, step = -15 -> next frame reverses to -10
+    touch('touchstart')
+    scroll(-5)
+    scroll(-20)
+    touchScroll.shiftScroll(el, 4800)
+    // iOS accepted the write briefly, then overwrote back to bounce trajectory (-10)
+    scroll(-10)
+    touch('touchend')
+    scroll(0)
+    vi.advanceTimersByTime(200)
+    expect(top).toBe(4800)
+
+    // 2. Top boundary clamp: from = 10, step = -60 -> hits top at -10
+    touch('touchstart')
+    scroll(70)
+    scroll(10)
+    touchScroll.shiftScroll(el, 4800)
+    scroll(-10)
+    touch('touchend')
+    scroll(0)
+    vi.advanceTimersByTime(200)
+    expect(top).toBe(4800)
+
+    // 3. Variable-speed finger drag: from = 100, step = -2 -> accelerates to 65 (-35)
+    touch('touchstart')
+    scroll(102)
+    scroll(100)
+    touchScroll.shiftScroll(el, 4800)
+    scroll(65)
+    touch('touchend')
+    vi.advanceTimersByTime(200)
+    expect(top).toBe(4865)
+
+    // 4. Negative bounce from = -12 settling at 0 with no subsequent scroll event
+    touch('touchstart')
+    scroll(-12)
+    touchScroll.shiftScroll(el, 4800)
+    // iOS silently settles back at 0 without another non-echo scroll event
+    top = 0
+    touch('touchend')
+    vi.advanceTimersByTime(200)
+    expect(top).toBe(4800)
+
+    wrapper.unmount()
+  })
+
+  it('preserves cumulative targets across consecutive dropped shiftScroll calls', () => {
+    vi.useFakeTimers()
+    let touchScroll!: ReturnType<typeof useTouchScroll>
+    const wrapper = mount(
+      defineComponent({
+        setup() {
+          touchScroll = useTouchScroll()
+          return () => h('div')
+        },
+      }),
+      { attachTo: document.body },
+    )
+    const el = document.createElement('div')
+    document.body.append(el)
+    sized(el, { height: 20_000, client: 600 })
+    let top = 200
+    let drop = false
+    Object.defineProperty(el, 'scrollTop', {
+      configurable: true,
+      get: () => top,
+      set: (value: number) => {
+        if (!drop) top = value
+      },
+    })
+
+    // First write accepted, then silently reverted by iOS before second write
+    touch('touchstart')
+    touchScroll.shiftScroll(el, 500)
+    expect(top).toBe(700)
+    top = 200
+    touchScroll.shiftScroll(el, 100)
+    // Target must accumulate to 800, not overwrite to 300
+    expect(top).toBe(800)
+    // Now iOS overwrites back to 200 and settles
+    top = 200
+    touch('touchend')
+    vi.advanceTimersByTime(200)
+    expect(top).toBe(800)
+
+    // Consecutive synchronous drops accumulate cleanly (including negative corrections at scrollTop = 0)
+    top = 0
+    drop = true
+    touch('touchstart')
+    touchScroll.shiftScroll(el, 6000)
+    touchScroll.shiftScroll(el, -237)
+    expect(touchScroll.pendingShift(el)).toBe(5763)
+    touch('touchend')
+    drop = false
+    vi.advanceTimersByTime(200)
+    expect(top).toBe(5763)
+    expect(touchScroll.pendingShift(el)).toBe(0)
+
+    wrapper.unmount()
+  })
 })
 
 describe('loading earlier items at the top', () => {
@@ -354,6 +483,246 @@ describe('loading earlier items at the top', () => {
     a.getBoundingClientRect = () => ({ top: 240 }) as DOMRect
     resizeAll()
     expect(viewport.scrollTop).toBe(240)
+    wrapper.unmount()
+  })
+
+  it('keeps the anchor and avoids duplicate topReached when async history arrives during iOS touch bounce', async () => {
+    vi.useFakeTimers()
+    const items = ref(make(40, 60))
+    const wrapper = mount(
+      defineComponent({
+        emits: ['topReached'],
+        setup(_, { emit }) {
+          return () =>
+            h(
+              DouChatList,
+              {
+                items: items.value,
+                itemKey: 'id',
+                estimateSize: 120,
+                onTopReached: () => emit('topReached'),
+              },
+              {
+                item: ({ item }: { item: { id: number } }) =>
+                  h('div', { 'data-id': item.id }, `#${item.id}`),
+              },
+            )
+        },
+      }),
+      { attachTo: document.body },
+    )
+    const el = wrapper.get('.dou-virtual-list').element as HTMLElement
+    sized(el, { height: 20_000, client: 480 })
+    let top = 0
+    let drop = false
+    Object.defineProperty(el, 'scrollTop', {
+      configurable: true,
+      get: () => top,
+      set: (value: number) => {
+        if (!drop) top = value
+      },
+    })
+    const scrollTo = (value: number) => {
+      top = value
+      el.dispatchEvent(new Event('scroll'))
+    }
+
+    // Scroll to the top so anchor is locked onto item 40 and topReached fires
+    scrollTo(120)
+    scrollTo(0)
+    expect(wrapper.emitted('topReached')).toHaveLength(1)
+
+    // While async history is loading, user touches again and bounces at the top
+    drop = true
+    touch('touchstart')
+    scrollTo(10)
+    scrollTo(-15)
+
+    // 40 older messages arrive (40 * 120 = +4800px) while iOS drops scrollTop writes
+    items.value = [...make(0, 40), ...items.value]
+    await nextTick()
+    await nextTick()
+
+    // Anchor must stay on item 40, not jump to item 0
+    expect(el.scrollTop).toBe(-15)
+    expect(wrapper.find('[data-id="0"]').exists()).toBe(false)
+    expect(wrapper.find('[data-id="40"]').exists()).toBe(true)
+    expect(wrapper.get('.dou-virtual-list__spacer').attributes('style')).toContain(
+      'translateY(-4800px)',
+    )
+
+    // Bounce returns toward 0 and finishes
+    scrollTo(-5)
+    touch('touchend')
+    scrollTo(0)
+    drop = false
+    vi.advanceTimersByTime(200)
+    await nextTick()
+
+    // Dropped shift is applied BEFORE waiting callbacks, so topReached does not fire again
+    expect(el.scrollTop).toBe(4800)
+    expect(wrapper.emitted('topReached')).toHaveLength(1)
+    expect(wrapper.find('[data-id="40"]').exists()).toBe(true)
+    expect(wrapper.get('.dou-virtual-list__spacer').attributes('style')).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('syncs virtual list scrollTop with ResizeObserver height growth to prevent cascade upward jumps', async () => {
+    vi.useFakeTimers()
+    const items = ref(make(0, 100))
+    const wrapper = mount(
+      defineComponent(
+        () => () =>
+          h(
+            DouVirtualList,
+            { items: items.value, itemKey: 'id', estimateSize: 120, height: 480, overscan: 4 },
+            {
+              default: ({ item }: { item: { id: number } }) =>
+                h('div', { 'data-id': item.id }, `msg-${item.id}`),
+            },
+          ),
+      ),
+      { attachTo: document.body },
+    )
+    const el = wrapper.get('.dou-virtual-list').element as HTMLElement
+    sized(el, { height: 30_000, client: 480 })
+    let top = 4800
+    let drop = false
+    Object.defineProperty(el, 'scrollTop', {
+      configurable: true,
+      get: () => top,
+      set: (value: number) => {
+        if (!drop) top = value
+      },
+    })
+    el.dispatchEvent(new Event('scroll'))
+    await nextTick()
+
+    // At scrollTop = 4800 (item 40), overscan = 4 renders items 36..47
+    const initialIndices = wrapper
+      .findAll('.dou-virtual-list__item')
+      .map((node) => Number(node.attributes('data-index')))
+    expect(initialIndices[0]).toBe(36)
+
+    // 1. Desktop / accepted write: items 36..39 actually measure 320px (+200px each = +800px)
+    //    No scroll event is dispatched after ResizeObserver, yet range must NOT pull in items < 36.
+    for (const node of wrapper.findAll('.dou-virtual-list__item')) {
+      const idx = Number(node.attributes('data-index'))
+      Object.defineProperty(node.element, 'offsetHeight', {
+        configurable: true,
+        get: () => (idx >= 36 && idx <= 39 ? 320 : 120),
+      })
+    }
+    resizeAll()
+    await nextTick()
+    expect(top).toBe(5600)
+    const afterDesktopIndices = wrapper
+      .findAll('.dou-virtual-list__item')
+      .map((node) => Number(node.attributes('data-index')))
+    expect(afterDesktopIndices[0]).toBe(36)
+
+    // 2. iOS touch scroll where scrollTop write is dropped:
+    //    User swipes up by 120px so item 35 enters overscan and measures 320px (+200px).
+    drop = true
+    touch('touchstart')
+    top = 5480
+    el.dispatchEvent(new Event('scroll'))
+    await nextTick()
+    const item35 = wrapper.find('.dou-virtual-list__item[data-index="35"]')
+    expect(item35.exists()).toBe(true)
+    Object.defineProperty(item35.element, 'offsetHeight', {
+      configurable: true,
+      get: () => 320,
+    })
+    resizeAll()
+    await nextTick()
+
+    // DOM scrollTop was dropped by iOS, but logical scrollTop & visual offset stayed in sync
+    // so item 34 is NOT pulled in as a cascade.
+    expect(top).toBe(5480)
+    const duringTouchIndices = wrapper
+      .findAll('.dou-virtual-list__item')
+      .map((node) => Number(node.attributes('data-index')))
+    expect(duringTouchIndices[0]).toBe(35)
+    expect(wrapper.get('.dou-virtual-list__spacer').attributes('style')).toContain(
+      'translateY(-200px)',
+    )
+
+    // When touch settles, the dropped +200px shift is applied cleanly
+    touch('touchend')
+    drop = false
+    vi.advanceTimersByTime(200)
+    await nextTick()
+    expect(top).toBe(5680)
+    expect(wrapper.get('.dou-virtual-list__spacer').attributes('style')).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('applies dropped shift before settled callbacks even when step is unknown during top scroll', async () => {
+    vi.useFakeTimers()
+    const items = ref(make(40, 60))
+    const wrapper = mount(
+      defineComponent({
+        emits: ['topReached'],
+        setup(_, { emit }) {
+          return () =>
+            h(
+              DouChatList,
+              {
+                items: items.value,
+                itemKey: 'id',
+                estimateSize: 120,
+                onTopReached: () => emit('topReached'),
+              },
+              {
+                item: ({ item }: { item: { id: number } }) =>
+                  h('div', { 'data-id': item.id }, `#${item.id}`),
+              },
+            )
+        },
+      }),
+      { attachTo: document.body },
+    )
+    const el = wrapper.get('.dou-virtual-list').element as HTMLElement
+    sized(el, { height: 20_000, client: 480 })
+    let top = 0
+    Object.defineProperty(el, 'scrollTop', {
+      configurable: true,
+      get: () => top,
+      set: (value: number) => {
+        top = value
+      },
+    })
+    const scrollTo = (value: number) => {
+      top = value
+      el.dispatchEvent(new Event('scroll'))
+    }
+
+    // Reach top once
+    scrollTo(120)
+    scrollTo(0)
+    expect(wrapper.emitted('topReached')).toHaveLength(1)
+
+    // Touch starts with NO prior step in this touch (shift.step === undefined).
+    // User leaves top briefly (resets atTop = false) then returns to 0.
+    touch('touchstart')
+    scrollTo(20)
+    // Prepend 1 small item (+120px): iOS accepts write temporarily, then overwrites back to 0
+    items.value = [...make(39, 1), ...items.value]
+    await nextTick()
+    await nextTick()
+    expect(top).toBe(140)
+    // iOS overwrites back to 0 on the very first scroll event after the shift.
+    // Because delta is small (120px) and step is unknown, checkShift waits for
+    // a second event while DouChatList.onScroll queues reachTop in waiting.
+    scrollTo(0)
+    touch('touchend')
+    vi.advanceTimersByTime(200)
+    await nextTick()
+
+    // On settle, resolveShifts + makeLost must restore scrollTop BEFORE reachTop runs
+    expect(top).toBe(120)
+    expect(wrapper.emitted('topReached')).toHaveLength(1)
     wrapper.unmount()
   })
 })

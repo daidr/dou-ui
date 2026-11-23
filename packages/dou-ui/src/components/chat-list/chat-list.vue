@@ -85,21 +85,29 @@ let following = true
 let lastTop = 0
 let atTop = false
 const touch = useTouchScroll()
+const plainContentStyle = computed(() => {
+  const offset = !props.items ? touch.pendingShift(plainViewport.value) : 0
+  return offset ? { transform: `translateY(${-offset}px)` } : undefined
+})
 
-function distanceToBottom(el: HTMLElement) {
-  return el.scrollHeight - el.scrollTop - el.clientHeight
+function logicalTopOf(el: HTMLElement) {
+  return Math.max(0, scrollPositionOf(el).top + touch.pendingShift(el))
 }
 
-const isTop = (el: HTMLElement) =>
-  scrollPositionOf(el).top <= 0 && el.scrollHeight > el.clientHeight
+function distanceToBottom(el: HTMLElement) {
+  return el.scrollHeight - (el.scrollTop + touch.pendingShift(el)) - el.clientHeight
+}
+
+const isTop = (el: HTMLElement) => logicalTopOf(el) <= 0 && el.scrollHeight > el.clientHeight
 
 function onScroll() {
   const el = viewportRef.value
   if (!el) return
+  const top = el.scrollTop + touch.pendingShift(el)
   const near = distanceToBottom(el) <= props.threshold
   if (near) following = true
-  else if (el.scrollTop < lastTop) following = false
-  lastTop = el.scrollTop
+  else if (top < lastTop) following = false
+  lastTop = top
   atBottom.value = near
   if (!isTop(el)) {
     atTop = false
@@ -156,6 +164,7 @@ function onWheel(event: WheelEvent) {
 function scrollToBottom(behavior: ScrollBehavior = reducedMotion.value ? 'auto' : 'smooth') {
   const el = viewportRef.value
   if (!el) return
+  touch.clearShift(el)
   following = true
   el.scrollTo?.({ top: el.scrollHeight, behavior })
   if (!el.scrollTo) el.scrollTop = el.scrollHeight
@@ -181,7 +190,10 @@ onMounted(() => {
   observeContent()
   if (viewportRef.value) observer.observe(viewportRef.value)
 })
-onBeforeUnmount(() => observer?.disconnect())
+onBeforeUnmount(() => {
+  observer?.disconnect()
+  touch.clearShift(plainViewport.value)
+})
 
 // A virtual list draws its content only once it has items.
 let observed: HTMLElement | null | undefined
@@ -228,6 +240,7 @@ function scrollToMessage(
             : el.scrollTop
     // the reader asked to look elsewhere: new content must not pull them away
     following = false
+    touch.clearShift(el)
     el.scrollTop = Math.max(0, to)
     return
   }
@@ -277,7 +290,7 @@ defineExpose<ChatListExpose>({
       :estimate-size="estimateSize"
       role="log"
       :aria-label="t('chat.messages')"
-      @scroll.passive="onScroll"
+      @scroll="onScroll"
       @wheel.passive="onWheel"
     >
       <template #default="{ item, index }">
@@ -294,7 +307,7 @@ defineExpose<ChatListExpose>({
       @scroll.passive="onScroll"
       @wheel.passive="onWheel"
     >
-      <div ref="content" :class="ns.e('content')"><slot /></div>
+      <div ref="content" :class="ns.e('content')" :style="plainContentStyle"><slot /></div>
     </div>
     <Transition name="dou-chat-list-button">
       <div v-if="showScrollButton && !atBottom" :class="ns.e('scroll')">

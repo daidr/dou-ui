@@ -54,6 +54,16 @@ const elRef = useTemplateRef<HTMLElement>('el')
 const sizeBy = (size: number | ((item: T, index: number) => number), index: number) =>
   typeof size === 'function' ? size(props.items[index]!, index) : size
 
+const touch = useTouchScroll()
+const pendingOffset = computed(() => touch.pendingShift(elRef.value))
+const spacerStyle = computed(() =>
+  pendingOffset.value ? { transform: `translateY(${-pendingOffset.value}px)` } : undefined,
+)
+
+function logicalTopOf(el: HTMLElement) {
+  return Math.max(0, scrollPositionOf(el).top + touch.pendingShift(el))
+}
+
 // Without `itemSize`, heights come from the rendered items.
 const measured = computed(() => props.itemSize === undefined)
 const measuredSizes = useMeasuredSizes({
@@ -61,6 +71,10 @@ const measuredSizes = useMeasuredSizes({
   keyOf: (index) => keyOf(props.items[index]!, index),
   estimate: (index) => sizeBy(props.estimateSize, index),
   container: () => elRef.value,
+  onShift: (_shift, el) => {
+    syncScroll(el)
+    if (touch.active.value) touch.whenSettled(syncAfterTouch)
+  },
 })
 const fixedOffsets = computed(() =>
   createOffsets(props.items.length, (index) => sizeBy(props.itemSize!, index)),
@@ -113,10 +127,11 @@ let reachedEnd = false
 function onScroll(event: Event) {
   const el = event.currentTarget as HTMLElement
   // iOS reports positions past either end while the content bounces back
-  scrollTop.value = scrollPositionOf(el).top
+  scrollTop.value = logicalTopOf(el)
   remember(el)
   emit('scroll', event)
-  const atEnd = el.scrollTop + el.clientHeight >= el.scrollHeight - props.endThreshold
+  const atEnd =
+    el.scrollTop + touch.pendingShift(el) + el.clientHeight >= el.scrollHeight - props.endThreshold
   if (atEnd && !reachedEnd && props.items.length) emit('endReached')
   reachedEnd = atEnd
 }
@@ -129,30 +144,50 @@ watch(
 // With measured items, items added or removed above the view keep the
 // first visible item where it was, e.g. earlier messages loaded on top,
 // also when the view is at the very top.
-const touch = useTouchScroll()
 let anchor: { key: VirtualListKey; offset: number } | undefined
 function remember(el: HTMLElement) {
   if (!measured.value || !props.items.length) return (anchor = undefined)
-  const top = scrollPositionOf(el).top
+  const top = logicalTopOf(el)
   const index = offsets.value.find(top)
   anchor = {
     key: keyOf(props.items[index]!, index),
     offset: offsets.value.start(index) - top,
   }
 }
+function syncScroll(el: HTMLElement) {
+  scrollTop.value = logicalTopOf(el)
+  remember(el)
+}
+function syncAfterTouch() {
+  const el = elRef.value
+  if (el) syncScroll(el)
+}
+function targetOf(items: T[]) {
+  const held = anchor
+  if (!held) return undefined
+  const index = items.findIndex((item, at) => keyOf(item, at) === held.key)
+  if (index < 0) return undefined
+  return Math.max(0, offsets.value.start(index) - held.offset)
+}
+// Keep the rendered window on the anchored item before DOM updates so visible
+// items stay mounted and newly prepended items do not briefly render at top.
 watch(
   () => props.items,
   (items) => {
-    const held = anchor
+    const target = targetOf(items)
+    if (target !== undefined) scrollTop.value = target
+  },
+)
+watch(
+  () => props.items,
+  (items) => {
     const el = elRef.value
-    if (!held || !el) return
-    const index = items.findIndex((item, at) => keyOf(item, at) === held.key)
-    if (index < 0) return
+    const target = targetOf(items)
+    if (!el || target === undefined) return
     // a move iOS drops during a touch scroll is made once it is over
-    const target = Math.max(0, offsets.value.start(index) - held.offset)
-    touch.shiftScroll(el, target - el.scrollTop)
-    scrollTop.value = scrollPositionOf(el).top
-    remember(el)
+    touch.shiftScroll(el, target - logicalTopOf(el))
+    syncScroll(el)
+    if (touch.active.value) touch.whenSettled(syncAfterTouch)
   },
   { flush: 'post' },
 )
@@ -166,11 +201,15 @@ onMounted(() => {
   observer.value = new ResizeObserver(() => (viewportSize.value = el.clientHeight))
   observer.value.observe(el)
 })
-onBeforeUnmount(() => observer.value?.disconnect())
+onBeforeUnmount(() => {
+  observer.value?.disconnect()
+  touch.clearShift(elRef.value)
+})
 
 function scrollTo(offset: number) {
   const el = elRef.value
   if (!el) return
+  touch.clearShift(el)
   el.scrollTop = offset
   // Rendering follows right away, without waiting for the scroll event.
   scrollTop.value = el.scrollTop
@@ -208,8 +247,8 @@ defineExpose<VirtualListExpose>({
 </script>
 
 <template>
-  <div ref="el" tabindex="0" :class="ns.b()" :style="style" @scroll="onScroll">
-    <div v-if="items.length" :class="ns.e('spacer')">
+  <div ref="el" tabindex="0" :class="ns.b()" :style="style" @scroll.passive="onScroll">
+    <div v-if="items.length" :class="ns.e('spacer')" :style="spacerStyle">
       <div
         v-if="spacerBefore > 0"
         :class="ns.e('pad')"

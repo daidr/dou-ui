@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M11.48 13A4.25 4.25 0 0 0 5.7 7.65L7.25 9.2L5.2 11.25L3.65 9.7A4.25 4.25 0 0 0 9 15.48l3.26 3.26a1.75 1.75 0 0 0 2.48-2.48Z" />
+  <path data-badge="direction" d="M15 4.75h5.5l-1.75-1.75" />
+  <path data-badge="direction" d="M20.5 8.75H15l1.75 1.75" />
+</svg>

@@ -8,6 +8,7 @@ import {
 } from '@dou-ui/icons'
 import { computed, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue'
 import { isComposing } from '../../utils/keyboard'
+import { SlotNodes, filled } from '../../utils/slot'
 import { devWarn, useStatusCheck } from '../../utils/status-check'
 import { useNamespace } from '../../utils/namespace'
 import { DouButton } from '../button'
@@ -137,7 +138,7 @@ const sources = computed(() => {
 const busy = computed(
   () =>
     props.loading ||
-    props.status === 'sending' ||
+    (isUser.value && props.status === 'sending') ||
     parts.value.some((part) => {
       const p = part as Record<string, unknown>
       // an artifact can keep being made after the reply ends, so it doesn't hold the actions back
@@ -218,12 +219,6 @@ const showActions = computed(
 
 // editing in place
 const editing = ref(false)
-const showStatus = computed(
-  () =>
-    isUser.value &&
-    !editing.value &&
-    (props.status === 'sending' || props.status === 'error' || !!slots.status),
-)
 const draft = ref('')
 const editorRef = useTemplateRef<HTMLTextAreaElement>('editor')
 function startEdit() {
@@ -292,8 +287,8 @@ const rest = (part: AnyPart) => {
       ns.m(sender),
       ns.m(`actions-${actionsShow}`),
       ns.is('loading', loading),
-      ns.is('sending', status === 'sending'),
-      ns.is('error', status === 'error'),
+      ns.is('sending', isUser && status === 'sending'),
+      ns.is('error', isUser && status === 'error'),
       ns.is('editing', editing),
       ns.is('highlighted', highlighted),
       ns.is('reacting', pickerOpen),
@@ -440,18 +435,25 @@ const rest = (part: AnyPart) => {
       </span>
     </div>
 
-    <Transition v-if="isUser" name="dou-chat-message-status">
-      <div v-if="showStatus" :class="ns.e('status')">
-        <slot name="status" :status="status">
-          <DouSpinner v-if="status === 'sending'" size="sm" :label="t('chat.sending')" />
-          <DouTooltip v-else-if="status === 'error'" :content="t('chat.sendError')">
-            <span :class="ns.e('status-icon')" role="status" :aria-label="t('chat.sendError')">
-              <AlertCircleIcon aria-hidden="true" />
-            </span>
-          </DouTooltip>
-        </slot>
-      </div>
-    </Transition>
+    <template v-if="isUser">
+      <!-- rendered once: a status slot that renders nothing falls back to the built-in mark -->
+      <template v-for="customStatus in [filled(slots.status, { status })]" :key="0">
+        <Transition name="dou-chat-message-status">
+          <div
+            v-if="!editing && (customStatus || status === 'sending' || status === 'error')"
+            :class="ns.e('status')"
+          >
+            <SlotNodes v-if="customStatus" :nodes="customStatus" />
+            <DouSpinner v-else-if="status === 'sending'" size="sm" :label="t('chat.sending')" />
+            <DouTooltip v-else-if="status === 'error'" :content="t('chat.sendError')">
+              <span :class="ns.e('status-icon')" role="status" :aria-label="t('chat.sendError')">
+                <AlertCircleIcon aria-hidden="true" />
+              </span>
+            </DouTooltip>
+          </div>
+        </Transition>
+      </template>
+    </template>
 
     <div
       v-if="reactions.length && !editing"

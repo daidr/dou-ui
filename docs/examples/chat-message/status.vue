@@ -50,8 +50,8 @@ const filesOnly = [
     :status="retryStatus"
     content="路线文件也一并发你了，帮我看看坡度。"
   >
-    <template v-if="retryStatus === 'error'" #status>
-      <DouTooltip content="发送失败，点击重试">
+    <template #status="{ status }">
+      <DouTooltip v-if="status === 'error'" content="发送失败，点击重试">
         <DouButton size="xs" variant="ghost" tone="danger" aria-label="重试发送" @click="retry">
           <RefreshIcon />
         </DouButton>

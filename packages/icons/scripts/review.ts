@@ -74,7 +74,7 @@ const css = `body{font-family:sans-serif;margin:12px;background:#fff;color:#111;
 .big .ic *{stroke:#111;stroke-width:1.5px;stroke-linecap:round;stroke-linejoin:round;fill:none;opacity:.88}.big .ic .dot{stroke-width:2.25px}.big .ic .fill{fill:#111}
 .big .sk *{stroke:#e33;stroke-width:.06;fill:none}
 .row{display:flex;gap:10px;align-items:end;margin-top:6px}.row svg *{vector-effect:non-scaling-stroke}
-.big .gaps circle{fill:none;stroke-width:.12}.big .gaps .merge{stroke:#e22}.big .gaps .tight{stroke:#e90}
+.big .gaps circle{fill:none;stroke-width:.12}.big .gaps .merge{stroke:#e22}.big .gaps .tight{stroke:#e90}.big .gaps .overshoot{stroke:#e22;stroke-dasharray:.35 .2}
 .pixels{margin-top:6px;font-size:11px;color:#777;display:flex;gap:8px;align-items:end}.px{width:96px;height:96px;image-rendering:pixelated;border:1px solid #eee}
 .t{font-size:14px;font-weight:600}.b{font-size:11px;color:#777}.b.bad{color:#d22;font-weight:600}
 .big .axis,.big .diagonal{fill:none;stroke:#8e9caf;stroke-width:.06}.big .diagonal{stroke:#bbc4d1;stroke-dasharray:.3 .3}
@@ -150,6 +150,7 @@ const boxes: Record<
     out: boolean
     edge: boolean
     gaps: { d: number; x: number; y: number }[]
+    overshoots?: { d: number; x: number; y: number }[]
     ink: number
   }
 > = {}
@@ -184,6 +185,14 @@ if (joints.length)
   log(`Badge collisions or missed/sharp joints (gap < 1.2):\n  ${joints.join('\n  ')}`)
 if (merged.length) log(`Strokes merging at 16px (gap 1.2–2.5):\n  ${merged.join('\n  ')}`)
 if (tight.length) log(`Tight at 16px (below the applicable clearance):\n  ${tight.join('\n  ')}`)
+const overshoots = names
+  .filter((name) => boxes[name]?.overshoots?.length)
+  .map((name) => {
+    const spots = boxes[name]!.overshoots!
+    return `${name} (${spots.map((spot) => `${spot.d}@${spot.x},${spot.y}`).join(' ')})`
+  })
+if (overshoots.length)
+  log(`Endpoint overshoots (protruding past a crossing):\n  ${overshoots.join('\n  ')}`)
 const heavy = names.filter((name) => (boxes[name]?.ink ?? 0) > 1.45)
 if (heavy.length)
   log(`Heavier than 1.45× the median ink: ${heavy.map((n) => `${n} ${boxes[n]!.ink}`).join(', ')}`)

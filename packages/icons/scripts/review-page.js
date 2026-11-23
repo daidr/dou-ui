@@ -5,6 +5,8 @@
 //   3.5 the gap closes to less than 1px, and under 2.5 the strokes merge.
 //   Under 1.2 the strokes already look joined: the endpoint misses the other
 //   centerline, or two strokes meet at a sharp angle;
+// - overshoots: open stroke endpoints that cross the interior of another stroke
+//   and protrude past it by 0.2–1 grid units;
 // - ink: the share of the 24px canvas the icon covers, against the set's median;
 // and draws the 16px render at 1× device pixels, enlarged, so blur shows.
 const stroke = (size) => 0.75 + size / 32
@@ -17,6 +19,35 @@ const coverage = (canvas) => {
   return ink / (canvas.width * canvas.height)
 }
 
+const segIntersect = (ax, ay, bx, by, cx, cy, dx, dy) => {
+  const rx = bx - ax
+  const ry = by - ay
+  const sx = dx - cx
+  const sy = dy - cy
+  const denom = rx * sy - ry * sx
+  if (Math.abs(denom) < 1e-9) return null
+  const qx = cx - ax
+  const qy = cy - ay
+  const t = (qx * sy - qy * sx) / denom
+  const u = (qx * ry - qy * rx) / denom
+  return t >= 0 && t <= 1 && u >= 0 && u <= 1 ? [t, u, ax + t * rx, ay + t * ry] : null
+}
+
+const pointToCurve = (px, py, pts) => {
+  let min = Infinity
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [ax, ay] = pts[i]
+    const [bx, by] = pts[i + 1]
+    const dx = bx - ax
+    const dy = by - ay
+    const l2 = dx * dx + dy * dy
+    const t = l2 > 0 ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / l2)) : 0
+    const d = Math.hypot(px - (ax + t * dx), py - (ay + t * dy))
+    if (d < min) min = d
+  }
+  return min
+}
+
 ;(async () => {
   const NS = 'http://www.w3.org/2000/svg'
   const STEP = 0.12
@@ -24,6 +55,7 @@ const coverage = (canvas) => {
   const MIN_GAP = 3.5
   const MERGE = 2.5
   const JOINT = 1.2
+  const OVERSHOOT = 1
   // 24px coverage median of the whole set; heavier than 1.45× needs a reason
   const INK_MEDIAN = 0.172
   const INK_LIMIT = 1.45
@@ -74,8 +106,7 @@ const coverage = (canvas) => {
     return points
   }
 
-  const gaps = (group) => {
-    const P = sample(group)
+  const gaps = (P) => {
     const candidates = []
     for (let i = 0; i < P.length; i++)
       for (let j = i + 1; j < P.length; j++) {
@@ -130,6 +161,95 @@ const coverage = (canvas) => {
     }))
   }
 
+  // Open stroke endpoints that cross the interior of another stroke and stick
+  // out by [TOUCH, OVERSHOOT) grid units (e.g. a handle poking inside a wall).
+  const overshoots = (P) => {
+    const curves = []
+    for (const p of P) {
+      let c = curves[curves.length - 1]
+      if (!c || c.id !== p[2]) {
+        c = { id: p[2], badge: p[5], pts: [] }
+        curves.push(c)
+      }
+      c.pts.push(p)
+    }
+    const strokes = curves
+      .filter((c) => c.pts.length >= 2)
+      .map((c) => {
+        const first = c.pts[0]
+        const last = c.pts[c.pts.length - 1]
+        let minX = Infinity
+        let maxX = -Infinity
+        let minY = Infinity
+        let maxY = -Infinity
+        for (const [x, y] of c.pts) {
+          if (x < minX) minX = x
+          if (x > maxX) maxX = x
+          if (y < minY) minY = y
+          if (y > maxY) maxY = y
+        }
+        return {
+          ...c,
+          s0: first[3],
+          s1: last[3],
+          len: last[3] - first[3],
+          closed: Math.hypot(first[0] - last[0], first[1] - last[1]) < TOUCH,
+          box: [minX, maxX, minY, maxY],
+        }
+      })
+
+    const found = []
+    for (let ci = 0; ci < strokes.length; ci++) {
+      const c = strokes[ci]
+      if (c.closed || c.len < TOUCH * 2) continue
+      for (const isStart of [true, false]) {
+        const ep = isStart ? c.pts[0] : c.pts[c.pts.length - 1]
+        let best = null
+        for (let cj = 0; cj < strokes.length; cj++) {
+          if (ci === cj) continue
+          const other = strokes[cj]
+          if (c.badge !== other.badge) continue
+          if (
+            ep[0] < other.box[0] - OVERSHOOT ||
+            ep[0] > other.box[1] + OVERSHOOT ||
+            ep[1] < other.box[2] - OVERSHOOT ||
+            ep[1] > other.box[3] + OVERSHOOT
+          )
+            continue
+          if (pointToCurve(ep[0], ep[1], other.pts) < TOUCH) continue
+          for (let i = 0; i < c.pts.length - 1; i++) {
+            const p0 = c.pts[i]
+            const p1 = c.pts[i + 1]
+            const distFromEnd = isStart
+              ? Math.min(p0[3] - c.s0, p1[3] - c.s0)
+              : Math.min(c.s1 - p0[3], c.s1 - p1[3])
+            if (distFromEnd >= OVERSHOOT) continue
+            for (let j = 0; j < other.pts.length - 1; j++) {
+              const q0 = other.pts[j]
+              const q1 = other.pts[j + 1]
+              const hit = segIntersect(p0[0], p0[1], p1[0], p1[1], q0[0], q0[1], q1[0], q1[1])
+              if (!hit) continue
+              const sOther = q0[3] + hit[1] * (q1[3] - q0[3])
+              if (!other.closed && Math.min(sOther - other.s0, other.s1 - sOther) < TOUCH) continue
+              const sInter = p0[3] + hit[0] * (p1[3] - p0[3])
+              const tail = isStart ? sInter - c.s0 : c.s1 - sInter
+              if (tail < TOUCH || tail >= OVERSHOOT || c.len - tail < TOUCH) continue
+              if (!best || tail < best.tail) {
+                best = {
+                  tail,
+                  x: Math.round(((hit[2] + ep[0]) / 2) * 10) / 10,
+                  y: Math.round(((hit[3] + ep[1]) / 2) * 10) / 10,
+                }
+              }
+            }
+          }
+        }
+        if (best) found.push({ d: Math.round(best.tail * 100) / 100, x: best.x, y: best.y })
+      }
+    }
+    return found
+  }
+
   window.boxes = {}
   for (const card of document.querySelectorAll('.card')) {
     const icon = card.querySelector('.ic')
@@ -146,7 +266,9 @@ const coverage = (canvas) => {
     card.querySelector('.pixels').append(pixels)
 
     function updateGaps() {
-      const found = gaps(icon)
+      const P = sample(icon)
+      const found = gaps(P)
+      const foundOvershoots = overshoots(P)
       const marks = card.querySelector('.gaps')
       marks.replaceChildren()
       for (const g of found) {
@@ -155,6 +277,14 @@ const coverage = (canvas) => {
         ring.setAttribute('cy', g.y)
         ring.setAttribute('r', 1.6)
         ring.setAttribute('class', g.d < MERGE ? 'merge' : 'tight')
+        marks.append(ring)
+      }
+      for (const o of foundOvershoots) {
+        const ring = document.createElementNS(NS, 'circle')
+        ring.setAttribute('cx', o.x)
+        ring.setAttribute('cy', o.y)
+        ring.setAttribute('r', 1.6)
+        ring.setAttribute('class', 'overshoot')
         marks.append(ring)
       }
 
@@ -168,6 +298,7 @@ const coverage = (canvas) => {
         out,
         edge,
         gaps: found,
+        overshoots: foundOvershoots,
         ink: Math.round(ink * 100) / 100,
       }
 
@@ -179,10 +310,13 @@ const coverage = (canvas) => {
           : icon.querySelector('[data-badge]')
             ? `间隙达标（角标与主体 ${BADGE_CLEARANCE}，其余 ${MIN_GAP}）`
             : `间隙 ≥ ${MIN_GAP}`,
+        ...(foundOvershoots.length
+          ? [`过冲 ${foundOvershoots.map((o) => `${o.d}@${o.x},${o.y}`).join('  ')}  端点穿出`]
+          : []),
       ]
       const note = card.querySelector('.b')
       note.innerHTML = lines.map((line) => `<div>${line}</div>`).join('')
-      note.classList.toggle('bad', out || merge.length > 0)
+      note.classList.toggle('bad', out || merge.length > 0 || foundOvershoots.length > 0)
     }
     updateGaps()
     card.addEventListener('badgechange', updateGaps)

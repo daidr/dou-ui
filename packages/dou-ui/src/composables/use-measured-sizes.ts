@@ -18,6 +18,8 @@ export interface UseMeasuredSizesOptions<K> {
    * the sum of the sizes before it.
    */
   start?: (index: number) => number
+  /** Called right after a height change above the view shifts the scroll position. */
+  onShift?: (shift: number, el: HTMLElement) => void
 }
 
 /**
@@ -55,10 +57,11 @@ export function useMeasuredSizes<K>(options: UseMeasuredSizesOptions<K>) {
     let shift = 0
     let changed = false
     const el = options.container()
-    const top = el ? scrollPositionOf(el).top : 0
+    const top = el ? Math.max(0, scrollPositionOf(el).top + touch.pendingShift(el)) : 0
+    const count = options.count()
     const seen = new Set<K>()
     for (const { key, index } of items) {
-      if (seen.has(key)) continue
+      if (index < 0 || index >= count || seen.has(key)) continue
       seen.add(key)
       const size = heightOf(key)
       const before = sizeOf(index)
@@ -69,7 +72,10 @@ export function useMeasuredSizes<K>(options: UseMeasuredSizesOptions<K>) {
     }
     if (!changed) return
     version.value++
-    if (el && shift) touch.shiftScroll(el, shift)
+    if (el && shift) {
+      touch.shiftScroll(el, shift)
+      options.onShift?.(shift, el)
+    }
   }
 
   const observer =

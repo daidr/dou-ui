@@ -1,8 +1,14 @@
 <script setup lang="ts">
-import { ChevronLeftIcon, ChevronRightIcon, EditIcon, SmilePlusIcon } from '@dou-ui/icons'
+import {
+  AlertCircleIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  EditIcon,
+  SmilePlusIcon,
+} from '@dou-ui/icons'
 import { computed, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue'
 import { isComposing } from '../../utils/keyboard'
-import { devWarn } from '../../utils/status-check'
+import { devWarn, useStatusCheck } from '../../utils/status-check'
 import { useNamespace } from '../../utils/namespace'
 import { DouButton } from '../button'
 import { DouChatArtifact } from '../chat-artifact'
@@ -21,6 +27,7 @@ import { DouCopyButton } from '../copy-button'
 import { DouMarkdown } from '../markdown'
 import { DouPopover } from '../popover'
 import type { ChatSource } from '../chat-sources/chat-sources'
+import { DouSpinner } from '../spinner'
 import { DouStreamText } from '../stream-text'
 import { DouTooltip } from '../tooltip'
 import { messageText } from './chat-message'
@@ -42,6 +49,7 @@ defineOptions({ name: 'DouChatMessage' })
 const props = withDefaults(defineProps<ChatMessageProps>(), {
   sender: 'assistant',
   loading: false,
+  status: undefined,
   copyable: true,
   reactable: true,
   editable: false,
@@ -55,6 +63,10 @@ const slots = defineSlots<ChatMessageSlots & ChatMessageMarkdownSlots>()
 
 const ns = useNamespace('chat-message')
 const { t } = useLocale()
+
+useStatusCheck('DouChatMessage', () => [props.status], ['sending', 'sent', 'error'], {
+  failed: 'error',
+})
 
 type AnyPart = ChatMessagePart | ChatCustomPart
 
@@ -125,6 +137,7 @@ const sources = computed(() => {
 const busy = computed(
   () =>
     props.loading ||
+    props.status === 'sending' ||
     parts.value.some((part) => {
       const p = part as Record<string, unknown>
       // an artifact can keep being made after the reply ends, so it doesn't hold the actions back
@@ -205,6 +218,12 @@ const showActions = computed(
 
 // editing in place
 const editing = ref(false)
+const showStatus = computed(
+  () =>
+    isUser.value &&
+    !editing.value &&
+    (props.status === 'sending' || props.status === 'error' || !!slots.status),
+)
 const draft = ref('')
 const editorRef = useTemplateRef<HTMLTextAreaElement>('editor')
 function startEdit() {
@@ -273,6 +292,8 @@ const rest = (part: AnyPart) => {
       ns.m(sender),
       ns.m(`actions-${actionsShow}`),
       ns.is('loading', loading),
+      ns.is('sending', status === 'sending'),
+      ns.is('error', status === 'error'),
       ns.is('editing', editing),
       ns.is('highlighted', highlighted),
       ns.is('reacting', pickerOpen),
@@ -418,6 +439,19 @@ const rest = (part: AnyPart) => {
         <i /><i /><i />
       </span>
     </div>
+
+    <Transition v-if="isUser" name="dou-chat-message-status">
+      <div v-if="showStatus" :class="ns.e('status')">
+        <slot name="status" :status="status">
+          <DouSpinner v-if="status === 'sending'" size="sm" :label="t('chat.sending')" />
+          <DouTooltip v-else-if="status === 'error'" :content="t('chat.sendError')">
+            <span :class="ns.e('status-icon')" role="status" :aria-label="t('chat.sendError')">
+              <AlertCircleIcon aria-hidden="true" />
+            </span>
+          </DouTooltip>
+        </slot>
+      </div>
+    </Transition>
 
     <div
       v-if="reactions.length && !editing"

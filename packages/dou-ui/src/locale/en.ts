@@ -443,6 +443,8 @@ export const en: Locale = {
     messages: 'Messages',
     scrollToBottom: 'Scroll to bottom',
     loading: 'Replying',
+    sending: 'Sending',
+    sendError: 'Failed to send',
     placeholder: 'Send a message',
     send: 'Send',
     stop: 'Stop generating',

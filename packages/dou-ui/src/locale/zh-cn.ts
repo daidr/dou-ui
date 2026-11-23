@@ -443,6 +443,8 @@ export const zhCN: Locale = {
     messages: '消息列表',
     scrollToBottom: '回到底部',
     loading: '正在回复',
+    sending: '正在发送',
+    sendError: '发送失败',
     placeholder: '发送消息',
     send: '发送',
     stop: '停止生成',

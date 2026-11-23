@@ -1,8 +1,15 @@
 <script setup lang="ts">
-import { ChevronLeftIcon, ChevronRightIcon, EditIcon, SmilePlusIcon } from '@dou-ui/icons'
+import {
+  AlertCircleIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  EditIcon,
+  SmilePlusIcon,
+} from '@dou-ui/icons'
 import { computed, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue'
 import { isComposing } from '../../utils/keyboard'
-import { devWarn } from '../../utils/status-check'
+import { SlotNodes, filled } from '../../utils/slot'
+import { devWarn, useStatusCheck } from '../../utils/status-check'
 import { useNamespace } from '../../utils/namespace'
 import { DouButton } from '../button'
 import { DouChatArtifact } from '../chat-artifact'
@@ -21,6 +28,7 @@ import { DouCopyButton } from '../copy-button'
 import { DouMarkdown } from '../markdown'
 import { DouPopover } from '../popover'
 import type { ChatSource } from '../chat-sources/chat-sources'
+import { DouSpinner } from '../spinner'
 import { DouStreamText } from '../stream-text'
 import { DouTooltip } from '../tooltip'
 import { messageText } from './chat-message'
@@ -42,6 +50,7 @@ defineOptions({ name: 'DouChatMessage' })
 const props = withDefaults(defineProps<ChatMessageProps>(), {
   sender: 'assistant',
   loading: false,
+  status: undefined,
   copyable: true,
   reactable: true,
   editable: false,
@@ -55,6 +64,10 @@ const slots = defineSlots<ChatMessageSlots & ChatMessageMarkdownSlots>()
 
 const ns = useNamespace('chat-message')
 const { t } = useLocale()
+
+useStatusCheck('DouChatMessage', () => [props.status], ['sending', 'sent', 'error'], {
+  failed: 'error',
+})
 
 type AnyPart = ChatMessagePart | ChatCustomPart
 
@@ -125,6 +138,7 @@ const sources = computed(() => {
 const busy = computed(
   () =>
     props.loading ||
+    (isUser.value && props.status === 'sending') ||
     parts.value.some((part) => {
       const p = part as Record<string, unknown>
       // an artifact can keep being made after the reply ends, so it doesn't hold the actions back
@@ -273,6 +287,8 @@ const rest = (part: AnyPart) => {
       ns.m(sender),
       ns.m(`actions-${actionsShow}`),
       ns.is('loading', loading),
+      ns.is('sending', isUser && status === 'sending'),
+      ns.is('error', isUser && status === 'error'),
       ns.is('editing', editing),
       ns.is('highlighted', highlighted),
       ns.is('reacting', pickerOpen),
@@ -418,6 +434,26 @@ const rest = (part: AnyPart) => {
         <i /><i /><i />
       </span>
     </div>
+
+    <template v-if="isUser">
+      <!-- rendered once: a status slot that renders nothing falls back to the built-in mark -->
+      <template v-for="customStatus in [filled(slots.status, { status })]" :key="0">
+        <Transition name="dou-chat-message-status">
+          <div
+            v-if="!editing && (customStatus || status === 'sending' || status === 'error')"
+            :class="ns.e('status')"
+          >
+            <SlotNodes v-if="customStatus" :nodes="customStatus" />
+            <DouSpinner v-else-if="status === 'sending'" size="sm" :label="t('chat.sending')" />
+            <DouTooltip v-else-if="status === 'error'" :content="t('chat.sendError')">
+              <span :class="ns.e('status-icon')" role="status" :aria-label="t('chat.sendError')">
+                <AlertCircleIcon aria-hidden="true" />
+              </span>
+            </DouTooltip>
+          </div>
+        </Transition>
+      </template>
+    </template>
 
     <div
       v-if="reactions.length && !editing"

@@ -656,6 +656,10 @@ export interface Locale {
     scrollToBottom: string
     /** Read for the dots of a reply on its way. */
     loading: string
+    /** Read for a user message still being sent. */
+    sending: string
+    /** Read and shown on hover for a user message that failed to send. */
+    sendError: string
     /** The prompt of an empty chat input. */
     placeholder: string
     send: string

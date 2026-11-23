@@ -443,6 +443,8 @@ export const zhTW: Locale = {
     messages: '訊息列表',
     scrollToBottom: '回到底部',
     loading: '正在回覆',
+    sending: '正在傳送',
+    sendError: '傳送失敗',
     placeholder: '傳送訊息',
     send: '傳送',
     stop: '停止生成',

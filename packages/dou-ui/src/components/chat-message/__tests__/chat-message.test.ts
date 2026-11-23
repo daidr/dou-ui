@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils'
-import { defineComponent, h, ref } from 'vue'
+import { createCommentVNode, defineComponent, h, ref } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
-import { DouChatMessage, DouConfigProvider } from '../../../index'
+import { DouChatMessage, DouConfigProvider, en } from '../../../index'
 import { messageText } from '../chat-message'
 
 describe('DouChatMessage', () => {
@@ -416,6 +416,205 @@ describe('DouChatMessage', () => {
         },
       })
       expect(wrapper.get('.dou-chat-message__reaction img').attributes('alt')).toBe('party')
+    })
+  })
+
+  describe('status', () => {
+    it('shows a spinner while sending, hides actions, and clears once sent', async () => {
+      const wrapper = mount(DouChatMessage, {
+        props: {
+          sender: 'user',
+          content: '周六去滴水湖骑车吗？',
+          editable: true,
+          status: 'sending',
+        },
+        slots: {
+          actions: () => h('button', { class: 'extra' }, '更多'),
+        },
+      })
+      expect(wrapper.classes()).toContain('is-sending')
+      expect(wrapper.attributes('aria-busy')).toBe('true')
+      expect(wrapper.find('.dou-chat-message__actions').exists()).toBe(false)
+      const spinner = wrapper.get('.dou-chat-message__status .dou-spinner')
+      expect(spinner.attributes('role')).toBe('status')
+      expect(spinner.attributes('aria-label')).toBe('正在发送')
+
+      await wrapper.setProps({ status: 'sent' })
+      expect(wrapper.classes()).not.toContain('is-sending')
+      expect(wrapper.attributes('aria-busy')).toBeUndefined()
+      expect(wrapper.find('.dou-chat-message__status').exists()).toBe(false)
+      expect(wrapper.find('.dou-chat-message__actions .dou-copy-button').exists()).toBe(true)
+      expect(wrapper.find('.dou-chat-message__actions .extra').exists()).toBe(true)
+    })
+
+    it('shows a failure mark on error and keeps actions available, hiding status while editing', async () => {
+      const wrapper = mount(DouChatMessage, {
+        props: {
+          sender: 'user',
+          content: '帮我查一下周六天气',
+          editable: true,
+          status: 'error',
+        },
+        attachTo: document.body,
+      })
+      expect(wrapper.classes()).toContain('is-error')
+      expect(wrapper.attributes('aria-busy')).toBeUndefined()
+      const icon = wrapper.get('.dou-chat-message__status .dou-chat-message__status-icon')
+      expect(icon.attributes('role')).toBe('status')
+      expect(icon.attributes('aria-label')).toBe('发送失败')
+      expect(wrapper.find('.dou-chat-message__actions .dou-copy-button').exists()).toBe(true)
+
+      await wrapper.get('.dou-chat-message__actions button[aria-label="编辑"]').trigger('click')
+      expect(wrapper.find('.dou-chat-message__status').exists()).toBe(false)
+      await wrapper.get('textarea').trigger('keydown', { key: 'Escape' })
+      expect(
+        wrapper.find('.dou-chat-message__status .dou-chat-message__status-icon').exists(),
+      ).toBe(true)
+      wrapper.unmount()
+    })
+
+    it('renders the status indicator for a files-only user message', () => {
+      const wrapper = mount(DouChatMessage, {
+        props: {
+          sender: 'user',
+          status: 'sending',
+          parts: [{ type: 'files', files: [{ uid: '1', name: 'route.gpx' }] }],
+        },
+      })
+      expect(wrapper.find('.dou-chat-message__content').exists()).toBe(false)
+      expect(wrapper.find('.dou-chat-message__files .dou-chat-attachments').exists()).toBe(true)
+      expect(wrapper.find('.dou-chat-message__status .dou-spinner').exists()).toBe(true)
+    })
+
+    it('renders custom status content via the `status` slot and forwards `status`', async () => {
+      const wrapper = mount(DouChatMessage, {
+        props: { sender: 'user', content: '再发一次', status: 'error' },
+        slots: {
+          status: ({ status }: { status?: string }) =>
+            h('button', { class: 'retry', 'data-status': status }, '重试'),
+        },
+      })
+      const retry = wrapper.get('.dou-chat-message__status .retry')
+      expect(retry.attributes('data-status')).toBe('error')
+      expect(wrapper.find('.dou-chat-message__status-icon').exists()).toBe(false)
+
+      // works even without setting the `status` prop
+      const customOnly = mount(DouChatMessage, {
+        props: { sender: 'user', content: '已读回执' },
+        slots: { status: () => h('span', { class: 'receipt' }, '已读') },
+      })
+      expect(customOnly.get('.dou-chat-message__status .receipt').text()).toBe('已读')
+    })
+
+    it('falls back to built-in status and clears the container when a scoped `status` slot renders nothing', async () => {
+      const status = ref<'sending' | 'error' | 'sent'>('sending')
+      const Host = defineComponent(
+        () => () =>
+          h(
+            DouChatMessage,
+            { sender: 'user', content: '再试一次', status: status.value },
+            {
+              status: ({ status: s }: { status?: string }) =>
+                s === 'error'
+                  ? h('button', { class: 'retry' }, '重试')
+                  : createCommentVNode('v-if'),
+            },
+          ),
+      )
+      const wrapper = mount(Host)
+      // renders nothing for `sending`: falls back to the built-in spinner
+      expect(wrapper.find('.dou-chat-message__status .dou-spinner').exists()).toBe(true)
+      expect(wrapper.find('.retry').exists()).toBe(false)
+
+      status.value = 'error'
+      await wrapper.vm.$nextTick()
+      expect(wrapper.find('.dou-chat-message__status .retry').exists()).toBe(true)
+      expect(wrapper.find('.dou-chat-message__status-icon').exists()).toBe(false)
+
+      // renders nothing for `sent`: removes the status container so it can transition out
+      status.value = 'sent'
+      await wrapper.vm.$nextTick()
+      expect(wrapper.find('.dou-chat-message__status').exists()).toBe(false)
+    })
+
+    it('tracks a dynamically toggled `status` slot without changing the `status` prop', async () => {
+      const show = ref(false)
+      const Host = defineComponent(
+        () => () =>
+          h(
+            DouChatMessage,
+            { sender: 'user', content: '已读回执' },
+            show.value ? { status: () => h('span', { class: 'receipt' }, '已读') } : {},
+          ),
+      )
+      const wrapper = mount(Host)
+      expect(wrapper.find('.dou-chat-message__status').exists()).toBe(false)
+
+      show.value = true
+      await wrapper.vm.$nextTick()
+      expect(wrapper.get('.dou-chat-message__status .receipt').text()).toBe('已读')
+
+      show.value = false
+      await wrapper.vm.$nextTick()
+      expect(wrapper.find('.dou-chat-message__status').exists()).toBe(false)
+    })
+
+    it('ignores `status` and the `status` slot on assistant or system messages', () => {
+      const assistantSending = mount(DouChatMessage, {
+        props: { sender: 'assistant', content: '收到', status: 'sending' },
+        slots: { status: () => h('span', { class: 'custom' }, '状态') },
+      })
+      expect(assistantSending.find('.dou-chat-message__status').exists()).toBe(false)
+      expect(assistantSending.classes()).not.toContain('is-sending')
+      expect(assistantSending.attributes('aria-busy')).toBeUndefined()
+      expect(assistantSending.find('.dou-chat-message__actions .dou-copy-button').exists()).toBe(
+        true,
+      )
+
+      const assistantError = mount(DouChatMessage, {
+        props: { sender: 'assistant', content: '收到', status: 'error' },
+      })
+      expect(assistantError.find('.dou-chat-message__status').exists()).toBe(false)
+      expect(assistantError.classes()).not.toContain('is-error')
+
+      const system = mount(DouChatMessage, {
+        props: { sender: 'system', content: '提示', status: 'sending' },
+      })
+      expect(system.find('.dou-chat-message__status').exists()).toBe(false)
+      expect(system.classes()).not.toContain('is-sending')
+      expect(system.attributes('aria-busy')).toBeUndefined()
+      expect(system.find('.dou-chat-message__actions .dou-copy-button').exists()).toBe(true)
+    })
+
+    it('uses locale strings for status labels and warns on unknown status', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      const sending = mount(DouConfigProvider, {
+        props: { locale: en },
+        slots: {
+          default: () => h(DouChatMessage, { sender: 'user', content: 'Hi', status: 'sending' }),
+        },
+      })
+      expect(sending.get('.dou-chat-message__status .dou-spinner').attributes('aria-label')).toBe(
+        'Sending',
+      )
+
+      const failed = mount(DouConfigProvider, {
+        props: { locale: en },
+        slots: {
+          default: () => h(DouChatMessage, { sender: 'user', content: 'Hi', status: 'error' }),
+        },
+      })
+      expect(
+        failed
+          .get('.dou-chat-message__status .dou-chat-message__status-icon')
+          .attributes('aria-label'),
+      ).toBe('Failed to send')
+
+      mount(DouChatMessage, {
+        props: { sender: 'user', content: 'Hi', status: 'failed' as never },
+      })
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('unknown status `failed`'))
+      warn.mockRestore()
     })
   })
 })

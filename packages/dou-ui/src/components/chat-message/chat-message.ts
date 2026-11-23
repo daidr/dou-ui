@@ -21,6 +21,9 @@ export type ChatMessageMarkdown = Pick<
 /** Who wrote the message. */
 export type ChatMessageSender = 'user' | 'assistant' | 'system'
 
+/** Delivery state of a user message, shown beside the bottom-left corner of its bubble. */
+export type ChatMessageStatus = 'sending' | 'sent' | 'error'
+
 /** When the bar of actions over a message shows. */
 export type ChatMessageActionsVisible = 'always' | 'hover'
 
@@ -153,6 +156,14 @@ export interface ChatMessageProps {
   /** No part has arrived yet: show the waiting dots, like ChatBubble's. */
   loading?: boolean
   /**
+   * Delivery state of a user message: `'sending'` shows a spinner beside the
+   * bottom-left corner of the bubble (or attachments) and hides the actions
+   * bar until confirmed; `'error'` shows a failure mark in the same spot;
+   * `'sent'` clears it smoothly. Use the `status` slot to draw your own
+   * indicator or a retry button.
+   */
+  status?: ChatMessageStatus
+  /**
    * When the bar of actions over the top right corner shows: `'always'`,
    * or `'hover'` while the pointer is over the message, focus is inside,
    * or after a tap on it on a touch screen. Buttons from the `actions`
@@ -224,6 +235,12 @@ export interface ChatMessageSlots {
   part?: (props: { part: ChatCustomPart; index: number }) => unknown
   /** Buttons after the built-in actions, e.g. regenerate or feedback. */
   actions?: () => unknown
+  /**
+   * Content shown beside the bottom-left corner of a user message's bubble
+   * (or attachments), replacing the built-in indicator for `status`. Useful
+   * for a retry button on `'error'` or a custom delivery mark.
+   */
+  status?: (props: { status: ChatMessageStatus | undefined }) => unknown
   /**
    * Content that follows the last word of the last text part on the same
    * line, e.g. an "edited" mark. Unlike `actions` it always shows, whatever

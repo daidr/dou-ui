@@ -33,6 +33,17 @@
 
 <DocDemo src="chat-message/loading" column />
 
+## 发送状态
+
+用户消息（`sender="user"`）可以用 `status` 表示发送状态，指示显示在气泡左侧下方（仅有 `files` 附件没有正文气泡时，贴在附件区左下角）：
+
+- `sending`：显示小型加载指示并给消息加上 `aria-busy`，同时隐藏右上角操作浮条；切换为 `sent`（或清空 `status`）后平滑消失并恢复操作浮条。
+- `error`：在同一位置显示失败图标，悬停提示“发送失败”，复制、编辑等操作保持可用。
+
+提供 `status` 插槽可以替换默认的状态指示，适合在失败时放置重试按钮，或显示自定义的送达标记。插槽参数为 `{ status }`；插槽没有渲染内容时会自动回退到默认指示，因此可以直接在插槽内用 `v-if="status === 'error'"` 仅替换失败状态，同时保留默认的发送中加载指示。
+
+<DocDemo src="chat-message/status" column />
+
 ## 操作
 
 操作放在消息右上角上方的小浮条里，占用的是消息之间的间隙：鼠标悬停或用键盘把焦点移进消息时出现，触屏上点一下消息出现，点别处收起。长消息的顶部滚出可视区域后，浮条固定在滚动区域顶部，直到这条消息滚走；在带 `items` 的 [ChatList](./chat-list#大量消息) 里，消息靠变换定位，浮条留在消息顶部，不随滚动固定。内置的操作有：
@@ -127,6 +138,7 @@ app.use(DouUI, {
 | `parts`           | 片段数组                                                                       | `ChatMessagePart[]`                 | —             |
 | `content`         | 只有一段文字时的简写                                                           | `string`                            | —             |
 | `loading`         | 还没有收到内容，显示等待圆点                                                   | `boolean`                           | `false`       |
+| `status`          | 用户消息的发送状态，显示在气泡或附件区左侧下方                                 | `'sending' \| 'sent' \| 'error'`    | —             |
 | `copyable`        | 显示复制按钮                                                                   | `boolean`                           | `true`        |
 | `actions-visible` | 右上角操作浮条何时显示，`'hover'` 时触屏点按消息显示                           | `'always' \| 'hover'`               | `'hover'`     |
 | `markdown`        | 文字和思考过程片段按 Markdown 渲染，对象为 Markdown 选项                       | `boolean \| ChatMessageMarkdown`    | `false`       |
@@ -150,16 +162,17 @@ app.use(DouUI, {
 
 ### Slots
 
-| 名称              | 说明                                                                        |
-| ----------------- | --------------------------------------------------------------------------- |
-| `text`            | 渲染文字片段，参数为 `{ part, text, index, sources }`                       |
-| `markdown-*`      | Markdown 组件的同名插槽，如 `markdown-code`、`markdown-link`                |
-| `part`            | 渲染未知类型的片段，参数为 `{ part, index }`                                |
-| `actions`         | 追加在内置操作后面的按钮                                                    |
-| `trailing`        | 跟在最后一个文字片段末尾的内容，见[跟在文字后面的标记](#跟在文字后面的标记) |
-| `reaction-picker` | “添加回应”弹出层的内容，参数为 `{ react, close }`；不提供时没有添加按钮     |
-| `reaction`        | 渲染回应的表情，参数为 `{ reaction }`                                       |
-| `default`         | 替换全部片段，自己排版                                                      |
+| 名称              | 说明                                                                          |
+| ----------------- | ----------------------------------------------------------------------------- |
+| `text`            | 渲染文字片段，参数为 `{ part, text, index, sources }`                         |
+| `markdown-*`      | Markdown 组件的同名插槽，如 `markdown-code`、`markdown-link`                  |
+| `part`            | 渲染未知类型的片段，参数为 `{ part, index }`                                  |
+| `actions`         | 追加在内置操作后面的按钮                                                      |
+| `status`          | 用户消息气泡（或附件区）左侧下方的状态内容，参数为 `{ status }`，替换默认指示 |
+| `trailing`        | 跟在最后一个文字片段末尾的内容，见[跟在文字后面的标记](#跟在文字后面的标记)   |
+| `reaction-picker` | “添加回应”弹出层的内容，参数为 `{ react, close }`；不提供时没有添加按钮       |
+| `reaction`        | 渲染回应的表情，参数为 `{ reaction }`                                         |
+| `default`         | 替换全部片段，自己排版                                                        |
 
 ### CSS 变量
 

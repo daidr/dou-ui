@@ -280,4 +280,74 @@ describe('DouPopover', () => {
     expect(dialog.style.getPropertyValue('--dou-popover-max-height')).toBe('')
     wrapper.unmount()
   })
+
+  it('syncs --dou-popover-max-width with explicit width while keeping default and intrinsic widths intact', async () => {
+    const wrapper = withModel({ open: true })
+    await nextTick()
+    const dialog = panel()!
+    // Default (no width prop): leave CSS defaults (--dou-popover-max-width: 360px) untouched.
+    expect(dialog.style.width).toBe('')
+    expect(dialog.style.getPropertyValue('--dou-popover-max-width')).toBe('')
+
+    // Explicit width > 360px updates both width and --dou-popover-max-width.
+    await wrapper.setProps({ width: 560 })
+    await nextTick()
+    expect(dialog.style.width).toBe('560px')
+    expect(dialog.style.getPropertyValue('--dou-popover-max-width')).toBe('560px')
+
+    // CSS lengths and percentages are forwarded to both properties.
+    await wrapper.setProps({ width: '36rem' })
+    await nextTick()
+    expect(dialog.style.width).toBe('36rem')
+    expect(dialog.style.getPropertyValue('--dou-popover-max-width')).toBe('36rem')
+
+    await wrapper.setProps({ width: '50%' })
+    await nextTick()
+    expect(dialog.style.width).toBe('50%')
+    expect(dialog.style.getPropertyValue('--dou-popover-max-width')).toBe('50%')
+
+    // Explicit width <= 360px also stays in sync.
+    await wrapper.setProps({ width: 260 })
+    await nextTick()
+    expect(dialog.style.width).toBe('260px')
+    expect(dialog.style.getPropertyValue('--dou-popover-max-width')).toBe('260px')
+
+    // Intrinsic keywords are not valid arguments to CSS min() and must not override --dou-popover-max-width.
+    for (const keyword of ['auto', 'max-content', 'fit-content']) {
+      await wrapper.setProps({ width: keyword })
+      await nextTick()
+      expect(dialog.style.width).toBe(keyword)
+      expect(dialog.style.getPropertyValue('--dou-popover-max-width')).toBe('')
+    }
+
+    // Empty or cleared width restores CSS defaults cleanly.
+    await wrapper.setProps({ width: '' })
+    await nextTick()
+    expect(dialog.style.width).toBe('')
+    expect(dialog.style.getPropertyValue('--dou-popover-max-width')).toBe('')
+
+    await wrapper.setProps({ width: 520 })
+    await nextTick()
+    expect(dialog.style.getPropertyValue('--dou-popover-max-width')).toBe('520px')
+
+    await wrapper.setProps({ width: undefined })
+    await nextTick()
+    expect(dialog.style.width).toBe('')
+    expect(dialog.style.getPropertyValue('--dou-popover-max-width')).toBe('')
+    wrapper.unmount()
+  })
+
+  it('lets an explicit inline --dou-popover-max-width override the width-derived cap', async () => {
+    const wrapper = mount(DouPopover, {
+      props: { open: true, width: 560, content: '宽弹层' },
+      attrs: { style: '--dou-popover-max-width: 420px' },
+      slots: { default: () => h('button', { id: 'trigger' }, '打开') },
+      attachTo: document.body,
+    })
+    await nextTick()
+    const dialog = panel()!
+    expect(dialog.style.width).toBe('560px')
+    expect(dialog.style.getPropertyValue('--dou-popover-max-width')).toBe('420px')
+    wrapper.unmount()
+  })
 })

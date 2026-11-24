@@ -92,14 +92,29 @@ const triggerProps = computed(() =>
 )
 
 const panelClasses = computed(() => [ns.b(), 'dou-floating', ns.is('titled', hasTitle.value)])
-const cssSize = (value: string | number | undefined) =>
-  typeof value === 'number' ? `${value}px` : (value ?? undefined)
-const panelSizeStyle = computed<CSSProperties>(() => ({
-  width: cssSize(props.width),
-  ...(props.maxHeight !== undefined && {
-    '--dou-popover-max-height': cssSize(props.maxHeight),
-  }),
-}))
+// CSS `min()` only accepts lengths, percentages and math expressions; intrinsic
+// keywords would make `max-width` invalid and drop the viewport clamp.
+const INTRINSIC_WIDTH =
+  /^(auto|min-content|max-content|fit-content(\(.*\))?|stretch|none|initial|inherit|unset|revert|revert-layer)$/i
+const cssSize = (value: string | number | undefined) => {
+  if (typeof value === 'number') return `${value}px`
+  const trimmed = value?.trim()
+  return trimmed || undefined
+}
+const panelSizeStyle = computed<CSSProperties>(() => {
+  const width = cssSize(props.width)
+  const maxHeight = cssSize(props.maxHeight)
+  return {
+    width,
+    ...(width !== undefined &&
+      !INTRINSIC_WIDTH.test(width) && {
+        '--dou-popover-max-width': width,
+      }),
+    ...(maxHeight !== undefined && {
+      '--dou-popover-max-height': maxHeight,
+    }),
+  }
+})
 
 defineExpose<PopoverExpose>({ open: () => popup.show(), close: () => popup.dismiss() })
 </script>

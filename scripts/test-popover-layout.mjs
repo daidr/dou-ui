@@ -18,7 +18,7 @@ try {
   browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
   for (const viewportWidth of [1258, 390, 320]) {
     for (const edge of ['left', 'right']) {
-      for (const width of ['', '320', '20rem', '50%']) {
+      for (const width of ['', '320', '560', '20rem', '36rem', '50%']) {
         const page = await browser.newPage({
           viewport: { width: viewportWidth, height: 844 },
           reducedMotion: 'reduce',
@@ -68,7 +68,10 @@ try {
           )
           if (width === '320' || width === '20rem')
             assert.equal(last.width, Math.min(320, viewportWidth - 16), label)
-          if (width === '50%') assert.equal(last.width, Math.min(360, viewportWidth / 2), label)
+          if (width === '560') assert.equal(last.width, Math.min(560, viewportWidth - 16), label)
+          if (width === '36rem') assert.equal(last.width, Math.min(576, viewportWidth - 16), label)
+          if (width === '50%')
+            assert.equal(last.width, Math.min(viewportWidth / 2, viewportWidth - 16), label)
           if (!width && content === 'long')
             assert.equal(last.width, Math.min(360, viewportWidth - 16), label)
           if (!width && content === 'short') assert.ok(last.width < 100, label)

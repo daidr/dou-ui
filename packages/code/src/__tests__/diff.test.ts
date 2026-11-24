@@ -259,8 +259,8 @@ describe('DouCodeDiff', () => {
 /** The tops of the widgets one side draws. */
 const tops = (side: DOMWrapper<Element>) =>
   side
-    .findAll('.dou-code-editor__widget')
-    .map((w) => /translate\([^,]+, ([-\d.]+)px\)/.exec(w.attributes('style') ?? '')?.[1])
+    .findAll('.dou-code-editor__widget-slot')
+    .map((w) => /top:\s*([-\d.]+)px/.exec(w.attributes('style') ?? '')?.[1])
 
 describe('DouCodeDiff gutters and widgets', () => {
   it('draws markers on their side, and says which side was pressed', async () => {
@@ -938,5 +938,93 @@ describe('DouCodeDiff toolbar, sticky and collapse state', () => {
     await nextTick()
     expect(same.diff.value!.anyHideable).toBe(false)
     expect(same.diff.value!.hiddenCount).toBe(0)
+  })
+})
+
+const longLines = (n: number, prefix: string) =>
+  Array.from({ length: n }, (_, i) => `${prefix} ${i + 1}: ${'segment_'.repeat(24)}end`).join('\n')
+
+describe('DouCodeDiff sticky widgets and horizontal scroll', () => {
+  it('spans collapse bars and fillers across the gutter in split and inline modes', async () => {
+    const beforeText = `${longLines(1, 'removed')}\n${longLines(14, 'same')}`
+    const afterText = `${longLines(3, 'added')}\n${longLines(14, 'same')}`
+    const { wrapper } = setup({ original: beforeText, modelValue: afterText, mode: 'split' })
+    await nextTick()
+    await nextTick()
+
+    const barWidgets = wrapper.findAll('.dou-code-editor__widget:has(.dou-code-diff__bar)')
+    expect(barWidgets).toHaveLength(2)
+    for (const barWidget of barWidgets) {
+      expect(barWidget.classes()).toContain('is-full-width')
+      expect(barWidget.element.parentElement?.classList.contains('is-full-width')).toBe(true)
+    }
+    const fillerWidget = wrapper.find('.dou-code-editor__widget:has(.dou-code-diff__filler)')
+    expect(fillerWidget.exists()).toBe(true)
+    expect(fillerWidget.classes()).toContain('is-full-width')
+
+    // Inline mode also spans the collapse bar across both line-number columns and the sign column.
+    const inline = setup({ original: beforeText, modelValue: afterText, mode: 'inline' })
+    await nextTick()
+    await nextTick()
+    const inlineBar = inline.wrapper.find('.dou-code-editor__widget:has(.dou-code-diff__bar)')
+    expect(inlineBar.exists()).toBe(true)
+    expect(inlineBar.classes()).toContain('is-full-width')
+    expect(inlineBar.element.parentElement?.classList.contains('is-full-width')).toBe(true)
+  })
+
+  it('keeps collapse bars and spanning widgets stable during horizontal scroll', async () => {
+    const beforeText = `${longLines(1, 'old')}\n${longLines(14, 'same')}`
+    const afterText = `${longLines(1, 'new')}\n${longLines(14, 'same')}`
+    const { wrapper } = setup({
+      original: beforeText,
+      modelValue: afterText,
+      mode: 'split',
+      widgets: [
+        {
+          id: 'note-side',
+          side: 'modified',
+          line: 1,
+          render: () => h('p', '单侧评论'),
+        },
+        {
+          id: 'note-both',
+          side: 'modified',
+          line: 2,
+          span: 'both',
+          render: () => h('p', '跨栏评论'),
+        },
+      ],
+    })
+    await nextTick()
+    await nextTick()
+
+    const scrollers = wrapper.findAll('.dou-code-editor__scroller')
+    const [scrollerA, scrollerB] = scrollers.map((s) => s.element as HTMLElement)
+    for (const scroller of [scrollerA!, scrollerB!]) {
+      Object.defineProperty(scroller, 'clientWidth', { configurable: true, value: 300 })
+      Object.defineProperty(scroller, 'scrollWidth', { configurable: true, value: 1400 })
+      Object.defineProperty(scroller, 'clientHeight', { configurable: true, value: 200 })
+      Object.defineProperty(scroller, 'scrollHeight', { configurable: true, value: 800 })
+    }
+
+    const span = wrapper.get('.dou-code-diff__span')
+    expect(span.classes()).toContain('is-placed')
+
+    // Horizontal scroll must not write inline transforms onto widgets or hide spanning widgets.
+    scrollerA!.scrollLeft = 220
+    await scrollers[0]!.trigger('scroll')
+    await nextTick()
+
+    expect(scrollerB!.scrollLeft).toBe(220)
+    for (const widget of wrapper.findAll('.dou-code-editor__widget')) {
+      expect(widget.attributes('style')).toBeUndefined()
+    }
+    expect(span.classes()).toContain('is-placed')
+
+    // Vertical scroll still hides spanning widgets until scrolling settles.
+    scrollerA!.scrollTop = 60
+    await scrollers[0]!.trigger('scroll')
+    await nextTick()
+    expect(span.classes()).not.toContain('is-placed')
   })
 })

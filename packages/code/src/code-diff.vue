@@ -331,6 +331,7 @@ function sideExtension(side: Side): CodeExtension {
           id: `fill-${i}-${missing}-${blanks.map((blank) => blank.height).join('.')}`,
           ...(last >= 1 ? { line: last } : { line: 1, position: 'above' as const }),
           height: missing * LINE + blanks.reduce((sum, blank) => sum + blank.height, 0),
+          fullWidth: true,
           render: () => filler(missing, blanks),
         })
       })
@@ -343,6 +344,7 @@ function sideExtension(side: Side): CodeExtension {
           id: `bar-${run.key}`,
           ...(last < total ? { line: last + 1, position: 'above' as const } : { line: first - 1 }),
           height: BAR_HEIGHT,
+          fullWidth: true,
           render: () => bar(run, side === 'a'),
         })
       }
@@ -650,6 +652,7 @@ const inlineExtension = defineCodeExtension({
         id: `bar-${run.key}`,
         ...(last < total ? { line: last + 1, position: 'above' as const } : { line: first - 1 }),
         height: BAR_HEIGHT,
+        fullWidth: true,
         render: () => bar(run),
       })
     }
@@ -1086,8 +1089,16 @@ onBeforeUnmount(() => stopPlacing?.())
  */
 const spansScrolling = ref(false)
 let restTimer: ReturnType<typeof setTimeout> | undefined
-function onSideScroll() {
+const sideScrollTop = new WeakMap<HTMLElement, number>()
+function onSideScroll(event: Event) {
   if (!spans.value.length) return
+  const scroller = event.target as HTMLElement | null
+  if (!scroller?.classList.contains('dou-code-editor__scroller')) return
+  const top = scroller.scrollTop
+  const prev = sideScrollTop.get(scroller)
+  sideScrollTop.set(scroller, top)
+  // Horizontal scrolling does not change vertical span positions; keep spans visible.
+  if (prev !== undefined ? prev === top : top === 0) return
   spansScrolling.value = true
   clearTimeout(restTimer)
   restTimer = setTimeout(() => {

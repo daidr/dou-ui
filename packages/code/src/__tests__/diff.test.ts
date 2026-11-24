@@ -4,7 +4,19 @@ import { fileURLToPath } from 'node:url'
 import { type DOMWrapper, mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { computed, defineComponent, h, nextTick, ref } from 'vue'
-import { DouCodeDiff, DouCodeEditor, defineCodeExtension, diffText } from '../index'
+import { createHighlighter } from 'shiki'
+import { createJavaScriptRegexEngine } from 'shiki/engine/javascript'
+import {
+  createCodeWorkerPool,
+  DouCodeDiff,
+  DouCodeEditor,
+  defineCodeExtension,
+  diffText,
+  javascript,
+  remoteCodeLanguage,
+} from '../index'
+import { createShikiLanguageResolver } from '../shiki'
+import { serveCodeHighlighting } from '../worker'
 
 /** Applies the hunks of `a` → `b` to `a`'s lines; must give back `b`. */
 function apply(a: string, b: string, ignoreWhitespace = false) {
@@ -1266,5 +1278,298 @@ describe('DouCodeDiff sticky widgets and horizontal scroll', () => {
     await scrollers[0]!.trigger('scroll')
     await nextTick()
     expect(wrapper.get('.dou-code-diff__span').classes()).toContain('is-placed')
+  })
+})
+
+function deliverDiffMessage(target: Set<(event: MessageEvent) => void>, data: unknown) {
+  const copy = structuredClone(data)
+  setTimeout(() => {
+    for (const listener of target) listener({ data: copy } as MessageEvent)
+  })
+}
+
+function createInThreadWorker(
+  languagesOrOptions: Parameters<typeof serveCodeHighlighting>[0],
+  onPost?: (msg: { t: string }) => void,
+) {
+  const pageListeners = new Set<(event: MessageEvent) => void>()
+  const workerListeners = new Set<(event: MessageEvent) => void>()
+  const errorListeners = new Set<(event: Event) => void>()
+  const worker = {
+    postMessage: (data: { t: string }) => {
+      onPost?.(data)
+      deliverDiffMessage(workerListeners, data)
+    },
+    addEventListener: (type: string, fn: (event: MessageEvent) => void) =>
+      (type === 'error' ? errorListeners : pageListeners).add(fn),
+    removeEventListener: (type: string, fn: (event: MessageEvent) => void) =>
+      (type === 'error' ? errorListeners : pageListeners).delete(fn),
+    terminate: vi.fn<() => void>(),
+  } as unknown as Worker
+  serveCodeHighlighting(languagesOrOptions, {
+    postMessage: (data: unknown) => deliverDiffMessage(pageListeners, data),
+    addEventListener: (_: string, fn: (event: MessageEvent) => void) => workerListeners.add(fn),
+  })
+  const fail = () => {
+    for (const listener of errorListeners) listener(new Event('error'))
+  }
+  return { worker, fail }
+}
+
+describe('DouCodeDiff worker forwarding and async diff', () => {
+  it('forwards worker and syncHighlightLines to inner editors (split & inline) and highlights Shiki off-thread', async () => {
+    vi.stubGlobal('Worker', function Worker() {})
+    const shiki = await createHighlighter({
+      langs: ['go'],
+      themes: [],
+      engine: createJavaScriptRegexEngine(),
+    })
+    const pool = createCodeWorkerPool(
+      () =>
+        createInThreadWorker({
+          resolve: createShikiLanguageResolver({ highlighter: () => shiki }),
+        }).worker,
+      { maxWorkers: 2, idleTimeout: 0 },
+    )
+    try {
+      const goLang = remoteCodeLanguage({ name: 'go', comment: { line: '//' } })
+      const mode = ref<'split' | 'inline'>('split')
+      const wrapper = mount(
+        defineComponent(
+          () => () =>
+            h(DouCodeDiff, {
+              original: 'package main\nfunc oldName() int { return 1 }',
+              modelValue: 'package main\nfunc newName() int { return 2 }',
+              language: goLang,
+              mode: mode.value,
+              worker: pool,
+              syncHighlightLines: 0,
+            }),
+        ),
+        { attachTo: document.body },
+      )
+      // Both split editors received off-thread Shiki tokens.
+      await vi.waitFor(
+        async () => {
+          await nextTick()
+          const editors = wrapper.findAll('.dou-code-editor')
+          expect(editors).toHaveLength(2)
+          expect(editors[0]!.find('.dou-syntax-keyword').exists()).toBe(true)
+          expect(editors[1]!.find('.dou-syntax-keyword').exists()).toBe(true)
+        },
+        { timeout: 2000 },
+      )
+
+      // Switching to inline mode also forwards worker & syncHighlightLines.
+      mode.value = 'inline'
+      await vi.waitFor(
+        async () => {
+          await nextTick()
+          expect(wrapper.findAll('.dou-code-editor')).toHaveLength(1)
+          expect(wrapper.find('.dou-syntax-keyword').exists()).toBe(true)
+        },
+        { timeout: 2000 },
+      )
+
+      wrapper.unmount()
+    } finally {
+      pool.dispose()
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('computes diffText asynchronously in the worker when exceeding syncDiffLines and cancels stale requests', async () => {
+    vi.stubGlobal('Worker', function Worker() {})
+    const posted: Array<{ t: string }> = []
+    const pool = createCodeWorkerPool(
+      () => createInThreadWorker([javascript], (m) => posted.push(m)).worker,
+      { maxWorkers: 2, idleTimeout: 0 },
+    )
+    try {
+      const { wrapper, code, diff } = setup({
+        language: javascript,
+        worker: pool,
+        syncHighlightLines: 0,
+        syncDiffLines: 0,
+      })
+      // Initial mount queues an async diff without blocking the render frame.
+      expect(diff.value!.hunks).toEqual([])
+      await vi.waitFor(
+        async () => {
+          await nextTick()
+          expect(posted.some((m) => m.t === 'diff')).toBe(true)
+          expect(diff.value!.hunks).toEqual(diffText(original, changed))
+        },
+        { timeout: 2000 },
+      )
+
+      // Rapid updates cancel the stale diff request and settle on the latest text.
+      code.value = `${changed}\nline extra 1`
+      await nextTick()
+      await Promise.resolve()
+      code.value = `${changed}\nline extra 2`
+      await nextTick()
+      expect(posted.some((m) => m.t === 'cancelDiff')).toBe(true)
+      await vi.waitFor(
+        async () => {
+          await nextTick()
+          expect(diff.value!.hunks).toEqual(diffText(original, `${changed}\nline extra 2`))
+        },
+        { timeout: 2000 },
+      )
+
+      wrapper.unmount()
+    } finally {
+      pool.dispose()
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('falls back to synchronous diffText when the worker fails', async () => {
+    vi.stubGlobal('Worker', function Worker() {})
+    try {
+      const { wrapper, diff } = setup({
+        worker: () => {
+          throw new Error('blocked')
+        },
+        syncDiffLines: 0,
+      })
+      await vi.waitFor(
+        async () => {
+          await nextTick()
+          expect(diff.value!.hunks).toEqual(diffText(original, changed))
+        },
+        { timeout: 2000 },
+      )
+      wrapper.unmount()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('handles inline mode when original is longer than modified while async diff is pending and when switching files', async () => {
+    vi.stubGlobal('Worker', function Worker() {})
+    const pool = createCodeWorkerPool(() => createInThreadWorker([javascript]).worker, {
+      maxWorkers: 1,
+      idleTimeout: 0,
+    })
+    try {
+      const longOriginal = Array.from({ length: 20 }, (_, i) => `const a${i} = ${i}`).join('\n')
+      const shortModified = Array.from({ length: 5 }, (_, i) => `const a${i} = ${i}`).join('\n')
+      const origRef = ref(longOriginal)
+      const modRef = ref(shortModified)
+      const diff = ref<InstanceType<typeof DouCodeDiff>>()
+      const Host = defineComponent({
+        setup() {
+          return () =>
+            h(DouCodeDiff, {
+              ref: diff,
+              mode: 'inline',
+              original: origRef.value,
+              modelValue: modRef.value,
+              language: javascript,
+              worker: pool,
+              syncDiffLines: 0,
+              syncHighlightLines: 0,
+              collapseUnchanged: false,
+            })
+        },
+      })
+      const wrapper = mount(Host, { attachTo: document.body })
+      await nextTick()
+      // Pending state must render safely even though original has more lines than modified.
+      expect(wrapper.find('.dou-code-editor').exists()).toBe(true)
+      await vi.waitFor(
+        async () => {
+          await nextTick()
+          expect(diff.value!.hunks).toEqual(diffText(longOriginal, shortModified))
+        },
+        { timeout: 2000 },
+      )
+
+      // Switching to a much shorter file clears stale hunks instead of indexing out of bounds.
+      origRef.value = 'const x = 1\nconst y = 2\nconst z = 3'
+      modRef.value = 'const x = 1'
+      await nextTick()
+      expect(diff.value!.hunks).toEqual([])
+      await vi.waitFor(
+        async () => {
+          await nextTick()
+          expect(diff.value!.hunks).toEqual(diffText(origRef.value, modRef.value))
+        },
+        { timeout: 2000 },
+      )
+      wrapper.unmount()
+    } finally {
+      pool.dispose()
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('invalidates cached async hunks on same-line modified edits and diff option changes', async () => {
+    vi.stubGlobal('Worker', function Worker() {})
+    const pool = createCodeWorkerPool(() => createInThreadWorker([javascript]).worker, {
+      maxWorkers: 1,
+      idleTimeout: 0,
+    })
+    try {
+      const origRef = ref('const alpha = "very long original text"\nconst b = 1')
+      const modRef = ref('const alpha = "very long modified text"\nconst b = 1')
+      const wordsRef = ref(true)
+      const diff = ref<InstanceType<typeof DouCodeDiff>>()
+      const wrapper = mount(
+        defineComponent(
+          () => () =>
+            h(DouCodeDiff, {
+              ref: diff,
+              mode: 'inline',
+              original: origRef.value,
+              modelValue: modRef.value,
+              words: wordsRef.value,
+              language: javascript,
+              worker: pool,
+              syncDiffLines: 0,
+              syncHighlightLines: 0,
+            }),
+        ),
+        { attachTo: document.body },
+      )
+      await vi.waitFor(
+        async () => {
+          await nextTick()
+          expect(diff.value!.hunks).toEqual(diffText(origRef.value, modRef.value, { words: true }))
+        },
+        { timeout: 2000 },
+      )
+
+      // Same line count, shorter line 1 -> stale word offsets must be invalidated immediately while recomputing.
+      modRef.value = 'const alpha = "x"\nconst b = 1'
+      await nextTick()
+      expect(diff.value!.hunks).toEqual([])
+      await vi.waitFor(
+        async () => {
+          await nextTick()
+          expect(diff.value!.hunks).toEqual(diffText(origRef.value, modRef.value, { words: true }))
+        },
+        { timeout: 2000 },
+      )
+
+      // Toggling diff options (words: false) also invalidates stale cached hunks immediately.
+      wordsRef.value = false
+      await nextTick()
+      expect(diff.value!.hunks).toEqual([])
+      await vi.waitFor(
+        async () => {
+          await nextTick()
+          expect(diff.value!.hunks).toEqual(diffText(origRef.value, modRef.value, { words: false }))
+        },
+        { timeout: 2000 },
+      )
+
+      wrapper.unmount()
+    } finally {
+      pool.dispose()
+      vi.unstubAllGlobals()
+    }
   })
 })

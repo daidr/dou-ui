@@ -22,28 +22,45 @@ const doc = shallowRef(CodeText.of(source))
 
 ## 语法着色
 
-编辑器先给可见的行着色，其余的行在浏览器空闲时继续处理。修改后从改动的行开始重新处理，通常只需要重新处理一两行。
+编辑器默认在绘制阶段同步分析当前位置前最多 2000 行（`syncHighlightLines`），更远的位置先显示为普通文字，再在 Worker 或浏览器空闲时间片中继续处理。修改后从改动的行开始重新处理，通常只需要重新处理一两行。
 
-直接跳到还没处理到的位置时，那里的代码先显示为普通文字，处理完成后再着色。
+在多文件 Diff 列表快速滚动、或使用重型语法（如 Shiki）的场景中，可以将 `syncHighlightLines` 设为 `0`：首屏先绘制纯文本，词法高亮统一交给 Worker 或浏览器空闲时间片异步完成，避免渲染帧被同步分词阻塞。
+
+```vue
+<template>
+  <DouCodeEditor v-model:doc="doc" :language="javascript" worker :sync-highlight-lines="0" />
+</template>
+```
+
+当组件滚出浏览器视口或卸载时，未执行的 Worker 与空闲时间片高亮任务会自动中止；滚回视口时再恢复高亮。
 
 ## 在 worker 中分析语法
 
-加上 `worker` 后，语法分析在 Web Worker 中进行，页面只处理可见的几行。
+加上 `worker` 后，语法分析在 Web Worker 中进行，`DouCodeDiff` 也会把 `worker` 与 `syncHighlightLines` 透传给内部编辑器，并在文本合计行数超过 `syncDiffLines`（默认 `500`）时将 `diffText` 移入 Worker 异步计算。
+
+<DocDemo src="code/diff-worker" column />
 
 ```vue
 <template>
   <DouCodeEditor v-model:doc="doc" :language="javascript" worker />
+  <DouCodeDiff
+    v-model="modified"
+    :original="original"
+    :language="javascript"
+    worker
+    :sync-highlight-lines="0"
+  />
 </template>
 ```
 
-自带的 worker 支持所有内置语言，多个编辑器共用一个，最后一个编辑器卸载时结束。它以 `blob:` 地址启动，站点设置了内容安全策略（CSP）时，需要在 `worker-src` 中允许 `blob:`。
+自带的 `worker` 使用按需懒启动的 Worker 池，支持所有内置语言与异步 Diff 计算，会在真正需要高亮或计算差异时按并发量动态创建（默认上限 2–4 个）并在空闲后自动回收。它以 `blob:` 地址启动，站点设置了内容安全策略（CSP）时，需要在 `worker-src` 中允许 `blob:`。
 
-### 使用自己的 worker
+### 使用 Worker 池与自定义 worker
 
-使用自定义语言，或者不能允许 `blob:` 时，`worker` 传入一个创建 worker 的函数。在 worker 文件中调用 `serveCodeHighlighting`，列出要支持的语言：
+使用自定义语言、Shiki 离主线程高亮，或者不能允许 `blob:` 时，推荐使用 `createCodeWorkerPool` 创建按需懒启动的 Worker 池，供多个 `DouCodeEditor` / `DouCodeDiff` 共享，并在列表滚动期间保持热 Worker 复用：
 
 ```ts
-// highlight.ts
+// highlight.worker.ts
 import { javascript, serveCodeHighlighting } from '@dou-ui/code/worker'
 import { myLanguage } from './my-language'
 
@@ -52,18 +69,31 @@ serveCodeHighlighting([javascript, myLanguage])
 
 ```vue
 <script setup lang="ts">
-const createWorker = () =>
-  new Worker(new URL('./highlight.ts', import.meta.url), { type: 'module' })
+import { createCodeWorkerPool, DouCodeEditor } from '@dou-ui/code'
+import { onBeforeUnmount } from 'vue'
+
+const pool = createCodeWorkerPool(
+  () => new Worker(new URL('./highlight.worker.ts', import.meta.url), { type: 'module' }),
+  { maxWorkers: 3 },
+)
+onBeforeUnmount(() => pool.dispose())
 </script>
 
 <template>
-  <DouCodeEditor v-model:doc="doc" :language="myLanguage" :worker="createWorker" />
+  <DouCodeEditor
+    v-model:doc="doc"
+    :language="myLanguage"
+    :worker="pool"
+    :sync-highlight-lines="0"
+  />
 </template>
 ```
 
-- 函数在编辑器挂载后才调用，服务端渲染时不会创建 worker。
-- 编辑器卸载或更换 `worker` 时会结束它创建的 worker，所以函数每次都要返回新的 worker。
-- `@dou-ui/code/worker` 只包含语言和语法分析，不会引入 Vue。包含其他语言的语言要在 `nested` 中列出它们。
+也可以直接给 `worker` 传入单个工厂函数 `() => Worker`（挂载时创建，最后一个使用者卸载时终止）。
+
+- `worker` 只在浏览器挂载后生效，服务端渲染时不会创建 worker。
+- 状态为纯数据的语言通过检查点协议回传；状态无法跨线程克隆的语言（例如 Shiki 的 TextMate `StateStack`）会自动切换为行级 Token 协议，由 Worker 持有状态并直接返回可见行的扁平 Token 数组。
+- `serveCodeHighlighting` 还支持 `{ languages, resolve }` 选项，在 Worker 内按需异步加载语言（如 Shiki 语法）。
 - worker 无法启动，或缺少编辑器使用的语言时，编辑器改为在页面中空闲时处理，开发环境下会在控制台提示原因。
 
 ## 小地图

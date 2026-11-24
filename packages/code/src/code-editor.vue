@@ -98,7 +98,14 @@ import {
   searchText,
 } from './core/search'
 import { CodeHighlighter } from './language/highlighter'
-import { holdWorker, ownWorker, SyntaxWorkerClient } from './language/worker-client'
+import { compressLineRanges, RemoteTokenStore } from './language/remote-tokens'
+import {
+  acquirePoolWorker,
+  holdWorker,
+  isCodeWorkerPool,
+  ownWorker,
+  SyntaxWorkerClient,
+} from './language/worker-client'
 import { format, useCodeMessages } from './locale'
 import CodeKeys from './code-keys.vue'
 import {
@@ -147,6 +154,7 @@ const props = withDefaults(defineProps<CodeEditorProps>(), {
   tabSize: 2,
   language: undefined,
   worker: false,
+  syncHighlightLines: undefined,
   closeBrackets: true,
   matchBrackets: true,
   searchable: true,
@@ -1085,11 +1093,12 @@ function foldEnds(texts?: readonly string[]) {
   const lineOf = texts ? (k: number) => texts[k - 1]! : undefined
   return (n: number) => {
     const read = !!hl?.ready(n)
+    const hasTokens = read || (usesRemoteTokens() && !!remoteTokens.line(n))
     const language = outer ? ((read ? hl!.languageAt(n) : null) ?? outer) : null
     return foldEndAt(text, n, {
       brackets: language?.brackets,
       tabSize,
-      skip: read ? inStringOrComment : undefined,
+      skip: hasTokens ? inStringOrComment : undefined,
       lineText: lineOf,
     })
   }
@@ -1313,7 +1322,7 @@ const rows = computed<Row[]>(() => {
   const { numbers, texts } = shownLines.value
   const p = preview.value
   const line = p ? doc.value.lineAt(p.from) : null
-  const tokensOf = syntaxLines(visibleFrom.value, visibleTo.value)
+  const tokensOf = syntaxLines(visibleFrom.value, visibleTo.value, numbers)
   const starts = new Set(foldHidden.value.map(([from]) => from - 1))
   const { marks, lineClasses, inlines } = lineDecorations.value
   return texts.map((text, i) => {
@@ -1514,24 +1523,68 @@ function observeInline(el: Element | null, key: string, given: number | undefine
 /** Lines read ahead of the last read one while drawing; further away, idle time catches up first. */
 const SYNTAX_REACH = 2000
 let highlighter: CodeHighlighter | null = null
-/** Bumped when lines in view got their tokens in idle time. */
+const remoteTokens = markRaw(new RemoteTokenStore())
+/** Bumped when lines in view got their tokens asynchronously (idle time or worker). */
 const syntaxTick = ref(0)
+
+const syncReach = () => {
+  const configured = props.syncHighlightLines
+  return configured === undefined ? SYNTAX_REACH : Math.max(0, configured)
+}
+
+/** Whether the editor is currently intersecting the viewport (plus prewarm margin). */
+let inViewport = true
+let viewportObserver: IntersectionObserver | undefined
+
+/** The worker reading ahead, with `worker`, and how to let go of it. */
+let syntaxWorker: SyntaxWorkerClient | null = null
+let releaseWorker: (() => void) | null = null
+let workerJob = 0
+let workerAcquiring = false
+let workerFallenBack = false
+/** True once the worker has responded in flat per-line `tokens` mode for the current language. */
+let workerTokenMode = false
+
+const workerConfigured = () =>
+  !!props.language && !!props.worker && !workerFallenBack && typeof Worker !== 'undefined'
+
+const usesRemoteTokens = () =>
+  workerTokenMode || (props.language?.workerMode === 'tokens' && workerConfigured())
+
+let syntaxJob = 0
+let syntaxUntil = 0
+/** Runs `task` when the page is idle, with how long it may take (ms). */
+const idle =
+  typeof requestIdleCallback === 'function'
+    ? (task: (budget: number) => void) =>
+        requestIdleCallback((deadline) => task(deadline.timeRemaining()), { timeout: 100 })
+    : (task: (budget: number) => void) => window.setTimeout(() => task(8), 16)
+const cancelIdle = (id: number) =>
+  typeof cancelIdleCallback === 'function' ? cancelIdleCallback(id) : clearTimeout(id)
+
+function cancelScheduledSyntax() {
+  if (syntaxJob) {
+    cancelIdle(syntaxJob)
+    syntaxJob = 0
+  }
+  syntaxUntil = 0
+}
 
 watch(
   () => props.language,
   (language) => {
+    cancelScheduledSyntax()
+    remoteTokens.clear()
+    workerTokenMode = false
+    workerFallenBack = false
     highlighter = language ? markRaw(new CodeHighlighter(language, doc.value, props.tabSize)) : null
     syntaxTick.value++
   },
   { immediate: true },
 )
 
-/** The worker reading ahead, with `worker`, and how to let go of it. */
-let syntaxWorker: SyntaxWorkerClient | null = null
-let releaseWorker: (() => void) | null = null
-let workerJob = 0
-
 function stopSyntaxWorker() {
+  workerAcquiring = false
   syntaxWorker?.dispose()
   syntaxWorker = null
   releaseWorker?.()
@@ -1540,6 +1593,8 @@ function stopSyntaxWorker() {
 
 /** Reading goes back to the page, saying why while developing. */
 function workerFallback(message: string, error?: unknown) {
+  workerFallenBack = true
+  workerTokenMode = false
   stopSyntaxWorker()
   syntaxTick.value++
   if (process.env.NODE_ENV !== 'production')
@@ -1549,9 +1604,15 @@ function workerFallback(message: string, error?: unknown) {
     )
 }
 
-function attachWorker(worker: Worker, release: () => void) {
-  const language = props.language!
+function attachWorker(worker: Worker, release: () => void, setBusy?: (busy: boolean) => void) {
+  const language = props.language
+  if (!language) {
+    release()
+    return
+  }
+  cancelScheduledSyntax()
   releaseWorker = release
+  workerTokenMode = language.workerMode === 'tokens'
   syntaxWorker = new SyntaxWorkerClient(worker, language, () => doc.value, props.tabSize, {
     states(points) {
       const hl = highlighter
@@ -1559,43 +1620,76 @@ function attachWorker(worker: Worker, release: () => void) {
       hl.adopt(points)
       syntaxTick.value++
     },
+    tokens(from, tokenLines, frontier, ranges) {
+      if (props.language !== language) return
+      workerTokenMode = true
+      if (ranges) remoteTokens.adoptRanges(ranges, frontier)
+      else remoteTokens.adopt(from, tokenLines, frontier)
+      syntaxTick.value++
+    },
     unsupported(missing) {
       workerFallback(
         missing
           ? `the worker has no language named "${missing}" (for "${language.name}"); pass it to serveCodeHighlighting in the worker`
-          : `the states of "${language.name}" can't be sent from the worker; keep them to plain data`,
+          : `the worker could not highlight "${language.name}"`,
       )
     },
     failed(error) {
       workerFallback('the highlighting worker failed', error)
     },
+    onBusyChange: setBusy,
   })
   syntaxTick.value++
 }
 
-// The worker starts in the browser only, once the editor is there; the editor ends it.
+/** Lazily acquires a worker from the built-in or user-supplied pool when highlighting is actually needed. */
+function ensureWorkerClient() {
+  if (syntaxWorker || workerAcquiring || !mounted.value || !workerConfigured()) return
+  const option = props.worker
+  if (option !== true && !isCodeWorkerPool(option)) return
+  const job = workerJob
+  workerAcquiring = true
+  const acquire = option === true ? ownWorker() : acquirePoolWorker(option)
+  acquire.then(
+    ({ worker, release, setBusy }) => {
+      if (job !== workerJob) {
+        release()
+        return
+      }
+      workerAcquiring = false
+      attachWorker(worker, release, setBusy)
+    },
+    (error) => {
+      if (job !== workerJob) return
+      workerAcquiring = false
+      workerFallback(
+        option === true ? 'the built-in worker could not start' : 'the worker pool could not start',
+        error,
+      )
+    },
+  )
+}
+
+// Function workers start once mounted (matching existing lifecycle); pools spawn lazily on demand.
 watch(
   [() => props.language, () => props.worker, mounted],
   ([language, option, isMounted]) => {
     stopSyntaxWorker()
+    remoteTokens.clear()
+    workerFallenBack = false
+    workerTokenMode = false
     const job = ++workerJob
     if (!language || !option || !isMounted || typeof Worker === 'undefined') return
-    if (option === true) {
-      ownWorker().then(
-        ({ worker, release }) => {
-          if (job === workerJob) attachWorker(worker, release)
-          else release()
-        },
-        (error) =>
-          job === workerJob && workerFallback('the built-in worker could not start', error),
-      )
+    if (option === true || isCodeWorkerPool(option)) {
+      // Trigger a syntax pass so visible lines needing the worker lazily acquire one from the pool.
+      syntaxTick.value++
       return
     }
     let worker: Worker
     try {
       worker = option()
     } catch (error) {
-      workerFallback('the worker could not start', error)
+      if (job === workerJob) workerFallback('the worker could not start', error)
       return
     }
     attachWorker(worker, holdWorker(worker))
@@ -1609,47 +1703,92 @@ onBeforeUnmount(() => {
 
 /** Brings the colors along with a change of the text. */
 function syntaxChange(next: CodeText, changes: ChangeSet) {
+  const prev = highlighter?.text ?? doc.value
+  remoteTokens.update(prev, next, changes)
   highlighter?.update(next, changes)
   syntaxWorker?.change(changes)
 }
 
-/** Gets the tokens of the lines in view, asking idle time for the ones too far ahead. */
-function syntaxLines(from: number, to: number): (n: number) => CodeLineTokens | null {
+/** Gets the tokens of the lines in view, delegating unread ranges to the worker or idle slices. */
+function syntaxLines(
+  from: number,
+  to: number,
+  shownNumbers?: readonly number[],
+): (n: number) => CodeLineTokens | null {
   void syntaxTick.value
   const hl = highlighter
   if (!hl) return () => null
-  if (!hl.ready(to) && to - hl.frontier > SYNTAX_REACH) {
-    if (syntaxWorker) syntaxWorker.want(hl.frontier, to)
-    else scheduleSyntax(to)
+  const reach = syncReach()
+  const tokenRanges = shownNumbers
+    ? compressLineRanges(shownNumbers)
+    : from <= to
+      ? ([[from, to]] as Array<[number, number]>)
+      : []
+
+  // Remote per-line token mode (e.g. Shiki or non-serializable worker language):
+  // never block the main thread tokenizing on the page while the worker is active.
+  if (usesRemoteTokens()) {
+    const ready = shownNumbers
+      ? remoteTokens.readyNumbers(shownNumbers)
+      : remoteTokens.readyRange(from, to)
+    if (inViewport && !ready && tokenRanges.length > 0) {
+      const firstFrom = tokenRanges[0]![0]
+      const lastTo = tokenRanges[tokenRanges.length - 1]![1]
+      if (syntaxWorker) {
+        syntaxWorker.want(remoteTokens.frontier, lastTo, firstFrom, lastTo, tokenRanges)
+      } else {
+        ensureWorkerClient()
+      }
+    }
+    return (n) => remoteTokens.line(n)
+  }
+
+  if (!hl.ready(to) && to - hl.frontier > reach) {
+    if (inViewport) {
+      if (workerConfigured()) {
+        if (syntaxWorker) syntaxWorker.want(hl.frontier, to, from, to, tokenRanges)
+        else ensureWorkerClient()
+      } else {
+        scheduleSyntax(to)
+      }
+    }
     return (n) => (hl.ready(n) ? hl.line(n) : null)
   }
   return (n) => hl.line(n)
 }
 
-let syntaxJob = 0
-let syntaxUntil = 0
-/** Runs `task` when the page is idle, with how long it may take (ms). */
-const idle =
-  typeof requestIdleCallback === 'function'
-    ? (task: (budget: number) => void) =>
-        requestIdleCallback((deadline) => task(deadline.timeRemaining()), { timeout: 100 })
-    : (task: (budget: number) => void) => window.setTimeout(() => task(8), 16)
-const cancelIdle = (id: number) =>
-  typeof cancelIdleCallback === 'function' ? cancelIdleCallback(id) : clearTimeout(id)
+function setInViewport(visible: boolean) {
+  if (inViewport === visible) return
+  inViewport = visible
+  if (!visible) {
+    syntaxWorker?.cancel()
+    cancelScheduledSyntax()
+  } else {
+    syntaxTick.value++
+  }
+}
 
 function scheduleSyntax(until: number) {
+  if (!inViewport || !mounted.value || typeof window === 'undefined') return
   syntaxUntil = Math.max(syntaxUntil, until)
   if (syntaxJob) return
   syntaxJob = idle((budget) => {
     syntaxJob = 0
     const hl = highlighter
-    if (!hl) return
+    if (!hl || !inViewport) {
+      syntaxUntil = 0
+      return
+    }
+    const prevFrontier = hl.frontier
     // the idle time there is, up to 20ms so a key pressed meanwhile waits little; some when it timed out
     hl.work(performance.now() + Math.min(20, Math.max(4, budget - 1)), syntaxUntil)
     if (hl.ready(syntaxUntil)) {
       syntaxUntil = 0
       syntaxTick.value++
-    } else scheduleSyntax(syntaxUntil)
+    } else {
+      if (hl.frontier > prevFrontier && hl.frontier >= visibleFrom.value) syntaxTick.value++
+      scheduleSyntax(syntaxUntil)
+    }
   })
 }
 
@@ -1658,7 +1797,9 @@ function syntaxAt(pos: number): CodeTokenType | null {
   const hl = highlighter
   if (!hl || pos < 0 || pos >= doc.value.length) return null
   const line = doc.value.lineAt(pos)
-  const tokens = hl.line(line.number, SYNTAX_REACH)
+  const tokens = usesRemoteTokens()
+    ? remoteTokens.line(line.number)
+    : hl.line(line.number, syncReach())
   if (!tokens) return null
   const col = pos - line.from
   for (let i = 0; i < tokens.length; i += 2) {
@@ -1673,9 +1814,10 @@ function syntaxAt(pos: number): CodeTokenType | null {
 function languageAt(pos: number) {
   const hl = highlighter
   if (!hl) return null
+  if (usesRemoteTokens()) return hl.language
   const line = doc.value.lineAt(Math.min(Math.max(pos, 0), doc.value.length))
   // Within reach only: far down an unread file, the outer language will do.
-  if (line.number - hl.frontier > SYNTAX_REACH) return hl.language
+  if (line.number - hl.frontier > syncReach()) return hl.language
   return hl.languageAt(line.number)
 }
 
@@ -4673,7 +4815,11 @@ function drawMinimap() {
     const { n, sub } = lay.lineAtRow(row)
     const rowText = text.lineText(n)
     const breaks = wrapRows ? wrapOf(rowText).breaks : []
-    const tokens = hl && (hl.ready(n) || n - hl.frontier <= SYNTAX_REACH) ? hl.line(n) : null
+    const tokens = usesRemoteTokens()
+      ? remoteTokens.line(n)
+      : hl && (hl.ready(n) || n - hl.frontier <= syncReach())
+        ? hl.line(n)
+        : null
     const rowsHere = lay.rowsOf(n)
     for (let k = sub; k < rowsHere && row <= lastRow; k++, row++) {
       const start = k ? breaks[k - 1]! : 0
@@ -4897,7 +5043,23 @@ onMounted(() => {
     if (root.value) resize.observe(root.value)
   }
   updateClip()
+  if (root.value && typeof window !== 'undefined' && typeof IntersectionObserver !== 'undefined') {
+    const rect = root.value.getBoundingClientRect()
+    if (rect.width > 0 || rect.height > 0) {
+      const margin = 200
+      if (rect.bottom < -margin || rect.top > window.innerHeight + margin) inViewport = false
+    }
+    viewportObserver = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[entries.length - 1]
+        if (entry) setInViewport(entry.isIntersecting)
+      },
+      { rootMargin: '200px 0px' },
+    )
+    viewportObserver.observe(root.value)
+  }
   mounted.value = true
+  if (highlighter && !highlighter.ready(doc.value.lines)) syntaxTick.value++
   window.addEventListener('scroll', onWindowScroll, { capture: true, passive: true })
   window.addEventListener('resize', onWindowScroll, { passive: true })
   document.addEventListener('selectionchange', onSelectionChange)
@@ -4943,7 +5105,9 @@ watch(extensions, (next) => {
 })
 
 onBeforeUnmount(() => {
-  if (syntaxJob) cancelIdle(syntaxJob)
+  cancelScheduledSyntax()
+  viewportObserver?.disconnect()
+  viewportObserver = undefined
   clearTimeout(searchTimer)
   resize?.disconnect()
   widgetObserver?.disconnect()

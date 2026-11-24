@@ -1,27 +1,87 @@
-import type { CodeLanguage } from './language'
+import type { CodeDiffHunk, CodeDiffOptions } from '../core/diff'
+import type { CodeLanguage, CodeLineTokens } from './language'
 
 /*
  * Messages between the editor and a highlighting worker, and how states
  * cross over: languages inside a state (the script in an HTML file) go by
- * name, everything else as plain data.
+ * name, everything else as plain data. Languages whose states cannot cross
+ * postMessage (such as Shiki's TextMate StateStack) run in `tokens` mode:
+ * the worker keeps the state and sends flat line token arrays directly.
  */
 
 /** A change as sent: `[from, to, insert]`. */
 export type WireChange = [from: number, to: number, insert: string]
 
+/** How a worker transfers syntax results back to the page for a document. */
+export type WorkerSyntaxMode = 'auto' | 'states' | 'tokens'
+
 export type ToWorker =
   /** `nested`: the names of the languages it may hold, which the worker's language must hold too. */
-  | { t: 'open'; id: number; language: string; nested: string[]; tabSize: number }
+  | {
+      t: 'open'
+      id: number
+      language: string
+      nested: string[]
+      tabSize: number
+      mode?: WorkerSyntaxMode
+    }
   /** The text, in pieces of whole lines; `done` on the last. */
   | { t: 'text'; id: number; lines: string[]; done: boolean }
   | { t: 'change'; id: number; changes: WireChange[]; length: number }
-  | { t: 'read'; id: number; from: number; until: number }
+  | {
+      t: 'read'
+      id: number
+      from: number
+      until: number
+      /** 1-based inclusive line range whose flat tokens should be returned in `tokens` mode. */
+      tokensFrom?: number
+      tokensTo?: number
+      /**
+       * Specific 1-based inclusive line ranges whose flat tokens should be
+       * returned in `tokens` mode, skipping folded or collapsed hidden lines.
+       */
+      tokenRanges?: Array<[from: number, to: number]>
+      /** Monotonic request sequence so newer viewport requests preempt older ones. */
+      seq?: number
+    }
+  /** Cancels any pending highlighting work for this document without closing it. */
+  | { t: 'cancel'; id: number }
   | { t: 'close'; id: number }
+  /** Requests an asynchronous text diff inside the worker. */
+  | {
+      t: 'diff'
+      id: number
+      original: string
+      modified: string
+      options?: CodeDiffOptions
+    }
+  /** Cancels a queued diff request before it runs. */
+  | { t: 'cancelDiff'; id: number }
 
 export type FromWorker =
-  | { t: 'states'; id: number; version: number; points: Array<[line: number, state: unknown]> }
-  /** The worker hasn't the language named `missing`, or (without it) can't send its states. */
+  | {
+      t: 'states'
+      id: number
+      version: number
+      seq?: number
+      points: Array<[line: number, state: unknown]>
+    }
+  /** Flat per-line token arrays starting at 1-based line `from` (inclusive), or disjoint `ranges`. */
+  | {
+      t: 'tokens'
+      id: number
+      version: number
+      seq?: number
+      from: number
+      lines: CodeLineTokens[]
+      /** Present when the request asked for multiple disjoint visible line ranges. */
+      ranges?: Array<[from: number, lines: CodeLineTokens[]]>
+      frontier: number
+    }
+  /** The worker hasn't the language named `missing`, or (without it) can't highlight it. */
   | { t: 'unsupported'; id: number; missing?: string }
+  /** Result of an asynchronous `diff` request. */
+  | { t: 'diffResult'; id: number; hunks: CodeDiffHunk[] }
 
 const LANGUAGE = '$codeLanguage'
 

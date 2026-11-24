@@ -18,6 +18,7 @@ import {
   provide,
   reactive,
   ref,
+  shallowRef,
   watch,
 } from 'vue'
 import CodeEditor from './code-editor.vue'
@@ -26,6 +27,14 @@ import { type CodeDiffHunk, diffText, lineStarts } from './core/diff'
 import type { CodeKeymap } from './core/keymap'
 import type { CodeTransactionResult } from './core/transaction'
 import { splitLines } from './core/text'
+import {
+  acquirePoolWorker,
+  holdWorker,
+  isCodeWorkerPool,
+  ownWorker,
+  requestWorkerDiff,
+  type WorkerDiffRequest,
+} from './language/worker-client'
 import {
   type CodeDecoration,
   type CodeExtension,
@@ -59,6 +68,9 @@ const props = withDefaults(defineProps<CodeDiffProps>(), {
   original: '',
   modelValue: '',
   language: undefined,
+  worker: false,
+  syncHighlightLines: undefined,
+  syncDiffLines: 500,
   mode: 'auto',
   editable: false,
   collapseUnchanged: true,
@@ -116,8 +128,10 @@ function syncWidth(width: number) {
   compact.value = width < COMPACT_WIDTH
 }
 
+const mounted = ref(false)
 let resize: ResizeObserver | undefined
 onMounted(() => {
+  mounted.value = true
   if (!root.value) return
   syncWidth(root.value.clientWidth)
   if (typeof ResizeObserver === 'undefined') return
@@ -126,7 +140,10 @@ onMounted(() => {
   })
   resize.observe(root.value)
 })
-onBeforeUnmount(() => resize?.disconnect())
+onBeforeUnmount(() => {
+  resize?.disconnect()
+  stopDiffWorker()
+})
 
 // ---------------------------------------------------------------- texts and changes
 
@@ -141,14 +158,165 @@ function onModifiedInput(value: string) {
   emit('update:modelValue', value)
 }
 
-const hunks = computed<CodeDiffHunk[]>(() =>
-  diffText(props.original, modified.value, {
-    ignoreWhitespace: props.ignoreWhitespace,
-    words: props.words,
-  }),
-)
 const originalLines = computed(() => splitLines(props.original))
 const modifiedLines = computed(() => splitLines(modified.value))
+
+// ---------------------------------------------------------------- async worker diff
+
+interface AsyncDiffState {
+  hunks: CodeDiffHunk[]
+  original: string
+  modified: string
+  ignoreWhitespace: boolean
+  words: boolean
+}
+const asyncDiffState = shallowRef<AsyncDiffState | null>(null)
+const diffWorkerFailed = ref(false)
+let diffJob = 0
+let activeDiffReq: WorkerDiffRequest | null = null
+let activeDiffRelease: (() => void) | null = null
+/** Cached factory worker instance for diffs when `worker` is a `() => Worker` function. */
+let fnDiffWorker: { option: () => Worker; worker: Worker; release: () => void } | null = null
+
+function releaseActiveDiff() {
+  activeDiffReq?.cancel()
+  activeDiffReq = null
+  activeDiffRelease?.()
+  activeDiffRelease = null
+}
+
+function stopDiffWorker() {
+  diffJob++
+  releaseActiveDiff()
+  fnDiffWorker?.release()
+  fnDiffWorker = null
+}
+
+watch(
+  () => props.worker,
+  () => {
+    diffWorkerFailed.value = false
+    stopDiffWorker()
+  },
+)
+
+const useAsyncDiff = computed(() => {
+  if (!props.worker || diffWorkerFailed.value || typeof Worker === 'undefined') return false
+  if (props.original === modified.value) return false
+  const limit = Math.max(0, props.syncDiffLines)
+  return originalLines.value.length + modifiedLines.value.length > limit
+})
+
+async function acquireDiffWorker(): Promise<{
+  worker: Worker
+  release: () => void
+  setBusy?: (busy: boolean) => void
+}> {
+  const option = props.worker
+  if (option === true) return ownWorker()
+  if (isCodeWorkerPool(option)) return acquirePoolWorker(option)
+  if (typeof option === 'function') {
+    if (!fnDiffWorker || fnDiffWorker.option !== option) {
+      fnDiffWorker?.release()
+      const worker = option()
+      fnDiffWorker = { option, worker, release: holdWorker(worker) }
+    }
+    return { worker: fnDiffWorker.worker, release: () => {} }
+  }
+  throw new Error('[@dou-ui/code] no worker configured')
+}
+
+watch(
+  [
+    useAsyncDiff,
+    mounted,
+    () => props.original,
+    modified,
+    () => props.ignoreWhitespace,
+    () => props.words,
+    () => props.worker,
+  ],
+  ([asyncEnabled, isMounted, original, mod, ignoreWhitespace, words]) => {
+    const job = ++diffJob
+    releaseActiveDiff()
+    const current = asyncDiffState.value
+    if (
+      !asyncEnabled ||
+      !current ||
+      current.original !== original ||
+      current.modified !== mod ||
+      current.ignoreWhitespace !== ignoreWhitespace ||
+      current.words !== words
+    ) {
+      if (current) asyncDiffState.value = null
+    }
+    if (!asyncEnabled || !isMounted) return
+    acquireDiffWorker().then(
+      ({ worker, release, setBusy }) => {
+        if (job !== diffJob) {
+          release()
+          return
+        }
+        setBusy?.(true)
+        const finish = () => {
+          setBusy?.(false)
+          release()
+        }
+        activeDiffRelease = finish
+        const req = requestWorkerDiff(worker, original, mod, { ignoreWhitespace, words })
+        activeDiffReq = req
+        req.promise.then(
+          (result) => {
+            if (job !== diffJob) return
+            activeDiffReq = null
+            activeDiffRelease = null
+            finish()
+            asyncDiffState.value = {
+              hunks: result,
+              original,
+              modified: mod,
+              ignoreWhitespace,
+              words,
+            }
+          },
+          () => {
+            if (job !== diffJob) return
+            activeDiffReq = null
+            activeDiffRelease = null
+            finish()
+            diffWorkerFailed.value = true
+          },
+        )
+      },
+      () => {
+        if (job !== diffJob) return
+        diffWorkerFailed.value = true
+      },
+    )
+  },
+  { immediate: true },
+)
+
+const hunks = computed<CodeDiffHunk[]>(() => {
+  if (props.original === modified.value) return []
+  if (useAsyncDiff.value) {
+    const state = asyncDiffState.value
+    if (
+      !state ||
+      state.original !== props.original ||
+      state.modified !== modified.value ||
+      state.ignoreWhitespace !== props.ignoreWhitespace ||
+      state.words !== props.words
+    ) {
+      return []
+    }
+    return state.hunks
+  }
+  return diffText(props.original, modified.value, {
+    ignoreWhitespace: props.ignoreWhitespace,
+    words: props.words,
+  })
+})
 
 const stats = computed(() => {
   let added = 0
@@ -205,7 +373,9 @@ const annotatedLines = computed(() => {
 
 const unchanged = computed<Unchanged[]>(() => {
   const list = hunks.value
-  const total = originalLines.value.length
+  const total = list.length
+    ? originalLines.value.length
+    : Math.min(originalLines.value.length, modifiedLines.value.length)
   const out: Unchanged[] = []
   const rule = collapse.value
   const push = (a: number, b: number, count: number, before: boolean, after: boolean) => {
@@ -1377,6 +1547,8 @@ defineExpose<CodeDiffExpose>({
           ref="editorA"
           :model-value="original"
           :language="language"
+          :worker="worker"
+          :sync-highlight-lines="syncHighlightLines"
           :extensions="extensionsA"
           :tab-size="tabSize"
           :messages="messages"
@@ -1399,6 +1571,8 @@ defineExpose<CodeDiffExpose>({
           ref="editorB"
           :model-value="modified"
           :language="language"
+          :worker="worker"
+          :sync-highlight-lines="syncHighlightLines"
           :extensions="modifiedExtensions"
           :tab-size="tabSize"
           :messages="messages"
@@ -1438,6 +1612,8 @@ defineExpose<CodeDiffExpose>({
         ref="editorInline"
         :model-value="unified?.text ?? ''"
         :language="language"
+        :worker="worker"
+        :sync-highlight-lines="syncHighlightLines"
         :extensions="inlineExtensions"
         :tab-size="tabSize"
         :messages="messages"

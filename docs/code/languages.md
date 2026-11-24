@@ -107,6 +107,54 @@ onMounted(async () => {
 - `engine: createJavaScriptRegexEngine()` 使用 Shiki 的 JavaScript 正则引擎，在浏览器中不必加载 WebAssembly。
 - Shiki 的语法定义中没有注释写法和缩进规则。需要切换注释、换行缩进时，用 `comment`、`brackets`、`autoClose`、`indentAfter` 补充。
 
+### 在 Worker 中离主线程运行 Shiki
+
+Shiki 的 TextMate `StateStack` 状态无法跨线程克隆。使用行级 Token 协议时，状态保存在 Worker 中，Worker 直接向主线程返回当前视口行的扁平 Token 数组，主线程无需加载 Shiki 或 WebAssembly：
+
+```ts
+// shiki.worker.ts
+import { createShikiLanguageResolver } from '@dou-ui/code/shiki'
+import { serveCodeHighlighting, typescript, vue } from '@dou-ui/code/worker'
+import { createHighlighter } from 'shiki'
+
+let shiki: ReturnType<typeof createHighlighter> | undefined
+
+serveCodeHighlighting({
+  languages: [typescript, vue],
+  resolve: createShikiLanguageResolver(
+    () => (shiki ??= createHighlighter({ langs: [], themes: [] })),
+  ),
+})
+```
+
+```vue
+<script setup lang="ts">
+import { createCodeWorkerPool, DouCodeDiff, remoteCodeLanguage } from '@dou-ui/code'
+import { onBeforeUnmount } from 'vue'
+
+const pool = createCodeWorkerPool(
+  () => new Worker(new URL('./shiki.worker.ts', import.meta.url), { type: 'module' }),
+)
+const rust = remoteCodeLanguage({
+  name: 'rust',
+  comment: { line: '//', block: ['/*', '*/'] },
+})
+onBeforeUnmount(() => pool.dispose())
+</script>
+
+<template>
+  <DouCodeDiff
+    v-model="modified"
+    :original="original"
+    :language="rust"
+    :worker="pool"
+    :sync-highlight-lines="0"
+  />
+</template>
+```
+
+如果主线程已经持有 `shikiLanguage(...)` 实例，同样可以配合 `:worker="pool"` 使用，此时高亮优先在 Worker 中离主线程执行，Worker 不可用时再回退到主线程。
+
 ## 自定义语言
 
 `defineCodeLanguage` 用一个逐行读取的 `token` 函数定义语言。`token` 每次读取一个记号（至少一个字符），返回它的种类；返回 `null` 表示普通文字。
@@ -145,8 +193,11 @@ onMounted(async () => {
 
 ### 其他导出
 
-| 名称                               | 说明                               |
-| ---------------------------------- | ---------------------------------- |
-| `createMarkdown({ languages })`    | 创建能给代码块着色的 Markdown 语言 |
-| `createCodeHighlighter(languages)` | 创建 CodeBlock 的 `highlight` 函数 |
-| `languageFor(languages, name)`     | 按名称或别名在列表中查找语言       |
+| 名称                                       | 说明                                                        |
+| ------------------------------------------ | ----------------------------------------------------------- |
+| `remoteCodeLanguage(options)`              | 创建仅在 Worker 中高亮的轻量语言定义，主线程无需引入 Shiki  |
+| `createShikiLanguageResolver(highlighter)` | 从 `@dou-ui/code/shiki` 导出，供 Worker 按需加载 Shiki 语法 |
+| `createCodeWorkerPool(factory, options?)`  | 创建按需懒启动并可复用的高亮 Worker 池                      |
+| `createMarkdown({ languages })`            | 创建能给代码块着色的 Markdown 语言                          |
+| `createCodeHighlighter(languages)`         | 创建 CodeBlock 的 `highlight` 函数                          |
+| `languageFor(languages, name)`             | 按名称或别名在列表中查找语言                                |

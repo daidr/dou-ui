@@ -1,7 +1,7 @@
 import { createSSRApp, h } from 'vue'
 import { renderToString } from 'vue/server-renderer'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { DouCodeEditor, typescript } from '../index'
+import { DouCodeDiff, DouCodeEditor, typescript } from '../index'
 
 const code = 'function total(orders) {\n  return orders.length\n}\n'
 
@@ -51,5 +51,34 @@ describe('server rendering', () => {
       .filter((message) => /hydration|mismatch/i.test(message))
     expect(problems).toEqual([])
     app.unmount()
+  })
+
+  it('renders DouCodeEditor and DouCodeDiff with syncHighlightLines=0 and worker without window', async () => {
+    vi.stubGlobal('window', undefined)
+    vi.stubGlobal('Worker', undefined)
+    const editorApp = createSSRApp({
+      render: () =>
+        h(DouCodeEditor, {
+          modelValue: code,
+          language: typescript,
+          worker: true,
+          syncHighlightLines: 0,
+        }),
+    })
+    const diffApp = createSSRApp({
+      render: () =>
+        h(DouCodeDiff, {
+          original: code,
+          modelValue: `${code}const x = 1\n`,
+          language: typescript,
+          worker: true,
+          syncHighlightLines: 0,
+          syncDiffLines: 0,
+        }),
+    })
+    const editorHtml = await renderToString(editorApp)
+    const diffHtml = await renderToString(diffApp)
+    expect(editorHtml).toContain('function total')
+    expect(diffHtml).toContain('const x = 1')
   })
 })

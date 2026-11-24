@@ -7,6 +7,17 @@ DouUI 的所有包（`dou-ui`、`@dou-ui/theme`、`@dou-ui/icons` 以及生态�
 
 这个文件由发版脚本生成：改动先以碎片文件记在 [`.changes/`](./.changes/README.md) 里，发布时汇总到这里。
 
+## 0.1.0-alpha.24 · 2026-11-24
+
+### 改进
+
+- **dou-ui、@dou-ui/theme**：优化 `DouChatInput` 的 `/` 命令与 `@` 提及补全菜单排版：`commands` 选项带 `description` 时改为清晰的双行堆叠布局（无描述项保持紧凑单行垂直居中），`mentions` 选项统一为单行对齐布局（左侧固定图标、中间 `@label` 单行省略、右侧 `description` 靠右对齐并在最大宽度内单行截断）；菜单桌面端默认最大宽度放宽至 `440px` 并暴露 `--dou-chat-input-menu-max-width` 变量，同时不再对 `#option` 自定义插槽中的描述施加 `max-width: 40%` 限制。 ([#524](https://github.com/daidr/dou-ui/pull/524))
+- **@dou-ui/code**：优化 `DouCodeEditor` 与 `DouCodeDiff` 行号列宽度和窄屏布局：关闭行号且无折叠时移除 `DouCodeEditor` 行号栏尾部 12px 冗余留白；收紧 `DouCodeDiff` 在 `inline` / `split` 模式下的行号字号、列宽与符号列间距，并在容器宽度小于 480px 时启用紧凑行号布局；`CodeGutter` 与 `CodeDiffGutter` 新增 `overlay` 悬浮叠加模式（`DouCodeDiff` 支持 `true` 或 `'compact'`），行级操作按钮可不占固定列宽。 ([#526](https://github.com/daidr/dou-ui/pull/526))
+
+### 修复
+
+- **@dou-ui/code**：修复 `DouCodeEditor` 与 `DouCodeDiff` 横向滚动时折叠未变更行横条及块级小部件左右抖动的问题，改用纯 CSS `position: sticky` 固定水平位置，并让折叠横条与对齐占位块横跨包含行号列在内的整行宽度；同时修复 `DouCodeDiff` 横向滚动时跨栏小部件短暂隐藏的问题。 ([#525](https://github.com/daidr/dou-ui/pull/525))
+
 ## 0.1.0-alpha.23 · 2026-11-23
 
 ### 新增

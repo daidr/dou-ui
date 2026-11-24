@@ -7,6 +7,16 @@ DouUI 的所有包（`dou-ui`、`@dou-ui/theme`、`@dou-ui/icons` 以及生态�
 
 这个文件由发版脚本生成：改动先以碎片文件记在 [`.changes/`](./.changes/README.md) 里，发布时汇总到这里。
 
+## 0.1.0-alpha.25 · 2026-11-24
+
+### 新增
+
+- **dou-ui**：`DouCodeBlock` 的 `highlight` 回调支持接收可选的第三个参数 `{ signal: AbortSignal }`，在代码、语言、高亮函数变化或组件卸载时自动中止上一轮高亮信号，便于异步高亮器（如 Web Worker 池）及时取消排队中的过期任务。 ([#530](https://github.com/daidr/dou-ui/pull/530))
+
+### 性能
+
+- **@dou-ui/code**：`DouCodeDiff` 支持透传 `worker`、`syncHighlightLines` 与 `syncDiffLines`（默认 `500`），超出阈值时可将 `diffText` 异步移入 Worker；`DouCodeEditor` 新增 `syncHighlightLines` 控制同步分词行数并支持视口外任务取消；Worker 协议新增扁平行级 `tokens` 模式、`remoteCodeLanguage` 与 `createShikiLanguageResolver` 支持 Shiki 离主线程高亮，内置 Worker 升级为按需懒启动的 Worker 池并导出 `createCodeWorkerPool`。 ([#532](https://github.com/daidr/dou-ui/pull/532))
+
 ## 0.1.0-alpha.24 · 2026-11-24
 
 ### 改进

@@ -1027,4 +1027,77 @@ describe('DouCodeDiff sticky widgets and horizontal scroll', () => {
     await nextTick()
     expect(span.classes()).not.toContain('is-placed')
   })
+
+  it('keeps dynamically added spanning widgets visible on the first horizontal scroll', async () => {
+    const beforeText = `${longLines(1, 'old')}\n${longLines(14, 'same')}`
+    const afterText = `${longLines(1, 'new')}\n${longLines(14, 'same')}`
+    const widgets = ref<
+      Array<{
+        id: string
+        side: 'original' | 'modified'
+        line: number
+        span: 'both'
+        render: () => ReturnType<typeof h>
+      }>
+    >([])
+    const wrapper = mount(
+      defineComponent(
+        () => () =>
+          h(DouCodeDiff, {
+            original: beforeText,
+            modelValue: afterText,
+            mode: 'split',
+            widgets: widgets.value,
+          }),
+      ),
+      { attachTo: document.body },
+    )
+    await nextTick()
+    await nextTick()
+
+    const scrollers = wrapper.findAll('.dou-code-editor__scroller')
+    const [scrollerA, scrollerB] = scrollers.map((s) => s.element as HTMLElement)
+    for (const scroller of [scrollerA!, scrollerB!]) {
+      Object.defineProperty(scroller, 'clientWidth', { configurable: true, value: 300 })
+      Object.defineProperty(scroller, 'scrollWidth', { configurable: true, value: 1400 })
+      Object.defineProperty(scroller, 'clientHeight', { configurable: true, value: 200 })
+      Object.defineProperty(scroller, 'scrollHeight', { configurable: true, value: 800 })
+    }
+
+    // 1. Scroll vertically while there are no spanning widgets, then add one and scroll horizontally.
+    scrollerA!.scrollTop = 80
+    await scrollers[0]!.trigger('scroll')
+    await nextTick()
+
+    widgets.value = [
+      { id: 'dyn-1', side: 'modified', line: 2, span: 'both', render: () => h('p', '动态跨栏') },
+    ]
+    await nextTick()
+    await nextTick()
+    expect(wrapper.get('.dou-code-diff__span').classes()).toContain('is-placed')
+
+    scrollerA!.scrollLeft = 180
+    await scrollers[0]!.trigger('scroll')
+    await nextTick()
+    expect(wrapper.get('.dou-code-diff__span').classes()).toContain('is-placed')
+
+    // 2. Remove all spanning widgets, scroll vertically elsewhere, re-add one, then scroll horizontally.
+    widgets.value = []
+    await nextTick()
+    scrollerA!.scrollTop = 140
+    await scrollers[0]!.trigger('scroll')
+    await nextTick()
+
+    widgets.value = [
+      { id: 'dyn-2', side: 'modified', line: 2, span: 'both', render: () => h('p', '再次跨栏') },
+    ]
+    await nextTick()
+    await nextTick()
+    expect(wrapper.get('.dou-code-diff__span').classes()).toContain('is-placed')
+
+    scrollerA!.scrollLeft = 260
+    await scrollers[0]!.trigger('scroll')
+    await nextTick()
+    expect(wrapper.get('.dou-code-diff__span').classes()).toContain('is-placed')
+  })
 })

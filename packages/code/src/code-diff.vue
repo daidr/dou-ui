@@ -1060,12 +1060,18 @@ function placeSpans() {
     spanTops.value = tops
 }
 
+const sideScrollTop = new WeakMap<HTMLElement, number>()
+
 // Blanks move when the text scrolls, a widget above grows, or the box resizes.
 let stopPlacing: (() => void) | undefined
 function startPlacing() {
   stopPlacing?.()
   stopPlacing = undefined
   if (!spans.value.length || !sideA.value) return
+  for (const side of [sideA.value, sideB.value]) {
+    const scroller = side?.querySelector<HTMLElement>('.dou-code-editor__scroller')
+    if (scroller) sideScrollTop.set(scroller, scroller.scrollTop)
+  }
   placeSpans()
   const moved = typeof MutationObserver === 'undefined' ? null : new MutationObserver(schedulePlace)
   for (const side of [sideA.value, sideB.value])
@@ -1089,14 +1095,13 @@ onBeforeUnmount(() => stopPlacing?.())
  */
 const spansScrolling = ref(false)
 let restTimer: ReturnType<typeof setTimeout> | undefined
-const sideScrollTop = new WeakMap<HTMLElement, number>()
 function onSideScroll(event: Event) {
-  if (!spans.value.length) return
   const scroller = event.target as HTMLElement | null
   if (!scroller?.classList.contains('dou-code-editor__scroller')) return
   const top = scroller.scrollTop
   const prev = sideScrollTop.get(scroller)
   sideScrollTop.set(scroller, top)
+  if (!spans.value.length) return
   // Horizontal scrolling does not change vertical span positions; keep spans visible.
   if (prev !== undefined ? prev === top : top === 0) return
   spansScrolling.value = true

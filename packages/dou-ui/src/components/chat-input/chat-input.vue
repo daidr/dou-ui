@@ -227,20 +227,42 @@ const { style: floatingStyle, placement: menuPlacement } = useFloating(
 const { next: nextZIndex } = useZIndex()
 const menuZIndex = ref<number>()
 const menuWidth = ref<number>()
+const menuMaxWidth = ref<string>()
 // rendered the first time it opens, so the server output stays the same
 const menuRendered = ref(false)
 const { theme, sync: syncTheme } = useThemeScope(() => rootRef.value)
+
+function readMenuMaxWidth() {
+  if (typeof window === 'undefined' || teleportTarget.value.disabled) return undefined
+  const el = rootRef.value
+  if (!el) return undefined
+  const value = getComputedStyle(el).getPropertyValue('--dou-chat-input-menu-max-width').trim()
+  if (!value) return undefined
+  const target =
+    typeof teleportTarget.value.to === 'string'
+      ? document.querySelector<HTMLElement>(teleportTarget.value.to)
+      : teleportTarget.value.to
+  const inherited = target
+    ? getComputedStyle(target).getPropertyValue('--dou-chat-input-menu-max-width').trim()
+    : ''
+  // Forward only when the input or an ancestor overrides the teleport target's value,
+  // so a rule directly on `.dou-chat-input__menu` still wins over `:root` / `body`.
+  return value !== inherited ? value : undefined
+}
+
 watch(menuOpen, (value) => {
   if (!value) return
   menuRendered.value = true
   menuZIndex.value = nextZIndex()
   menuWidth.value = rootRef.value?.offsetWidth
+  menuMaxWidth.value = readMenuMaxWidth()
   syncTheme()
 })
 const menuStyle = computed(() => ({
   ...floatingStyle.value,
   zIndex: menuZIndex.value,
   '--dou-chat-input-menu-width': menuWidth.value ? `${menuWidth.value}px` : undefined,
+  '--dou-chat-input-menu-max-width': menuMaxWidth.value,
 }))
 useLayer({
   open: menuOpen,
@@ -468,6 +490,7 @@ defineExpose<ChatInputExpose>({
           :aria-busy="stale || undefined"
           :style="menuStyle"
           :data-placement="menuPlacement"
+          :data-trigger="token?.trigger"
           :data-dou-theme="theme"
           role="listbox"
           @mousedown.prevent
@@ -480,6 +503,7 @@ defineExpose<ChatInputExpose>({
             :class="[
               ns.e('option'),
               ns.is('default', !slots.option),
+              ns.is('stacked', !slots.option && token?.trigger === '/' && !!option.description),
               ns.is('active', index === active),
               ns.is('disabled', !!option.disabled),
             ]"
@@ -490,12 +514,23 @@ defineExpose<ChatInputExpose>({
           >
             <slot name="option" :option="option" :trigger="token!.trigger">
               <component :is="option.icon" v-if="option.icon" :class="ns.e('option-icon')" />
-              <span :class="ns.e('option-label')">
-                {{ token?.trigger === '/' ? '/' : '@' }}{{ option.label ?? option.value }}
+              <span
+                v-if="token?.trigger === '/' && option.description"
+                :class="ns.e('option-content')"
+              >
+                <span :class="ns.e('option-label')"> /{{ option.label ?? option.value }} </span>
+                <span :class="ns.e('option-description')">
+                  {{ option.description }}
+                </span>
               </span>
-              <span v-if="option.description" :class="ns.e('option-description')">
-                {{ option.description }}
-              </span>
+              <template v-else>
+                <span :class="ns.e('option-label')">
+                  {{ token?.trigger === '/' ? '/' : '@' }}{{ option.label ?? option.value }}
+                </span>
+                <span v-if="option.description" :class="ns.e('option-description')">
+                  {{ option.description }}
+                </span>
+              </template>
             </slot>
           </li>
         </ul>

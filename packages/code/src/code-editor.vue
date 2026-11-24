@@ -627,6 +627,7 @@ interface PlacedWidget {
   above: boolean
   render: () => VNodeChild
   label?: string
+  fullWidth: boolean
   /** The row it sits just before: the line's first row above it, the next line's first row below it. */
   row: number
   height: number
@@ -655,6 +656,7 @@ const widgets = computed<PlacedWidget[]>(() => {
         above,
         render: widget.render,
         label: widget.label,
+        fullWidth: !!widget.fullWidth,
         row: drawn.rowOf(n) + (above ? 0 : drawn.rowsOf(n)),
         height: widgetHeights.get(key) ?? widget.height ?? lh,
         before: 0,
@@ -5074,6 +5076,9 @@ defineExpose<CodeEditorExpose>(api)
     :style="{
       '--dou-code-editor-gutter': `${gutterWidth}px`,
       '--dou-code-editor-gutter-cells': `${gutterCells}px`,
+      '--dou-code-editor-view-width': viewWidth > 0 ? `${viewWidth}px` : undefined,
+      '--dou-code-editor-widget-width':
+        viewWidth > 0 ? `${Math.max(0, viewWidth - gutterWidth)}px` : undefined,
       '--dou-code-editor-tab-size': tabSize,
     }"
   >
@@ -5675,25 +5680,26 @@ defineExpose<CodeEditorExpose>(api)
               @focus="onFocus"
               @blur="onBlur"
             />
-            <!-- After the textarea, so Escape then Tab reaches what is inside the widgets. -->
+          </div>
+          <!-- After the textarea, so Escape then Tab reaches what is inside the widgets. -->
+          <div
+            v-if="shownWidgets.length"
+            :class="ns.e('widgets')"
+            @pointerdown.stop
+            @pointermove.stop
+            @mousedown.stop
+          >
             <div
-              v-if="shownWidgets.length"
-              :class="ns.e('widgets')"
-              @pointerdown.stop
-              @pointermove.stop
-              @mousedown.stop
+              v-for="widget in shownWidgets"
+              :key="widget.key"
+              :class="[ns.e('widget-slot'), ns.is('full-width', widget.fullWidth)]"
+              :style="{ top: `${widget.top}px` }"
             >
               <div
-                v-for="widget in shownWidgets"
-                :key="widget.key"
                 :ref="(el) => observeWidget(el as Element | null, widget.key)"
-                :class="ns.e('widget')"
+                :class="[ns.e('widget'), ns.is('full-width', widget.fullWidth)]"
                 :role="widget.label ? 'group' : undefined"
                 :aria-label="widget.label"
-                :style="{
-                  transform: `translate(${scrollLeft}px, ${widget.top}px)`,
-                  width: `${Math.max(0, viewWidth - gutterWidth)}px`,
-                }"
               >
                 <RenderPart :render="widget.render" />
               </div>

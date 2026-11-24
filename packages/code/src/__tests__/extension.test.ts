@@ -500,11 +500,12 @@ describe('extensions', () => {
       }),
     ])
     await nextTick()
+    const slots = wrapper.findAll('.dou-code-editor__widget-slot')
     const shown = wrapper.findAll('.dou-code-editor__widget')
     expect(shown.map((w) => w.text())).toEqual(['ok', 'above'])
     // Below line 1: the text's top (8) plus one line; above line 3: past both lines and the first widget.
-    expect(shown[0]!.attributes('style')).toContain('28px)')
-    expect(shown[1]!.attributes('style')).toContain(`${8 + 40 + 50}px)`)
+    expect(slots[0]!.attributes('style')).toContain('top: 28px')
+    expect(slots[1]!.attributes('style')).toContain(`top: ${8 + 40 + 50}px`)
     const lines = wrapper.findAll('.dou-code-editor__line')
     expect(lines[1]!.attributes('style')).toContain('margin-top: 50px')
     expect(lines[2]!.attributes('style')).toContain('margin-top: 30px')
@@ -530,6 +531,53 @@ describe('extensions', () => {
     // Inside a widget, nothing moves.
     await wrapper.find('.resolve').trigger('pointerdown', { button: 0, pointerType: 'mouse' })
     expect(editor.value!.selection.ranges[0]!.head).toBe(0)
+  })
+
+  it('positions block widgets via sticky CSS without scrollLeft transforms and supports fullWidth', async () => {
+    const { wrapper } = setup(
+      [
+        defineCodeExtension({
+          name: 'review',
+          widgets: () => [
+            { id: 'inline-note', line: 1, height: 32, render: () => h('div', 'note') },
+            {
+              id: 'banner',
+              line: 2,
+              height: 28,
+              fullWidth: true,
+              render: () => h('div', 'banner'),
+            },
+          ],
+        }),
+      ],
+      {},
+      `const a = '${'x'.repeat(200)}'\nconst b = 2\nconst c = 3`,
+    )
+    await nextTick()
+    const scroller = wrapper.get('.dou-code-editor__scroller')
+    const el = scroller.element as HTMLElement
+    Object.defineProperty(el, 'clientWidth', { configurable: true, value: 300 })
+    Object.defineProperty(el, 'scrollWidth', { configurable: true, value: 1200 })
+
+    // Widgets live directly in the sizer so sticky positioning tracks the scroller across gutter and content.
+    expect(wrapper.find('.dou-code-editor__sizer > .dou-code-editor__widgets').exists()).toBe(true)
+    const slots = wrapper.findAll('.dou-code-editor__widget-slot')
+    const widgets = wrapper.findAll('.dou-code-editor__widget')
+    expect(slots[0]!.classes()).not.toContain('is-full-width')
+    expect(widgets[0]!.classes()).not.toContain('is-full-width')
+    expect(slots[1]!.classes()).toContain('is-full-width')
+    expect(widgets[1]!.classes()).toContain('is-full-width')
+
+    const beforeSlotStyles = slots.map((s) => s.attributes('style'))
+    const beforeWidgetStyles = widgets.map((w) => w.attributes('style'))
+    expect(beforeWidgetStyles).toEqual([undefined, undefined])
+
+    el.scrollLeft = 240
+    await scroller.trigger('scroll')
+    await nextTick()
+
+    expect(slots.map((s) => s.attributes('style'))).toEqual(beforeSlotStyles)
+    expect(widgets.map((w) => w.attributes('style'))).toEqual(beforeWidgetStyles)
   })
 
   it('places inline widgets in the line, with the cursor stepping over them', async () => {

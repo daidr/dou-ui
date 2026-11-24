@@ -343,6 +343,7 @@ function sideExtension(side: Side): CodeExtension {
           id: `fill-${i}-${missing}-${blanks.map((blank) => blank.height).join('.')}`,
           ...(last >= 1 ? { line: last } : { line: 1, position: 'above' as const }),
           height: missing * LINE + blanks.reduce((sum, blank) => sum + blank.height, 0),
+          fullWidth: true,
           render: () => filler(missing, blanks),
         })
       })
@@ -355,6 +356,7 @@ function sideExtension(side: Side): CodeExtension {
           id: `bar-${run.key}`,
           ...(last < total ? { line: last + 1, position: 'above' as const } : { line: first - 1 }),
           height: BAR_HEIGHT,
+          fullWidth: true,
           render: () => bar(run, side === 'a'),
         })
       }
@@ -670,6 +672,7 @@ const inlineExtension = defineCodeExtension({
         id: `bar-${run.key}`,
         ...(last < total ? { line: last + 1, position: 'above' as const } : { line: first - 1 }),
         height: BAR_HEIGHT,
+        fullWidth: true,
         render: () => bar(run),
       })
     }
@@ -1084,12 +1087,18 @@ function placeSpans() {
     spanTops.value = tops
 }
 
+const sideScrollTop = new WeakMap<HTMLElement, number>()
+
 // Blanks move when the text scrolls, a widget above grows, or the box resizes.
 let stopPlacing: (() => void) | undefined
 function startPlacing() {
   stopPlacing?.()
   stopPlacing = undefined
   if (!spans.value.length || !sideA.value) return
+  for (const side of [sideA.value, sideB.value]) {
+    const scroller = side?.querySelector<HTMLElement>('.dou-code-editor__scroller')
+    if (scroller) sideScrollTop.set(scroller, scroller.scrollTop)
+  }
   placeSpans()
   const moved = typeof MutationObserver === 'undefined' ? null : new MutationObserver(schedulePlace)
   for (const side of [sideA.value, sideB.value])
@@ -1113,8 +1122,15 @@ onBeforeUnmount(() => stopPlacing?.())
  */
 const spansScrolling = ref(false)
 let restTimer: ReturnType<typeof setTimeout> | undefined
-function onSideScroll() {
+function onSideScroll(event: Event) {
+  const scroller = event.target as HTMLElement | null
+  if (!scroller?.classList.contains('dou-code-editor__scroller')) return
+  const top = scroller.scrollTop
+  const prev = sideScrollTop.get(scroller)
+  sideScrollTop.set(scroller, top)
   if (!spans.value.length) return
+  // Horizontal scrolling does not change vertical span positions; keep spans visible.
+  if (prev !== undefined ? prev === top : top === 0) return
   spansScrolling.value = true
   clearTimeout(restTimer)
   restTimer = setTimeout(() => {

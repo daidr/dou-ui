@@ -135,12 +135,13 @@ describe('DouChatInput', () => {
 
   it('shows an option cut short in full on hover', async () => {
     const long = '上海办公室搬迁：各部门工位分配与网络布线方案.md'
+    const longPath = 'packages/web/src/components/conversations/composer'
     const wrapper = mount(DouChatInput, {
       props: {
         modelValue: '@',
         teleport: false,
         mentions: [
-          { value: long, description: '文件' },
+          { value: long, description: longPath },
           { value: '戴兜', description: '成员' },
         ],
       },
@@ -150,20 +151,152 @@ describe('DouChatInput', () => {
     ;(textarea.element as HTMLTextAreaElement).setSelectionRange(1, 1)
     await textarea.trigger('keyup')
     const [first, second] = wrapper.findAll('[role="option"]')
-    // happy-dom has no layout: the long label runs past its two lines
+    // happy-dom has no layout: simulate single-line horizontal overflow
     const label = first!.get('.dou-chat-input__option-label')
-    Object.defineProperty(label.element, 'scrollHeight', { value: 60 })
-    Object.defineProperty(label.element, 'clientHeight', { value: 40 })
+    Object.defineProperty(label.element, 'scrollWidth', { value: 320 })
+    Object.defineProperty(label.element, 'clientWidth', { value: 180 })
+    const description = first!.get('.dou-chat-input__option-description')
+    Object.defineProperty(description.element, 'scrollWidth', { value: 260 })
+    Object.defineProperty(description.element, 'clientWidth', { value: 160 })
     await first!.trigger('mouseenter')
     // the title sits on the part cut short, not on the whole option
     expect(label.attributes('title')).toBe(`@${long}`)
+    expect(description.attributes('title')).toBe(longPath)
     expect(first!.attributes('title')).toBeUndefined()
-    expect(first!.get('.dou-chat-input__option-description').attributes('title')).toBeUndefined()
     expect(wrapper.findAll('[role="option"]')[0]!.classes()).toContain('is-active')
     await second!.trigger('mouseenter')
     expect(second!.get('.dou-chat-input__option-label').attributes('title')).toBeUndefined()
+    expect(second!.get('.dou-chat-input__option-description').attributes('title')).toBeUndefined()
     expect(second!.classes()).toContain('is-active')
     wrapper.unmount()
+  })
+
+  describe('menu layout', () => {
+    it('stacks `/` commands with descriptions and keeps commands without descriptions compact', async () => {
+      const wrapper = mount(DouChatInput, {
+        props: {
+          modelValue: '/',
+          teleport: false,
+          commands: [
+            {
+              value: 'agent-browser',
+              label: 'agent-browser',
+              description: 'Browser automation CLI for AI agents.',
+            },
+            { value: 'manage', label: '管理常用语' },
+          ],
+        },
+        attachTo: document.body,
+      })
+      const textarea = wrapper.get('textarea')
+      ;(textarea.element as HTMLTextAreaElement).setSelectionRange(1, 1)
+      await textarea.trigger('keyup')
+
+      const menu = wrapper.get('[role="listbox"]')
+      expect(menu.attributes('data-trigger')).toBe('/')
+
+      const [withDesc, withoutDesc] = wrapper.findAll('[role="option"]')
+      expect(withDesc!.classes()).toContain('is-default')
+      expect(withDesc!.classes()).toContain('is-stacked')
+      const content = withDesc!.get('.dou-chat-input__option-content')
+      expect(content.get('.dou-chat-input__option-label').text()).toBe('/agent-browser')
+      expect(content.get('.dou-chat-input__option-description').text()).toBe(
+        'Browser automation CLI for AI agents.',
+      )
+
+      const descEl = content.get('.dou-chat-input__option-description')
+      Object.defineProperty(descEl.element, 'scrollWidth', { value: 420 })
+      Object.defineProperty(descEl.element, 'clientWidth', { value: 360 })
+      await withDesc!.trigger('mouseenter')
+      expect(descEl.attributes('title')).toBe('Browser automation CLI for AI agents.')
+
+      expect(withoutDesc!.classes()).toContain('is-default')
+      expect(withoutDesc!.classes()).not.toContain('is-stacked')
+      expect(withoutDesc!.find('.dou-chat-input__option-content').exists()).toBe(false)
+      expect(withoutDesc!.get('.dou-chat-input__option-label').text()).toBe('/管理常用语')
+      wrapper.unmount()
+    })
+
+    it('keeps `@` mentions in a single-line aligned layout even when descriptions exist', async () => {
+      const wrapper = mount(DouChatInput, {
+        props: {
+          modelValue: '@',
+          teleport: false,
+          mentions: [
+            { value: 't1', label: '支持移动端图片浏览双指缩放', description: '讨论串' },
+            {
+              value: 'ConversationPanel.vue',
+              description: 'packages/web/src/components',
+            },
+          ],
+        },
+        attachTo: document.body,
+      })
+      const textarea = wrapper.get('textarea')
+      ;(textarea.element as HTMLTextAreaElement).setSelectionRange(1, 1)
+      await textarea.trigger('keyup')
+
+      const menu = wrapper.get('[role="listbox"]')
+      expect(menu.attributes('data-trigger')).toBe('@')
+
+      for (const option of wrapper.findAll('[role="option"]')) {
+        expect(option.classes()).toContain('is-default')
+        expect(option.classes()).not.toContain('is-stacked')
+        expect(option.find('.dou-chat-input__option-content').exists()).toBe(false)
+      }
+      wrapper.unmount()
+    })
+
+    it('does not add default or stacked classes when a custom `#option` slot is provided', async () => {
+      const wrapper = mount(DouChatInput, {
+        props: {
+          modelValue: '/',
+          teleport: false,
+          commands: [{ value: 'plan', label: '计划', description: '先列计划再动手' }],
+        },
+        slots: {
+          option: ({ option }) =>
+            h('div', { class: 'custom-stack' }, [
+              h('span', { class: 'dou-chat-input__option-label' }, option.label),
+              h('span', { class: 'dou-chat-input__option-description' }, option.description),
+            ]),
+        },
+        attachTo: document.body,
+      })
+      const textarea = wrapper.get('textarea')
+      ;(textarea.element as HTMLTextAreaElement).setSelectionRange(1, 1)
+      await textarea.trigger('keyup')
+
+      const option = wrapper.get('[role="option"]')
+      expect(option.classes()).not.toContain('is-default')
+      expect(option.classes()).not.toContain('is-stacked')
+
+      const desc = option.get('.dou-chat-input__option-description')
+      Object.defineProperty(desc.element, 'scrollWidth', { value: 300 })
+      Object.defineProperty(desc.element, 'clientWidth', { value: 150 })
+      await option.trigger('mouseenter')
+      expect(desc.attributes('title')).toBe('先列计划再动手')
+      wrapper.unmount()
+    })
+
+    it('forwards `--dou-chat-input-menu-max-width` set on the input to a teleported menu', async () => {
+      const wrapper = mount(DouChatInput, {
+        props: {
+          modelValue: '',
+          commands: [{ value: 'summarize', label: '总结', description: '概括对话要点' }],
+        },
+        attrs: {
+          style: '--dou-chat-input-menu-max-width: 520px',
+        },
+        attachTo: document.body,
+      })
+      await wrapper.get('textarea').setValue('/')
+      await wrapper.get('textarea').trigger('keyup')
+
+      const menu = document.querySelector<HTMLElement>('.dou-chat-input__menu')!
+      expect(menu.style.getPropertyValue('--dou-chat-input-menu-max-width')).toBe('520px')
+      wrapper.unmount()
+    })
   })
 
   describe('matching', () => {

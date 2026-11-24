@@ -12,6 +12,7 @@ import type { CodeSearchQuery } from './core/search'
 import type { CodeSelection } from './core/selection'
 import type { CodeMessages } from './locale'
 import type { CodeLanguage } from './language/language'
+import type { CodeWorkerOption } from './language/worker-client'
 import type { CodeText } from './core/text'
 import type {
   CodeState,
@@ -66,14 +67,22 @@ export interface CodeEditorProps {
   /** The language: colors its tokens, and tells how to indent, comment and pair brackets. */
   language?: CodeLanguage | null
   /**
-   * Reads the code for its colors in a worker, so a long file opened far
-   * down is colored without the page doing the reading. `true` uses the
-   * editor's own worker, which knows the built-in languages; a function
-   * makes your own (`serveCodeHighlighting` from `@dou-ui/code/worker`),
-   * called in the browser once the editor is mounted. The editor ends the
-   * worker when it unmounts or no longer uses it.
+   * Reads the code for its colors in a worker, so highlighting stays off the
+   * main thread. `true` uses the editor's own lazily-spawned worker pool for
+   * the built-in languages; a `CodeWorkerPool` (`createCodeWorkerPool`) shares
+   * a custom worker pool across instances; a function makes a worker
+   * (`serveCodeHighlighting` from `@dou-ui/code/worker`) once the editor is
+   * mounted and ends it when unmounted.
    */
-  worker?: boolean | (() => Worker)
+  worker?: CodeWorkerOption
+  /**
+   * Maximum number of unread lines tokenized synchronously on the main thread
+   * during rendering. Beyond this threshold, unread lines paint as plain text
+   * first and highlight asynchronously in the worker or browser idle slices.
+   * Defaults to `2000`. Set to `0` to always paint plain text first and keep
+   * tokenization off the render frame (useful in fast-scrolling multi-file lists).
+   */
+  syncHighlightLines?: number
   /** Typing an opening bracket or quote also types its partner. On by default. */
   closeBrackets?: boolean
   /** Outlines the bracket next to the cursor and its partner. On by default. */
@@ -254,6 +263,26 @@ export interface CodeDiffProps {
   /** The text after, bound with `v-model`; editable beside the original with `editable`. */
   modelValue?: string
   language?: CodeLanguage | null
+  /**
+   * Forwards `worker` to the inner `DouCodeEditor` instances and computes
+   * large text diffs asynchronously inside the worker. Accepts `true` (built-in
+   * lazy worker pool), a `CodeWorkerPool` (`createCodeWorkerPool`), or a worker
+   * factory function (`() => Worker`).
+   */
+  worker?: CodeWorkerOption
+  /**
+   * Forwards `syncHighlightLines` to the inner `DouCodeEditor` instances.
+   * Defaults to `2000`; set to `0` to paint plain text first and offload
+   * syntax highlighting to the worker or idle slices.
+   */
+  syncHighlightLines?: number
+  /**
+   * When `worker` is enabled, runs `diffText` asynchronously in the worker
+   * whenever the combined line count of `original` and `modelValue` exceeds
+   * this threshold. Defaults to `500`. Set to `0` to always compute diffs in
+   * the worker, or `Infinity` to keep diff computation synchronous.
+   */
+  syncDiffLines?: number
   /**
    * `split` puts the two texts side by side, `inline` puts the changes in
    * one column. `auto` (the default) is `split` when there is room (560px)

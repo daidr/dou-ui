@@ -334,7 +334,7 @@ export class CodeHighlighter<S = unknown> {
     while (this.read < end) {
       this.step(false)
       // the clock is read every few lines: it costs more than a short line
-      if ((this.read & 15) === 0 && performance.now() >= deadline) break
+      if ((this.read & 3) === 0 && performance.now() >= deadline) break
     }
     return this.read > start
   }

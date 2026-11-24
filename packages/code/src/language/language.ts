@@ -86,6 +86,12 @@ export interface CodeLanguageSpec<S> {
    * ones the names are looked up in.
    */
   nested?: readonly CodeLanguage[]
+  /**
+   * How a highlighting worker transfers results for this language:
+   * - `'states'` (default): sends serialized state checkpoints so the page tokenizes visible lines.
+   * - `'tokens'`: keeps non-serializable states (such as Shiki's `StateStack`) in the worker and sends flat line token arrays directly.
+   */
+  workerMode?: 'states' | 'tokens'
 }
 
 /** A language: how to read its tokens, and a few facts for editing it. */
@@ -103,6 +109,7 @@ export interface CodeLanguage<S = any> {
   readonly indentAfter?: RegExp
   languageAt(state: S): CodeLanguage | null
   readonly nested: readonly CodeLanguage[]
+  readonly workerMode?: 'states' | 'tokens'
 }
 
 const isPlain = (value: unknown): value is Record<string, unknown> =>
@@ -174,6 +181,40 @@ export function defineCodeLanguage<S = Record<string, never>>(
     indentAfter: spec.indentAfter,
     languageAt: spec.languageAt ?? (() => null),
     nested: spec.nested ?? [],
+    workerMode: spec.workerMode,
+  })
+}
+
+export interface RemoteCodeLanguageOptions {
+  /** The language name resolved inside the highlighting worker (e.g. `'rust'`, `'go'`, `'proto'`). */
+  name: string
+  aliases?: string[]
+  /** How the language writes comments, for toggling them. */
+  comment?: { line?: string; block?: [open: string, close: string] }
+  brackets?: string
+  autoClose?: string
+  indentAfter?: RegExp
+}
+
+/**
+ * Describes a language highlighted entirely inside a Web Worker (such as a
+ * Shiki grammar loaded in the worker), without loading its tokenizer or WASM
+ * on the main thread. Editing features (comments, bracket pairing, auto-close,
+ * indentation) still work on the page; without a worker it renders plain text.
+ */
+export function remoteCodeLanguage(options: RemoteCodeLanguageOptions): CodeLanguage {
+  return defineCodeLanguage({
+    name: options.name,
+    aliases: options.aliases,
+    comment: options.comment,
+    brackets: options.brackets,
+    autoClose: options.autoClose,
+    indentAfter: options.indentAfter,
+    workerMode: 'tokens',
+    token(stream) {
+      stream.skipToEnd()
+      return null
+    },
   })
 }
 

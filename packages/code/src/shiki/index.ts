@@ -1,4 +1,13 @@
-import { type CodeLanguage, type CodeTokenType, defineCodeLanguage } from '../language/language'
+import {
+  type CodeLanguage,
+  type CodeTokenType,
+  type RemoteCodeLanguageOptions,
+  defineCodeLanguage,
+  remoteCodeLanguage,
+} from '../language/language'
+
+export { remoteCodeLanguage }
+export type { RemoteCodeLanguageOptions }
 
 /** The part of a TextMate rule stack the editor uses: Shiki's `StateStack`. */
 export interface ShikiStateStack {
@@ -19,6 +28,8 @@ export interface ShikiHighlighterLike {
       stoppedEarly?: boolean
     }
   }
+  getLoadedLanguages?: () => string[]
+  loadLanguage?: (lang: never) => Promise<void>
 }
 
 export interface ShikiLanguageOptions {
@@ -185,5 +196,67 @@ export function shikiLanguage(
     brackets: options.brackets,
     autoClose: options.autoClose,
     indentAfter: options.indentAfter,
+    // Shiki's StateStack cannot cross postMessage: in a worker, return flat line tokens directly.
+    workerMode: 'tokens',
   })
+}
+
+export interface ShikiResolverOptions {
+  /** Lazily returns (or creates) a Shiki highlighter instance inside the worker. */
+  highlighter: () => ShikiHighlighterLike | Promise<ShikiHighlighterLike>
+  /**
+   * Loads a language grammar into the highlighter on demand. When omitted, calls
+   * `highlighter.loadLanguage(name)` if available and the language is not yet loaded.
+   */
+  loadLanguage?: (highlighter: ShikiHighlighterLike, name: string) => Promise<void> | void
+  /** Optional `ShikiLanguageOptions` applied to resolved languages. */
+  options?: ShikiLanguageOptions | ((name: string) => ShikiLanguageOptions | undefined)
+}
+
+/**
+ * Creates a `resolve` callback for `serveCodeHighlighting` that lazy-loads
+ * Shiki grammars inside the worker and wraps them with `shikiLanguage`.
+ *
+ * ```ts
+ * // shiki.worker.ts
+ * import { createHighlighter } from 'shiki'
+ * import { createShikiLanguageResolver } from '@dou-ui/code/shiki'
+ * import { serveCodeHighlighting, typescript } from '@dou-ui/code/worker'
+ *
+ * let highlighter: ReturnType<typeof createHighlighter> | undefined
+ * serveCodeHighlighting({
+ *   languages: [typescript],
+ *   resolve: createShikiLanguageResolver(
+ *     () => (highlighter ??= createHighlighter({ langs: [], themes: [] })),
+ *   ),
+ * })
+ * ```
+ */
+export function createShikiLanguageResolver(
+  highlighterOrOptions: ShikiResolverOptions['highlighter'] | ShikiResolverOptions,
+): (name: string) => Promise<CodeLanguage<ShikiState> | null> {
+  const opts: ShikiResolverOptions =
+    typeof highlighterOrOptions === 'function'
+      ? { highlighter: highlighterOrOptions }
+      : highlighterOrOptions
+  let shared: Promise<ShikiHighlighterLike> | null = null
+  const getHighlighter = () => (shared ??= Promise.resolve().then(() => opts.highlighter()))
+
+  return async (name: string): Promise<CodeLanguage<ShikiState> | null> => {
+    try {
+      const hl = await getHighlighter()
+      const loaded = hl.getLoadedLanguages?.()
+      if (!loaded || !loaded.includes(name)) {
+        if (opts.loadLanguage) {
+          await opts.loadLanguage(hl, name)
+        } else if (hl.loadLanguage) {
+          await hl.loadLanguage(name as never)
+        }
+      }
+      const langOptions = typeof opts.options === 'function' ? opts.options(name) : opts.options
+      return shikiLanguage(hl, name, { ...langOptions, name: langOptions?.name ?? name })
+    } catch {
+      return null
+    }
+  }
 }

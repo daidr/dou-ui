@@ -87,6 +87,7 @@ export {
   defineCodeLanguage,
   languageFor,
   lineParts,
+  remoteCodeLanguage,
   samePlain,
   tokenizeLine,
   tokenTypes,
@@ -96,7 +97,14 @@ export type {
   CodeLanguageSpec,
   CodeLineTokens,
   CodeTokenType,
+  RemoteCodeLanguageOptions,
 } from './language/language'
+export { createCodeWorkerPool } from './language/worker-client'
+export type {
+  CodeWorkerOption,
+  CodeWorkerPool,
+  CodeWorkerPoolOptions,
+} from './language/worker-client'
 export { CodeHighlighter } from './language/highlighter'
 export { createCodeHighlighter, highlightToHtml } from './language/to-html'
 export { createJavaScript, javascript, jsx, tsx, typescript } from './languages/javascript'

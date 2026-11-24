@@ -1,13 +1,19 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
+import { createHighlighter } from 'shiki'
+import { createJavaScriptRegexEngine } from 'shiki/engine/javascript'
 import {
   CodeText,
+  createCodeWorkerPool,
   DouCodeEditor,
   javascript,
+  remoteCodeLanguage,
   type CodeEditorExpose,
   type CodeSelection,
 } from '../index'
+import { createShikiLanguageResolver } from '../shiki'
+import { serveCodeHighlighting } from '../worker'
 
 function setup(initial = 'const a = 1\nconst b = 2', extra: Record<string, unknown> = {}) {
   const code = ref(initial)
@@ -346,6 +352,13 @@ describe('minimap', () => {
   })
 })
 
+function deliverTo(target: Set<(event: MessageEvent) => void>, data: unknown) {
+  const copy = structuredClone(data)
+  setTimeout(() => {
+    for (const listener of target) listener({ data: copy } as MessageEvent)
+  })
+}
+
 describe('worker', () => {
   it('makes its worker once mounted in a browser, and ends it when unmounted', async () => {
     vi.stubGlobal('Worker', function Worker() {})
@@ -410,6 +423,132 @@ describe('worker', () => {
       expect(wrapper.find('.dou-syntax-keyword').exists()).toBe(true)
     } finally {
       warn.mockRestore()
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('paints plain text first and highlights asynchronously when syncHighlightLines is 0', async () => {
+    const { wrapper } = setup('const a = 1\nconst b = 2', {
+      language: javascript,
+      syncHighlightLines: 0,
+    })
+    // Initial render frame does not synchronously tokenize on the main thread.
+    expect(wrapper.find('.dou-syntax-keyword').exists()).toBe(false)
+    // Wait for idle slice to color the visible lines.
+    await vi.waitFor(
+      async () => {
+        await nextTick()
+        expect(wrapper.find('.dou-syntax-keyword').exists()).toBe(true)
+      },
+      { timeout: 2000 },
+    )
+    wrapper.unmount()
+  })
+
+  it('highlights remote Shiki languages off the main thread via a lazy worker pool', async () => {
+    vi.stubGlobal('Worker', function Worker() {})
+    const shiki = await createHighlighter({
+      langs: ['rust'],
+      themes: [],
+      engine: createJavaScriptRegexEngine(),
+    })
+    const makePair = () => {
+      const pageListeners = new Set<(event: MessageEvent) => void>()
+      const workerListeners = new Set<(event: MessageEvent) => void>()
+      const errorListeners = new Set<(event: Event) => void>()
+      const worker = {
+        postMessage: (data: unknown) => deliverTo(workerListeners, data),
+        addEventListener: (type: string, fn: (event: MessageEvent) => void) =>
+          (type === 'error' ? errorListeners : pageListeners).add(fn),
+        removeEventListener: (type: string, fn: (event: MessageEvent) => void) =>
+          (type === 'error' ? errorListeners : pageListeners).delete(fn),
+        terminate: vi.fn<() => void>(),
+      } as unknown as Worker
+      serveCodeHighlighting(
+        { resolve: createShikiLanguageResolver({ highlighter: () => shiki }) },
+        {
+          postMessage: (data: unknown) => deliverTo(pageListeners, data),
+          addEventListener: (_: string, fn: (event: MessageEvent) => void) =>
+            workerListeners.add(fn),
+        },
+      )
+      return worker
+    }
+    const pool = createCodeWorkerPool(makePair, { maxWorkers: 2, idleTimeout: 0 })
+    try {
+      expect(pool.size).toBe(0)
+      const rust = remoteCodeLanguage({ name: 'rust', comment: { line: '//' } })
+      const { wrapper } = setup('fn main() {\n  let x = "hello";\n}', {
+        language: rust,
+        worker: pool,
+      })
+      // Plain text on first frame; worker pool lazily spawns once mounted.
+      expect(wrapper.find('.dou-syntax-keyword').exists()).toBe(false)
+      await vi.waitFor(
+        async () => {
+          await nextTick()
+          expect(pool.size).toBe(1)
+          expect(wrapper.find('.dou-syntax-keyword').text()).toBe('fn')
+          expect(wrapper.find('.dou-syntax-string').exists()).toBe(true)
+        },
+        { timeout: 2000 },
+      )
+      wrapper.unmount()
+      expect(pool.size).toBe(0)
+    } finally {
+      pool.dispose()
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('cancels pending worker tasks when scrolled out of viewport and resumes when back', async () => {
+    vi.stubGlobal('Worker', function Worker() {})
+    const posted: Array<{ t: string }> = []
+    const observers: Array<(entries: Array<{ isIntersecting: boolean }>) => void> = []
+    const disconnect = vi.fn<() => void>()
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        constructor(cb: (entries: Array<{ isIntersecting: boolean }>) => void) {
+          observers.push(cb)
+        }
+        observe() {}
+        disconnect() {
+          disconnect()
+        }
+      },
+    )
+    const worker = {
+      postMessage: (data: { t: string }) => {
+        posted.push(data)
+      },
+      addEventListener() {},
+      removeEventListener() {},
+      terminate: vi.fn<() => void>(),
+    } as unknown as Worker
+    try {
+      const { wrapper } = setup('const a = 1\nconst b = 2', {
+        language: javascript,
+        worker: () => worker,
+        syncHighlightLines: 0,
+      })
+      await nextTick()
+      expect(posted.some((m) => m.t === 'read')).toBe(true)
+
+      // Scroll out of viewport -> sends cancel to abort pending work.
+      for (const cb of observers) cb([{ isIntersecting: false }])
+      await nextTick()
+      expect(posted.some((m) => m.t === 'cancel')).toBe(true)
+
+      const readCountBefore = posted.filter((m) => m.t === 'read').length
+      // Scroll back into viewport -> resumes with a new read request.
+      for (const cb of observers) cb([{ isIntersecting: true }])
+      await nextTick()
+      expect(posted.filter((m) => m.t === 'read').length).toBeGreaterThan(readCountBefore)
+
+      wrapper.unmount()
+      expect(disconnect).toHaveBeenCalledTimes(1)
+    } finally {
       vi.unstubAllGlobals()
     }
   })

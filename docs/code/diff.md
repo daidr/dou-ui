@@ -81,26 +81,29 @@ const hunks = diffText('上海\n戴兜\n', '上海\n阿青\n')
 
 ### CodeDiff Props
 
-| 名称                | 说明                                                                                           | 类型                                                 | 默认值   |
-| ------------------- | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------- | -------- |
-| `original`          | 原文                                                                                           | `string`                                             | `''`     |
-| `v-model`           | 修改后的文本                                                                                   | `string`                                             | `''`     |
-| `v-model:mode`      | 显示方式                                                                                       | `'split' \| 'inline' \| 'auto'`                      | `'auto'` |
-| `language`          | 语言                                                                                           | `CodeLanguage \| null`                               | —        |
-| `editable`          | 允许在并排视图的右侧修改                                                                       | `boolean`                                            | `false`  |
-| `collapseUnchanged` | 收起未改动的行                                                                                 | `boolean \| { context?: number, minLines?: number }` | `true`   |
-| `ignoreWhitespace`  | 只有空白不同的行视为相同                                                                       | `boolean`                                            | `false`  |
-| `words`             | 标出行内改动的词                                                                               | `boolean`                                            | `true`   |
-| `wrap`              | `inline` 视图中自动换行                                                                        | `boolean`                                            | `false`  |
-| `extensions`        | 右侧编辑器的扩展，只在并排时使用                                                               | `CodeExtension[]`                                    | —        |
-| `gutters`           | 行号左侧的列，标记可以在任一侧，见[批注](#批注)                                                | `CodeDiffGutter[]`                                   | —        |
-| `widgets`           | 行间小部件，可以在任一侧或横跨两栏，见[批注](#批注)                                            | `CodeDiffWidget[]`                                   | —        |
-| `toolbar`           | 显示工具栏                                                                                     | `boolean`                                            | `true`   |
-| `stickyToolbar`     | 外层滚动容器滚动时让工具栏吸附在顶部                                                           | `boolean`                                            | `false`  |
-| `bordered`          | 整体的外框和圆角；关闭后去掉外框和圆角，聚焦时也不再画出边框，工具栏和左右两栏之间的分隔线保留 | `boolean`                                            | `true`   |
-| `scrollY`           | 是否允许内部编辑器纵向滚动；关闭后禁用纵向滚动并保留长行横向滚动，适配外层虚拟列表统一滚动     | `boolean`                                            | `true`   |
-| `tabSize`           | 制表位宽度                                                                                     | `number`                                             | `2`      |
-| `messages`          | 改写界面上的文字                                                                               | `Partial<CodeMessages>`                              | —        |
+| 名称                 | 说明                                                                                                                               | 类型                                                 | 默认值   |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- | -------- |
+| `original`           | 原文                                                                                                                               | `string`                                             | `''`     |
+| `v-model`            | 修改后的文本                                                                                                                       | `string`                                             | `''`     |
+| `v-model:mode`       | 显示方式                                                                                                                           | `'split' \| 'inline' \| 'auto'`                      | `'auto'` |
+| `language`           | 语言                                                                                                                               | `CodeLanguage \| null`                               | —        |
+| `worker`             | 透传给内部编辑器的高亮 Worker（`true` 使用内置按需 Worker 池，或传入 `createCodeWorkerPool` / 工厂函数），并用于大文本异步差异计算 | `boolean \| (() => Worker) \| CodeWorkerPool`        | `false`  |
+| `syncHighlightLines` | 透传给内部编辑器的绘制期同步高亮行数阈值；设为 `0` 可首屏先绘纯文本，高亮统一走 Worker 或空闲分片                                  | `number`                                             | `2000`   |
+| `syncDiffLines`      | 启用 `worker` 时，原文与新文合计行数超过此阈值将 `diffText` 移入 Worker 异步计算；设为 `0` 始终异步，`Infinity` 始终同步           | `number`                                             | `500`    |
+| `editable`           | 允许在并排视图的右侧修改                                                                                                           | `boolean`                                            | `false`  |
+| `collapseUnchanged`  | 收起未改动的行                                                                                                                     | `boolean \| { context?: number, minLines?: number }` | `true`   |
+| `ignoreWhitespace`   | 只有空白不同的行视为相同                                                                                                           | `boolean`                                            | `false`  |
+| `words`              | 标出行内改动的词                                                                                                                   | `boolean`                                            | `true`   |
+| `wrap`               | `inline` 视图中自动换行                                                                                                            | `boolean`                                            | `false`  |
+| `extensions`         | 右侧编辑器的扩展，只在并排时使用                                                                                                   | `CodeExtension[]`                                    | —        |
+| `gutters`            | 行号左侧的列，标记可以在任一侧，见[批注](#批注)                                                                                    | `CodeDiffGutter[]`                                   | —        |
+| `widgets`            | 行间小部件，可以在任一侧或横跨两栏，见[批注](#批注)                                                                                | `CodeDiffWidget[]`                                   | —        |
+| `toolbar`            | 显示工具栏                                                                                                                         | `boolean`                                            | `true`   |
+| `stickyToolbar`      | 外层滚动容器滚动时让工具栏吸附在顶部                                                                                               | `boolean`                                            | `false`  |
+| `bordered`           | 整体的外框和圆角；关闭后去掉外框和圆角，聚焦时也不再画出边框，工具栏和左右两栏之间的分隔线保留                                     | `boolean`                                            | `true`   |
+| `scrollY`            | 是否允许内部编辑器纵向滚动；关闭后禁用纵向滚动并保留长行横向滚动，适配外层虚拟列表统一滚动                                         | `boolean`                                            | `true`   |
+| `tabSize`            | 制表位宽度                                                                                                                         | `number`                                             | `2`      |
+| `messages`           | 改写界面上的文字                                                                                                                   | `Partial<CodeMessages>`                              | —        |
 
 ### CodeDiffGutter
 

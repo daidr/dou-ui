@@ -13,47 +13,75 @@ const css = readFileSync(resolve(here, 'components/chat-input.css'), 'utf8').rep
 function rule(selector: string) {
   const start = css.lastIndexOf(`${selector} {`)
   if (start < 0) throw new Error(`no rule for ${selector}`)
-  return css.slice(start, css.indexOf('}', start))
+  let depth = 0
+  for (let i = start; i < css.length; i++) {
+    if (css[i] === '{') depth++
+    else if (css[i] === '}') {
+      depth--
+      if (depth === 0) return css.slice(start, i + 1)
+    }
+  }
+  return css.slice(start)
 }
 
 describe('chat input menu options', () => {
-  it('share the row evenly, each part taking what it needs while there is room', () => {
-    const custom = rule('.dou-chat-input__option')
-    expect(custom).toMatch(/display:\s*flex/)
-    expect(custom).toMatch(/align-items:\s*center/)
-    const option = rule('&.is-default')
-    expect(option).toMatch(/display:\s*grid/)
-    expect(option).toMatch(/grid-auto-flow:\s*column/)
-    expect(option).toMatch(/grid-auto-columns:\s*minmax\(0, max-content\)/)
+  it('exposes a configurable menu max width with a 440px desktop default and no horizontal scroll', () => {
+    const menu = rule('.dou-chat-input__menu')
+    expect(menu).toMatch(/--dou-chat-input-menu-max-width,\s*440px/)
+    expect(menu).toMatch(/--dou-chat-input-menu-width/)
+    expect(menu).toMatch(/calc\(100vw - 16px\)/)
+    expect(menu).toMatch(/overflow-x:\s*hidden/)
   })
 
-  it('wrap a long label onto two lines before cutting it short', () => {
+  it('uses a single-line aligned flex layout for default mention options', () => {
+    const option = rule('.dou-chat-input__option')
+    expect(option).toMatch(/display:\s*flex/)
+    expect(option).toMatch(/align-items:\s*center/)
+
+    const icon = rule('.dou-chat-input__option-icon')
+    expect(icon).toMatch(/flex:\s*none/)
+    expect(icon).toMatch(/width:\s*16px/)
+
+    const defaultRule = rule('&.is-default')
+    expect(defaultRule).toMatch(/& > \.dou-chat-input__option-label\s*\{[^}]*flex:\s*1 1 auto/)
+    expect(defaultRule).toMatch(/& > \.dou-chat-input__option-description\s*\{[^}]*flex:\s*none/)
+    expect(defaultRule).toMatch(
+      /& > \.dou-chat-input__option-description\s*\{[^}]*max-width:\s*45%/,
+    )
+    expect(defaultRule).toMatch(
+      /& > \.dou-chat-input__option-description\s*\{[^}]*text-align:\s*end/,
+    )
+  })
+
+  it('stacks label and full-width description on two lines for `/` commands with descriptions', () => {
+    const stacked = rule('&.is-stacked')
+    expect(stacked).toMatch(/align-items:\s*flex-start/)
+
+    const content = rule('.dou-chat-input__option-content')
+    expect(content).toMatch(/display:\s*flex/)
+    expect(content).toMatch(/flex:\s*1 1 auto/)
+    expect(content).toMatch(/flex-direction:\s*column/)
+    expect(content).toMatch(/min-width:\s*0/)
+  })
+
+  it('truncates both label and description to a single line', () => {
     const label = rule('.dou-chat-input__option-label')
-    expect(label).toMatch(/-webkit-line-clamp:\s*2/)
     expect(label).toMatch(/overflow:\s*hidden/)
-    expect(label).toMatch(/overflow-wrap:\s*anywhere/)
-  })
+    expect(label).toMatch(/text-overflow:\s*ellipsis/)
+    expect(label).toMatch(/white-space:\s*nowrap/)
+    expect(label).not.toMatch(/line-clamp/)
 
-  it('keep a description to one line', () => {
     const description = rule('.dou-chat-input__option-description')
+    expect(description).toMatch(/overflow:\s*hidden/)
     expect(description).toMatch(/text-overflow:\s*ellipsis/)
     expect(description).toMatch(/white-space:\s*nowrap/)
+    expect(description).toMatch(/font-size:\s*12px/)
   })
 
-  it('keep a short description in custom option content whole and a long one to 40%', () => {
-    const custom = css.slice(css.indexOf('&:not(.is-default) {'))
-    const block = (selector: string) => {
-      const start = custom.indexOf(`${selector} {`)
-      return custom.slice(start, custom.indexOf('}', start))
-    }
-    expect(block('.dou-chat-input__option-label')).toMatch(/flex:\s*1 1 auto/)
-    expect(block('.dou-chat-input__option-label')).toMatch(/min-width:\s*0/)
-    // a short description never shrinks
-    expect(block('.dou-chat-input__option-description')).toMatch(/flex:\s*none/)
-    expect(block('.dou-chat-input__option-description')).toMatch(/max-width:\s*40%/)
-  })
-
-  it('never scroll the menu sideways', () => {
-    expect(rule('.dou-chat-input__menu')).toMatch(/overflow-x:\s*hidden/)
+  it('does not impose a 40% max-width cap on descriptions inside custom `#option` slots', () => {
+    expect(css).not.toMatch(/&:not\(\.is-default\)[\s\S]*max-width:\s*40%/)
+    expect(css).toMatch(
+      /&:not\(\.is-default\)\s*>\s*\.dou-chat-input__option-label\s*\{[^}]*flex:\s*1 1 auto/,
+    )
   })
 })

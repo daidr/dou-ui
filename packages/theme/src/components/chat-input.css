@@ -137,11 +137,15 @@
     border-radius: var(--dou-radius-full);
   }
 
-  /* the `/` and `@` menu: a popup above the frame, as wide as it up to 360px */
+  /* the `/` and `@` menu: a popup above the frame, as wide as it up to the max width */
   .dou-chat-input__menu {
     --dou-chat-input-menu-inset: 4px;
     box-sizing: border-box;
-    width: min(360px, var(--dou-chat-input-menu-width, 360px), calc(100vw - 16px));
+    width: min(
+      var(--dou-chat-input-menu-max-width, 440px),
+      var(--dou-chat-input-menu-width, var(--dou-chat-input-menu-max-width, 440px)),
+      calc(100vw - 16px)
+    );
     max-height: min(var(--dou-floating-available, 100vh), 280px);
     margin: 0;
     padding: var(--dou-chat-input-menu-inset);
@@ -164,7 +168,7 @@
     }
   }
 
-  /* custom option content lays itself out in a centered row */
+  /* single-line centered row by default; `/` commands with descriptions stack */
   .dou-chat-input__option {
     display: flex;
     align-items: center;
@@ -176,33 +180,35 @@
     line-height: 20px;
     cursor: pointer;
 
-    /* option slot content reusing the label and description classes: the
-       label gives way, a short description such as a kind stays whole, and
-       a long one takes at most 40% of the row, so beside an avatar the label
-       still keeps more room than it */
-    &:not(.is-default) {
-      .dou-chat-input__option-label {
-        flex: 1 1 auto;
-        min-width: 0;
-      }
-
-      .dou-chat-input__option-description {
-        flex: none;
-        min-width: 0;
-        max-width: 40%;
-      }
+    /* custom option slot: let a direct-child label fill the row without
+       imposing a max-width cap on stacked or custom descriptions */
+    &:not(.is-default) > .dou-chat-input__option-label {
+      flex: 1 1 auto;
     }
 
-    /* The default icon, label and description share the row evenly: each
-       takes what it needs while there is room, and when both run long the
-       space is split in half, so a short description such as a kind stays
-       whole and a long one such as a folder never pushes the label narrower
-       than itself. */
+    /* default `@` mentions (and `/` commands without description): fixed icon,
+       label filling the middle on one line, and description pinned to the end */
     &.is-default {
-      display: grid;
-      grid-auto-columns: minmax(0, max-content);
-      grid-auto-flow: column;
-      align-items: start;
+      & > .dou-chat-input__option-label {
+        flex: 1 1 auto;
+      }
+
+      & > .dou-chat-input__option-description {
+        flex: none;
+        max-width: 45%;
+        margin-inline-start: 4px;
+        text-align: end;
+      }
+
+      /* `/` commands with description: icon aligned with the first line,
+         label and full-width description stacked on two lines */
+      &.is-stacked {
+        align-items: flex-start;
+
+        & > .dou-chat-input__option-icon {
+          margin-top: 2px;
+        }
+      }
     }
 
     &.is-active {
@@ -216,26 +222,37 @@
   }
 
   .dou-chat-input__option-icon {
-    margin-block: 2px;
+    flex: none;
+    width: 16px;
+    height: 16px;
     color: var(--dou-color-text-secondary);
     font-size: 16px;
   }
 
-  /* a long label wraps onto a second line before it is cut short, so names
-     that differ only at the end, such as -v1 and -v2, still tell apart */
+  .dou-chat-input__option-content {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
   .dou-chat-input__option-label {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
+    display: block;
+    min-width: 0;
     overflow: hidden;
     font-weight: var(--dou-font-weight-medium);
-    overflow-wrap: anywhere;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .dou-chat-input__option-description {
-    overflow-x: clip;
+    display: block;
+    min-width: 0;
+    overflow: hidden;
     color: var(--dou-color-text-tertiary);
+    font-size: 12px;
+    line-height: 16px;
     text-overflow: ellipsis;
     white-space: nowrap;
   }

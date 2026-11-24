@@ -186,12 +186,24 @@
     &.is-active {
       color: var(--dou-color-text-secondary);
     }
-    .dou-code-editor.is-foldable & {
-      padding-right: calc(var(--dou-code-editor-gutter-padding-right) + 12px);
-    }
-    .dou-code-editor:not(.is-line-numbers) & {
-      padding: 0;
-    }
+  }
+  .dou-code-editor.is-foldable
+    > .dou-code-editor__body
+    > .dou-code-editor__scroller
+    > .dou-code-editor__sizer
+    > .dou-code-editor__gutter
+    > .dou-code-editor__numbers
+    > .dou-code-editor__number {
+    padding-right: calc(var(--dou-code-editor-gutter-padding-right) + 12px);
+  }
+  .dou-code-editor:not(.is-line-numbers)
+    > .dou-code-editor__body
+    > .dou-code-editor__scroller
+    > .dou-code-editor__sizer
+    > .dou-code-editor__gutter
+    > .dou-code-editor__numbers
+    > .dou-code-editor__number {
+    padding: 0;
   }
 
   /* a fold toggle in the gutter: shown while the gutter is pointed at, and always on a folded line */
@@ -578,11 +590,17 @@
     gap: 2px;
     height: var(--dou-code-editor-line-height);
     pointer-events: none;
-
-    .dou-code-editor.is-gutter-empty & {
-      right: auto;
-      left: 2px;
-    }
+  }
+  .dou-code-editor.is-gutter-empty
+    > .dou-code-editor__body
+    > .dou-code-editor__scroller
+    > .dou-code-editor__sizer
+    > .dou-code-editor__gutter
+    > .dou-code-editor__numbers
+    > .dou-code-editor__number
+    > .dou-code-editor__overlays {
+    right: auto;
+    left: 2px;
   }
 
   .dou-code-editor__cell.is-overlay {
@@ -634,11 +652,21 @@
       pointer-events: none;
 
       .dou-code-editor:not(.is-disabled)
-        .dou-code-editor__number:is(:hover, .is-hovered)
+        > .dou-code-editor__body
+        > .dou-code-editor__scroller
+        > .dou-code-editor__sizer
+        > .dou-code-editor__gutter
+        > .dou-code-editor__numbers
+        > .dou-code-editor__number:is(:hover, .is-hovered)
         > .dou-code-editor__overlays
         > &,
       .dou-code-editor.is-focused
-        .dou-code-editor__number.is-active
+        > .dou-code-editor__body
+        > .dou-code-editor__scroller
+        > .dou-code-editor__sizer
+        > .dou-code-editor__gutter
+        > .dou-code-editor__numbers
+        > .dou-code-editor__number.is-active
         > .dou-code-editor__overlays
         > &,
       &:focus-visible {
@@ -1634,19 +1662,26 @@
     grid-template-rows: auto minmax(0, 1fr);
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
-  .dou-code-diff--split .dou-code-editor {
+  .dou-code-diff--split > .dou-code-diff__body > .dou-code-diff__side > .dou-code-editor {
     --dou-code-editor-gutter-padding-left: 6px;
     --dou-code-editor-gutter-padding-right: 8px;
     --dou-code-editor-padding-x: 8px;
+
+    > .dou-code-editor__body
+      > .dou-code-editor__scroller
+      > .dou-code-editor__sizer
+      > .dou-code-editor__gutter
+      > .dou-code-editor__numbers
+      > .dou-code-editor__number {
+      font-size: 12px;
+
+      > .dou-code-editor__overlays {
+        right: auto;
+        left: calc(var(--dou-code-editor-gutter-cells, 16px) - 15px);
+      }
+    }
   }
-  .dou-code-diff--split .dou-code-editor__number {
-    font-size: 12px;
-  }
-  .dou-code-diff--split .dou-code-editor__overlays {
-    right: auto;
-    left: calc(var(--dou-code-editor-gutter-cells, 16px) - 15px);
-  }
-  .dou-code-diff--inline .dou-code-editor {
+  .dou-code-diff--inline > .dou-code-diff__body > .dou-code-editor {
     --dou-code-editor-padding-x: 6px;
     --dou-code-editor-gutter-overlay-offset: -2px;
   }
@@ -1730,18 +1765,38 @@
     &.is-modified {
       padding-left: 2px;
     }
+  }
 
-    .dou-code-diff.is-compact & {
-      padding: 0 4px;
-      font-size: 11px;
+  .dou-code-diff.is-compact
+    > .dou-code-diff__body
+    > .dou-code-editor
+    > .dou-code-editor__body
+    > .dou-code-editor__scroller
+    > .dou-code-editor__sizer
+    > .dou-code-editor__gutter
+    > .dou-code-editor__numbers
+    > .dou-code-editor__number
+    > .dou-code-editor__cells
+    > .dou-code-editor__cell.dou-code-diff__number {
+    padding: 0 4px;
+    font-size: 11px;
 
-      &.is-modified {
-        padding-left: 2px;
-      }
+    &.is-modified {
+      padding-left: 2px;
     }
   }
 
-  .dou-code-diff.is-compact .dou-code-editor__cell.dou-code-diff__sign {
+  .dou-code-diff.is-compact
+    > .dou-code-diff__body
+    > .dou-code-editor
+    > .dou-code-editor__body
+    > .dou-code-editor__scroller
+    > .dou-code-editor__sizer
+    > .dou-code-editor__gutter
+    > .dou-code-editor__numbers
+    > .dou-code-editor__number
+    > .dou-code-editor__cells
+    > .dou-code-editor__cell.dou-code-diff__sign {
     font-size: 12px;
   }
 

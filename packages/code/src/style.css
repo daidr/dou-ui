@@ -13,6 +13,9 @@
     --dou-code-editor-line-height: 20px;
     --dou-code-editor-padding-y: 8px;
     --dou-code-editor-padding-x: 12px;
+    --dou-code-editor-gutter-padding-left: 16px;
+    --dou-code-editor-gutter-padding-right: 12px;
+    --dou-code-editor-gutter-overlay-offset: -4px;
     --dou-code-editor-bg: var(--dou-color-bg-surface);
     --dou-code-editor-gutter-bg: var(--dou-code-editor-bg);
     --dou-code-editor-gutter-text: var(--dou-color-text-tertiary);
@@ -176,15 +179,31 @@
     position: relative;
     box-sizing: border-box;
     height: var(--dou-code-editor-line-height);
-    padding: 0 12px 0 calc(16px + var(--dou-code-editor-gutter-cells, 0px));
+    padding: 0 var(--dou-code-editor-gutter-padding-right) 0
+      calc(var(--dou-code-editor-gutter-padding-left) + var(--dou-code-editor-gutter-cells, 0px));
     text-align: right;
 
     &.is-active {
       color: var(--dou-color-text-secondary);
     }
-    .dou-code-editor.is-foldable & {
-      padding-right: 24px;
-    }
+  }
+  .dou-code-editor.is-foldable
+    > .dou-code-editor__body
+    > .dou-code-editor__scroller
+    > .dou-code-editor__sizer
+    > .dou-code-editor__gutter
+    > .dou-code-editor__numbers
+    > .dou-code-editor__number {
+    padding-right: calc(var(--dou-code-editor-gutter-padding-right) + 12px);
+  }
+  .dou-code-editor:not(.is-line-numbers)
+    > .dou-code-editor__body
+    > .dou-code-editor__scroller
+    > .dou-code-editor__sizer
+    > .dou-code-editor__gutter
+    > .dou-code-editor__numbers
+    > .dou-code-editor__number {
+    padding: 0;
   }
 
   /* a fold toggle in the gutter: shown while the gutter is pointed at, and always on a folded line */
@@ -557,6 +576,103 @@
     .dou-code-editor.is-focused .dou-code-editor__number.is-active > .dou-code-editor__cells > &,
     &:focus-visible {
       opacity: 1;
+    }
+  }
+
+  /* overlay gutter actions: float on the gutter edge without taking column width */
+  .dou-code-editor__overlays {
+    position: absolute;
+    top: 0;
+    right: var(--dou-code-editor-gutter-overlay-offset, -4px);
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    height: var(--dou-code-editor-line-height);
+    pointer-events: none;
+  }
+  .dou-code-editor.is-gutter-empty
+    > .dou-code-editor__body
+    > .dou-code-editor__scroller
+    > .dou-code-editor__sizer
+    > .dou-code-editor__gutter
+    > .dou-code-editor__numbers
+    > .dou-code-editor__number
+    > .dou-code-editor__overlays {
+    right: auto;
+    left: 2px;
+  }
+
+  .dou-code-editor__cell.is-overlay {
+    display: inline-flex;
+    box-sizing: border-box;
+    height: 18px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-code-editor-bg);
+    box-shadow: var(--dou-shadow-sm);
+    color: var(--dou-color-text-secondary);
+    font-size: 12px;
+    line-height: 1;
+    pointer-events: auto;
+    transition:
+      opacity var(--dou-motion-duration-fast) var(--dou-motion-easing),
+      background-color var(--dou-motion-duration-fast) var(--dou-motion-easing),
+      border-color var(--dou-motion-duration-fast) var(--dou-motion-easing),
+      color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    & > svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    @media (hover: hover) {
+      &:hover {
+        border-color: var(--dou-color-border-strong);
+        background-color: var(--dou-color-bg-muted);
+        color: var(--dou-color-text);
+      }
+    }
+
+    &[role='button']:focus-visible::after {
+      inset: -1px;
+      height: auto;
+    }
+
+    @media (pointer: coarse) {
+      &::before {
+        position: absolute;
+        inset: -6px;
+        content: '';
+      }
+    }
+
+    &.is-on-hover {
+      opacity: 0;
+      pointer-events: none;
+
+      .dou-code-editor:not(.is-disabled)
+        > .dou-code-editor__body
+        > .dou-code-editor__scroller
+        > .dou-code-editor__sizer
+        > .dou-code-editor__gutter
+        > .dou-code-editor__numbers
+        > .dou-code-editor__number:is(:hover, .is-hovered)
+        > .dou-code-editor__overlays
+        > &,
+      .dou-code-editor.is-focused
+        > .dou-code-editor__body
+        > .dou-code-editor__scroller
+        > .dou-code-editor__sizer
+        > .dou-code-editor__gutter
+        > .dou-code-editor__numbers
+        > .dou-code-editor__number.is-active
+        > .dou-code-editor__overlays
+        > &,
+      &:focus-visible {
+        opacity: 1;
+        pointer-events: auto;
+      }
     }
   }
   .dou-code-editor__problem-icon {
@@ -1563,6 +1679,29 @@
     grid-template-rows: auto minmax(0, 1fr);
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
+  .dou-code-diff--split > .dou-code-diff__body > .dou-code-diff__side > .dou-code-editor {
+    --dou-code-editor-gutter-padding-left: 6px;
+    --dou-code-editor-gutter-padding-right: 8px;
+    --dou-code-editor-padding-x: 8px;
+
+    > .dou-code-editor__body
+      > .dou-code-editor__scroller
+      > .dou-code-editor__sizer
+      > .dou-code-editor__gutter
+      > .dou-code-editor__numbers
+      > .dou-code-editor__number {
+      font-size: 12px;
+
+      > .dou-code-editor__overlays {
+        right: auto;
+        left: calc(var(--dou-code-editor-gutter-cells, 16px) - 15px);
+      }
+    }
+  }
+  .dou-code-diff--inline > .dou-code-diff__body > .dou-code-editor {
+    --dou-code-editor-padding-x: 6px;
+    --dou-code-editor-gutter-overlay-offset: -2px;
+  }
   .dou-code-diff__label {
     padding: 4px 12px;
     border-bottom: 1px solid var(--dou-code-diff-border);
@@ -1633,12 +1772,49 @@
   }
   .dou-code-editor__cell.dou-code-diff__number {
     justify-content: flex-end;
-    padding-right: 8px;
     box-sizing: border-box;
+    padding: 0 6px;
     color: var(--dou-code-editor-gutter-text);
     font-family: var(--dou-font-family-mono);
-    font-size: inherit;
+    font-size: 12px;
     font-variant-numeric: tabular-nums;
+
+    &.is-modified {
+      padding-left: 2px;
+    }
+  }
+
+  .dou-code-diff.is-compact
+    > .dou-code-diff__body
+    > .dou-code-editor
+    > .dou-code-editor__body
+    > .dou-code-editor__scroller
+    > .dou-code-editor__sizer
+    > .dou-code-editor__gutter
+    > .dou-code-editor__numbers
+    > .dou-code-editor__number
+    > .dou-code-editor__cells
+    > .dou-code-editor__cell.dou-code-diff__number {
+    padding: 0 4px;
+    font-size: 11px;
+
+    &.is-modified {
+      padding-left: 2px;
+    }
+  }
+
+  .dou-code-diff.is-compact
+    > .dou-code-diff__body
+    > .dou-code-editor
+    > .dou-code-editor__body
+    > .dou-code-editor__scroller
+    > .dou-code-editor__sizer
+    > .dou-code-editor__gutter
+    > .dou-code-editor__numbers
+    > .dou-code-editor__number
+    > .dou-code-editor__cells
+    > .dou-code-editor__cell.dou-code-diff__sign {
+    font-size: 12px;
   }
 
   /* widgets from `widgets`; a margin of their own counts in their height */

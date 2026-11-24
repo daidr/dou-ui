@@ -129,8 +129,15 @@ export interface CodeGutterHoverMarker extends Pick<CodeGutterMarker, 'icon' | '
 /** A column of the gutter, left of the line numbers. */
 export interface CodeGutter {
   name: string
-  /** In px. Defaults to 16. */
+  /** In px. Defaults to 16 (or 18 when `overlay` is set). */
   width?: number
+  /**
+   * Draws markers floating over the gutter's right edge without reserving a
+   * dedicated column width (0px layout footprint). Best paired with
+   * `hoverMarker` or `visible: 'hover'` for row actions such as adding review
+   * comments. Empty rows take no pointer events.
+   */
+  overlay?: boolean
   /** The markers on the lines in view; reactive state read here updates them. */
   markers?: (context: CodeExtensionContext) => CodeGutterMarker[]
   /** A marker on every other line, shown on hover. */

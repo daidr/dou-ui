@@ -941,6 +941,173 @@ describe('DouCodeDiff toolbar, sticky and collapse state', () => {
   })
 })
 
+describe('DouCodeDiff gutter width, compact layout and overlay actions', () => {
+  const longOriginal = Array.from({ length: 233 }, (_, i) => `const line${i + 1} = ${i + 1}`).join(
+    '\n',
+  )
+  const longModified = longOriginal.replace('const line120 = 120', 'const line120 = 999')
+
+  it('computes tight inline gutter widths with zero trailing dead space and switches to compact under 480px', async () => {
+    const callbacks: Array<(entries: Array<{ contentRect: { width: number } }>) => void> = []
+    const origRO = globalThis.ResizeObserver
+    globalThis.ResizeObserver = class {
+      constructor(cb: (entries: Array<{ contentRect: { width: number } }>) => void) {
+        callbacks.push(cb)
+      }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    } as unknown as typeof ResizeObserver
+
+    try {
+      const { wrapper } = setup({
+        mode: 'inline',
+        original: longOriginal,
+        modelValue: longModified,
+        collapseUnchanged: false,
+      })
+      await nextTick()
+      await nextTick()
+
+      const root = wrapper.get('.dou-code-diff')
+      const editor = wrapper.get('.dou-code-editor')
+      // Normal inline (3-digit file): 35 (orig) + 31 (mod) + 16 (sign) = 82px (no +12px dead space)
+      expect(root.classes()).not.toContain('is-compact')
+      expect(editor.attributes('style')).toContain('--dou-code-editor-gutter: 82px')
+      const firstRowCells = wrapper
+        .findAll('.dou-code-editor__number')[0]!
+        .findAll('.dou-code-editor__cell')
+      expect(firstRowCells.map((c) => c.attributes('style'))).toEqual([
+        'width: 35px;',
+        'width: 31px;',
+        'width: 16px;',
+      ])
+
+      // Narrow container (375px < 480px): switches to compact layout (29 + 27 + 14 = 70px)
+      for (const cb of callbacks) cb([{ contentRect: { width: 375 } }])
+      await nextTick()
+      await nextTick()
+      expect(root.classes()).toContain('is-compact')
+      expect(editor.attributes('style')).toContain('--dou-code-editor-gutter: 70px')
+      const compactCells = wrapper
+        .findAll('.dou-code-editor__number')[0]!
+        .findAll('.dou-code-editor__cell')
+      expect(compactCells.map((c) => c.attributes('style'))).toEqual([
+        'width: 29px;',
+        'width: 27px;',
+        'width: 14px;',
+      ])
+
+      // Wide container again (640px >= 480px): exits compact layout
+      for (const cb of callbacks) cb([{ contentRect: { width: 640 } }])
+      await nextTick()
+      await nextTick()
+      expect(root.classes()).not.toContain('is-compact')
+      expect(editor.attributes('style')).toContain('--dou-code-editor-gutter: 82px')
+    } finally {
+      globalThis.ResizeObserver = origRO
+    }
+  })
+
+  it('supports overlay gutters (always and compact-only) without occupying column width', async () => {
+    const callbacks: Array<(entries: Array<{ contentRect: { width: number } }>) => void> = []
+    const origRO = globalThis.ResizeObserver
+    globalThis.ResizeObserver = class {
+      constructor(cb: (entries: Array<{ contentRect: { width: number } }>) => void) {
+        callbacks.push(cb)
+      }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    } as unknown as typeof ResizeObserver
+
+    try {
+      const pressed: unknown[] = []
+      const alwaysOverlay = setup({
+        mode: 'inline',
+        original: 'a\nb\nc',
+        modelValue: 'a\nB\nc',
+        collapseUnchanged: false,
+        gutters: [
+          {
+            name: 'comments',
+            width: 18,
+            overlay: true,
+            hoverMarker: {
+              text: '+',
+              title: (line: number, side: string) => `${side} ${line}`,
+              side: 'modified',
+            },
+            onPress: (line: number, _event: Event, side: string) => pressed.push([line, side]),
+          },
+        ],
+      })
+      await nextTick()
+      await nextTick()
+
+      // 1-digit inline: 20 (orig) + 16 (mod) + 16 (sign) = 52px; overlay gutter adds 0px
+      expect(alwaysOverlay.wrapper.get('.dou-code-editor').attributes('style')).toContain(
+        '--dou-code-editor-gutter: 52px',
+      )
+      // Rows: 1 (a, shared), 2 (b, removed), 3 (B, added), 4 (c, shared) -> modified-only overlay skips row 2
+      const overlayCells = alwaysOverlay.wrapper.findAll('.dou-code-editor__cell.is-overlay')
+      expect(overlayCells.map((el) => el.attributes('data-line'))).toEqual(['1', '3', '4'])
+      await overlayCells[1]!.trigger('pointerdown', { button: 0, pointerType: 'mouse' })
+      expect(pressed).toEqual([[2, 'modified']])
+      alwaysOverlay.wrapper.unmount()
+
+      // overlay: 'compact' stays a flow column when wide and collapses to overlay under 480px
+      callbacks.length = 0
+      const responsive = setup({
+        mode: 'inline',
+        original: 'a\nb\nc',
+        modelValue: 'a\nB\nc',
+        collapseUnchanged: false,
+        gutters: [
+          {
+            name: 'comments',
+            width: 18,
+            overlay: 'compact',
+            hoverMarker: { text: '+', title: '添加评论' },
+            onPress: () => {},
+          },
+        ],
+      })
+      await nextTick()
+      await nextTick()
+      // Wide: 18 + 20 + 16 + 16 = 70px, rendered in flow cells
+      expect(responsive.wrapper.get('.dou-code-editor').attributes('style')).toContain(
+        '--dou-code-editor-gutter: 70px',
+      )
+      expect(responsive.wrapper.findAll('.dou-code-editor__cell.is-overlay')).toHaveLength(0)
+
+      // Narrow (375px): 15 (orig) + 13 (mod) + 14 (sign) = 42px, rendered as overlay
+      for (const cb of callbacks) cb([{ contentRect: { width: 375 } }])
+      await nextTick()
+      await nextTick()
+      expect(responsive.wrapper.get('.dou-code-editor').attributes('style')).toContain(
+        '--dou-code-editor-gutter: 42px',
+      )
+      expect(responsive.wrapper.findAll('.dou-code-editor__cell.is-overlay')).toHaveLength(4)
+    } finally {
+      globalThis.ResizeObserver = origRO
+    }
+  })
+
+  it('defines compact gutter padding and tightened split/inline spacing in stylesheet', () => {
+    const css = readFileSync(
+      resolve(dirname(fileURLToPath(import.meta.url)), '../style.css'),
+      'utf8',
+    ).replace(/\/\*[\s\S]*?\*\//g, '')
+    expect(css).toContain('--dou-code-editor-gutter-padding-left: 6px')
+    expect(css).toContain('--dou-code-editor-gutter-padding-right: 8px')
+    expect(css).toContain('--dou-code-editor-padding-x: 6px')
+    expect(css).toContain('.dou-code-editor__overlays')
+    expect(css).toContain('.dou-code-editor__cell.is-overlay')
+    expect(css).toContain('.dou-code-diff.is-compact')
+  })
+})
+
 const longLines = (n: number, prefix: string) =>
   Array.from({ length: n }, (_, i) => `${prefix} ${i + 1}: ${'segment_'.repeat(24)}end`).join('\n')
 

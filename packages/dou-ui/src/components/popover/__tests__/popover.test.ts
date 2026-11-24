@@ -275,13 +275,24 @@ describe('DouPopover', () => {
     await nextTick()
     expect(dialog.style.getPropertyValue('--dou-popover-max-height')).toBe('20rem')
 
+    await wrapper.setProps({ maxHeight: 'calc(100dvh - 80px)' })
+    await nextTick()
+    expect(dialog.style.getPropertyValue('--dou-popover-max-height')).toBe('calc(100dvh - 80px)')
+
+    // Non-finite numbers and values invalid in CSS min() must not override --dou-popover-max-height.
+    for (const invalid of [Number.NaN, Number.POSITIVE_INFINITY, -10, '240', 'none', 'auto']) {
+      await wrapper.setProps({ maxHeight: invalid })
+      await nextTick()
+      expect(dialog.style.getPropertyValue('--dou-popover-max-height')).toBe('')
+    }
+
     await wrapper.setProps({ maxHeight: undefined })
     await nextTick()
     expect(dialog.style.getPropertyValue('--dou-popover-max-height')).toBe('')
     wrapper.unmount()
   })
 
-  it('syncs --dou-popover-max-width with explicit width while keeping default and intrinsic widths intact', async () => {
+  it('syncs --dou-popover-max-width only for CSS min()-compatible widths', async () => {
     const wrapper = withModel({ open: true })
     await nextTick()
     const dialog = panel()!
@@ -289,34 +300,76 @@ describe('DouPopover', () => {
     expect(dialog.style.width).toBe('')
     expect(dialog.style.getPropertyValue('--dou-popover-max-width')).toBe('')
 
-    // Explicit width > 360px updates both width and --dou-popover-max-width.
-    await wrapper.setProps({ width: 560 })
-    await nextTick()
-    expect(dialog.style.width).toBe('560px')
-    expect(dialog.style.getPropertyValue('--dou-popover-max-width')).toBe('560px')
-
-    // CSS lengths and percentages are forwarded to both properties.
-    await wrapper.setProps({ width: '36rem' })
-    await nextTick()
-    expect(dialog.style.width).toBe('36rem')
-    expect(dialog.style.getPropertyValue('--dou-popover-max-width')).toBe('36rem')
-
-    await wrapper.setProps({ width: '50%' })
-    await nextTick()
-    expect(dialog.style.width).toBe('50%')
-    expect(dialog.style.getPropertyValue('--dou-popover-max-width')).toBe('50%')
-
-    // Explicit width <= 360px also stays in sync.
-    await wrapper.setProps({ width: 260 })
-    await nextTick()
-    expect(dialog.style.width).toBe('260px')
-    expect(dialog.style.getPropertyValue('--dou-popover-max-width')).toBe('260px')
-
-    // Intrinsic keywords are not valid arguments to CSS min() and must not override --dou-popover-max-width.
-    for (const keyword of ['auto', 'max-content', 'fit-content']) {
-      await wrapper.setProps({ width: keyword })
+    // Finite non-negative numbers update both width and --dou-popover-max-width.
+    for (const [input, expected] of [
+      [560, '560px'],
+      [260, '260px'],
+      [0, '0px'],
+    ] as const) {
+      await wrapper.setProps({ width: input })
       await nextTick()
-      expect(dialog.style.width).toBe(keyword)
+      expect(dialog.style.width).toBe(expected)
+      expect(dialog.style.getPropertyValue('--dou-popover-max-width')).toBe(expected)
+    }
+
+    // Valid CSS lengths, percentages, length math functions and var()/env() stay in sync.
+    for (const value of [
+      '36rem',
+      '50%',
+      '80dvw',
+      '40ch',
+      '.5rem',
+      'calc(50vw + 40px)',
+      'min(560px, 80vw)',
+      'max(400px, 40vw)',
+      'clamp(320px, 50vw, 560px)',
+      'round(nearest, 560px, 8px)',
+      'abs(-560px)',
+      'mod(560px, 100px)',
+      'rem(560px, 100px)',
+      'var(--custom-popover-width)',
+      'env(safe-area-inset-left, 400px)',
+      'calc(min(560px, 80vw) - var(--gap, 16px))',
+    ]) {
+      await wrapper.setProps({ width: value })
+      await nextTick()
+      expect(dialog.style.getPropertyValue('--dou-popover-max-width')).toBe(value)
+    }
+
+    // Non-finite and negative numbers are ignored cleanly.
+    for (const badNumber of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, -50]) {
+      await wrapper.setProps({ width: badNumber })
+      await nextTick()
+      expect(dialog.style.width).toBe('')
+      expect(dialog.style.getPropertyValue('--dou-popover-max-width')).toBe('')
+    }
+
+    // Unitless numeric strings, intrinsic/vendor keywords, calc-size() and malformed values
+    // must not overwrite --dou-popover-max-width (which would make CSS min() IACVT).
+    for (const unsupported of [
+      '560',
+      '0',
+      'auto',
+      'max-content',
+      'min-content',
+      'fit-content',
+      'fit-content(500px)',
+      '-webkit-fill-available',
+      '-moz-available',
+      'available',
+      'fill-available',
+      'stretch',
+      'none',
+      'calc-size(auto, size)',
+      '560 px',
+      '560foo',
+      '-50px',
+      'calc()',
+      'calc(560px) calc(100px)',
+      'calc(560px',
+    ]) {
+      await wrapper.setProps({ width: unsupported })
+      await nextTick()
       expect(dialog.style.getPropertyValue('--dou-popover-max-width')).toBe('')
     }
 

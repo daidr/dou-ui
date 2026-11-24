@@ -9,7 +9,7 @@
     </DouPopover>
 
     <DouPopover title="构建日志摘要" :width="560" placement="bottom-start">
-      <DouButton variant="outline">宽弹层（width="560"）</DouButton>
+      <DouButton variant="outline">宽弹层（:width="560"）</DouButton>
       <template #content>
         <div style="display: flex; flex-direction: column; gap: 6px; font-size: 13px">
           <div style="display: flex; justify-content: space-between; gap: 12px">

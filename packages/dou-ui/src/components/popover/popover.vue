@@ -92,12 +92,32 @@ const triggerProps = computed(() =>
 )
 
 const panelClasses = computed(() => [ns.b(), 'dou-floating', ns.is('titled', hasTitle.value)])
-// CSS `min()` only accepts lengths, percentages and math expressions; intrinsic
-// keywords would make `max-width` invalid and drop the viewport clamp.
-const INTRINSIC_WIDTH =
-  /^(auto|min-content|max-content|fit-content(\(.*\))?|stretch|none|initial|inherit|unset|revert|revert-layer)$/i
+// CSS `min()` only accepts <length-percentage>, length math functions and
+// var()/env(). Writing unitless strings, intrinsic keywords or malformed values
+// into `--dou-popover-max-*` would make `max-width` / `max-height` invalid at
+// computed-value time (IACVT) and drop the viewport clamp.
+const CSS_LENGTH_PERCENTAGE =
+  /^\+?(?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]?\d+)?(?:%|px|cm|mm|q|in|pc|pt|r?(?:em|ex|cap|ch|ic|lh)|[sld]?v(?:w|h|i|b|min|max)|cq(?:w|h|i|b|min|max))$/i
+const CSS_MIN_FUNCTION = /^(?:calc|min|max|clamp|round|abs|mod|rem|var|env)\(/i
+function isMinCompatibleSize(value: string): boolean {
+  if (CSS_LENGTH_PERCENTAGE.test(value)) return true
+  if (!CSS_MIN_FUNCTION.test(value) || !value.endsWith(')')) return false
+  const openIndex = value.indexOf('(')
+  if (!value.slice(openIndex + 1, -1).trim()) return false
+  let depth = 0
+  for (let i = openIndex; i < value.length; i++) {
+    if (value[i] === '(') depth++
+    else if (value[i] === ')') {
+      depth--
+      if (depth === 0) return i === value.length - 1
+      if (depth < 0) return false
+    }
+  }
+  return false
+}
 const cssSize = (value: string | number | undefined) => {
-  if (typeof value === 'number') return `${value}px`
+  if (typeof value === 'number')
+    return Number.isFinite(value) && value >= 0 ? `${value}px` : undefined
   const trimmed = value?.trim()
   return trimmed || undefined
 }
@@ -107,12 +127,13 @@ const panelSizeStyle = computed<CSSProperties>(() => {
   return {
     width,
     ...(width !== undefined &&
-      !INTRINSIC_WIDTH.test(width) && {
+      isMinCompatibleSize(width) && {
         '--dou-popover-max-width': width,
       }),
-    ...(maxHeight !== undefined && {
-      '--dou-popover-max-height': maxHeight,
-    }),
+    ...(maxHeight !== undefined &&
+      isMinCompatibleSize(maxHeight) && {
+        '--dou-popover-max-height': maxHeight,
+      }),
   }
 })
 

@@ -240,6 +240,41 @@ try {
     process.stdout.write(`PASS ${label}\n`)
     await page.close()
   }
+
+  // Non-min()-compatible width strings (e.g. unitless "560" or vendor keywords)
+  // must not invalidate `max-width: min(...)` and drop the default/viewport cap.
+  for (const rawWidth of ['560', '-webkit-fill-available', 'calc-size(auto, size)', '560 px']) {
+    const label = `320px non-min width=${rawWidth} keeps viewport clamp`
+    const page = await browser.newPage({
+      viewport: { width: 320, height: 844 },
+      reducedMotion: 'reduce',
+    })
+    const errors = []
+    page.on('pageerror', (error) => errors.push(error.message))
+    const query = new URLSearchParams({ edge: 'left', placement: 'bottom-start', rawWidth })
+    await page.goto(`http://127.0.0.1:${address.port}/popover-layout.html?${query}`)
+    await page.locator('#show').click()
+    await page.locator('.dou-popover').waitFor({ state: 'visible' })
+    const metrics = await page.evaluate(async () => {
+      document.getElementById('long').click()
+      await new Promise(requestAnimationFrame)
+      await new Promise(requestAnimationFrame)
+      const panel = document.querySelector('.dou-popover')
+      const rect = panel.getBoundingClientRect()
+      return {
+        width: rect.width,
+        left: rect.left,
+        right: rect.right,
+        maxWidth: getComputedStyle(panel).maxWidth,
+      }
+    })
+    assert.notEqual(metrics.maxWidth, 'none', label)
+    assert.ok(metrics.width <= 304 + 0.5, `${label}: width ${metrics.width} exceeded 304`)
+    assert.ok(metrics.left >= 7.5 && metrics.right <= 320 - 7.5, label)
+    assert.deepEqual(errors, [], label)
+    process.stdout.write(`PASS ${label}\n`)
+    await page.close()
+  }
 } finally {
   await browser?.close()
   await server.close()

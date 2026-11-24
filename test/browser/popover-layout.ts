@@ -8,7 +8,7 @@ const long =
   'A sufficiently long popover message with naturally wrapping text. It grows as it moves away from the edge of the viewport. Its width should settle without visible changes.'
 const parseSize = (value: string | null) =>
   value ? (Number.isNaN(Number(value)) ? value : Number(value)) : undefined
-const width = parseSize(params.get('width'))
+const width = params.get('rawWidth') ?? parseSize(params.get('width'))
 const maxHeight = parseSize(params.get('maxHeight'))
 
 createApp({

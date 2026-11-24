@@ -30,4 +30,11 @@ describe('tabs list height and marker stacking styles', () => {
     expect(tablist?.[0]).toMatch(/isolation:\s*isolate/)
     expect(marker?.[0]).toMatch(/z-index:\s*1/)
   })
+
+  it('does not let tab :hover override .is-merge-target highlight', () => {
+    expect(css).toMatch(/&:hover:not\(\.is-disabled\):not\(\.is-merge-target\)/)
+    expect(css).toMatch(
+      /\.dou-tabs-dragging\s+\.dou-tabs__tab:hover:not\(\.is-disabled\):not\(\.is-merge-target\)/,
+    )
+  })
 })

@@ -114,7 +114,7 @@
     transition-duration: var(--dou-motion-duration-fast);
     transition-timing-function: var(--dou-motion-easing);
 
-    &:hover:not(.is-disabled) {
+    &:hover:not(.is-disabled):not(.is-merge-target) {
       background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
       color: var(--dou-color-text);
     }

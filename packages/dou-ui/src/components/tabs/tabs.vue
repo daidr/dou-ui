@@ -112,11 +112,11 @@ provide(tabsKey, {
 
 async function select(entry: TabPanelEntry) {
   if (entry.props.disabled) return
-  await selectValue(entry.props.value)
+  await selectValue(entry.props.value, selected.value)
 }
-async function selectValue(next: TabsValue): Promise<boolean> {
-  if (next === selected.value) return true
-  if (props.beforeLeave && !(await props.beforeLeave(next, selected.value))) return false
+async function selectValue(next: TabsValue, current: TabsValue | undefined): Promise<boolean> {
+  if (next === current) return true
+  if (props.beforeLeave && !(await props.beforeLeave(next, current))) return false
   model.value = next
   emit('change', next)
   return true
@@ -408,6 +408,7 @@ const dropZone = registerTabDropZone({
     if (!current) return
     const within = fromHere(drag)
     const raw = rawInsertIndex(current.zone, current.slot)
+    const prevModel = model.value
     const prevSelected = selected.value
     const prevIndex = panels.value.findIndex((panel) => panel.props.value === drag.value)
     emit('move', {
@@ -416,13 +417,17 @@ const dropZone = registerTabDropZone({
       to: { name: props.name, index: within && raw > drag.index ? raw - 1 : raw },
     })
     // Dragging a tab is using it, unless the move listener rejected or merged
-    // the tab (so it did not land here) or already selected another tab.
+    // the tab (so it did not land here) or already updated `modelValue`.
     void nextTick(() => {
-      if (selected.value !== prevSelected) return
+      if (model.value !== prevModel) return
       const nextIndex = panels.value.findIndex((panel) => panel.props.value === drag.value)
       if (nextIndex < 0) return
       if (within && nextIndex === prevIndex) return
-      void selectValue(drag.value)
+      if (drag.value === prevSelected) {
+        if (selected.value !== drag.value) model.value = drag.value
+        return
+      }
+      void selectValue(drag.value, prevSelected)
     })
   },
 })
@@ -718,7 +723,7 @@ function onOverflowItemEnter(event: PointerEvent, entry: TabPanelEntry) {
 
 async function selectFromOverflow(entry: TabPanelEntry, event: MouseEvent) {
   if (entry.props.disabled) return
-  const moved = await selectValue(entry.props.value)
+  const moved = await selectValue(entry.props.value, selected.value)
   if (!moved) return
   overflowOpen.value = false
   await nextTick()

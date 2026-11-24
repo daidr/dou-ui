@@ -5,7 +5,11 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { h, nextTick } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import { DouCodeBlock, DouConfigProvider } from '../../../index'
-import type { CodeBlockExpose, CodeBlockHighlighter } from '../../../index'
+import type {
+  CodeBlockExpose,
+  CodeBlockHighlightContext,
+  CodeBlockHighlighter,
+} from '../../../index'
 import { htmlLines, parseLines } from '../lines'
 
 const code = 'const a = 1\n\nconsole.log(a)\n'
@@ -20,6 +24,12 @@ const shikiLike: CodeBlockHighlighter = (source, lang) =>
         `<span class="line"><span style="--shiki-light:#D73A49;--shiki-dark:#F97583">${line}</span></span>`,
     )
     .join('\n')}</code></pre><!-- ${lang} -->`
+
+const legacySyncHighlight: CodeBlockHighlighter = (source, lang) =>
+  `<span class="line" data-lang="${lang}"><b>${source}</b></span>`
+
+const legacyAsyncHighlight: CodeBlockHighlighter = async (source, lang) =>
+  `<span class="line" data-lang="${lang}"><i>${source}</i></span>`
 
 const lineTexts = (wrapper: ReturnType<typeof mount>) =>
   wrapper.findAll('.dou-code-block__line').map((line) => line.element.textContent)
@@ -391,5 +401,175 @@ describe('DouCodeBlock', () => {
     await nextTick()
     expect(body.element.scrollTop).toBe(260)
     expect(vm.atBottom).toBe(true)
+  })
+
+  it('passes an AbortSignal and aborts the previous highlight when code or lang changes', async () => {
+    const runs: {
+      code: string
+      lang: string
+      signal: AbortSignal
+      abortCount: number
+      resolve: (html: string) => void
+      reject: (reason?: unknown) => void
+    }[] = []
+    const highlight: CodeBlockHighlighter = (source, lang, context?: CodeBlockHighlightContext) =>
+      new Promise<string>((finish, reject) => {
+        const signal = context!.signal
+        const entry = { code: source, lang, signal, abortCount: 0, resolve: finish, reject }
+        signal.addEventListener('abort', () => {
+          entry.abortCount += 1
+          reject(new DOMException('Aborted', 'AbortError'))
+        })
+        runs.push(entry)
+      })
+
+    const wrapper = mount(DouCodeBlock, {
+      props: { code: 'const a = 1', lang: 'ts', highlight },
+    })
+    expect(runs).toHaveLength(1)
+    expect(runs[0]!.signal).toBeInstanceOf(AbortSignal)
+    expect(runs[0]!.signal.aborted).toBe(false)
+
+    // Changing code aborts the in-flight request and starts a new one.
+    await wrapper.setProps({ code: 'const b = 2' })
+    expect(runs).toHaveLength(2)
+    expect(runs[0]!.signal.aborted).toBe(true)
+    expect(runs[0]!.abortCount).toBe(1)
+    expect(runs[1]!.signal.aborted).toBe(false)
+
+    // Resolving the latest run lands its HTML, and no unhandled rejection occurs from the aborted run.
+    runs[1]!.resolve('<span class="line"><b>const b = 2</b></span>')
+    await flushPromises()
+    expect(wrapper.get('.dou-code-block__line b').text()).toBe('const b = 2')
+
+    // Changing lang triggers a fresh highlight even when code is unchanged, and aborts the previous run.
+    await wrapper.setProps({ lang: 'js' })
+    expect(runs).toHaveLength(3)
+    expect(runs[1]!.signal.aborted).toBe(true)
+    expect(runs[2]!.lang).toBe('js')
+    expect(runs[2]!.signal.aborted).toBe(false)
+
+    // Changing lang again while the previous run is still pending aborts it cleanly.
+    await wrapper.setProps({ lang: 'py' })
+    expect(runs).toHaveLength(4)
+    expect(runs[2]!.signal.aborted).toBe(true)
+    expect(runs[2]!.abortCount).toBe(1)
+    expect(runs[3]!.lang).toBe('py')
+    runs[3]!.resolve('<span class="line"><em>py</em></span>')
+    await flushPromises()
+    expect(wrapper.get('.dou-code-block__line em').text()).toBe('py')
+  })
+
+  it('aborts the active highlight signal when unmounted or cleared', async () => {
+    const signals: AbortSignal[] = []
+    let abortEvents = 0
+    const rejections: unknown[] = []
+    const onUnhandled = (reason: unknown) => rejections.push(reason)
+    process.on('unhandledRejection', onUnhandled)
+
+    try {
+      const highlight: CodeBlockHighlighter = (_source, _lang, context) =>
+        new Promise<string>((_resolve, reject) => {
+          const signal = context!.signal
+          signals.push(signal)
+          signal.addEventListener('abort', () => {
+            abortEvents += 1
+            reject(new DOMException('Aborted', 'AbortError'))
+          })
+        })
+
+      const wrapper = mount(DouCodeBlock, {
+        props: { code: 'const x = 1', lang: 'ts', highlight },
+      })
+      expect(signals).toHaveLength(1)
+      expect(signals[0]!.aborted).toBe(false)
+
+      // Clearing code aborts the in-flight highlight.
+      await wrapper.setProps({ code: '' })
+      expect(signals[0]!.aborted).toBe(true)
+      expect(abortEvents).toBe(1)
+
+      // Start another in-flight highlight, then unmount.
+      await wrapper.setProps({ code: 'const y = 2' })
+      expect(signals).toHaveLength(2)
+      expect(signals[1]!.aborted).toBe(false)
+
+      wrapper.unmount()
+      expect(signals[1]!.aborted).toBe(true)
+      expect(abortEvents).toBe(2)
+
+      await flushPromises()
+      expect(rejections).toEqual([])
+    } finally {
+      process.off('unhandledRejection', onUnhandled)
+    }
+  })
+
+  it('ignores late resolutions from aborted highlighters and preserves streaming in-flight runs across tail updates', async () => {
+    const pending: {
+      source: string
+      signal: AbortSignal
+      resolve: (html: string) => void
+    }[] = []
+    const highlight: CodeBlockHighlighter = (source, _lang, context) =>
+      new Promise<string>((finish) => {
+        pending.push({ source, signal: context!.signal, resolve: finish })
+      })
+
+    const wrapper = mount(DouCodeBlock, {
+      props: { code: 'line1\nta', lang: 'ts', highlight, streaming: true },
+    })
+    expect(pending).toHaveLength(1)
+    expect(pending[0]!.source).toBe('line1')
+    expect(pending[0]!.signal.aborted).toBe(false)
+
+    // Appending characters to the unfinished tail line does not abort or restart the in-flight run.
+    await wrapper.setProps({ code: 'line1\ntail' })
+    expect(pending).toHaveLength(1)
+    expect(pending[0]!.signal.aborted).toBe(false)
+    expect(lineTexts(wrapper)).toEqual(['line1', 'tail'])
+
+    // When the in-flight run settles, it keeps the latest tail text.
+    pending[0]!.resolve('<span class="line"><b>line1</b></span>')
+    await flushPromises()
+    expect(wrapper.get('.dou-code-block__line b').text()).toBe('line1')
+    expect(lineTexts(wrapper)).toEqual(['line1', 'tail'])
+
+    // Completing the line starts a new run; completing another before it lands aborts the stale one.
+    await wrapper.setProps({ code: 'line1\ntail\nnext' })
+    expect(pending).toHaveLength(2)
+    await wrapper.setProps({ code: 'line1\ntail\nnext\nmore' })
+    expect(pending).toHaveLength(3)
+    expect(pending[1]!.signal.aborted).toBe(true)
+    expect(pending[2]!.signal.aborted).toBe(false)
+
+    // Even if an ignored stale promise resolves later, it must not overwrite newer output.
+    pending[2]!.resolve(
+      '<span class="line"><b>line1</b></span>\n<span class="line"><b>tail</b></span>\n<span class="line"><b>next</b></span>',
+    )
+    await flushPromises()
+    pending[1]!.resolve('<span class="line"><i>stale</i></span>')
+    await flushPromises()
+    expect(wrapper.find('i').exists()).toBe(false)
+    expect(wrapper.findAll('.dou-code-block__line b').map((b) => b.text())).toEqual([
+      'line1',
+      'tail',
+      'next',
+    ])
+  })
+
+  it('remains backwards-compatible with two-argument highlight callbacks', async () => {
+    const syncWrapper = mount(DouCodeBlock, {
+      props: { code: 'x', lang: 'ts', highlight: legacySyncHighlight },
+    })
+    expect(syncWrapper.get('.dou-code-block__line b').text()).toBe('x')
+    expect(syncWrapper.get('.dou-code-block__line .line').attributes('data-lang')).toBe('ts')
+
+    const asyncWrapper = mount(DouCodeBlock, {
+      props: { code: 'y', lang: 'js', highlight: legacyAsyncHighlight },
+    })
+    await flushPromises()
+    expect(asyncWrapper.get('.dou-code-block__line i').text()).toBe('y')
+    expect(asyncWrapper.get('.dou-code-block__line .line').attributes('data-lang')).toBe('js')
   })
 })

@@ -21,6 +21,13 @@ export interface DockPanel {
    * tooltip, and is not closable unless `closable: true` is set on the panel.
    */
   pinned?: boolean
+  /**
+   * Tabs sharing the same `mergeId` represent the same source. Moving or
+   * dropping one into another group (or from outside) that already holds a tab
+   * with the same `mergeId` removes the moved tab and activates that existing
+   * tab instead.
+   */
+  mergeId?: TabsValue
 }
 
 /** The smallest a group may get, by direction: `width` across a side-by-side split, `height` across a stacked one. */
@@ -62,6 +69,13 @@ export interface DockProps {
   activeGroup?: string
   /** Makes the id of a group split off. Defaults to `group-1`, `group-2`… */
   createId?: (layout: DockNode) => string
+  /**
+   * Runs before a tab move or center drop commits to the layout. Return `false`
+   * to cancel the move, `{ mergeInto }` to merge into an existing tab in the
+   * target group and activate it, or `{ mergeInto: null }` to skip automatic
+   * `mergeId` merging and move normally.
+   */
+  beforeMove?: (context: DockBeforeMoveContext) => DockBeforeMoveResult
 }
 
 /** What `startDrop` drags in from outside the dock. */
@@ -78,12 +92,43 @@ export interface DockLocation {
   index: number
 }
 
+/** Passed to `beforeMove` before a move or center drop commits. */
+export interface DockBeforeMoveContext {
+  value: TabsValue
+  /** Where it was; `null` when it was dragged in from outside. */
+  from: DockLocation | null
+  /** Where it is about to land if moved normally. */
+  to: DockLocation
+  /** The target group before the move is applied. */
+  targetGroup: DockGroup
+  /**
+   * The existing tab in `targetGroup` matched by `mergeId`, if any.
+   */
+  mergeInto?: TabsValue
+}
+
+export type DockBeforeMoveResult =
+  | boolean
+  | void
+  | {
+      /**
+       * Existing tab in the target group to merge into and activate, or `null`
+       * to skip an automatic `mergeId` merge and move the tab normally.
+       */
+      mergeInto: TabsValue | null
+    }
+
 export interface DockMoveEvent {
   value: TabsValue
   /** Where it was; `null` when it was dragged in from outside and opens here. */
   from: DockLocation | null
   /** Where it ends up, its index counted once the move is done. */
   to: DockLocation
+  /**
+   * When the moved tab merged into an existing tab in the target group instead
+   * of being inserted, the value of that existing tab (now active).
+   */
+  mergedInto?: TabsValue
 }
 
 export interface DockSplitEvent {

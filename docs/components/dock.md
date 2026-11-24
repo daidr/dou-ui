@@ -56,19 +56,35 @@
 
 <DocDemo src="dock/pinned" style="padding: 0; height: 340px; overflow: hidden" />
 
+## 跨组合并同源标签
+
+当主分组中有固定标签，次级分栏里存在同一来源的副本标签时，可以给 `panels` 中的同源面板设置相同的 `mergeId`。把副本拖到已包含同源标签的分组标签行或内容区中间时（以及通过 `startDrop` 从外部拖入时），组件不会插入重复标签，而是移除被拖动的副本、保留并激活目标组里已有的同源标签（同组存在多个匹配项时优先激活固定标签），同时在 `move` 事件中通过 `mergedInto` 返回被激活的目标标签值；如果源分组因此变空，会自动折叠该分栏。
+
+拖动经过目标分组的标签行或内容区中间时，目标同源标签会高亮提示即将合并；拖到分组边缘拆分新组，或在原分组内调整顺序时不会触发合并。
+
+如果需要按自定义条件判断是否允许移动或动态指定合并目标，可以传入同步回调 `beforeMove`：
+
+- 返回 `false` 取消这次移动。
+- 返回 `{ mergeInto }` 将被拖动的标签合并到目标组里已有的指定标签并激活。
+- 返回 `{ mergeInto: null }` 跳过 `mergeId` 的自动合并，按普通移动处理。
+- 返回 `true` 或 `undefined` 按默认行为处理。
+
+<DocDemo src="dock/merge" style="padding: 0; height: 320px; overflow: hidden" />
+
 ## 用菜单或按钮拆分
 
 拖动之外，也可以用导出的函数改布局，比如做“向右拆分”“移到…”菜单，或者给键盘用户一个跨组移动的入口。这些函数返回新的布局，不改动传入的那个：
 
-| 函数                                                 | 作用                                                                                   |
-| ---------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `moveDockTab(layout, value, groupId, index?)`        | 把标签移到某组的 `index`（不设时放到最后），并选中它；值还不在布局里时就是新开一个标签 |
-| `splitDockTab(layout, value, groupId, side, newId?)` | 把标签拆到某组的 `'top'` `'right'` `'bottom'` `'left'`                                 |
-| `removeDockTab(layout, value)`                       | 去掉标签                                                                               |
-| `selectDockTab(layout, value)`                       | 选中标签                                                                               |
-| `findDockGroup(layout, value)`                       | 标签所在的组                                                                           |
-| `dockGroups(layout)`                                 | 所有的组，从左上开始                                                                   |
-| `nextDockGroupId(layout)`                            | 还没用过的组 id：`group-1`、`group-2`……                                                |
+| 函数                                                 | 作用                                                                                     |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `moveDockTab(layout, value, groupId, index?)`        | 把标签移到某组的 `index`（不设时放到最后），并选中它；值还不在布局里时就是新开一个标签   |
+| `mergeDockTab(layout, value, target)`                | 把 `value` 合并到已有的 `target` 标签：从原组移除 `value`（空组自动去掉）并激活 `target` |
+| `splitDockTab(layout, value, groupId, side, newId?)` | 把标签拆到某组的 `'top'` `'right'` `'bottom'` `'left'`                                   |
+| `removeDockTab(layout, value)`                       | 去掉标签                                                                                 |
+| `selectDockTab(layout, value)`                       | 选中标签                                                                                 |
+| `findDockGroup(layout, value)`                       | 标签所在的组                                                                             |
+| `dockGroups(layout)`                                 | 所有的组，从左上开始                                                                     |
+| `nextDockGroupId(layout)`                            | 还没用过的组 id：`group-1`、`group-2`……                                                  |
 
 和 Tabs 一样，关闭按钮只发出 `remove`，新增按钮只发出 `add`，参数在 Tabs 的基础上多了组的 id：去掉用 `removeDockTab`，新开一个标签就把它加进 `panels`，再用 `moveDockTab` 放进那一组。所有标签都关掉后保留一个空组，显示 `empty` 插槽。
 
@@ -124,30 +140,31 @@ layout.value = moveDockTab(layout.value, value, target)
 
 ### Dock Props
 
-| 名称          | 说明                                            | 类型                           | 默认值            |
-| ------------- | ----------------------------------------------- | ------------------------------ | ----------------- |
-| `modelValue`  | 布局，配合 `v-model`                            | `DockNode`                     | —                 |
-| `panels`      | 每个标签的文字、图标和选项                      | `DockPanel[]`                  | `[]`              |
-| `size`        | 标签的尺寸，默认取表单或全局配置                | `'sm' \| 'md' \| 'lg'`         | `'md'`            |
-| `closable`    | 每个标签显示关闭按钮                            | `boolean`                      | `false`           |
-| `addable`     | 每组的标签行末尾显示新增按钮                    | `boolean`                      | `false`           |
-| `draggable`   | 标签可以拖动、拆分；面板自己的 `draggable` 优先 | `boolean`                      | `true`            |
-| `min`         | 每个分割两侧的最小尺寸，见[最小尺寸](#最小尺寸) | `SplitterLimit \| DockMinSize` | `'120px'`         |
-| `activeGroup` | 最近用过的组的 id，配合 `v-model:active-group`  | `string`                       | —                 |
-| `createId`    | 拆出新组时生成它的 id                           | `(layout: DockNode) => string` | `nextDockGroupId` |
+| 名称          | 说明                                                 | 类型                                                       | 默认值            |
+| ------------- | ---------------------------------------------------- | ---------------------------------------------------------- | ----------------- |
+| `modelValue`  | 布局，配合 `v-model`                                 | `DockNode`                                                 | —                 |
+| `panels`      | 每个标签的文字、图标和选项                           | `DockPanel[]`                                              | `[]`              |
+| `size`        | 标签的尺寸，默认取表单或全局配置                     | `'sm' \| 'md' \| 'lg'`                                     | `'md'`            |
+| `closable`    | 每个标签显示关闭按钮                                 | `boolean`                                                  | `false`           |
+| `addable`     | 每组的标签行末尾显示新增按钮                         | `boolean`                                                  | `false`           |
+| `draggable`   | 标签可以拖动、拆分；面板自己的 `draggable` 优先      | `boolean`                                                  | `true`            |
+| `min`         | 每个分割两侧的最小尺寸，见[最小尺寸](#最小尺寸)      | `SplitterLimit \| DockMinSize`                             | `'120px'`         |
+| `activeGroup` | 最近用过的组的 id，配合 `v-model:active-group`       | `string`                                                   | —                 |
+| `createId`    | 拆出新组时生成它的 id                                | `(layout: DockNode) => string`                             | `nextDockGroupId` |
+| `beforeMove`  | 移动或拖入中心提交前的同步回调，可取消或指定合并目标 | `(context: DockBeforeMoveContext) => DockBeforeMoveResult` | —                 |
 
 ### Dock Events
 
-| 名称                 | 说明                               | 参数                                                                       |
-| -------------------- | ---------------------------------- | -------------------------------------------------------------------------- |
-| `update:modelValue`  | 布局变化                           | `(layout: DockNode)`                                                       |
-| `move`               | 标签被拖到组内的新位置，或另一组里 | `(event: { value, from: { group, index } \| null, to: { group, index } })` |
-| `split`              | 标签被拖到某组边缘，拆出了新的一组 | `(event: { value, from, target, side, group })`                            |
-| `remove`             | 点击关闭按钮，或按 `Delete`        | `(value: string \| number, group: string)`                                 |
-| `add`                | 点击某组的新增按钮                 | `(group: string)`                                                          |
-| `update:activeGroup` | 最近用过的组变化                   | `(group: string \| undefined)`                                             |
+| 名称                 | 说明                               | 参数                                                                                    |
+| -------------------- | ---------------------------------- | --------------------------------------------------------------------------------------- |
+| `update:modelValue`  | 布局变化                           | `(layout: DockNode)`                                                                    |
+| `move`               | 标签被拖到组内的新位置，或另一组里 | `(event: { value, from: { group, index } \| null, to: { group, index }, mergedInto? })` |
+| `split`              | 标签被拖到某组边缘，拆出了新的一组 | `(event: { value, from, target, side, group })`                                         |
+| `remove`             | 点击关闭按钮，或按 `Delete`        | `(value: string \| number, group: string)`                                              |
+| `add`                | 点击某组的新增按钮                 | `(group: string)`                                                                       |
+| `update:activeGroup` | 最近用过的组变化                   | `(group: string \| undefined)`                                                          |
 
-`move` 的 `from` 和 `to` 各有组的 id 和标签在那一组里的位置（从外部拖入的新标签 `from` 为 `null`），`to.index` 是挪完以后的位置，和 Tabs 的 `move` 对应；`split` 的 `from` 也一样，`target` 是被拖到边缘的那一组，`group` 是新组的 id。`move` 和 `split` 带的信息多，用一个对象；`remove` 和 `add` 与 Tabs 的同名事件参数一致，只在最后多了组的 id。
+`move` 的 `from` 和 `to` 各有组的 id 和标签在那一组里的位置（从外部拖入的新标签 `from` 为 `null`），`to.index` 是挪完以后的位置，和 Tabs 的 `move` 对应；发生同源合并时，`mergedInto` 为目标组里被保留并激活的标签值，`to.index` 为该目标标签的位置。`split` 的 `from` 也一样，`target` 是被拖到边缘的那一组，`group` 是新组的 id。`move` 和 `split` 带的信息多，用一个对象；`remove` 和 `add` 与 Tabs 的同名事件参数一致，只在最后多了组的 id。
 
 ### Dock Exposes
 
@@ -167,12 +184,13 @@ layout.value = moveDockTab(layout.value, value, target)
 
 ### CSS 变量
 
-| 变量                              | 说明                                                             |
-| --------------------------------- | ---------------------------------------------------------------- |
-| `--dou-dock-group-padding-x`      | 每组左右的内边距，默认 12px                                      |
-| `--dou-dock-group-padding-bottom` | 每组底部的内边距，默认 4px                                       |
-| `--dou-dock-header-padding-x`     | 每组标签行左右的内边距，默认和 `--dou-dock-group-padding-x` 相同 |
-| `--dou-dock-panel-gap`            | 每组标签行和面板之间的距离，默认 16px                            |
+| 变量                              | 说明                                                                  |
+| --------------------------------- | --------------------------------------------------------------------- |
+| `--dou-dock-group-padding-x`      | 每组左右的内边距，默认 12px                                           |
+| `--dou-dock-group-padding-bottom` | 每组底部的内边距，默认 4px                                            |
+| `--dou-dock-header-padding-x`     | 每组标签行左右的内边距，默认和 `--dou-dock-group-padding-x` 相同      |
+| `--dou-dock-panel-gap`            | 每组标签行和面板之间的距离，默认 16px                                 |
+| `--dou-tabs-tab-max-width`        | 单个文字标签的最大宽度，默认 `none`；超出时截断并在悬停时提示完整标题 |
 
 ### 类型
 
@@ -209,5 +227,16 @@ interface DockPanel {
   disabled?: boolean
   draggable?: boolean
   pinned?: boolean
+  mergeId?: string | number
 }
+
+interface DockBeforeMoveContext {
+  value: string | number
+  from: { group: string; index: number } | null
+  to: { group: string; index: number }
+  targetGroup: DockGroup
+  mergeInto?: string | number
+}
+
+type DockBeforeMoveResult = boolean | void | { mergeInto: string | number | null }
 ```

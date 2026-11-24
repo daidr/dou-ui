@@ -1,10 +1,11 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { DouDock } from '../../../index'
+import { pressTab } from '../../tabs/tab-drag'
 import { splitDockTab } from '../layout'
 import type { DockContext } from '../context'
-import type { DockExpose } from '../dock'
+import type { DockBeforeMoveContext, DockBeforeMoveResult, DockExpose } from '../dock'
 import type { DockGroup, DockNode } from '../layout'
 
 const panels = [
@@ -44,6 +45,10 @@ const make = (props: Record<string, unknown> = {}) => {
 }
 
 describe('DouDock', () => {
+  afterEach(() => {
+    window.dispatchEvent(new PointerEvent('pointercancel'))
+  })
+
   it('renders a splitter and a tabs per group, with the labels of the panels', async () => {
     const { wrapper } = make()
     await nextTick()
@@ -471,5 +476,555 @@ describe('DouDock', () => {
     expect(wrapper.findAll('[data-dock-group="b"] .dou-tabs__pinned [role="tab"]')).toHaveLength(1)
 
     wrapper.unmount()
+  })
+
+  it('merges tabs sharing a `mergeId` on cross-group move, center drop, and external drop', async () => {
+    const FileIcon = defineComponent({ setup: () => () => h('svg') })
+    const mergePanels = [
+      { value: 'files', label: '文件列表', icon: FileIcon, pinned: true, mergeId: 'files' },
+      { value: 'files-disabled', label: '禁用副本', disabled: true, mergeId: 'files' },
+      { value: 'files-reg', label: '普通副本', mergeId: 'files' },
+      { value: 'spec', label: '接口规范' },
+      { value: 'files-copy', label: '文件列表（分栏）', icon: FileIcon, mergeId: 'files' },
+      { value: 'notes', label: '纪要' },
+    ]
+    const layout = ref<DockNode>({
+      type: 'split',
+      direction: 'horizontal',
+      size: 60,
+      start: {
+        type: 'group',
+        id: 'main',
+        tabs: ['files', 'files-reg', 'spec'],
+        active: 'spec',
+      },
+      end: {
+        type: 'group',
+        id: 'side',
+        tabs: ['files-copy'],
+        active: 'files-copy',
+      },
+    })
+    const activeGroup = ref<string | undefined>('side')
+    const events: unknown[][] = []
+    const wrapper = mount(
+      defineComponent({
+        setup: () => () =>
+          h(
+            DouDock,
+            {
+              panels: mergePanels,
+              modelValue: layout.value,
+              'onUpdate:modelValue': (value: DockNode) => (layout.value = value),
+              activeGroup: activeGroup.value,
+              'onUpdate:activeGroup': (value: string | undefined) => (activeGroup.value = value),
+              onMove: (e: unknown) => events.push(['move', e]),
+              onSplit: (e: unknown) => events.push(['split', e]),
+            },
+            { default: ({ value }: { value: string }) => `${value} 内容` },
+          ),
+      }),
+      { attachTo: document.body },
+    )
+    await nextTick()
+
+    // cross-group tab bar move: prefers pinned match `files` over `files-reg`, collapses empty `side`
+    const [mainTabs] = wrapper.findAllComponents({ name: 'DouTabs' })
+    mainTabs!.vm.$emit('move', {
+      value: 'files-copy',
+      from: { name: 'side', index: 0 },
+      to: { name: 'main', index: 3 },
+    })
+    await nextTick()
+    expect(layout.value).toEqual({
+      type: 'group',
+      id: 'main',
+      tabs: ['files', 'files-reg', 'spec'],
+      active: 'files',
+    })
+    expect(activeGroup.value).toBe('main')
+    expect(events.at(-1)).toEqual([
+      'move',
+      {
+        value: 'files-copy',
+        from: { group: 'side', index: 0 },
+        to: { group: 'main', index: 0 },
+        mergedInto: 'files',
+      },
+    ])
+
+    // external drop matching `mergeId` activates target without inserting duplicate
+    layout.value = { type: 'group', id: 'main', tabs: ['files', 'spec'], active: 'spec' }
+    await nextTick()
+    mainTabs!.vm.$emit('move', {
+      value: 'files-copy',
+      from: { index: -1 },
+      to: { name: 'main', index: 2 },
+    })
+    await nextTick()
+    expect(layout.value).toEqual({
+      type: 'group',
+      id: 'main',
+      tabs: ['files', 'spec'],
+      active: 'files',
+    })
+    expect(events.at(-1)).toEqual([
+      'move',
+      {
+        value: 'files-copy',
+        from: null,
+        to: { group: 'main', index: 0 },
+        mergedInto: 'files',
+      },
+    ])
+
+    // center body drop merges; edge split does NOT merge; disabled matches are skipped
+    layout.value = {
+      type: 'split',
+      direction: 'horizontal',
+      size: 60,
+      start: { type: 'group', id: 'main', tabs: ['files-disabled', 'spec'], active: 'spec' },
+      end: { type: 'group', id: 'side', tabs: ['files-copy', 'notes'], active: 'files-copy' },
+    }
+    await nextTick()
+    const [mainGroup] = wrapper.findAllComponents({ name: 'DouDockGroup' })
+    const { dock } = (mainGroup!.vm.$ as unknown as { setupState: { dock: DockContext } })
+      .setupState
+    const drag = {
+      value: 'files-copy',
+      label: '文件列表（分栏）',
+      group: dock.group,
+      name: 'side',
+      index: 0,
+      source: {},
+    }
+    // only disabled match exists -> inserts normally instead of activating disabled tab
+    dock.drop(drag, mainGroup!.props('group'), 'center')
+    await nextTick()
+    expect(layout.value.type === 'split' && layout.value.start).toMatchObject({
+      tabs: ['files-disabled', 'spec', 'files-copy'],
+      active: 'files-copy',
+    })
+    expect((events.at(-1)![1] as { mergedInto?: unknown }).mergedInto).toBeUndefined()
+
+    // edge split splits off without merging even when a matching pinned tab is in target
+    layout.value = {
+      type: 'split',
+      direction: 'horizontal',
+      size: 60,
+      start: { type: 'group', id: 'main', tabs: ['files', 'spec'], active: 'spec' },
+      end: { type: 'group', id: 'side', tabs: ['files-copy', 'notes'], active: 'files-copy' },
+    }
+    await nextTick()
+    const [mainGroup2] = wrapper.findAllComponents({ name: 'DouDockGroup' })
+    dock.drop(drag, mainGroup2!.props('group'), 'right')
+    await nextTick()
+    expect(events.at(-1)![0]).toBe('split')
+
+    // center body drop onto group containing active-capable match merges and activates it
+    layout.value = {
+      type: 'split',
+      direction: 'horizontal',
+      size: 60,
+      start: { type: 'group', id: 'main', tabs: ['files', 'spec'], active: 'spec' },
+      end: { type: 'group', id: 'side', tabs: ['files-copy', 'notes'], active: 'files-copy' },
+    }
+    await nextTick()
+    const [mainGroup3] = wrapper.findAllComponents({ name: 'DouDockGroup' })
+    dock.drop(drag, mainGroup3!.props('group'), 'center')
+    await nextTick()
+    expect(layout.value.type === 'split' && layout.value.start).toMatchObject({
+      tabs: ['files', 'spec'],
+      active: 'files',
+    })
+    expect(layout.value.type === 'split' && layout.value.end).toMatchObject({
+      tabs: ['notes'],
+      active: 'notes',
+    })
+    expect(events.at(-1)).toEqual([
+      'move',
+      {
+        value: 'files-copy',
+        from: { group: 'side', index: 0 },
+        to: { group: 'main', index: 0 },
+        mergedInto: 'files',
+      },
+    ])
+
+    // reordering within the same group does NOT auto-merge tabs with same mergeId
+    layout.value = {
+      type: 'group',
+      id: 'main',
+      tabs: ['files-reg', 'files-copy'],
+      active: 'files-reg',
+    }
+    await nextTick()
+    const [onlyTabs] = wrapper.findAllComponents({ name: 'DouTabs' })
+    onlyTabs!.vm.$emit('move', {
+      value: 'files-copy',
+      from: { name: 'main', index: 1 },
+      to: { name: 'main', index: 0 },
+    })
+    await nextTick()
+    expect(layout.value).toEqual({
+      type: 'group',
+      id: 'main',
+      tabs: ['files-copy', 'files-reg'],
+      active: 'files-copy',
+    })
+    expect((events.at(-1)![1] as { mergedInto?: unknown }).mergedInto).toBeUndefined()
+
+    wrapper.unmount()
+  })
+
+  it('supports `beforeMove` to cancel, merge dynamically, or opt out of `mergeId`', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const seen: DockBeforeMoveContext[] = []
+    let result: DockBeforeMoveResult
+    const beforeMove = (ctx: DockBeforeMoveContext): DockBeforeMoveResult => {
+      seen.push(ctx)
+      return result
+    }
+    const { wrapper, layout, events } = make({
+      panels: [
+        { value: 'thread', label: '需求讨论', mergeId: 'same' },
+        { value: 'plan', label: '发布计划' },
+        { value: 'api', label: '接口文档', mergeId: 'same' },
+      ],
+      beforeMove,
+    })
+    await nextTick()
+
+    const [tabsA] = wrapper.findAllComponents({ name: 'DouTabs' })
+
+    // 1. returning false cancels the move
+    result = false
+    tabsA!.vm.$emit('move', {
+      value: 'api',
+      from: { name: 'b', index: 0 },
+      to: { name: 'a', index: 2 },
+    })
+    await nextTick()
+    expect(seen.at(-1)).toMatchObject({
+      value: 'api',
+      from: { group: 'b', index: 0 },
+      to: { group: 'a', index: 2 },
+      mergeInto: 'thread',
+    })
+    expect(events).toEqual([])
+    expect(layout.value.type).toBe('split')
+
+    // 2. returning { mergeInto: null } skips automatic mergeId and moves normally
+    result = { mergeInto: null }
+    tabsA!.vm.$emit('move', {
+      value: 'api',
+      from: { name: 'b', index: 0 },
+      to: { name: 'a', index: 1 },
+    })
+    await nextTick()
+    expect(layout.value).toEqual({
+      type: 'group',
+      id: 'a',
+      tabs: ['thread', 'api', 'plan'],
+      active: 'api',
+    })
+    expect(events.at(-1)).toEqual([
+      'move',
+      { value: 'api', from: { group: 'b', index: 0 }, to: { group: 'a', index: 1 } },
+    ])
+
+    // 3. returning { mergeInto } merges dynamically even without matching mergeId
+    layout.value = {
+      type: 'split',
+      direction: 'horizontal',
+      size: 60,
+      start: { type: 'group', id: 'a', tabs: ['thread', 'plan'], active: 'thread' },
+      end: { type: 'group', id: 'b', tabs: ['api'], active: 'api' },
+    }
+    await nextTick()
+    result = { mergeInto: 'plan' }
+    tabsA!.vm.$emit('move', {
+      value: 'api',
+      from: { name: 'b', index: 0 },
+      to: { name: 'a', index: 2 },
+    })
+    await nextTick()
+    expect(layout.value).toEqual({
+      type: 'group',
+      id: 'a',
+      tabs: ['thread', 'plan'],
+      active: 'plan',
+    })
+    expect(events.at(-1)).toEqual([
+      'move',
+      {
+        value: 'api',
+        from: { group: 'b', index: 0 },
+        to: { group: 'a', index: 1 },
+        mergedInto: 'plan',
+      },
+    ])
+
+    // 4. invalid mergeInto warns and cancels cleanly
+    layout.value = {
+      type: 'split',
+      direction: 'horizontal',
+      size: 60,
+      start: { type: 'group', id: 'a', tabs: ['thread'], active: 'thread' },
+      end: { type: 'group', id: 'b', tabs: ['api'], active: 'api' },
+    }
+    await nextTick()
+    const countBefore = events.length
+    result = { mergeInto: 'not-here' }
+    tabsA!.vm.$emit('move', {
+      value: 'api',
+      from: { name: 'b', index: 0 },
+      to: { name: 'a', index: 1 },
+    })
+    await nextTick()
+    expect(events).toHaveLength(countBefore)
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('not-here'))
+
+    warn.mockRestore()
+    wrapper.unmount()
+  })
+
+  it('highlights the merge target tab while dragging over target tab bar or center body', async () => {
+    const FileIcon = defineComponent({ setup: () => () => h('svg') })
+    const layout = ref<DockNode>({
+      type: 'split',
+      direction: 'horizontal',
+      size: 50,
+      start: { type: 'group', id: 'main', tabs: ['files', 'spec'], active: 'spec' },
+      end: { type: 'group', id: 'side', tabs: ['files-copy'], active: 'files-copy' },
+    })
+    const wrapper = mount(
+      defineComponent({
+        setup: () => () =>
+          h(DouDock, {
+            panels: [
+              { value: 'files', label: '文件列表', icon: FileIcon, pinned: true, mergeId: 'files' },
+              { value: 'spec', label: '接口规范' },
+              { value: 'files-copy', label: '文件副本', mergeId: 'files' },
+            ],
+            modelValue: layout.value,
+            'onUpdate:modelValue': (value: DockNode) => (layout.value = value),
+          }),
+      }),
+      { attachTo: document.body },
+    )
+    await nextTick()
+
+    const mainGroup = wrapper.get('[data-dock-group="main"]')
+    const mainHeader = mainGroup.get('.dou-tabs__header').element as HTMLElement
+    const mainBody = mainGroup.element as HTMLElement
+    const pinnedTab = mainGroup.get('.dou-tabs__pinned [role="tab"]')
+    const sideTab = wrapper.get('[data-dock-group="side"] [role="tab"]').element as HTMLElement
+    const dockCtx = (
+      wrapper.findComponent({ name: 'DouDockGroup' }).vm.$ as unknown as {
+        setupState: { dock: DockContext }
+      }
+    ).setupState.dock
+
+    vi.spyOn(mainBody, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 0,
+      right: 400,
+      bottom: 300,
+      width: 400,
+      height: 300,
+      x: 0,
+      y: 0,
+      toJSON: () => {},
+    })
+
+    const origElementFromPoint = document.elementFromPoint
+    const origRaf = window.requestAnimationFrame
+    const origCancelRaf = window.cancelAnimationFrame
+    const raf: { cb: FrameRequestCallback | null } = { cb: null }
+    let hovered: Element = mainHeader
+    document.elementFromPoint = () => hovered
+    window.requestAnimationFrame = (cb) => {
+      raf.cb = cb
+      return 1
+    }
+    window.cancelAnimationFrame = () => {
+      raf.cb = null
+    }
+
+    try {
+      const down = new PointerEvent('pointerdown', { button: 0, clientX: 500, clientY: 16 })
+      pressTab(down, {
+        el: sideTab,
+        root: sideTab,
+        drag: () => ({
+          value: 'files-copy',
+          label: '文件副本',
+          group: dockCtx.group,
+          name: 'side',
+          index: 0,
+          source: sideTab,
+          pinned: false,
+        }),
+      })
+
+      // 1. hover main tab bar -> pinned `files` tab highlights, no insertion marker
+      hovered = mainHeader
+      window.dispatchEvent(new PointerEvent('pointermove', { clientX: 120, clientY: 16 }))
+      raf.cb?.(16)
+      await nextTick()
+      expect(pinnedTab.classes()).toContain('is-merge-target')
+      expect(mainGroup.get('.dou-tabs__list .dou-tabs__marker').attributes('style')).toContain(
+        'display: none',
+      )
+
+      // 2. hover main group center body -> pinned `files` tab stays highlighted
+      hovered = mainBody
+      window.dispatchEvent(new PointerEvent('pointermove', { clientX: 200, clientY: 150 }))
+      raf.cb?.(32)
+      await nextTick()
+      expect(pinnedTab.classes()).toContain('is-merge-target')
+
+      // 3. hover main group right edge (split) -> merge highlight clears
+      window.dispatchEvent(new PointerEvent('pointermove', { clientX: 390, clientY: 150 }))
+      raf.cb?.(48)
+      await nextTick()
+      expect(pinnedTab.classes()).not.toContain('is-merge-target')
+
+      // 4. move back to center and drop -> merges and collapses side group
+      window.dispatchEvent(new PointerEvent('pointermove', { clientX: 200, clientY: 150 }))
+      raf.cb?.(64)
+      await nextTick()
+      window.dispatchEvent(new PointerEvent('pointerup'))
+      await nextTick()
+      expect(layout.value).toEqual({
+        type: 'group',
+        id: 'main',
+        tabs: ['files', 'spec'],
+        active: 'files',
+      })
+      expect(pinnedTab.classes()).not.toContain('is-merge-target')
+    } finally {
+      document.elementFromPoint = origElementFromPoint
+      window.requestAnimationFrame = origRaf
+      window.cancelAnimationFrame = origCancelRaf
+      wrapper.unmount()
+    }
+  })
+
+  it('shows native hover titles for truncated tab labels inside DouDock', async () => {
+    const wrapper = mount(
+      defineComponent({
+        setup: () => () =>
+          h(DouDock, {
+            panels: [
+              { value: 'short', label: '概览' },
+              { value: 'long', label: '上海站点多标签分栏工作区交互评审与验收记录' },
+            ],
+            modelValue: { type: 'group', id: 'main', tabs: ['short', 'long'] } satisfies DockNode,
+          }),
+      }),
+      { attachTo: document.body },
+    )
+    await nextTick()
+
+    const [shortTab, longTab] = wrapper.findAll('[role="tab"]')
+    const shortLabel = shortTab!.get('.dou-tabs__label').element
+    const longLabel = longTab!.get('.dou-tabs__label').element
+    Object.defineProperties(shortLabel, {
+      clientWidth: { configurable: true, get: () => 50 },
+      scrollWidth: { configurable: true, get: () => 50 },
+    })
+    Object.defineProperties(longLabel, {
+      clientWidth: { configurable: true, get: () => 140 },
+      scrollWidth: { configurable: true, get: () => 310 },
+    })
+
+    await shortTab!.trigger('pointerenter')
+    await longTab!.trigger('pointerenter')
+    expect(shortTab!.attributes('title')).toBeUndefined()
+    expect(longTab!.attributes('title')).toBe('上海站点多标签分栏工作区交互评审与验收记录')
+
+    wrapper.unmount()
+  })
+
+  it('does not select the dragged tab when same-group reorder is cancelled by `beforeMove`', async () => {
+    const layout = ref<DockNode>({
+      type: 'group',
+      id: 'a',
+      tabs: ['thread', 'plan'],
+      active: 'thread',
+    })
+    const wrapper = mount(
+      defineComponent({
+        setup: () => () =>
+          h(DouDock, {
+            panels,
+            modelValue: layout.value,
+            'onUpdate:modelValue': (value: DockNode) => (layout.value = value),
+            beforeMove: () => false,
+          }),
+      }),
+      { attachTo: document.body },
+    )
+    await nextTick()
+
+    const header = wrapper.get('.dou-tabs__header').element as HTMLElement
+    const [tab0, tab1] = wrapper.findAll('[role="tab"]')
+    vi.spyOn(tab0!.element, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 0,
+      right: 100,
+      bottom: 32,
+      width: 100,
+      height: 32,
+      x: 0,
+      y: 0,
+      toJSON: () => {},
+    })
+    vi.spyOn(tab1!.element, 'getBoundingClientRect').mockReturnValue({
+      left: 100,
+      top: 0,
+      right: 200,
+      bottom: 32,
+      width: 100,
+      height: 32,
+      x: 100,
+      y: 0,
+      toJSON: () => {},
+    })
+
+    const origElementFromPoint = document.elementFromPoint
+    const origRaf = window.requestAnimationFrame
+    const origCancelRaf = window.cancelAnimationFrame
+    const raf: { cb: FrameRequestCallback | null } = { cb: null }
+    document.elementFromPoint = () => header
+    window.requestAnimationFrame = (cb) => {
+      raf.cb = cb
+      return 1
+    }
+    window.cancelAnimationFrame = () => {
+      raf.cb = null
+    }
+    try {
+      await tab1!.trigger('pointerdown', { button: 0, clientX: 150, clientY: 16 })
+      window.dispatchEvent(new PointerEvent('pointermove', { clientX: 10, clientY: 16 }))
+      raf.cb?.(16)
+      await nextTick()
+      window.dispatchEvent(new PointerEvent('pointerup'))
+      await nextTick()
+      await nextTick()
+      expect(layout.value).toEqual({
+        type: 'group',
+        id: 'a',
+        tabs: ['thread', 'plan'],
+        active: 'thread',
+      })
+    } finally {
+      document.elementFromPoint = origElementFromPoint
+      window.requestAnimationFrame = origRaf
+      window.cancelAnimationFrame = origCancelRaf
+      wrapper.unmount()
+    }
   })
 })

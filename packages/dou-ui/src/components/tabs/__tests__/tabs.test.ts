@@ -548,4 +548,193 @@ describe('DouTabs overflow', () => {
       vi.unstubAllGlobals()
     }
   })
+
+  it('shows a native title on hover only when a tab label overflows', async () => {
+    const longTitle = ref('上海前端基础设施架构评审与排期说明')
+    const wrapper = mount(
+      defineComponent({
+        setup: () => () =>
+          h(DouTabs, { closable: true }, () => [
+            h(DouTabPanel, { value: 'short', label: '概览' }),
+            h(DouTabPanel, { value: 'long', label: longTitle.value }),
+          ]),
+      }),
+      { attachTo: document.body },
+    )
+    await nextTick()
+
+    const tabs = wrapper.findAll('[role="tab"]')
+    const shortTab = tabs[0]!
+    const longTab = tabs[1]!
+    const shortLabel = shortTab.get('.dou-tabs__label')
+    const longLabel = longTab.get('.dou-tabs__label')
+    const shortSize = { scrollWidth: 40, clientWidth: 40 }
+    const longSize = { scrollWidth: 160, clientWidth: 160 }
+    for (const [el, size] of [
+      [shortLabel.element, shortSize],
+      [longLabel.element, longSize],
+    ] as const) {
+      for (const key of ['scrollWidth', 'clientWidth'] as const) {
+        Object.defineProperty(el, key, { configurable: true, get: () => size[key] })
+      }
+    }
+
+    // not truncated: no native title, close button has no empty title suppression
+    await shortTab.trigger('pointerenter')
+    await longTab.trigger('pointerenter')
+    expect(shortTab.attributes('title')).toBeUndefined()
+    expect(longTab.attributes('title')).toBeUndefined()
+    expect(longTab.get('.dou-tabs__close').attributes('title')).toBeUndefined()
+
+    // truncated: native title appears and close button suppresses parent title
+    longSize.scrollWidth = 320
+    await longTab.trigger('pointerenter')
+    expect(longTab.attributes('title')).toBe('上海前端基础设施架构评审与排期说明')
+    expect(longTab.get('.dou-tabs__close').attributes('title')).toBe('')
+
+    // label update clears stale title until measured again
+    longTitle.value = '简短'
+    await nextTick()
+    expect(longTab.attributes('title')).toBeUndefined()
+
+    // no longer truncated: stays without title
+    longSize.scrollWidth = 160
+    await longTab.trigger('pointerenter')
+    expect(longTab.attributes('title')).toBeUndefined()
+
+    wrapper.unmount()
+  })
+
+  it('detects truncated inner elements in custom #label slots and respects child title', async () => {
+    const PinIcon = defineComponent({ setup: () => () => h('svg') })
+    const wrapper = mount(
+      defineComponent({
+        setup: () => () =>
+          h(DouTabs, null, () => [
+            h(
+              DouTabPanel,
+              { value: 'custom', label: '完整标题' },
+              {
+                label: () => [
+                  h('span', { class: 'custom-title' }, '自定义截断标题文字'),
+                  h('span', { class: 'custom-badge' }, '3'),
+                ],
+              },
+            ),
+            h(
+              DouTabPanel,
+              { value: 'owned' },
+              {
+                label: () =>
+                  h('span', { class: 'owned-title', title: '业务自定义提示' }, '自定义截断标题'),
+              },
+            ),
+            h(DouTabPanel, {
+              value: 'pinned-icon',
+              label: '文件',
+              icon: PinIcon,
+              pinned: true,
+            }),
+          ]),
+      }),
+      { attachTo: document.body },
+    )
+    await nextTick()
+
+    const [pinnedTab, customTab, ownedTab] = wrapper.findAll('[role="tab"]')
+    const innerTitle = customTab!.get('.custom-title').element as HTMLElement
+    Object.defineProperties(innerTitle, {
+      clientWidth: { configurable: true, get: () => 100 },
+      scrollWidth: { configurable: true, get: () => 240 },
+    })
+    await customTab!.trigger('pointerenter')
+    // picks only the truncated element's text, not the sibling badge text
+    expect(customTab!.attributes('title')).toBe('自定义截断标题文字')
+
+    const ownedInner = ownedTab!.get('.owned-title').element as HTMLElement
+    Object.defineProperties(ownedInner, {
+      clientWidth: { configurable: true, get: () => 80 },
+      scrollWidth: { configurable: true, get: () => 200 },
+    })
+    await ownedTab!.trigger('pointerenter')
+    // leaves child's own title intact without duplicating it on the tab button
+    expect(ownedTab!.attributes('title')).toBeUndefined()
+    expect(ownedInner.getAttribute('title')).toBe('业务自定义提示')
+
+    // icon-alone pinned tabs already use DouTooltip, so no native title is added
+    await pinnedTab!.trigger('pointerenter')
+    expect(pinnedTab!.attributes('title')).toBeUndefined()
+
+    wrapper.unmount()
+  })
+
+  it('picks the deepest truncated element when custom #label wraps title and badge', async () => {
+    const wrapper = mount(
+      defineComponent({
+        setup: () => () =>
+          h(DouTabs, null, () => [
+            h(
+              DouTabPanel,
+              { value: 'nested', label: '备用标题' },
+              {
+                label: () =>
+                  h('span', { class: 'wrap' }, [
+                    h('span', { class: 'leaf' }, '真正被截断的子标题'),
+                    h('span', { class: 'count' }, '9'),
+                  ]),
+              },
+            ),
+          ]),
+      }),
+      { attachTo: document.body },
+    )
+    await nextTick()
+
+    const tab = wrapper.get('[role="tab"]')
+    const wrap = tab.get('.wrap').element as HTMLElement
+    const leaf = tab.get('.leaf').element as HTMLElement
+    Object.defineProperties(wrap, {
+      clientWidth: { configurable: true, get: () => 100 },
+      scrollWidth: { configurable: true, get: () => 180 },
+    })
+    Object.defineProperties(leaf, {
+      clientWidth: { configurable: true, get: () => 80 },
+      scrollWidth: { configurable: true, get: () => 160 },
+    })
+    await tab.trigger('pointerenter')
+    expect(tab.attributes('title')).toBe('真正被截断的子标题')
+    wrapper.unmount()
+  })
+
+  it('shows a native title on truncated items inside the overflow popover', async () => {
+    const wrapper = manyTabs('t0')
+    const list = wrapper.get('.dou-tabs__list').element as HTMLElement
+    const { scrollTo } = layout(list)
+    scrollTo(0)
+    await nextTick()
+
+    await wrapper.get('.dou-tabs__overflow').trigger('click')
+    await nextTick()
+    await nextTick()
+
+    const popover = document.querySelector<HTMLElement>('.dou-tabs__overflow-popover')!
+    const buttons = [...popover.querySelectorAll<HTMLButtonElement>('.dou-tabs__overflow-select')]
+    const firstLabel = buttons[0]!.querySelector<HTMLElement>('.dou-tabs__overflow-label')!
+    const secondLabel = buttons[1]!.querySelector<HTMLElement>('.dou-tabs__overflow-label')!
+    Object.defineProperties(firstLabel, {
+      clientWidth: { configurable: true, get: () => 120 },
+      scrollWidth: { configurable: true, get: () => 120 },
+    })
+    Object.defineProperties(secondLabel, {
+      clientWidth: { configurable: true, get: () => 120 },
+      scrollWidth: { configurable: true, get: () => 260 },
+    })
+
+    buttons[0]!.dispatchEvent(new PointerEvent('pointerenter'))
+    buttons[1]!.dispatchEvent(new PointerEvent('pointerenter'))
+    expect(buttons[0]!.getAttribute('title')).toBeNull()
+    expect(buttons[1]!.getAttribute('title')).toBe('标签 1')
+
+    wrapper.unmount()
+  })
 })

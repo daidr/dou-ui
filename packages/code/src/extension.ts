@@ -84,6 +84,11 @@ export interface CodeWidget {
   height?: number
   /** What it is, read out when the cursor moves onto its line, e.g. "戴兜的评论". */
   label?: string
+  /**
+   * Draws across the gutter too, taking the full width of the editor's view.
+   * Off by default, so widgets start beside the gutter, aligned with the text.
+   */
+  fullWidth?: boolean
 }
 
 /** Something drawn in a column beside the line numbers, on line `line` (from 1). */

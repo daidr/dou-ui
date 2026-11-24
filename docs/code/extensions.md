@@ -85,6 +85,7 @@ defineCodeExtension({
 - `widgets` 要返回全部文本中的小部件，因为它们的高度会影响后面每一行的位置，所以数量不宜过多。
 - 小部件中可以放输入框和按钮。只用键盘时，按 `Esc` 再按 `Tab` 可以进入小部件。
 - `label` 是小部件的名称，光标移到所在行时读屏会读出。
+- `fullWidth: true` 让小部件横向覆盖行号列，占满整个编辑区宽度；默认与正文左缘对齐。
 
 小部件的位置由扩展自己保存。上面的示例把评论的位置存为文本位置，在 `transaction` 事件中用 `changes.mapPos` 跟随修改移动。
 
@@ -160,15 +161,16 @@ defineCodeExtension({
 
 ### CodeWidget
 
-| 名称       | 说明                                   | 类型                 |
-| ---------- | -------------------------------------- | -------------------- |
-| `id`       | 在同一个扩展中唯一                     | `string`             |
-| `pos`      | 所在的文本位置，和 `line` 二选一       | `number`             |
-| `line`     | 所在的行号，从 1 开始                  | `number`             |
-| `position` | 画在这一行的上方或下方，默认 `'below'` | `'above' \| 'below'` |
-| `render`   | 渲染函数                               | `() => VNodeChild`   |
-| `height`   | 绘制前估计的高度（px），默认一行       | `number`             |
-| `label`    | 读屏读出的名称                         | `string`             |
+| 名称        | 说明                                       | 类型                 |
+| ----------- | ------------------------------------------ | -------------------- |
+| `id`        | 在同一个扩展中唯一                         | `string`             |
+| `pos`       | 所在的文本位置，和 `line` 二选一           | `number`             |
+| `line`      | 所在的行号，从 1 开始                      | `number`             |
+| `position`  | 画在这一行的上方或下方，默认 `'below'`     | `'above' \| 'below'` |
+| `render`    | 渲染函数                                   | `() => VNodeChild`   |
+| `height`    | 绘制前估计的高度（px），默认一行           | `number`             |
+| `label`     | 读屏读出的名称                             | `string`             |
+| `fullWidth` | 是否横跨行号列占满编辑区宽度，默认 `false` | `boolean`            |
 
 ### CodePanel
 

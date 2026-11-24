@@ -875,18 +875,31 @@
     box-shadow: inset 0 0 0 1px var(--dou-color-border-strong);
   }
 
-  /* components from extensions between lines, held in view while the text scrolls sideways */
+  /* components from extensions between lines, held in view by the compositor while the text scrolls sideways */
   .dou-code-editor__widgets {
     position: absolute;
-    top: 0;
-    left: 0;
+    inset: 0;
     z-index: 3;
+    overflow-x: clip;
+    pointer-events: none;
   }
-  .dou-code-editor__widget {
+  .dou-code-editor__widget-slot {
     position: absolute;
     top: 0;
-    left: 0;
+    right: 0;
+    left: var(--dou-code-editor-gutter, 0px);
+    pointer-events: none;
+    &.is-full-width {
+      left: 0;
+    }
+  }
+  .dou-code-editor__widget {
+    position: sticky;
+    left: var(--dou-code-editor-gutter, 0px);
     box-sizing: border-box;
+    width: var(--dou-code-editor-widget-width, 100%);
+    max-width: 100%;
+    pointer-events: auto;
     cursor: auto;
     font-family: var(--dou-font-family);
     font-size: var(--dou-font-size-sm);
@@ -896,6 +909,10 @@
     -webkit-user-select: text;
     /* a widget's own margins would sit outside its measured height */
     display: flow-root;
+    &.is-full-width {
+      left: 0;
+      width: var(--dou-code-editor-view-width, 100%);
+    }
   }
   /* things inside a line from extensions, such as a color swatch */
   .dou-code-editor__inline {
@@ -1661,6 +1678,7 @@
   }
 
   .dou-code-diff__filler {
+    background-color: var(--dou-code-editor-bg);
     background-image: repeating-linear-gradient(
       -45deg,
       transparent 0 6px,
@@ -1679,7 +1697,7 @@
     padding: 0 12px;
     border: 0;
     border-block: 1px solid var(--dou-code-diff-border);
-    background-color: color-mix(in oklab, var(--dou-color-text) 3%, transparent);
+    background-color: color-mix(in oklab, var(--dou-color-text) 3%, var(--dou-code-editor-bg));
     color: var(--dou-color-text-secondary);
     font: inherit;
     font-size: 12px;
@@ -1687,7 +1705,7 @@
     cursor: pointer;
     @media (hover: hover) {
       &:hover {
-        background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+        background-color: color-mix(in oklab, var(--dou-color-text) 6%, var(--dou-code-editor-bg));
         color: var(--dou-color-text);
       }
     }

@@ -56,6 +56,7 @@ interface Asked {
   until: number
   tokensFrom?: number
   tokensTo?: number
+  tokenRanges?: Array<[from: number, to: number]>
   seq?: number
 }
 
@@ -140,7 +141,15 @@ export function serveCodeHighlighting(
 
   function targetOf(doc: Open, asked: Asked): number {
     const lineCount = doc.highlighter.text.lines
-    const wanted = doc.tokenMode ? Math.max(asked.until, asked.tokensTo ?? 0) : asked.until
+    let wanted = asked.until
+    if (doc.tokenMode) {
+      if (asked.tokensTo !== undefined) wanted = Math.max(wanted, asked.tokensTo)
+      if (asked.tokenRanges) {
+        for (const [, to] of asked.tokenRanges) {
+          if (to > wanted) wanted = to
+        }
+      }
+    }
     return Math.min(lineCount, Math.max(0, wanted))
   }
 
@@ -156,6 +165,55 @@ export function serveCodeHighlighting(
         from: 1,
         lines: [],
         frontier: 0,
+      })
+      return
+    }
+    if (asked.tokenRanges) {
+      const chunks: Array<[number, CodeLineTokens[]]> = []
+      for (const [rawFrom, rawTo] of asked.tokenRanges) {
+        const from = Math.max(1, Math.min(total, rawFrom))
+        const to = Math.max(0, Math.min(total, rawTo))
+        if (to < from) continue
+        const lines: CodeLineTokens[] = []
+        for (let n = from; n <= to; n++) {
+          lines.push(hl.line(n) ?? [])
+        }
+        chunks.push([from, lines])
+      }
+      if (chunks.length === 0) {
+        send({
+          t: 'tokens',
+          id,
+          version: doc.version,
+          seq: asked.seq,
+          from: 1,
+          lines: [],
+          frontier: hl.frontier,
+        })
+        return
+      }
+      if (chunks.length === 1) {
+        const [from, lines] = chunks[0]!
+        send({
+          t: 'tokens',
+          id,
+          version: doc.version,
+          seq: asked.seq,
+          from,
+          lines,
+          frontier: hl.frontier,
+        })
+        return
+      }
+      send({
+        t: 'tokens',
+        id,
+        version: doc.version,
+        seq: asked.seq,
+        from: chunks[0]![0],
+        lines: [],
+        ranges: chunks,
+        frontier: hl.frontier,
       })
       return
     }
@@ -433,6 +491,7 @@ export function serveCodeHighlighting(
           until: message.until,
           tokensFrom: message.tokensFrom,
           tokensTo: message.tokensTo,
+          tokenRanges: message.tokenRanges,
           seq: message.seq,
         }
       }

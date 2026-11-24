@@ -5,6 +5,21 @@ import type { CodeLineTokens } from './language'
 /** Maximum number of line token arrays cached on the page in remote-token mode. */
 const CACHE = 4000
 
+/** Compresses sorted 1-based line numbers into contiguous inclusive `[from, to]` intervals. */
+export function compressLineRanges(numbers: readonly number[]): Array<[from: number, to: number]> {
+  const ranges: Array<[number, number]> = []
+  for (let i = 0; i < numbers.length; i++) {
+    const n = numbers[i]!
+    const prev = ranges[ranges.length - 1]
+    if (prev && n <= prev[1] + 1) {
+      if (n > prev[1]) prev[1] = n
+    } else {
+      ranges.push([n, n])
+    }
+  }
+  return ranges
+}
+
 /**
  * Caches flat per-line tokens returned by a highlighting worker in `tokens`
  * mode (e.g. Shiki grammars whose state lives only inside the worker).
@@ -47,18 +62,51 @@ export class RemoteTokenStore {
     return true
   }
 
+  /** Whether every 1-based line number in `numbers` has tokens for the current version. */
+  readyNumbers(numbers: readonly number[]): boolean {
+    for (let i = 0; i < numbers.length; i++) {
+      if (this.versions.get(numbers[i]!) !== this.currentVersion) return false
+    }
+    return true
+  }
+
   /** Stores flat line tokens starting at 1-based line `from` from the worker. */
   adopt(from: number, lines: readonly CodeLineTokens[], frontier: number): void {
     this.workerFrontier = Math.max(this.workerFrontier, frontier)
+    const cap = Math.max(this.maxSize, lines.length)
     for (let i = 0; i < lines.length; i++) {
       const n = from + i
       this.tokens.delete(n)
       this.tokens.set(n, lines[i]!)
       this.versions.set(n, this.currentVersion)
-      if (this.tokens.size > this.maxSize) {
+      if (this.tokens.size > cap) {
         const oldest = this.tokens.keys().next().value!
         this.tokens.delete(oldest)
         this.versions.delete(oldest)
+      }
+    }
+  }
+
+  /** Stores flat line tokens for multiple disjoint visible ranges returned by the worker. */
+  adoptRanges(
+    ranges: ReadonlyArray<readonly [from: number, lines: readonly CodeLineTokens[]]>,
+    frontier: number,
+  ): void {
+    this.workerFrontier = Math.max(this.workerFrontier, frontier)
+    let batchSize = 0
+    for (const [, lines] of ranges) batchSize += lines.length
+    const cap = Math.max(this.maxSize, batchSize)
+    for (const [from, lines] of ranges) {
+      for (let i = 0; i < lines.length; i++) {
+        const n = from + i
+        this.tokens.delete(n)
+        this.tokens.set(n, lines[i]!)
+        this.versions.set(n, this.currentVersion)
+        if (this.tokens.size > cap) {
+          const oldest = this.tokens.keys().next().value!
+          this.tokens.delete(oldest)
+          this.versions.delete(oldest)
+        }
       }
     }
   }

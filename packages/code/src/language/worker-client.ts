@@ -30,7 +30,12 @@ export function defaultPoolSize(): number {
 export interface SyntaxWorkerHandlers {
   states: (points: Array<[line: number, state: unknown]>) => void
   /** Flat per-line tokens returned in `tokens` mode (e.g. Shiki or non-serializable states). */
-  tokens?: (from: number, lines: readonly CodeLineTokens[], frontier: number) => void
+  tokens?: (
+    from: number,
+    lines: readonly CodeLineTokens[],
+    frontier: number,
+    ranges?: ReadonlyArray<readonly [from: number, lines: readonly CodeLineTokens[]]>,
+  ) => void
   /** The worker hasn't the language named `missing`, or can't highlight it (no `missing`). */
   unsupported: (missing?: string) => void
   /** The worker could not run (it failed to load, or threw). */
@@ -44,6 +49,7 @@ interface AskedRange {
   until: number
   tokensFrom?: number
   tokensTo?: number
+  tokenRangesKey?: string
 }
 
 /**
@@ -169,7 +175,7 @@ export class SyntaxWorkerClient {
         this.handlers.unsupported()
         return
       }
-      this.handlers.tokens(message.from, message.lines, message.frontier)
+      this.handlers.tokens(message.from, message.lines, message.frontier, message.ranges)
       return
     }
     const points: Array<[number, unknown]> = []
@@ -200,28 +206,36 @@ export class SyntaxWorkerClient {
 
   /**
    * Requests syntax data up to `until` (and flat tokens for 1-based inclusive
-   * `[tokensFrom, tokensTo]` when in `tokens` mode). A new range preempts any
-   * older in-flight request.
+   * `[tokensFrom, tokensTo]` or disjoint `tokenRanges` when in `tokens` mode).
+   * A new range preempts any older in-flight request.
    */
-  want(from: number, until: number, tokensFrom?: number, tokensTo?: number): void {
+  want(
+    from: number,
+    until: number,
+    tokensFrom?: number,
+    tokensTo?: number,
+    tokenRanges?: Array<[from: number, to: number]>,
+  ): void {
     if (this.closed) return
+    const tokenRangesKey = tokenRanges?.map(([a, b]) => `${a}:${b}`).join(',')
     if (
       this.asking &&
       this.lastAsked &&
       this.lastAsked.from === from &&
       this.lastAsked.until === until &&
       this.lastAsked.tokensFrom === tokensFrom &&
-      this.lastAsked.tokensTo === tokensTo
+      this.lastAsked.tokensTo === tokensTo &&
+      this.lastAsked.tokenRangesKey === tokenRangesKey
     ) {
       return
     }
     if (!this.opened) this.open()
     this.paused = false
     this.asking = true
-    this.lastAsked = { from, until, tokensFrom, tokensTo }
+    this.lastAsked = { from, until, tokensFrom, tokensTo, tokenRangesKey }
     this.setBusy(true)
     const seq = ++this.seq
-    this.post({ t: 'read', id: this.id, from, until, tokensFrom, tokensTo, seq })
+    this.post({ t: 'read', id: this.id, from, until, tokensFrom, tokensTo, tokenRanges, seq })
   }
 
   /** Cancels any pending highlighting task for this document (e.g. when scrolled out of view). */
@@ -358,7 +372,7 @@ class WorkerPoolImpl {
   readonly maxWorkers: number
   private readonly idleTimeout: number
   private slots: WorkerSlot[] = []
-  private spawning: Promise<WorkerSlot>[] = []
+  private spawning: Promise<{ slot: WorkerSlot; acquired: AcquiredWorker }>[] = []
   private generation = 0
 
   constructor(
@@ -435,6 +449,8 @@ class WorkerPoolImpl {
   }
 
   async acquire(): Promise<AcquiredWorker> {
+    const gen = this.generation
+
     // 1. Reuse a completely idle warm worker if one is available.
     const idle = this.slots.find(
       (slot) => !slot.failed && slot.users === 0 && slot.activeTasks === 0,
@@ -443,7 +459,6 @@ class WorkerPoolImpl {
 
     // 2. Otherwise lazily spawn a new worker if under the pool limit.
     if (this.slots.length + this.spawning.length < this.maxWorkers) {
-      const gen = this.generation
       const creating = Promise.resolve()
         .then(() => this.factory())
         .then((worker) => {
@@ -461,12 +476,20 @@ class WorkerPoolImpl {
           }
           worker.addEventListener('error', slot.onError)
           this.slots.push(slot)
-          return slot
+          return { slot, acquired: this.lease(slot) }
         })
       this.spawning.push(creating)
       try {
-        const slot = await creating
-        return this.lease(slot)
+        const { slot, acquired } = await creating
+        if (gen !== this.generation || slot.failed) {
+          acquired.release()
+          throw new Error(
+            gen !== this.generation
+              ? '[@dou-ui/code] worker pool disposed'
+              : '[@dou-ui/code] worker failed during startup',
+          )
+        }
+        return acquired
       } finally {
         const idx = this.spawning.indexOf(creating)
         if (idx >= 0) this.spawning.splice(idx, 1)
@@ -478,8 +501,14 @@ class WorkerPoolImpl {
     if (best) return this.lease(best)
     const first = this.spawning[0]
     if (first) {
-      const slot = await first
+      const { slot } = await first
+      if (gen !== this.generation) {
+        throw new Error('[@dou-ui/code] worker pool disposed')
+      }
       if (!slot.failed) return this.lease(slot)
+    }
+    if (gen !== this.generation) {
+      throw new Error('[@dou-ui/code] worker pool disposed')
     }
     return this.acquire()
   }

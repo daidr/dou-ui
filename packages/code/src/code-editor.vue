@@ -98,7 +98,7 @@ import {
   searchText,
 } from './core/search'
 import { CodeHighlighter } from './language/highlighter'
-import { RemoteTokenStore } from './language/remote-tokens'
+import { compressLineRanges, RemoteTokenStore } from './language/remote-tokens'
 import {
   acquirePoolWorker,
   holdWorker,
@@ -1322,7 +1322,7 @@ const rows = computed<Row[]>(() => {
   const { numbers, texts } = shownLines.value
   const p = preview.value
   const line = p ? doc.value.lineAt(p.from) : null
-  const tokensOf = syntaxLines(visibleFrom.value, visibleTo.value)
+  const tokensOf = syntaxLines(visibleFrom.value, visibleTo.value, numbers)
   const starts = new Set(foldHidden.value.map(([from]) => from - 1))
   const { marks, lineClasses, inlines } = lineDecorations.value
   return texts.map((text, i) => {
@@ -1620,10 +1620,11 @@ function attachWorker(worker: Worker, release: () => void, setBusy?: (busy: bool
       hl.adopt(points)
       syntaxTick.value++
     },
-    tokens(from, tokenLines, frontier) {
+    tokens(from, tokenLines, frontier, ranges) {
       if (props.language !== language) return
       workerTokenMode = true
-      remoteTokens.adopt(from, tokenLines, frontier)
+      if (ranges) remoteTokens.adoptRanges(ranges, frontier)
+      else remoteTokens.adopt(from, tokenLines, frontier)
       syntaxTick.value++
     },
     unsupported(missing) {
@@ -1674,6 +1675,7 @@ watch(
   [() => props.language, () => props.worker, mounted],
   ([language, option, isMounted]) => {
     stopSyntaxWorker()
+    remoteTokens.clear()
     workerFallenBack = false
     workerTokenMode = false
     const job = ++workerJob
@@ -1708,18 +1710,35 @@ function syntaxChange(next: CodeText, changes: ChangeSet) {
 }
 
 /** Gets the tokens of the lines in view, delegating unread ranges to the worker or idle slices. */
-function syntaxLines(from: number, to: number): (n: number) => CodeLineTokens | null {
+function syntaxLines(
+  from: number,
+  to: number,
+  shownNumbers?: readonly number[],
+): (n: number) => CodeLineTokens | null {
   void syntaxTick.value
   const hl = highlighter
   if (!hl) return () => null
   const reach = syncReach()
+  const tokenRanges = shownNumbers
+    ? compressLineRanges(shownNumbers)
+    : from <= to
+      ? ([[from, to]] as Array<[number, number]>)
+      : []
 
   // Remote per-line token mode (e.g. Shiki or non-serializable worker language):
   // never block the main thread tokenizing on the page while the worker is active.
   if (usesRemoteTokens()) {
-    if (inViewport && !remoteTokens.readyRange(from, to)) {
-      if (syntaxWorker) syntaxWorker.want(remoteTokens.frontier, to, from, to)
-      else ensureWorkerClient()
+    const ready = shownNumbers
+      ? remoteTokens.readyNumbers(shownNumbers)
+      : remoteTokens.readyRange(from, to)
+    if (inViewport && !ready && tokenRanges.length > 0) {
+      const firstFrom = tokenRanges[0]![0]
+      const lastTo = tokenRanges[tokenRanges.length - 1]![1]
+      if (syntaxWorker) {
+        syntaxWorker.want(remoteTokens.frontier, lastTo, firstFrom, lastTo, tokenRanges)
+      } else {
+        ensureWorkerClient()
+      }
     }
     return (n) => remoteTokens.line(n)
   }
@@ -1727,7 +1746,7 @@ function syntaxLines(from: number, to: number): (n: number) => CodeLineTokens | 
   if (!hl.ready(to) && to - hl.frontier > reach) {
     if (inViewport) {
       if (workerConfigured()) {
-        if (syntaxWorker) syntaxWorker.want(hl.frontier, to, from, to)
+        if (syntaxWorker) syntaxWorker.want(hl.frontier, to, from, to, tokenRanges)
         else ensureWorkerClient()
       } else {
         scheduleSyntax(to)
@@ -5024,22 +5043,20 @@ onMounted(() => {
     if (root.value) resize.observe(root.value)
   }
   updateClip()
-  if (root.value && typeof window !== 'undefined') {
+  if (root.value && typeof window !== 'undefined' && typeof IntersectionObserver !== 'undefined') {
     const rect = root.value.getBoundingClientRect()
     if (rect.width > 0 || rect.height > 0) {
       const margin = 200
       if (rect.bottom < -margin || rect.top > window.innerHeight + margin) inViewport = false
     }
-    if (typeof IntersectionObserver !== 'undefined') {
-      viewportObserver = new IntersectionObserver(
-        (entries) => {
-          const entry = entries[entries.length - 1]
-          if (entry) setInViewport(entry.isIntersecting)
-        },
-        { rootMargin: '200px 0px' },
-      )
-      viewportObserver.observe(root.value)
-    }
+    viewportObserver = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[entries.length - 1]
+        if (entry) setInViewport(entry.isIntersecting)
+      },
+      { rootMargin: '200px 0px' },
+    )
+    viewportObserver.observe(root.value)
   }
   mounted.value = true
   if (highlighter && !highlighter.ready(doc.value.lines)) syntaxTick.value++

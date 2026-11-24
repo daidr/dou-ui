@@ -1505,4 +1505,71 @@ describe('DouCodeDiff worker forwarding and async diff', () => {
       vi.unstubAllGlobals()
     }
   })
+
+  it('invalidates cached async hunks on same-line modified edits and diff option changes', async () => {
+    vi.stubGlobal('Worker', function Worker() {})
+    const pool = createCodeWorkerPool(() => createInThreadWorker([javascript]).worker, {
+      maxWorkers: 1,
+      idleTimeout: 0,
+    })
+    try {
+      const origRef = ref('const alpha = "very long original text"\nconst b = 1')
+      const modRef = ref('const alpha = "very long modified text"\nconst b = 1')
+      const wordsRef = ref(true)
+      const diff = ref<InstanceType<typeof DouCodeDiff>>()
+      const wrapper = mount(
+        defineComponent(
+          () => () =>
+            h(DouCodeDiff, {
+              ref: diff,
+              mode: 'inline',
+              original: origRef.value,
+              modelValue: modRef.value,
+              words: wordsRef.value,
+              language: javascript,
+              worker: pool,
+              syncDiffLines: 0,
+              syncHighlightLines: 0,
+            }),
+        ),
+        { attachTo: document.body },
+      )
+      await vi.waitFor(
+        async () => {
+          await nextTick()
+          expect(diff.value!.hunks).toEqual(diffText(origRef.value, modRef.value, { words: true }))
+        },
+        { timeout: 2000 },
+      )
+
+      // Same line count, shorter line 1 -> stale word offsets must be invalidated immediately while recomputing.
+      modRef.value = 'const alpha = "x"\nconst b = 1'
+      await nextTick()
+      expect(diff.value!.hunks).toEqual([])
+      await vi.waitFor(
+        async () => {
+          await nextTick()
+          expect(diff.value!.hunks).toEqual(diffText(origRef.value, modRef.value, { words: true }))
+        },
+        { timeout: 2000 },
+      )
+
+      // Toggling diff options (words: false) also invalidates stale cached hunks immediately.
+      wordsRef.value = false
+      await nextTick()
+      expect(diff.value!.hunks).toEqual([])
+      await vi.waitFor(
+        async () => {
+          await nextTick()
+          expect(diff.value!.hunks).toEqual(diffText(origRef.value, modRef.value, { words: false }))
+        },
+        { timeout: 2000 },
+      )
+
+      wrapper.unmount()
+    } finally {
+      pool.dispose()
+      vi.unstubAllGlobals()
+    }
+  })
 })

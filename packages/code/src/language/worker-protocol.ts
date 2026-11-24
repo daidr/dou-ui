@@ -36,6 +36,11 @@ export type ToWorker =
       /** 1-based inclusive line range whose flat tokens should be returned in `tokens` mode. */
       tokensFrom?: number
       tokensTo?: number
+      /**
+       * Specific 1-based inclusive line ranges whose flat tokens should be
+       * returned in `tokens` mode, skipping folded or collapsed hidden lines.
+       */
+      tokenRanges?: Array<[from: number, to: number]>
       /** Monotonic request sequence so newer viewport requests preempt older ones. */
       seq?: number
     }
@@ -61,7 +66,7 @@ export type FromWorker =
       seq?: number
       points: Array<[line: number, state: unknown]>
     }
-  /** Flat per-line token arrays starting at 1-based line `from` (inclusive). */
+  /** Flat per-line token arrays starting at 1-based line `from` (inclusive), or disjoint `ranges`. */
   | {
       t: 'tokens'
       id: number
@@ -69,6 +74,8 @@ export type FromWorker =
       seq?: number
       from: number
       lines: CodeLineTokens[]
+      /** Present when the request asked for multiple disjoint visible line ranges. */
+      ranges?: Array<[from: number, lines: CodeLineTokens[]]>
       frontier: number
     }
   /** The worker hasn't the language named `missing`, or (without it) can't highlight it. */

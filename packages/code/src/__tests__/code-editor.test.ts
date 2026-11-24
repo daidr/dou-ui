@@ -6,6 +6,7 @@ import { createJavaScriptRegexEngine } from 'shiki/engine/javascript'
 import {
   CodeText,
   createCodeWorkerPool,
+  defineCodeExtension,
   DouCodeEditor,
   javascript,
   remoteCodeLanguage,
@@ -359,6 +360,29 @@ function deliverTo(target: Set<(event: MessageEvent) => void>, data: unknown) {
   })
 }
 
+function createTrackedJsWorker(reads: number[]): Worker {
+  const pageListeners = new Set<(event: MessageEvent) => void>()
+  const workerListeners = new Set<(event: MessageEvent) => void>()
+  const worker = {
+    postMessage: (data: { t: string }) => {
+      if (data.t === 'read') reads.push(1)
+      deliverTo(workerListeners, data)
+    },
+    addEventListener: (type: string, fn: (event: MessageEvent) => void) => {
+      if (type === 'message') pageListeners.add(fn)
+    },
+    removeEventListener: (type: string, fn: (event: MessageEvent) => void) => {
+      if (type === 'message') pageListeners.delete(fn)
+    },
+    terminate: vi.fn<() => void>(),
+  } as unknown as Worker
+  serveCodeHighlighting([javascript], {
+    postMessage: (data: unknown) => deliverTo(pageListeners, data),
+    addEventListener: (_: string, fn: (event: MessageEvent) => void) => workerListeners.add(fn),
+  })
+  return worker
+}
+
 describe('worker', () => {
   it('makes its worker once mounted in a browser, and ends it when unmounted', async () => {
     vi.stubGlobal('Worker', function Worker() {})
@@ -548,6 +572,159 @@ describe('worker', () => {
 
       wrapper.unmount()
       expect(disconnect).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('highlights folded >4000-line documents in tokens mode without LRU thrashing loop', async () => {
+    vi.stubGlobal('Worker', function Worker() {})
+    let readMessages = 0
+    let maxReturnedLines = 0
+    const pageListeners = new Set<(event: MessageEvent) => void>()
+    const workerListeners = new Set<(event: MessageEvent) => void>()
+    const worker = {
+      postMessage: (data: { t: string }) => {
+        if (data.t === 'read') readMessages++
+        deliverTo(workerListeners, data)
+      },
+      addEventListener: (type: string, fn: (event: MessageEvent) => void) => {
+        if (type === 'message') pageListeners.add(fn)
+      },
+      removeEventListener: (type: string, fn: (event: MessageEvent) => void) => {
+        if (type === 'message') pageListeners.delete(fn)
+      },
+      terminate: vi.fn<() => void>(),
+    } as unknown as Worker
+    serveCodeHighlighting([javascript], {
+      postMessage: (data: {
+        t?: string
+        lines?: unknown[]
+        ranges?: Array<[number, unknown[]]>
+      }) => {
+        if (data.t === 'tokens') {
+          const count = data.ranges
+            ? data.ranges.reduce((sum, [, list]) => sum + list.length, 0)
+            : (data.lines?.length ?? 0)
+          maxReturnedLines = Math.max(maxReturnedLines, count)
+        }
+        deliverTo(pageListeners, data)
+      },
+      addEventListener: (_: string, fn: (event: MessageEvent) => void) => workerListeners.add(fn),
+    })
+
+    try {
+      const source = Array.from({ length: 4500 }, (_, i) => `const v${i} = ${i}`).join('\n')
+      const { wrapper } = setup(source, {
+        language: remoteCodeLanguage({ name: 'javascript' }),
+        worker: () => worker,
+        extensions: [
+          defineCodeExtension({
+            name: 'hide-middle',
+            hide: () => [{ from: 4, to: 4496 }],
+          }),
+        ],
+      })
+      await vi.waitFor(
+        async () => {
+          await nextTick()
+          const lines = wrapper.findAll('.dou-code-editor__line')
+          expect(lines.length).toBe(7)
+          expect(lines[0]!.text()).toBe('const v0 = 0')
+          expect(lines[lines.length - 1]!.text()).toBe('const v4499 = 4499')
+          expect(lines[0]!.find('.dou-syntax-keyword').text()).toBe('const')
+          expect(lines[lines.length - 1]!.find('.dou-syntax-keyword').text()).toBe('const')
+        },
+        { timeout: 2000 },
+      )
+      const countAfterSettled = readMessages
+      await new Promise((r) => setTimeout(r, 40))
+      await nextTick()
+      // No infinite re-request loop and hidden lines were never sent over postMessage.
+      expect(readMessages).toBe(countAfterSettled)
+      expect(maxReturnedLines).toBeLessThanOrEqual(20)
+      wrapper.unmount()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('does not lock inViewport to false when IntersectionObserver is unavailable', async () => {
+    vi.stubGlobal('Worker', function Worker() {})
+    vi.stubGlobal('IntersectionObserver', undefined)
+    const rectSpy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      top: 5000,
+      bottom: 5200,
+      left: 0,
+      right: 400,
+      width: 400,
+      height: 200,
+      x: 0,
+      y: 5000,
+      toJSON: () => ({}),
+    } as DOMRect)
+    const posted: Array<{ t: string }> = []
+    const worker = {
+      postMessage: (data: { t: string }) => posted.push(data),
+      addEventListener() {},
+      removeEventListener() {},
+      terminate: vi.fn<() => void>(),
+    } as unknown as Worker
+    try {
+      const { wrapper } = setup('const a = 1\nconst b = 2', {
+        language: javascript,
+        worker: () => worker,
+        syncHighlightLines: 0,
+      })
+      await nextTick()
+      expect(posted.some((m) => m.t === 'read')).toBe(true)
+      wrapper.unmount()
+    } finally {
+      rectSpy.mockRestore()
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('clears cached remoteTokens and requests highlighting again when worker prop changes dynamically', async () => {
+    vi.stubGlobal('Worker', function Worker() {})
+    const readsA: number[] = []
+    const readsB: number[] = []
+    const workerA = createTrackedJsWorker(readsA)
+    const workerB = createTrackedJsWorker(readsB)
+    const activeWorker = ref<() => Worker>(() => workerA)
+    const remoteJs = remoteCodeLanguage({ name: 'javascript' })
+    try {
+      const wrapper = mount(
+        defineComponent(
+          () => () =>
+            h(DouCodeEditor, {
+              modelValue: 'const x = 1',
+              language: remoteJs,
+              worker: activeWorker.value,
+            }),
+        ),
+        { attachTo: document.body },
+      )
+      await vi.waitFor(
+        async () => {
+          await nextTick()
+          expect(readsA.length).toBeGreaterThan(0)
+          expect(wrapper.find('.dou-syntax-keyword').text()).toBe('const')
+        },
+        { timeout: 2000 },
+      )
+
+      // Switch worker while keeping the same language prop -> must clear remoteTokens and query workerB.
+      activeWorker.value = () => workerB
+      await vi.waitFor(
+        async () => {
+          await nextTick()
+          expect(readsB.length).toBeGreaterThan(0)
+          expect(wrapper.find('.dou-syntax-keyword').text()).toBe('const')
+        },
+        { timeout: 2000 },
+      )
+      wrapper.unmount()
     } finally {
       vi.unstubAllGlobals()
     }

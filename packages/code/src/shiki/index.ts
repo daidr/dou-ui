@@ -240,7 +240,18 @@ export function createShikiLanguageResolver(
       ? { highlighter: highlighterOrOptions }
       : highlighterOrOptions
   let shared: Promise<ShikiHighlighterLike> | null = null
-  const getHighlighter = () => (shared ??= Promise.resolve().then(() => opts.highlighter()))
+  const getHighlighter = () => {
+    if (!shared) {
+      const pending = Promise.resolve()
+        .then(() => opts.highlighter())
+        .catch((error) => {
+          if (shared === pending) shared = null
+          throw error
+        })
+      shared = pending
+    }
+    return shared
+  }
 
   return async (name: string): Promise<CodeLanguage<ShikiState> | null> => {
     try {

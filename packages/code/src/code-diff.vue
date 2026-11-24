@@ -166,8 +166,9 @@ const modifiedLines = computed(() => splitLines(modified.value))
 interface AsyncDiffState {
   hunks: CodeDiffHunk[]
   original: string
-  originalCount: number
-  modifiedCount: number
+  modified: string
+  ignoreWhitespace: boolean
+  words: boolean
 }
 const asyncDiffState = shallowRef<AsyncDiffState | null>(null)
 const diffWorkerFailed = ref(false)
@@ -243,14 +244,13 @@ watch(
       !asyncEnabled ||
       !current ||
       current.original !== original ||
-      current.originalCount !== originalLines.value.length ||
-      current.modifiedCount !== modifiedLines.value.length
+      current.modified !== mod ||
+      current.ignoreWhitespace !== ignoreWhitespace ||
+      current.words !== words
     ) {
       if (current) asyncDiffState.value = null
     }
     if (!asyncEnabled || !isMounted) return
-    const snapOriginalCount = originalLines.value.length
-    const snapModifiedCount = modifiedLines.value.length
     acquireDiffWorker().then(
       ({ worker, release, setBusy }) => {
         if (job !== diffJob) {
@@ -274,8 +274,9 @@ watch(
             asyncDiffState.value = {
               hunks: result,
               original,
-              originalCount: snapOriginalCount,
-              modifiedCount: snapModifiedCount,
+              modified: mod,
+              ignoreWhitespace,
+              words,
             }
           },
           () => {
@@ -303,8 +304,9 @@ const hunks = computed<CodeDiffHunk[]>(() => {
     if (
       !state ||
       state.original !== props.original ||
-      state.originalCount !== originalLines.value.length ||
-      state.modifiedCount !== modifiedLines.value.length
+      state.modified !== modified.value ||
+      state.ignoreWhitespace !== props.ignoreWhitespace ||
+      state.words !== props.words
     ) {
       return []
     }

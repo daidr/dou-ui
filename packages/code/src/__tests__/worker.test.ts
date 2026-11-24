@@ -12,7 +12,7 @@ import {
   remoteCodeLanguage,
   tokenizeLine,
 } from '../language/language'
-import { RemoteTokenStore } from '../language/remote-tokens'
+import { compressLineRanges, RemoteTokenStore } from '../language/remote-tokens'
 import {
   acquirePoolWorker,
   createCodeWorkerPool,
@@ -431,5 +431,147 @@ describe('createCodeWorkerPool', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('returns only requested disjoint tokenRanges in tokens mode and avoids LRU self-eviction', async () => {
+    expect(compressLineRanges([])).toEqual([])
+    expect(compressLineRanges([1, 2, 3, 5000, 5001, 5002])).toEqual([
+      [1, 3],
+      [5000, 5002],
+    ])
+
+    const { worker, scope } = pair()
+    serveCodeHighlighting([python], scope)
+    const doc = CodeText.of(
+      Array.from({ length: 4500 }, (_, i) => (i === 0 ? 'def head():' : `x = ${i}`)),
+    )
+    const store = new RemoteTokenStore(10)
+    const receivedChunks: Array<readonly [number, readonly CodeLineTokens[]]> = []
+    let receivedLines = 0
+    await new Promise<void>((resolve, reject) => {
+      const client = new SyntaxWorkerClient(
+        worker,
+        remoteCodeLanguage({ name: 'python' }),
+        () => doc,
+        2,
+        {
+          states: () => {},
+          tokens: (from, lines, frontier, ranges) => {
+            if (ranges) {
+              receivedChunks.push(...ranges)
+              for (const [, list] of ranges) receivedLines += list.length
+              store.adoptRanges(ranges, frontier)
+            } else {
+              receivedLines += lines.length
+              store.adopt(from, lines, frontier)
+            }
+            client.dispose()
+            resolve()
+          },
+          unsupported: () => reject(new Error('unsupported')),
+          failed: reject,
+        },
+      )
+      client.want(0, 4500, 1, 4500, [
+        [1, 3],
+        [4498, 4500],
+      ])
+    })
+
+    // Only the 6 visible lines were transferred and cached, never the 4494 hidden lines.
+    expect(receivedChunks).toHaveLength(2)
+    expect(receivedLines).toBe(6)
+    expect(store.readyNumbers([1, 2, 3, 4498, 4499, 4500])).toBe(true)
+    expect(store.line(1)?.length).toBeGreaterThan(0)
+    expect(store.line(4500)?.length).toBeGreaterThan(0)
+    expect(store.line(2000)).toBeNull()
+
+    // Even a single batch larger than maxSize must not evict its own entries.
+    const small = new RemoteTokenStore(3)
+    small.adopt(
+      1,
+      [
+        [1, 0],
+        [1, 0],
+        [1, 0],
+        [1, 0],
+        [1, 0],
+      ],
+      5,
+    )
+    expect(small.readyRange(1, 5)).toBe(true)
+  })
+
+  it('handles concurrent worker pool acquire without stealing slots and rejects waiters on dispose', async () => {
+    const created: Array<{
+      worker: Worker
+      fail: () => void
+      terminate: ReturnType<typeof vi.fn>
+    }> = []
+    const pool = createCodeWorkerPool(
+      () => {
+        const { worker, fail } = pair()
+        const terminate = worker.terminate as unknown as ReturnType<typeof vi.fn>
+        created.push({ worker, fail, terminate })
+        return worker
+      },
+      { maxWorkers: 2, idleTimeout: 0 },
+    )
+
+    // Two concurrent acquires must scale to 2 distinct workers instead of racing on users === 0.
+    const [a, b] = await Promise.all([acquirePoolWorker(pool), acquirePoolWorker(pool)])
+    expect(a.worker).not.toBe(b.worker)
+    expect(pool.size).toBe(2)
+    a.release()
+    b.release()
+    pool.dispose()
+
+    // Disposing a maxWorkers=1 pool while a waiter is queued on spawning[0] rejects both without leaking.
+    const created2: Array<{ terminate: ReturnType<typeof vi.fn> }> = []
+    const pool2 = createCodeWorkerPool(
+      () => {
+        const { worker } = pair()
+        const terminate = worker.terminate as unknown as ReturnType<typeof vi.fn>
+        created2.push({ terminate })
+        return worker
+      },
+      { maxWorkers: 1, idleTimeout: 0 },
+    )
+    const p1 = acquirePoolWorker(pool2)
+    const p2 = acquirePoolWorker(pool2)
+    pool2.dispose()
+    await expect(p1).rejects.toThrow(/disposed/)
+    await expect(p2).rejects.toThrow(/disposed/)
+    expect(pool2.size).toBe(0)
+    for (const item of created2) expect(item.terminate).toHaveBeenCalledTimes(1)
+  })
+
+  it('retries createShikiLanguageResolver after a transient highlighter initialization failure', async () => {
+    let attempts = 0
+    const shiki = await createHighlighter({
+      langs: ['rust'],
+      themes: [],
+      engine: createJavaScriptRegexEngine(),
+    })
+    const resolve = createShikiLanguageResolver(async () => {
+      attempts++
+      if (attempts === 1) throw new Error('transient wasm fetch failure')
+      return shiki
+    })
+
+    // First attempt fails cleanly and clears the cached promise.
+    expect(await resolve('rust')).toBeNull()
+    expect(attempts).toBe(1)
+
+    // Subsequent attempt retries and succeeds.
+    const lang = await resolve('rust')
+    expect(lang).not.toBeNull()
+    expect(lang!.name).toBe('rust')
+    expect(attempts).toBe(2)
+
+    // Resolved highlighter stays cached on further calls.
+    const again = await resolve('rust')
+    expect(again).not.toBeNull()
+    expect(attempts).toBe(2)
   })
 })

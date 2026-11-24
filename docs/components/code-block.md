@@ -25,6 +25,7 @@ const highlight = (code: string, lang: string) =>
 - Shiki 生成的背景色不会使用，代码块的背景由主题决定。
 - 其他高亮工具也可以使用，只要返回的 HTML 每行是一个 `<span class="line">`，行与行之间用换行分隔，外面可以带 `<pre><code>`，也可以不带。
 - `highlight` 返回 Promise 时，结果出来之前先显示没有高亮的代码。返回字符串时（例如 Shiki 的 `createHighlighterCoreSync`），服务端渲染的结果就已经是高亮过的。
+- `highlight` 的第三个可选参数为 `{ signal: AbortSignal }`：当 `code`、`lang` 或 `highlight` 变化触发新一轮高亮，或代码块组件卸载时，上一轮对应的 `signal` 会自动中止，便于异步高亮器（如 Web Worker 池）取消仍在排队的过期任务。
 
 ## 全局设置
 
@@ -72,22 +73,22 @@ app.use(DouUI, {
 
 ### Props
 
-| 名称             | 说明                                                                                                        | 类型                                                        | 默认值          |
-| ---------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- | --------------- |
-| `code`           | 代码                                                                                                        | `string`                                                    | `''`            |
-| `lang`           | 语言，传给 `highlight`，没有文件名时显示在标题栏                                                            | `string`                                                    | `'text'`        |
-| `filename`       | 标题栏中的文件名                                                                                            | `string`                                                    | —               |
-| `highlight`      | 高亮函数，写法同 Shiki 的 `codeToHtml`                                                                      | `(code: string, lang: string) => string \| Promise<string>` | 全局 `defaults` |
-| `lineNumbers`    | 显示行号                                                                                                    | `boolean`                                                   | `false`         |
-| `startLine`      | 第一行的行号                                                                                                | `number`                                                    | `1`             |
-| `highlightLines` | 标出的行                                                                                                    | `number[] \| string`                                        | —               |
-| `wrap`           | 长行自动换行                                                                                                | `boolean`                                                   | `false`         |
-| `maxLines`       | 超过这么多行时折叠                                                                                          | `number`                                                    | —               |
-| `maxHeight`      | 限制正文最大高度并在内部纵向滚动；传入数字按 px 处理                                                        | `number \| string`                                          | —               |
-| `copyable`       | 显示复制按钮                                                                                                | `boolean`                                                   | `true`          |
-| `streaming`      | 代码还在逐步到达，只高亮完整的行                                                                            | `boolean`                                                   | `false`         |
-| `autoScroll`     | 内容增长时自动贴底跟随，向上滚动暂停，滚回底部恢复；未传入时跟随 `streaming` 开启                           | `boolean`                                                   | 同 `streaming`  |
-| `bordered`       | 外框和圆角；关闭后去掉外框和圆角，用于放进已有边框的容器，见[去掉外框](/guide/theming#去掉外框与调整内边距) | `boolean`                                                   | `true`          |
+| 名称             | 说明                                                                                                        | 类型                                                                                           | 默认值          |
+| ---------------- | ----------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | --------------- |
+| `code`           | 代码                                                                                                        | `string`                                                                                       | `''`            |
+| `lang`           | 语言，传给 `highlight`，没有文件名时显示在标题栏                                                            | `string`                                                                                       | `'text'`        |
+| `filename`       | 标题栏中的文件名                                                                                            | `string`                                                                                       | —               |
+| `highlight`      | 高亮函数，写法同 Shiki 的 `codeToHtml`，可选接收 `{ signal }` 在内容过期或卸载时中止异步任务                | `(code: string, lang: string, context?: { signal: AbortSignal }) => string \| Promise<string>` | 全局 `defaults` |
+| `lineNumbers`    | 显示行号                                                                                                    | `boolean`                                                                                      | `false`         |
+| `startLine`      | 第一行的行号                                                                                                | `number`                                                                                       | `1`             |
+| `highlightLines` | 标出的行                                                                                                    | `number[] \| string`                                                                           | —               |
+| `wrap`           | 长行自动换行                                                                                                | `boolean`                                                                                      | `false`         |
+| `maxLines`       | 超过这么多行时折叠                                                                                          | `number`                                                                                       | —               |
+| `maxHeight`      | 限制正文最大高度并在内部纵向滚动；传入数字按 px 处理                                                        | `number \| string`                                                                             | —               |
+| `copyable`       | 显示复制按钮                                                                                                | `boolean`                                                                                      | `true`          |
+| `streaming`      | 代码还在逐步到达，只高亮完整的行                                                                            | `boolean`                                                                                      | `false`         |
+| `autoScroll`     | 内容增长时自动贴底跟随，向上滚动暂停，滚回底部恢复；未传入时跟随 `streaming` 开启                           | `boolean`                                                                                      | 同 `streaming`  |
+| `bordered`       | 外框和圆角；关闭后去掉外框和圆角，用于放进已有边框的容器，见[去掉外框](/guide/theming#去掉外框与调整内边距) | `boolean`                                                                                      | `true`          |
 
 ### Events
 

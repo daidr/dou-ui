@@ -8,7 +8,6 @@ import {
   useId,
   useTemplateRef,
   watch,
-  watchEffect,
 } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useGlobalConfig, useLocale } from '../config-provider/use-config'
@@ -55,50 +54,92 @@ const highlighter = computed<CodeBlockHighlighter | undefined>(
 
 const code = computed(() => props.code.replace(/\n$/, ''))
 
+const split = computed(() => {
+  const raw = props.code
+  // while streaming, the line still being written stays plain
+  if (!props.streaming) return { source: code.value, tail: '' }
+  const cut = raw.lastIndexOf('\n') + 1
+  return {
+    source: raw.slice(0, cut).replace(/\n$/, ''),
+    tail: raw.slice(cut),
+  }
+})
+
+interface LandedHighlight {
+  source: string
+  lang: string
+  highlight: CodeBlockHighlighter
+  lines: string[]
+}
+
 /*
  * Plain lines until the highlighter answers. A synchronous highlighter
  * answers during setup, so server-rendered markup is already highlighted;
- * an async one fills in after. Only the latest call may land. While the
- * next answer is on its way, lines that were highlighted before and have
- * not changed keep their colors.
+ * an async one fills in after. Only the latest call may land, and any
+ * previous in-flight run is aborted when inputs change or the block unmounts.
+ * While the next answer is on its way, lines that were highlighted before
+ * and have not changed keep their colors.
  */
-const lines = shallowRef<string[]>(plainLines(code.value))
+const landed = shallowRef<LandedHighlight | undefined>()
 let run = 0
-// what the last answer covered, and its lines
-let landed: { source: string; lines: string[] } | undefined
-watchEffect(() => {
-  const current = ++run
-  const highlight = highlighter.value
-  const raw = props.code
-  // while streaming, the line still being written stays plain
-  const cut = props.streaming ? raw.lastIndexOf('\n') + 1 : raw.length
-  const source = raw.slice(0, cut).replace(/\n$/, '')
-  const tail = props.streaming ? raw.slice(cut) : ''
+let activeController: AbortController | undefined
+
+function abortActiveHighlight() {
+  const controller = activeController
+  activeController = undefined
+  controller?.abort()
+}
+
+watch(
+  [highlighter, () => split.value.source, () => props.lang],
+  ([highlight, source, lang], _prev, onCleanup) => {
+    const current = ++run
+    abortActiveHighlight()
+    if (!highlight || !source) {
+      landed.value = undefined
+      return
+    }
+    const last = landed.value
+    if (last && last.highlight === highlight && last.lang === lang && last.source === source) {
+      return
+    }
+    const controller = new AbortController()
+    activeController = controller
+    onCleanup(() => {
+      if (activeController === controller) activeController = undefined
+      controller.abort()
+    })
+    const apply = (html: string) => {
+      if (current !== run || controller.signal.aborted) return
+      landed.value = { source, lang, highlight, lines: htmlLines(html) }
+    }
+    try {
+      const result = highlight(source, lang, { signal: controller.signal })
+      if (typeof result === 'string') {
+        apply(result)
+      } else if (result && typeof result.then === 'function') {
+        void result.then(apply, () => {})
+      }
+    } catch {
+      // a highlighter that throws leaves the plain text
+    }
+  },
+  { immediate: true },
+)
+
+const lines = computed<string[]>(() => {
+  const { source, tail } = split.value
   const after = tail ? plainLines(tail) : []
-  if (!highlight || !source) {
-    lines.value = plainLines(code.value)
-    return
+  const highlight = highlighter.value
+  if (!highlight || !source) return plainLines(code.value)
+  const last = landed.value
+  if (last && last.highlight === highlight && last.lang === props.lang) {
+    if (last.source === source) return after.length ? [...last.lines, ...after] : last.lines
+    if (source.startsWith(`${last.source}\n`)) {
+      return [...last.lines, ...plainLines(source.slice(last.source.length + 1)), ...after]
+    }
   }
-  if (landed?.source === source) {
-    lines.value = after.length ? [...landed.lines, ...after] : landed.lines
-    return
-  }
-  const kept = landed && source.startsWith(`${landed.source}\n`) ? landed : undefined
-  lines.value = kept
-    ? [...kept.lines, ...plainLines(source.slice(kept.source.length + 1)), ...after]
-    : [...plainLines(source), ...after]
-  const apply = (html: string) => {
-    if (current !== run) return
-    landed = { source, lines: htmlLines(html) }
-    lines.value = after.length ? [...landed.lines, ...after] : landed.lines
-  }
-  try {
-    const result = highlight(source, props.lang)
-    if (typeof result === 'string') apply(result)
-    else void result.then(apply, () => {})
-  } catch {
-    // a highlighter that throws leaves the plain text
-  }
+  return [...plainLines(source), ...after]
 })
 
 const marked = computed(() => parseLines(props.highlightLines))
@@ -221,7 +262,10 @@ onMounted(() => {
   if (bodyRef.value) resizeObserver.observe(bodyRef.value)
   if (codeRef.value) resizeObserver.observe(codeRef.value)
 })
-onBeforeUnmount(() => resizeObserver?.disconnect())
+onBeforeUnmount(() => {
+  abortActiveHighlight()
+  resizeObserver?.disconnect()
+})
 
 watch(
   [() => props.code, lines, maxHeightValue, () => props.wrap, folded, shouldAutoScroll],

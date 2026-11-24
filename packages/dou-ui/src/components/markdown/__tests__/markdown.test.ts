@@ -408,16 +408,20 @@ describe('DouCodeBlock streaming', () => {
         .join('\n'),
     )
     const wrapper = mount(DouCodeBlock, { props: { code: 'a\nb', highlight, streaming: true } })
-    expect(highlight).toHaveBeenLastCalledWith('a', 'text')
+    expect(highlight).toHaveBeenLastCalledWith('a', 'text', { signal: expect.any(AbortSignal) })
     expect(wrapper.findAll('.dou-code-block__line b').map((b) => b.text())).toEqual(['a'])
     expect(wrapper.findAll('.dou-code-block__line').map((l) => l.text())).toEqual(['a', 'b'])
     const calls = highlight.mock.calls.length
     await wrapper.setProps({ code: 'a\nbc' })
     expect(highlight.mock.calls.length).toBe(calls)
     await wrapper.setProps({ code: 'a\nbc\nd' })
-    expect(highlight).toHaveBeenLastCalledWith('a\nbc', 'text')
+    expect(highlight).toHaveBeenLastCalledWith('a\nbc', 'text', {
+      signal: expect.any(AbortSignal),
+    })
     await wrapper.setProps({ streaming: false })
-    expect(highlight).toHaveBeenLastCalledWith('a\nbc\nd', 'text')
+    expect(highlight).toHaveBeenLastCalledWith('a\nbc\nd', 'text', {
+      signal: expect.any(AbortSignal),
+    })
     expect(wrapper.findAll('.dou-code-block__line b')).toHaveLength(3)
   })
 

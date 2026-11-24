@@ -1,11 +1,23 @@
+export interface CodeBlockHighlightContext {
+  /** Aborted when a newer highlight supersedes this run or when the block unmounts. */
+  signal: AbortSignal
+}
+
 /**
  * Turns code into highlighted HTML. Shaped like shiki's `codeToHtml`, so
  * `(code, lang) => codeToHtml(code, { lang, themes, defaultColor: false })`
  * works as is. Any highlighter fits as long as it returns lines as
  * `<span class="line">…</span>` separated by newlines, with or without a
- * `<pre><code>` around them.
+ * `<pre><code>` around them. An optional third argument carries an
+ * `AbortSignal` so async highlighters (such as a worker pool) can cancel
+ * queued work when the code, language, or highlighter changes or when the
+ * block unmounts.
  */
-export type CodeBlockHighlighter = (code: string, lang: string) => string | Promise<string>
+export type CodeBlockHighlighter = (
+  code: string,
+  lang: string,
+  context?: CodeBlockHighlightContext,
+) => string | Promise<string>
 
 export interface CodeBlockProps {
   /** The source to show. */

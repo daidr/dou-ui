@@ -86,6 +86,8 @@ const messages = useCodeMessages(() => props.messages)
 const root = ref<HTMLElement>()
 /** Whether the box is wide enough for two columns. */
 const roomy = ref(true)
+/** Whether the box is narrow enough to use compact inline gutter columns. */
+const compact = ref(false)
 /** The view picked with the toggle, when `mode` isn't bound. */
 const picked = ref<'split' | 'inline' | null>(null)
 watch(
@@ -105,12 +107,22 @@ function toggleView() {
 
 /** Below this, each side would show fewer than about 30 columns: one column reads better. */
 const SPLIT_WIDTH = 560
+/** Below this, inline mode tightens line-number columns and spacing to leave more room for code. */
+const COMPACT_WIDTH = 480
+
+function syncWidth(width: number) {
+  if (width <= 0) return
+  roomy.value = width >= SPLIT_WIDTH
+  compact.value = width < COMPACT_WIDTH
+}
 
 let resize: ResizeObserver | undefined
 onMounted(() => {
-  if (typeof ResizeObserver === 'undefined' || !root.value) return
+  if (!root.value) return
+  syncWidth(root.value.clientWidth)
+  if (typeof ResizeObserver === 'undefined') return
   resize = new ResizeObserver(([entry]) => {
-    if (entry) roomy.value = entry.contentRect.width >= SPLIT_WIDTH
+    if (entry) syncWidth(entry.contentRect.width)
   })
   resize.observe(root.value)
 })
@@ -555,11 +567,15 @@ const unified = computed<Unified | null>(() => {
 })
 
 const digits = (n: number) => String(Math.max(1, n)).length
-const numberWidth = (n: number) => digits(n) * 8 + 16
+function numberWidth(n: number, side: CodeDiffSide) {
+  const count = digits(n)
+  if (compact.value) return count * 7 + (side === 'original' ? 8 : 6)
+  return Math.ceil(count * 7.5) + (side === 'original' ? 12 : 8)
+}
 
 /** The line numbers of one side, in the inline view's gutter. */
 const numbersOf =
-  (pick: 'aNums' | 'bNums') =>
+  (pick: 'aNums' | 'bNums', side: CodeDiffSide) =>
   ({ visible }: { visible: { from: number; to: number } }) => {
     const u = unified.value
     if (!u) return []
@@ -569,7 +585,11 @@ const numbersOf =
       const value = list[n - 1]!
       const kind = u.kinds[n - 1]
       const tone = kind === Kind.Removed ? ' is-removed' : kind === Kind.Added ? ' is-added' : ''
-      out.push({ line: n, text: value ? String(value) : '', class: `${ns.e('number')}${tone}` })
+      out.push({
+        line: n,
+        text: value ? String(value) : '',
+        class: `${ns.e('number')} is-${side}${tone}`,
+      })
     }
     return out
   }
@@ -600,17 +620,17 @@ const inlineExtension = defineCodeExtension({
     return [
       {
         name: 'diff-original',
-        width: numberWidth(originalLines.value.length),
-        markers: numbersOf('aNums'),
+        width: numberWidth(originalLines.value.length, 'original'),
+        markers: numbersOf('aNums', 'original'),
       },
       {
         name: 'diff-modified',
-        width: numberWidth(modifiedLines.value.length),
-        markers: numbersOf('bNums'),
+        width: numberWidth(modifiedLines.value.length, 'modified'),
+        markers: numbersOf('bNums', 'modified'),
       },
       {
         name: 'diff',
-        width: 16,
+        width: compact.value ? 14 : 16,
         markers: ({ visible }: { visible: { from: number; to: number } }) => {
           const u = unified.value
           if (!u) return []
@@ -890,12 +910,18 @@ function hoverMarkerOf(hover: CodeDiffHoverMarker, side: CodeDiffSide): CodeGutt
   }
 }
 
+/** Whether a gutter column floats over the gutter edge instead of reserving width. */
+function isOverlay(gutter: CodeDiffGutter) {
+  return gutter.overlay === true || (gutter.overlay === 'compact' && compact.value)
+}
+
 /** A column of `gutters` as one side's editor draws it. */
 function sideGutter(gutter: CodeDiffGutter, side: Side) {
   const name = sideName(side)
   return {
     name: gutter.name,
     width: gutter.width,
+    overlay: isOverlay(gutter),
     markers: ({ visible }: { visible: { from: number; to: number } }) =>
       (gutter.markers ?? []).filter(
         (marker) =>
@@ -942,6 +968,7 @@ function inlineAnnotations(end = false): CodeExtension {
       return (props.gutters ?? []).map((gutter) => ({
         name: gutter.name,
         width: gutter.width,
+        overlay: isOverlay(gutter),
         // on one side only, rows of just the other side take no press
         pressOn: gutter.hoverMarker?.side ? ('markers' as const) : gutter.pressOn,
         markers: ({ visible }: { visible: { from: number; to: number } }) => {
@@ -1250,7 +1277,13 @@ defineExpose<CodeDiffExpose>({
 <template>
   <div
     ref="root"
-    :class="[ns.b(), ns.m(view), ns.is('bordered', bordered), ns.is('scroll-y', scrollY)]"
+    :class="[
+      ns.b(),
+      ns.m(view),
+      ns.is('compact', compact),
+      ns.is('bordered', bordered),
+      ns.is('scroll-y', scrollY),
+    ]"
     role="group"
     :aria-label="messages.diff"
   >

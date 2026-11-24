@@ -165,8 +165,8 @@ const emit = defineEmits<CodeEditorEmits>()
 const ns = useNamespace('code-editor')
 const instance = getCurrentInstance()!
 
-/** Space above the first line and below the last, and before and after each line; set from the styles once measured. */
-const pad = reactive({ x: 12, y: 8 })
+/** Space above the first line and below the last, before and after each line, and around line numbers; set from the styles once measured. */
+const pad = reactive({ x: 12, y: 8, gutterLeft: 16, gutterRight: 12 })
 /** Browsers stop growing an element somewhere past 16M px; taller texts scroll in scaled steps. */
 const MAX_HEIGHT = 8_000_000
 const OVERSCAN = 6
@@ -900,6 +900,7 @@ const gutterColumns = computed(() => {
   const columns: Array<{
     name: string
     width: number
+    overlay: boolean
     markers: () => CodeGutterMarker[]
     onPress?: (line: number, event: PointerEvent | KeyboardEvent) => void
     pressOn?: 'any' | 'markers'
@@ -907,20 +908,31 @@ const gutterColumns = computed(() => {
   if (!props.gutter) return columns
   // Kept while anything may report problems, so the text doesn't jump when the first one comes.
   if (props.diagnostics !== undefined || linting.value || diagnostics.value.length)
-    columns.push({ name: 'problems', width: 16, markers: problemMarkers })
+    columns.push({ name: 'problems', width: 16, overlay: false, markers: problemMarkers })
   for (const extension of extensions.value)
     for (const gutter of extension.gutters ?? [])
       columns.push({
         name: gutter.name,
-        width: gutter.width ?? 16,
+        width: gutter.width ?? (gutter.overlay ? 18 : 16),
+        overlay: !!gutter.overlay,
         markers: () => withHoverMarker(gutter.markers?.(context) ?? [], gutter.hoverMarker),
         onPress: gutter.onPress && ((line, event) => gutter.onPress!(line, event, context)),
         pressOn: gutter.pressOn,
       })
   return columns
 })
+const flowGutterColumns = computed(() =>
+  gutterColumns.value
+    .map((column, index) => ({ column, index }))
+    .filter((item) => !item.column.overlay),
+)
+const overlayGutterColumns = computed(() =>
+  gutterColumns.value
+    .map((column, index) => ({ column, index }))
+    .filter((item) => item.column.overlay),
+)
 const gutterCells = computed(() =>
-  gutterColumns.value.reduce((sum, column) => sum + column.width, 0),
+  flowGutterColumns.value.reduce((sum, item) => sum + item.column.width, 0),
 )
 
 /** A column's markers, and its `hoverMarker` on the other lines in view. */
@@ -1013,7 +1025,11 @@ const gutterWidth = computed(() => {
   if (!props.gutter || (!props.lineNumbers && !props.foldable && !cells)) return 0
   void metrics.value
   const digits = Math.max(2, String(doc.value.lines).length)
-  const numbers = props.lineNumbers ? Math.ceil(digits * measure.cell) + 28 : 12
+  const numbers = props.lineNumbers
+    ? Math.ceil(digits * measure.cell) + pad.gutterLeft + pad.gutterRight
+    : props.foldable
+      ? 12
+      : 0
   return cells + numbers + (props.foldable ? 14 : 0)
 })
 
@@ -4838,10 +4854,15 @@ function onWindowScroll(event: Event) {
 }
 
 let resize: ResizeObserver | undefined
-function refreshMetrics() {
-  measure.refresh(props.tabSize)
+function syncPadding() {
   pad.y = measure.padY
   pad.x = measure.padX
+  pad.gutterLeft = measure.gutterPadLeft
+  pad.gutterRight = measure.gutterPadRight
+}
+function refreshMetrics() {
+  measure.refresh(props.tabSize)
+  syncPadding()
   readFrameFont()
   metrics.value++
   syncInput()
@@ -4863,6 +4884,11 @@ onMounted(() => {
       viewHeight.value = el.clientHeight
       viewWidth.value = el.clientWidth
       rootWidth.value = root.value?.clientWidth ?? 0
+      if (measure.refreshPadding()) {
+        syncPadding()
+        metrics.value++
+        syncInput()
+      }
       updateClip()
     })
     resize.observe(el)
@@ -5038,6 +5064,8 @@ defineExpose<CodeEditorExpose>(api)
       ns.is('focused', focused),
       ns.is('readonly', !!readonly),
       ns.is('disabled', !!disabled),
+      ns.is('line-numbers', lineNumbers),
+      ns.is('gutter-empty', !gutterWidth),
       ns.is('foldable', foldable),
       ns.is('wrap', wrap),
       ns.is('bordered', bordered),
@@ -5116,7 +5144,7 @@ defineExpose<CodeEditorExpose>(api)
           }"
         >
           <div
-            v-if="gutter && (lineNumbers || foldable || gutterCells)"
+            v-if="gutter && (lineNumbers || foldable || gutterColumns.length)"
             :class="ns.e('gutter')"
             @pointerdown="onPointerDown($event, 'gutter')"
             @pointermove="onPointerMove"
@@ -5145,42 +5173,42 @@ defineExpose<CodeEditorExpose>(api)
                   marginTop: gapBefore(row.n) ? `${gapBefore(row.n)}px` : undefined,
                 }"
               >
-                <span v-if="gutterCells" :class="ns.e('cells')">
+                <span v-if="flowGutterColumns.length" :class="ns.e('cells')">
                   <span
-                    v-for="(column, c) in gutterColumns"
-                    :key="column.name"
+                    v-for="item in flowGutterColumns"
+                    :key="item.column.name"
                     :class="[
                       ns.e('cell'),
-                      ns.is('on-hover', gutterMarkers[c]?.get(row.n)?.visible === 'hover'),
-                      gutterMarkers[c]?.get(row.n)?.class,
+                      ns.is('on-hover', gutterMarkers[item.index]?.get(row.n)?.visible === 'hover'),
+                      gutterMarkers[item.index]?.get(row.n)?.class,
                     ]"
-                    :style="{ width: `${column.width}px` }"
-                    :title="gutterMarkers[c]?.get(row.n)?.title"
+                    :style="{ width: `${item.column.width}px` }"
+                    :title="gutterMarkers[item.index]?.get(row.n)?.title"
                     :data-gutter-cell="
-                      column.onPress &&
-                      (column.pressOn !== 'markers' || gutterMarkers[c]?.has(row.n))
-                        ? c
+                      item.column.onPress &&
+                      (item.column.pressOn !== 'markers' || gutterMarkers[item.index]?.has(row.n))
+                        ? item.index
                         : undefined
                     "
                     :data-line="row.n"
                     v-bind="
-                      column.onPress && gutterMarkers[c]?.get(row.n) && !disabled
+                      item.column.onPress && gutterMarkers[item.index]?.get(row.n) && !disabled
                         ? {
                             role: 'button',
                             // one stop in the tab order: the marker on the cursor's line
                             tabindex: row.n === activeLineNumber ? 0 : -1,
-                            'aria-label': gutterMarkers[c]!.get(row.n)!.title,
+                            'aria-label': gutterMarkers[item.index]!.get(row.n)!.title,
                           }
                         : { 'aria-hidden': 'true' }
                     "
-                    @keydown="onCellKeydown($event, c, row.n)"
+                    @keydown="onCellKeydown($event, item.index, row.n)"
                   >
-                    <template v-if="gutterMarkers[c]?.get(row.n)">
+                    <template v-if="gutterMarkers[item.index]?.get(row.n)">
                       <component
-                        :is="gutterMarkers[c]!.get(row.n)!.icon"
-                        v-if="gutterMarkers[c]!.get(row.n)!.icon"
+                        :is="gutterMarkers[item.index]!.get(row.n)!.icon"
+                        v-if="gutterMarkers[item.index]!.get(row.n)!.icon"
                       />
-                      <template v-else>{{ gutterMarkers[c]!.get(row.n)!.text }}</template>
+                      <template v-else>{{ gutterMarkers[item.index]!.get(row.n)!.text }}</template>
                     </template>
                   </span>
                 </span>
@@ -5193,6 +5221,42 @@ defineExpose<CodeEditorExpose>(api)
                 >
                   <ChevronRightIcon v-if="row.folded" />
                   <ChevronDownIcon v-else />
+                </span>
+                <span v-if="overlayGutterColumns.length" :class="ns.e('overlays')">
+                  <template v-for="item in overlayGutterColumns" :key="item.column.name">
+                    <span
+                      v-if="gutterMarkers[item.index]?.get(row.n)"
+                      :class="[
+                        ns.e('cell'),
+                        ns.is('overlay', true),
+                        ns.is(
+                          'on-hover',
+                          gutterMarkers[item.index]!.get(row.n)!.visible === 'hover',
+                        ),
+                        gutterMarkers[item.index]!.get(row.n)!.class,
+                      ]"
+                      :style="{ width: `${item.column.width}px` }"
+                      :title="gutterMarkers[item.index]!.get(row.n)!.title"
+                      :data-gutter-cell="item.column.onPress ? item.index : undefined"
+                      :data-line="row.n"
+                      v-bind="
+                        item.column.onPress && !disabled
+                          ? {
+                              role: 'button',
+                              tabindex: row.n === activeLineNumber ? 0 : -1,
+                              'aria-label': gutterMarkers[item.index]!.get(row.n)!.title,
+                            }
+                          : { 'aria-hidden': 'true' }
+                      "
+                      @keydown="onCellKeydown($event, item.index, row.n)"
+                    >
+                      <component
+                        :is="gutterMarkers[item.index]!.get(row.n)!.icon"
+                        v-if="gutterMarkers[item.index]!.get(row.n)!.icon"
+                      />
+                      <template v-else>{{ gutterMarkers[item.index]!.get(row.n)!.text }}</template>
+                    </span>
+                  </template>
                 </span>
               </div>
             </div>

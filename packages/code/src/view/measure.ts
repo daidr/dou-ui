@@ -20,10 +20,39 @@ export class Measure {
   padY = 8
   /** Space before and after each line (`--dou-code-editor-padding-x`). */
   padX = 12
+  /** Space left of line numbers in the gutter (`--dou-code-editor-gutter-padding-left`). */
+  gutterPadLeft = 16
+  /** Space right of line numbers in the gutter (`--dou-code-editor-gutter-padding-right`). */
+  gutterPadRight = 12
   tabSize = 2
   private widths = new Map<string, number>()
 
   constructor(private readonly probe: () => HTMLElement | null | undefined) {}
+
+  /** Reads the CSS padding variables; returns `true` when any changed. */
+  refreshPadding(): boolean {
+    const el = this.probe()
+    if (!el) return false
+    // Through a padding, so a calc() in the variable comes out in pixels.
+    el.style.padding =
+      'var(--dou-code-editor-padding-y, 8px) var(--dou-code-editor-padding-x, 12px) var(--dou-code-editor-gutter-padding-left, 16px) var(--dou-code-editor-gutter-padding-right, 12px)'
+    const style = getComputedStyle(el)
+    const padY = px(style.paddingTop, 8)
+    const padX = px(style.paddingRight, 12)
+    const gutterPadLeft = px(style.paddingBottom, 16)
+    const gutterPadRight = px(style.paddingLeft, 12)
+    el.style.padding = ''
+    const changed =
+      padY !== this.padY ||
+      padX !== this.padX ||
+      gutterPadLeft !== this.gutterPadLeft ||
+      gutterPadRight !== this.gutterPadRight
+    this.padY = padY
+    this.padX = padX
+    this.gutterPadLeft = gutterPadLeft
+    this.gutterPadRight = gutterPadRight
+    return changed
+  }
 
   /** Reads the cell width and line height again, e.g. after the font changed. */
   refresh(tabSize: number) {
@@ -36,13 +65,7 @@ export class Measure {
     if (rect.width > 0) this.cell = rect.width / 64
     if (rect.height > 0) this.lineHeight = Math.round(rect.height)
     el.textContent = ''
-    // Through a padding, so a calc() in the variable comes out in pixels.
-    el.style.padding =
-      'var(--dou-code-editor-padding-y, 8px) var(--dou-code-editor-padding-x, 12px)'
-    const style = getComputedStyle(el)
-    this.padY = px(style.paddingTop, 8)
-    this.padX = px(style.paddingLeft, 12)
-    el.style.padding = ''
+    this.refreshPadding()
   }
 
   /** Width of one character as drawn. */

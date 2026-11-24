@@ -340,8 +340,14 @@ export interface CodeDiffHoverMarker extends Omit<CodeGutterHoverMarker, 'title'
 /** A column of `DouCodeDiff`'s gutter, left of the line numbers. */
 export interface CodeDiffGutter {
   name: string
-  /** In px. Defaults to 16. */
+  /** In px. Defaults to 16 (or 18 when rendered as an overlay). */
   width?: number
+  /**
+   * Floats markers over the gutter's right edge without reserving a dedicated
+   * column width: `true` always overlays, `'compact'` overlays only in narrow
+   * containers (`< 480px`). Defaults to `false`.
+   */
+  overlay?: boolean | 'compact'
   markers?: CodeDiffGutterMarker[]
   /**
    * A marker on every other line, shown on hover. With `side`, the other

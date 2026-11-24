@@ -648,4 +648,102 @@ describe('extensions', () => {
     await prop.key('k', { ctrlKey: true })
     expect(hits).toEqual(['high', 'prop'])
   })
+
+  it('omits trailing dead space when lineNumbers and foldable are both off', async () => {
+    const { wrapper } = setup(
+      [
+        defineCodeExtension({
+          name: 'marks',
+          gutters: [{ name: 'marks', width: 24, markers: () => [{ line: 1, text: '!' }] }],
+        }),
+      ],
+      { lineNumbers: false, foldable: false },
+    )
+    await nextTick()
+    const style = wrapper.get('.dou-code-editor').attributes('style') ?? ''
+    expect(style).toContain('--dou-code-editor-gutter: 24px')
+    expect(style).toContain('--dou-code-editor-gutter-cells: 24px')
+    expect(wrapper.get('.dou-code-editor').classes()).not.toContain('is-line-numbers')
+
+    // With foldable on and lineNumbers off, room for the fold toggle stays reserved.
+    const foldOnly = setup(
+      [
+        defineCodeExtension({
+          name: 'marks',
+          gutters: [{ name: 'marks', width: 16, markers: () => [{ line: 1, text: '!' }] }],
+        }),
+      ],
+      { lineNumbers: false, foldable: true },
+    )
+    await nextTick()
+    expect(foldOnly.wrapper.get('.dou-code-editor').attributes('style')).toContain(
+      '--dou-code-editor-gutter: 42px',
+    )
+  })
+
+  it('floats overlay gutter markers without adding column width', async () => {
+    const pressed: number[] = []
+    const base = setup([], { foldable: false })
+    await nextTick()
+    const baseGutter = base.wrapper.get('.dou-code-editor').attributes('style') ?? ''
+
+    const { wrapper } = setup(
+      [
+        defineCodeExtension({
+          name: 'comment',
+          gutters: [
+            {
+              name: 'comment',
+              overlay: true,
+              markers: () => [{ line: 1, text: 'c', title: '已有评论' }],
+              hoverMarker: { text: '+', title: (line) => `在第 ${line} 行添加评论` },
+              onPress: (line) => pressed.push(line),
+            },
+          ],
+        }),
+      ],
+      { foldable: false },
+    )
+    await nextTick()
+    // Overlay columns take 0px of gutter layout width.
+    expect(wrapper.get('.dou-code-editor').attributes('style')).toBe(baseGutter)
+    expect(wrapper.find('.dou-code-editor__cells').exists()).toBe(false)
+    const overlays = wrapper.findAll('.dou-code-editor__overlays .dou-code-editor__cell.is-overlay')
+    expect(overlays.map((el) => el.text())).toEqual(['c', '+', '+'])
+    expect(overlays[0]!.classes()).not.toContain('is-on-hover')
+    expect(overlays[1]!.classes()).toContain('is-on-hover')
+    expect(overlays[1]!.attributes('role')).toBe('button')
+    expect(overlays[1]!.attributes('aria-label')).toBe('在第 2 行添加评论')
+
+    await overlays[1]!.trigger('pointerdown', { button: 0, pointerType: 'mouse' })
+    await overlays[2]!.trigger('keydown', { key: 'Enter' })
+    expect(pressed).toEqual([2, 3])
+
+    // Empty rows in an overlay column without hoverMarker render no overlay cell at all.
+    const sparse = setup(
+      [
+        defineCodeExtension({
+          name: 'sparse',
+          gutters: [
+            {
+              name: 'sparse',
+              overlay: true,
+              markers: () => [{ line: 2, text: '★', title: '收藏' }],
+              onPress: (line) => pressed.push(line),
+            },
+          ],
+        }),
+      ],
+      { lineNumbers: false, foldable: false },
+    )
+    await nextTick()
+    expect(sparse.wrapper.get('.dou-code-editor').classes()).toContain('is-gutter-empty')
+    expect(sparse.wrapper.get('.dou-code-editor').attributes('style')).toContain(
+      '--dou-code-editor-gutter: 0px',
+    )
+    expect(sparse.wrapper.findAll('.dou-code-editor__cell.is-overlay')).toHaveLength(1)
+    expect(sparse.wrapper.get('.dou-code-editor__cell.is-overlay').attributes('data-line')).toBe(
+      '2',
+    )
+  })
 })

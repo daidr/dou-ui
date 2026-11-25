@@ -45,11 +45,11 @@ app.use(DouUI, {
 
 ## 表格
 
-表格在较宽容器中默认撑满可用宽度。容器宽度不足时，各列保留最小宽度并按内容自然展开，到达单列最大宽度后通过 `overflow-wrap: anywhere` 自动折行，整张表格在 `.dou-markdown__table` 内横向滚动，且带有防滚动穿透（`overscroll-behavior-x: contain`）与左右边缘阴影提示。切换下面示例的宽度可以对比窄屏与桌面端的排布。
+表格在较宽容器中默认撑满可用宽度。容器宽度不足时，各列保留最小宽度并按内容自然展开，到达单列最大宽度后通过 `overflow-wrap: anywhere` 自动折行，整张表格在 `.dou-markdown__table` 内横向滚动，并带有防滚动穿透（`overscroll-behavior-x: contain`）与左右边缘渐隐（`mask-image`）提示，能自然融入浅色、深色、聊天气泡和提示块等任意背景。切换下面示例的宽度可以对比窄屏与桌面端的排布。
 
 <DocDemo src="markdown/table" column />
 
-列宽范围和滚动阴影颜色可通过 CSS 变量按阅读宽度调整，且支持设置在 `DouChatList`、`DouChatMessage` 等外层容器上向下继承：
+列宽范围和边缘渐隐宽度可通过 CSS 变量按阅读宽度调整，且支持设置在 `DouChatList`、`DouChatMessage` 等外层容器上向下继承：
 
 ```css
 .conversation {
@@ -188,7 +188,7 @@ parser.update(text, { final: true })
 | `--dou-markdown-fade`                | 流式新内容淡入时长，默认 `var(--dou-motion-duration-slow)`              |
 | `--dou-markdown-table-col-min-width` | 表格列的最小宽度，默认 `96px`，可在外层容器设置                         |
 | `--dou-markdown-table-col-max-width` | 表格列的最大宽度，默认 `min(320px, 70vw)`，超出后安全折行，可在外层设置 |
-| `--dou-markdown-table-scroll-shadow` | 表格横向溢出时左右边缘阴影的颜色，可在外层容器设置                      |
+| `--dou-markdown-table-scroll-fade`   | 表格横向溢出时左右边缘渐隐（mask）的宽度，默认 `24px`，可在外层容器设置 |
 
 ### 类型
 

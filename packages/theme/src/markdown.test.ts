@@ -28,7 +28,6 @@ describe('markdown table styles', () => {
   it('lets wide tables expand inside a contained horizontal scroller while keeping narrow tables full width', () => {
     const wrapper = rule('.dou-markdown__table')
     expect(wrapper).toMatch(/display:\s*flex/)
-    expect(wrapper).toMatch(/isolation:\s*isolate/)
     expect(wrapper).toMatch(/max-width:\s*100%/)
     expect(wrapper).toMatch(/overflow-x:\s*auto/)
     expect(wrapper).toMatch(/overscroll-behavior-x:\s*contain/)
@@ -41,7 +40,7 @@ describe('markdown table styles', () => {
     // do not reset on .dou-markdown so outer containers such as DouChatList / DouChatMessage can set them
     expect(root).not.toMatch(/--dou-markdown-table-col-min-width\s*:/)
     expect(root).not.toMatch(/--dou-markdown-table-col-max-width\s*:/)
-    expect(root).not.toMatch(/--dou-markdown-table-scroll-shadow\s*:/)
+    expect(root).not.toMatch(/--dou-markdown-table-scroll-fade\s*:/)
 
     const wrapper = rule('.dou-markdown__table')
     expect(wrapper).toMatch(/box-sizing:\s*border-box/)
@@ -53,11 +52,12 @@ describe('markdown table styles', () => {
     expect(wrapper).not.toMatch(/white-space:\s*nowrap/)
   })
 
-  it('renders sticky edge scroll shadows toggled by is-cut-start and is-cut-end', () => {
+  it('fades clipped horizontal edges via mask-image toggled by is-cut-start and is-cut-end', () => {
     const wrapper = rule('.dou-markdown__table')
-    expect(wrapper).toMatch(/&::before,\s*&::after\s*\{[^}]*position:\s*sticky/)
-    expect(wrapper).toMatch(/&::before,\s*&::after\s*\{[^}]*pointer-events:\s*none/)
-    expect(wrapper).toMatch(/--dou-markdown-table-scroll-shadow/)
-    expect(wrapper).toMatch(/&\.is-cut-start::before,\s*&\.is-cut-end::after\s*\{[^}]*opacity:\s*1/)
+    expect(wrapper).not.toMatch(/&::before|&::after/)
+    expect(wrapper).toMatch(/&\.is-cut-start\s*\{[^}]*mask-image:\s*linear-gradient\(/)
+    expect(wrapper).toMatch(/&\.is-cut-end\s*\{[^}]*mask-image:\s*linear-gradient\(/)
+    expect(wrapper).toMatch(/&\.is-cut-start\.is-cut-end\s*\{[^}]*mask-image:\s*linear-gradient\(/)
+    expect(wrapper).toMatch(/var\(--dou-markdown-table-scroll-fade,\s*24px\)/)
   })
 })

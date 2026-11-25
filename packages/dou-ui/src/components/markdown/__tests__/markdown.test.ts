@@ -651,13 +651,13 @@ describe('DouMarkdown table horizontal scroll', () => {
     expect(frame.classes()).not.toContain('is-cut-start')
     expect(frame.classes()).toContain('is-cut-end')
 
-    // scrolled into the middle: both shadows
+    // scrolled into the middle: both edge fades
     el.scrollLeft = 140
     await frame.trigger('scroll')
     expect(frame.classes()).toContain('is-cut-start')
     expect(frame.classes()).toContain('is-cut-end')
 
-    // scrolled to the end (even within 1px fractional DPR): only start shadow
+    // scrolled to the end (even within 1px fractional DPR): only start edge fade
     el.scrollLeft = 409.5
     await frame.trigger('scroll')
     expect(frame.classes()).toContain('is-cut-start')
@@ -674,7 +674,7 @@ describe('DouMarkdown table horizontal scroll', () => {
     expect(frame.classes()).toContain('is-cut-start')
     expect(frame.classes()).not.toContain('is-cut-end')
 
-    // container widens past table width: shadows clear
+    // container widens past table width: edge fades clear
     el.scrollLeft = 0
     metrics.clientWidth = 800
     ro.trigger()
@@ -686,7 +686,7 @@ describe('DouMarkdown table horizontal scroll', () => {
     expect(ro.instances[0]!.disconnected).toBe(true)
   })
 
-  it('keeps the table element and updates scroll shadows while streaming rows', async () => {
+  it('keeps the table element and updates edge fade classes while streaming rows', async () => {
     const ro = installFakeResizeObserver()
     const wrapper = mount(DouMarkdown, {
       props: { content: '', streaming: true, smooth: false },

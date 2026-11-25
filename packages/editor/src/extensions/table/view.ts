@@ -8,8 +8,8 @@ export const CELL_MIN_WIDTH = 96
 /**
  * A table in the editor: a scrolling frame (the block's content element)
  * around the table, with a `<colgroup>` that holds the column widths. When
- * columns are cut off at either side of the frame, that side has a shadow:
- * `is-cut-start` / `is-cut-end` on the frame.
+ * columns are cut off at either side of the frame, that side fades out via a
+ * mask: `is-cut-start` / `is-cut-end` on the frame.
  */
 export class TableBlockView extends TableView implements NodeView {
   private readonly observer: ResizeObserver | null = null
@@ -36,8 +36,10 @@ export class TableBlockView extends TableView implements NodeView {
     const start = Number.parseFloat(style.paddingInlineStart) || 0
     const end = Number.parseFloat(style.paddingInlineEnd) || 0
     const hidden = frame.scrollWidth - frame.clientWidth
-    frame.classList.toggle('is-cut-start', frame.scrollLeft > start + 0.5)
-    frame.classList.toggle('is-cut-end', frame.scrollLeft < hidden - end - 0.5)
+    // `scrollLeft` is negative in right-to-left pages.
+    const left = Math.abs(frame.scrollLeft)
+    frame.classList.toggle('is-cut-start', left > start + 0.5)
+    frame.classList.toggle('is-cut-end', left < hidden - end - 0.5)
   }
 
   override ignoreMutation(record: ViewMutationRecord) {

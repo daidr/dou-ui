@@ -157,81 +157,55 @@
   }
 
   .dou-markdown__table {
-    position: relative;
     display: flex;
-    isolation: isolate;
     max-width: 100%;
     overflow-x: auto;
     overscroll-behavior-x: contain;
 
     /*
-     * A shadow on a side that cuts columns off, so they read as going on
-     * under the edge instead of being sliced: a strip either side of the
-     * table that sticks to the frame's edge once the table passes it.
+     * Fade any side that cuts columns off through a mask rather than an
+     * overlay shadow, so the table blends cleanly over any surface or bubble.
      */
-    &::before,
-    &::after {
-      content: '';
-      position: sticky;
-      z-index: 1;
-      flex: none;
-      width: 8px;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
-    }
-
-    &::before {
-      inset-inline-start: 0;
-      margin-inline-end: -8px;
-      background-image: linear-gradient(
+    &.is-cut-start {
+      mask-image: linear-gradient(
         to right,
-        var(
-          --dou-markdown-table-scroll-shadow,
-          color-mix(in oklab, var(--dou-color-text) 14%, transparent)
-        ),
-        transparent
+        transparent,
+        #000 var(--dou-markdown-table-scroll-fade, 24px)
       );
     }
 
-    &::after {
-      inset-inline-end: 0;
-      margin-inline-start: -8px;
-      background-image: linear-gradient(
+    &.is-cut-end {
+      mask-image: linear-gradient(
         to left,
-        var(
-          --dou-markdown-table-scroll-shadow,
-          color-mix(in oklab, var(--dou-color-text) 14%, transparent)
-        ),
-        transparent
+        transparent,
+        #000 var(--dou-markdown-table-scroll-fade, 24px)
       );
     }
 
-    &:dir(rtl)::before {
-      background-image: linear-gradient(
+    [dir='rtl'] &.is-cut-start {
+      mask-image: linear-gradient(
         to left,
-        var(
-          --dou-markdown-table-scroll-shadow,
-          color-mix(in oklab, var(--dou-color-text) 14%, transparent)
-        ),
-        transparent
+        transparent,
+        #000 var(--dou-markdown-table-scroll-fade, 24px)
       );
     }
 
-    &:dir(rtl)::after {
-      background-image: linear-gradient(
+    [dir='rtl'] &.is-cut-end {
+      mask-image: linear-gradient(
         to right,
-        var(
-          --dou-markdown-table-scroll-shadow,
-          color-mix(in oklab, var(--dou-color-text) 14%, transparent)
-        ),
-        transparent
+        transparent,
+        #000 var(--dou-markdown-table-scroll-fade, 24px)
       );
     }
 
-    &.is-cut-start::before,
-    &.is-cut-end::after {
-      opacity: 1;
+    &.is-cut-start.is-cut-end {
+      mask-image: linear-gradient(
+        to right,
+        transparent,
+        #000 var(--dou-markdown-table-scroll-fade, 24px),
+        #000 calc(100% - var(--dou-markdown-table-scroll-fade, 24px)),
+        transparent
+      );
     }
 
     & > table {

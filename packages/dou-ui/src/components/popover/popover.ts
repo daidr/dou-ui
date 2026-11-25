@@ -16,7 +16,7 @@ export interface PopoverProps {
   /** What opens the popover. `manual` leaves it entirely to `v-model:open`. */
   trigger?: PopoverTrigger
   disabled?: boolean
-  /** The width of the panel; a number is in px. */
+  /** The width of the panel; a number is in px. Also raises `--dou-popover-max-width`, still capped to the viewport width. */
   width?: string | number
   /** The maximum height of the panel; a number is in px. Still capped to the available viewport height. */
   maxHeight?: string | number

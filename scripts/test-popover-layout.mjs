@@ -18,7 +18,7 @@ try {
   browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
   for (const viewportWidth of [1258, 390, 320]) {
     for (const edge of ['left', 'right']) {
-      for (const width of ['', '320', '20rem', '50%']) {
+      for (const width of ['', '320', '560', '20rem', '36rem', '50%']) {
         const page = await browser.newPage({
           viewport: { width: viewportWidth, height: 844 },
           reducedMotion: 'reduce',
@@ -68,7 +68,10 @@ try {
           )
           if (width === '320' || width === '20rem')
             assert.equal(last.width, Math.min(320, viewportWidth - 16), label)
-          if (width === '50%') assert.equal(last.width, Math.min(360, viewportWidth / 2), label)
+          if (width === '560') assert.equal(last.width, Math.min(560, viewportWidth - 16), label)
+          if (width === '36rem') assert.equal(last.width, Math.min(576, viewportWidth - 16), label)
+          if (width === '50%')
+            assert.equal(last.width, Math.min(viewportWidth / 2, viewportWidth - 16), label)
           if (!width && content === 'long')
             assert.equal(last.width, Math.min(360, viewportWidth - 16), label)
           if (!width && content === 'short') assert.ok(last.width < 100, label)
@@ -233,6 +236,41 @@ try {
     assert.equal(metrics.placement, 'top-start', label)
     assert.ok(metrics.height >= 218 && metrics.height <= 222, `${label}: got ${metrics.height}`)
     assert.ok(metrics.top >= 7.5 && metrics.bottom <= 480 - 7.5, label)
+    assert.deepEqual(errors, [], label)
+    process.stdout.write(`PASS ${label}\n`)
+    await page.close()
+  }
+
+  // Non-min()-compatible width strings (e.g. unitless "560" or vendor keywords)
+  // must not invalidate `max-width: min(...)` and drop the default/viewport cap.
+  for (const rawWidth of ['560', '-webkit-fill-available', 'calc-size(auto, size)', '560 px']) {
+    const label = `320px non-min width=${rawWidth} keeps viewport clamp`
+    const page = await browser.newPage({
+      viewport: { width: 320, height: 844 },
+      reducedMotion: 'reduce',
+    })
+    const errors = []
+    page.on('pageerror', (error) => errors.push(error.message))
+    const query = new URLSearchParams({ edge: 'left', placement: 'bottom-start', rawWidth })
+    await page.goto(`http://127.0.0.1:${address.port}/popover-layout.html?${query}`)
+    await page.locator('#show').click()
+    await page.locator('.dou-popover').waitFor({ state: 'visible' })
+    const metrics = await page.evaluate(async () => {
+      document.getElementById('long').click()
+      await new Promise(requestAnimationFrame)
+      await new Promise(requestAnimationFrame)
+      const panel = document.querySelector('.dou-popover')
+      const rect = panel.getBoundingClientRect()
+      return {
+        width: rect.width,
+        left: rect.left,
+        right: rect.right,
+        maxWidth: getComputedStyle(panel).maxWidth,
+      }
+    })
+    assert.notEqual(metrics.maxWidth, 'none', label)
+    assert.ok(metrics.width <= 304 + 0.5, `${label}: width ${metrics.width} exceeded 304`)
+    assert.ok(metrics.left >= 7.5 && metrics.right <= 320 - 7.5, label)
     assert.deepEqual(errors, [], label)
     process.stdout.write(`PASS ${label}\n`)
     await page.close()

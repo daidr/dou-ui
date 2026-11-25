@@ -16,7 +16,9 @@
 
 ## 宽度
 
-默认按内容的自然宽度显示，内容更新后重新计算宽度；最宽为 360px，并在视口两侧各留出 8px。通过 `width` 指定宽度，数字按 px 处理，也可以传入 `20rem` 等 CSS 长度。`--dou-popover-max-width` 可以调整最大宽度，指定的 `width` 仍受这个上限和视口宽度约束。
+默认按内容的自然宽度显示，内容更新后重新计算宽度；默认最大宽度为 360px，并在视口两侧各留出 8px，可以通过 `--dou-popover-max-width` 调整自动宽度时的上限。通过 `width` 指定宽度（数字按 px 处理，也可以传入 `20rem`、`50%` 等 CSS 长度）时，会同步更新 `--dou-popover-max-width`，使宽弹层按指定宽度展开，在窄屏下仍受视口宽度约束而不会溢出。
+
+<DocDemo src="popover/width" />
 
 ## 高度与滚动
 
@@ -38,21 +40,21 @@
 
 ### Props
 
-| 名称        | 说明                                                 | 类型                             | 默认值     |
-| ----------- | ---------------------------------------------------- | -------------------------------- | ---------- |
-| `open`      | 是否打开，配合 `v-model:open`                        | `boolean`                        | `false`    |
-| `title`     | 标题，同时为卡片命名                                 | `string`                         | —          |
-| `content`   | 正文                                                 | `string`                         | —          |
-| `placement` | 首选的一侧                                           | `Placement`                      | `'bottom'` |
-| `trigger`   | 打开方式                                             | `'click' \| 'hover' \| 'manual'` | `'click'`  |
-| `disabled`  | 不再打开                                             | `boolean`                        | `false`    |
-| `width`     | 卡片宽度；数字为 px                                  | `string \| number`               | —          |
-| `maxHeight` | 卡片最大高度；数字为 px，仍受视口可用空间约束        | `string \| number`               | —          |
-| `showDelay` | `hover` 时多久打开，毫秒                             | `number`                         | `100`      |
-| `hideDelay` | `hover` 时离开后多久关闭，毫秒                       | `number`                         | `150`      |
-| `offset`    | 与触发元素的间距，px                                 | `number`                         | `8`        |
-| `openOnTap` | `hover` 模式下触屏或触控笔轻点触发元素时是否打开卡片 | `boolean`                        | `true`     |
-| `teleport`  | 渲染到哪里；`false` 为原地渲染                       | `string \| HTMLElement \| false` | `'body'`   |
+| 名称        | 说明                                                      | 类型                             | 默认值     |
+| ----------- | --------------------------------------------------------- | -------------------------------- | ---------- |
+| `open`      | 是否打开，配合 `v-model:open`                             | `boolean`                        | `false`    |
+| `title`     | 标题，同时为卡片命名                                      | `string`                         | —          |
+| `content`   | 正文                                                      | `string`                         | —          |
+| `placement` | 首选的一侧                                                | `Placement`                      | `'bottom'` |
+| `trigger`   | 打开方式                                                  | `'click' \| 'hover' \| 'manual'` | `'click'`  |
+| `disabled`  | 不再打开                                                  | `boolean`                        | `false`    |
+| `width`     | 卡片宽度；数字为 px，会同步更新最大宽度，仍受视口宽度约束 | `string \| number`               | —          |
+| `maxHeight` | 卡片最大高度；数字为 px，仍受视口可用空间约束             | `string \| number`               | —          |
+| `showDelay` | `hover` 时多久打开，毫秒                                  | `number`                         | `100`      |
+| `hideDelay` | `hover` 时离开后多久关闭，毫秒                            | `number`                         | `150`      |
+| `offset`    | 与触发元素的间距，px                                      | `number`                         | `8`        |
+| `openOnTap` | `hover` 模式下触屏或触控笔轻点触发元素时是否打开卡片      | `boolean`                        | `true`     |
+| `teleport`  | 渲染到哪里；`false` 为原地渲染                            | `string \| HTMLElement \| false` | `'body'`   |
 
 ### Slots
 

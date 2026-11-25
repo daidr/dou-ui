@@ -7,6 +7,16 @@ DouUI 的所有包（`dou-ui`、`@dou-ui/theme`、`@dou-ui/icons` 以及生态�
 
 这个文件由发版脚本生成：改动先以碎片文件记在 [`.changes/`](./.changes/README.md) 里，发布时汇总到这里。
 
+## 0.1.0-alpha.26 · 2026-11-25
+
+### 新增
+
+- **dou-ui、@dou-ui/theme**：`DouTabs` 与 `DouDock` 支持通过 `--dou-tabs-tab-max-width` 限制标签最大宽度并截断长标题，悬停时仅在标题实际溢出时自动展示原生 `title` 提示完整标题（含溢出列表弹层与自定义 `label` 插槽）；`DouDock` 新增面板 `mergeId`、`beforeMove` 回调、`move` 事件的 `mergedInto` 字段以及 `mergeDockTab` 布局函数，支持跨组拖动同源标签时高亮目标标签并在松手后自动合并激活。 ([#536](https://github.com/daidr/dou-ui/pull/536))
+
+### 修复
+
+- **dou-ui**：修复 `DouPopover` 传入超过 360px 的 `width` 时被默认 `--dou-popover-max-width: 360px` 截断的问题：显式传入 `width` 时同步更新 `--dou-popover-max-width`，同时保留视口宽度上限约束，窄屏下仍自动收缩不溢出。 ([#535](https://github.com/daidr/dou-ui/pull/535))
+
 ## 0.1.0-alpha.25 · 2026-11-24
 
 ### 新增

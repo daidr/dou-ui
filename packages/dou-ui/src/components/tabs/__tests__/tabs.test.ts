@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
-import { DouTabPanel, DouTabs } from '../../../index'
+import { DouStatusDot, DouTabPanel, DouTabs } from '../../../index'
 
 const make = (props: Record<string, unknown> = {}) =>
   mount(
@@ -134,6 +134,13 @@ describe('DouTabs', () => {
     expect(wrapper.emitted('change')).toEqual([[2]])
   })
 })
+
+function setWidths(el: HTMLElement, clientWidth: number, scrollWidth: number) {
+  Object.defineProperties(el, {
+    clientWidth: { configurable: true, get: () => clientWidth },
+    scrollWidth: { configurable: true, get: () => scrollWidth },
+  })
+}
 
 function wheelWithModifier(modifier: 'ctrlKey' | 'metaKey') {
   const event = new WheelEvent('wheel', { deltaY: 60, deltaX: 0, cancelable: true })
@@ -734,6 +741,109 @@ describe('DouTabs overflow', () => {
     buttons[1]!.dispatchEvent(new PointerEvent('pointerenter'))
     expect(buttons[0]!.getAttribute('title')).toBeNull()
     expect(buttons[1]!.getAttribute('title')).toBe('标签 1')
+
+    wrapper.unmount()
+  })
+
+  it('ignores ripple status dots in custom #label slots when resolving truncated titles', async () => {
+    const wrapper = mount(
+      defineComponent({
+        setup: () => () =>
+          h(DouTabs, null, () => [
+            h(
+              DouTabPanel,
+              { value: 'short', label: '核查度量前端灰度残留' },
+              {
+                label: () => [
+                  h(DouStatusDot, { tone: 'primary', ripple: true, 'aria-hidden': 'true' }),
+                  h('span', { class: 'pane-thread-title' }, '核查度量前端灰度残留'),
+                ],
+              },
+            ),
+            h(
+              DouTabPanel,
+              { value: 'long', label: '备用外部标题' },
+              {
+                label: () => [
+                  h(DouStatusDot, { tone: 'primary', ripple: true, 'aria-hidden': 'true' }),
+                  h('span', { class: 'pane-thread-title' }, '超长讨论串标题实际发生水平截断'),
+                ],
+              },
+            ),
+            h(
+              DouTabPanel,
+              { value: 'owned', label: '备用外部标题' },
+              {
+                label: () => [
+                  h(DouStatusDot, { tone: 'primary', ripple: true, 'aria-hidden': 'true' }),
+                  h(
+                    'span',
+                    { class: 'pane-thread-title', title: '业务自定义提示' },
+                    '自带提示的截断标题',
+                  ),
+                ],
+              },
+            ),
+            h(
+              DouTabPanel,
+              { value: 'dot-with-text', label: '备用状态标签' },
+              {
+                label: () => h(DouStatusDot, { tone: 'primary', ripple: true }, () => '运行中任务'),
+              },
+            ),
+          ]),
+      }),
+      { attachTo: document.body },
+    )
+    await nextTick()
+
+    const [shortTab, longTab, ownedTab, dotWithTextTab] = wrapper.findAll('[role="tab"]')
+
+    // Simulate Chromium ripple pseudo-element enlarging status-dot scrollWidth (8 -> 14)
+    for (const tab of [shortTab!, longTab!, ownedTab!]) {
+      const dotWrap = tab.get('.dou-status-dot').element as HTMLElement
+      const dot = tab.get('.dou-status-dot__dot').element as HTMLElement
+      dotWrap.style.overflowX = 'visible'
+      dot.style.overflowX = 'visible'
+      setWidths(dotWrap, 8, 14)
+      setWidths(dot, 8, 14)
+    }
+
+    const shortTitle = shortTab!.get('.pane-thread-title').element as HTMLElement
+    shortTitle.style.overflow = 'hidden'
+    setWidths(shortTitle, 130, 130)
+    await shortTab!.trigger('pointerenter')
+    expect(shortTab!.attributes('title')).toBeUndefined()
+
+    const longTitle = longTab!.get('.pane-thread-title').element as HTMLElement
+    longTitle.style.overflow = 'hidden'
+    setWidths(longTitle, 120, 240)
+    await longTab!.trigger('pointerenter')
+    expect(longTab!.attributes('title')).toBe('超长讨论串标题实际发生水平截断')
+
+    const ownedTitle = ownedTab!.get('.pane-thread-title').element as HTMLElement
+    ownedTitle.style.overflow = 'hidden'
+    setWidths(ownedTitle, 100, 220)
+    await ownedTab!.trigger('pointerenter')
+    expect(ownedTab!.attributes('title')).toBeUndefined()
+    expect(ownedTitle.getAttribute('title')).toBe('业务自定义提示')
+
+    // DouStatusDot with slotted text: outer container has overflow-x: visible, inner label clips
+    const dotTextWrap = dotWithTextTab!.get('.dou-status-dot').element as HTMLElement
+    const dotInner = dotWithTextTab!.get('.dou-status-dot__dot').element as HTMLElement
+    const dotLabel = dotWithTextTab!.get('.dou-status-dot__label').element as HTMLElement
+    dotTextWrap.style.overflowX = 'visible'
+    dotInner.style.overflowX = 'visible'
+    dotLabel.style.overflowX = 'clip'
+    setWidths(dotTextWrap, 72, 78)
+    setWidths(dotInner, 8, 14)
+    setWidths(dotLabel, 56, 56)
+    await dotWithTextTab!.trigger('pointerenter')
+    expect(dotWithTextTab!.attributes('title')).toBeUndefined()
+
+    setWidths(dotLabel, 56, 140)
+    await dotWithTextTab!.trigger('pointerenter')
+    expect(dotWithTextTab!.attributes('title')).toBe('运行中任务')
 
     wrapper.unmount()
   })

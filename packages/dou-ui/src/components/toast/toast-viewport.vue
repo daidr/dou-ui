@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useNamespace } from '../../utils/namespace'
+import { useScopeAttrs } from '../../utils/scope-id'
 import { useLocale, useZIndex } from '../config-provider/use-config'
 import { nextViewportId, removeToast, toastState } from './store'
 import ToastStack from './toast-stack.vue'
@@ -11,6 +12,7 @@ defineOptions({ name: 'DouToastViewport', inheritAttrs: false })
 const props = withDefaults(defineProps<ToastViewportProps>(), { max: 5, stacked: true })
 
 const ns = useNamespace('toast')
+const scopeAttrs = useScopeAttrs()
 const { t } = useLocale()
 const { next } = useZIndex()
 
@@ -86,7 +88,7 @@ onMounted(() => (mounted.value = true))
     <section
       v-for="group in groups"
       :key="group.placement"
-      v-bind="$attrs"
+      v-bind="{ ...scopeAttrs(), ...$attrs }"
       :class="[ns.b(), ns.m(group.placement)]"
       :style="{ zIndex }"
       :aria-label="t('toast.region')"

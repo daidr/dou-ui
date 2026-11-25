@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useId } from 'vue'
 import { useNamespace } from '../../utils/namespace'
+import { useScopeAttrs } from '../../utils/scope-id'
 import type { DropdownGroupProps, DropdownGroupSlots } from './dropdown'
 
 defineOptions({ name: 'DouDropdownGroup', inheritAttrs: false })
@@ -9,6 +10,7 @@ const props = withDefaults(defineProps<DropdownGroupProps>(), { divided: false }
 const slots = defineSlots<DropdownGroupSlots>()
 
 const ns = useNamespace('dropdown')
+const scopeAttrs = useScopeAttrs()
 const id = `dou-dropdown-group-${useId()}`
 
 // Read while rendering: slots are not reactive, a computed would miss one added later.
@@ -18,7 +20,7 @@ const titled = () => !!(slots.label || props.label)
 <template>
   <div v-if="divided" role="separator" :class="ns.e('separator')" />
   <div
-    v-bind="$attrs"
+    v-bind="{ ...scopeAttrs(), ...$attrs }"
     role="group"
     :class="ns.e('group')"
     :aria-labelledby="titled() ? id : undefined"

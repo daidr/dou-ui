@@ -499,7 +499,7 @@ defineExpose<SelectExpose>({ focus, blur: () => combobox()?.blur() })
 </script>
 
 <template>
-  <OnlyChild ref="triggerRef">
+  <OnlyChild ref="triggerRef" inherit-scope>
     <div
       ref="field"
       v-bind="filterable ? $attrs : { ...$attrs, ...comboboxAttrs }"

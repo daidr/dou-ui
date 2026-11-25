@@ -17,6 +17,7 @@ import { useLayer } from '../../composables/use-layer'
 import { useThemeScope } from '../../composables/use-theme-scope'
 import { useNamespace } from '../../utils/namespace'
 import { OnlyChild, onlyChildElement } from '../../utils/only-child'
+import { useScopeAttrs } from '../../utils/scope-id'
 import { useZIndex } from '../config-provider/use-config'
 import { dropdownKey } from '../dropdown/dropdown'
 import type { DropdownValue } from '../dropdown/dropdown'
@@ -265,6 +266,7 @@ const onMenuKeydown = useMenuKeys(
 )
 
 const attrs = useAttrs()
+const scopeAttrs = useScopeAttrs()
 
 provide(dropdownKey, {
   select(value) {
@@ -276,6 +278,7 @@ provide(dropdownKey, {
   hold: () => {},
   release: () => {},
   panelClass: () => attrs.class,
+  panelScopeAttrs: scopeAttrs,
   teleport: () => teleportTarget.value,
 })
 
@@ -300,7 +303,7 @@ defineExpose<ContextMenuExpose>({ open: show, close: hide })
         :style="panelStyle"
         :data-placement="floating.placement.value"
         :data-dou-theme="theme"
-        v-bind="$attrs"
+        v-bind="{ ...scopeAttrs(), ...$attrs }"
         @keydown="onMenuKeydown"
         @contextmenu.prevent
       >

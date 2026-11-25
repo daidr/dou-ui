@@ -198,6 +198,8 @@ export interface DropdownContext {
   move?: (direction: 1 | -1) => void
   /** The `class` given to the menu; its submenus carry it too, being put elsewhere. */
   panelClass?: () => unknown
+  /** The inherited `data-v-*` scope attributes of the menu, carried onto submenus too. */
+  panelScopeAttrs?: () => Record<string, ''>
   /** Where the menu renders; its submenus go to the same place. */
   teleport?: () => { to: string | HTMLElement; disabled: boolean }
 }

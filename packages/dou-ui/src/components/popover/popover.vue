@@ -5,6 +5,7 @@ import { getTabbable } from '../../composables/use-focus-trap'
 import { usePopup } from '../../composables/use-popup'
 import { useNamespace } from '../../utils/namespace'
 import { OnlyChild } from '../../utils/only-child'
+import { useScopeAttrs } from '../../utils/scope-id'
 import type { PopoverExpose, PopoverProps, PopoverSlots } from './popover'
 import { useTeleport } from '../../utils/teleport'
 
@@ -26,6 +27,7 @@ defineSlots<PopoverSlots>()
 const slots = useSlots()
 
 const ns = useNamespace('popover')
+const scopeAttrs = useScopeAttrs()
 const id = `dou-popover-${useId()}`
 const titleId = `${id}-title`
 const hasTitle = computed(() => !!props.title || !!slots.title)
@@ -154,7 +156,7 @@ defineExpose<PopoverExpose>({ open: () => popup.show(), close: () => popup.dismi
         :style="[panelStyle, panelSizeStyle]"
         :data-placement="placement"
         :data-dou-theme="theme"
-        v-bind="{ ...$attrs, ...panelListeners }"
+        v-bind="{ ...scopeAttrs(), ...$attrs, ...panelListeners }"
         @keydown="onPanelKeydown"
       >
         <div v-if="hasTitle" :id="titleId" :class="ns.e('title')">

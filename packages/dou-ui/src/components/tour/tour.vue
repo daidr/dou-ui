@@ -15,6 +15,7 @@ import type { VirtualElement } from '../../composables/use-floating'
 import { useLayer } from '../../composables/use-layer'
 import { useThemeScope } from '../../composables/use-theme-scope'
 import { useNamespace } from '../../utils/namespace'
+import { useScopeAttrs } from '../../utils/scope-id'
 import { useTeleport } from '../../utils/teleport'
 import { DouButton } from '../button'
 import { useLocale, useZIndex } from '../config-provider/use-config'
@@ -37,6 +38,7 @@ const emit = defineEmits<TourEmits>()
 defineSlots<TourSlots>()
 
 const ns = useNamespace('tour')
+const scopeAttrs = useScopeAttrs()
 const { t } = useLocale()
 const id = `dou-tour-${useId()}`
 const teleportTarget = useTeleport(() => props.teleport)
@@ -266,7 +268,7 @@ defineExpose<TourExpose>({ next, prev, close })
       />
       <Transition appear name="dou-floating">
         <div
-          v-bind="$attrs"
+          v-bind="{ ...scopeAttrs(), ...$attrs }"
           ref="card"
           role="dialog"
           :aria-labelledby="step.title || $slots.title ? titleId : undefined"

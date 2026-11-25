@@ -3,6 +3,7 @@ import { computed, inject, mergeProps, nextTick, provide, useAttrs, useId } from
 import { usePopup } from '../../composables/use-popup'
 import { useNamespace } from '../../utils/namespace'
 import { OnlyChild } from '../../utils/only-child'
+import { useScopeAttrs } from '../../utils/scope-id'
 import { dropdownHostKey, dropdownKey } from './dropdown'
 import { menuItems, useMenuKeys } from './menu-keys'
 import type { DropdownExpose, DropdownProps, DropdownSlots, DropdownValue } from './dropdown'
@@ -31,6 +32,7 @@ const slots = defineSlots<DropdownSlots>()
 useItemsWarning('Dropdown', () => !!props.items && !!slots.menu)
 
 const ns = useNamespace('dropdown')
+const scopeAttrs = useScopeAttrs()
 const id = `dou-dropdown-${useId()}`
 
 const popup = usePopup({
@@ -114,6 +116,7 @@ provide(dropdownKey, {
   release: () => props.trigger === 'hover' && popup.hide(props.hideDelay),
   move: host ? (direction) => host.move(direction) : undefined,
   panelClass: () => attrs.class,
+  panelScopeAttrs: scopeAttrs,
   teleport: () => teleportTarget.value,
 })
 
@@ -134,7 +137,7 @@ defineExpose<DropdownExpose>({ open: () => popup.show(), close: () => popup.hide
         :style="panelStyle"
         :data-placement="placement"
         :data-dou-theme="theme"
-        v-bind="{ ...$attrs, ...panelListeners }"
+        v-bind="{ ...scopeAttrs(), ...$attrs, ...panelListeners }"
         @keydown="onMenuKeydown"
       >
         <slot name="menu"><DropdownItems v-if="props.items" :items="props.items" /></slot>

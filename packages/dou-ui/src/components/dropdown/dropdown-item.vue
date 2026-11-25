@@ -3,6 +3,7 @@ import { CheckIcon } from '@dou-ui/icons'
 import { computed, inject, useId } from 'vue'
 import { ariaHotkey, formatHotkey, useApplePlatform } from '../../composables/use-hotkey'
 import { useNamespace } from '../../utils/namespace'
+import { useScopeAttrs } from '../../utils/scope-id'
 import { dropdownKey, dropdownRadioGroupKey } from './dropdown'
 import type { DropdownItemProps, DropdownItemSlots } from './dropdown'
 
@@ -18,6 +19,7 @@ const emit = defineEmits<{ click: [event: MouseEvent]; 'update:checked': [checke
 const slots = defineSlots<DropdownItemSlots>()
 
 const ns = useNamespace('dropdown')
+const scopeAttrs = useScopeAttrs()
 const dropdown = inject(dropdownKey, null)
 const radioGroup = inject(dropdownRadioGroupKey, null)
 const apple = useApplePlatform()
@@ -81,7 +83,7 @@ function onPointerleave(event: PointerEvent) {
 <template>
   <div v-if="divided" role="separator" :class="ns.e('separator')" />
   <div
-    v-bind="$attrs"
+    v-bind="{ ...scopeAttrs(), ...$attrs }"
     :role="role"
     tabindex="-1"
     :class="classes()"

@@ -302,7 +302,7 @@ defineExpose<AutocompleteExpose>({
 </script>
 
 <template>
-  <OnlyChild ref="triggerRef">
+  <OnlyChild ref="triggerRef" inherit-scope>
     <DouTextarea
       v-if="autosize"
       ref="input"

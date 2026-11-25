@@ -128,7 +128,7 @@ const classes = computed(() => [
 
 <template>
   <div v-if="divided" role="separator" :class="ns.e('separator')" />
-  <OnlyChild ref="triggerRef">
+  <OnlyChild ref="triggerRef" inherit-scope>
     <div
       v-bind="$attrs"
       role="menuitem"
@@ -159,6 +159,7 @@ const classes = computed(() => [
         ref="panelRef"
         role="menu"
         tabindex="-1"
+        v-bind="dropdown?.panelScopeAttrs?.()"
         :class="[ns.b(), ns.m('sub'), 'dou-floating', dropdown?.panelClass?.()]"
         :style="panelStyle"
         :data-placement="placement"

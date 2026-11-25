@@ -15,6 +15,7 @@ import {
 import { computed, nextTick, ref, useId, useTemplateRef, watch } from 'vue'
 import { useModal } from '../../composables/use-modal'
 import { useNamespace } from '../../utils/namespace'
+import { useScopeAttrs } from '../../utils/scope-id'
 import { useTeleport } from '../../utils/teleport'
 import { useLocale } from '../config-provider/use-config'
 import type { ImagePreviewProps } from './image'
@@ -38,6 +39,7 @@ const index = defineModel<number>('index', { default: 0 })
 const emit = defineEmits<{ close: [] }>()
 
 const ns = useNamespace('image-preview')
+const scopeAttrs = useScopeAttrs()
 const { t } = useLocale()
 const id = `dou-image-preview-${useId()}`
 
@@ -160,7 +162,7 @@ const label = computed(() =>
         aria-modal="true"
         tabindex="-1"
         :aria-label="current?.alt || t('image.preview')"
-        v-bind="$attrs"
+        v-bind="{ ...scopeAttrs(), ...$attrs }"
         :class="ns.b()"
         :style="{ zIndex }"
         :data-dou-theme="theme"

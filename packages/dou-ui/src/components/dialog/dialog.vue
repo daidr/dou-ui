@@ -3,6 +3,7 @@ import { CloseIcon, MaximizeIcon, MinimizeIcon } from '@dou-ui/icons'
 import { computed, onBeforeUnmount, ref, useId, useTemplateRef, watch } from 'vue'
 import { useModal } from '../../composables/use-modal'
 import { useNamespace } from '../../utils/namespace'
+import { useScopeAttrs } from '../../utils/scope-id'
 import { useLocale } from '../config-provider/use-config'
 import type { DialogExpose, DialogProps, DialogSlots } from './dialog'
 import { useTeleport } from '../../utils/teleport'
@@ -27,6 +28,7 @@ const emit = defineEmits<{ open: []; opened: []; close: []; closed: [] }>()
 const slots = defineSlots<DialogSlots>()
 
 const ns = useNamespace('dialog')
+const scopeAttrs = useScopeAttrs()
 const { t } = useLocale()
 const id = `dou-dialog-${useId()}`
 const hasTitle = computed(() => !!props.title || !!slots.title)
@@ -138,7 +140,7 @@ defineExpose<DialogExpose>({ close })
           :aria-labelledby="hasTitle ? `${id}-title` : undefined"
           :class="[ns.e('panel'), ns.is('draggable', canDrag)]"
           :style="panelStyle"
-          v-bind="$attrs"
+          v-bind="{ ...scopeAttrs(), ...$attrs }"
         >
           <template v-if="mounted">
             <header

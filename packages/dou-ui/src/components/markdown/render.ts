@@ -5,6 +5,10 @@ import {
   getCurrentInstance,
   h,
   inject,
+  onBeforeUnmount,
+  onMounted,
+  onUpdated,
+  ref,
   type ComponentInternalInstance,
   type InjectionKey,
   type PropType,
@@ -443,7 +447,8 @@ function renderDefault(
       )
     case 'table': {
       const entering = enter(ctx, node.start)
-      return h('div', { class: [`${B}__table`, entering] }, children())
+      const content = children()
+      return h(MarkdownTableView, { entering }, { default: () => content })
     }
     case 'code':
       return h(DouCodeBlock, {
@@ -558,6 +563,77 @@ export const MarkdownBlockView = defineComponent({
         ? renderItem(ctx, props.node, props.tick)
         : renderBlock(ctx, props.node, props.tick)
     }
+  },
+})
+
+const MarkdownTableView = defineComponent({
+  name: 'DouMarkdownTable',
+  props: {
+    entering: { type: String, default: undefined },
+  },
+  setup(props, { slots }) {
+    const frameRef = ref<HTMLElement | null>(null)
+    const cutStart = ref(false)
+    const cutEnd = ref(false)
+    let observer: ResizeObserver | undefined
+    let observedTable: Element | null = null
+
+    function measure() {
+      const frame = frameRef.value
+      if (!frame) return
+      const hidden = frame.scrollWidth - frame.clientWidth
+      // `scrollLeft` is negative in right-to-left pages.
+      const left = Math.abs(frame.scrollLeft)
+      cutStart.value = left > 1
+      cutEnd.value = left < hidden - 1
+    }
+
+    function syncObservedTable() {
+      const frame = frameRef.value
+      if (!observer || !frame) return
+      const table = frame.querySelector('table')
+      if (table === observedTable) return
+      if (observedTable) observer.unobserve(observedTable)
+      observedTable = table
+      if (observedTable) observer.observe(observedTable)
+    }
+
+    onMounted(() => {
+      const frame = frameRef.value
+      if (!frame) return
+      measure()
+      if (typeof ResizeObserver === 'undefined') return
+      observer = new ResizeObserver(measure)
+      observer.observe(frame)
+      syncObservedTable()
+    })
+
+    onUpdated(() => {
+      syncObservedTable()
+      measure()
+    })
+
+    onBeforeUnmount(() => {
+      observer?.disconnect()
+      observer = undefined
+      observedTable = null
+    })
+
+    return () =>
+      h(
+        'div',
+        {
+          ref: frameRef,
+          class: [
+            `${B}__table`,
+            props.entering,
+            cutStart.value && 'is-cut-start',
+            cutEnd.value && 'is-cut-end',
+          ],
+          onScrollPassive: measure,
+        },
+        slots.default?.(),
+      )
   },
 })
 

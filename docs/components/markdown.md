@@ -43,6 +43,21 @@ app.use(DouUI, {
 
 <DocDemo src="markdown/chat" column />
 
+## 表格
+
+表格在较宽容器中默认撑满可用宽度。容器宽度不足时，各列保留最小宽度并按内容自然展开，到达单列最大宽度后通过 `overflow-wrap: anywhere` 自动折行，整张表格在 `.dou-markdown__table` 内横向滚动，且带有防滚动穿透（`overscroll-behavior-x: contain`）与左右边缘阴影提示。切换下面示例的宽度可以对比窄屏与桌面端的排布。
+
+<DocDemo src="markdown/table" column />
+
+列宽范围和滚动阴影颜色可通过 CSS 变量按阅读宽度调整，且支持设置在 `DouChatList`、`DouChatMessage` 等外层容器上向下继承：
+
+```css
+.conversation {
+  --dou-markdown-table-col-min-width: 88px;
+  --dou-markdown-table-col-max-width: min(280px, 65vw);
+}
+```
+
 ## 角标
 
 传入 `sources` 后，正文中的 `[1]`、`[^1]`、`[1, 2]` 显示为可预览的[角标](./chat-sources#角标引用)，编号从 1 开始对应 `sources` 中的来源。ChatMessage 会自动把消息里 `sources` 片段的来源按顺序传进来。
@@ -164,6 +179,16 @@ parser.update(text, { final: true })
 | 名称    | 说明                     | 类型         |
 | ------- | ------------------------ | ------------ |
 | `flush` | 立即显示已收到的全部内容 | `() => void` |
+
+### CSS 变量
+
+| 变量                                 | 说明                                                                    |
+| ------------------------------------ | ----------------------------------------------------------------------- |
+| `--dou-markdown-gap`                 | 相邻块之间的垂直间距，默认 `0.75em`                                     |
+| `--dou-markdown-fade`                | 流式新内容淡入时长，默认 `var(--dou-motion-duration-slow)`              |
+| `--dou-markdown-table-col-min-width` | 表格列的最小宽度，默认 `96px`，可在外层容器设置                         |
+| `--dou-markdown-table-col-max-width` | 表格列的最大宽度，默认 `min(320px, 70vw)`，超出后安全折行，可在外层设置 |
+| `--dou-markdown-table-scroll-shadow` | 表格横向溢出时左右边缘阴影的颜色，可在外层容器设置                      |
 
 ### 类型
 

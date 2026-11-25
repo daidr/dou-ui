@@ -19,6 +19,8 @@ export interface DockContext {
   resize: (node: DockSplit, size: number) => void
   select: (group: DockGroup, value: TabsValue) => void
   move: (event: TabsMoveEvent) => void
+  /** Existing tab in `group` that `drag` will merge into by `mergeId`, if any. */
+  mergeTarget: (drag: TabDrag, group: DockGroup) => TabsValue | undefined
   /** Whether a drop on the body of `group` could do something. */
   canDrop: (drag: TabDrag, group: DockGroup, side: DockSide | 'center') => boolean
   drop: (drag: TabDrag, group: DockGroup, side: DockSide | 'center') => void

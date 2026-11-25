@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { h } from 'vue'
+import { h, ref, useTemplateRef, watch } from 'vue'
 import { CloseIcon } from '@dou-ui/icons'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import { DouTooltip } from '../tooltip'
+import { resolveTruncatedTitle } from './truncated-title'
 import type { FunctionalComponent, VNode } from 'vue'
 import type { TabPanelEntry } from './tabs'
 
@@ -19,6 +20,7 @@ const props = defineProps<{
   iconAlone: boolean
   draggable: boolean
   dragging: boolean
+  mergeTarget?: boolean
   tipPlacement: 'top' | 'right' | 'left'
   keyShortcuts?: string
   setEl: (el: unknown) => void
@@ -34,6 +36,22 @@ const emit = defineEmits<{
 const ns = useNamespace('tabs')
 const { t } = useLocale()
 const onButtonRef = (el: unknown) => props.setEl(el)
+
+// A label cut short by an ellipsis shows the full text as a native title on
+// hover. Measured lazily on pointerenter so idle tabs pay nothing, and skipped
+// for icon-alone tabs which already have a DouTooltip.
+const labelRef = useTemplateRef<HTMLElement>('label')
+const tabTitle = ref<string>()
+function updateTitle() {
+  if (props.iconAlone) {
+    tabTitle.value = undefined
+    return
+  }
+  tabTitle.value = resolveTruncatedTitle(labelRef.value, props.entry.props.label)
+}
+watch([() => props.labelText, () => props.iconAlone], () => {
+  tabTitle.value = undefined
+})
 
 /** The label slot of a panel, rendered inside its tab. */
 const TabLabel: FunctionalComponent = () =>
@@ -62,7 +80,9 @@ const TabTip: FunctionalComponent = (_, { slots: tip }) =>
         ns.is('pinned', !!entry.props.pinned),
         ns.is('draggable', draggable),
         ns.is('dragging', dragging),
+        ns.is('merge-target', !!mergeTarget),
       ]"
+      :title="tabTitle"
       :aria-selected="selected"
       :aria-controls="panelId"
       :aria-label="iconAlone ? labelText : undefined"
@@ -70,6 +90,7 @@ const TabTip: FunctionalComponent = (_, { slots: tip }) =>
       :tabindex="selected ? 0 : -1"
       :aria-keyshortcuts="keyShortcuts"
       @click="emit('click')"
+      @pointerenter="updateTitle"
       @pointerdown="emit('pointerdown', $event)"
       @keydown="emit('keydown', $event)"
     >
@@ -79,7 +100,7 @@ const TabTip: FunctionalComponent = (_, { slots: tip }) =>
         :class="ns.e('icon')"
         aria-hidden="true"
       />
-      <span v-if="!iconAlone" :class="ns.e('label')">
+      <span v-if="!iconAlone" ref="label" :class="ns.e('label')" @pointerenter="updateTitle">
         <TabLabel />
       </span>
       <!-- not a button of its own: a tab cannot hold one; `Delete` closes it from the keyboard.
@@ -90,7 +111,12 @@ const TabTip: FunctionalComponent = (_, { slots: tip }) =>
         shortcut="delete"
         :disabled="iconAlone"
       >
-        <span :class="ns.e('close')" aria-hidden="true" @click.stop="emit('remove')">
+        <span
+          :class="ns.e('close')"
+          :title="tabTitle ? '' : undefined"
+          aria-hidden="true"
+          @click.stop="emit('remove')"
+        >
           <CloseIcon />
         </span>
       </DouTooltip>

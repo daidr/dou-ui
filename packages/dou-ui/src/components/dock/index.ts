@@ -8,6 +8,7 @@ export type * from './dock'
 export {
   dockGroups,
   findDockGroup,
+  mergeDockTab,
   moveDockTab,
   nextDockGroupId,
   removeDockTab,

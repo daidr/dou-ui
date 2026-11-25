@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   dockGroups,
   findDockGroup,
+  mergeDockTab,
   moveDockTab,
   nextDockGroupId,
   removeDockTab,
@@ -92,5 +93,29 @@ describe('dock layout', () => {
   it('selects a tab and leaves the layout alone when it already is', () => {
     expect(findDockGroup(selectDockTab(layout, 'y'), 'y')!.active).toBe('y')
     expect(selectDockTab(layout, 'x')).toBe(layout)
+  })
+
+  it('merges a tab into an existing target, dropping an empty source group and selecting target', () => {
+    // merges the only tab of group b into y of group a -> collapses group b and selects y
+    const collapsed = mergeDockTab(layout, 'z', 'y')
+    expect(collapsed).toEqual({ type: 'group', id: 'a', tabs: ['x', 'y'], active: 'y' })
+
+    // merges a non-last tab from group a into z of group b -> keeps group a and selects z
+    const kept = mergeDockTab(layout, 'x', 'z')
+    expect(kept).toEqual({
+      type: 'split',
+      direction: 'horizontal',
+      size: 60,
+      start: { type: 'group', id: 'a', tabs: ['y'], active: 'y' },
+      end: { type: 'group', id: 'b', tabs: ['z'], active: 'z' },
+    })
+
+    // merges an external tab (not yet in the layout) -> activates target
+    const fromOutside = mergeDockTab(layout, 'external', 'y')
+    expect(findDockGroup(fromOutside, 'y')).toMatchObject({ tabs: ['x', 'y'], active: 'y' })
+
+    // merging into itself selects it; missing target leaves the layout untouched
+    expect(findDockGroup(mergeDockTab(layout, 'y', 'y'), 'y')!.active).toBe('y')
+    expect(mergeDockTab(layout, 'z', 'missing')).toBe(layout)
   })
 })

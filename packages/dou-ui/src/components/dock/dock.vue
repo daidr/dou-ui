@@ -19,6 +19,7 @@ import DockNodeView from './dock-node.vue'
 import {
   dockGroups,
   findDockGroup,
+  mergeDockTab,
   moveDockTab,
   nextDockGroupId,
   replaceDockNode,
@@ -29,7 +30,15 @@ import { isIgnoredDragPress, pressTab } from '../tabs/tab-drag'
 import type { SplitterLimit } from '../splitter/splitter'
 import type { TabDrag } from '../tabs/tab-drag'
 import type { TabsMoveEvent, TabsValue } from '../tabs/tabs'
-import type { DockDropItem, DockEmits, DockExpose, DockPanel, DockProps, DockSlots } from './dock'
+import type {
+  DockDropItem,
+  DockEmits,
+  DockExpose,
+  DockLocation,
+  DockPanel,
+  DockProps,
+  DockSlots,
+} from './dock'
 import type { DockGroup, DockNode, DockSide } from './layout'
 
 defineOptions({ name: 'DouDock' })
@@ -81,14 +90,79 @@ function locate(value: TabsValue) {
   return found && { group: found.id, index: found.tabs.indexOf(value) }
 }
 
+/**
+ * Find an existing tab in `target` that shares `value`'s `mergeId` when `value`
+ * comes from another group or from outside the dock. Prefers a pinned tab.
+ */
+function findMergeTarget(target: DockGroup, value: TabsValue): TabsValue | undefined {
+  const source = panels.value.get(value)
+  if (source?.mergeId === undefined) return undefined
+  const from = findDockGroup(latest, value)
+  if (from?.id === target.id) return undefined
+  let fallback: TabsValue | undefined
+  for (const tab of target.tabs) {
+    if (tab === value) continue
+    const entry = panels.value.get(tab)
+    if (entry?.mergeId !== source.mergeId || entry.disabled) continue
+    if (entry.pinned) return tab
+    if (fallback === undefined) fallback = tab
+  }
+  return fallback
+}
+
+function performMove(
+  value: TabsValue,
+  from: DockLocation | null,
+  targetGroup: DockGroup,
+  index: number,
+) {
+  const autoMerge = findMergeTarget(targetGroup, value)
+  let resolvedMerge = autoMerge
+  if (props.beforeMove) {
+    const decision = props.beforeMove({
+      value,
+      from,
+      to: { group: targetGroup.id, index },
+      targetGroup,
+      mergeInto: autoMerge,
+    })
+    if (decision === false) return
+    if (typeof decision === 'object' && decision !== null && 'mergeInto' in decision) {
+      resolvedMerge = decision.mergeInto ?? undefined
+    }
+  }
+  if (resolvedMerge !== undefined) {
+    if (!targetGroup.tabs.includes(resolvedMerge)) {
+      if (process.env.NODE_ENV !== 'production')
+        devWarn(
+          `[dou-ui] DouDock: \`beforeMove\` returned \`mergeInto: "${resolvedMerge}"\`, which is not in group "${targetGroup.id}". The move was cancelled.`,
+        )
+      return
+    }
+    const next = mergeDockTab(latest, value, resolvedMerge)
+    const mergedIndex = findDockGroup(next, resolvedMerge)?.tabs.indexOf(resolvedMerge) ?? 0
+    commit(next)
+    emit('move', {
+      value,
+      from,
+      to: { group: targetGroup.id, index: mergedIndex },
+      mergedInto: resolvedMerge,
+    })
+    use(targetGroup.id)
+    return
+  }
+  commit(moveDockTab(latest, value, targetGroup.id, index))
+  emit('move', { value, from, to: { group: targetGroup.id, index } })
+  use(targetGroup.id)
+}
+
 function move(event: TabsMoveEvent) {
   const from = locate(event.value) ?? null
   const to = event.to.name
   if (to === undefined) return
-  const index = event.to.index
-  commit(moveDockTab(latest, event.value, to, index))
-  emit('move', { value: event.value, from, to: { group: to, index } })
-  use(to)
+  const targetGroup = dockGroups(latest).find((item) => item.id === to)
+  if (!targetGroup) return
+  performMove(event.value, from, targetGroup, event.to.index)
 }
 
 function canDrop(drag: TabDrag, target: DockGroup, side: DockSide | 'center') {
@@ -113,9 +187,7 @@ function drop(drag: TabDrag, target: DockGroup, side: DockSide | 'center') {
   if (!canDrop(drag, target, side)) return
   if (side === 'center') {
     const index = drag.pinned ? pinnedInsertIndex(target) : target.tabs.length
-    commit(moveDockTab(latest, drag.value, target.id, index))
-    emit('move', { value: drag.value, from, to: { group: target.id, index } })
-    use(target.id)
+    performMove(drag.value, from, target, index)
     return
   }
   const id = props.createId?.(latest) ?? nextDockGroupId(latest)
@@ -338,6 +410,7 @@ provide(dockKey, {
     if (findDockGroup(latest, value)?.id === target.id) commit(selectDockTab(latest, value))
   },
   move,
+  mergeTarget: (drag, target) => findMergeTarget(target, drag.value),
   canDrop,
   drop,
   remove: (value, target) => emit('remove', value, target.id),

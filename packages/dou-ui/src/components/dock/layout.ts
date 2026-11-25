@@ -140,6 +140,19 @@ export function removeDockTab(layout: DockNode, value: TabsValue): DockNode {
   return orEmpty(takeOut(layout, value), group.id)
 }
 
+/**
+ * Merge a tab into an existing `target` tab: take `value` out of its group
+ * (dropping that group once it is empty) and select `target` in its group.
+ * Returns a new layout; if `target` is not in the layout, returns it as is.
+ */
+export function mergeDockTab(layout: DockNode, value: TabsValue, target: TabsValue): DockNode {
+  const targetGroup = findDockGroup(layout, target)
+  if (!targetGroup) return layout
+  if (value === target) return selectDockTab(layout, target)
+  const taken = takeOut(layout, value, targetGroup.id)
+  return selectDockTab(orEmpty(taken, targetGroup.id), target)
+}
+
 /** Select a tab in its group. Returns a new layout. */
 export function selectDockTab(layout: DockNode, value: TabsValue): DockNode {
   return mapNode(layout, (node) =>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   computed,
+  inject,
   nextTick,
   onBeforeUnmount,
   onMounted,
@@ -24,8 +25,9 @@ import { useLocale } from '../config-provider/use-config'
 import { useFormSize } from '../form/use-form-item'
 import { DouPopover } from '../popover'
 import TabButton from './tab-button.vue'
-import { pressTab, registerTabDropZone } from './tab-drag'
+import { pressTab, registerTabDropZone, tabMergeTargetKey } from './tab-drag'
 import { tabsKey } from './tabs'
+import { resolveTruncatedTitle } from './truncated-title'
 import type { FunctionalComponent, VNode } from 'vue'
 import type { TabDrag } from './tab-drag'
 import type { TabPanelEntry, TabsMoveEvent, TabsProps, TabsSlots, TabsValue } from './tabs'
@@ -110,11 +112,11 @@ provide(tabsKey, {
 
 async function select(entry: TabPanelEntry) {
   if (entry.props.disabled) return
-  await selectValue(entry.props.value)
+  await selectValue(entry.props.value, selected.value)
 }
-async function selectValue(next: TabsValue): Promise<boolean> {
-  if (next === selected.value) return true
-  if (props.beforeLeave && !(await props.beforeLeave(next, selected.value))) return false
+async function selectValue(next: TabsValue, current: TabsValue | undefined): Promise<boolean> {
+  if (next === current) return true
+  if (props.beforeLeave && !(await props.beforeLeave(next, current))) return false
   model.value = next
   emit('change', next)
   return true
@@ -271,6 +273,11 @@ interface TabDropMarker {
 
 /** Where a tab dropped now would go: before the tab at `slot` of its zone, or after the last. */
 const marker = ref<TabDropMarker | null>(null)
+/** Existing tab that a dragged tab will merge into on drop, when inside a `DouDock`. */
+const mergeTarget = ref<TabsValue | null>(null)
+let mergeFallbackIndex = 0
+const mergeBridge = inject(tabMergeTargetKey, undefined)
+const activeMergeTarget = computed(() => mergeTarget.value ?? mergeBridge?.active.value ?? null)
 
 function zoneEntries(zone: TabDropZoneKind) {
   return zone === 'pinned' ? pinnedPanels.value : regularPanels.value
@@ -351,6 +358,14 @@ const dropZone = registerTabDropZone({
     drag.source === self || (props.draggable && !!props.group && drag.group === props.group),
   over(drag, x, y) {
     const zone: TabDropZoneKind = drag.pinned ? 'pinned' : 'regular'
+    const merge = mergeBridge?.resolve(drag)
+    if (merge !== undefined) {
+      marker.value = null
+      mergeTarget.value = merge
+      mergeFallbackIndex = rawInsertIndex(zone, insertionAt(zone, x, y))
+      return
+    }
+    mergeTarget.value = null
     if (zone === 'regular') scrollNearEdge(x, y)
     const slot = insertionAt(zone, x, y)
     if (stays(drag, zone, slot)) {
@@ -373,20 +388,47 @@ const dropZone = registerTabDropZone({
       marker.value = { zone, slot, at }
     }
   },
-  leave: () => (marker.value = null),
+  leave() {
+    marker.value = null
+    mergeTarget.value = null
+  },
   drop(drag) {
+    const merge = mergeTarget.value
     const current = marker.value
     marker.value = null
+    mergeTarget.value = null
+    if (merge !== null) {
+      emit('move', {
+        value: drag.value,
+        from: { name: drag.name, index: drag.index },
+        to: { name: props.name, index: mergeFallbackIndex },
+      })
+      return
+    }
     if (!current) return
     const within = fromHere(drag)
     const raw = rawInsertIndex(current.zone, current.slot)
+    const prevModel = model.value
+    const prevSelected = selected.value
+    const prevIndex = panels.value.findIndex((panel) => panel.props.value === drag.value)
     emit('move', {
       value: drag.value,
       from: { name: drag.name, index: drag.index },
       to: { name: props.name, index: within && raw > drag.index ? raw - 1 : raw },
     })
-    // dragging a tab is using it
-    void selectValue(drag.value)
+    // Dragging a tab is using it, unless the move listener rejected or merged
+    // the tab (so it did not land here) or already updated `modelValue`.
+    void nextTick(() => {
+      if (model.value !== prevModel) return
+      const nextIndex = panels.value.findIndex((panel) => panel.props.value === drag.value)
+      if (nextIndex < 0) return
+      if (within && nextIndex === prevIndex) return
+      if (drag.value === prevSelected) {
+        if (selected.value !== drag.value) model.value = drag.value
+        return
+      }
+      void selectValue(drag.value, prevSelected)
+    })
   },
 })
 onMounted(() => {
@@ -670,9 +712,18 @@ function onOverflowItemKeydown(event: KeyboardEvent, entry: TabPanelEntry) {
   el?.focus({ preventScroll: true })
 }
 
+function onOverflowItemEnter(event: PointerEvent, entry: TabPanelEntry) {
+  const button = event.currentTarget as HTMLElement | null
+  const labelEl = button?.querySelector<HTMLElement>(`.${ns.e('overflow-label')}`)
+  const title = resolveTruncatedTitle(labelEl, entry.props.label)
+  if (!button) return
+  if (title) button.title = title
+  else button.removeAttribute('title')
+}
+
 async function selectFromOverflow(entry: TabPanelEntry, event: MouseEvent) {
   if (entry.props.disabled) return
-  const moved = await selectValue(entry.props.value)
+  const moved = await selectValue(entry.props.value, selected.value)
   if (!moved) return
   overflowOpen.value = false
   await nextTick()
@@ -788,7 +839,7 @@ const pinnedIndicatorStyle = computed(() => styleForIndicator(pinnedIndicator.va
       vertical && ns.is(`placement-${placement}`, true),
       ns.is('fixed', height !== undefined),
       ns.is('icon-only', iconOnly),
-      ns.is('drop-target', !!marker),
+      ns.is('drop-target', !!marker || mergeTarget !== null),
     ]"
     :style="rootStyle"
   >
@@ -821,6 +872,7 @@ const pinnedIndicatorStyle = computed(() => styleForIndicator(pinnedIndicator.va
             :icon-alone="iconAlone(entry)"
             :draggable="isDraggable(entry)"
             :dragging="draggingUid === entry.uid"
+            :merge-target="entry.props.value === activeMergeTarget"
             :tip-placement="tipPlacement"
             :key-shortcuts="keyShortcuts(entry)"
             :set-el="(el) => setTabElement('pinned', entry.uid, el)"
@@ -859,6 +911,7 @@ const pinnedIndicatorStyle = computed(() => styleForIndicator(pinnedIndicator.va
             :icon-alone="iconAlone(entry)"
             :draggable="isDraggable(entry)"
             :dragging="draggingUid === entry.uid"
+            :merge-target="entry.props.value === activeMergeTarget"
             :tip-placement="tipPlacement"
             :key-shortcuts="keyShortcuts(entry)"
             :set-el="(el) => setTabElement('regular', entry.uid, el)"
@@ -912,6 +965,7 @@ const pinnedIndicatorStyle = computed(() => styleForIndicator(pinnedIndicator.va
                   :disabled="entry.props.disabled"
                   :aria-current="entry.props.value === selected ? 'true' : undefined"
                   :aria-keyshortcuts="isClosable(entry) ? 'Delete' : undefined"
+                  @pointerenter="onOverflowItemEnter($event, entry)"
                   @click="selectFromOverflow(entry, $event)"
                   @keydown="onOverflowItemKeydown($event, entry)"
                 >

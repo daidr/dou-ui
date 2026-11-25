@@ -203,4 +203,152 @@ describe('DouTabs draggable', () => {
       target.unmount()
     }
   })
+
+  it('updates modelValue and emits change when dropping into empty tabs or to index 0 with undefined modelValue', async () => {
+    const emptyPages = ref<string[]>([])
+    const emptyModel = ref<string | number | undefined>(undefined)
+    const emptyChanges: (string | number)[] = []
+    type BeforeLeave = (
+      next: string | number,
+      current: string | number | undefined,
+    ) => Promise<boolean>
+    const emptyBeforeLeave = vi.fn<BeforeLeave>(async () => true)
+    const emptyTarget = mount(
+      defineComponent({
+        setup: () => () =>
+          h(
+            DouTabs,
+            {
+              draggable: true,
+              group: 'undef-drop',
+              name: 'empty',
+              modelValue: emptyModel.value,
+              'onUpdate:modelValue': (v: string | number | undefined) => (emptyModel.value = v),
+              beforeLeave: emptyBeforeLeave,
+              onChange: (v: string | number) => emptyChanges.push(v),
+              onMove: (event: TabsMoveEvent) => {
+                emptyPages.value = [...emptyPages.value, String(event.value)]
+              },
+            },
+            () =>
+              emptyPages.value.map((page) =>
+                h(DouTabPanel, { key: page, value: page, label: page }),
+              ),
+          ),
+      }),
+      { attachTo: document.body },
+    )
+
+    const reorderPages = ref(['sh', 'bj', 'sz'])
+    const reorderModel = ref<string | number | undefined>(undefined)
+    const reorderChanges: (string | number)[] = []
+    const reorderBeforeLeave = vi.fn<BeforeLeave>(async () => true)
+    const reorderTarget = mount(
+      defineComponent({
+        setup: () => () =>
+          h(
+            DouTabs,
+            {
+              draggable: true,
+              name: 'reorder',
+              modelValue: reorderModel.value,
+              'onUpdate:modelValue': (v: string | number | undefined) => (reorderModel.value = v),
+              beforeLeave: reorderBeforeLeave,
+              onChange: (v: string | number) => reorderChanges.push(v),
+              onMove: (event: TabsMoveEvent) => {
+                const next = [...reorderPages.value]
+                const [page] = next.splice(event.from.index, 1)
+                next.splice(event.to.index, 0, page!)
+                reorderPages.value = next
+              },
+            },
+            () =>
+              reorderPages.value.map((page) =>
+                h(DouTabPanel, { key: page, value: page, label: page }),
+              ),
+          ),
+      }),
+      { attachTo: document.body },
+    )
+
+    const sourceEl = document.createElement('button')
+    document.body.append(sourceEl)
+    const origElementFromPoint = document.elementFromPoint
+    const origRaf = window.requestAnimationFrame
+    const origCancelRaf = window.cancelAnimationFrame
+    const raf: { cb: FrameRequestCallback | null } = { cb: null }
+    let hovered: Element = emptyTarget.get('.dou-tabs__header').element
+    document.elementFromPoint = () => hovered
+    window.requestAnimationFrame = (cb) => {
+      raf.cb = cb
+      return 1
+    }
+    window.cancelAnimationFrame = () => {
+      raf.cb = null
+    }
+
+    try {
+      // 1. drop onto empty tabs whose modelValue is undefined
+      const emptyList = emptyTarget.get('.dou-tabs__list').element as HTMLElement
+      Object.defineProperties(emptyList, {
+        scrollWidth: { configurable: true, get: () => 200 },
+        clientWidth: { configurable: true, get: () => 200 },
+      })
+      pressTab(new PointerEvent('pointerdown', { button: 0, clientX: 10, clientY: 10 }), {
+        el: sourceEl,
+        root: sourceEl,
+        drag: () => ({
+          value: 'doc',
+          label: '文档',
+          group: 'undef-drop',
+          name: undefined,
+          index: -1,
+          source: sourceEl,
+        }),
+      })
+      window.dispatchEvent(new PointerEvent('pointermove', { clientX: 40, clientY: 10 }))
+      raf.cb?.(16)
+      await nextTick()
+      window.dispatchEvent(new PointerEvent('pointerup'))
+      await settle()
+      expect(emptyBeforeLeave).toHaveBeenCalledWith('doc', undefined)
+      expect(emptyModel.value).toBe('doc')
+      expect(emptyChanges).toEqual(['doc'])
+
+      // 2. reorder second tab to index 0 when modelValue is undefined (initial selected fallback is 'sh')
+      const reorderHeader = reorderTarget.get('.dou-tabs__header').element
+      const reorderTabs = reorderTarget.findAll('[role="tab"]')
+      reorderTabs.forEach((tab, i) => {
+        vi.spyOn(tab.element, 'getBoundingClientRect').mockReturnValue({
+          left: i * 100,
+          top: 0,
+          right: (i + 1) * 100,
+          bottom: 32,
+          width: 100,
+          height: 32,
+          x: i * 100,
+          y: 0,
+          toJSON: () => {},
+        })
+      })
+      hovered = reorderHeader
+      await reorderTabs[1]!.trigger('pointerdown', { button: 0, clientX: 150, clientY: 16 })
+      window.dispatchEvent(new PointerEvent('pointermove', { clientX: 10, clientY: 16 }))
+      raf.cb?.(32)
+      await nextTick()
+      window.dispatchEvent(new PointerEvent('pointerup'))
+      await settle()
+      expect(reorderPages.value).toEqual(['bj', 'sh', 'sz'])
+      expect(reorderBeforeLeave).toHaveBeenCalledWith('bj', 'sh')
+      expect(reorderModel.value).toBe('bj')
+      expect(reorderChanges).toEqual(['bj'])
+    } finally {
+      document.elementFromPoint = origElementFromPoint
+      window.requestAnimationFrame = origRaf
+      window.cancelAnimationFrame = origCancelRaf
+      sourceEl.remove()
+      emptyTarget.unmount()
+      reorderTarget.unmount()
+    }
+  })
 })

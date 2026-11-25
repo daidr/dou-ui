@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { inject, onBeforeUnmount, onMounted, onUpdated, ref, useTemplateRef } from 'vue'
+import { inject, onBeforeUnmount, onMounted, onUpdated, provide, ref, useTemplateRef } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { DouTabPanel, DouTabs } from '../tabs'
-import { registerTabDropZone } from '../tabs/tab-drag'
+import { registerTabDropZone, tabMergeTargetKey } from '../tabs/tab-drag'
 import { dockKey } from './context'
 import { dockDropSide } from './drop-side'
 import type { FunctionalComponent } from 'vue'
+import type { TabsValue } from '../tabs/tabs'
 import type { DockGroup, DockSide } from './layout'
 
 defineOptions({ name: 'DouDockGroup' })
@@ -17,6 +18,11 @@ const props = defineProps<{
 }>()
 const dock = inject(dockKey)!
 const ns = useNamespace('dock')
+const centerMergeTarget = ref<TabsValue | null>(null)
+provide(tabMergeTargetKey, {
+  resolve: (drag) => dock.mergeTarget(drag, props.group),
+  active: centerMergeTarget,
+})
 
 /* the edges of the body split a tab off, the middle takes it in */
 
@@ -35,12 +41,19 @@ const zone = registerTabDropZone({
   accepts: (drag) => drag.group === dock.group,
   over(drag, x, y) {
     const side = sideAt(x, y)
-    target.value = dock.canDrop(drag, props.group, side) ? side : null
+    const next = dock.canDrop(drag, props.group, side) ? side : null
+    target.value = next
+    centerMergeTarget.value =
+      next === 'center' ? (dock.mergeTarget(drag, props.group) ?? null) : null
   },
-  leave: () => (target.value = null),
+  leave() {
+    target.value = null
+    centerMergeTarget.value = null
+  },
   drop(drag) {
     const side = target.value
     target.value = null
+    centerMergeTarget.value = null
     if (side) dock.drop(drag, props.group, side)
   },
 })

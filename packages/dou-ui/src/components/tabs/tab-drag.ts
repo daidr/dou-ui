@@ -1,5 +1,6 @@
 import { shallowRef } from 'vue'
 import { holdPointer } from '../../utils/pointer'
+import type { InjectionKey, Ref } from 'vue'
 import type { TabsValue } from './tabs'
 
 /** A tab being dragged. One at a time on the whole page. */
@@ -34,6 +35,16 @@ const zones = new Map<Element, TabDropZone>()
 
 /** The drag in progress, if any. */
 export const activeTabDrag = shallowRef<TabDrag | null>(null)
+
+/**
+ * Internal bridge for `DouDock` to report whether dropping `drag` onto a
+ * group's tab bar or center body will merge into an existing tab instead of inserting.
+ */
+export interface TabMergeBridge {
+  resolve: (drag: TabDrag) => TabsValue | undefined
+  active: Ref<TabsValue | null>
+}
+export const tabMergeTargetKey: InjectionKey<TabMergeBridge> = Symbol('DouTabMergeTarget')
 
 export function registerTabDropZone(zone: TabDropZone) {
   let el: Element | null | undefined
@@ -116,7 +127,10 @@ export function pressTab(event: PointerEvent, options: StartTabDragOptions) {
     if (options.ghost) {
       clone = document.createElement('div')
       clone.className = 'dou-tabs__tab'
-      clone.textContent = options.ghost.label
+      const text = document.createElement('span')
+      text.className = 'dou-tabs__label'
+      text.textContent = options.ghost.label
+      clone.append(text)
     } else {
       clone = options.el.cloneNode(true) as HTMLElement
       clone.removeAttribute('id')
@@ -138,8 +152,15 @@ export function pressTab(event: PointerEvent, options: StartTabDragOptions) {
     const tabs = options.ghost ? options.ghost.tabs : options.el.closest<HTMLElement>('.dou-tabs')
     if (tabs) {
       const style = getComputedStyle(tabs)
-      for (const name of ['--dou-tabs-height', '--dou-tabs-padding-x', '--dou-tabs-icon-size'])
-        clone.style.setProperty(name, style.getPropertyValue(name))
+      for (const name of [
+        '--dou-tabs-height',
+        '--dou-tabs-padding-x',
+        '--dou-tabs-icon-size',
+        '--dou-tabs-tab-max-width',
+      ]) {
+        const value = style.getPropertyValue(name)
+        if (value) clone.style.setProperty(name, value)
+      }
       clone.style.fontSize = style.fontSize
     }
     const theme = (tabs ?? options.el).closest<HTMLElement>('[data-dou-theme]')?.dataset.douTheme

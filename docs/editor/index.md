@@ -186,6 +186,6 @@ function reset() {
 | `--dou-editor-list-gap`            | 同一列表里相邻两项之间的距离，默认 `4px`                             |
 | `--dou-editor-reading-width`       | 正文的最大宽度，超出时居中，默认 `none`                              |
 | `--dou-editor-selected`            | 选中的块的底色                                                       |
-| `--dou-editor-scroll-shadow`       | 表格左右还有被遮住的列时，那一侧阴影的颜色                           |
+| `--dou-editor-scroll-fade`         | 表格左右还有被遮住的列时，那一侧边缘渐隐（mask）的宽度，默认 `24px`  |
 | `--dou-editor-table-col-min-width` | 自动列宽表格未指定宽度列的最小宽度，默认 `96px`                      |
 | `--dou-editor-table-col-max-width` | 自动列宽表格未指定宽度列的最大宽度，默认 `min(320px, 70vw)`          |

@@ -29,8 +29,8 @@
       var(--dou-color-focus) calc(12% + 10% * var(--dou-scheme-dark)),
       transparent
     );
-    /* the shadow on a side of a table that cuts columns off */
-    --dou-editor-scroll-shadow: color-mix(in oklab, var(--dou-color-text) 14%, transparent);
+    /* width of the edge fade on a side of a table that cuts columns off */
+    --dou-editor-scroll-fade: 24px;
     --dou-editor-control-hover: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
     --dou-editor-match: color-mix(in oklab, var(--dou-color-warning) 22%, transparent);
     --dou-editor-match-current: color-mix(in oklab, var(--dou-color-warning-text) 80%, transparent);
@@ -1293,38 +1293,34 @@
     }
 
     /*
-     * a shadow on a side that cuts columns off, so they read as going on
-     * under the edge instead of being sliced: a strip either side of the
-     * table that sticks to the frame's edge once the table passes it
+     * Fade any side that cuts columns off through a mask rather than an
+     * overlay shadow, so the table blends cleanly over any surface, callout
+     * or selection tint.
      */
-    &::before,
-    &::after {
-      content: '';
-      position: sticky;
-      z-index: 1;
-      flex: none;
-      width: 8px;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
+    &.is-cut-start {
+      mask-image: linear-gradient(to right, transparent, #000 var(--dou-editor-scroll-fade));
     }
 
-    /* a sticky box stays inside the padding: past it to the frame's edges */
-    &::before {
-      inset-inline-start: calc(-1 * var(--dou-editor-frame-start, 0px));
-      margin-inline-end: -8px;
-      background-image: linear-gradient(to right, var(--dou-editor-scroll-shadow), transparent);
+    &.is-cut-end {
+      mask-image: linear-gradient(to left, transparent, #000 var(--dou-editor-scroll-fade));
     }
 
-    &::after {
-      inset-inline-end: calc(-1 * var(--dou-editor-frame-end, 0px));
-      margin-inline-start: -8px;
-      background-image: linear-gradient(to left, var(--dou-editor-scroll-shadow), transparent);
+    [dir='rtl'] &.is-cut-start {
+      mask-image: linear-gradient(to left, transparent, #000 var(--dou-editor-scroll-fade));
     }
 
-    &.is-cut-start::before,
-    &.is-cut-end::after {
-      opacity: 1;
+    [dir='rtl'] &.is-cut-end {
+      mask-image: linear-gradient(to right, transparent, #000 var(--dou-editor-scroll-fade));
+    }
+
+    &.is-cut-start.is-cut-end {
+      mask-image: linear-gradient(
+        to right,
+        transparent,
+        #000 var(--dou-editor-scroll-fade),
+        #000 calc(100% - var(--dou-editor-scroll-fade)),
+        transparent
+      );
     }
   }
 

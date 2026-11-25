@@ -157,10 +157,59 @@
   }
 
   .dou-markdown__table {
+    display: flex;
     max-width: 100%;
     overflow-x: auto;
+    overscroll-behavior-x: contain;
 
-    & table {
+    /*
+     * Fade any side that cuts columns off through a mask rather than an
+     * overlay shadow, so the table blends cleanly over any surface or bubble.
+     */
+    &.is-cut-start {
+      mask-image: linear-gradient(
+        to right,
+        transparent,
+        #000 var(--dou-markdown-table-scroll-fade, 24px)
+      );
+    }
+
+    &.is-cut-end {
+      mask-image: linear-gradient(
+        to left,
+        transparent,
+        #000 var(--dou-markdown-table-scroll-fade, 24px)
+      );
+    }
+
+    [dir='rtl'] &.is-cut-start {
+      mask-image: linear-gradient(
+        to left,
+        transparent,
+        #000 var(--dou-markdown-table-scroll-fade, 24px)
+      );
+    }
+
+    [dir='rtl'] &.is-cut-end {
+      mask-image: linear-gradient(
+        to right,
+        transparent,
+        #000 var(--dou-markdown-table-scroll-fade, 24px)
+      );
+    }
+
+    &.is-cut-start.is-cut-end {
+      mask-image: linear-gradient(
+        to right,
+        transparent,
+        #000 var(--dou-markdown-table-scroll-fade, 24px),
+        #000 calc(100% - var(--dou-markdown-table-scroll-fade, 24px)),
+        transparent
+      );
+    }
+
+    & > table {
+      flex: none;
       min-width: 100%;
       border-collapse: collapse;
       font-size: var(--dou-font-size-sm);
@@ -169,16 +218,19 @@
 
     & th,
     & td {
+      box-sizing: border-box;
+      min-inline-size: var(--dou-markdown-table-col-min-width, 96px);
+      max-inline-size: var(--dou-markdown-table-col-max-width, min(320px, 70vw));
       padding: 0.5em 0.875em;
       border-bottom: 1px solid var(--dou-color-border-subtle);
       text-align: left;
       vertical-align: top;
+      overflow-wrap: anywhere;
     }
 
     & th {
       border-bottom-color: var(--dou-color-border);
       font-weight: var(--dou-font-weight-medium);
-      white-space: nowrap;
     }
 
     & tbody tr:last-child td {

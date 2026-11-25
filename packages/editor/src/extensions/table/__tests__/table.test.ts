@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { TextSelection } from 'prosemirror-state'
 import { CellSelection, TableMap } from 'prosemirror-tables'
 import type { EditorView } from 'prosemirror-view'
@@ -358,5 +361,77 @@ describe('copying selected blocks', () => {
     expect(data.getData('text/html')).toContain('名单')
     expect(data.getData('text/html')).toContain('<table')
     expect(docToBlocks(target.state.doc).map((block) => block.id)).toEqual(['p'])
+  })
+})
+
+describe('table horizontal scroll mask', () => {
+  it('fades clipped edges through mask-image rather than an overlay shadow', () => {
+    const here = dirname(fileURLToPath(import.meta.url))
+    const css = readFileSync(resolve(here, '../../../style.css'), 'utf8').replace(
+      /\/\*[\s\S]*?\*\//g,
+      '',
+    )
+    const start = css.indexOf('\n  .dou-editor__content--table {')
+    expect(start).toBeGreaterThan(-1)
+    let depth = 0
+    let end = css.length
+    for (let i = start; i < css.length; i++) {
+      if (css[i] === '{') depth++
+      else if (css[i] === '}') {
+        depth--
+        if (depth === 0) {
+          end = i + 1
+          break
+        }
+      }
+    }
+    const rule = css.slice(start, end)
+    expect(css).toMatch(/--dou-editor-scroll-fade:\s*24px/)
+    expect(css).not.toMatch(/--dou-editor-scroll-shadow/)
+    expect(rule).not.toMatch(/&::before|&::after/)
+    expect(rule).toMatch(/&\.is-cut-start\s*\{[^}]*mask-image:\s*linear-gradient\(/)
+    expect(rule).toMatch(/&\.is-cut-end\s*\{[^}]*mask-image:\s*linear-gradient\(/)
+    expect(rule).toMatch(/&\.is-cut-start\.is-cut-end\s*\{[^}]*mask-image:\s*linear-gradient\(/)
+    expect(rule).toMatch(/var\(--dou-editor-scroll-fade\)/)
+  })
+
+  it('toggles is-cut-start and is-cut-end on scroll for LTR and RTL frames', () => {
+    const target = create([grid])
+    const frame = target.dom.querySelector('.dou-editor__content--table') as HTMLElement
+    let left = 0
+    Object.defineProperty(frame, 'clientWidth', { configurable: true, get: () => 400 })
+    Object.defineProperty(frame, 'scrollWidth', { configurable: true, get: () => 900 })
+    Object.defineProperty(frame, 'scrollLeft', {
+      configurable: true,
+      get: () => left,
+      set: (value: number) => {
+        left = value
+      },
+    })
+
+    frame.dispatchEvent(new Event('scroll'))
+    expect(frame.classList.contains('is-cut-start')).toBe(false)
+    expect(frame.classList.contains('is-cut-end')).toBe(true)
+
+    left = 200
+    frame.dispatchEvent(new Event('scroll'))
+    expect(frame.classList.contains('is-cut-start')).toBe(true)
+    expect(frame.classList.contains('is-cut-end')).toBe(true)
+
+    left = 500
+    frame.dispatchEvent(new Event('scroll'))
+    expect(frame.classList.contains('is-cut-start')).toBe(true)
+    expect(frame.classList.contains('is-cut-end')).toBe(false)
+
+    // RTL negative scrollLeft
+    left = -200
+    frame.dispatchEvent(new Event('scroll'))
+    expect(frame.classList.contains('is-cut-start')).toBe(true)
+    expect(frame.classList.contains('is-cut-end')).toBe(true)
+
+    left = -500
+    frame.dispatchEvent(new Event('scroll'))
+    expect(frame.classList.contains('is-cut-start')).toBe(true)
+    expect(frame.classList.contains('is-cut-end')).toBe(false)
   })
 })

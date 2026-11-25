@@ -561,3 +561,194 @@ describe('DouChatMessage markdown options', () => {
     expect(wrapper.find('.dou-markdown__trailing').text()).toBe('已编辑 2 次')
   })
 })
+
+function installFakeResizeObserver() {
+  const instances: {
+    callback: ResizeObserverCallback
+    observed: Set<Element>
+    disconnected: boolean
+  }[] = []
+  class FakeResizeObserver {
+    observed = new Set<Element>()
+    disconnected = false
+    constructor(public callback: ResizeObserverCallback) {
+      instances.push(this)
+    }
+    observe(target: Element) {
+      this.observed.add(target)
+    }
+    unobserve(target: Element) {
+      this.observed.delete(target)
+    }
+    disconnect() {
+      this.disconnected = true
+      this.observed.clear()
+    }
+  }
+  vi.stubGlobal('ResizeObserver', FakeResizeObserver)
+  return {
+    instances,
+    trigger() {
+      for (const inst of instances) {
+        if (!inst.disconnected) inst.callback([], inst as unknown as ResizeObserver)
+      }
+    },
+  }
+}
+
+function mockScrollMetrics(
+  el: HTMLElement,
+  metrics: { clientWidth: number; scrollWidth: number; scrollLeft?: number },
+) {
+  let left = metrics.scrollLeft ?? 0
+  Object.defineProperty(el, 'clientWidth', {
+    configurable: true,
+    get: () => metrics.clientWidth,
+  })
+  Object.defineProperty(el, 'scrollWidth', {
+    configurable: true,
+    get: () => metrics.scrollWidth,
+  })
+  Object.defineProperty(el, 'scrollLeft', {
+    configurable: true,
+    get: () => left,
+    set: (value: number) => {
+      left = value
+    },
+  })
+}
+
+describe('DouMarkdown table horizontal scroll', () => {
+  const WIDE_TABLE = `| 方案 | 优点 | 缺点 | 结论 |
+| --- | --- | --- | --- |
+| 保留现状增量优化 | 改动范围可控，兼容性最好 | 历史包袱仍在，长期维护成本偏高 | 短期可用 |
+| 全面重构新架构 | 结构清晰，扩展性强 | 前期投入大，需要灰度切换 | 长期推荐 |
+`
+
+  it('toggles is-cut-start and is-cut-end from scroll position and resize changes', async () => {
+    const ro = installFakeResizeObserver()
+    const wrapper = mount(DouMarkdown, { props: { content: WIDE_TABLE } })
+    const frame = wrapper.get('.dou-markdown__table')
+    const el = frame.element as HTMLElement
+    const table = frame.get('table').element
+
+    expect(ro.instances).toHaveLength(1)
+    expect(ro.instances[0]!.observed.has(el)).toBe(true)
+    expect(ro.instances[0]!.observed.has(table)).toBe(true)
+
+    // fits within container (including 1px subpixel rounding): no shadows
+    const metrics = { clientWidth: 358, scrollWidth: 359 }
+    mockScrollMetrics(el, metrics)
+    ro.trigger()
+    await nextTick()
+    expect(frame.classes()).not.toContain('is-cut-start')
+    expect(frame.classes()).not.toContain('is-cut-end')
+
+    // overflows at start edge: only end shadow
+    metrics.scrollWidth = 768
+    ro.trigger()
+    await nextTick()
+    expect(frame.classes()).not.toContain('is-cut-start')
+    expect(frame.classes()).toContain('is-cut-end')
+
+    // scrolled into the middle: both edge fades
+    el.scrollLeft = 140
+    await frame.trigger('scroll')
+    expect(frame.classes()).toContain('is-cut-start')
+    expect(frame.classes()).toContain('is-cut-end')
+
+    // scrolled to the end (even within 1px fractional DPR): only start edge fade
+    el.scrollLeft = 409.5
+    await frame.trigger('scroll')
+    expect(frame.classes()).toContain('is-cut-start')
+    expect(frame.classes()).not.toContain('is-cut-end')
+
+    // RTL negative scrollLeft behaves symmetrically
+    el.scrollLeft = -140
+    await frame.trigger('scroll')
+    expect(frame.classes()).toContain('is-cut-start')
+    expect(frame.classes()).toContain('is-cut-end')
+
+    el.scrollLeft = -410
+    await frame.trigger('scroll')
+    expect(frame.classes()).toContain('is-cut-start')
+    expect(frame.classes()).not.toContain('is-cut-end')
+
+    // container widens past table width: edge fades clear
+    el.scrollLeft = 0
+    metrics.clientWidth = 800
+    ro.trigger()
+    await nextTick()
+    expect(frame.classes()).not.toContain('is-cut-start')
+    expect(frame.classes()).not.toContain('is-cut-end')
+
+    wrapper.unmount()
+    expect(ro.instances[0]!.disconnected).toBe(true)
+  })
+
+  it('keeps the table element and updates edge fade classes while streaming rows', async () => {
+    const ro = installFakeResizeObserver()
+    const wrapper = mount(DouMarkdown, {
+      props: { content: '', streaming: true, smooth: false },
+    })
+
+    // table first appears with only header + short row
+    const initial = '| 配置项 | 类型 | 路径 |\n| --- | --- | --- |\n| 端口 | number | a |\n'
+    await wrapper.setProps({ content: initial })
+    frames(1)
+    await nextTick()
+
+    const frame = wrapper.get('.dou-markdown__table')
+    const el = frame.element as HTMLElement
+    const tableEl = frame.get('table').element
+    const metrics = { clientWidth: 358, scrollWidth: 358 }
+    mockScrollMetrics(el, metrics)
+    ro.trigger()
+    await nextTick()
+    expect(frame.classes()).not.toContain('is-cut-end')
+
+    // streaming appends a wider row that makes the table overflow
+    metrics.scrollWidth = 720
+    await wrapper.setProps({
+      content: `${initial}| 接口地址 | string | packages/server/src/config/runtime.ts |\n`,
+    })
+    frames(1)
+    await nextTick()
+    expect(wrapper.get('.dou-markdown__table').element).toBe(el)
+    expect(wrapper.get('.dou-markdown__table table').element).toBe(tableEl)
+    expect(frame.classes()).toContain('is-cut-end')
+
+    // scroll right and let the enter fade end: cut classes stay intact
+    el.scrollLeft = 100
+    await frame.trigger('scroll')
+    expect(frame.classes()).toContain('is-cut-start')
+    expect(frame.classes()).toContain('is-cut-end')
+
+    await wrapper.setProps({ streaming: false })
+    frames(1)
+    vi.advanceTimersByTime(400)
+    await nextTick()
+    expect(frame.classes()).toContain('is-cut-start')
+    expect(frame.classes()).toContain('is-cut-end')
+
+    wrapper.unmount()
+  })
+
+  it('works cleanly on SSR and when ResizeObserver is unavailable', async () => {
+    vi.stubGlobal('ResizeObserver', undefined)
+    const html = await renderToString(
+      createSSRApp({ render: () => h(DouMarkdown, { content: WIDE_TABLE }) }),
+    )
+    expect(html).toContain('<div class="dou-markdown__table"><table>')
+    expect(html).not.toContain('is-cut-start')
+    expect(html).not.toContain('is-cut-end')
+
+    const wrapper = mount(DouMarkdown, { props: { content: WIDE_TABLE } })
+    const frame = wrapper.get('.dou-markdown__table')
+    const el = frame.element as HTMLElement
+    mockScrollMetrics(el, { clientWidth: 358, scrollWidth: 720 })
+    await frame.trigger('scroll')
+    expect(frame.classes()).toContain('is-cut-end')
+    wrapper.unmount()
+  })
+})

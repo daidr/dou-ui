@@ -7,7 +7,7 @@ import { DouVirtualList } from '../virtual-list'
 import type { VirtualListAlign, VirtualListExpose } from '../virtual-list'
 import { virtualItemKey } from '../virtual-list/virtual-list'
 import { useReducedMotion } from '../../composables/use-motion'
-import { useTouchScroll } from '../../composables/use-touch-scroll'
+import { scrollShiftTotalOf, useTouchScroll } from '../../composables/use-touch-scroll'
 import { scrollPositionOf } from '../../utils/scroll'
 import { useNamespace } from '../../utils/namespace'
 import { devWarn } from '../../utils/status-check'
@@ -78,24 +78,61 @@ const contentRef = {
 const atBottom = ref(true)
 watch(atBottom, (value) => emit('atBottomChange', value))
 
+const TOUCH_SLOP = 2
+const touchEndListen = { capture: true, passive: true } as const
+
 // Following is a decision of the reader: scrolling up turns it off,
 // reaching the bottom turns it on again. Growing content alone never
 // changes it.
 let following = true
 let lastTop = 0
+let lastDist = 0
+let lastMaxTop = 0
+let lastShifted = 0
+let lastObservedScrollHeight = 0
+let lastObservedClientHeight = 0
+let lastObservedContentHeight: number | undefined
 let atTop = false
+let touchingViewport = false
+let listeningDocumentTouch = false
+let touchId: number | undefined
+let touchAnchorX = 0
+let touchAnchorY = 0
+let touchDirection: 'up' | 'down' | null = null
+let pendingFollow = false
 const touch = useTouchScroll()
 const plainContentStyle = computed(() => {
   const offset = !props.items ? touch.pendingShift(plainViewport.value) : 0
   return offset ? { transform: `translateY(${-offset}px)` } : undefined
 })
 
+function maxTopOf(el: HTMLElement) {
+  return Math.max(0, el.scrollHeight - el.clientHeight)
+}
+
 function logicalTopOf(el: HTMLElement) {
-  return Math.max(0, scrollPositionOf(el).top + touch.pendingShift(el))
+  const maxTop = maxTopOf(el)
+  return Math.min(maxTop, Math.max(0, scrollPositionOf(el).top + touch.pendingShift(el)))
 }
 
 function distanceToBottom(el: HTMLElement) {
-  return el.scrollHeight - (el.scrollTop + touch.pendingShift(el)) - el.clientHeight
+  return Math.max(0, maxTopOf(el) - logicalTopOf(el))
+}
+
+// Use a 1px margin so sub-pixel scrollTop values on high-DPI displays
+// (where scrollHeight/clientHeight are rounded integers) do not look like
+// iOS rubber-band overscroll past the bottom.
+function isBouncingBottom(el: HTMLElement) {
+  return el.scrollTop + touch.pendingShift(el) > maxTopOf(el) + 1
+}
+
+function syncPosition(el: HTMLElement) {
+  const maxTop = maxTopOf(el)
+  const top = logicalTopOf(el)
+  lastTop = top
+  lastDist = Math.max(0, maxTop - top)
+  lastMaxTop = maxTop
+  lastShifted = scrollShiftTotalOf(el)
 }
 
 const isTop = (el: HTMLElement) => logicalTopOf(el) <= 0 && el.scrollHeight > el.clientHeight
@@ -103,11 +140,38 @@ const isTop = (el: HTMLElement) => logicalTopOf(el) <= 0 && el.scrollHeight > el
 function onScroll() {
   const el = viewportRef.value
   if (!el) return
-  const top = el.scrollTop + touch.pendingShift(el)
-  const near = distanceToBottom(el) <= props.threshold
-  if (near) following = true
-  else if (top < lastTop) following = false
+  const maxTop = maxTopOf(el)
+  const top = logicalTopOf(el)
+  const dist = Math.max(0, maxTop - top)
+  const near = dist <= props.threshold
+  const maxTopDelta = maxTop - lastMaxTop
+  const shifted = scrollShiftTotalOf(el)
+  const shiftDelta = shifted - lastShifted
+  const userDelta = top - lastTop - shiftDelta
+  const distBeforeUser = Math.max(0, maxTop - (lastTop + shiftDelta))
+
+  const movedUp =
+    (shiftDelta !== 0 ? userDelta < -1 : userDelta < 0) &&
+    (maxTopDelta >= 0 ? dist > distBeforeUser : dist > distBeforeUser + 1)
+  const movedDown =
+    (shiftDelta !== 0 ? userDelta > 1 : userDelta > 0) &&
+    (shiftDelta !== 0
+      ? dist < distBeforeUser - 1
+      : maxTopDelta <= 0
+        ? dist < lastDist
+        : dist < lastDist - 1 || (dist <= 0.5 && lastDist > 1))
+
+  if (movedUp) {
+    following = false
+    pendingFollow = false
+  } else if (near && movedDown && touchDirection !== 'up') {
+    following = true
+  }
+
   lastTop = top
+  lastDist = dist
+  lastMaxTop = maxTop
+  lastShifted = shifted
   atBottom.value = near
   if (!isTop(el)) {
     atTop = false
@@ -156,43 +220,227 @@ function keepTopAnchor() {
   if (el) touch.shiftScroll(el, shift)
 }
 
+function findTouch(touches: TouchList | undefined, id: number | undefined): Touch | undefined {
+  if (!touches || !touches.length) return undefined
+  if (id !== undefined) {
+    for (let i = 0; i < touches.length; i++) {
+      if (touches[i]!.identifier === id) return touches[i]
+    }
+  }
+  return touches[0]
+}
+
+function addDocumentTouchListeners() {
+  if (listeningDocumentTouch || typeof document === 'undefined') return
+  listeningDocumentTouch = true
+  document.addEventListener('touchend', onTouchEnd, touchEndListen)
+  document.addEventListener('touchcancel', onTouchEnd, touchEndListen)
+}
+
+function removeDocumentTouchListeners() {
+  if (!listeningDocumentTouch || typeof document === 'undefined') return
+  listeningDocumentTouch = false
+  document.removeEventListener('touchend', onTouchEnd, touchEndListen)
+  document.removeEventListener('touchcancel', onTouchEnd, touchEndListen)
+}
+
+function resetTouchTracking() {
+  touchingViewport = false
+  touchId = undefined
+  touchDirection = null
+  removeDocumentTouchListeners()
+}
+
+function onTouchStart(event: TouchEvent) {
+  const point = event.touches?.[0]
+  if (!point) return
+  if (!touchingViewport || event.touches.length === 1) {
+    touchingViewport = true
+    touchId = point.identifier
+    touchAnchorX = point.clientX ?? 0
+    touchAnchorY = point.clientY ?? 0
+    touchDirection = null
+    addDocumentTouchListeners()
+  }
+}
+
+function onTouchMove(event: TouchEvent) {
+  const point = findTouch(event.touches, touchId)
+  if (!point) return
+  const x = point.clientX ?? 0
+  const y = point.clientY ?? 0
+  if (!touchingViewport) {
+    touchingViewport = true
+    touchId = point.identifier
+    touchAnchorX = x
+    touchAnchorY = y
+    touchDirection = null
+    addDocumentTouchListeners()
+    return
+  }
+
+  // While stretched past the bottom (iOS rubber-band overscroll), keep the
+  // anchor synced so relaxing the pull does not look like scrolling up.
+  const el = viewportRef.value
+  if (el && isBouncingBottom(el)) {
+    touchAnchorX = x
+    touchAnchorY = y
+    return
+  }
+
+  const dx = x - touchAnchorX
+  const dy = y - touchAnchorY
+  if (Math.abs(dy) < TOUCH_SLOP && Math.abs(dx) < TOUCH_SLOP) return
+  if (Math.abs(dy) <= Math.abs(dx)) return
+
+  touchAnchorX = x
+  touchAnchorY = y
+
+  // Finger moving down (clientY increasing) scrolls content up toward older messages.
+  if (dy >= TOUCH_SLOP) {
+    touchDirection = 'up'
+    following = false
+    pendingFollow = false
+    return
+  }
+
+  // Finger moving up (clientY decreasing) scrolls content down toward the bottom.
+  touchDirection = 'down'
+  if (el && distanceToBottom(el) <= 1) following = true
+}
+
+function flushPendingFollow() {
+  if (!pendingFollow || touchingViewport || !following) {
+    pendingFollow = false
+    return
+  }
+  pendingFollow = false
+  follow()
+}
+
+function onTouchEnd(event: TouchEvent) {
+  if (!touchingViewport) return
+  if (event.touches && event.touches.length > 0) {
+    const remaining = findTouch(event.touches, touchId)
+    if (remaining && remaining.identifier !== touchId) {
+      touchId = remaining.identifier
+      touchAnchorX = remaining.clientX ?? 0
+      touchAnchorY = remaining.clientY ?? 0
+    }
+    return
+  }
+  resetTouchTracking()
+  if (pendingFollow && following) {
+    const el = viewportRef.value
+    if (el && isBouncingBottom(el)) touch.whenSettled(flushPendingFollow)
+    else flushPendingFollow()
+  }
+}
+
 function onWheel(event: WheelEvent) {
   // a wheel turn upwards stops following at once, even mid smooth-scroll
-  if (event.deltaY < 0) following = false
+  if (event.deltaY < 0) {
+    following = false
+    pendingFollow = false
+  } else if (event.deltaY > 0) {
+    const el = viewportRef.value
+    if (el && distanceToBottom(el) <= 1) following = true
+  }
 }
 
 function scrollToBottom(behavior: ScrollBehavior = reducedMotion.value ? 'auto' : 'smooth') {
   const el = viewportRef.value
   if (!el) return
+  resetTouchTracking()
+  pendingFollow = false
   touch.clearShift(el)
   following = true
   el.scrollTo?.({ top: el.scrollHeight, behavior })
   if (!el.scrollTo) el.scrollTop = el.scrollHeight
+  syncPosition(el)
+}
+
+function contentHeightOf(entries: ResizeObserverEntry[], content: HTMLElement | null | undefined) {
+  if (!content) return undefined
+  for (const entry of entries) {
+    if (entry.target !== content) continue
+    const block = entry.borderBoxSize?.[0]?.blockSize
+    if (typeof block === 'number' && block > 0) return block
+    const rect = content.getBoundingClientRect().height
+    if (rect > 0) return rect
+  }
+  return undefined
 }
 
 function follow() {
   const el = viewportRef.value
   if (el && !props.items) keepTopAnchor()
   if (!el || !props.autoScroll || !following) {
-    if (el) atBottom.value = distanceToBottom(el) <= props.threshold
+    if (el) {
+      syncPosition(el)
+      atBottom.value = distanceToBottom(el) <= props.threshold
+    }
     return
   }
+  if (touchingViewport) {
+    pendingFollow = true
+    syncPosition(el)
+    atBottom.value = distanceToBottom(el) <= props.threshold
+    return
+  }
+  pendingFollow = false
   touch.clearShift(el)
   el.scrollTop = el.scrollHeight
-  lastTop = el.scrollTop
+  syncPosition(el)
+  lastObservedScrollHeight = el.scrollHeight
+  lastObservedClientHeight = el.clientHeight
   atBottom.value = true
+}
+
+function onResize(entries: ResizeObserverEntry[] = []) {
+  const el = viewportRef.value
+  if (!el) return
+
+  const content = contentRef.value
+  const contentHeight = contentHeightOf(entries, content)
+  const viewportResized = entries.some((entry) => entry.target === el)
+  const scrollHeightChanged = el.scrollHeight !== lastObservedScrollHeight
+  const clientHeightChanged = el.clientHeight !== lastObservedClientHeight
+  const contentChanged =
+    contentHeight === undefined ||
+    lastObservedContentHeight === undefined ||
+    Math.abs(contentHeight - lastObservedContentHeight) >= 0.5
+
+  // Ignore sub-pixel spacer fluctuations when a virtual list switches its
+  // rendered window without changing the scrollable extent or viewport size.
+  if (
+    props.items &&
+    !viewportResized &&
+    !scrollHeightChanged &&
+    !clientHeightChanged &&
+    !contentChanged
+  ) {
+    atBottom.value = distanceToBottom(el) <= props.threshold
+    return
+  }
+
+  if (contentHeight !== undefined) lastObservedContentHeight = contentHeight
+  lastObservedScrollHeight = el.scrollHeight
+  lastObservedClientHeight = el.clientHeight
+  follow()
 }
 
 let observer: ResizeObserver | undefined
 onMounted(() => {
   follow()
   if (typeof ResizeObserver === 'undefined') return
-  observer = new ResizeObserver(follow)
+  observer = new ResizeObserver(onResize)
   observeContent()
   if (viewportRef.value) observer.observe(viewportRef.value)
 })
 onBeforeUnmount(() => {
   observer?.disconnect()
+  resetTouchTracking()
   touch.clearShift(plainViewport.value)
 })
 
@@ -203,6 +451,7 @@ function observeContent() {
   if (!observer || content === observed) return
   if (observed) observer.unobserve(observed)
   observed = content
+  lastObservedContentHeight = undefined
   if (content) observer.observe(content)
 }
 watch(() => props.items?.length, observeContent, { flush: 'post' })
@@ -244,8 +493,10 @@ function scrollToMessage(
             : el.scrollTop + pending
     // the reader asked to look elsewhere: new content must not pull them away
     following = false
+    pendingFollow = false
     touch.clearShift(el)
     el.scrollTop = Math.max(0, to)
+    syncPosition(el)
     return
   }
   if (!props.items) {
@@ -260,7 +511,9 @@ function scrollToMessage(
   )
   if (index < 0) return
   following = false
+  pendingFollow = false
   listRef.value?.scrollToIndex(index, align)
+  if (viewportRef.value) syncPosition(viewportRef.value)
 }
 
 defineExpose<ChatListExpose>({
@@ -296,6 +549,10 @@ defineExpose<ChatListExpose>({
       :aria-label="t('chat.messages')"
       @scroll="onScroll"
       @wheel.passive="onWheel"
+      @touchstart.passive="onTouchStart"
+      @touchmove.passive="onTouchMove"
+      @touchend.passive="onTouchEnd"
+      @touchcancel.passive="onTouchEnd"
     >
       <template #default="{ item, index }">
         <slot name="item" :item="item" :index="index" />
@@ -310,6 +567,10 @@ defineExpose<ChatListExpose>({
       :aria-label="t('chat.messages')"
       @scroll.passive="onScroll"
       @wheel.passive="onWheel"
+      @touchstart.passive="onTouchStart"
+      @touchmove.passive="onTouchMove"
+      @touchend.passive="onTouchEnd"
+      @touchcancel.passive="onTouchEnd"
     >
       <div ref="content" :class="ns.e('content')" :style="plainContentStyle"><slot /></div>
     </div>

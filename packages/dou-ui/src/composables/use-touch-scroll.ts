@@ -64,6 +64,22 @@ const shifts = new Map<HTMLElement, Shift>()
 /** Moves iOS dropped, made once the touch scroll is over. */
 const lost = new Map<HTMLElement, number>()
 const lostVersion = shallowRef(0)
+/** Cumulative programmatic anchor shifts applied to each scroller. */
+let shifted = new WeakMap<HTMLElement, number>()
+
+function recordShift(el: HTMLElement, delta: number) {
+  if (!delta) return
+  shifted.set(el, (shifted.get(el) ?? 0) + delta)
+}
+
+/**
+ * Total vertical anchor shift applied to `el` via `shiftScroll` (including
+ * shifts folded into `pendingShift` on iOS). Listeners can diff this value to
+ * tell user scrolling apart from anchor compensation.
+ */
+export function scrollShiftTotalOf(el: HTMLElement | null | undefined): number {
+  return el ? (shifted.get(el) ?? 0) : 0
+}
 
 function addLost(el: HTMLElement, delta: number) {
   if (Math.abs(delta) < 0.5) return
@@ -148,7 +164,12 @@ function isDroppedAt(shift: Shift, top: number, settled: boolean) {
  */
 function resolveShifts() {
   for (const [el, shift] of shifts) {
-    if (isDroppedAt(shift, el.scrollTop, true)) addLost(el, shift.delta)
+    if (isDroppedAt(shift, el.scrollTop, true)) {
+      addLost(el, shift.delta)
+      // If a scroll event already ran with the dropped position before we
+      // could tell, record the restored shift so listeners ignore the jump back.
+      if (shift.first !== undefined) recordShift(el, shift.delta)
+    }
   }
   shifts.clear()
   steps = new WeakMap()
@@ -173,6 +194,7 @@ function checkShift(el: HTMLElement, top: number) {
     shifts.delete(el)
     if (wasDropped(shift, shift.first, top - shift.first)) {
       addLost(el, shift.delta)
+      recordShift(el, shift.delta)
       if (!moving.value) makeLost()
     }
     return false
@@ -200,9 +222,11 @@ function foldLost(el: HTMLElement, from: number, delta: number, maxTop: number) 
   const existing = lost.get(el) ?? 0
   const logicalBase = Math.max(0, from) + existing
   const logicalTarget = Math.min(Math.max(0, logicalBase + delta), maxTop)
-  const nextLost = existing + (logicalTarget - logicalBase)
+  const applied = logicalTarget - logicalBase
+  const nextLost = existing + applied
   if (Math.abs(nextLost) < 0.5) lost.delete(el)
   else lost.set(el, nextLost)
+  recordShift(el, applied)
   lostVersion.value++
 }
 
@@ -236,6 +260,7 @@ function shiftScroll(el: HTMLElement, delta: number) {
       shifts.delete(el)
       if (isDroppedAt(last, last.first!, false)) {
         addLost(el, last.delta)
+        recordShift(el, last.delta)
         if (lost.has(el)) {
           foldLost(el, from, delta, maxTop)
           return
@@ -253,6 +278,7 @@ function shiftScroll(el: HTMLElement, delta: number) {
   const totalDelta = mergeLast ? last.delta + appliedDelta : appliedDelta
 
   el.scrollTop = expected
+  recordShift(el, appliedDelta)
   if (!moving.value) return
 
   const after = el.scrollTop
@@ -307,6 +333,7 @@ function uninstall() {
     lostVersion.value++
   }
   steps = new WeakMap()
+  shifted = new WeakMap()
 }
 
 export interface UseTouchScrollReturn {

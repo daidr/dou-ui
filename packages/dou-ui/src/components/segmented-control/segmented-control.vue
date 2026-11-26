@@ -17,6 +17,7 @@ import {
 } from 'vue'
 import type { VNode } from 'vue'
 import { useNamespace } from '../../utils/namespace'
+import { SlotNodes } from '../../utils/slot'
 import { useFormDisabled, useFormItem, useFormReadonly, useFormSize } from '../form/use-form-item'
 import type {
   SegmentedControlOption,
@@ -135,20 +136,19 @@ function hasNonBlankText(node: VNode) {
   return node.type === Text && String(node.children ?? '').trim() !== ''
 }
 
-// Wrap bare text next to elements (e.g. an icon beside text in the `#option` slot)
-// in a block-level span so ellipsis truncation still works inside the flex label.
-function OptionContent(slotProps: {
-  option: SegmentedControlOption
-  checked: boolean
-}): VNode[] | string {
-  const rendered = slots.option?.(slotProps)
-  if (!rendered || (Array.isArray(rendered) && rendered.length === 0)) {
-    return slotProps.option.label ?? String(slotProps.option.value)
-  }
+// Render `#option` during this component's own render so dynamic slot swaps always update.
+// Returns `undefined` when the slot is absent or renders nothing (e.g. `v-if="false"`),
+// falling back to the default option label; wraps bare text beside elements in a block-level
+// span so ellipsis truncation still works inside the flex label.
+function renderOption(option: SegmentedControlOption, checked: boolean): unknown[] | undefined {
+  if (!slots.option) return undefined
+  const rendered = slots.option({ option, checked })
   const nodes = flattenSlotNodes(rendered)
   const hasElement = nodes.some((node) => !isTextOrComment(node))
   const hasText = nodes.some(hasNonBlankText)
-  if (!hasElement || !hasText) return rendered as VNode[]
+  if (!hasElement && !hasText) return undefined
+  if (!hasElement) return nodes
+  if (!hasText) return Array.isArray(rendered) ? rendered : [rendered]
 
   const result: VNode[] = []
   let textRun: VNode[] = []
@@ -263,8 +263,10 @@ const classes = computed(() => [
         @change="select(option)"
       />
       <span :class="ns.e('label')">
-        <OptionContent v-if="slots.option" :option="option" :checked="option.value === model" />
-        <template v-else>{{ option.label ?? String(option.value) }}</template>
+        <template v-for="custom in [renderOption(option, option.value === model)]" :key="0">
+          <SlotNodes v-if="custom" :nodes="custom" />
+          <template v-else>{{ option.label ?? String(option.value) }}</template>
+        </template>
       </span>
     </label>
   </div>

@@ -92,6 +92,98 @@ describe('DouVirtualList with measured items', () => {
     expect(el.scrollTop).toBe(530)
     wrapper.unmount()
   })
+
+  it('uses exact sub-pixel border-box heights instead of rounded offsetHeight to avoid spacer jitter', async () => {
+    const exactHeight = 365.984375
+    const wrapper = mount(DouVirtualList, {
+      props: {
+        items: items.slice(0, 30),
+        itemKey: 'id',
+        estimateSize: 120,
+        height: 758,
+        overscan: 2,
+      },
+      slots: { default: ({ item }: { item: { id: number } }) => h('div', `msg-${item.id}`) },
+      attachTo: document.body,
+    })
+    const el = wrapper.element as HTMLElement
+    Object.defineProperty(el, 'scrollHeight', { configurable: true, get: () => 12_000 })
+    Object.defineProperty(el, 'clientHeight', { configurable: true, get: () => 758 })
+
+    const setSubpixel = (nodes: ReturnType<typeof wrapper.findAll>) => {
+      for (const node of nodes) {
+        node.element.setAttribute('data-height', String(Math.round(exactHeight)))
+        node.element.getBoundingClientRect = () =>
+          ({
+            height: exactHeight,
+            top: 0,
+            bottom: exactHeight,
+            left: 0,
+            right: 390,
+            width: 390,
+          }) as DOMRect
+      }
+    }
+
+    // Measure items via ResizeObserver borderBoxSize (exact fractional height)
+    const fireBorderBox = () => {
+      for (const observer of observers) {
+        const entries = [...observer.elements].map(
+          (target) =>
+            ({
+              target,
+              borderBoxSize: [{ inlineSize: 390, blockSize: exactHeight }],
+            }) as unknown as ResizeObserverEntry,
+        )
+        observer.callback(entries, observer as unknown as ResizeObserver)
+      }
+    }
+
+    const totalSpacerHeight = () => {
+      const pads = wrapper.findAll('.dou-virtual-list__pad')
+      const padSum = pads.reduce(
+        (sum, pad) => sum + Number.parseFloat((pad.element as HTMLElement).style.height || '0'),
+        0,
+      )
+      const rendered = wrapper.findAll('.dou-virtual-list__item').length
+      return padSum + rendered * exactHeight
+    }
+
+    // Render and measure items near the bottom, then one window higher
+    el.scrollTop = 30 * exactHeight - 758
+    await wrapper.trigger('scroll')
+    await nextTick()
+    setSubpixel(wrapper.findAll('.dou-virtual-list__item'))
+    fireBorderBox()
+    await nextTick()
+
+    // Scroll up enough so an additional item mounts and gets measured too
+    el.scrollTop = 25 * exactHeight
+    await wrapper.trigger('scroll')
+    await nextTick()
+    setSubpixel(wrapper.findAll('.dou-virtual-list__item'))
+    fireBorderBox()
+    await nextTick()
+
+    const expectedTotal = totalSpacerHeight()
+
+    // Now move across the virtual window boundary where already-measured items swap between DOM and pad
+    el.scrollTop = 26 * exactHeight
+    await wrapper.trigger('scroll')
+    await nextTick()
+    expect(totalSpacerHeight()).toBeCloseTo(expectedTotal, 6)
+
+    // Also verify getBoundingClientRect fallback (no borderBoxSize on entry) preserves sub-pixel precision
+    el.scrollTop = 25 * exactHeight - 10
+    await wrapper.trigger('scroll')
+    await nextTick()
+    setSubpixel(wrapper.findAll('.dou-virtual-list__item'))
+    resizeAll()
+    await nextTick()
+    expect(totalSpacerHeight()).toBeCloseTo(expectedTotal, 6)
+
+    wrapper.unmount()
+  })
 })
 
 const expand = ({ row }: { row: { name: string } }) => h('p', `详情 ${row.name}`)

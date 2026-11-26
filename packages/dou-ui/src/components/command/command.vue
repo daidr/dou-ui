@@ -167,7 +167,7 @@ onUpdated(() => {
     // Set once: a later change would move every row not measured yet.
     if (estimate === undefined) {
       let sum = 0
-      for (const row of rows) sum += row.offsetHeight
+      for (const row of rows) sum += row.getBoundingClientRect().height || row.offsetHeight
       if (sum) estimate = sum / rows.length
     }
     return

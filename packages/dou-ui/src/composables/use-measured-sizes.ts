@@ -46,9 +46,18 @@ export function useMeasuredSizes<K>(options: UseMeasuredSizesOptions<K>) {
   // An item can span several elements, e.g. a table row and its detail row.
   const tracked = new Map<Element, { key: K; index: number }>()
   const byKey = new Map<K, Set<Element>>()
+  // Exact border-box heights from ResizeObserver keep virtual pads aligned
+  // with rendered items down to sub-pixel layout units.
+  const elementHeights = new WeakMap<Element, number>()
+  const elementHeightOf = (element: Element) => {
+    const observed = elementHeights.get(element)
+    if (observed !== undefined) return observed
+    const rect = element.getBoundingClientRect().height
+    return rect > 0 ? rect : (element as HTMLElement).offsetHeight
+  }
   const heightOf = (key: K) => {
     let size = 0
-    for (const element of byKey.get(key) ?? []) size += (element as HTMLElement).offsetHeight
+    for (const element of byKey.get(key) ?? []) size += elementHeightOf(element)
     return size
   }
 
@@ -65,14 +74,15 @@ export function useMeasuredSizes<K>(options: UseMeasuredSizesOptions<K>) {
       seen.add(key)
       const size = heightOf(key)
       const before = sizeOf(index)
-      if (size === before && known.has(key)) continue
+      const diff = size - before
+      if (known.has(key) && Math.abs(diff) < 0.01) continue
       known.set(key, size)
       changed = true
-      if (startOf(index) < top) shift += size - before
+      if (startOf(index) < top) shift += diff
     }
     if (!changed) return
     version.value++
-    if (el && shift) {
+    if (el && Math.abs(shift) >= 0.5) {
       touch.shiftScroll(el, shift)
       options.onShift?.(shift, el)
     }
@@ -81,9 +91,24 @@ export function useMeasuredSizes<K>(options: UseMeasuredSizesOptions<K>) {
   const observer =
     typeof ResizeObserver === 'undefined'
       ? undefined
-      : new ResizeObserver((entries) =>
-          update(entries.flatMap((entry) => tracked.get(entry.target) ?? [])),
-        )
+      : new ResizeObserver((entries) => {
+          const items: { key: K; index: number }[] = []
+          for (const entry of entries) {
+            const item = tracked.get(entry.target)
+            if (!item) continue
+            const block = entry.borderBoxSize?.[0]?.blockSize
+            if (
+              typeof block === 'number' &&
+              (block > 0 || entry.target.getBoundingClientRect().height === 0)
+            ) {
+              elementHeights.set(entry.target, block)
+            } else {
+              elementHeights.delete(entry.target)
+            }
+            items.push(item)
+          }
+          if (items.length) update(items)
+        })
 
   /** Watch an item's element; call it from a function ref on every render. */
   function track(element: Element | null, key: K, index: number) {
@@ -92,6 +117,7 @@ export function useMeasuredSizes<K>(options: UseMeasuredSizesOptions<K>) {
     if (item) {
       if (item.key !== key) {
         byKey.get(item.key)?.delete(element)
+        elementHeights.delete(element)
         item.key = key
         add(element, key)
       }
@@ -114,6 +140,7 @@ export function useMeasuredSizes<K>(options: UseMeasuredSizesOptions<K>) {
       if (element.isConnected) continue
       observer?.unobserve(element)
       tracked.delete(element)
+      elementHeights.delete(element)
       const set = byKey.get(item.key)
       set?.delete(element)
       // Only re-measure an item still on the page, e.g. a row whose detail closed.

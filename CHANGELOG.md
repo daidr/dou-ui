@@ -7,6 +7,15 @@ DouUI 的所有包（`dou-ui`、`@dou-ui/theme`、`@dou-ui/icons` 以及生态�
 
 这个文件由发版脚本生成：改动先以碎片文件记在 [`.changes/`](./.changes/README.md) 里，发布时汇总到这里。
 
+## 0.1.0-alpha.28 · 2026-11-26
+
+### 修复
+
+- **@dou-ui/theme**：`DouText` 的 `.dou-text.is-truncate` 补充 `min-width: 0`（保持 `overflow-x: clip` 不裁切垂直字形），修复作为水平 Flex 或 Grid 子项与按钮、图标并排时在窄容器内无法收缩、溢出父容器并遮挡相邻元素的问题。 ([#544](https://github.com/daidr/dou-ui/pull/544))
+- **dou-ui**：修复 `DouTabs` 与 `DouDock` 在自定义 `#label` 插槽包含带波纹动画的 `DouStatusDot` 等无文本装饰节点时，未截断标签被误判溢出并错误展示原生 `title` 提示，以及前置装饰节点遮蔽后续截断文本检测的问题。 ([#545](https://github.com/daidr/dou-ui/pull/545))
+- **dou-ui**：修复 `DouAutocomplete`、`DouSelect`、`DouCascader`、`DouDatePicker`、`DouTimePicker`、`DouTreeSelect`、`DouColorPicker`、`DouInputDate`、`DouInputTime` 及浮层与多根组件因 Fragment / Teleport 根结构丢失父组件 `scopeId` 与 `slotScopeIds` 的问题，使调用方在 `<style scoped>` 中直接传入的 class 能够正常命中目标元素，无需额外包一层容器或使用 `:deep()`。 ([#546](https://github.com/daidr/dou-ui/pull/546))
+- **dou-ui**：修复 `DouChatList` 与 `DouVirtualList` 在 iOS Safari 等触屏或小步长滚动场景中停在底部时向上滑动被反复弹回最底部的问题：补充触屏方向检测与活跃触控期保护、修正 `threshold` 区域内与底部橡皮筋回弹时的自动吸底状态判断，并将 `useMeasuredSizes` 的高度测量改为精确盒高度以消除虚拟列表 spacer 亚像素抖动。 ([#549](https://github.com/daidr/dou-ui/pull/549))
+
 ## 0.1.0-alpha.27 · 2026-11-25
 
 ### 改进

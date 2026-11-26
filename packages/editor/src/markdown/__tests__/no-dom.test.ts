@@ -84,4 +84,11 @@ describe('markdownToBlocks without a browser', () => {
     )
     expect(page.map((block) => block.type)).toEqual(['paragraph'])
   })
+
+  it('round-trips CJK punctuation emphasis without a browser', () => {
+    const sample =
+      '制作了**桌面工作台（1280×860）**与**移动端 PWA（390×800）**两套，包含~~删除（测试）~~内容\n'
+    const blocks = markdownToBlocks(sample, extensions, { domParser: new LinkedomParser() })
+    expect(blocksToMarkdown(blocks, extensions)).toBe(sample)
+  })
 })

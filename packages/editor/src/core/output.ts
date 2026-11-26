@@ -1,6 +1,7 @@
 import type { ResolvedEditorExtensions } from './extension'
 import type { Block, InlineContent, MarkField, PartialBlock } from './model'
 import { isAlign } from './align'
+import { isCjkCodePoint, isNonEmojiGeneralUseVS, nextCodePoint, previousCodePoint } from './cjk'
 import { isColor } from './colors'
 import { isSafeHref } from './schema'
 
@@ -225,16 +226,34 @@ export const escapeMarkdown = (text: string) => text.replace(SPECIAL, '\\$&')
 const PUNCTUATION = /[\p{P}\p{S}]/u
 const SPACE = /\s/u
 
+/** Resolve the code point right before a delimiter, looking past a non-emoji general-use VS. */
+function beforeCodePoint(text: string): number {
+  const [last, lastPos] = previousCodePoint(text, text.length)
+  if (!isNonEmojiGeneralUseVS(last)) return last
+  const [prevBase] = previousCodePoint(text, lastPos)
+  return SPACE.test(String.fromCodePoint(prevBase)) ? last : prevBase
+}
+
 /**
  * Whether a delimiter such as `**` can open (or close) emphasis here: the
  * text inside must not start (end) with a space, and when it starts (ends)
- * with punctuation, the outside must be a space, punctuation or the edge.
+ * with punctuation, the outside must be a space, punctuation, the edge, or a
+ * CJK boundary (matching CommonMark CJK-friendly and `DouMarkdown`).
  * Otherwise the HTML tag is written, which Markdown reads as well.
  */
-function flanks(inner: string | undefined, outer: string | undefined) {
-  if (!inner || SPACE.test(inner)) return false
-  if (!PUNCTUATION.test(inner)) return true
-  return !outer || SPACE.test(outer) || PUNCTUATION.test(outer)
+function flanks(inner: number | undefined, outer: number | undefined): boolean {
+  if (inner === undefined) return false
+  const innerChar = String.fromCodePoint(inner)
+  if (SPACE.test(innerChar)) return false
+  if (!PUNCTUATION.test(innerChar)) return true
+  if (outer === undefined) return true
+  const outerChar = String.fromCodePoint(outer)
+  return (
+    SPACE.test(outerChar) ||
+    PUNCTUATION.test(outerChar) ||
+    isCjkCodePoint(inner) ||
+    isCjkCodePoint(outer)
+  )
 }
 
 function codeSpan(text: string): string {
@@ -273,15 +292,21 @@ function inlineMarkdown(content: InlineContent[], outputs: Outputs): string {
   let result = ''
   const stack: { key: string; close: string }[] = []
 
-  /** The text a mark will cover from `start`, and the character after it. */
+  /** The text a mark will cover from `start`, and the text immediately after it. */
   function span(start: number, key: string) {
-    let text = ''
+    let raw = ''
     let end = start
     while (end < content.length && keysOf(content[end]!, outputs).includes(key)) {
-      text += textOf(content[end])
+      raw += textOf(content[end])
       end++
     }
-    return { text: text.trim(), after: textOf(content[end])[0] }
+    let after = ''
+    if (end > start && /\S\s+$/.test(textOf(content[end - 1]))) {
+      after = ' '
+    } else {
+      while (end < content.length && !after) after = textOf(content[end++])
+    }
+    return { text: raw.trim(), after }
   }
 
   function open(key: string, start: number) {
@@ -298,7 +323,10 @@ function inlineMarkdown(content: InlineContent[], outputs: Outputs): string {
     const { text, after } = span(start, key)
     const delimiter = tags.markdown
     const usable =
-      delimiter && flanks(text[0], result.at(-1)) && flanks(text.at(-1), after ?? undefined)
+      delimiter &&
+      text.length > 0 &&
+      flanks(nextCodePoint(text, 0), result ? beforeCodePoint(result) : undefined) &&
+      flanks(beforeCodePoint(text), after ? nextCodePoint(after, 0) : undefined)
     const [opening, closing] = usable ? delimiter : (tags.html ?? delimiter!)
     result += opening
     stack.push({ key, close: closing })

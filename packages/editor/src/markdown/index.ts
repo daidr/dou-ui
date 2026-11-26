@@ -3,14 +3,15 @@ import { kitOf, type EditorExtensionList } from '../core/convert'
 import type { Block, PartialBlock } from '../core/model'
 import { writeMarkdown } from '../core/output'
 import { parseHTML, type DOMParserLike } from '../core/prepare'
+import { cjkFriendly } from './cjk-friendly'
 
 export type { DOMParserLike }
 
 export interface MarkdownToBlocksOptions {
   /**
-   * Turns Markdown into HTML. Defaults to markdown-it with HTML allowed
-   * (the HTML is read like pasted HTML, so only what the extensions know
-   * is kept); pass your own to add syntax.
+   * Turns Markdown into HTML. Defaults to markdown-it with HTML allowed and
+   * CJK-friendly emphasis/strikethrough rules (the HTML is read like pasted
+   * HTML, so only what the extensions know is kept); pass your own to add syntax.
    */
   render?: (markdown: string) => string
   /**
@@ -23,7 +24,7 @@ export interface MarkdownToBlocksOptions {
 let parser: MarkdownIt | undefined
 
 function render(markdown: string) {
-  parser ??= new MarkdownIt({ html: true, linkify: true })
+  parser ??= new MarkdownIt({ html: true, linkify: true }).use(cjkFriendly)
   return parser.render(markdown)
 }
 

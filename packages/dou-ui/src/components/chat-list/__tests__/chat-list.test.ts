@@ -356,6 +356,7 @@ describe('DouChatList', () => {
   })
 
   it('keeps following across horizontal swipes, iOS bottom rubber-band bounces, and content/viewport shrinkage at bottom', async () => {
+    vi.useFakeTimers()
     const ro = createFakeResizeObserver()
     const wrapper = mount(DouChatList, {
       slots: { default: '<p>消息</p>' },
@@ -384,11 +385,12 @@ describe('DouChatList', () => {
     // Slight finger relaxation downward while still stretched past bottom
     el.dispatchEvent(touchEvent('touchmove', [{ clientY: 468 }]))
     el.dispatchEvent(touchEvent('touchend', []))
-    // Rubber-band springs back: 685 -> 665 -> 650
+    // Rubber-band springs back: 685 -> 665 -> 650, then settles
     el.scrollTop = 665
     el.dispatchEvent(new Event('scroll'))
     el.scrollTop = 650
     el.dispatchEvent(new Event('scroll'))
+    vi.advanceTimersByTime(200)
     sized(el, 1120, 400)
     ro.fire()
     expect(el.scrollTop).toBe(1120)
@@ -961,6 +963,153 @@ describe('DouChatList', () => {
     vi.advanceTimersByTime(200)
     expect(writeCount).toBe(1)
     expect(top).toBe(1025)
+
+    wrapper.unmount()
+  })
+
+  it('keeps following across multi-frame post-touchend rubber-band bounce and content growing past overscroll', () => {
+    vi.useFakeTimers()
+    const ro = createFakeResizeObserver()
+    const wrapper = mount(DouChatList, {
+      slots: { default: '<p>消息</p>' },
+      attachTo: document.body,
+    })
+    const el = wrapper.get('.dou-chat-list__viewport').element as HTMLElement
+
+    let scrollHeight = 1000
+    const clientHeight = 400
+    let top = 600
+    let dropWrites = false
+    let writeCount = 0
+    Object.defineProperty(el, 'scrollHeight', { configurable: true, get: () => scrollHeight })
+    Object.defineProperty(el, 'clientHeight', { configurable: true, get: () => clientHeight })
+    Object.defineProperty(el, 'scrollTop', {
+      configurable: true,
+      get: () => top,
+      set: (value: number) => {
+        writeCount++
+        if (!dropWrites) top = value
+      },
+    })
+    el.dispatchEvent(new Event('scroll'))
+    writeCount = 0
+
+    // 1. Multi-frame spring-back (640 -> 630 -> 620 -> 610 -> 600) while maxTop grew 600 -> 625
+    el.dispatchEvent(touchEvent('touchstart', [{ clientY: 500 }]))
+    el.dispatchEvent(touchEvent('touchmove', [{ clientY: 450 }]))
+    top = 640
+    el.dispatchEvent(new Event('scroll'))
+    scrollHeight = 1025 // maxTop = 625
+    ro.fire()
+    el.dispatchEvent(touchEvent('touchend', []))
+    expect(writeCount).toBe(0)
+
+    dropWrites = true
+    for (const frameTop of [630, 620, 610, 600]) {
+      top = frameTop
+      el.dispatchEvent(new Event('scroll'))
+    }
+    expect(writeCount).toBe(0)
+
+    dropWrites = false
+    vi.advanceTimersByTime(200)
+    expect(writeCount).toBe(1)
+    expect(top).toBe(1025)
+
+    // Subsequent streaming growth keeps auto-following after settle
+    top = 625
+    el.dispatchEvent(new Event('scroll'))
+    scrollHeight = 1060
+    ro.fire()
+    expect(top).toBe(1060)
+
+    // 2. Content grows past the current overscrolled scrollTop right after touchend
+    // (top = 680 > maxTop = 660 at touchend, then streaming grows maxTop to 700 mid-bounce)
+    top = 660
+    el.dispatchEvent(new Event('scroll'))
+    writeCount = 0
+    el.dispatchEvent(touchEvent('touchstart', [{ clientY: 500 }]))
+    el.dispatchEvent(touchEvent('touchmove', [{ clientY: 470 }]))
+    top = 680 // stretched 20px past maxTop = 660
+    el.dispatchEvent(new Event('scroll'))
+    el.dispatchEvent(touchEvent('touchend', []))
+
+    // Streaming adds +40px so maxTop = 700 > top = 680 while iOS bounce animation is still running
+    dropWrites = true
+    scrollHeight = 1100
+    ro.fire()
+    expect(writeCount).toBe(0)
+
+    // Multi-frame bounce lands back at pre-bounce origin 660
+    for (const frameTop of [670, 660]) {
+      top = frameTop
+      el.dispatchEvent(new Event('scroll'))
+    }
+    expect(writeCount).toBe(0)
+
+    // Settle flushes the deferred follow() cleanly
+    dropWrites = false
+    vi.advanceTimersByTime(200)
+    expect(writeCount).toBe(1)
+    expect(top).toBe(1100)
+
+    // 3. Genuine upward scroll past the bounce origin (< 699) cancels bounce protection immediately
+    top = 700
+    el.dispatchEvent(new Event('scroll'))
+    writeCount = 0
+    el.dispatchEvent(touchEvent('touchstart', [{ clientY: 500 }]))
+    el.dispatchEvent(touchEvent('touchmove', [{ clientY: 470 }]))
+    top = 720
+    el.dispatchEvent(new Event('scroll'))
+    el.dispatchEvent(touchEvent('touchend', []))
+    scrollHeight = 1140 // maxTop = 740
+    ro.fire()
+    expect(writeCount).toBe(0)
+
+    // Scroll passes below bounce origin 700 to 670 -> must stop following and drop pendingFollow
+    top = 670
+    el.dispatchEvent(new Event('scroll'))
+    vi.advanceTimersByTime(200)
+    expect(writeCount).toBe(0)
+    expect(top).toBe(670)
+
+    scrollHeight = 1200
+    ro.fire()
+    expect(top).toBe(670)
+
+    // 4. Downward momentum flick enters bottom bounce after touchend, then content grows past overscroll
+    scrollHeight = 1000
+    top = 300
+    el.dispatchEvent(new Event('scroll'))
+    writeCount = 0
+    el.dispatchEvent(touchEvent('touchstart', [{ clientY: 500 }]))
+    el.dispatchEvent(touchEvent('touchmove', [{ clientY: 420 }]))
+    top = 360
+    el.dispatchEvent(new Event('scroll'))
+    el.dispatchEvent(touchEvent('touchend', []))
+
+    // Momentum hits bottom and overshoots into rubber-band bounce (635 > maxTop = 600)
+    top = 590
+    el.dispatchEvent(new Event('scroll'))
+    top = 635
+    el.dispatchEvent(new Event('scroll'))
+
+    // Streaming grows maxTop past 635 to 650 while bounce is still settling
+    dropWrites = true
+    scrollHeight = 1050
+    ro.fire()
+    expect(writeCount).toBe(0)
+
+    for (const frameTop of [620, 610, 600]) {
+      top = frameTop
+      el.dispatchEvent(new Event('scroll'))
+    }
+    expect(writeCount).toBe(0)
+
+    dropWrites = false
+    vi.advanceTimersByTime(200)
+    expect(writeCount).toBe(1)
+    expect(top).toBe(1050)
 
     wrapper.unmount()
   })

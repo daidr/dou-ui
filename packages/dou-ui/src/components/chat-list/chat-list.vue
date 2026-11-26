@@ -104,6 +104,11 @@ let touchAnchorX = 0
 let touchAnchorY = 0
 let touchDirection: 'up' | 'down' | null = null
 let pendingFollow = false
+// Set when lifting the finger while stretched past the bottom (iOS rubber-band
+// overscroll). Holds the pre-bounce bottom baseline until the touch scroll
+// settles so multi-frame spring-back and concurrent content growth cannot look
+// like scrolling up or drop a deferred follow().
+let bottomBounceOrigin: number | undefined
 const touch = useTouchScroll()
 const plainContentStyle = computed(() => {
   const offset = !props.items ? touch.pendingShift(plainViewport.value) : 0
@@ -130,6 +135,10 @@ function isBouncingBottom(el: HTMLElement) {
   return el.scrollTop > maxTopOf(el) + 1
 }
 
+function clearBottomBounce() {
+  bottomBounceOrigin = undefined
+}
+
 function syncPosition(el: HTMLElement) {
   const maxTop = maxTopOf(el)
   const top = logicalTopOf(el)
@@ -154,7 +163,21 @@ function onScroll() {
   const userDelta = top - lastTop - shiftDelta
   const distBeforeUser = Math.max(0, maxTop - (lastTop + shiftDelta))
 
+  let inBottomBounce = false
+  if (bottomBounceOrigin !== undefined) {
+    if (
+      touch.active.value &&
+      following &&
+      el.scrollTop >= Math.min(bottomBounceOrigin, maxTop) - 1
+    ) {
+      inBottomBounce = true
+    } else {
+      clearBottomBounce()
+    }
+  }
+
   const movedUp =
+    !inBottomBounce &&
     (shiftDelta !== 0 ? userDelta < -1 : userDelta < 0) &&
     (maxTopDelta >= 0 ? dist > distBeforeUser : dist > distBeforeUser + 1)
   const movedDown =
@@ -168,17 +191,28 @@ function onScroll() {
   if (movedUp) {
     following = false
     pendingFollow = false
+    clearBottomBounce()
   } else if (near && movedDown && touchDirection !== 'up' && !hasPendingShiftCheck(el)) {
     following = true
   }
 
   const keepBounceBaseline =
-    following && isBouncingBottom(el) && lastDist <= 1 && maxTop > lastMaxTop
+    inBottomBounce || (following && isBouncingBottom(el) && lastDist <= 1 && maxTop > lastMaxTop)
   if (!keepBounceBaseline) {
     lastTop = top
     lastDist = dist
     lastMaxTop = maxTop
     lastShifted = shifted
+  }
+  if (
+    bottomBounceOrigin === undefined &&
+    !touchingViewport &&
+    touch.active.value &&
+    following &&
+    isBouncingBottom(el)
+  ) {
+    bottomBounceOrigin = Math.min(lastMaxTop, maxTop)
+    touch.whenSettled(finishBottomBounce)
   }
   atBottom.value = near
   if (!isTop(el)) {
@@ -262,6 +296,7 @@ function resetTouchTracking() {
 function onTouchStart(event: TouchEvent) {
   const point = event.touches?.[0]
   if (!point) return
+  clearBottomBounce()
   if (!touchingViewport || event.touches.length === 1) {
     touchingViewport = true
     touchId = point.identifier
@@ -278,6 +313,7 @@ function onTouchMove(event: TouchEvent) {
   const x = point.clientX ?? 0
   const y = point.clientY ?? 0
   if (!touchingViewport) {
+    clearBottomBounce()
     touchingViewport = true
     touchId = point.identifier
     touchAnchorX = x
@@ -309,6 +345,7 @@ function onTouchMove(event: TouchEvent) {
     touchDirection = 'up'
     following = false
     pendingFollow = false
+    clearBottomBounce()
     return
   }
 
@@ -326,6 +363,16 @@ function flushPendingFollow() {
   follow()
 }
 
+function finishBottomBounce() {
+  const hadBounce = bottomBounceOrigin !== undefined
+  clearBottomBounce()
+  if (pendingFollow) {
+    flushPendingFollow()
+  } else if (hadBounce && !touchingViewport && viewportRef.value) {
+    syncPosition(viewportRef.value)
+  }
+}
+
 function onTouchEnd(event: TouchEvent) {
   if (!touchingViewport) return
   if (event.touches && event.touches.length > 0) {
@@ -337,11 +384,14 @@ function onTouchEnd(event: TouchEvent) {
     }
     return
   }
+  const el = viewportRef.value
+  const bouncing = !!el && following && isBouncingBottom(el)
   resetTouchTracking()
-  if (pendingFollow && following) {
-    const el = viewportRef.value
-    if (el && isBouncingBottom(el)) touch.whenSettled(flushPendingFollow)
-    else flushPendingFollow()
+  if (bouncing) {
+    bottomBounceOrigin = Math.min(lastMaxTop, maxTopOf(el))
+    touch.whenSettled(finishBottomBounce)
+  } else if (pendingFollow && following) {
+    flushPendingFollow()
   }
 }
 
@@ -350,6 +400,7 @@ function onWheel(event: WheelEvent) {
   if (event.deltaY < 0) {
     following = false
     pendingFollow = false
+    clearBottomBounce()
   } else if (event.deltaY > 0) {
     const el = viewportRef.value
     if (el && distanceToBottom(el) <= 1) following = true
@@ -360,6 +411,7 @@ function scrollToBottom(behavior: ScrollBehavior = reducedMotion.value ? 'auto' 
   const el = viewportRef.value
   if (!el) return
   resetTouchTracking()
+  clearBottomBounce()
   pendingFollow = false
   touch.clearShift(el)
   following = true
@@ -390,14 +442,22 @@ function follow() {
     }
     return
   }
-  if (touchingViewport || (touch.active.value && isBouncingBottom(el))) {
+  const settlingBounce =
+    touch.active.value && (bottomBounceOrigin !== undefined || isBouncingBottom(el))
+  if (touchingViewport || settlingBounce) {
     pendingFollow = true
-    if (!isBouncingBottom(el)) syncPosition(el)
+    if (!settlingBounce && !isBouncingBottom(el)) syncPosition(el)
     atBottom.value = distanceToBottom(el) <= props.threshold
-    if (!touchingViewport) touch.whenSettled(flushPendingFollow)
+    if (!touchingViewport) {
+      if (bottomBounceOrigin === undefined && isBouncingBottom(el)) {
+        bottomBounceOrigin = Math.min(lastMaxTop, maxTopOf(el))
+      }
+      touch.whenSettled(finishBottomBounce)
+    }
     return
   }
   pendingFollow = false
+  clearBottomBounce()
   touch.clearShift(el)
   el.scrollTop = el.scrollHeight
   syncPosition(el)
@@ -450,6 +510,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   observer?.disconnect()
   resetTouchTracking()
+  clearBottomBounce()
   touch.clearShift(plainViewport.value)
 })
 
@@ -503,6 +564,7 @@ function scrollToMessage(
     // the reader asked to look elsewhere: new content must not pull them away
     following = false
     pendingFollow = false
+    clearBottomBounce()
     touch.clearShift(el)
     el.scrollTop = Math.max(0, to)
     syncPosition(el)
@@ -521,6 +583,7 @@ function scrollToMessage(
   if (index < 0) return
   following = false
   pendingFollow = false
+  clearBottomBounce()
   listRef.value?.scrollToIndex(index, align)
   if (viewportRef.value) syncPosition(viewportRef.value)
 }

@@ -143,21 +143,31 @@ function measure() {
   const current = view.value
   const host = root.value
   const at = target.value
-  if (!current || !host || !at) return (layout.value = null)
+  if (!current || !host || !at) {
+    observeFrame(null)
+    return (layout.value = null)
+  }
   const tableNode = current.state.doc.nodeAt(at.pos)
   const frameElement = current.nodeDOM(at.pos) as HTMLElement | null
   const viewportElement =
     frameElement?.querySelector<HTMLElement>(':scope > .dou-editor-table__viewport') ?? frameElement
   const tableElement = viewportElement?.querySelector('table')
-  if (!tableNode || !frameElement || !viewportElement || !tableElement) return (layout.value = null)
+  if (!tableNode || !frameElement || !viewportElement || !tableElement) {
+    observeFrame(null)
+    return (layout.value = null)
+  }
+  observeFrame(frameElement)
   const box = host.getBoundingClientRect()
   const tableBox = tableElement.getBoundingClientRect()
   const frameBox = viewportElement.getBoundingClientRect()
   const outerBox = frameElement.getBoundingClientRect()
   const scrollable = frameElement.classList.contains('is-scrollable')
+  observedScrollable = scrollable
   const barElement = scrollable
     ? frameElement.querySelector<HTMLElement>(':scope > .dou-editor-table__scrollbar')
     : null
+  const barBox = barElement?.getBoundingClientRect()
+  const rowAddBottom = barBox && barBox.height > 0 ? barBox.bottom : outerBox.bottom
   const first = cellElement(at.pos, at.rect.top, at.rect.left)?.getBoundingClientRect()
   if (!first) return (layout.value = null)
   let bar: Layout['bar'] = null
@@ -189,10 +199,7 @@ function measure() {
       left: Math.max(frameBox.left, tableBox.left) - box.left,
       right: frameBox.right - box.left,
     },
-    rowAddTop:
-      (scrollable
-        ? (barElement?.getBoundingClientRect().bottom ?? outerBox.bottom)
-        : tableBox.bottom) - box.top,
+    rowAddTop: (scrollable ? rowAddBottom : tableBox.bottom) - box.top,
     rowAddAfterScrollbar: scrollable,
     column: { left: first.left - box.left, width: first.width },
     row: { top: first.top - box.top, height: first.height },
@@ -218,6 +225,64 @@ function barCells(current: NonNullable<typeof view.value>): number[] {
 
 let frame = 0
 let lastTarget: EventTarget | null = null
+let lastPoint: { x: number; y: number } | null = null
+
+let observedFrame: HTMLElement | null = null
+let observedScrollable = false
+const frameResize =
+  typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => schedule()) : null
+const frameClasses =
+  typeof MutationObserver !== 'undefined'
+    ? new MutationObserver(() => {
+        if (!observedFrame) return
+        const scrollable = observedFrame.classList.contains('is-scrollable')
+        if (scrollable === observedScrollable) return
+        observedScrollable = scrollable
+        schedule()
+      })
+    : null
+
+/** Watch the active table frame so container resizes and `is-scrollable` toggles re-place the "+" bar. */
+function observeFrame(element: HTMLElement | null) {
+  if (element === observedFrame) return
+  frameResize?.disconnect()
+  frameClasses?.disconnect()
+  observedFrame = element
+  observedScrollable = !!element?.classList.contains('is-scrollable')
+  if (!element) return
+  frameResize?.observe(element)
+  frameClasses?.observe(element, { attributes: true, attributeFilter: ['class'] })
+}
+
+/**
+ * True while the pointer crosses the strip between a scrollable table's bottom
+ * edge and its row "+" button — over the custom scrollbar or the open lane
+ * beside it when a scrolled wide table reaches into the start margin.
+ */
+function inBottomBridge(element: Element | null, point: { x: number; y: number } | null): boolean {
+  const active = hovered.value
+  const current = view.value
+  if (!active || !current) return false
+  const frameElement = current.nodeDOM(active.pos) as HTMLElement | null
+  if (!frameElement) return false
+  if (element?.closest('.dou-editor-table__scrollbar')?.parentElement === frameElement) return true
+  if (!point || !frameElement.classList.contains('is-scrollable')) return false
+  const viewportElement =
+    frameElement.querySelector<HTMLElement>(':scope > .dou-editor-table__viewport') ?? frameElement
+  const tableElement = viewportElement.querySelector('table')
+  if (!tableElement) return false
+  const tableBox = tableElement.getBoundingClientRect()
+  const frameBox = viewportElement.getBoundingClientRect()
+  const barBox = frameElement
+    .querySelector<HTMLElement>(':scope > .dou-editor-table__scrollbar')
+    ?.getBoundingClientRect()
+  const left = Math.max(frameBox.left, tableBox.left)
+  const right = Math.min(tableBox.right, frameBox.right)
+  const top = tableBox.bottom - 1
+  const bottom =
+    (barBox && barBox.height > 0 ? barBox.bottom : frameElement.getBoundingClientRect().bottom) + 1
+  return point.x >= left && point.x <= right && point.y >= top && point.y <= bottom
+}
 
 function schedule() {
   if (frame) return
@@ -227,13 +292,8 @@ function schedule() {
       const element = lastTarget instanceof Element ? lastTarget : null
       const cell = element?.closest<HTMLElement>('.dou-editor-table td, .dou-editor-table th')
       const inControls = element?.closest('.dou-editor-table-controls')
-      // keep the controls alive while the pointer crosses the table's own scrollbar to reach the row "+" button
-      const inScrollbar =
-        !!hovered.value &&
-        element?.closest('.dou-editor-table__scrollbar')?.parentElement ===
-          view.value?.nodeDOM(hovered.value.pos)
       if (cell) hovered.value = targetOf(cell)
-      else if (!inControls && !inScrollbar) hovered.value = null
+      else if (!inControls && !inBottomBridge(element, lastPoint)) hovered.value = null
     }
     measure()
   })
@@ -242,12 +302,14 @@ function schedule() {
 function track(event: PointerEvent) {
   if (event.pointerType === 'touch') return
   lastTarget = event.target
+  lastPoint = { x: event.clientX, y: event.clientY }
   schedule()
 }
 
 function leave() {
   if (menuOpen.value || dragging.value) return
   lastTarget = null
+  lastPoint = null
   hovered.value = null
   schedule()
 }
@@ -266,6 +328,7 @@ onBeforeUnmount(() => {
   root.value?.removeEventListener('pointerleave', leave)
   window.removeEventListener('scroll', onScroll, true)
   window.removeEventListener('resize', onScroll)
+  observeFrame(null)
   if (frame) cancelAnimationFrame(frame)
   endDrag(false)
 })

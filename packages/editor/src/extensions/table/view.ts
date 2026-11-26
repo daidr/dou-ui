@@ -210,13 +210,10 @@ export class TableBlockView extends TableView implements NodeView {
   }
 
   override ignoreMutation(record: ViewMutationRecord) {
-    // the frame's, viewport's and custom scrollbar's attributes are ours
+    // the frame's and viewport's attributes are ours; the custom scrollbar is non-editable chrome
     const target = record.target
-    if (
-      target === this.dom ||
-      target === this.viewport ||
-      (target instanceof Node && this.bar.contains(target))
-    )
+    if (target instanceof Node && this.bar.contains(target)) return true
+    if (record.type === 'attributes' && (target === this.dom || target === this.viewport))
       return true
     return super.ignoreMutation(record)
   }

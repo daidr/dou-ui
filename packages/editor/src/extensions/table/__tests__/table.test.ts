@@ -1,17 +1,21 @@
 import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { mount } from '@vue/test-utils'
 import { TextSelection } from 'prosemirror-state'
 import { CellSelection, TableMap } from 'prosemirror-tables'
-import type { EditorView } from 'prosemirror-view'
+import type { EditorView, ViewMutationRecord } from 'prosemirror-view'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
 import { getBlockSelection, selectBlocks } from '../../../core/block-selection'
 import { blocksToHTML, htmlToBlocks } from '../../../core/convert'
 import { createEditorView } from '../../../core/editor'
 import { resolveEditorExtensions } from '../../../core/extension'
 import { blocksToDoc, docToBlocks, type Block, type PartialBlock } from '../../../core/model'
+import DouEditor from '../../../editor.vue'
 import { blocksToMarkdown, markdownToBlocks } from '../../../markdown'
 import { editorKit } from '../../editor-kit'
+import { TableBlockView } from '../view'
 import {
   alignColumns,
   deleteColumns,
@@ -428,6 +432,26 @@ function setupScrollMetrics(
   }
 }
 
+function rect(left: number, top: number, width: number, height: number): DOMRect {
+  return {
+    left,
+    top,
+    right: left + width,
+    bottom: top + height,
+    width,
+    height,
+    x: left,
+    y: top,
+    toJSON: () => ({}),
+  } as DOMRect
+}
+
+const nextFrame = () => new Promise((done) => requestAnimationFrame(() => done(null)))
+
+function mutationRecord(type: ViewMutationRecord['type'], target: Node): ViewMutationRecord {
+  return { type, target } as unknown as ViewMutationRecord
+}
+
 describe('table horizontal scroll mask and custom scrollbar', () => {
   it('fades clipped edges on the inner viewport and aligns the custom scrollbar to frame start', () => {
     const here = dirname(fileURLToPath(import.meta.url))
@@ -582,5 +606,152 @@ describe('table horizontal scroll mask and custom scrollbar', () => {
     expect(thumb.style.transform).toBe('translateX(50px)')
     window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1 }))
     expect(frame.classList.contains('is-dragging')).toBe(false)
+  })
+
+  it('ignores only attribute mutations on frame/viewport while ignoring all mutations inside scrollbar', () => {
+    const doc = blocksToDoc(kit.schema, [grid])
+    const tableNode = doc.child(0).child(0)
+    const tableView = new TableBlockView(tableNode)
+    try {
+      expect(tableView.ignoreMutation(mutationRecord('attributes', tableView.dom))).toBe(true)
+      expect(tableView.ignoreMutation(mutationRecord('attributes', tableView.viewport))).toBe(true)
+      expect(tableView.ignoreMutation(mutationRecord('selection', tableView.dom))).toBe(false)
+      expect(tableView.ignoreMutation(mutationRecord('selection', tableView.viewport))).toBe(false)
+      expect(tableView.ignoreMutation(mutationRecord('childList', tableView.dom))).toBe(false)
+      expect(tableView.ignoreMutation(mutationRecord('childList', tableView.viewport))).toBe(false)
+
+      expect(tableView.ignoreMutation(mutationRecord('attributes', tableView.bar))).toBe(true)
+      expect(tableView.ignoreMutation(mutationRecord('selection', tableView.bar))).toBe(true)
+      expect(tableView.ignoreMutation(mutationRecord('childList', tableView.bar))).toBe(true)
+      expect(tableView.ignoreMutation(mutationRecord('selection', tableView.thumb))).toBe(true)
+    } finally {
+      tableView.destroy()
+    }
+  })
+
+  it('re-measures the row "+" button when is-scrollable toggles and preserves hover across the scrolled bottom bridge', async () => {
+    const wrapper = mount(DouEditor, {
+      props: { modelValue: { version: 1 as const, blocks: [{ id: 'p', content: '段落' }, grid] } },
+      attachTo: document.body,
+    })
+    try {
+      await nextTick()
+      const editorEl = wrapper.element as HTMLElement
+      const frame = editorEl.querySelector('.dou-editor__content--table') as HTMLElement
+      const viewport = frame.querySelector('.dou-editor-table__viewport') as HTMLElement
+      const table = viewport.querySelector('table') as HTMLElement
+      const bar = frame.querySelector('.dou-editor-table__scrollbar') as HTMLElement
+      const cell = table.querySelector('tbody tr:last-child td:first-child') as HTMLElement
+
+      // Wide table scrolled left into the start margin:
+      // viewport spans [40, 540], table spans [-60, 640], scrollbar starts at text edge x=200.
+      editorEl.getBoundingClientRect = () => rect(0, 0, 600, 400)
+      frame.getBoundingClientRect = () =>
+        rect(40, 20, 500, frame.classList.contains('is-scrollable') ? 132 : 114)
+      viewport.getBoundingClientRect = () => rect(40, 28, 500, 102)
+      table.getBoundingClientRect = () => rect(-60, 28, 700, 100)
+      bar.getBoundingClientRect = () => rect(200, 128, 338, 14)
+      cell.getBoundingClientRect = () => rect(40, 96, 120, 32)
+
+      // 1. Hover a cell in the scrolled left margin while not yet scrollable -> "+" sits at table bottom (128px)
+      cell.dispatchEvent(
+        new PointerEvent('pointermove', {
+          pointerType: 'mouse',
+          clientX: 80,
+          clientY: 110,
+          bubbles: true,
+        }),
+      )
+      await nextFrame()
+      await nextTick()
+
+      let rowAdd = editorEl.querySelector('.dou-editor-table__add.is-row') as HTMLElement | null
+      expect(rowAdd).not.toBeNull()
+      expect(rowAdd?.style.top).toBe('128px')
+      expect(rowAdd?.classList.contains('is-after-scrollbar')).toBe(false)
+
+      // 2. TableBlockView toggles is-scrollable asynchronously -> TableControls re-measures automatically
+      frame.classList.add('is-scrollable')
+      await nextTick()
+      await nextFrame()
+      await nextTick()
+
+      rowAdd = editorEl.querySelector('.dou-editor-table__add.is-row') as HTMLElement | null
+      expect(rowAdd?.style.top).toBe('142px')
+      expect(rowAdd?.classList.contains('is-after-scrollbar')).toBe(true)
+
+      // 3. Move pointer straight down from the left-margin cell (x=80 < scrollbar left x=200)
+      //    into the 14px lane between table bottom (128) and row "+" top (142) -> controls stay visible
+      frame.dispatchEvent(
+        new PointerEvent('pointermove', {
+          pointerType: 'mouse',
+          clientX: 80,
+          clientY: 135,
+          bubbles: true,
+        }),
+      )
+      await nextFrame()
+      await nextTick()
+      expect(editorEl.querySelector('.dou-editor-table__add.is-row')).not.toBeNull()
+
+      // 4. Move pointer to the empty area left of the visible table -> controls hide
+      frame.dispatchEvent(
+        new PointerEvent('pointermove', {
+          pointerType: 'mouse',
+          clientX: 20,
+          clientY: 135,
+          bubbles: true,
+        }),
+      )
+      await nextFrame()
+      await nextTick()
+      expect(editorEl.querySelector('.dou-editor-table__add.is-row')).toBeNull()
+
+      // 5. Re-hover cell, move below the bridge onto the editor -> controls hide
+      cell.dispatchEvent(
+        new PointerEvent('pointermove', {
+          pointerType: 'mouse',
+          clientX: 80,
+          clientY: 110,
+          bubbles: true,
+        }),
+      )
+      await nextFrame()
+      await nextTick()
+      editorEl.dispatchEvent(
+        new PointerEvent('pointermove', {
+          pointerType: 'mouse',
+          clientX: 80,
+          clientY: 170,
+          bubbles: true,
+        }),
+      )
+      await nextFrame()
+      await nextTick()
+      expect(editorEl.querySelector('.dou-editor-table__add.is-row')).toBeNull()
+
+      // 6. Re-hover cell, then clear is-scrollable -> "+" returns to table bottom (128px)
+      cell.dispatchEvent(
+        new PointerEvent('pointermove', {
+          pointerType: 'mouse',
+          clientX: 80,
+          clientY: 110,
+          bubbles: true,
+        }),
+      )
+      await nextFrame()
+      await nextTick()
+      frame.classList.remove('is-scrollable')
+      await nextTick()
+      await nextFrame()
+      await nextTick()
+
+      rowAdd = editorEl.querySelector('.dou-editor-table__add.is-row') as HTMLElement | null
+      expect(rowAdd?.style.top).toBe('128px')
+      expect(rowAdd?.classList.contains('is-after-scrollbar')).toBe(false)
+    } finally {
+      wrapper.unmount()
+      document.body.innerHTML = ''
+    }
   })
 })

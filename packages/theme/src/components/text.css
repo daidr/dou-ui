@@ -18,7 +18,9 @@
 
     &.is-truncate {
       display: inline-block;
+      min-width: 0;
       max-width: 100%;
+      /* clip sideways only so CJK and descenders stay unclipped; min-width: 0 lets flex/grid items shrink */
       overflow-x: clip;
       text-overflow: ellipsis;
       white-space: nowrap;

@@ -38,7 +38,15 @@ const opensColor = (item: FlowToolbarItem) => !!item.color
 const openColor = ref<string | null>(null)
 const customKey = ref<string | null>(null)
 const customColor = ref<string | null>(null)
+const customPlacement = ref<'right-start' | 'left-start' | 'bottom-end' | 'top-end'>('right-start')
+const customOffset = ref(19)
+const swatchesEls = new Map<string, HTMLElement>()
 let closeActiveGroup: (() => void) | null = null
+
+function setSwatchesEl(key: string, el: unknown) {
+  if (el instanceof HTMLElement) swatchesEls.set(key, el)
+  else swatchesEls.delete(key)
+}
 
 function finishColorGroup() {
   closeActiveGroup?.()
@@ -63,7 +71,10 @@ function customSwatch(color: FlowToolbarColor) {
 
 function setColorOpen(key: string, open: boolean) {
   if (open) {
-    if (openColor.value && openColor.value !== key) finishColorGroup()
+    if (openColor.value && openColor.value !== key) {
+      finishColorGroup()
+      customKey.value = null
+    }
     openColor.value = key
   } else if (openColor.value === key) {
     closeColorPopover()
@@ -79,22 +90,64 @@ function pickColor(color: FlowToolbarColor, value: string | undefined) {
 }
 
 const CSS_COLOR = /^(#|rgb|hsl|hsv|hwb|lab|lch|oklab|oklch)/i
+const CUSTOM_PANEL_WIDTH = 258
+const CUSTOM_PANEL_HEIGHT = 260
+const CUSTOM_POPOVER_GAP = 8
+const VIEWPORT_PADDING = 8
 
-function toggleCustom(item: FlowToolbarItem, event: MouseEvent) {
-  const color = item.color
-  if (!color) return
-  if (customKey.value === item.key) {
-    finishColorGroup()
-    customKey.value = null
+/** Place the secondary color picker cleanly beside (or above/below) the primary swatch popover without overlapping it. */
+function placeCustomPopover(swatches: HTMLElement | undefined) {
+  const primaryPanel = swatches?.closest<HTMLElement>('.dou-flow-color-popover')
+  const customButton = swatches?.querySelector<HTMLElement>('.is-custom')
+  if (!primaryPanel || !customButton) {
+    customPlacement.value = 'right-start'
+    customOffset.value = 19
     return
   }
+  const panelRect = primaryPanel.getBoundingClientRect()
+  const btnRect = customButton.getBoundingClientRect()
+  const vw = document.documentElement.clientWidth
+  const vh = document.documentElement.clientHeight
+  const roomRight = vw - panelRect.right - VIEWPORT_PADDING
+  const roomLeft = panelRect.left - VIEWPORT_PADDING
+  if (roomRight >= CUSTOM_PANEL_WIDTH + CUSTOM_POPOVER_GAP) {
+    customPlacement.value = 'right-start'
+    customOffset.value = Math.round(panelRect.right - btnRect.right + CUSTOM_POPOVER_GAP)
+  } else if (roomLeft >= CUSTOM_PANEL_WIDTH + CUSTOM_POPOVER_GAP) {
+    customPlacement.value = 'left-start'
+    customOffset.value = Math.round(btnRect.left - panelRect.left + CUSTOM_POPOVER_GAP)
+  } else {
+    const roomBelow = vh - panelRect.bottom - VIEWPORT_PADDING
+    const roomAbove = panelRect.top - VIEWPORT_PADDING
+    if (roomBelow < CUSTOM_PANEL_HEIGHT + CUSTOM_POPOVER_GAP && roomAbove > roomBelow) {
+      customPlacement.value = 'top-end'
+      customOffset.value = Math.round(btnRect.top - panelRect.top + CUSTOM_POPOVER_GAP)
+    } else {
+      customPlacement.value = 'bottom-end'
+      customOffset.value = Math.round(panelRect.bottom - btnRect.bottom + CUSTOM_POPOVER_GAP)
+    }
+  }
+}
+
+function setCustomOpen(item: FlowToolbarItem, open: boolean) {
+  const color = item.color
+  if (!color) return
+  if (!open) {
+    if (customKey.value === item.key) {
+      finishColorGroup()
+      customKey.value = null
+    }
+    return
+  }
+  if (customKey.value && customKey.value !== item.key) finishColorGroup()
+  const swatches = swatchesEls.get(item.key)
+  placeCustomPopover(swatches)
   customKey.value = item.key
   if (isCustomColor(color) && color.value && CSS_COLOR.test(color.value)) {
     customColor.value = color.value
     return
   }
   // Start from the active swatch's computed color so tweaking a preset or tone begins near it.
-  const swatches = (event.currentTarget as HTMLElement).closest('.dou-flow-color-popover__swatches')
   const active = swatches?.querySelector<HTMLElement>('[aria-pressed="true"]:not(.is-default)')
   const raw = active && getComputedStyle(active).color
   customColor.value = raw ? plainColor(raw) || null : null
@@ -257,10 +310,7 @@ const hidden = computed(
     props.anchor.x > props.size.width,
 )
 watch(hidden, (isHidden) => {
-  if (isHidden) {
-    openColor.value = null
-    customKey.value = null
-  }
+  if (isHidden) closeColorPopover()
 })
 </script>
 
@@ -310,12 +360,19 @@ watch(hidden, (isHidden) => {
             >
               <span class="dou-flow-toolbar__color-glyph">
                 <component :is="item.icon" />
-                <span class="dou-flow-toolbar__color-bar" aria-hidden="true" />
+                <span class="dou-flow-toolbar__color-bar" aria-hidden="true">
+                  <template v-if="item.color.none"> <span /><span /><span /> </template>
+                </span>
               </span>
             </button>
             <template #content>
               <div class="dou-flow-color-popover__body">
-                <div class="dou-flow-color-popover__swatches" role="group" :aria-label="item.label">
+                <div
+                  :ref="(el) => setSwatchesEl(item.key, el)"
+                  class="dou-flow-color-popover__swatches"
+                  role="group"
+                  :aria-label="item.label"
+                >
                   <button
                     type="button"
                     class="dou-flow-color-popover__swatch is-default"
@@ -339,32 +396,49 @@ watch(hidden, (isHidden) => {
                   >
                     <span v-if="item.color.kind === 'text'" aria-hidden="true">A</span>
                   </button>
-                  <button
-                    type="button"
-                    class="dou-flow-color-popover__swatch is-custom"
-                    :class="[
-                      `is-kind-${item.color.kind ?? 'stroke'}`,
-                      { 'has-custom': isCustomColor(item.color) },
-                    ]"
-                    :style="
-                      customSwatch(item.color)
-                        ? { '--dou-flow-swatch': customSwatch(item.color) }
-                        : undefined
-                    "
-                    :aria-pressed="isCustomColor(item.color)"
-                    :aria-expanded="customKey === item.key"
-                    :aria-label="item.color.customLabel"
-                    :title="item.color.customLabel"
-                    @click="toggleCustom(item, $event)"
+                  <DouPopover
+                    :open="customKey === item.key"
+                    :placement="customPlacement"
+                    :offset="customOffset"
+                    class="dou-flow-color-custom-popover"
+                    @update:open="setCustomOpen(item, $event)"
                   >
-                    <span
-                      v-if="isCustomColor(item.color) && item.color.kind === 'text'"
-                      aria-hidden="true"
+                    <button
+                      type="button"
+                      class="dou-flow-color-popover__swatch is-custom"
+                      :class="[
+                        `is-kind-${item.color.kind ?? 'stroke'}`,
+                        { 'has-custom': isCustomColor(item.color) },
+                      ]"
+                      :style="
+                        customSwatch(item.color)
+                          ? { '--dou-flow-swatch': customSwatch(item.color) }
+                          : undefined
+                      "
+                      :aria-pressed="isCustomColor(item.color)"
+                      :aria-label="item.color.customLabel"
+                      :title="item.color.customLabel"
                     >
-                      A
-                    </span>
-                    <PaletteIcon v-else-if="!isCustomColor(item.color)" />
-                  </button>
+                      <span
+                        v-if="isCustomColor(item.color) && item.color.kind === 'text'"
+                        aria-hidden="true"
+                      >
+                        A
+                      </span>
+                      <PaletteIcon v-else-if="!isCustomColor(item.color)" />
+                    </button>
+                    <template #content>
+                      <DouColorPanel
+                        :model-value="customKey === item.key ? customColor : null"
+                        :bordered="false"
+                        format="hex"
+                        show-alpha
+                        show-input
+                        @update:model-value="onCustomInput(item.color, $event)"
+                        @change="onCustomChange(item.color, $event)"
+                      />
+                    </template>
+                  </DouPopover>
                 </div>
                 <button
                   v-if="item.color.noneOption"
@@ -381,17 +455,6 @@ watch(hidden, (isHidden) => {
                   <span v-else class="dou-flow-color-popover__none-swatch" aria-hidden="true" />
                   <span>{{ item.color.noneOption.label }}</span>
                 </button>
-                <DouColorPanel
-                  v-if="customKey === item.key"
-                  :model-value="customColor"
-                  class="dou-flow-color-popover__panel"
-                  :bordered="false"
-                  format="hex"
-                  show-alpha
-                  show-input
-                  @update:model-value="onCustomInput(item.color, $event)"
-                  @change="onCustomChange(item.color, $event)"
-                />
               </div>
             </template>
           </DouPopover>

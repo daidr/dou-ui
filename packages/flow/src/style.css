@@ -1207,7 +1207,7 @@
       top: 100%;
       left: 50%;
       width: 14px;
-      height: 2px;
+      height: 3px;
       border-radius: 999px;
       background-color: var(--dou-color-border-strong);
       transform: translateX(-50%);
@@ -1219,15 +1219,20 @@
     }
 
     &.is-none .dou-flow-toolbar__color-bar {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      width: 16px;
+      height: 3px;
       border-radius: 0;
-      background: linear-gradient(
-        90deg,
-        var(--dou-color-text-tertiary) 0 3px,
-        transparent 3px 5.5px,
-        var(--dou-color-text-tertiary) 5.5px 8.5px,
-        transparent 8.5px 11px,
-        var(--dou-color-text-tertiary) 11px 14px
-      );
+      background: transparent;
+
+      & > span {
+        flex: 1;
+        height: 100%;
+        border-radius: 999px;
+        background-color: var(--dou-color-text-tertiary);
+      }
     }
 
     &:disabled .dou-flow-toolbar__color-bar {
@@ -1274,7 +1279,8 @@
       height: 32px;
     }
 
-    &:hover {
+    &:hover,
+    &[aria-expanded='true'] {
       border-color: color-mix(in oklab, var(--dou-color-text) 34%, transparent);
     }
     &:focus-visible {
@@ -1314,6 +1320,11 @@
     &.is-custom:not(.has-custom) {
       background: var(--dou-color-bg-surface);
       color: var(--dou-color-text-secondary);
+
+      &[aria-expanded='true'] {
+        background: var(--dou-color-bg-muted);
+        color: var(--dou-color-text);
+      }
     }
 
     & svg {
@@ -1383,11 +1394,8 @@
     }
   }
 
-  .dou-flow-color-popover__panel {
-    --dou-color-panel-padding: 0;
-    width: 232px;
-    padding-top: 8px;
-    border-top: 1px solid var(--dou-color-border);
+  .dou-flow-color-custom-popover {
+    --dou-popover-padding: 0;
   }
 
   /* the editor opens its menu at a point; the anchor only places it in the page */

@@ -1678,6 +1678,11 @@ const colorPopover = () =>
     (el) => el.style.display !== 'none',
   ) ?? null
 
+const customColorPopover = () =>
+  [...document.body.querySelectorAll<HTMLElement>('.dou-flow-color-custom-popover')].find(
+    (el) => el.style.display !== 'none',
+  ) ?? null
+
 describe('colors and borderless shapes', () => {
   it('edits shape fill, border color, borderless state and text color with undo/redo', async () => {
     const { root, flow, selection, editor } = setup({
@@ -1894,10 +1899,13 @@ describe('colors and borderless shapes', () => {
     expect(buttons.map((b) => b.attributes('aria-label'))).not.toContain('背景颜色：默认')
     await buttons[0]!.trigger('click')
     await ticks()
-    // Expand custom DouColorPanel and type a hex color
+    // Open secondary custom DouColorPanel popover and type a hex color
     colorPopover()!.querySelector<HTMLButtonElement>('button[aria-label="自定义颜色"]')!.click()
     await ticks()
-    const input = colorPopover()!.querySelector<HTMLInputElement>('.dou-color-panel input')!
+    expect(colorPopover()!.querySelector('.dou-color-panel')).toBeNull()
+    const customPop = customColorPopover()
+    expect(customPop).toBeTruthy()
+    const input = customPop!.querySelector<HTMLInputElement>('.dou-color-panel input')!
     expect(input).toBeTruthy()
     input.value = '#e11d48'
     input.dispatchEvent(new Event('input', { bubbles: true }))
@@ -1907,6 +1915,15 @@ describe('colors and borderless shapes', () => {
     expect(root.find('.dou-whiteboard-node.is-text').attributes('style')).toContain(
       '--dou-whiteboard-text-color: #e11d48',
     )
+    // Escape closes only the secondary custom popover, keeping the primary swatches open
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await ticks()
+    expect(customColorPopover()).toBeNull()
+    expect(colorPopover()).toBeTruthy()
+    // Second Escape closes the primary swatch popover
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await ticks()
+    expect(colorPopover()).toBeNull()
 
     // Ink: line color
     selection.value = { nodes: ['i'], edges: [] }
@@ -2128,8 +2145,10 @@ describe('colors and borderless shapes', () => {
     expect(buttons[0]!.attributes('aria-label')).toBe('背景颜色：无填充')
     expect(buttons[0]!.classes()).toContain('is-none')
     expect(buttons[0]!.find('.dou-flow-toolbar__color-bar').exists()).toBe(true)
+    expect(buttons[0]!.findAll('.dou-flow-toolbar__color-bar > span').length).toBe(3)
     expect(buttons[0]!.findAll('svg').length).toBe(1)
     expect(buttons[1]!.find('.dou-flow-toolbar__color-bar').exists()).toBe(true)
+    expect(buttons[1]!.findAll('.dou-flow-toolbar__color-bar > span').length).toBe(0)
     expect(buttons[1]!.findAll('svg').length).toBe(1)
     await buttons[0]!.trigger('click')
     await ticks()

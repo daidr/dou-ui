@@ -173,7 +173,8 @@ export function connectorToolbar(ctx: FlowEditorContext, edges: FlowEdge[]): Flo
   const colorSwatch = colorValue ? resolveStrokeColor(colorValue) : undefined
   const targetKey = edges
     .map((edge) => edge.id)
-    .toSorted()
+    // oxlint-disable-next-line unicorn/no-array-sort -- sorts a fresh array
+    .sort()
     .join(',')
   const colorItem = colorToolbarItem({
     ctx,

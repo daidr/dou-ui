@@ -230,7 +230,8 @@ export function boardNodeToolbar(ctx: FlowEditorContext, nodes: FlowNode[]): Flo
   const editable = () => nodes.filter((node) => !node.locked)
   const targetKey = nodes
     .map((node) => node.id)
-    .toSorted()
+    // oxlint-disable-next-line unicorn/no-array-sort -- sorts a fresh array
+    .sort()
     .join(',')
   const items: FlowToolbarItem[] = []
 

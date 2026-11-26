@@ -119,6 +119,14 @@
     &.is-preview {
       stroke: var(--dou-flow-editor-selected);
       stroke-dasharray: 4 4;
+
+      &.is-snapped {
+        stroke-width: calc(var(--dou-flow-editor-edge-width, 1px) + 1px);
+        stroke-dasharray: none;
+      }
+      &.is-detaching {
+        stroke: var(--dou-color-text-tertiary);
+      }
     }
   }
 
@@ -290,6 +298,57 @@
       content: '';
       position: absolute;
       inset: -8px;
+    }
+  }
+
+  /* draggable endpoint anchors on both ends of the one selected edge */
+  .dou-flow-editor__edge-end {
+    position: absolute;
+    z-index: 2;
+    top: 0;
+    left: 0;
+    /*
+     * placed by an inline translate, never transform: transform applies
+     * inside scale, so the zoom compensation below would scale the offset too
+     */
+    box-sizing: border-box;
+    width: 10px;
+    height: 10px;
+    border: 2px solid var(--dou-flow-editor-selected);
+    border-radius: 50%;
+    background: var(--dou-color-bg-surface);
+    cursor: grab;
+    touch-action: none;
+    scale: calc(1 / var(--dou-flow-editor-zoom, 1));
+    transition-property: scale, background-color, border-color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    /* a larger target so endpoints are easy to grab */
+    &::before {
+      content: '';
+      position: absolute;
+      inset: -8px;
+
+      @media (pointer: coarse) {
+        inset: -14px;
+      }
+    }
+    @media (hover: hover) {
+      &:hover:not(.is-dragging) {
+        scale: calc(1.2 / var(--dou-flow-editor-zoom, 1));
+        background: var(--dou-flow-editor-selected);
+      }
+    }
+    &.is-dragging {
+      pointer-events: none;
+      background: var(--dou-flow-editor-selected);
+      scale: calc(1.1 / var(--dou-flow-editor-zoom, 1));
+
+      &.is-detaching {
+        border-color: var(--dou-color-text-tertiary);
+        background: var(--dou-color-bg-surface);
+      }
     }
   }
 
@@ -1482,6 +1541,10 @@
 .dou-flow-editor.is-refused .dou-flow-editor__edge.is-preview {
   stroke: var(--dou-color-danger);
 }
+.dou-flow-editor.is-refused .dou-flow-editor__edge-end.is-dragging {
+  border-color: var(--dou-color-danger);
+  background: var(--dou-color-danger);
+}
 
 /*
  * Whiteboard
@@ -2033,6 +2096,8 @@
    */
   .dou-flow-editor[data-board-tool]:not([data-board-tool='select'])
     .dou-flow-port[data-visible='hover']:not(.is-active),
+  .dou-flow-editor[data-board-tool]:not([data-board-tool='select'])
+    :is(.dou-flow-editor__edge-end, .dou-flow-editor__bend),
   .dou-whiteboard-node.is-editing .dou-flow-port[data-visible] {
     opacity: 0;
     pointer-events: none;
@@ -2051,6 +2116,17 @@
     }
     &.is-stale {
       stroke: var(--dou-color-danger);
+    }
+    &.is-preview {
+      stroke: var(--dou-flow-editor-selected);
+
+      &.is-snapped {
+        stroke: var(--dou-flow-connector-color, var(--dou-flow-editor-selected));
+        stroke-width: 2.5px;
+      }
+      &.is-detaching {
+        stroke: var(--dou-color-text-tertiary);
+      }
     }
   }
   [data-edge-type='connector']

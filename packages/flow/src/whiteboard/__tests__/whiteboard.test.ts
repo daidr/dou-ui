@@ -368,6 +368,19 @@ const edge = (data: Record<string, unknown>) => ({
   data,
 })
 
+const rectOf = (x: number, y: number, width: number, height: number): DOMRect =>
+  ({
+    x,
+    y,
+    left: x,
+    top: y,
+    width,
+    height,
+    right: x + width,
+    bottom: y + height,
+    toJSON: () => ({}),
+  }) as DOMRect
+
 describe('connector', () => {
   it('runs straight from anchor to anchor and ends in an arrow', () => {
     const route = connectorEdge.route({ x: 0, y: 0, side: 'right' }, { x: 100, y: 0, side: 'left' })
@@ -543,6 +556,121 @@ describe('connector', () => {
     await ticks()
     expect(flow.value.edges).toHaveLength(0)
     expect(root.find('[aria-live]').text()).toBe('没有可以连接的端口')
+  })
+
+  it('adjusts connector anchor side, reconnects to another shape, and detaches on empty canvas', async () => {
+    const boxMap: Record<string, { x: number; y: number; w: number; h: number }> = {
+      a: { x: 0, y: 0, w: 100, h: 100 },
+      b: { x: 300, y: 0, w: 100, h: 100 },
+      c: { x: 300, y: 220, w: 100, h: 100 },
+    }
+    const origRect = HTMLElement.prototype.getBoundingClientRect
+    const origPoint = document.elementFromPoint
+    HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
+      const nodeEl = this.closest<HTMLElement>('[data-node-id]')
+      const box = nodeEl && boxMap[nodeEl.dataset.nodeId!]
+      if (this.classList.contains('dou-flow-port') && box) {
+        if (this.classList.contains('is-right'))
+          return rectOf(box.x + box.w, box.y + box.h / 2, 0, 0)
+        if (this.classList.contains('is-left')) return rectOf(box.x, box.y + box.h / 2, 0, 0)
+        if (this.classList.contains('is-top')) return rectOf(box.x + box.w / 2, box.y, 0, 0)
+        if (this.classList.contains('is-bottom'))
+          return rectOf(box.x + box.w / 2, box.y + box.h, 0, 0)
+      }
+      if (this.dataset.nodeId && box) return rectOf(box.x, box.y, box.w, box.h)
+      return origRect.call(this)
+    }
+    try {
+      const { root, flow, selection } = setup({
+        version: 1,
+        nodes: [
+          { id: 'a', type: 'shape', x: 0, y: 0, width: 100, height: 100, data: { shape: 'rect' } },
+          {
+            id: 'b',
+            type: 'shape',
+            x: 300,
+            y: 0,
+            width: 100,
+            height: 100,
+            data: { shape: 'rect' },
+          },
+          {
+            id: 'c',
+            type: 'shape',
+            x: 300,
+            y: 220,
+            width: 100,
+            height: 100,
+            data: { shape: 'rect' },
+          },
+        ],
+        edges: [
+          {
+            id: 'e1',
+            type: 'connector',
+            source: { node: 'a', port: 'right' },
+            target: { node: 'b', port: 'left-in' },
+            data: { route: 'elbow', dash: 'dashed', arrow: 'both' },
+          },
+        ],
+      })
+      await ticks()
+      document.elementFromPoint = () => root.element
+      selection.value = { nodes: [], edges: ['e1'] }
+      await ticks()
+
+      // 1. Move source anchor on node a from right (100, 50) to bottom (50, 100).
+      const sourceHandle = root.find('.dou-flow-editor__edge-end[data-edge-end="source"]')
+      expect(sourceHandle.exists()).toBe(true)
+      sourceHandle.element.dispatchEvent(pointer('pointerdown', 100, 50))
+      root.element.dispatchEvent(pointer('pointermove', 50, 100))
+      await ticks()
+      // Preview renders connector arrowheads too.
+      expect(root.find('.dou-flow-editor__edge.is-preview.is-mark').exists()).toBe(true)
+      root.element.dispatchEvent(pointer('pointerup', 50, 100))
+      await ticks()
+      expect(flow.value.edges[0]).toEqual({
+        id: 'e1',
+        type: 'connector',
+        source: { node: 'a', port: 'bottom' },
+        target: { node: 'b', port: 'left-in' },
+        data: { route: 'elbow', dash: 'dashed', arrow: 'both' },
+      })
+      expect(selection.value).toEqual({ nodes: [], edges: ['e1'] })
+
+      // 2. Move target anchor from b.left-in (300, 50) to c.top-in (350, 220).
+      const targetHandle = root.find('.dou-flow-editor__edge-end[data-edge-end="target"]')
+      targetHandle.element.dispatchEvent(pointer('pointerdown', 300, 50))
+      root.element.dispatchEvent(pointer('pointermove', 350, 220))
+      root.element.dispatchEvent(pointer('pointerup', 350, 220))
+      await ticks()
+      expect(flow.value.edges[0]).toMatchObject({
+        id: 'e1',
+        source: { node: 'a', port: 'bottom' },
+        target: { node: 'c', port: 'top-in' },
+        data: { route: 'elbow', dash: 'dashed', arrow: 'both' },
+      })
+
+      // 3. Drag target anchor to empty canvas (560, 140) to cancel the connection, then undo.
+      const nextTarget = root.find('.dou-flow-editor__edge-end[data-edge-end="target"]')
+      nextTarget.element.dispatchEvent(pointer('pointerdown', 350, 220))
+      root.element.dispatchEvent(pointer('pointermove', 560, 140))
+      await ticks()
+      expect(root.find('.dou-flow-editor__edge.is-preview.is-detaching').exists()).toBe(true)
+      root.element.dispatchEvent(pointer('pointerup', 560, 140))
+      await ticks()
+      expect(flow.value.edges).toHaveLength(0)
+
+      root.element.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true }),
+      )
+      await ticks()
+      expect(flow.value.edges).toHaveLength(1)
+      expect(flow.value.edges[0]!.target).toEqual({ node: 'c', port: 'top-in' })
+    } finally {
+      HTMLElement.prototype.getBoundingClientRect = origRect
+      document.elementFromPoint = origPoint
+    }
   })
 })
 

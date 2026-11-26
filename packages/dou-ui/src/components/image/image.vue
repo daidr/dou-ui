@@ -2,6 +2,7 @@
 import { ImageIcon } from '@dou-ui/icons'
 import { computed, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { useNamespace } from '../../utils/namespace'
+import { useScopeAttrs } from '../../utils/scope-id'
 import { useLocale } from '../config-provider/use-config'
 import type { ImageProps, ImageSlots } from './image'
 import DouImagePreview from './image-preview.vue'
@@ -18,6 +19,7 @@ const emit = defineEmits<{ load: [event: Event]; error: [event: Event] }>()
 const slots = defineSlots<ImageSlots>()
 
 const ns = useNamespace('image')
+const scopeAttrs = useScopeAttrs()
 const { t } = useLocale()
 
 type Status = 'loading' | 'loaded' | 'error'
@@ -92,7 +94,7 @@ function onKeydown(event: KeyboardEvent) {
 
 <template>
   <div
-    v-bind="$attrs"
+    v-bind="{ ...scopeAttrs(), ...$attrs }"
     :class="[
       ns.b(),
       ns.is(status, true),

@@ -4,6 +4,7 @@ import { computed, useTemplateRef } from 'vue'
 import { useClipboard } from '../../composables/use-clipboard'
 import { useFieldAction } from '../../utils/field-action'
 import { useNamespace } from '../../utils/namespace'
+import { useScopeAttrs } from '../../utils/scope-id'
 import { useLocale } from '../config-provider/use-config'
 import { DouTooltip } from '../tooltip'
 import type { CopyButtonProps } from './copy-button'
@@ -22,6 +23,7 @@ const props = withDefaults(defineProps<CopyButtonProps>(), {
 const emit = defineEmits<{ copy: [text: string]; error: [error: unknown] }>()
 
 const ns = useNamespace('copy-button')
+const scopeAttrs = useScopeAttrs({ claim: true })
 // in a field's prefix or suffix the button acts for the field: disabled
 // with it, and sized by it
 const root = useTemplateRef<HTMLButtonElement>('root')
@@ -52,7 +54,7 @@ const copiedLabel = computed(() => props.copiedLabel ?? t('copyButton.copied'))
   <DouTooltip :content="copied ? copiedLabel : label" :disabled="showLabel">
     <button
       ref="root"
-      v-bind="$attrs"
+      v-bind="{ ...scopeAttrs(), ...$attrs }"
       type="button"
       :class="[
         ns.b(),

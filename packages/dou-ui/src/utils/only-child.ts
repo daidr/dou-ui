@@ -11,6 +11,7 @@ import {
 } from 'vue'
 import type { Component, ComponentPublicInstance, HTMLAttributes, VNode } from 'vue'
 import type { WithAttributes } from './install'
+import { forwardScopeIds } from './scope-id'
 import { devWarn } from './status-check'
 
 function firstElement(nodes: VNode[]): VNode | null {
@@ -75,19 +76,34 @@ function passToTrigger(host: VNode, attrs: Record<string, unknown>): VNode {
 const OnlyChildComponent = defineComponent({
   name: 'DouOnlyChild',
   inheritAttrs: false,
-  setup(_, { slots, attrs }) {
+  props: {
+    /**
+     * Forward the parent component's inherited `data-v-*` scope IDs onto the
+     * rendered element or component. Used by multi-root components whose own
+     * trigger lives inside `OnlyChild`; left off for transparent slot wrappers
+     * (`DouTooltip`, `DouPopover`, `DouDropdown`, `DouContextMenu`) so host
+     * scope IDs never leak onto caller slot content.
+     */
+    inheritScope: Boolean,
+  },
+  setup(props, { slots, attrs }) {
+    const instance = getCurrentInstance()
     const probe = useProbe(attrs)
     return () => {
       const child = firstElement(slots.default?.() ?? [])
       if (!child) return null
       // probes of the components around are kept: each checks its own listeners
       const given = probe ? mergeProps(attrs, { onDouProbe: probe }) : attrs
-      if (triggerHosts.has(child.type as object)) return passToTrigger(child, { ...given })
+      if (triggerHosts.has(child.type as object)) {
+        const passed = passToTrigger(child, { ...given })
+        return props.inheritScope ? forwardScopeIds(instance, passed) : passed
+      }
       // ids that describe the element are a list: the element's own stay with the ones given
       const own = child.props?.['aria-describedby'] as string | undefined
       const theirs = attrs['aria-describedby'] as string | undefined
       const describedBy = [own, theirs].filter(Boolean).join(' ') || undefined
-      return cloneVNode(child, { ...given, 'aria-describedby': describedBy }, true)
+      const cloned = cloneVNode(child, { ...given, 'aria-describedby': describedBy }, true)
+      return props.inheritScope ? forwardScopeIds(instance, cloned) : cloned
     }
   },
 })

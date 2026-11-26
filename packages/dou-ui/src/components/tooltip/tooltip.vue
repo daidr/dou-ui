@@ -5,6 +5,7 @@ import type { VirtualElement } from '../../composables/use-floating'
 import { usePopup } from '../../composables/use-popup'
 import { useNamespace } from '../../utils/namespace'
 import { OnlyChild } from '../../utils/only-child'
+import { useScopeAttrs } from '../../utils/scope-id'
 import { hasHover } from '../../utils/pointer'
 import { DouKbd } from '../kbd'
 import type { TooltipProps, TooltipSlots } from './tooltip'
@@ -28,6 +29,7 @@ const open = defineModel<boolean>('open', { default: false })
 defineSlots<TooltipSlots>()
 
 const ns = useNamespace('tooltip')
+const scopeAttrs = useScopeAttrs()
 const id = `dou-tooltip-${useId()}`
 
 const {
@@ -223,7 +225,7 @@ const triggerProps = computed(() => ({
         :style="panelStyle"
         :data-placement="placement"
         :data-dou-theme="theme"
-        v-bind="{ ...$attrs, ...(interactive ? panelListeners : {}) }"
+        v-bind="{ ...scopeAttrs(), ...$attrs, ...(interactive ? panelListeners : {}) }"
       >
         <span v-if="shortcut" :class="ns.e('shortcut')">
           <span :class="ns.e('text')"

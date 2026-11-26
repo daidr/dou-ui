@@ -619,7 +619,7 @@ defineExpose<CascaderExpose>({ focus, blur: () => combobox()?.blur() })
 </script>
 
 <template>
-  <OnlyChild ref="triggerRef">
+  <OnlyChild ref="triggerRef" inherit-scope>
     <div
       ref="field"
       v-bind="{ ...$attrs, ...(filterable ? {} : comboboxAttrs) }"

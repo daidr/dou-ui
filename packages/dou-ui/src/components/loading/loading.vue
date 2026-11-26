@@ -3,6 +3,7 @@ import { getCurrentInstance, ref, watch } from 'vue'
 import { useScrollLock } from '../../composables/use-scroll-lock'
 import { useThemeScope } from '../../composables/use-theme-scope'
 import { useNamespace } from '../../utils/namespace'
+import { useScopeAttrs } from '../../utils/scope-id'
 import { useZIndex } from '../config-provider/use-config'
 import LoadingMask from './loading-mask.vue'
 import type { LoadingProps, LoadingSlots } from './loading'
@@ -18,6 +19,7 @@ const props = withDefaults(defineProps<LoadingProps>(), {
 const slots = defineSlots<LoadingSlots>()
 
 const ns = useNamespace('loading')
+const scopeAttrs = useScopeAttrs()
 const active = useDelayed(
   () => props.loading,
   () => props.delay,
@@ -46,7 +48,7 @@ useScrollLock(() => props.fullscreen && active.value)
     v-if="slots.default"
     :class="[ns.b(), ns.is('loading', active)]"
     :aria-busy="active || undefined"
-    v-bind="$attrs"
+    v-bind="{ ...scopeAttrs(), ...$attrs }"
   >
     <slot />
     <Transition v-if="!fullscreen" name="dou-loading">

@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, onUpdated, ref, useTemplateRef, watch } from 'vue'
 import { useResizeObserver } from '../../composables/use-element-size'
 import { useNamespace } from '../../utils/namespace'
+import { useScopeAttrs } from '../../utils/scope-id'
 import { useLocale } from '../config-provider/use-config'
 import { DouTooltip } from '../tooltip'
 import type { FunctionalComponent } from 'vue'
@@ -21,10 +22,11 @@ const emit = defineEmits<{ 'update:expanded': [expanded: boolean] }>()
 const slots = defineSlots<EllipsisSlots>()
 
 // Without `tooltip`, skip the tooltip's popup machinery altogether.
-const Passthrough: FunctionalComponent = (_, context) => context.slots.default?.()
+const Passthrough: FunctionalComponent = (_, context) => context.slots.default?.()[0]
 Passthrough.inheritAttrs = false
 
 const ns = useNamespace('ellipsis')
+const scopeAttrs = useScopeAttrs({ claim: true })
 const { t } = useLocale()
 const textRef = useTemplateRef<HTMLElement>('text')
 
@@ -75,7 +77,7 @@ defineExpose<EllipsisExpose>({
   >
     <component
       :is="as"
-      v-bind="$attrs"
+      v-bind="{ ...scopeAttrs(), ...$attrs }"
       :class="[
         ns.b(),
         ns.is('expanded', expanded),

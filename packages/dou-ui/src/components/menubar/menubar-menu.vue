@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, inject, provide, useId } from 'vue'
 import { useNamespace } from '../../utils/namespace'
+import { useScopeAttrs } from '../../utils/scope-id'
 import { DouDropdown } from '../dropdown'
 import { dropdownHostKey } from '../dropdown/dropdown'
 import { menubarKey } from './menubar'
@@ -12,6 +13,7 @@ const props = withDefaults(defineProps<MenubarMenuProps>(), { disabled: false })
 defineSlots<MenubarMenuSlots>()
 
 const ns = useNamespace('menubar')
+const scopeAttrs = useScopeAttrs({ claim: true })
 const id = useId()
 const menubar = inject(menubarKey, null)
 
@@ -47,7 +49,7 @@ provide(dropdownHostKey, { move: (step) => menubar?.move(id, step) })
     @select="(value) => menubar?.select(value, name ?? label ?? '')"
   >
     <button
-      v-bind="$attrs"
+      v-bind="{ ...scopeAttrs(), ...$attrs }"
       type="button"
       role="menuitem"
       :class="[ns.e('trigger'), ns.is('open', open), ns.is('disabled', disabled)]"

@@ -3,6 +3,7 @@ import { CloseIcon } from '@dou-ui/icons'
 import { computed, onBeforeUnmount, ref, useId, useTemplateRef, watch } from 'vue'
 import { useModal } from '../../composables/use-modal'
 import { useNamespace } from '../../utils/namespace'
+import { useScopeAttrs } from '../../utils/scope-id'
 import { useLocale } from '../config-provider/use-config'
 import type { DrawerExpose, DrawerProps, DrawerSlots, DrawerSnapPoint } from './drawer'
 import { useTeleport } from '../../utils/teleport'
@@ -36,6 +37,7 @@ const emit = defineEmits<{
 const slots = defineSlots<DrawerSlots>()
 
 const ns = useNamespace('drawer')
+const scopeAttrs = useScopeAttrs()
 const { t } = useLocale()
 const id = `dou-drawer-${useId()}`
 const hasTitle = computed(() => !!props.title || !!slots.title)
@@ -225,7 +227,7 @@ defineExpose<DrawerExpose>({
             ns.is('settling', swipe.settling.value),
           ]"
           :style="{ '--dou-drawer-size': size, transform: swipe.transform.value }"
-          v-bind="$attrs"
+          v-bind="{ ...scopeAttrs(), ...$attrs }"
           @pointerdown="swipe.onPointerdown"
         >
           <button

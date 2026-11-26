@@ -5,6 +5,15 @@ import { DouFlowPort } from '../components/port'
 import { useFlowEditor } from '../context'
 import type { NodeViewProps } from '../core/node-types'
 import type { Tone } from 'dou-ui'
+import {
+  isNoneColor,
+  resolveFillColor,
+  resolveStrokeColor,
+  resolveTextColor,
+  type WhiteboardColor,
+  type WhiteboardFill,
+  type WhiteboardStroke,
+} from './colors'
 import { fitInk, inkOutline, INK_SIZE, unpack } from './ink'
 import { anchorSides, type WhiteboardShape } from './model'
 import { boardState } from './state'
@@ -15,6 +24,10 @@ type BoardData = {
   text?: string
   shape?: WhiteboardShape
   tone?: Tone
+  fill?: WhiteboardFill
+  stroke?: WhiteboardStroke
+  textColor?: WhiteboardColor
+  color?: WhiteboardColor
   rotation?: number
   points?: number[]
   box?: [number, number]
@@ -36,6 +49,33 @@ const shape = computed<WhiteboardShape>(() => props.data.shape ?? 'rect')
 const tone = computed<Tone>(
   () => props.data.tone ?? (kind.value === 'sticky' ? 'warning' : 'neutral'),
 )
+const borderless = computed(() => kind.value === 'shape' && isNoneColor(props.data.stroke))
+const transparentSticky = computed(() => kind.value === 'sticky' && isNoneColor(props.data.fill))
+const colorStyle = computed(() => {
+  const vars: Record<string, string> = {}
+  if (kind.value === 'shape') {
+    const fill = resolveFillColor(props.data.fill, 'shape')
+    if (fill) vars['--dou-whiteboard-shape-fill'] = fill
+    if (!borderless.value) {
+      const stroke = resolveStrokeColor(props.data.stroke)
+      if (stroke && stroke !== 'none') vars['--dou-whiteboard-shape-stroke'] = stroke
+    }
+    const textColor = resolveTextColor(props.data.textColor)
+    if (textColor) vars['--dou-whiteboard-text-color'] = textColor
+  } else if (kind.value === 'sticky') {
+    const fill = resolveFillColor(props.data.fill, 'sticky')
+    if (fill) vars['--dou-whiteboard-sticky-fill'] = fill === 'none' ? 'transparent' : fill
+    const textColor = resolveTextColor(props.data.textColor)
+    if (textColor) vars['--dou-whiteboard-text-color'] = textColor
+  } else if (kind.value === 'text') {
+    const textColor = resolveTextColor(props.data.color)
+    if (textColor) vars['--dou-whiteboard-text-color'] = textColor
+  } else if (kind.value === 'ink') {
+    const stroke = resolveStrokeColor(props.data.color)
+    if (stroke && stroke !== 'none') vars['--dou-whiteboard-ink-color'] = stroke
+  }
+  return vars
+})
 const writable = computed(() => ['shape', 'sticky', 'text'].includes(kind.value))
 
 const MIN: Record<Kind, number> = { shape: 24, sticky: 64, text: 40, ink: 8, image: 24 }
@@ -126,11 +166,12 @@ const ink = computed(() => {
 })
 const erasing = computed(() => state.erasing.value.has(props.node.id))
 
-// drawn in the node's own units, half the 1.5px stroke in from the edge
+// drawn in the node's own units, half the 1.5px stroke in from the edge (0 when borderless)
 const shown = computed(() => ({ w: props.node.width ?? 160, h: props.node.height ?? 100 }))
+const shapeInset = computed(() => (borderless.value ? 0 : 0.75))
 const diamond = computed(() => {
   const { w, h } = shown.value
-  const i = 1
+  const i = borderless.value ? 0 : 1
   return `${w / 2},${i} ${w - i},${h / 2} ${w / 2},${h - i} ${i},${h / 2}`
 })
 
@@ -230,9 +271,11 @@ function onKeydown(event: KeyboardEvent) {
         'is-turning': turning !== null,
         'is-selected': selected,
         'is-erasing': erasing,
+        'is-borderless': borderless,
+        'is-transparent': transparentSticky,
       },
     ]"
-    :style="[transform, sizeStyle]"
+    :style="[transform, sizeStyle, colorStyle]"
     @dblclick.stop="edit"
   >
     <svg
@@ -243,18 +286,18 @@ function onKeydown(event: KeyboardEvent) {
     >
       <rect
         v-if="shape === 'rect'"
-        x="0.75"
-        y="0.75"
-        :width="Math.max(0, shown.w - 1.5)"
-        :height="Math.max(0, shown.h - 1.5)"
+        :x="shapeInset"
+        :y="shapeInset"
+        :width="Math.max(0, shown.w - shapeInset * 2)"
+        :height="Math.max(0, shown.h - shapeInset * 2)"
         rx="8"
       />
       <ellipse
         v-else-if="shape === 'ellipse'"
         :cx="shown.w / 2"
         :cy="shown.h / 2"
-        :rx="Math.max(0, shown.w / 2 - 0.75)"
-        :ry="Math.max(0, shown.h / 2 - 0.75)"
+        :rx="Math.max(0, shown.w / 2 - shapeInset)"
+        :ry="Math.max(0, shown.h / 2 - shapeInset)"
       />
       <polygon v-else :points="diamond" />
     </svg>

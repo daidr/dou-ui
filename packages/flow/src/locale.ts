@@ -1,5 +1,10 @@
-import type { WhiteboardArrow, WhiteboardDash, WhiteboardRoute } from './whiteboard/model'
-import { useLocale } from 'dou-ui'
+import type {
+  WhiteboardArrow,
+  WhiteboardDash,
+  WhiteboardPaletteColor,
+  WhiteboardRoute,
+} from './whiteboard/model'
+import { useLocale, type Tone } from 'dou-ui'
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 
 export interface FlowMessages {
@@ -163,6 +168,23 @@ export interface FlowMessages {
     routeSet: string
     dashSet: string
     arrowSet: string
+    /** Color buttons' names; `{value}` is the current color, default, none or mixed. */
+    fillOf: string
+    strokeOf: string
+    textColorOf: string
+    lineColorOf: string
+    /** Announced after changing a color; `{value}` is the new label. */
+    fillSet: string
+    strokeSet: string
+    textColorSet: string
+    lineColorSet: string
+    /** Swatch labels inside the color popover. */
+    colorDefault: string
+    colorCustom: string
+    fillNone: string
+    borderNone: string
+    colors: Record<WhiteboardPaletteColor, string>
+    tones: Record<Tone, string>
   }
 }
 
@@ -282,6 +304,35 @@ const zhCN: FlowMessages = {
     routeSet: '已改为{value}',
     dashSet: '已改为{value}',
     arrowSet: '已改为{value}',
+    fillOf: '背景颜色：{value}',
+    strokeOf: '边框颜色：{value}',
+    textColorOf: '文字颜色：{value}',
+    lineColorOf: '线条颜色：{value}',
+    fillSet: '背景颜色已改为{value}',
+    strokeSet: '边框颜色已改为{value}',
+    textColorSet: '文字颜色已改为{value}',
+    lineColorSet: '线条颜色已改为{value}',
+    colorDefault: '默认',
+    colorCustom: '自定义颜色',
+    fillNone: '无填充',
+    borderNone: '无边框',
+    colors: {
+      gray: '灰色',
+      red: '红色',
+      orange: '橙色',
+      yellow: '黄色',
+      green: '绿色',
+      blue: '蓝色',
+      purple: '紫色',
+      pink: '粉色',
+    },
+    tones: {
+      neutral: '中性',
+      primary: '主色',
+      success: '成功',
+      warning: '警告',
+      danger: '危险',
+    },
   },
 }
 
@@ -401,6 +452,35 @@ const zhTW: FlowMessages = {
     routeSet: '已改為{value}',
     dashSet: '已改為{value}',
     arrowSet: '已改為{value}',
+    fillOf: '背景顏色：{value}',
+    strokeOf: '邊框顏色：{value}',
+    textColorOf: '文字顏色：{value}',
+    lineColorOf: '線條顏色：{value}',
+    fillSet: '背景顏色已改為{value}',
+    strokeSet: '邊框顏色已改為{value}',
+    textColorSet: '文字顏色已改為{value}',
+    lineColorSet: '線條顏色已改為{value}',
+    colorDefault: '預設',
+    colorCustom: '自訂顏色',
+    fillNone: '無填色',
+    borderNone: '無邊框',
+    colors: {
+      gray: '灰色',
+      red: '紅色',
+      orange: '橙色',
+      yellow: '黃色',
+      green: '綠色',
+      blue: '藍色',
+      purple: '紫色',
+      pink: '粉紅色',
+    },
+    tones: {
+      neutral: '中性',
+      primary: '主色',
+      success: '成功',
+      warning: '警告',
+      danger: '危險',
+    },
   },
 }
 
@@ -520,6 +600,35 @@ const en: FlowMessages = {
     routeSet: 'Changed to {value}',
     dashSet: 'Changed to {value}',
     arrowSet: 'Changed to {value}',
+    fillOf: 'Fill color: {value}',
+    strokeOf: 'Border color: {value}',
+    textColorOf: 'Text color: {value}',
+    lineColorOf: 'Line color: {value}',
+    fillSet: 'Fill color set to {value}',
+    strokeSet: 'Border color set to {value}',
+    textColorSet: 'Text color set to {value}',
+    lineColorSet: 'Line color set to {value}',
+    colorDefault: 'Default',
+    colorCustom: 'Custom color',
+    fillNone: 'No fill',
+    borderNone: 'No border',
+    colors: {
+      gray: 'Gray',
+      red: 'Red',
+      orange: 'Orange',
+      yellow: 'Yellow',
+      green: 'Green',
+      blue: 'Blue',
+      purple: 'Purple',
+      pink: 'Pink',
+    },
+    tones: {
+      neutral: 'Neutral',
+      primary: 'Primary',
+      success: 'Success',
+      warning: 'Warning',
+      danger: 'Danger',
+    },
   },
 }
 

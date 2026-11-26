@@ -11,9 +11,10 @@ import {
   LineSolidIcon,
   LineStyleIcon,
   MinusIcon,
+  PaletteIcon,
   RouteIcon,
 } from '@dou-ui/icons'
-import type { Component } from 'vue'
+import type { Component, CSSProperties } from 'vue'
 import type { FlowEditorContext } from '../context'
 import {
   bezierEdge,
@@ -25,12 +26,14 @@ import {
 import type { FlowToolbarItem } from '../core/menu'
 import type { FlowEdge, Point, PortSide } from '../core/model'
 import { format } from '../locale'
+import { normalizeColorValue, resolveStrokeColor } from './colors'
 import type {
   WhiteboardArrow,
   WhiteboardConnectorData,
   WhiteboardDash,
   WhiteboardRoute,
 } from './model'
+import { cleanData, colorToolbarItem, sharedValue } from './toolbar'
 
 const ARROW = { length: 10, spread: 0.45 }
 const r2 = (v: number) => Math.round(v * 100) / 100
@@ -93,7 +96,13 @@ export const connectorEdge = defineEdgeType<WhiteboardConnectorData>({
   },
   style(edge) {
     const dash = DASHES[edge.data?.dash ?? 'solid']
-    return dash ? { strokeDasharray: dash } : undefined
+    const color = resolveStrokeColor(edge.data?.color)
+    const stroke = color && color !== 'none' ? color : undefined
+    if (!dash && !stroke) return undefined
+    const out: Record<string, string> = {}
+    if (dash) out.strokeDasharray = dash
+    if (stroke) out['--dou-flow-connector-color'] = stroke
+    return out as CSSProperties
   },
 })
 
@@ -156,6 +165,32 @@ export function connectorToolbar(ctx: FlowEditorContext, edges: FlowEdge[]): Flo
     }
   }
 
+  const colorValue = sharedValue(edges.map((edge) => normalizeColorValue(data(edge).color)))
+  const colorSwatch = colorValue ? resolveStrokeColor(colorValue) : undefined
+  const colorItem = colorToolbarItem({
+    ctx,
+    key: 'connector-color',
+    kind: 'stroke',
+    icon: PaletteIcon,
+    value: colorValue,
+    swatch: colorSwatch === 'none' ? undefined : colorSwatch,
+    labelOf: t.lineColorOf,
+    announceSet: t.lineColorSet,
+    apply(next, meta) {
+      const color = next === 'none' ? undefined : next
+      ctx.transact((tr) => {
+        for (const edge of edges) {
+          const current = tr.getEdge(edge.id)
+          if (!current) continue
+          const patched = cleanData(current.data, { color })
+          tr.updateEdge(current.id, {
+            data: Object.keys(patched).length ? patched : undefined,
+          })
+        }
+      }, meta)
+    },
+  })
+
   return [
     choice('route', 'straight', ROUTES, t.routes, { of: t.routeOf, set: t.routeSet }, RouteIcon),
     choice(
@@ -167,5 +202,6 @@ export function connectorToolbar(ctx: FlowEditorContext, edges: FlowEdge[]): Flo
       LineStyleIcon,
     ),
     choice('arrow', 'end', ARROWS, t.arrows, { of: t.arrowOf, set: t.arrowSet }, ArrowEndsIcon),
+    colorItem,
   ]
 }

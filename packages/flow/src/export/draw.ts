@@ -147,8 +147,14 @@ function edgeLook(tools: DrawTools, root: HTMLElement) {
         const s = getComputedStyle(path)
         const dash = s.strokeDasharray && s.strokeDasharray !== 'none' ? s.strokeDasharray : ''
         const width = px(s.strokeWidth, 1)
+        const rawStroke =
+          s.stroke ||
+          (item.stale ? 'var(--dou-color-danger)' : undefined) ||
+          style?.stroke ||
+          style?.['--dou-flow-connector-color'] ||
+          'var(--dou-flow-editor-edge)'
         found =
-          `fill="none" stroke="${tools.color(s.stroke || 'var(--dou-flow-editor-edge)')}" stroke-width="${round(width)}"` +
+          `fill="none" stroke="${tools.color(rawStroke)}" stroke-width="${round(width)}"` +
           (dash ? ` stroke-dasharray="${dash.replace(/px/g, '').replace(/,\s*/g, ' ')}"` : '') +
           (s.strokeLinecap && s.strokeLinecap !== 'butt'
             ? ` stroke-linecap="${s.strokeLinecap}"`

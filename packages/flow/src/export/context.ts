@@ -188,6 +188,8 @@ export function drawTools(
   const swatch = document.createElement('div')
   box.append(swatch)
   const color = (value: string) => {
+    const trimmed = value.trim()
+    if (trimmed === 'none') return 'none'
     let found = colors.get(value)
     if (found === undefined) {
       swatch.style.color = ''

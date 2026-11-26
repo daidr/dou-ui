@@ -1,5 +1,14 @@
 import type { FlowNode } from '../core/model'
 import type { FlowDrawContext } from '../export/context'
+import {
+  isNoneColor,
+  resolveFillColor,
+  resolveStrokeColor,
+  resolveTextColor,
+  type WhiteboardColor,
+  type WhiteboardFill,
+  type WhiteboardStroke,
+} from './colors'
 import { fitInk, inkOutline, INK_SIZE, unpack } from './ink'
 import type { WhiteboardNodeData, WhiteboardShape } from './model'
 
@@ -15,6 +24,10 @@ export function drawBoardNode(node: FlowNode<WhiteboardNodeData>, draw: FlowDraw
     shape?: WhiteboardShape
     text?: string
     tone?: string
+    fill?: WhiteboardFill
+    stroke?: WhiteboardStroke
+    textColor?: WhiteboardColor
+    color?: WhiteboardColor
     points?: number[]
     box?: [number, number]
     size?: number
@@ -29,31 +42,48 @@ export function drawBoardNode(node: FlowNode<WhiteboardNodeData>, draw: FlowDraw
 
   if (kind === 'shape') {
     const s = draw.style(nodeClass, 'dou-whiteboard-node__shape')
-    const stroke = px(s.strokeWidth, 1.5)
-    const i = stroke / 2
-    const paint = `fill="${draw.color(s.fill)}" stroke="${draw.color(s.stroke)}" stroke-width="${stroke}" stroke-linejoin="round"`
-    if (shape === 'ellipse')
-      parts.push(
-        `<ellipse cx="${r(w / 2)}" cy="${r(h / 2)}" rx="${r(Math.max(0, w / 2 - i))}" ry="${r(Math.max(0, h / 2 - i))}" ${paint}/>`,
-      )
-    else if (shape === 'diamond')
-      parts.push(
-        `<polygon points="${r(w / 2)},${1} ${r(w - 1)},${r(h / 2)} ${r(w / 2)},${r(h - 1)} 1,${r(h / 2)}" ${paint}/>`,
-      )
-    else
-      parts.push(
-        `<rect x="${i}" y="${i}" width="${r(Math.max(0, w - stroke))}" height="${r(Math.max(0, h - stroke))}" rx="8" ${paint}/>`,
-      )
+    const borderless = isNoneColor(data.stroke)
+    const customFill = resolveFillColor(data.fill, 'shape')
+    const fill =
+      customFill === 'none' ? 'none' : customFill ? draw.color(customFill) : draw.color(s.fill)
+    const strokeWidth = borderless ? 0 : px(s.strokeWidth, 1.5)
+    const i = strokeWidth / 2
+    const diamondInset = borderless ? 0 : 1
+    if (!borderless || fill !== 'none') {
+      const customStroke = borderless ? undefined : resolveStrokeColor(data.stroke)
+      const paint = borderless
+        ? `fill="${fill}" stroke="none"`
+        : `fill="${fill}" stroke="${customStroke ? draw.color(customStroke) : draw.color(s.stroke)}" stroke-width="${strokeWidth}" stroke-linejoin="round"`
+      if (shape === 'ellipse')
+        parts.push(
+          `<ellipse cx="${r(w / 2)}" cy="${r(h / 2)}" rx="${r(Math.max(0, w / 2 - i))}" ry="${r(Math.max(0, h / 2 - i))}" ${paint}/>`,
+        )
+      else if (shape === 'diamond')
+        parts.push(
+          `<polygon points="${r(w / 2)},${diamondInset} ${r(w - diamondInset)},${r(h / 2)} ${r(w / 2)},${r(h - diamondInset)} ${diamondInset},${r(h / 2)}" ${paint}/>`,
+        )
+      else
+        parts.push(
+          `<rect x="${i}" y="${i}" width="${r(Math.max(0, w - strokeWidth))}" height="${r(Math.max(0, h - strokeWidth))}" rx="8" ${paint}/>`,
+        )
+    }
   } else if (kind === 'sticky') {
     const s = draw.style(nodeClass)
-    parts.push(
-      `<rect width="${r(w)}" height="${r(h)}" rx="${px(s.borderTopLeftRadius, 4)}" fill="${draw.color(s.backgroundColor)}"/>`,
-    )
+    const customFill = resolveFillColor(data.fill, 'sticky')
+    if (customFill !== 'none') {
+      const fill = customFill ? draw.color(customFill) : draw.color(s.backgroundColor)
+      parts.push(
+        `<rect width="${r(w)}" height="${r(h)}" rx="${px(s.borderTopLeftRadius, 4)}" fill="${fill}"/>`,
+      )
+    }
   } else if (kind === 'ink' && data.points && data.box) {
     const s = draw.style(nodeClass, 'dou-whiteboard-node__ink')
     const size = data.size ?? INK_SIZE
     const d = inkOutline(fitInk(unpack(data.points), data.box, w, h, size), size)
-    parts.push(`<path d="${d}" fill="${draw.color(s.fill)}"/>`)
+    const customStroke = resolveStrokeColor(data.color)
+    const fill =
+      customStroke && customStroke !== 'none' ? draw.color(customStroke) : draw.color(s.fill)
+    parts.push(`<path d="${d}" fill="${fill}"/>`)
   } else if (kind === 'image' && data.src) {
     const s = draw.style(nodeClass, 'dou-whiteboard-node__image')
     parts.push(
@@ -72,6 +102,8 @@ export function drawBoardNode(node: FlowNode<WhiteboardNodeData>, draw: FlowDraw
     const side = px(s.paddingLeft, 16)
     const lineHeight = px(s.lineHeight, size * 1.5)
     const centred = kind !== 'text'
+    const customText = resolveTextColor(kind === 'text' ? data.color : data.textColor)
+    const color = customText ? draw.color(customText) : draw.color(draw.style(nodeClass).color)
     parts.push(
       draw.text(
         data.text,
@@ -79,7 +111,7 @@ export function drawBoardNode(node: FlowNode<WhiteboardNodeData>, draw: FlowDraw
         {
           size,
           lineHeight,
-          color: draw.color(draw.style(nodeClass).color),
+          color,
           align: centred ? 'center' : 'start',
           valign: centred ? 'middle' : 'top',
         },

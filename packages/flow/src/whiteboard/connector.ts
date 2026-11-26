@@ -26,14 +26,14 @@ import {
 import type { FlowToolbarItem } from '../core/menu'
 import type { FlowEdge, Point, PortSide } from '../core/model'
 import { format } from '../locale'
-import { normalizeColorValue, resolveStrokeColor } from './colors'
+import { normalizeOpaqueColor, resolveStrokeColor } from './colors'
 import type {
   WhiteboardArrow,
   WhiteboardConnectorData,
   WhiteboardDash,
   WhiteboardRoute,
 } from './model'
-import { cleanData, colorToolbarItem, sharedValue } from './toolbar'
+import { cleanData, colorToolbarItem, sameData, sharedValue } from './toolbar'
 
 const ARROW = { length: 10, spread: 0.45 }
 const r2 = (v: number) => Math.round(v * 100) / 100
@@ -125,6 +125,10 @@ const ARROWS: { value: WhiteboardArrow; icon: Component }[] = [
 
 const data = (edge: FlowEdge) => (edge.data ?? {}) as WhiteboardConnectorData
 const isConnector = (edge: FlowEdge) => (edge.type ?? 'connector') === 'connector'
+const effectiveConnectorColor = (edge: FlowEdge) => {
+  const raw = normalizeOpaqueColor(data(edge).color)
+  return raw && resolveStrokeColor(raw) ? raw : undefined
+}
 
 /** Route, dash and arrow choices over the selected connectors. */
 export function connectorToolbar(ctx: FlowEditorContext, edges: FlowEdge[]): FlowToolbarItem[] {
@@ -165,11 +169,16 @@ export function connectorToolbar(ctx: FlowEditorContext, edges: FlowEdge[]): Flo
     }
   }
 
-  const colorValue = sharedValue(edges.map((edge) => normalizeColorValue(data(edge).color)))
+  const colorValue = sharedValue(edges.map(effectiveConnectorColor))
   const colorSwatch = colorValue ? resolveStrokeColor(colorValue) : undefined
+  const targetKey = edges
+    .map((edge) => edge.id)
+    .toSorted()
+    .join(',')
   const colorItem = colorToolbarItem({
     ctx,
     key: 'connector-color',
+    scope: `connector-color:e:${targetKey}`,
     kind: 'stroke',
     icon: PaletteIcon,
     value: colorValue,
@@ -181,11 +190,10 @@ export function connectorToolbar(ctx: FlowEditorContext, edges: FlowEdge[]): Flo
       ctx.transact((tr) => {
         for (const edge of edges) {
           const current = tr.getEdge(edge.id)
-          if (!current) continue
+          if (!current || effectiveConnectorColor(current) === color) continue
           const patched = cleanData(current.data, { color })
-          tr.updateEdge(current.id, {
-            data: Object.keys(patched).length ? patched : undefined,
-          })
+          const nextData = Object.keys(patched).length ? patched : undefined
+          if (!sameData(current.data, nextData)) tr.updateEdge(current.id, { data: nextData })
         }
       }, meta)
     },

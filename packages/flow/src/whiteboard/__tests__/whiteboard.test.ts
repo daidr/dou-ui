@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
-import { toast } from 'dou-ui'
+import { DouColorPanel, toast } from 'dou-ui'
 import {
   connectorEdge,
   insertImages,
@@ -2053,5 +2053,335 @@ describe('colors and borderless shapes', () => {
     expect(buttons[0]!.attributes('disabled')).toBeDefined()
     expect(buttons[1]!.attributes('disabled')).toBeDefined()
     expect(buttons[2]!.attributes('disabled')).toBeDefined()
+  })
+
+  it('shows transparent sticky fill as no-fill and ignores none on opaque channels', async () => {
+    const { root, flow, selection } = setup({
+      version: 1,
+      nodes: [
+        {
+          id: 'sticky-none',
+          type: 'sticky',
+          x: 0,
+          y: 0,
+          width: 140,
+          height: 140,
+          data: { text: '透明便签', fill: 'none' },
+        },
+        {
+          id: 'shape-none',
+          type: 'shape',
+          x: 200,
+          y: 0,
+          width: 140,
+          height: 80,
+          data: { shape: 'rect', text: '透明矩形', fill: 'transparent', textColor: 'transparent' },
+        },
+        {
+          id: 'txt-none',
+          type: 'text',
+          x: 0,
+          y: 200,
+          width: 120,
+          data: { text: '文字', color: 'none' },
+        },
+        {
+          id: 'ink-none',
+          type: 'ink',
+          x: 200,
+          y: 200,
+          width: 60,
+          height: 20,
+          data: { box: [60, 20], points: [4, 10, 0.5, 56, 10, 0.5], color: 'none' },
+        },
+        {
+          id: 'ink-tone',
+          type: 'ink',
+          x: 320,
+          y: 200,
+          width: 60,
+          height: 20,
+          data: {
+            box: [60, 20],
+            points: [4, 10, 0.5, 56, 10, 0.5],
+            color: 'transparent',
+            tone: 'primary',
+          },
+        },
+      ],
+      edges: [
+        {
+          id: 'e-none',
+          type: 'connector',
+          source: { node: 'sticky-none', port: 'right' },
+          target: { node: 'shape-none', port: 'left-in' },
+          data: { color: 'none' },
+        },
+      ],
+    })
+    await ticks()
+
+    // 1. Transparent sticky shows "背景颜色：无填充" and does not mis-highlight custom button
+    selection.value = { nodes: ['sticky-none'], edges: [] }
+    await ticks()
+    let buttons = root.findAll('.dou-flow-toolbar button')
+    expect(buttons[0]!.attributes('aria-label')).toBe('背景颜色：无填充')
+    await buttons[0]!.trigger('click')
+    await ticks()
+    let pop = colorPopover()!
+    const noneBtn = pop.querySelector<HTMLButtonElement>('.dou-flow-color-popover__none')!
+    expect(noneBtn.textContent?.trim()).toBe('无填充')
+    expect(noneBtn.getAttribute('aria-pressed')).toBe('true')
+    const customBtn = pop.querySelector<HTMLButtonElement>(
+      '.dou-flow-color-popover__swatch.is-custom',
+    )!
+    expect(customBtn.getAttribute('aria-pressed')).toBe('false')
+    expect(customBtn.classList.contains('has-custom')).toBe(false)
+    expect(customBtn.querySelector('svg')).toBeTruthy()
+    // Sticky can switch from transparent to a preset color and back to transparent
+    pop.querySelector<HTMLButtonElement>('button[aria-label="蓝色"]')!.click()
+    await ticks()
+    expect(flow.value.nodes[0]!.data!.fill).toBe('blue')
+    await root.findAll('.dou-flow-toolbar button')[0]!.trigger('click')
+    await ticks()
+    colorPopover()!.querySelector<HTMLButtonElement>('.dou-flow-color-popover__none')!.click()
+    await ticks()
+    expect(flow.value.nodes[0]!.data!.fill).toBe('none')
+
+    // 2. Mixed transparent sticky + transparent shape shows "背景颜色：无填充" cleanly
+    selection.value = { nodes: ['sticky-none', 'shape-none'], edges: [] }
+    await ticks()
+    buttons = root.findAll('.dou-flow-toolbar button')
+    expect(buttons[0]!.attributes('aria-label')).toBe('背景颜色：无填充')
+    await buttons[0]!.trigger('click')
+    await ticks()
+    pop = colorPopover()!
+    expect(
+      pop
+        .querySelector<HTMLButtonElement>('.dou-flow-color-popover__none')!
+        .getAttribute('aria-pressed'),
+    ).toBe('true')
+    expect(
+      pop
+        .querySelector<HTMLButtonElement>('.dou-flow-color-popover__swatch.is-custom')!
+        .getAttribute('aria-pressed'),
+    ).toBe('false')
+
+    // 3. Opaque channels (shape textColor, standalone text, ink, connector) normalize 'none' to default
+    selection.value = { nodes: ['shape-none'], edges: [] }
+    await ticks()
+    buttons = root.findAll('.dou-flow-toolbar button')
+    expect(buttons[2]!.attributes('aria-label')).toBe('文字颜色：默认')
+    await buttons[2]!.trigger('click')
+    await ticks()
+    pop = colorPopover()!
+    expect(
+      pop
+        .querySelector<HTMLButtonElement>('.dou-flow-color-popover__swatch.is-default')!
+        .getAttribute('aria-pressed'),
+    ).toBe('true')
+    expect(
+      pop
+        .querySelector<HTMLButtonElement>('.dou-flow-color-popover__swatch.is-custom')!
+        .getAttribute('aria-pressed'),
+    ).toBe('false')
+
+    selection.value = { nodes: ['txt-none'], edges: [] }
+    await ticks()
+    expect(root.findAll('.dou-flow-toolbar button')[0]!.attributes('aria-label')).toBe(
+      '文字颜色：默认',
+    )
+
+    selection.value = { nodes: ['ink-none'], edges: [] }
+    await ticks()
+    expect(root.findAll('.dou-flow-toolbar button')[0]!.attributes('aria-label')).toBe(
+      '线条颜色：默认',
+    )
+
+    // Ink with color: 'transparent' and legacy tone: 'primary' reflects the active tone
+    selection.value = { nodes: ['ink-tone'], edges: [] }
+    await ticks()
+    expect(root.findAll('.dou-flow-toolbar button')[0]!.attributes('aria-label')).toBe(
+      '线条颜色：主色',
+    )
+
+    selection.value = { nodes: [], edges: ['e-none'] }
+    await ticks()
+    buttons = root.findAll('.dou-flow-toolbar button')
+    expect(buttons[3]!.attributes('aria-label')).toBe('线条颜色：默认')
+    await buttons[3]!.trigger('click')
+    await ticks()
+    pop = colorPopover()!
+    expect(
+      pop
+        .querySelector<HTMLButtonElement>('.dou-flow-color-popover__swatch.is-custom')!
+        .getAttribute('aria-pressed'),
+    ).toBe('false')
+  })
+
+  it('skips no-op color updates and resets live-drag undo groups on close or selection change', async () => {
+    let now = 10_000
+    const nowSpy = vi.spyOn(Date, 'now').mockImplementation(() => now)
+    try {
+      const { wrapper, root, flow, selection, editor } = setup({
+        version: 1,
+        nodes: [
+          {
+            id: 'a',
+            type: 'shape',
+            x: 0,
+            y: 0,
+            width: 140,
+            height: 80,
+            data: { shape: 'rect', text: 'A', fill: 'blue' },
+          },
+          {
+            id: 'b',
+            type: 'shape',
+            x: 200,
+            y: 0,
+            width: 140,
+            height: 80,
+            data: { shape: 'rect', text: 'B' },
+          },
+        ],
+        edges: [
+          {
+            id: 'e1',
+            type: 'connector',
+            source: { node: 'a', port: 'right' },
+            target: { node: 'b', port: 'left-in' },
+          },
+        ],
+      })
+      await ticks()
+
+      // 1. Repeat-clicking active preset / default / borderless skips no-op history steps and keeps redo stack
+      selection.value = { nodes: ['a'], edges: [] }
+      await ticks()
+      // Make one real edit then undo so redo is available
+      await root.findAll('.dou-flow-toolbar button')[0]!.trigger('click')
+      await ticks()
+      colorPopover()!.querySelector<HTMLButtonElement>('button[aria-label="红色"]')!.click()
+      await ticks()
+      expect(editor.value!.undo()).toBe(true)
+      await ticks()
+      expect(flow.value.nodes[0]!.data!.fill).toBe('blue')
+      expect(editor.value!.canRedo).toBe(true)
+
+      // Clicking already-active "蓝色" must not record an undo entry or clear redo
+      await root.findAll('.dou-flow-toolbar button')[0]!.trigger('click')
+      await ticks()
+      colorPopover()!.querySelector<HTMLButtonElement>('button[aria-label="蓝色"]')!.click()
+      await ticks()
+      expect(editor.value!.canUndo).toBe(false)
+      expect(editor.value!.canRedo).toBe(true)
+
+      // Clicking already-active "默认" on stroke and connector also preserves redo
+      await root.findAll('.dou-flow-toolbar button')[1]!.trigger('click')
+      await ticks()
+      colorPopover()!.querySelector<HTMLButtonElement>('button[aria-label="默认"]')!.click()
+      await ticks()
+      expect(editor.value!.canUndo).toBe(false)
+      expect(editor.value!.canRedo).toBe(true)
+
+      selection.value = { nodes: [], edges: ['e1'] }
+      await ticks()
+      await root.findAll('.dou-flow-toolbar button')[3]!.trigger('click')
+      await ticks()
+      colorPopover()!.querySelector<HTMLButtonElement>('button[aria-label="默认"]')!.click()
+      await ticks()
+      expect(editor.value!.canUndo).toBe(false)
+      expect(editor.value!.canRedo).toBe(true)
+
+      // 2. Live custom drag paused > 1000ms before release settles without adding a duplicate undo step
+      selection.value = { nodes: ['a'], edges: [] }
+      await ticks()
+      await root.findAll('.dou-flow-toolbar button')[0]!.trigger('click')
+      await ticks()
+      colorPopover()!.querySelector<HTMLButtonElement>('button[aria-label="自定义颜色"]')!.click()
+      await ticks()
+      let panel = wrapper.findComponent(DouColorPanel)
+      panel.vm.$emit('update:modelValue', '#112233')
+      await ticks()
+      now += 200
+      panel.vm.$emit('update:modelValue', '#445566')
+      await ticks()
+      // Pause beyond GROUP_WINDOW (1000ms) before releasing pointer with the same final color
+      now += 1500
+      panel.vm.$emit('change', '#445566')
+      await ticks()
+      expect(flow.value.nodes[0]!.data!.fill).toBe('#445566')
+      // Single undo returns straight to 'blue'
+      expect(editor.value!.undo()).toBe(true)
+      await ticks()
+      expect(flow.value.nodes[0]!.data!.fill).toBe('blue')
+      expect(editor.value!.canUndo).toBe(false)
+      // Close the still-open custom popover before starting the next interaction
+      await root.findAll('.dou-flow-toolbar button')[0]!.trigger('click')
+      await ticks()
+
+      // 3. Abandoning a live drag (closing popover without `change`) does not merge with a quick follow-up live drag
+      await root.findAll('.dou-flow-toolbar button')[0]!.trigger('click')
+      await ticks()
+      colorPopover()!.querySelector<HTMLButtonElement>('button[aria-label="自定义颜色"]')!.click()
+      await ticks()
+      panel = wrapper.findComponent(DouColorPanel)
+      panel.vm.$emit('update:modelValue', '#123456')
+      await ticks()
+      // Close popover via toggle click without emitting `change`
+      await root.findAll('.dou-flow-toolbar button')[0]!.trigger('click')
+      await ticks()
+      // Within 100ms, reopen on the same node and start a new live drag
+      now += 100
+      await root.findAll('.dou-flow-toolbar button')[0]!.trigger('click')
+      await ticks()
+      colorPopover()!.querySelector<HTMLButtonElement>('button[aria-label="自定义颜色"]')!.click()
+      await ticks()
+      panel = wrapper.findComponent(DouColorPanel)
+      panel.vm.$emit('update:modelValue', '#654321')
+      panel.vm.$emit('change', '#654321')
+      await ticks()
+      // Close popover before undo checks
+      await root.findAll('.dou-flow-toolbar button')[0]!.trigger('click')
+      await ticks()
+      expect(flow.value.nodes[0]!.data!.fill).toBe('#654321')
+      // Undo reverts '#654321' -> '#123456', then a second undo reverts '#123456' -> 'blue'
+      expect(editor.value!.undo()).toBe(true)
+      await ticks()
+      expect(flow.value.nodes[0]!.data!.fill).toBe('#123456')
+      expect(editor.value!.undo()).toBe(true)
+      await ticks()
+      expect(flow.value.nodes[0]!.data!.fill).toBe('blue')
+
+      // 4. Switching selection during an unfinished live drag never merges node B into node A's undo step
+      await root.findAll('.dou-flow-toolbar button')[0]!.trigger('click')
+      await ticks()
+      colorPopover()!.querySelector<HTMLButtonElement>('button[aria-label="自定义颜色"]')!.click()
+      await ticks()
+      panel = wrapper.findComponent(DouColorPanel)
+      panel.vm.$emit('update:modelValue', '#abcdef')
+      await ticks()
+      now += 100
+      selection.value = { nodes: ['b'], edges: [] }
+      await ticks()
+      await root.findAll('.dou-flow-toolbar button')[0]!.trigger('click')
+      await ticks()
+      colorPopover()!.querySelector<HTMLButtonElement>('button[aria-label="红色"]')!.click()
+      await ticks()
+      expect(flow.value.nodes[0]!.data!.fill).toBe('#abcdef')
+      expect(flow.value.nodes[1]!.data!.fill).toBe('red')
+      // First undo reverts only node B; node A stays '#abcdef'
+      expect(editor.value!.undo()).toBe(true)
+      await ticks()
+      expect(flow.value.nodes[1]!.data!.fill).toBeUndefined()
+      expect(flow.value.nodes[0]!.data!.fill).toBe('#abcdef')
+      // Second undo reverts node A
+      expect(editor.value!.undo()).toBe(true)
+      await ticks()
+      expect(flow.value.nodes[0]!.data!.fill).toBe('blue')
+    } finally {
+      nowSpy.mockRestore()
+    }
   })
 })

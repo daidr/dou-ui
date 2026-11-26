@@ -3,7 +3,7 @@ import { h, render, type Component } from 'vue'
 import type { PortAnchor } from '../context'
 import type { Rect } from '../core/model'
 import type { FlowMessages } from '../locale'
-import { plainColor } from './color'
+import { isSafeCssColor, plainColor } from './color'
 
 export interface FlowDrawTextOptions {
   /** In px; the editor's font size by default. */
@@ -189,13 +189,19 @@ export function drawTools(
   box.append(swatch)
   const color = (value: string) => {
     const trimmed = value.trim()
-    if (trimmed === 'none') return 'none'
-    let found = colors.get(value)
+    if (!trimmed) return ''
+    if (trimmed.toLowerCase() === 'none') return 'none'
+    let found = colors.get(trimmed)
     if (found === undefined) {
-      swatch.style.color = ''
-      swatch.style.color = value
-      found = plainColor(getComputedStyle(swatch).color || value)
-      colors.set(value, found)
+      if (!isSafeCssColor(trimmed)) {
+        found = ''
+      } else {
+        swatch.style.color = ''
+        swatch.style.color = trimmed
+        const accepted = swatch.style.color
+        found = accepted ? plainColor(getComputedStyle(swatch).color || accepted) : ''
+      }
+      colors.set(trimmed, found)
     }
     return found
   }
@@ -257,7 +263,7 @@ export function drawTools(
       align === 'center' ? area.x + area.width / 2 : align === 'end' ? area.x + area.width : area.x
     const anchor = align === 'center' ? 'middle' : align === 'end' ? 'end' : 'start'
     const shift = baselineOffset(size)
-    const fill = options.color ? ` fill="${options.color}"` : ''
+    const fill = options.color ? ` fill="${escapeXml(options.color)}"` : ''
     const bold = weight === 400 || weight === '400' ? '' : ` font-weight="${weight}"`
     const spans = lines
       .map((line, i) =>
@@ -291,7 +297,7 @@ export function drawTools(
         const kept = attrs.replace(/\s(width|height|x|y|class|style|aria-[\w-]+|role)="[^"]*"/g, '')
         return `<svg${kept} x="${round(area.x)}" y="${round(area.y)}" width="${round(area.width)}" height="${round(area.height)}">`
       })
-      .replace(/currentColor/g, fill)
+      .replace(/currentColor/g, () => escapeXml(fill))
     return svg
   }
 
@@ -305,7 +311,7 @@ export function drawTools(
       // not readable here: a plain box with a sign, as the canvas shows it
       const side = Math.min(24, width * 0.4, height * 0.4)
       return (
-        `<rect x="${round(x)}" y="${round(y)}" width="${round(width)}" height="${round(height)}" rx="${options.radius ?? 0}" fill="${color('var(--dou-color-bg-muted)')}"/>` +
+        `<rect x="${round(x)}" y="${round(y)}" width="${round(width)}" height="${round(height)}" rx="${options.radius ?? 0}" fill="${escapeXml(color('var(--dou-color-bg-muted)'))}"/>` +
         icon(
           ImageOffIcon,
           { x: x + (width - side) / 2, y: y + (height - side) / 2, width: side, height: side },

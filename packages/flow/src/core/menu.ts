@@ -54,6 +54,8 @@ export interface FlowToolbarColor {
    * consecutive updates can share an undo group.
    */
   select: (value: string | undefined, options?: { live?: boolean }) => void
+  /** Called when the color popover or custom color panel closes, ending any open live-drag group. */
+  close?: () => void
 }
 
 export interface FlowToolbarItem {

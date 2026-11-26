@@ -1,4 +1,5 @@
 import type { Tone } from 'dou-ui'
+import { isSafeCssColor } from '../export/color'
 import type { FlowMessages } from '../locale'
 
 /**
@@ -50,6 +51,12 @@ export function normalizeColorValue(value: unknown): string | undefined {
   return isNoneColor(trimmed) ? 'none' : trimmed
 }
 
+/** Like `normalizeColorValue`, dropping `'none'`/`'transparent'` for channels that stay painted. */
+export function normalizeOpaqueColor(value: unknown): string | undefined {
+  const normalized = normalizeColorValue(value)
+  return normalized === 'none' ? undefined : normalized
+}
+
 /**
  * Turns a fill color into a CSS / SVG paint value.
  * Returns `'none'` for transparent fills (use `'transparent'` for CSS `background-color`).
@@ -68,7 +75,7 @@ export function resolveFillColor(
     if (color === 'neutral') return 'var(--dou-color-bg-surface)'
     return `color-mix(in oklab, var(--dou-color-${color}) 10%, var(--dou-color-bg-surface))`
   }
-  return color
+  return isSafeCssColor(color) ? color : undefined
 }
 
 /** Turns a border, connector or ink color into a CSS / SVG stroke/fill paint value. */
@@ -79,17 +86,17 @@ export function resolveStrokeColor(value: WhiteboardStroke | undefined): string 
   if (isWhiteboardColor(color)) return `var(--dou-whiteboard-color-${color})`
   if (isToneColor(color))
     return color === 'neutral' ? 'var(--dou-flow-whiteboard-ink)' : `var(--dou-color-${color})`
-  return color
+  return isSafeCssColor(color) ? color : undefined
 }
 
 /** Turns a text color into a CSS / SVG color value. */
 export function resolveTextColor(value: WhiteboardColor | undefined): string | undefined {
-  const color = normalizeColorValue(value)
-  if (!color || color === 'none') return undefined
+  const color = normalizeOpaqueColor(value)
+  if (!color) return undefined
   if (isWhiteboardColor(color)) return `var(--dou-whiteboard-color-${color})`
   if (isToneColor(color))
     return color === 'neutral' ? 'var(--dou-color-text)' : `var(--dou-color-${color}-text)`
-  return color
+  return isSafeCssColor(color) ? color : undefined
 }
 
 /** Human-readable name for a color value in tooltips and screen-reader announcements. */

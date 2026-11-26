@@ -45,15 +45,16 @@ export function drawBoardNode(node: FlowNode<WhiteboardNodeData>, draw: FlowDraw
     const borderless = isNoneColor(data.stroke)
     const customFill = resolveFillColor(data.fill, 'shape')
     const fill =
-      customFill === 'none' ? 'none' : customFill ? draw.color(customFill) : draw.color(s.fill)
+      customFill === 'none' ? 'none' : (customFill && draw.color(customFill)) || draw.color(s.fill)
     const strokeWidth = borderless ? 0 : px(s.strokeWidth, 1.5)
     const i = strokeWidth / 2
     const diamondInset = borderless ? 0 : 1
     if (!borderless || fill !== 'none') {
       const customStroke = borderless ? undefined : resolveStrokeColor(data.stroke)
+      const stroke = (customStroke && draw.color(customStroke)) || draw.color(s.stroke)
       const paint = borderless
-        ? `fill="${fill}" stroke="none"`
-        : `fill="${fill}" stroke="${customStroke ? draw.color(customStroke) : draw.color(s.stroke)}" stroke-width="${strokeWidth}" stroke-linejoin="round"`
+        ? `fill="${draw.escape(fill)}" stroke="none"`
+        : `fill="${draw.escape(fill)}" stroke="${draw.escape(stroke)}" stroke-width="${strokeWidth}" stroke-linejoin="round"`
       if (shape === 'ellipse')
         parts.push(
           `<ellipse cx="${r(w / 2)}" cy="${r(h / 2)}" rx="${r(Math.max(0, w / 2 - i))}" ry="${r(Math.max(0, h / 2 - i))}" ${paint}/>`,
@@ -71,9 +72,9 @@ export function drawBoardNode(node: FlowNode<WhiteboardNodeData>, draw: FlowDraw
     const s = draw.style(nodeClass)
     const customFill = resolveFillColor(data.fill, 'sticky')
     if (customFill !== 'none') {
-      const fill = customFill ? draw.color(customFill) : draw.color(s.backgroundColor)
+      const fill = (customFill && draw.color(customFill)) || draw.color(s.backgroundColor)
       parts.push(
-        `<rect width="${r(w)}" height="${r(h)}" rx="${px(s.borderTopLeftRadius, 4)}" fill="${fill}"/>`,
+        `<rect width="${r(w)}" height="${r(h)}" rx="${px(s.borderTopLeftRadius, 4)}" fill="${draw.escape(fill)}"/>`,
       )
     }
   } else if (kind === 'ink' && data.points && data.box) {
@@ -82,8 +83,8 @@ export function drawBoardNode(node: FlowNode<WhiteboardNodeData>, draw: FlowDraw
     const d = inkOutline(fitInk(unpack(data.points), data.box, w, h, size), size)
     const customStroke = resolveStrokeColor(data.color)
     const fill =
-      customStroke && customStroke !== 'none' ? draw.color(customStroke) : draw.color(s.fill)
-    parts.push(`<path d="${d}" fill="${fill}"/>`)
+      (customStroke && customStroke !== 'none' && draw.color(customStroke)) || draw.color(s.fill)
+    parts.push(`<path d="${d}" fill="${draw.escape(fill)}"/>`)
   } else if (kind === 'image' && data.src) {
     const s = draw.style(nodeClass, 'dou-whiteboard-node__image')
     parts.push(
@@ -103,7 +104,7 @@ export function drawBoardNode(node: FlowNode<WhiteboardNodeData>, draw: FlowDraw
     const lineHeight = px(s.lineHeight, size * 1.5)
     const centred = kind !== 'text'
     const customText = resolveTextColor(kind === 'text' ? data.color : data.textColor)
-    const color = customText ? draw.color(customText) : draw.color(draw.style(nodeClass).color)
+    const color = (customText && draw.color(customText)) || draw.color(draw.style(nodeClass).color)
     parts.push(
       draw.text(
         data.text,

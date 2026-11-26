@@ -13,6 +13,7 @@ import { format, type FlowMessages } from '../locale'
 import {
   colorDisplayName,
   normalizeColorValue,
+  normalizeOpaqueColor,
   resolveFillColor,
   resolveStrokeColor,
   resolveTextColor,
@@ -53,6 +54,19 @@ export function cleanData(
   return next
 }
 
+/** Shallow-compares two optional data objects so no-op color picks skip empty history steps. */
+export function sameData(a: FlowData | undefined, b: FlowData | undefined): boolean {
+  if (a === b) return true
+  if (!a || !b) return false
+  const keysA = Object.keys(a)
+  const keysB = Object.keys(b)
+  if (keysA.length !== keysB.length) return false
+  for (const key of keysA) {
+    if (!Object.prototype.hasOwnProperty.call(b, key) || !Object.is(a[key], b[key])) return false
+  }
+  return true
+}
+
 /** Shared value across a selection, or `null` when items disagree (mixed). */
 export function sharedValue(values: (string | undefined)[]): string | null | undefined {
   const set = new Set(values)
@@ -60,25 +74,31 @@ export function sharedValue(values: (string | undefined)[]): string | null | und
 }
 
 let dragSeq = 0
-const activeGroups = new WeakMap<FlowEditorContext, { key: string; id: number }>()
+const activeGroups = new WeakMap<FlowEditorContext, { scope: string; id: number }>()
 
 /** Allocates or closes a transaction group so live drags in `DouColorPanel` undo as one step. */
 export function colorTransactionMeta(
   ctx: FlowEditorContext,
-  key: string,
+  scope: string,
   live: boolean,
 ): { group?: string } | undefined {
   const current = activeGroups.get(ctx)
   if (live) {
-    const entry = current?.key === key ? current : { key, id: ++dragSeq }
+    const entry = current?.scope === scope ? current : { scope, id: ++dragSeq }
     activeGroups.set(ctx, entry)
-    return { group: `board-color:${key}:${entry.id}` }
+    return { group: `board-color:${entry.id}` }
   }
-  if (current?.key === key) {
+  if (current) {
     activeGroups.delete(ctx)
-    return { group: `board-color:${key}:${current.id}` }
+    if (current.scope === scope) return { group: `board-color:${current.id}` }
   }
   return undefined
+}
+
+/** Drops any unclosed live-drag group when the popover closes or selection changes. */
+export function resetColorGroup(ctx: FlowEditorContext, scope?: string) {
+  const current = activeGroups.get(ctx)
+  if (current && (!scope || current.scope === scope)) activeGroups.delete(ctx)
 }
 
 export function palettePresets(
@@ -98,6 +118,8 @@ export function palettePresets(
 export interface ColorToolbarOptions {
   ctx: FlowEditorContext
   key: string
+  /** Scope including the selected targets so live drags on different items never merge. */
+  scope?: string
   kind: 'fill' | 'stroke' | 'text'
   icon: Component
   value: string | null | undefined
@@ -111,8 +133,20 @@ export interface ColorToolbarOptions {
 
 /** Builds one color-picker toolbar item shared by board nodes and connectors. */
 export function colorToolbarItem(options: ColorToolbarOptions): FlowToolbarItem {
-  const { ctx, key, kind, icon, value, swatch, disabled, labelOf, announceSet, noneOption, apply } =
-    options
+  const {
+    ctx,
+    key,
+    scope = key,
+    kind,
+    icon,
+    value,
+    swatch,
+    disabled,
+    labelOf,
+    announceSet,
+    noneOption,
+    apply,
+  } = options
   const t = ctx.messages.value.board
   const isNone = !!noneOption && value === noneOption.value
   const display = colorDisplayName(value, t, noneOption?.label)
@@ -132,11 +166,14 @@ export function colorToolbarItem(options: ColorToolbarOptions): FlowToolbarItem 
       customLabel: t.colorCustom,
       select(next, opts) {
         const live = !!opts?.live
-        apply(next, colorTransactionMeta(ctx, key, live))
+        apply(next, colorTransactionMeta(ctx, scope, live))
         if (!live) {
           const nextName = colorDisplayName(next, ctx.messages.value.board, noneOption?.label)
           ctx.announce(format(announceSet, { value: nextName }))
         }
+      },
+      close() {
+        resetColorGroup(ctx, scope)
       },
     },
   }
@@ -145,42 +182,40 @@ export function colorToolbarItem(options: ColorToolbarOptions): FlowToolbarItem 
 function effectiveFill(node: FlowNode): string | undefined {
   if (isShape(node)) {
     const data = (node.data ?? {}) as WhiteboardShapeData
-    return (
-      normalizeColorValue(data.fill) ??
-      (data.tone && data.tone !== 'neutral' ? data.tone : undefined)
-    )
+    const fill = normalizeColorValue(data.fill)
+    const valid = fill && resolveFillColor(fill, 'shape') ? fill : undefined
+    return valid ?? (data.tone && data.tone !== 'neutral' ? data.tone : undefined)
   }
   if (isSticky(node)) {
     const data = (node.data ?? {}) as WhiteboardStickyData
-    return (
-      normalizeColorValue(data.fill) ??
-      (data.tone && data.tone !== 'warning' ? data.tone : undefined)
-    )
+    const fill = normalizeColorValue(data.fill)
+    const valid = fill && resolveFillColor(fill, 'sticky') ? fill : undefined
+    return valid ?? (data.tone && data.tone !== 'warning' ? data.tone : undefined)
   }
   return undefined
 }
 
 function effectiveStroke(node: FlowNode): string | undefined {
   const data = (node.data ?? {}) as WhiteboardShapeData
-  return (
-    normalizeColorValue(data.stroke) ??
-    (data.tone && data.tone !== 'neutral' ? data.tone : undefined)
-  )
+  const stroke = normalizeColorValue(data.stroke)
+  const valid = stroke && resolveStrokeColor(stroke) ? stroke : undefined
+  return valid ?? (data.tone && data.tone !== 'neutral' ? data.tone : undefined)
 }
 
 function effectiveTextColor(node: FlowNode): string | undefined {
-  if (isText(node)) return normalizeColorValue((node.data as WhiteboardTextData | undefined)?.color)
-  return normalizeColorValue(
-    (node.data as WhiteboardShapeData | WhiteboardStickyData | undefined)?.textColor,
-  )
+  const raw = isText(node)
+    ? normalizeOpaqueColor((node.data as WhiteboardTextData | undefined)?.color)
+    : normalizeOpaqueColor(
+        (node.data as WhiteboardShapeData | WhiteboardStickyData | undefined)?.textColor,
+      )
+  return raw && resolveTextColor(raw) ? raw : undefined
 }
 
 function effectiveInkColor(node: FlowNode): string | undefined {
   const data = (node.data ?? {}) as WhiteboardInkData
-  return (
-    normalizeColorValue(data.color) ??
-    (data.tone && data.tone !== 'neutral' ? data.tone : undefined)
-  )
+  const raw = normalizeOpaqueColor(data.color)
+  const valid = raw && resolveStrokeColor(raw) ? raw : undefined
+  return valid ?? (data.tone && data.tone !== 'neutral' ? data.tone : undefined)
 }
 
 /**
@@ -193,6 +228,10 @@ export function boardNodeToolbar(ctx: FlowEditorContext, nodes: FlowNode[]): Flo
   const t = ctx.messages.value.board
   const allLocked = nodes.every((node) => node.locked)
   const editable = () => nodes.filter((node) => !node.locked)
+  const targetKey = nodes
+    .map((node) => node.id)
+    .toSorted()
+    .join(',')
   const items: FlowToolbarItem[] = []
 
   const allShapes = kinds.every((k) => k === 'shape')
@@ -208,6 +247,7 @@ export function boardNodeToolbar(ctx: FlowEditorContext, nodes: FlowNode[]): Flo
       colorToolbarItem({
         ctx,
         key: 'board-fill',
+        scope: `board-fill:n:${targetKey}`,
         kind: 'fill',
         icon: PaintBucketIcon,
         value,
@@ -215,14 +255,14 @@ export function boardNodeToolbar(ctx: FlowEditorContext, nodes: FlowNode[]): Flo
         disabled: allLocked,
         labelOf: t.fillOf,
         announceSet: t.fillSet,
-        noneOption: allShapes ? { value: 'none', label: t.fillNone } : undefined,
+        noneOption: { value: 'none', label: t.fillNone },
         apply(next, meta) {
           const targets = editable()
           if (!targets.length) return
           ctx.transact((tr) => {
             for (const node of targets) {
               const current = tr.getNode(node.id)
-              if (!current) continue
+              if (!current || effectiveFill(current) === next) continue
               if (isShape(current)) {
                 const data = (current.data ?? {}) as WhiteboardShapeData
                 const patch: Record<string, unknown> = { fill: next }
@@ -232,11 +272,11 @@ export function boardNodeToolbar(ctx: FlowEditorContext, nodes: FlowNode[]): Flo
                   patch.tone = undefined
                   if (data.tone !== 'neutral' && data.stroke === undefined) patch.stroke = data.tone
                 }
-                tr.updateNode(current.id, { data: cleanData(current.data, patch) })
+                const nextData = cleanData(current.data, patch)
+                if (!sameData(current.data, nextData)) tr.updateNode(current.id, { data: nextData })
               } else if (isSticky(current)) {
-                tr.updateNode(current.id, {
-                  data: cleanData(current.data, { fill: next, tone: undefined }),
-                })
+                const nextData = cleanData(current.data, { fill: next, tone: undefined })
+                if (!sameData(current.data, nextData)) tr.updateNode(current.id, { data: nextData })
               }
             }
           }, meta)
@@ -253,6 +293,7 @@ export function boardNodeToolbar(ctx: FlowEditorContext, nodes: FlowNode[]): Flo
       colorToolbarItem({
         ctx,
         key: 'board-stroke',
+        scope: `board-stroke:n:${targetKey}`,
         kind: 'stroke',
         icon: borderless ? SquareDashedIcon : SquareIcon,
         value,
@@ -267,14 +308,15 @@ export function boardNodeToolbar(ctx: FlowEditorContext, nodes: FlowNode[]): Flo
           ctx.transact((tr) => {
             for (const node of targets) {
               const current = tr.getNode(node.id)
-              if (!current) continue
+              if (!current || effectiveStroke(current) === next) continue
               const data = (current.data ?? {}) as WhiteboardShapeData
               const patch: Record<string, unknown> = { stroke: next }
               if (data.tone !== undefined) {
                 patch.tone = undefined
                 if (data.tone !== 'neutral' && data.fill === undefined) patch.fill = data.tone
               }
-              tr.updateNode(current.id, { data: cleanData(current.data, patch) })
+              const nextData = cleanData(current.data, patch)
+              if (!sameData(current.data, nextData)) tr.updateNode(current.id, { data: nextData })
             }
           }, meta)
         },
@@ -289,6 +331,7 @@ export function boardNodeToolbar(ctx: FlowEditorContext, nodes: FlowNode[]): Flo
       colorToolbarItem({
         ctx,
         key: 'board-text-color',
+        scope: `board-text-color:n:${targetKey}`,
         kind: 'text',
         icon: BaselineIcon,
         value,
@@ -303,9 +346,10 @@ export function boardNodeToolbar(ctx: FlowEditorContext, nodes: FlowNode[]): Flo
           ctx.transact((tr) => {
             for (const node of targets) {
               const current = tr.getNode(node.id)
-              if (!current) continue
+              if (!current || effectiveTextColor(current) === color) continue
               const field = isText(current) ? 'color' : 'textColor'
-              tr.updateNode(current.id, { data: cleanData(current.data, { [field]: color }) })
+              const nextData = cleanData(current.data, { [field]: color })
+              if (!sameData(current.data, nextData)) tr.updateNode(current.id, { data: nextData })
             }
           }, meta)
         },
@@ -320,6 +364,7 @@ export function boardNodeToolbar(ctx: FlowEditorContext, nodes: FlowNode[]): Flo
       colorToolbarItem({
         ctx,
         key: 'board-ink-color',
+        scope: `board-ink-color:n:${targetKey}`,
         kind: 'stroke',
         icon: PaletteIcon,
         value,
@@ -334,10 +379,9 @@ export function boardNodeToolbar(ctx: FlowEditorContext, nodes: FlowNode[]): Flo
           ctx.transact((tr) => {
             for (const node of targets) {
               const current = tr.getNode(node.id)
-              if (!current) continue
-              tr.updateNode(current.id, {
-                data: cleanData(current.data, { color, tone: undefined }),
-              })
+              if (!current || effectiveInkColor(current) === color) continue
+              const nextData = cleanData(current.data, { color, tone: undefined })
+              if (!sameData(current.data, nextData)) tr.updateNode(current.id, { data: nextData })
             }
           }, meta)
         },

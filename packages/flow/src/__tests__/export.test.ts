@@ -89,9 +89,17 @@ describe('text layout', () => {
     expect(cutText('票 ', 35, measure, true)).toBe('票…')
   })
 
-  it('keeps colors SVG readers know as they are', () => {
+  it('keeps colors SVG readers know as they are and rejects invalid or unsafe values', () => {
     expect(plainColor('#112233')).toBe('#112233')
     expect(plainColor('rgba(1, 2, 3, 0.5)')).toBe('rgba(1, 2, 3, 0.5)')
+    expect(plainColor('transparent')).toBe('rgba(0, 0, 0, 0)')
+    expect(plainColor('none')).toBe('none')
+    expect(plainColor('#fff" onload="alert(1)')).toBe('')
+    expect(plainColor('rgba(1, 2, 3, 0.5)" onclick="x')).toBe('')
+    expect(plainColor('url(javascript:alert(1))')).toBe('')
+    expect(plainColor('rgb(foo)')).toBe('')
+    expect(plainColor('not-a-color')).toBe('')
+    expect(plainColor('inherit')).toBe('')
   })
 })
 
@@ -494,5 +502,100 @@ describe('exportSVG', () => {
     // Connector line and arrowhead mark both use connector color
     const redPaths = svg.match(/<path d="[^"]+" fill="none" stroke="#b4453f"/g) ?? []
     expect(redPaths.length).toBe(2)
+  })
+
+  it('rejects unsafe or invalid custom colors and escapes SVG color attributes', async () => {
+    const rawTextNode = defineNodeType({
+      type: 'raw-text',
+      draw: (_node, draw) =>
+        draw.text(
+          '安全文字',
+          { x: 0, y: 0, width: 100, height: 40 },
+          { color: '#fff" data-raw="1' },
+        ),
+    })
+    const { editor } = setup(
+      {
+        version: 1,
+        nodes: [
+          {
+            id: 'bad-shape',
+            type: 'shape',
+            x: 0,
+            y: 0,
+            width: 140,
+            height: 80,
+            data: {
+              shape: 'rect',
+              text: '形状',
+              fill: '#fff" onload="alert(1)',
+              stroke: 'rgb(1, 2, 3)" onclick="alert(2)',
+              textColor: 'url(javascript:alert(3))',
+            },
+          },
+          {
+            id: 'bad-sticky',
+            type: 'sticky',
+            x: 200,
+            y: 0,
+            width: 140,
+            height: 120,
+            data: { text: '便签', fill: 'notacolor', textColor: 'inherit' },
+          },
+          {
+            id: 'bad-text',
+            type: 'text',
+            x: 400,
+            y: 0,
+            width: 120,
+            height: 40,
+            data: { text: '文字', color: '#000"><script>alert(1)</script>' },
+          },
+          {
+            id: 'bad-ink',
+            type: 'ink',
+            x: 400,
+            y: 80,
+            width: 60,
+            height: 20,
+            data: {
+              box: [60, 20],
+              points: [4, 10, 0.5, 56, 10, 0.5],
+              color: 'not-a-color',
+            },
+          },
+          {
+            id: 'custom-raw',
+            type: 'raw-text',
+            x: 0,
+            y: 160,
+            width: 120,
+            height: 40,
+          },
+        ],
+        edges: [
+          {
+            id: 'bad-edge',
+            type: 'connector',
+            source: { node: 'bad-shape', port: 'right' },
+            target: { node: 'bad-sticky', port: 'left-in' },
+            data: { color: '#fff" onload="alert(4)' },
+          },
+        ],
+      },
+      [flowKit(), whiteboardKit(), { name: 'raw-text', nodeTypes: [rawTextNode] }],
+    )
+    await ticks()
+    const svg = editor.value!.exportSVG()
+    expect(svg).not.toContain('onload=')
+    expect(svg).not.toContain('onclick=')
+    expect(svg).not.toContain('<script>')
+    expect(svg).not.toContain('javascript:')
+    expect(svg).not.toContain('notacolor')
+    expect(svg).not.toContain('not-a-color')
+    expect(svg).not.toContain('inherit')
+    // Even if a custom node passes an unvalidated string straight to draw.text, attribute quotes are escaped
+    expect(svg).not.toContain('data-raw="1"')
+    expect(svg).toContain('fill="#fff&quot; data-raw=&quot;1"')
   })
 })

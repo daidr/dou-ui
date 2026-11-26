@@ -1,7 +1,15 @@
 <script setup lang="ts">
 import { PaletteIcon } from '@dou-ui/icons'
 import { DouColorPanel, DouPopover, DouTooltip } from 'dou-ui'
-import { computed, nextTick, ref, shallowReactive, useTemplateRef, watch } from 'vue'
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  ref,
+  shallowReactive,
+  useTemplateRef,
+  watch,
+} from 'vue'
 import { useFlowEditor } from '../context'
 import type { FlowToolbarColor, FlowToolbarItem } from '../core/menu'
 import { plainColor } from '../export/color'
@@ -30,10 +38,22 @@ const opensColor = (item: FlowToolbarItem) => !!item.color
 const openColor = ref<string | null>(null)
 const customKey = ref<string | null>(null)
 const customColor = ref<string | null>(null)
+let closeActiveGroup: (() => void) | null = null
+
+function finishColorGroup() {
+  closeActiveGroup?.()
+  closeActiveGroup = null
+}
+
+function closeColorPopover() {
+  finishColorGroup()
+  openColor.value = null
+  customKey.value = null
+}
 
 function isCustomColor(color: FlowToolbarColor) {
   const value = color.value
-  if (!value || color.none) return false
+  if (!value || color.none || !color.swatch) return false
   return !color.presets.some((preset) => preset.value === value)
 }
 
@@ -43,14 +63,15 @@ function customSwatch(color: FlowToolbarColor) {
 
 function setColorOpen(key: string, open: boolean) {
   if (open) {
+    if (openColor.value && openColor.value !== key) finishColorGroup()
     openColor.value = key
   } else if (openColor.value === key) {
-    openColor.value = null
-    customKey.value = null
+    closeColorPopover()
   }
 }
 
 function pickColor(color: FlowToolbarColor, value: string | undefined) {
+  finishColorGroup()
   color.select(value, { live: false })
   openColor.value = null
   customKey.value = null
@@ -63,6 +84,7 @@ function toggleCustom(item: FlowToolbarItem, event: MouseEvent) {
   const color = item.color
   if (!color) return
   if (customKey.value === item.key) {
+    finishColorGroup()
     customKey.value = null
     return
   }
@@ -75,49 +97,46 @@ function toggleCustom(item: FlowToolbarItem, event: MouseEvent) {
   const swatches = (event.currentTarget as HTMLElement).closest('.dou-flow-color-popover__swatches')
   const active = swatches?.querySelector<HTMLElement>('[aria-pressed="true"]:not(.is-default)')
   const raw = active && getComputedStyle(active).color
-  customColor.value = raw ? plainColor(raw) : null
+  customColor.value = raw ? plainColor(raw) || null : null
 }
 
 function onCustomInput(color: FlowToolbarColor, value: string | null | undefined) {
   customColor.value = value ?? null
-  if (value) color.select(value, { live: true })
+  if (value) {
+    closeActiveGroup = color.close ?? null
+    color.select(value, { live: true })
+  }
 }
 
 function onCustomChange(color: FlowToolbarColor, value: string | null | undefined) {
   customColor.value = value ?? null
   if (value) color.select(value, { live: false })
+  closeActiveGroup = null
 }
 
 // Close open color popover when a context menu opens, selection changes, or the button vanishes.
 watch(menuFrom, (el) => {
-  if (el) {
-    openColor.value = null
-    customKey.value = null
-  }
+  if (el) closeColorPopover()
 })
 watch(
   () => [selection.value.nodes.join(','), selection.value.edges.join(',')],
-  () => {
-    openColor.value = null
-    customKey.value = null
-  },
+  () => closeColorPopover(),
 )
 watch(
   () => props.groups,
   (groups) => {
     if (openColor.value && !groups.flat().some((item) => item.key === openColor.value)) {
-      openColor.value = null
-      customKey.value = null
+      closeColorPopover()
     }
   },
 )
+onBeforeUnmount(() => finishColorGroup())
 
 // A button with `children` opens its choices under it; a click from the
 // keyboard (no pointer, `detail` 0) puts focus on the one in use.
 function press(item: FlowToolbarItem, event: MouseEvent) {
+  closeColorPopover()
   if (!opensMenu(item)) return item.run?.()
-  openColor.value = null
-  customKey.value = null
   const button = event.currentTarget as HTMLElement
   const box = button.getBoundingClientRect()
   showMenu(item.children!, { x: box.left, y: box.bottom + 4 }, button, {

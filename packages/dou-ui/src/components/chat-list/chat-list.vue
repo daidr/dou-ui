@@ -7,7 +7,11 @@ import { DouVirtualList } from '../virtual-list'
 import type { VirtualListAlign, VirtualListExpose } from '../virtual-list'
 import { virtualItemKey } from '../virtual-list/virtual-list'
 import { useReducedMotion } from '../../composables/use-motion'
-import { scrollShiftTotalOf, useTouchScroll } from '../../composables/use-touch-scroll'
+import {
+  hasPendingShiftCheck,
+  scrollShiftTotalOf,
+  useTouchScroll,
+} from '../../composables/use-touch-scroll'
 import { scrollPositionOf } from '../../utils/scroll'
 import { useNamespace } from '../../utils/namespace'
 import { devWarn } from '../../utils/status-check'
@@ -123,7 +127,7 @@ function distanceToBottom(el: HTMLElement) {
 // (where scrollHeight/clientHeight are rounded integers) do not look like
 // iOS rubber-band overscroll past the bottom.
 function isBouncingBottom(el: HTMLElement) {
-  return el.scrollTop + touch.pendingShift(el) > maxTopOf(el) + 1
+  return el.scrollTop > maxTopOf(el) + 1
 }
 
 function syncPosition(el: HTMLElement) {
@@ -164,14 +168,18 @@ function onScroll() {
   if (movedUp) {
     following = false
     pendingFollow = false
-  } else if (near && movedDown && touchDirection !== 'up') {
+  } else if (near && movedDown && touchDirection !== 'up' && !hasPendingShiftCheck(el)) {
     following = true
   }
 
-  lastTop = top
-  lastDist = dist
-  lastMaxTop = maxTop
-  lastShifted = shifted
+  const keepBounceBaseline =
+    following && isBouncingBottom(el) && lastDist <= 1 && maxTop > lastMaxTop
+  if (!keepBounceBaseline) {
+    lastTop = top
+    lastDist = dist
+    lastMaxTop = maxTop
+    lastShifted = shifted
+  }
   atBottom.value = near
   if (!isTop(el)) {
     atTop = false
@@ -382,10 +390,11 @@ function follow() {
     }
     return
   }
-  if (touchingViewport) {
+  if (touchingViewport || (touch.active.value && isBouncingBottom(el))) {
     pendingFollow = true
-    syncPosition(el)
+    if (!isBouncingBottom(el)) syncPosition(el)
     atBottom.value = distanceToBottom(el) <= props.threshold
+    if (!touchingViewport) touch.whenSettled(flushPendingFollow)
     return
   }
   pendingFollow = false

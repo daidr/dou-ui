@@ -81,6 +81,32 @@ export function scrollShiftTotalOf(el: HTMLElement | null | undefined): number {
   return el ? (shifted.get(el) ?? 0) : 0
 }
 
+/**
+ * Whether `el` has a programmatic `shiftScroll` whose delivery is still
+ * waiting for a second scroll event to tell held from dropped.
+ */
+export function hasPendingShiftCheck(el: HTMLElement | null | undefined): boolean {
+  return el ? shifts.get(el)?.first !== undefined : false
+}
+
+function maxTopOf(el: HTMLElement) {
+  return el.clientHeight > 0 ? Math.max(0, el.scrollHeight - el.clientHeight) : Infinity
+}
+
+function clampTop(value: number, maxTop: number) {
+  return Math.min(maxTop, Math.max(0, value))
+}
+
+function effectiveLostDelta(el: HTMLElement, top: number, delta: number) {
+  if (Math.abs(delta) < 0.5) return 0
+  const maxTop = maxTopOf(el)
+  const current = clampTop(top, maxTop)
+  const existing = lost.get(el) ?? 0
+  const before = clampTop(current + existing, maxTop)
+  const after = clampTop(current + existing + delta, maxTop)
+  return after - before
+}
+
 function addLost(el: HTMLElement, delta: number) {
   if (Math.abs(delta) < 0.5) return
   lost.set(el, (lost.get(el) ?? 0) + delta)
@@ -89,11 +115,18 @@ function addLost(el: HTMLElement, delta: number) {
 
 function makeLost() {
   if (!lost.size) return
-  for (const [el, delta] of lost) {
-    if (el.isConnected) el.scrollTop = Math.max(0, Math.max(0, el.scrollTop) + delta)
-  }
+  const entries = [...lost]
   lost.clear()
   lostVersion.value++
+  for (const [el, delta] of entries) {
+    if (!el.isConnected) continue
+    const maxTop = maxTopOf(el)
+    const current = clampTop(el.scrollTop, maxTop)
+    const before = clampTop(current + delta, maxTop)
+    el.scrollTop = Math.max(0, Math.max(0, el.scrollTop) + delta)
+    const after = clampTop(el.scrollTop, maxTop)
+    recordShift(el, after - before)
+  }
 }
 
 function pendingShift(el: HTMLElement | null | undefined) {
@@ -165,10 +198,12 @@ function isDroppedAt(shift: Shift, top: number, settled: boolean) {
 function resolveShifts() {
   for (const [el, shift] of shifts) {
     if (isDroppedAt(shift, el.scrollTop, true)) {
-      addLost(el, shift.delta)
       // If a scroll event already ran with the dropped position before we
       // could tell, record the restored shift so listeners ignore the jump back.
-      if (shift.first !== undefined) recordShift(el, shift.delta)
+      const effective =
+        shift.first !== undefined ? effectiveLostDelta(el, el.scrollTop, shift.delta) : 0
+      addLost(el, shift.delta)
+      if (effective) recordShift(el, effective)
     }
   }
   shifts.clear()
@@ -193,8 +228,9 @@ function checkShift(el: HTMLElement, top: number) {
     }
     shifts.delete(el)
     if (wasDropped(shift, shift.first, top - shift.first)) {
+      const effective = effectiveLostDelta(el, top, shift.delta)
       addLost(el, shift.delta)
-      recordShift(el, shift.delta)
+      recordShift(el, effective)
       if (!moving.value) makeLost()
     }
     return false
@@ -220,20 +256,24 @@ function onScroll(event: Event) {
 
 function foldLost(el: HTMLElement, from: number, delta: number, maxTop: number) {
   const existing = lost.get(el) ?? 0
+  const current = clampTop(from, maxTop)
+  const before = clampTop(current + existing, maxTop)
   const logicalBase = Math.max(0, from) + existing
   const logicalTarget = Math.min(Math.max(0, logicalBase + delta), maxTop)
   const applied = logicalTarget - logicalBase
   const nextLost = existing + applied
-  if (Math.abs(nextLost) < 0.5) lost.delete(el)
-  else lost.set(el, nextLost)
-  recordShift(el, applied)
+  const stored = Math.abs(nextLost) < 0.5 ? 0 : nextLost
+  if (stored === 0) lost.delete(el)
+  else lost.set(el, stored)
+  const after = clampTop(current + stored, maxTop)
+  recordShift(el, after - before)
   lostVersion.value++
 }
 
 function shiftScroll(el: HTMLElement, delta: number) {
   if (Math.abs(delta) < 0.5) return
   const from = el.scrollTop
-  const maxTop = el.clientHeight > 0 ? Math.max(0, el.scrollHeight - el.clientHeight) : Infinity
+  const maxTop = maxTopOf(el)
 
   // Once a shift for `el` is already known to be dropped during this touch
   // scroll, fold follow-up shifts (including negative ResizeObserver
@@ -259,8 +299,9 @@ function shiftScroll(el: HTMLElement, delta: number) {
       // record it and fold the follow-up `delta` into `lost` right away.
       shifts.delete(el)
       if (isDroppedAt(last, last.first!, false)) {
+        const effective = effectiveLostDelta(el, from, last.delta)
         addLost(el, last.delta)
-        recordShift(el, last.delta)
+        recordShift(el, effective)
         if (lost.has(el)) {
           foldLost(el, from, delta, maxTop)
           return
@@ -278,8 +319,12 @@ function shiftScroll(el: HTMLElement, delta: number) {
   const totalDelta = mergeLast ? last.delta + appliedDelta : appliedDelta
 
   el.scrollTop = expected
+  if (!moving.value) {
+    const after = clampTop(el.scrollTop, maxTop)
+    recordShift(el, after - clampTop(base, maxTop))
+    return
+  }
   recordShift(el, appliedDelta)
-  if (!moving.value) return
 
   const after = el.scrollTop
   // Synchronous drop (or bounce snap) by iOS: `scrollTop` did not reach `expected`.

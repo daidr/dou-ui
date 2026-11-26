@@ -612,4 +612,356 @@ describe('DouChatList', () => {
 
     wrapper.unmount()
   })
+
+  it('does not re-engage following when makeLost() rounds a fractional shift up', () => {
+    vi.useFakeTimers()
+    const ro = createFakeResizeObserver()
+    let touch!: ReturnType<typeof useTouchScroll>
+    const Host = defineComponent({
+      setup() {
+        touch = useTouchScroll()
+        return () => h(DouChatList, { threshold: 24 }, { default: () => h('p', '消息') })
+      },
+    })
+    const wrapper = mount(Host, { attachTo: document.body })
+    const el = wrapper.get('.dou-chat-list__viewport').element as HTMLElement
+
+    let scrollHeight = 11_454
+    const clientHeight = 758
+    let top = 10_696
+    let dropWrites = false
+    Object.defineProperty(el, 'scrollHeight', { configurable: true, get: () => scrollHeight })
+    Object.defineProperty(el, 'clientHeight', { configurable: true, get: () => clientHeight })
+    Object.defineProperty(el, 'scrollTop', {
+      configurable: true,
+      get: () => top,
+      set: (value: number) => {
+        if (dropWrites) return
+        const maxTop = Math.max(0, scrollHeight - clientHeight)
+        top = Math.min(maxTop, Math.max(0, Math.round(value)))
+      },
+    })
+    el.dispatchEvent(new Event('scroll'))
+
+    // User scrolls up inside threshold (following = false) and lifts finger
+    el.dispatchEvent(touchEvent('touchstart', [{ clientY: 500 }]))
+    el.dispatchEvent(touchEvent('touchmove', [{ clientY: 516 }]))
+    top = 10_680
+    el.dispatchEvent(new Event('scroll'))
+    el.dispatchEvent(touchEvent('touchend', []))
+
+    // Item above grows by a fractional borderBox height while iOS drops scrollTop writes
+    scrollHeight += 246 // maxTop = 10942
+    dropWrites = true
+    touch.shiftScroll(el, 245.984375)
+    expect(touch.pendingShift(el)).toBeCloseTo(245.984375, 6)
+
+    // Momentum scroll event inside threshold with logicalTop = 10675 + 245.984375 = 10920.984375
+    top = 10_675
+    el.dispatchEvent(new Event('scroll'))
+
+    // Settle applies makeLost() -> 10920.984375 rounds UP to 10921 (+0.015625px)
+    dropWrites = false
+    vi.advanceTimersByTime(200)
+    expect(top).toBe(10_921)
+    el.dispatchEvent(new Event('scroll'))
+
+    // Must NOT falsely flip following back to true on the +0.015625px quantization diff
+    scrollHeight += 80
+    ro.fire()
+    expect(top).toBe(10_921)
+
+    wrapper.unmount()
+  })
+
+  it('keeps following enabled when makeLost() floors a fractional shift down', () => {
+    vi.useFakeTimers()
+    const ro = createFakeResizeObserver()
+    let touch!: ReturnType<typeof useTouchScroll>
+    const Host = defineComponent({
+      setup() {
+        touch = useTouchScroll()
+        return () => h(DouChatList, { threshold: 24 }, { default: () => h('p', '消息') })
+      },
+    })
+    const wrapper = mount(Host, { attachTo: document.body })
+    const el = wrapper.get('.dou-chat-list__viewport').element as HTMLElement
+
+    let scrollHeight = 11_454
+    const clientHeight = 758
+    let top = 10_696
+    let dropWrites = false
+    Object.defineProperty(el, 'scrollHeight', { configurable: true, get: () => scrollHeight })
+    Object.defineProperty(el, 'clientHeight', { configurable: true, get: () => clientHeight })
+    Object.defineProperty(el, 'scrollTop', {
+      configurable: true,
+      get: () => top,
+      set: (value: number) => {
+        if (dropWrites) return
+        const maxTop = Math.max(0, scrollHeight - clientHeight)
+        top = Math.min(maxTop, Math.max(0, Math.floor(value)))
+      },
+    })
+    el.dispatchEvent(new Event('scroll'))
+
+    // User stays at bottom (following = true) while a touch scroll happens without upward drag
+    document.dispatchEvent(touchEvent('touchstart', [{ clientY: 500 }]))
+    scrollHeight += 246 // maxTop = 10942
+    dropWrites = true
+    touch.shiftScroll(el, 245.984375)
+    expect(touch.pendingShift(el)).toBeCloseTo(245.984375, 6)
+
+    // Scroll event observes logicalTop = 10696 + 245.984375 = 10941.984375
+    el.dispatchEvent(new Event('scroll'))
+    document.dispatchEvent(touchEvent('touchend', []))
+
+    // Settle applies makeLost() -> 10941.984375 floors DOWN to 10941 (-0.984375px)
+    dropWrites = false
+    vi.advanceTimersByTime(200)
+    expect(top).toBe(10_941)
+    el.dispatchEvent(new Event('scroll'))
+
+    // Must NOT falsely turn following off on the -0.984375px quantization diff
+    scrollHeight += 80
+    ro.fire()
+    expect(top).toBe(scrollHeight - clientHeight)
+
+    wrapper.unmount()
+  })
+
+  it('does not flip following back to true while a negative shift is awaiting async drop verification', () => {
+    vi.useFakeTimers()
+    const ro = createFakeResizeObserver()
+    let touch!: ReturnType<typeof useTouchScroll>
+    const listRef = ref<ChatListExpose>()
+    const Host = defineComponent({
+      setup() {
+        touch = useTouchScroll()
+        return () =>
+          h(DouChatList, { ref: listRef, threshold: 24 }, { default: () => h('p', '消息') })
+      },
+    })
+    const wrapper = mount(Host, { attachTo: document.body })
+    const el = wrapper.get('.dou-chat-list__viewport').element as HTMLElement
+
+    let scrollHeight = 1400
+    const clientHeight = 400
+    let top = 1000
+    Object.defineProperty(el, 'scrollHeight', { configurable: true, get: () => scrollHeight })
+    Object.defineProperty(el, 'clientHeight', { configurable: true, get: () => clientHeight })
+    Object.defineProperty(el, 'scrollTop', {
+      configurable: true,
+      get: () => top,
+      set: (value: number) => {
+        top = value
+      },
+    })
+    el.dispatchEvent(new Event('scroll'))
+
+    // Quick upward flick and finger lift (touchDirection resets to null, momentum active)
+    el.dispatchEvent(touchEvent('touchstart', [{ clientY: 500 }]))
+    el.dispatchEvent(touchEvent('touchmove', [{ clientY: 510 }]))
+    el.dispatchEvent(touchEvent('touchend', []))
+
+    // First scroll event of this touch (step is still undefined in useTouchScroll)
+    top = 990
+    el.dispatchEvent(new Event('scroll'))
+
+    // Shorter item mounts above (-70px) while bottom grows (+60px), net scrollHeight = 1390 (maxTop = 990)
+    scrollHeight = 1390
+    touch.shiftScroll(el, -70)
+    expect(top).toBe(920)
+    // Scroll event for the write itself runs
+    el.dispatchEvent(new Event('scroll'))
+
+    // Next momentum frame: iOS asynchronously drops the -70 write back to `from` (990, inside threshold).
+    // checkShift records shift.first = 990 without setting pendingShift yet.
+    top = 990
+    el.dispatchEvent(new Event('scroll'))
+
+    // Settle detects the dropped shift and restores -70 via makeLost()
+    vi.advanceTimersByTime(200)
+    expect(top).toBe(920)
+    el.dispatchEvent(new Event('scroll'))
+
+    // Subsequent streaming growth must NOT snap back to bottom
+    scrollHeight = 1500
+    ro.fire()
+    expect(top).toBe(920)
+
+    // Re-enter following via scrollToBottom, then verify the 2nd-momentum-event path
+    // where checkShift confirms wasDropped before settle().
+    scrollHeight = 1400
+    listRef.value!.scrollToBottom('auto')
+    top = 1000
+    el.dispatchEvent(new Event('scroll'))
+
+    el.dispatchEvent(touchEvent('touchstart', [{ clientY: 500 }]))
+    el.dispatchEvent(touchEvent('touchmove', [{ clientY: 510 }]))
+    el.dispatchEvent(touchEvent('touchend', []))
+
+    top = 990
+    el.dispatchEvent(new Event('scroll'))
+    scrollHeight = 1390
+    touch.shiftScroll(el, -70)
+    expect(top).toBe(920)
+    el.dispatchEvent(new Event('scroll'))
+
+    // 1st momentum event after shift: iOS drops -70 back to 985 (5px upward momentum from 990)
+    top = 985
+    el.dispatchEvent(new Event('scroll'))
+    // 2nd momentum event: another -5px to 980 -> checkShift confirms wasDropped and sets pendingShift = -70
+    top = 980
+    el.dispatchEvent(new Event('scroll'))
+    expect(touch.pendingShift(el)).toBe(-70)
+
+    vi.advanceTimersByTime(200)
+    expect(top).toBe(910)
+    el.dispatchEvent(new Event('scroll'))
+
+    scrollHeight = 1520
+    ro.fire()
+    expect(top).toBe(910)
+
+    wrapper.unmount()
+  })
+
+  it('detects bottom rubber-band overscroll from native scrollTop rather than pendingShift', () => {
+    vi.useFakeTimers()
+    const ro = createFakeResizeObserver()
+    let touch!: ReturnType<typeof useTouchScroll>
+    const Host = defineComponent({
+      setup() {
+        touch = useTouchScroll()
+        return () => h(DouChatList, { threshold: 24 }, { default: () => h('p', '消息') })
+      },
+    })
+    const wrapper = mount(Host, { attachTo: document.body })
+    const el = wrapper.get('.dou-chat-list__viewport').element as HTMLElement
+
+    let scrollHeight = 1000
+    const clientHeight = 400
+    let top = 600
+    let dropWrites = false
+    Object.defineProperty(el, 'scrollHeight', { configurable: true, get: () => scrollHeight })
+    Object.defineProperty(el, 'clientHeight', { configurable: true, get: () => clientHeight })
+    Object.defineProperty(el, 'scrollTop', {
+      configurable: true,
+      get: () => top,
+      set: (value: number) => {
+        if (!dropWrites) top = value
+      },
+    })
+    el.dispatchEvent(new Event('scroll'))
+
+    // 1. Negative pendingShift while natively bouncing past bottom must still count as bouncing
+    el.dispatchEvent(touchEvent('touchstart', [{ clientY: 500 }]))
+    el.dispatchEvent(touchEvent('touchmove', [{ clientY: 460 }]))
+    top = 625 // 25px past maxTop = 600
+    el.dispatchEvent(new Event('scroll'))
+    dropWrites = true
+    touch.shiftScroll(el, -40)
+    expect(touch.pendingShift(el)).toBe(-40)
+
+    // Relaxing the finger downward while still natively stretched past bottom must keep following = true
+    el.dispatchEvent(touchEvent('touchmove', [{ clientY: 472 }]))
+    // Content grows slightly (maxTop = 610), keeping native top = 625 still bouncing past bottom
+    scrollHeight = 1010
+    ro.fire()
+    // Lifting finger while still natively bouncing must defer follow() until settled
+    el.dispatchEvent(touchEvent('touchend', []))
+    expect(top).toBe(625)
+
+    // After bounce finishes and touch settles, deferred follow() snaps to bottom
+    dropWrites = false
+    top = 600
+    el.dispatchEvent(new Event('scroll'))
+    vi.advanceTimersByTime(200)
+    expect(top).toBe(1010)
+
+    // 2. Positive pendingShift after content below collapses must NOT mask a real upward drag
+    top = 610
+    el.dispatchEvent(new Event('scroll'))
+    el.dispatchEvent(touchEvent('touchstart', [{ clientY: 500 }]))
+    scrollHeight = 1250
+    dropWrites = true
+    touch.shiftScroll(el, 200)
+    expect(touch.pendingShift(el)).toBe(200)
+
+    // Content below collapses so maxTop = 600 while native top = 580 (< maxTop, NOT bouncing)
+    scrollHeight = 1000
+    top = 580
+    el.dispatchEvent(new Event('scroll'))
+    // Real upward touch drag must turn following = false immediately despite top + pendingShift > maxTop
+    el.dispatchEvent(touchEvent('touchmove', [{ clientY: 524 }]))
+    top = 556
+    el.dispatchEvent(new Event('scroll'))
+    el.dispatchEvent(touchEvent('touchend', []))
+
+    dropWrites = false
+    vi.advanceTimersByTime(200)
+    const settledTop = top
+    scrollHeight = 1160
+    ro.fire()
+    expect(top).toBe(settledTop)
+
+    wrapper.unmount()
+  })
+
+  it('defers follow() when streaming growth arrives during post-touchend bottom rubber-band bounce', () => {
+    vi.useFakeTimers()
+    const ro = createFakeResizeObserver()
+    const wrapper = mount(DouChatList, {
+      slots: { default: '<p>消息</p>' },
+      attachTo: document.body,
+    })
+    const el = wrapper.get('.dou-chat-list__viewport').element as HTMLElement
+
+    let scrollHeight = 1000
+    const clientHeight = 400
+    let top = 600
+    let dropWrites = false
+    let writeCount = 0
+    Object.defineProperty(el, 'scrollHeight', { configurable: true, get: () => scrollHeight })
+    Object.defineProperty(el, 'clientHeight', { configurable: true, get: () => clientHeight })
+    Object.defineProperty(el, 'scrollTop', {
+      configurable: true,
+      get: () => top,
+      set: (value: number) => {
+        writeCount++
+        if (!dropWrites) top = value
+      },
+    })
+    el.dispatchEvent(new Event('scroll'))
+    writeCount = 0
+
+    // User stretches past bottom, content grows while touching, then lifts finger
+    el.dispatchEvent(touchEvent('touchstart', [{ clientY: 500 }]))
+    el.dispatchEvent(touchEvent('touchmove', [{ clientY: 450 }]))
+    top = 640 // stretched 40px past maxTop = 600
+    el.dispatchEvent(new Event('scroll'))
+    scrollHeight = 1010
+    ro.fire()
+    el.dispatchEvent(touchEvent('touchend', []))
+    expect(writeCount).toBe(0)
+
+    // While still in post-touchend rubber-band bounce (top = 630 > maxTop + 1 = 626),
+    // new streaming output arrives and iOS would drop any immediate scrollTop write.
+    dropWrites = true
+    top = 630
+    el.dispatchEvent(new Event('scroll'))
+    scrollHeight = 1025
+    ro.fire()
+    expect(writeCount).toBe(0)
+
+    // Bounce-back animation lands at 600, then settles -> deferred flushPendingFollow() catches up
+    dropWrites = false
+    top = 600
+    el.dispatchEvent(new Event('scroll'))
+    vi.advanceTimersByTime(200)
+    expect(writeCount).toBe(1)
+    expect(top).toBe(1025)
+
+    wrapper.unmount()
+  })
 })

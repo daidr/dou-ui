@@ -261,7 +261,7 @@ export const tableSpec: NodeSpec = {
   toDOM: () => [
     'div',
     { class: 'dou-editor__content dou-editor__content--table', 'data-content-type': 'table' },
-    ['table', ['tbody', 0]],
+    ['div', { class: 'dou-editor-table__viewport' }, ['table', ['tbody', 0]]],
   ],
 }
 

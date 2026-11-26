@@ -40,6 +40,19 @@ describe('contentSpan', () => {
     expect(contentSpan(element)).toEqual({ left: 100, right: 500 })
   })
 
+  it('reads start padding from the inner table viewport when present', () => {
+    const element = content(
+      'dou-editor__content dou-editor__content--table',
+      'margin-inline-end: -60px',
+      { left: 60, right: 560 },
+    )
+    const viewport = document.createElement('div')
+    viewport.className = 'dou-editor-table__viewport'
+    viewport.setAttribute('style', 'padding-inline-start: 40px')
+    element.append(viewport)
+    expect(contentSpan(element)).toEqual({ left: 100, right: 500 })
+  })
+
   it('is the box of a table deeper in, e.g. in a column', () => {
     const element = content(
       'dou-editor__content dou-editor__content--table',

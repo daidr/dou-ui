@@ -150,12 +150,14 @@ function track(event: PointerEvent) {
 
 /** A wide table scrolled sideways: the handle next to it follows its left edge. */
 function onScroll(event: Event) {
-  const content = event.target
-  if (
-    !(content instanceof HTMLElement) ||
-    !content.classList.contains('dou-editor__content--table')
-  )
-    return
+  const target = event.target
+  if (!(target instanceof HTMLElement)) return
+  const content = target.classList.contains('dou-editor-table__viewport')
+    ? target.closest<HTMLElement>('.dou-editor__content--table')
+    : target.classList.contains('dou-editor__content--table')
+      ? target
+      : null
+  if (!content) return
   if (position.value && hovered.value && blockElementOf(content)?.dataset.blockId === hovered.value)
     place(content)
 }

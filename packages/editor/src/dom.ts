@@ -136,10 +136,12 @@ const isWideTable = (content: HTMLElement) =>
 export function contentSpan(content: HTMLElement): { left: number; right: number } {
   const rect = content.getBoundingClientRect()
   if (!isWideTable(content)) return { left: rect.left, right: rect.right }
-  const style = getComputedStyle(content)
+  const viewport = content.querySelector<HTMLElement>(':scope > .dou-editor-table__viewport')
+  const start = Number.parseFloat(getComputedStyle(viewport ?? content).paddingInlineStart) || 0
+  const end = Number.parseFloat(getComputedStyle(content).marginInlineEnd) || 0
   return {
-    left: rect.left + (Number.parseFloat(style.paddingInlineStart) || 0),
-    right: rect.right + (Number.parseFloat(style.marginInlineEnd) || 0),
+    left: rect.left + start,
+    right: rect.right + end,
   }
 }
 

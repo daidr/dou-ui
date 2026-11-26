@@ -158,8 +158,15 @@ const ticks = async () => {
   for (let i = 0; i < 3; i++) await nextTick()
 }
 
-const pointer = (type: string, x: number) =>
-  new PointerEvent(type, { bubbles: true, clientX: x, clientY: 100, button: 0, pointerId: 3 })
+const pointer = (type: string, x: number, y = 100) =>
+  new PointerEvent(type, {
+    bubbles: true,
+    cancelable: true,
+    clientX: x,
+    clientY: y,
+    button: 0,
+    pointerId: 3,
+  })
 
 describe('edges in the editor', () => {
   it('draws edges with the edge-type prop, unless they name a type', async () => {
@@ -266,6 +273,274 @@ describe('edges in the editor', () => {
     await root.trigger('keydown', { key: 'Escape' })
     await ticks()
     expect(doc.value.edges[0]!.data?.bend).toBeUndefined()
+  })
+})
+
+const endpointFlow = (): FlowDocument => ({
+  version: 1,
+  nodes: [
+    {
+      id: 'a',
+      x: 0,
+      y: 0,
+      data: { label: '开始', outputs: [{ id: 'out' }, { id: 'alt' }] },
+    },
+    { id: 'b', x: 300, y: 0, data: { label: '处理', inputs: [{ id: 'in' }] } },
+    { id: 'c', x: 300, y: 200, data: { label: '归档', inputs: [{ id: 'in' }] } },
+    { id: 'd', x: 0, y: 200, data: { label: '备用源', outputs: [{ id: 'out' }] } },
+  ],
+  edges: [
+    {
+      id: 'e1',
+      type: 'step',
+      source: { node: 'a', port: 'out' },
+      target: { node: 'b', port: 'in' },
+      label: '主线',
+      data: { bend: 0.4, custom: true },
+      points: [{ x: 150, y: 0 }],
+    },
+  ],
+})
+
+async function setupEndpoints(props: Record<string, unknown> = {}) {
+  const connected: FlowDocument['edges'][number][] = []
+  const res = await setup({
+    onConnect: (edge: FlowDocument['edges'][number]) => connected.push(edge),
+    ...props,
+  })
+  res.doc.value = endpointFlow()
+  await ticks()
+  return { ...res, connected }
+}
+
+describe('edge endpoint handles', () => {
+  it('shows both endpoint handles only when one edge is selected and editable', async () => {
+    const { root, selection, viewport, doc } = await setupEndpoints({ simpleZoom: 0.5 })
+    expect(root.findAll('.dou-flow-editor__edge-end')).toHaveLength(0)
+
+    selection.value = { nodes: [], edges: ['e1'] }
+    await ticks()
+    const handles = root.findAll('.dou-flow-editor__edge-end')
+    expect(handles.map((el) => el.attributes('data-edge-end'))).toEqual(['source', 'target'])
+    for (const handle of handles) {
+      expect(handle.attributes('data-edge-id')).toBe('e1')
+      expect(handle.attributes('data-flow-handle')).toBeDefined()
+      const style = (handle.element as HTMLElement).style
+      expect(style.transform).toBe('')
+      expect(style.translate).toMatch(/^calc\(/)
+    }
+
+    // Hidden while editing the label, zoomed into simple mode, or with multiple selections.
+    await root.trigger('keydown', { key: 'Enter' })
+    await ticks()
+    expect(root.findAll('.dou-flow-editor__edge-end')).toHaveLength(0)
+    await root.find('.dou-flow-editor__label-input').trigger('keydown', { key: 'Escape' })
+    await ticks()
+    expect(root.findAll('.dou-flow-editor__edge-end')).toHaveLength(2)
+
+    viewport.value = { x: 0, y: 0, zoom: 0.3 }
+    await ticks()
+    expect(root.findAll('.dou-flow-editor__edge-end')).toHaveLength(0)
+    viewport.value = { x: 0, y: 0, zoom: 1 }
+    await ticks()
+    expect(root.findAll('.dou-flow-editor__edge-end')).toHaveLength(2)
+
+    doc.value = {
+      ...doc.value,
+      edges: [
+        ...doc.value.edges,
+        { id: 'e2', source: { node: 'd', port: 'out' }, target: { node: 'c', port: 'in' } },
+      ],
+    }
+    selection.value = { nodes: [], edges: ['e1', 'e2'] }
+    await ticks()
+    expect(root.findAll('.dou-flow-editor__edge-end')).toHaveLength(0)
+
+    selection.value = { nodes: ['a'], edges: ['e1'] }
+    await ticks()
+    expect(root.findAll('.dou-flow-editor__edge-end')).toHaveLength(0)
+
+    const ro = await setupEndpoints({ readonly: true })
+    ro.selection.value = { nodes: [], edges: ['e1'] }
+    await ticks()
+    expect(ro.root.findAll('.dou-flow-editor__edge-end')).toHaveLength(0)
+  })
+
+  it('reconnects the target end while preserving edge metadata, selection and one-step undo', async () => {
+    const { root, doc, editor, selection, connected } = await setupEndpoints()
+    selection.value = { nodes: [], edges: ['e1'] }
+    await ticks()
+
+    const targetHandle = root.find('.dou-flow-editor__edge-end[data-edge-end="target"]')
+    targetHandle.element.dispatchEvent(pointer('pointerdown', 300, 0))
+    root.element.dispatchEvent(pointer('pointermove', 300, 120))
+    await ticks()
+    // Original edge and bend handle hide while dragging; detaching preview shows in empty space.
+    expect(root.find('[data-edge-id="e1"]').exists()).toBe(false)
+    expect(root.find('.dou-flow-editor__bend').exists()).toBe(false)
+    expect(root.find('.dou-flow-editor__edge.is-preview.is-detaching').exists()).toBe(true)
+    expect(root.find('.dou-flow-editor__edge-end.is-dragging.is-detaching').exists()).toBe(true)
+
+    // Snap onto node c's input port at (300, 200).
+    root.element.dispatchEvent(pointer('pointermove', 300, 200))
+    await ticks()
+    expect(root.find('.dou-flow-editor__edge.is-preview.is-snapped').exists()).toBe(true)
+    expect(root.find('.dou-flow-editor__edge-end.is-dragging').exists()).toBe(false)
+
+    root.element.dispatchEvent(pointer('pointerup', 300, 200))
+    await ticks()
+
+    expect(doc.value.edges).toHaveLength(1)
+    expect(doc.value.edges[0]).toEqual({
+      id: 'e1',
+      type: 'step',
+      source: { node: 'a', port: 'out' },
+      target: { node: 'c', port: 'in' },
+      label: '主线',
+      data: { bend: 0.4, custom: true },
+    })
+    expect(selection.value).toEqual({ nodes: [], edges: ['e1'] })
+    expect(connected).toHaveLength(1)
+    expect(connected[0]!.id).toBe('e1')
+
+    editor.undo()
+    await ticks()
+    expect(doc.value.edges[0]!.target).toEqual({ node: 'b', port: 'in' })
+    expect(doc.value.edges[0]!.points).toEqual([{ x: 150, y: 0 }])
+
+    editor.redo()
+    await ticks()
+    expect(doc.value.edges[0]!.target).toEqual({ node: 'c', port: 'in' })
+  })
+
+  it('reconnects the source end and supports single-step undo/redo', async () => {
+    const { root, doc, editor, selection } = await setupEndpoints()
+    selection.value = { nodes: [], edges: ['e1'] }
+    await ticks()
+
+    const sourceHandle = root.find('.dou-flow-editor__edge-end[data-edge-end="source"]')
+    sourceHandle.element.dispatchEvent(pointer('pointerdown', 0, 0))
+    root.element.dispatchEvent(pointer('pointermove', 0, 100))
+    root.element.dispatchEvent(pointer('pointermove', 0, 200))
+    root.element.dispatchEvent(pointer('pointerup', 0, 200))
+    await ticks()
+
+    expect(doc.value.edges[0]).toMatchObject({
+      id: 'e1',
+      source: { node: 'd', port: 'out' },
+      target: { node: 'b', port: 'in' },
+      label: '主线',
+    })
+    expect(selection.value).toEqual({ nodes: [], edges: ['e1'] })
+
+    editor.undo()
+    await ticks()
+    expect(doc.value.edges[0]!.source).toEqual({ node: 'a', port: 'out' })
+  })
+
+  it('detaches and removes the edge when dropped on empty canvas, and undoes in one step', async () => {
+    const { root, doc, editor, selection } = await setupEndpoints()
+    selection.value = { nodes: [], edges: ['e1'] }
+    await ticks()
+
+    const targetHandle = root.find('.dou-flow-editor__edge-end[data-edge-end="target"]')
+    targetHandle.element.dispatchEvent(pointer('pointerdown', 300, 0))
+    root.element.dispatchEvent(pointer('pointermove', 520, 120))
+    root.element.dispatchEvent(pointer('pointerup', 520, 120))
+    await ticks()
+
+    expect(doc.value.edges).toHaveLength(0)
+    expect(selection.value).toEqual({ nodes: [], edges: [] })
+    expect(root.find('.dou-flow-quick-add').exists()).toBe(false)
+
+    editor.undo()
+    await ticks()
+    expect(doc.value.edges).toHaveLength(1)
+    expect(doc.value.edges[0]!.id).toBe('e1')
+    expect(selection.value).toEqual({ nodes: [], edges: ['e1'] })
+  })
+
+  it('cancels endpoint dragging with Escape without modifying the edge or adding history', async () => {
+    const { root, doc, editor, selection } = await setupEndpoints()
+    selection.value = { nodes: [], edges: ['e1'] }
+    await ticks()
+
+    const targetHandle = root.find('.dou-flow-editor__edge-end[data-edge-end="target"]')
+    targetHandle.element.dispatchEvent(pointer('pointerdown', 300, 0))
+    root.element.dispatchEvent(pointer('pointermove', 520, 120))
+    await ticks()
+    expect(root.find('.dou-flow-editor__edge.is-preview').exists()).toBe(true)
+
+    await root.trigger('keydown', { key: 'Escape' })
+    await ticks()
+
+    expect(root.find('.dou-flow-editor__edge.is-preview').exists()).toBe(false)
+    expect(doc.value.edges).toHaveLength(1)
+    expect(doc.value.edges[0]!.target).toEqual({ node: 'b', port: 'in' })
+    expect(selection.value).toEqual({ nodes: [], edges: ['e1'] })
+    expect(editor.canUndo).toBe(false)
+  })
+
+  it('keeps the edge untouched on plain click, same-port drop, or refused port drop', async () => {
+    const { root, doc, editor, selection } = await setupEndpoints()
+    selection.value = { nodes: [], edges: ['e1'] }
+    await ticks()
+
+    // Plain click without moving past the drag threshold keeps selection and edge intact.
+    const targetHandle = root.find('.dou-flow-editor__edge-end[data-edge-end="target"]')
+    targetHandle.element.dispatchEvent(pointer('pointerdown', 300, 0))
+    root.element.dispatchEvent(pointer('pointerup', 300, 0))
+    await ticks()
+    expect(doc.value.edges).toHaveLength(1)
+    expect(selection.value).toEqual({ nodes: [], edges: ['e1'] })
+    expect(editor.canUndo).toBe(false)
+
+    // Dragging away and dropping back on the original port creates no undo step.
+    targetHandle.element.dispatchEvent(pointer('pointerdown', 300, 0))
+    root.element.dispatchEvent(pointer('pointermove', 450, 100))
+    root.element.dispatchEvent(pointer('pointermove', 300, 0))
+    root.element.dispatchEvent(pointer('pointerup', 300, 0))
+    await ticks()
+    expect(doc.value.edges[0]!.target).toEqual({ node: 'b', port: 'in' })
+    expect(editor.canUndo).toBe(false)
+
+    // Dragging target onto its own source node (self-loop refused) leaves the edge intact.
+    targetHandle.element.dispatchEvent(pointer('pointerdown', 300, 0))
+    root.element.dispatchEvent(pointer('pointermove', 0, 0))
+    await ticks()
+    expect(root.classes()).toContain('is-refused')
+    root.element.dispatchEvent(pointer('pointerup', 0, 0))
+    await ticks()
+    expect(doc.value.edges).toHaveLength(1)
+    expect(doc.value.edges[0]!.target).toEqual({ node: 'b', port: 'in' })
+    expect(editor.canUndo).toBe(false)
+  })
+
+  it('displaces an occupied single-input edge and restores both in one undo step', async () => {
+    const { root, doc, editor, selection } = await setupEndpoints()
+    doc.value = {
+      ...doc.value,
+      edges: [
+        ...doc.value.edges,
+        { id: 'e2', source: { node: 'd', port: 'out' }, target: { node: 'c', port: 'in' } },
+      ],
+    }
+    selection.value = { nodes: [], edges: ['e1'] }
+    await ticks()
+
+    const targetHandle = root.find('.dou-flow-editor__edge-end[data-edge-end="target"]')
+    targetHandle.element.dispatchEvent(pointer('pointerdown', 300, 0))
+    root.element.dispatchEvent(pointer('pointermove', 300, 200))
+    root.element.dispatchEvent(pointer('pointerup', 300, 200))
+    await ticks()
+
+    expect(doc.value.edges.map((e) => e.id)).toEqual(['e1'])
+    expect(doc.value.edges[0]!.target).toEqual({ node: 'c', port: 'in' })
+
+    editor.undo()
+    await ticks()
+    expect(doc.value.edges.map((e) => e.id)).toEqual(['e1', 'e2'])
+    expect(doc.value.edges[0]!.target).toEqual({ node: 'b', port: 'in' })
   })
 })
 

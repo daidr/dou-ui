@@ -80,16 +80,29 @@ function client(doc: Y.Doc) {
 
 const ids = (view: EditorView) => boardIn(view).nodes.map((n) => n.id)
 
-const pointer = (type: string, x: number) =>
+const pointer = (type: string, x: number, y = 20) =>
   new PointerEvent(type, {
     bubbles: true,
     cancelable: true,
     clientX: x,
-    clientY: 20,
+    clientY: y,
     button: 0,
     pointerId: 7,
     pointerType: 'mouse',
   })
+
+const rectOf = (x: number, y: number, width: number, height: number): DOMRect =>
+  ({
+    x,
+    y,
+    left: x,
+    top: y,
+    width,
+    height,
+    right: x + width,
+    bottom: y + height,
+    toJSON: () => ({}),
+  }) as DOMRect
 
 const node = (board: FlowDocument, id: string) => board.nodes.find((n) => n.id === id)
 
@@ -512,6 +525,124 @@ describe('in the editor', () => {
     await button.trigger('click')
     await nextTick()
     expect(flow()).toBeTruthy()
+  })
+
+  it('drags selected edge endpoints in the embedded whiteboard to reconnect, detach, and cancel with Escape', async () => {
+    const board: FlowDocument = {
+      version: 1,
+      nodes: [
+        { id: 'n1', type: 'shape', x: 0, y: 0, width: 120, height: 80, data: { text: '甲' } },
+        { id: 'n2', type: 'sticky', x: 240, y: 0, width: 120, height: 120, data: { text: '乙' } },
+        { id: 'n3', type: 'shape', x: 240, y: 220, width: 120, height: 80, data: { text: '丙' } },
+      ],
+      edges: [{ id: 'e1', source: { node: 'n1' }, target: { node: 'n2' } }],
+    }
+    const boxMap: Record<string, { x: number; y: number; w: number; h: number }> = {
+      n1: { x: 0, y: 0, w: 120, h: 80 },
+      n2: { x: 240, y: 0, w: 120, h: 120 },
+      n3: { x: 240, y: 220, w: 120, h: 80 },
+    }
+    const origWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetWidth')
+    const origHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight')
+    const origRect = HTMLElement.prototype.getBoundingClientRect
+    const origPoint = document.elementFromPoint
+    Object.defineProperty(HTMLElement.prototype, 'offsetWidth', {
+      configurable: true,
+      get(this: HTMLElement) {
+        return (this.dataset.nodeId && boxMap[this.dataset.nodeId]?.w) || 120
+      },
+    })
+    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
+      configurable: true,
+      get(this: HTMLElement) {
+        return (this.dataset.nodeId && boxMap[this.dataset.nodeId]?.h) || 80
+      },
+    })
+    HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
+      const nodeEl = this.closest<HTMLElement>('[data-node-id]')
+      const box = nodeEl && boxMap[nodeEl.dataset.nodeId!]
+      if (this.classList.contains('dou-flow-port') && box) {
+        if (this.classList.contains('is-right'))
+          return rectOf(box.x + box.w, box.y + box.h / 2, 0, 0)
+        if (this.classList.contains('is-left')) return rectOf(box.x, box.y + box.h / 2, 0, 0)
+        if (this.classList.contains('is-top')) return rectOf(box.x + box.w / 2, box.y, 0, 0)
+        if (this.classList.contains('is-bottom'))
+          return rectOf(box.x + box.w / 2, box.y + box.h, 0, 0)
+      }
+      if (this.dataset.nodeId && box) return rectOf(box.x, box.y, box.w, box.h)
+      return origRect.call(this)
+    }
+    try {
+      const { view, flow, openBoard } = await open([
+        { id: 'p', content: '前面' },
+        { id: 'w', type: 'whiteboard', props: { board } },
+      ])
+      await openBoard()
+      for (let i = 0; i < 4; i++) await nextTick()
+      const editor = flow()!.vm
+      editor.setViewport({ x: 0, y: 0, zoom: 1 })
+      for (let i = 0; i < 4; i++) await nextTick()
+      const root = document.querySelector<HTMLElement>('.dou-dialog .dou-flow-editor')!
+      document.elementFromPoint = () => root
+
+      // Select the edge by clicking its hit path.
+      root
+        .querySelector('[data-edge-id="e1"] .dou-flow-editor__edge-hit')!
+        .dispatchEvent(pointer('pointerdown', 180, 50))
+      await nextTick()
+      const handles = root.querySelectorAll('.dou-flow-editor__edge-end')
+      expect(handles).toHaveLength(2)
+
+      // Escape during an endpoint drag cancels the drag without closing the fullscreen dialog.
+      const targetHandle = root.querySelector<HTMLElement>(
+        '.dou-flow-editor__edge-end[data-edge-end="target"]',
+      )!
+      targetHandle.dispatchEvent(pointer('pointerdown', 240, 60))
+      root.dispatchEvent(pointer('pointermove', 500, 120))
+      await nextTick()
+      root.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }),
+      )
+      root.dispatchEvent(pointer('pointerup', 500, 120))
+      await nextTick()
+      expect(flow()).toBeTruthy()
+      expect(boardIn(view).edges[0]!.target.node).toBe('n2')
+      expect(editor.undo()).toBe(false)
+
+      // Drag target endpoint to n3's left-in port at (240, 260) as one undo step.
+      const activeHandle = root.querySelector<HTMLElement>(
+        '.dou-flow-editor__edge-end[data-edge-end="target"]',
+      )!
+      activeHandle.dispatchEvent(pointer('pointerdown', 240, 60))
+      root.dispatchEvent(pointer('pointermove', 240, 260))
+      root.dispatchEvent(pointer('pointerup', 240, 260))
+      await nextTick()
+      expect(boardIn(view).edges).toEqual([
+        { id: 'e1', source: { node: 'n1' }, target: { node: 'n3', port: 'left-in' } },
+      ])
+      expect(editor.undo()).toBe(true)
+      expect(boardIn(view).edges[0]!.target).toEqual({ node: 'n2' })
+      expect(editor.redo()).toBe(true)
+      expect(boardIn(view).edges[0]!.target).toEqual({ node: 'n3', port: 'left-in' })
+
+      // Drag target endpoint onto empty canvas to detach, then undo back into the document.
+      const nextHandle = root.querySelector<HTMLElement>(
+        '.dou-flow-editor__edge-end[data-edge-end="target"]',
+      )!
+      nextHandle.dispatchEvent(pointer('pointerdown', 240, 260))
+      root.dispatchEvent(pointer('pointermove', 520, 160))
+      root.dispatchEvent(pointer('pointerup', 520, 160))
+      await nextTick()
+      expect(boardIn(view).edges).toHaveLength(0)
+      expect(editor.undo()).toBe(true)
+      expect(boardIn(view).edges).toHaveLength(1)
+      expect(boardIn(view).edges[0]!.id).toBe('e1')
+    } finally {
+      if (origWidth) Object.defineProperty(HTMLElement.prototype, 'offsetWidth', origWidth)
+      if (origHeight) Object.defineProperty(HTMLElement.prototype, 'offsetHeight', origHeight)
+      HTMLElement.prototype.getBoundingClientRect = origRect
+      document.elementFromPoint = origPoint
+    }
   })
 })
 

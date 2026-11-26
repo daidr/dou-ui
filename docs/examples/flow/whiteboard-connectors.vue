@@ -15,7 +15,7 @@ const box = (id: string, x: number, y: number, text: string) => ({
   data: { shape: 'rect', text },
 })
 
-// 选中一条连接线，用浮动工具栏换走向、线型和箭头
+// 选中一条连接线，用浮动工具栏换走向、线型、箭头和颜色
 const doc = ref<FlowDocument>({
   version: 1,
   nodes: [
@@ -30,7 +30,7 @@ const doc = ref<FlowDocument>({
       id: 'a',
       source: { node: 'plan', port: 'top' },
       target: { node: 'show', port: 'left-in' },
-      data: { route: 'curve' },
+      data: { route: 'curve', color: 'blue' },
     },
     {
       id: 'b',
@@ -41,20 +41,20 @@ const doc = ref<FlowDocument>({
       id: 'c',
       source: { node: 'plan', port: 'bottom' },
       target: { node: 'walk', port: 'left-in' },
-      data: { route: 'elbow', dash: 'dashed' },
+      data: { route: 'elbow', dash: 'dashed', color: 'orange' },
       label: '天晴',
     },
     {
       id: 'd',
       source: { node: 'show', port: 'right' },
       target: { node: 'home', port: 'top-in' },
-      data: { route: 'elbow', dash: 'dotted', arrow: 'none' },
+      data: { route: 'elbow', dash: 'dotted', arrow: 'none', color: 'green' },
     },
     {
       id: 'e',
       source: { node: 'walk', port: 'right' },
       target: { node: 'home', port: 'bottom-in' },
-      data: { route: 'curve', dash: 'dash-dot', arrow: 'both' },
+      data: { route: 'curve', dash: 'dash-dot', arrow: 'both', color: 'purple' },
     },
   ],
 })

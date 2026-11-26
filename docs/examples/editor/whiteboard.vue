@@ -31,7 +31,13 @@ const doc = ref<EditorDocument<PartialBlock>>({
               y: 40,
               width: 180,
               height: 96,
-              data: { shape: 'ellipse', text: '周末去上海看展' },
+              data: {
+                shape: 'ellipse',
+                text: '周末去上海看展',
+                fill: 'blue',
+                stroke: 'none',
+                textColor: 'blue',
+              },
             },
             {
               id: 'when',
@@ -74,6 +80,7 @@ const doc = ref<EditorDocument<PartialBlock>>({
               source: { node: 'when', port: 'right' },
               target: { node: 'book', port: 'left-in' },
               label: '有空',
+              data: { color: 'green' },
             },
           ],
         },

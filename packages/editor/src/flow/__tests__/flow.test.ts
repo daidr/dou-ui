@@ -1140,3 +1140,238 @@ describe('comments on the nodes and edges', () => {
     expect(schema.nodes.whiteboard!.spec.comments).toBeUndefined()
   })
 })
+
+const visibleColorPopover = () =>
+  [...document.body.querySelectorAll<HTMLElement>('.dou-flow-color-popover')].find(
+    (el) => el.style.display !== 'none',
+  ) ?? null
+
+async function flushBoard() {
+  await nextTick()
+  await nextTick()
+  await nextTick()
+}
+
+describe('whiteboard colors and borderless editing in document block', () => {
+  it('round-trips colors and borderless fields through HTML, Markdown and fullscreen editing with undo/redo', async () => {
+    const styledBoard: FlowDocument = {
+      version: 1,
+      nodes: [
+        {
+          id: 's1',
+          type: 'shape',
+          x: 0,
+          y: 0,
+          width: 140,
+          height: 80,
+          data: {
+            shape: 'rect',
+            text: '模块',
+            fill: 'blue',
+            stroke: 'none',
+            textColor: 'purple',
+          },
+        },
+        {
+          id: 't1',
+          type: 'text',
+          x: 220,
+          y: 0,
+          width: 120,
+          data: { text: '批注', color: 'red' },
+        },
+      ],
+      edges: [
+        {
+          id: 'c1',
+          type: 'connector',
+          source: { node: 's1', port: 'right' },
+          target: { node: 't1', port: 'left-in' },
+          data: { color: 'green' },
+        },
+      ],
+    }
+
+    const extensions = [editorKit(), whiteboardBlock()]
+    const blocks: PartialBlock[] = [
+      { id: 'w', type: 'whiteboard', props: { board: styledBoard, height: 320 } },
+    ]
+    // Markdown round-trip (`dou-whiteboard` code fence)
+    const md = blocksToMarkdown(blocks, extensions)
+    const fromMd = markdownToBlocks(md, extensions)
+    expect(boardOf(fromMd[0]!.props!.board)).toEqual(styledBoard)
+
+    // HTML round-trip
+    const html = blocksToHTML(blocks, extensions)
+    const fromHtml = htmlToBlocks(html, extensions)
+    expect(boardOf(fromHtml[0]!.props!.board)).toEqual(styledBoard)
+
+    // Fullscreen editing syncs color/borderless updates to ProseMirror with undo/redo
+    const { view, openBoard, flow } = await open(blocks)
+    await openBoard()
+    const editor = flow()!.vm
+    editor.transact((tr) => {
+      tr.updateNode('s1', {
+        data: {
+          shape: 'rect',
+          text: '模块',
+          fill: 'orange',
+          stroke: 'red',
+          textColor: '#3b6ea8',
+        },
+      })
+      tr.updateEdge('c1', { data: { color: '#b4453f' } })
+    })
+    await nextTick()
+    expect(boardIn(view, 'w').nodes[0]!.data).toMatchObject({
+      fill: 'orange',
+      stroke: 'red',
+      textColor: '#3b6ea8',
+    })
+    expect(boardIn(view, 'w').edges[0]!.data).toEqual({ color: '#b4453f' })
+
+    expect(editor.undo()).toBe(true)
+    await nextTick()
+    expect(boardIn(view, 'w').nodes[0]!.data).toMatchObject({
+      fill: 'blue',
+      stroke: 'none',
+      textColor: 'purple',
+    })
+    expect(boardIn(view, 'w').edges[0]!.data).toEqual({ color: 'green' })
+
+    expect(editor.redo()).toBe(true)
+    await nextTick()
+    expect(boardIn(view, 'w').nodes[0]!.data).toMatchObject({ fill: 'orange', stroke: 'red' })
+  })
+
+  it('edits shape and connector colors via the floating toolbar inside the fullscreen dialog', async () => {
+    const restore: [string, PropertyDescriptor | undefined][] = []
+    const mocks: Record<string, (el: HTMLElement) => number> = {
+      offsetWidth: (el) => parseFloat(el.style.width) || 120,
+      offsetHeight: (el) => parseFloat(el.style.height) || 80,
+      clientWidth: () => 1200,
+      clientHeight: () => 800,
+    }
+    for (const [key, fn] of Object.entries(mocks)) {
+      restore.push([key, Object.getOwnPropertyDescriptor(HTMLElement.prototype, key)])
+      Object.defineProperty(HTMLElement.prototype, key, {
+        configurable: true,
+        get(this: HTMLElement) {
+          return fn(this)
+        },
+      })
+    }
+    try {
+      const { view, openBoard } = await open([
+        {
+          id: 'w',
+          type: 'whiteboard',
+          props: {
+            board: {
+              version: 1,
+              nodes: BOARD.nodes,
+              edges: [
+                {
+                  id: 'e1',
+                  type: 'connector',
+                  source: { node: 'n1', port: 'right' },
+                  target: { node: 'n2', port: 'left-in' },
+                },
+              ],
+            },
+          },
+        },
+      ])
+      await openBoard()
+      await nextTick()
+      await nextTick()
+
+      const dialogEditor = document.querySelector<HTMLElement>('.dou-dialog .dou-flow-editor')!
+
+      // Select shape node `n1` inside the fullscreen whiteboard
+      const shapeNode = dialogEditor.querySelector<HTMLElement>('[data-node-id="n1"]')!
+      shapeNode.dispatchEvent(pointer('pointerdown', 20))
+      window.dispatchEvent(pointer('pointerup', 20))
+      await flushBoard()
+
+      const toolbarButtons = () => [
+        ...dialogEditor.querySelectorAll<HTMLButtonElement>('.dou-flow-toolbar button'),
+      ]
+      expect(
+        toolbarButtons()
+          .slice(0, 3)
+          .map((b) => b.getAttribute('aria-label')),
+      ).toEqual(['背景颜色：默认', '边框颜色：默认', '文字颜色：默认'])
+
+      // Fill: blue
+      toolbarButtons()[0]!.click()
+      await flushBoard()
+      visibleColorPopover()!.querySelector<HTMLButtonElement>('button[aria-label="蓝色"]')!.click()
+      await flushBoard()
+
+      // Border: none (borderless)
+      toolbarButtons()[1]!.click()
+      await flushBoard()
+      visibleColorPopover()!
+        .querySelector<HTMLButtonElement>('.dou-flow-color-popover__none')!
+        .click()
+      await flushBoard()
+
+      // Text color: purple
+      toolbarButtons()[2]!.click()
+      await flushBoard()
+      visibleColorPopover()!.querySelector<HTMLButtonElement>('button[aria-label="紫色"]')!.click()
+      await flushBoard()
+
+      expect(boardIn(view, 'w').nodes[0]!.data).toEqual({
+        text: '甲',
+        fill: 'blue',
+        stroke: 'none',
+        textColor: 'purple',
+      })
+
+      // Select connector edge `e1` and set its color to red
+      const edgeHit = dialogEditor.querySelector<SVGPathElement>(
+        '[data-edge-id="e1"] .dou-flow-editor__edge-hit',
+      )!
+      edgeHit.dispatchEvent(pointer('pointerdown', 120))
+      window.dispatchEvent(pointer('pointerup', 120))
+      await flushBoard()
+
+      const edgeColorButton = toolbarButtons().find((b) =>
+        b.getAttribute('aria-label')?.startsWith('线条颜色'),
+      )!
+      edgeColorButton.click()
+      await flushBoard()
+      visibleColorPopover()!.querySelector<HTMLButtonElement>('button[aria-label="红色"]')!.click()
+      await flushBoard()
+
+      expect(boardIn(view, 'w').edges[0]!.data).toEqual({ color: 'red' })
+      // Fullscreen dialog remains open after interacting with the teleported color popover
+      expect(document.querySelector('.dou-dialog .dou-flow-editor')).not.toBeNull()
+
+      // Fullscreen whiteboard canvas renders the updated colors and borderless state
+      const renderedShape = dialogEditor.querySelector<HTMLElement>(
+        '[data-node-id="n1"] .dou-whiteboard-node',
+      )!
+      expect(renderedShape.classList.contains('is-borderless')).toBe(true)
+      expect(renderedShape.getAttribute('style')).toContain(
+        '--dou-whiteboard-shape-fill: var(--dou-whiteboard-fill-blue)',
+      )
+      expect(renderedShape.getAttribute('style')).toContain(
+        '--dou-whiteboard-text-color: var(--dou-whiteboard-color-purple)',
+      )
+      const renderedEdge = dialogEditor.querySelector<SVGPathElement>(
+        '[data-edge-id="e1"] .dou-flow-editor__edge',
+      )!
+      expect(renderedEdge.getAttribute('style')).toContain(
+        '--dou-flow-connector-color: var(--dou-whiteboard-color-red)',
+      )
+    } finally {
+      for (const [key, desc] of restore) {
+        if (desc) Object.defineProperty(HTMLElement.prototype, key, desc)
+        else delete (HTMLElement.prototype as unknown as Record<string, unknown>)[key]
+      }
+    }
+  })
+})

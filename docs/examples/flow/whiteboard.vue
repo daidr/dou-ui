@@ -15,7 +15,13 @@ const doc = ref<FlowDocument>({
       y: 40,
       width: 180,
       height: 96,
-      data: { shape: 'ellipse', text: '周末去上海看展' },
+      data: {
+        shape: 'ellipse',
+        text: '周末去上海看展',
+        fill: 'blue',
+        stroke: 'none',
+        textColor: 'blue',
+      },
     },
     {
       id: 'when',
@@ -24,7 +30,7 @@ const doc = ref<FlowDocument>({
       y: 28,
       width: 160,
       height: 120,
-      data: { shape: 'diamond', text: '周六有空？' },
+      data: { shape: 'diamond', text: '周六有空？', fill: 'purple', stroke: 'purple' },
     },
     {
       id: 'book',
@@ -33,7 +39,7 @@ const doc = ref<FlowDocument>({
       y: 40,
       width: 160,
       height: 96,
-      data: { shape: 'rect', text: '订周六上午的票', tone: 'success' },
+      data: { shape: 'rect', text: '订周六上午的票', fill: 'green', stroke: 'green' },
     },
     {
       id: 'idea',
@@ -44,7 +50,14 @@ const doc = ref<FlowDocument>({
       height: 160,
       data: { text: '顺路吃生煎' },
     },
-    { id: 'note', type: 'text', x: 540, y: 200, width: 200, data: { text: '戴兜：记得带学生证' } },
+    {
+      id: 'note',
+      type: 'text',
+      x: 540,
+      y: 200,
+      width: 200,
+      data: { text: '戴兜：记得带学生证', color: 'orange' },
+    },
     {
       // a pen stroke under the booking
       id: 'underline',
@@ -76,6 +89,7 @@ const doc = ref<FlowDocument>({
       source: { node: 'when', port: 'right' },
       target: { node: 'book', port: 'left-in' },
       label: '有空',
+      data: { color: 'green' },
     },
   ],
 })

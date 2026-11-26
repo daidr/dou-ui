@@ -95,7 +95,7 @@ export function drawCard(draw: FlowDrawContext, classes: string[] = []): string 
   const border = px(s.borderTopWidth, 1)
   const radius = px(s.borderTopLeftRadius, 8)
   const inset = border / 2
-  return `<rect x="${inset}" y="${inset}" width="${round(Math.max(0, draw.width - border))}" height="${round(Math.max(0, draw.height - border))}" rx="${round(Math.max(0, radius - inset))}" fill="${draw.color(s.backgroundColor)}" stroke="${draw.color(s.borderTopColor)}" stroke-width="${border}"/>`
+  return `<rect x="${inset}" y="${inset}" width="${round(Math.max(0, draw.width - border))}" height="${round(Math.max(0, draw.height - border))}" rx="${round(Math.max(0, radius - inset))}" fill="${draw.escape(draw.color(s.backgroundColor))}" stroke="${draw.escape(draw.color(s.borderTopColor))}" stroke-width="${border}"/>`
 }
 
 /** What a node type without `draw` is drawn as: its card, its name and its ports. */
@@ -147,8 +147,16 @@ function edgeLook(tools: DrawTools, root: HTMLElement) {
         const s = getComputedStyle(path)
         const dash = s.strokeDasharray && s.strokeDasharray !== 'none' ? s.strokeDasharray : ''
         const width = px(s.strokeWidth, 1)
+        const stroke =
+          (s.stroke && s.stroke !== 'none' ? tools.color(s.stroke) : '') ||
+          (item.stale ? tools.color('var(--dou-color-danger)') : '') ||
+          (style?.stroke ? tools.color(style.stroke) : '') ||
+          (style?.['--dou-flow-connector-color']
+            ? tools.color(style['--dou-flow-connector-color'])
+            : '') ||
+          tools.color('var(--dou-flow-editor-edge)')
         found =
-          `fill="none" stroke="${tools.color(s.stroke || 'var(--dou-flow-editor-edge)')}" stroke-width="${round(width)}"` +
+          `fill="none" stroke="${escapeXml(stroke)}" stroke-width="${round(width)}"` +
           (dash ? ` stroke-dasharray="${dash.replace(/px/g, '').replace(/,\s*/g, ' ')}"` : '') +
           (s.strokeLinecap && s.strokeLinecap !== 'butt'
             ? ` stroke-linecap="${s.strokeLinecap}"`
@@ -178,7 +186,7 @@ function drawLabel(tools: DrawTools, text: string, at: { x: number; y: number })
   const y = at.y - height / 2
   const radius = px(s.borderTopLeftRadius, 6)
   const markup =
-    `<rect x="${round(x + border / 2)}" y="${round(y + border / 2)}" width="${round(width - border)}" height="${round(height - border)}" rx="${round(radius)}" fill="${tools.color(s.backgroundColor)}" stroke="${tools.color(s.borderTopColor)}" stroke-width="${border}"/>` +
+    `<rect x="${round(x + border / 2)}" y="${round(y + border / 2)}" width="${round(width - border)}" height="${round(height - border)}" rx="${round(radius)}" fill="${escapeXml(tools.color(s.backgroundColor))}" stroke="${escapeXml(tools.color(s.borderTopColor))}" stroke-width="${border}"/>` +
     tools.text(
       text,
       { x: x + border + padding, y, width: width - (border + padding) * 2, height },
@@ -256,11 +264,11 @@ export function drawFlow(input: DrawInput, tools: DrawTools, root: HTMLElement) 
   }
   const rootStyle = getComputedStyle(root)
   const background = input.background
-    ? `<rect x="${x}" y="${y}" width="${width}" height="${height}" fill="${tools.color(rootStyle.backgroundColor || 'var(--dou-color-bg-canvas)')}"/>`
+    ? `<rect x="${x}" y="${y}" width="${width}" height="${height}" fill="${escapeXml(tools.color(rootStyle.backgroundColor || 'var(--dou-color-bg-canvas)'))}"/>`
     : ''
   const font = escapeXml(tools.fontFamily)
   const svg =
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="${x} ${y} ${width} ${height}" font-family="${font}" font-size="${round(tools.fontSize)}" fill="${tools.color('var(--dou-color-text)')}">` +
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="${x} ${y} ${width} ${height}" font-family="${font}" font-size="${round(tools.fontSize)}" fill="${escapeXml(tools.color('var(--dou-color-text)'))}">` +
     background +
     containerParts.join('') +
     edgeParts.join('') +

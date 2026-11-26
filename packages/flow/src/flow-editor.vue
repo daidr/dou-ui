@@ -4536,6 +4536,7 @@ defineExpose<FlowEditorExpose>({
               'is-detaching': previewEdge.detaching,
               'is-snapped': previewEdge.snapped,
             }"
+            :style="previewEdge.snapped ? previewEdge.style : undefined"
             :d="previewEdge.route.marks"
           />
         </g>

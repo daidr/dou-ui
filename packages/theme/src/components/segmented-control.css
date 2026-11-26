@@ -30,6 +30,7 @@
     display: inline-flex;
     align-items: stretch;
     box-sizing: border-box;
+    min-width: 0;
     max-width: 100%;
     height: var(--dou-segmented-control-height);
     padding: var(--dou-segmented-control-inset);
@@ -47,7 +48,6 @@
 
       & .dou-segmented-control__item {
         flex: 1 1 0;
-        min-width: 0;
       }
     }
 
@@ -95,6 +95,8 @@
     align-items: center;
     justify-content: center;
     box-sizing: border-box;
+    /* allow options to shrink within max-width: 100% instead of overflowing the track */
+    min-width: 0;
     padding: 0 var(--dou-segmented-control-padding-x);
     border-radius: calc(var(--dou-segmented-control-radius) - var(--dou-segmented-control-inset));
     color: var(--dou-color-text-secondary);
@@ -160,9 +162,6 @@
   }
 
   .dou-segmented-control__label {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--dou-control-gap-md);
     min-width: 0;
     overflow-x: clip;
     text-overflow: ellipsis;
@@ -170,6 +169,24 @@
      * Center on the cap height instead of the font's ascent and descent,
      * which vary by platform and by the fallback font that draws CJK text.
      */
+    text-box: trim-both cap alphabetic;
+
+    /* a custom option slot (e.g. an icon beside text) aligns its pieces in a row */
+    &:has(> *) {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--dou-control-gap-md);
+
+      & > svg {
+        flex-shrink: 0;
+      }
+    }
+  }
+
+  .dou-segmented-control__text {
+    min-width: 0;
+    overflow-x: clip;
+    text-overflow: ellipsis;
     text-box: trim-both cap alphabetic;
   }
 

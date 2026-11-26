@@ -101,4 +101,84 @@ describe('DouSegmentedControl', () => {
     expect(group.attributes('aria-labelledby')).toBe(label.attributes('id'))
     expect(group.classes()).toContain('dou-segmented-control--sm')
   })
+
+  it('keeps plain option labels free of child elements so block ellipsis applies', () => {
+    const wrapper = setup({
+      modelValue: 'list',
+      options: ['侧栏顶部（推荐）', '顶栏常驻按钮', '单项目右侧 [更多]'],
+    })
+    for (const label of wrapper.findAll('.dou-segmented-control__label')) {
+      expect(label.element.children).toHaveLength(0)
+    }
+  })
+
+  it('keeps pure-text #option slots flat and wraps bare text beside icons in __text', () => {
+    const textOnly = mount(DouSegmentedControl, {
+      props: { options: ['侧栏顶部（推荐）', '顶栏常驻按钮'], modelValue: '侧栏顶部（推荐）' },
+      slots: {
+        option: ({ option }: { option: { label?: string; value: SegmentedControlValue } }) =>
+          `${option.label ?? option.value}（默认）`,
+      },
+    })
+    for (const label of textOnly.findAll('.dou-segmented-control__label')) {
+      expect(label.element.children).toHaveLength(0)
+      expect(label.find('.dou-segmented-control__text').exists()).toBe(false)
+    }
+
+    const withIcon = mount({
+      components: { DouSegmentedControl },
+      data: () => ({
+        showBadge: false,
+        options: [
+          { value: 'top', label: '侧栏顶部（推荐）' },
+          { value: 'bar', label: '顶栏常驻按钮' },
+        ],
+      }),
+      template: `
+        <DouSegmentedControl :options="options" model-value="top">
+          <template #option="{ option }">
+            <svg class="mock-icon" aria-hidden="true" />
+            {{ option.label }}
+            <span v-if="showBadge" class="mock-badge">新</span>
+          </template>
+        </DouSegmentedControl>
+      `,
+    })
+    const firstLabel = withIcon.findAll('.dou-segmented-control__label')[0]!
+    expect(firstLabel.find('svg.mock-icon').exists()).toBe(true)
+    const texts = firstLabel.findAll('.dou-segmented-control__text')
+    expect(texts).toHaveLength(1)
+    expect(texts[0]!.text()).toBe('侧栏顶部（推荐）')
+
+    const iconOnly = mount(DouSegmentedControl, {
+      props: { options: ['list', 'board'], modelValue: 'list' },
+      slots: {
+        option: () => h('svg', { class: 'mock-icon' }),
+      },
+    })
+    expect(iconOnly.find('.dou-segmented-control__text').exists()).toBe(false)
+    expect(iconOnly.findAll('svg.mock-icon')).toHaveLength(2)
+  })
+
+  it('remeasures the indicator when block mode or options change', async () => {
+    const wrapper = setup({ modelValue: 'board' })
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+    await nextTick()
+    const indicator = wrapper.get('.dou-segmented-control__indicator')
+    expect(indicator.attributes('style')).toContain('translateX(')
+
+    await wrapper.setProps({ block: true })
+    await flushPromises()
+    expect(indicator.attributes('style')).toContain('translateX(')
+
+    await wrapper.setProps({
+      options: [
+        { value: 'list', label: '列表' },
+        { value: 'board', label: '非常长的看板视图名称' },
+        { value: 'timeline', label: '时间线视图' },
+      ],
+    })
+    await flushPromises()
+    expect(indicator.attributes('style')).not.toContain('display: none')
+  })
 })

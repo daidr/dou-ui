@@ -1204,40 +1204,34 @@
 
     .dou-flow-toolbar__color-bar {
       position: absolute;
-      inset: 0;
-      width: 16px;
-      height: 16px;
+      top: 100%;
+      left: 50%;
+      width: 14px;
+      height: 2px;
+      border-radius: 999px;
+      background-color: var(--dou-color-border-strong);
+      transform: translateX(-50%);
       pointer-events: none;
     }
 
-    .dou-flow-toolbar__color-bar-line {
-      stroke: currentColor;
-      stroke-width: calc(0.75px + 0.03125em);
-      stroke-linecap: round;
+    &.has-swatch .dou-flow-toolbar__color-bar {
+      background-color: var(--dou-flow-swatch);
     }
 
-    .dou-flow-toolbar__color-bar-halo {
-      stroke: color-mix(in oklab, var(--dou-color-text) 24%, transparent);
-      stroke-width: 3.75px;
-      stroke-linecap: round;
+    &.is-none .dou-flow-toolbar__color-bar {
+      border-radius: 0;
+      background: linear-gradient(
+        90deg,
+        var(--dou-color-text-tertiary) 0 3px,
+        transparent 3px 5.5px,
+        var(--dou-color-text-tertiary) 5.5px 8.5px,
+        transparent 8.5px 11px,
+        var(--dou-color-text-tertiary) 11px 14px
+      );
     }
 
-    &:is(.is-kind-fill, .is-kind-stroke) .dou-flow-toolbar__color-icon {
-      transform: translateY(-2px) scale(0.8);
-    }
-
-    &.is-kind-text.has-swatch .dou-flow-toolbar__color-icon > :last-child {
-      stroke: var(--dou-flow-swatch);
-      stroke-width: 2.5px;
-    }
-
-    &:is(.is-kind-fill, .is-kind-stroke).has-swatch .dou-flow-toolbar__color-bar-line {
-      stroke: var(--dou-flow-swatch);
-      stroke-width: 2.5px;
-    }
-
-    &:is(.is-kind-fill, .is-kind-stroke).is-none .dou-flow-toolbar__color-bar-line {
-      stroke: var(--dou-color-text-tertiary);
+    &:disabled .dou-flow-toolbar__color-bar {
+      opacity: 0.45;
     }
   }
 
@@ -1268,7 +1262,7 @@
     height: 26px;
     padding: 0;
     border: 1px solid color-mix(in oklab, var(--dou-color-text) 16%, transparent);
-    border-radius: 6px;
+    border-radius: var(--dou-radius-control);
     background:
       linear-gradient(var(--dou-flow-swatch, transparent), var(--dou-flow-swatch, transparent)),
       var(--dou-color-bg-surface);
@@ -1290,14 +1284,14 @@
     &[aria-pressed='true'] {
       box-shadow:
         0 0 0 2px var(--dou-color-bg-surface),
-        0 0 0 3.5px var(--dou-color-text);
+        0 0 0 3px var(--dou-color-text);
     }
 
     &.is-kind-text {
       background: var(--dou-color-bg-surface);
       color: var(--dou-flow-swatch, var(--dou-color-text));
-      font-size: 13px;
-      font-weight: 600;
+      font-size: var(--dou-font-size-sm);
+      font-weight: var(--dou-font-weight-bold);
       line-height: 1;
     }
 
@@ -2046,9 +2040,6 @@
     &.is-selected {
       stroke: var(--dou-flow-connector-color, var(--dou-flow-editor-selected));
       stroke-width: 2.5px;
-      filter: drop-shadow(
-        0 0 2.5px color-mix(in oklab, var(--dou-flow-editor-selected) 55%, transparent)
-      );
     }
     &.is-stale {
       stroke: var(--dou-color-danger);

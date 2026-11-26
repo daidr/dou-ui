@@ -1,10 +1,4 @@
-import {
-  BaselineIcon,
-  PaintBucketIcon,
-  PaletteIcon,
-  SquareDashedIcon,
-  SquareIcon,
-} from '@dou-ui/icons'
+import { PaintBucketIcon, PaletteIcon, SquareDashedIcon, SquareIcon, TypeIcon } from '@dou-ui/icons'
 import type { Component } from 'vue'
 import type { FlowEditorContext } from '../context'
 import type { FlowToolbarColorPreset, FlowToolbarItem } from '../core/menu'
@@ -242,8 +236,9 @@ export function boardNodeToolbar(ctx: FlowEditorContext, nodes: FlowNode[]): Flo
 
   if (allFillable) {
     const value = sharedValue(nodes.map(effectiveFill))
-    const fillKind = allShapes ? 'shape' : 'sticky'
-    const swatch = value && value !== 'none' ? resolveFillColor(value, fillKind) : undefined
+    // Like @dou-ui/sheet, preset fill swatches in the popover show the soft fill token while
+    // the button indicator bar uses the matching vivid palette token so it reads cleanly without halos.
+    const swatch = value && value !== 'none' ? resolveStrokeColor(value) : undefined
     items.push(
       colorToolbarItem({
         ctx,
@@ -334,7 +329,7 @@ export function boardNodeToolbar(ctx: FlowEditorContext, nodes: FlowNode[]): Flo
         key: 'board-text-color',
         scope: `board-text-color:n:${targetKey}`,
         kind: 'text',
-        icon: BaselineIcon,
+        icon: TypeIcon,
         value,
         swatch,
         disabled: allLocked,

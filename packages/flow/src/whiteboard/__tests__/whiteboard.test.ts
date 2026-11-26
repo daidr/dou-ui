@@ -2126,11 +2126,11 @@ describe('colors and borderless shapes', () => {
     await ticks()
     let buttons = root.findAll('.dou-flow-toolbar button')
     expect(buttons[0]!.attributes('aria-label')).toBe('背景颜色：无填充')
-    expect(buttons[0]!.find('.dou-flow-toolbar__color-bar-line').attributes('d')).toBe(
-      'M4 20h2.5 M10.75 20h2.5 M17.5 20h2.5',
-    )
-    expect(buttons[0]!.find('.dou-flow-toolbar__color-bar-halo').exists()).toBe(false)
-    expect(buttons[1]!.find('.dou-flow-toolbar__color-bar').exists()).toBe(false)
+    expect(buttons[0]!.classes()).toContain('is-none')
+    expect(buttons[0]!.find('.dou-flow-toolbar__color-bar').exists()).toBe(true)
+    expect(buttons[0]!.findAll('svg').length).toBe(1)
+    expect(buttons[1]!.find('.dou-flow-toolbar__color-bar').exists()).toBe(true)
+    expect(buttons[1]!.findAll('svg').length).toBe(1)
     await buttons[0]!.trigger('click')
     await ticks()
     let pop = colorPopover()!
@@ -2148,10 +2148,10 @@ describe('colors and borderless shapes', () => {
     await ticks()
     expect(flow.value.nodes[0]!.data!.fill).toBe('blue')
     const coloredFillBtn = root.findAll('.dou-flow-toolbar button')[0]!
-    expect(coloredFillBtn.find('.dou-flow-toolbar__color-bar-line').attributes('d')).toBe(
-      'M4 20h16',
-    )
-    expect(coloredFillBtn.find('.dou-flow-toolbar__color-bar-halo').exists()).toBe(true)
+    expect(coloredFillBtn.classes()).toContain('has-swatch')
+    expect(coloredFillBtn.classes()).not.toContain('is-none')
+    expect(coloredFillBtn.attributes('style')).toContain('--dou-whiteboard-color-blue')
+    expect(coloredFillBtn.find('.dou-flow-toolbar__color-bar').exists()).toBe(true)
     await coloredFillBtn.trigger('click')
     await ticks()
     colorPopover()!.querySelector<HTMLButtonElement>('.dou-flow-color-popover__none')!.click()

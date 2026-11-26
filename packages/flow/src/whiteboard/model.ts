@@ -1,4 +1,13 @@
 import type { Tone } from 'dou-ui'
+import type { WhiteboardColor, WhiteboardFill, WhiteboardStroke } from './colors'
+
+export { whiteboardColors, isWhiteboardColor } from './colors'
+export type {
+  WhiteboardColor,
+  WhiteboardFill,
+  WhiteboardPaletteColor,
+  WhiteboardStroke,
+} from './colors'
 
 /** What a press on the board does. */
 export type WhiteboardTool =
@@ -31,18 +40,30 @@ export interface WhiteboardNodeData {
 export interface WhiteboardShapeData extends WhiteboardNodeData {
   shape: WhiteboardShape
   text?: string
-  /** `neutral` by default. */
+  /** `neutral` by default; kept for compatibility when `fill` / `stroke` are omitted. */
   tone?: Tone
+  /** Background fill color, or `'none'` / `'transparent'` for no fill. */
+  fill?: WhiteboardFill
+  /** Border color, or `'none'` for a borderless shape. */
+  stroke?: WhiteboardStroke
+  /** Text color inside the shape. */
+  textColor?: WhiteboardColor
 }
 
 export interface WhiteboardStickyData extends WhiteboardNodeData {
   text?: string
-  /** `warning` (yellow) by default. */
+  /** `warning` (yellow) by default; kept for compatibility when `fill` is omitted. */
   tone?: Tone
+  /** Background color of the sticky note. */
+  fill?: WhiteboardFill
+  /** Text color inside the sticky note. */
+  textColor?: WhiteboardColor
 }
 
 export interface WhiteboardTextData extends WhiteboardNodeData {
   text?: string
+  /** Text color. */
+  color?: WhiteboardColor
 }
 
 /** A pen stroke. */
@@ -59,8 +80,10 @@ export interface WhiteboardInkData extends WhiteboardNodeData {
    * makes it 0.4 to 1.6 times as wide as it presses lighter or harder.
    */
   size?: number
-  /** The text color when left out. */
+  /** The text color when left out; kept for compatibility when `color` is omitted. */
   tone?: Tone
+  /** Stroke color. */
+  color?: WhiteboardColor
 }
 
 /** How a connector runs: one straight line, right-angled turns, or a smooth curve. */
@@ -78,6 +101,8 @@ export interface WhiteboardConnectorData {
   dash?: WhiteboardDash
   /** `end` by default. */
   arrow?: WhiteboardArrow
+  /** Line and arrowhead color. */
+  color?: WhiteboardColor
   /** Where an `elbow` connector's middle run sits, from 0 to 1; set by dragging it. */
   bend?: number
 }

@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
-import { toast } from 'dou-ui'
+import { DouColorPanel, toast } from 'dou-ui'
 import {
   connectorEdge,
   insertImages,
@@ -20,7 +20,13 @@ import {
   useFlowEditor,
 } from '../../index'
 import type { FlowEditorContext } from '../../index'
-import type { FlowDocument, FlowExtension, FlowSelection, FlowViewport } from '../../index'
+import type {
+  FlowDocument,
+  FlowEditorExpose,
+  FlowExtension,
+  FlowSelection,
+  FlowViewport,
+} from '../../index'
 
 // jsdom lays nothing out: an element is as large as its style says, or 200 × 60.
 const descriptors = new Map<string, PropertyDescriptor | undefined>()
@@ -74,11 +80,13 @@ function setup(
   const selection = ref<FlowSelection>({ nodes: [], edges: [] })
   const viewport = ref<FlowViewport>({ x: 0, y: 0, zoom: 1 })
   const tool = ref<WhiteboardTool>('select')
+  const editor = ref<FlowEditorExpose | null>(null)
   const extensions = [flowKit(), whiteboardKit({ tool }), ...extra]
   const wrapper = mount(
     defineComponent(
       () => () =>
         h(DouFlowEditor, {
+          ref: editor,
           modelValue: flow.value,
           'onUpdate:modelValue': (value: FlowDocument) => (flow.value = value),
           selection: selection.value,
@@ -102,7 +110,7 @@ function setup(
     root.element.dispatchEvent(pointer('pointerup', ...end))
     await ticks()
   }
-  return { wrapper, root, flow, selection, viewport, tool, key, drag }
+  return { wrapper, root, flow, selection, viewport, tool, editor, key, drag }
 }
 
 describe('whiteboard tools', () => {
@@ -420,6 +428,7 @@ describe('connector', () => {
       '走向：直线',
       '线型：实线',
       '箭头：终点箭头',
+      '线条颜色：默认',
       '删除',
     ])
     await buttons[1]!.trigger('click')
@@ -1661,5 +1670,747 @@ describe('images', () => {
     })
     expect(ownError).toHaveBeenCalledTimes(1)
     expect(kitError).not.toHaveBeenCalled()
+  })
+})
+
+const colorPopover = () =>
+  [...document.body.querySelectorAll<HTMLElement>('.dou-flow-color-popover')].find(
+    (el) => el.style.display !== 'none',
+  ) ?? null
+
+const customColorPopover = () =>
+  [...document.body.querySelectorAll<HTMLElement>('.dou-flow-color-custom-popover')].find(
+    (el) => el.style.display !== 'none',
+  ) ?? null
+
+describe('colors and borderless shapes', () => {
+  it('edits shape fill, border color, borderless state and text color with undo/redo', async () => {
+    const { root, flow, selection, editor } = setup({
+      version: 1,
+      nodes: [
+        {
+          id: 's',
+          type: 'shape',
+          x: 0,
+          y: 0,
+          width: 160,
+          height: 100,
+          data: { shape: 'rect', text: '架构模块' },
+        },
+      ],
+      edges: [],
+    })
+    await ticks()
+    selection.value = { nodes: ['s'], edges: [] }
+    await ticks()
+
+    const toolbarButtons = () => root.findAll('.dou-flow-toolbar button')
+    expect(toolbarButtons().map((b) => b.attributes('aria-label'))).toEqual([
+      '背景颜色：默认',
+      '边框颜色：默认',
+      '文字颜色：默认',
+      '复制一份',
+      '删除',
+      '更多',
+    ])
+
+    // 1. Pick fill color: blue
+    await toolbarButtons()[0]!.trigger('click')
+    await ticks()
+    colorPopover()!.querySelector<HTMLButtonElement>('button[aria-label="蓝色"]')!.click()
+    await ticks()
+    expect(flow.value.nodes[0]!.data).toEqual({
+      shape: 'rect',
+      text: '架构模块',
+      fill: 'blue',
+    })
+    const nodeEl = () => root.find('.dou-whiteboard-node')
+    expect(nodeEl().attributes('style')).toContain(
+      '--dou-whiteboard-shape-fill: var(--dou-whiteboard-fill-blue)',
+    )
+    expect(toolbarButtons()[0]!.attributes('aria-label')).toBe('背景颜色：蓝色')
+
+    // 2. Pick border color: red
+    await toolbarButtons()[1]!.trigger('click')
+    await ticks()
+    colorPopover()!.querySelector<HTMLButtonElement>('button[aria-label="红色"]')!.click()
+    await ticks()
+    expect(flow.value.nodes[0]!.data).toMatchObject({ fill: 'blue', stroke: 'red' })
+    expect(nodeEl().attributes('style')).toContain(
+      '--dou-whiteboard-shape-stroke: var(--dou-whiteboard-color-red)',
+    )
+
+    // 3. Switch to borderless
+    await toolbarButtons()[1]!.trigger('click')
+    await ticks()
+    colorPopover()!.querySelector<HTMLButtonElement>('.dou-flow-color-popover__none')!.click()
+    await ticks()
+    expect(flow.value.nodes[0]!.data).toMatchObject({ fill: 'blue', stroke: 'none' })
+    expect(nodeEl().classes()).toContain('is-borderless')
+    expect(toolbarButtons()[1]!.attributes('aria-label')).toBe('边框颜色：无边框')
+
+    // 4. Switch fill to transparent (none)
+    await toolbarButtons()[0]!.trigger('click')
+    await ticks()
+    colorPopover()!.querySelector<HTMLButtonElement>('.dou-flow-color-popover__none')!.click()
+    await ticks()
+    expect(flow.value.nodes[0]!.data).toMatchObject({ fill: 'none', stroke: 'none' })
+    expect(nodeEl().attributes('style')).toContain('--dou-whiteboard-shape-fill: none')
+    expect(toolbarButtons()[0]!.attributes('aria-label')).toBe('背景颜色：无填充')
+
+    // 5. Pick text color: purple
+    await toolbarButtons()[2]!.trigger('click')
+    await ticks()
+    colorPopover()!.querySelector<HTMLButtonElement>('button[aria-label="紫色"]')!.click()
+    await ticks()
+    expect(flow.value.nodes[0]!.data).toMatchObject({
+      fill: 'none',
+      stroke: 'none',
+      textColor: 'purple',
+    })
+    expect(nodeEl().attributes('style')).toContain(
+      '--dou-whiteboard-text-color: var(--dou-whiteboard-color-purple)',
+    )
+
+    // 6. Undo & redo work step by step
+    expect(editor.value!.undo()).toBe(true)
+    await ticks()
+    expect(flow.value.nodes[0]!.data!.textColor).toBeUndefined()
+    expect(editor.value!.undo()).toBe(true)
+    await ticks()
+    expect(flow.value.nodes[0]!.data!.fill).toBe('blue')
+    expect(editor.value!.redo()).toBe(true)
+    await ticks()
+    expect(flow.value.nodes[0]!.data!.fill).toBe('none')
+  })
+
+  it('keeps legacy tone intact on the untouched channel when editing shape fill or stroke', async () => {
+    const { root, flow, selection } = setup({
+      version: 1,
+      nodes: [
+        {
+          id: 's',
+          type: 'shape',
+          x: 0,
+          y: 0,
+          width: 160,
+          height: 100,
+          data: { shape: 'rect', text: '旧数据', tone: 'success' },
+        },
+      ],
+      edges: [],
+    })
+    await ticks()
+    selection.value = { nodes: ['s'], edges: [] }
+    await ticks()
+
+    const buttons = () => root.findAll('.dou-flow-toolbar button')
+    expect(buttons()[0]!.attributes('aria-label')).toBe('背景颜色：成功')
+    expect(buttons()[1]!.attributes('aria-label')).toBe('边框颜色：成功')
+
+    // Remove border while keeping the legacy success fill
+    await buttons()[1]!.trigger('click')
+    await ticks()
+    colorPopover()!.querySelector<HTMLButtonElement>('.dou-flow-color-popover__none')!.click()
+    await ticks()
+    expect(flow.value.nodes[0]!.data).toEqual({
+      shape: 'rect',
+      text: '旧数据',
+      fill: 'success',
+      stroke: 'none',
+    })
+    expect(root.find('.dou-whiteboard-node').classes()).toContain('is-borderless')
+  })
+
+  it('treats transparent stroke and fill the same as none', async () => {
+    const { root, selection } = setup({
+      version: 1,
+      nodes: [
+        {
+          id: 's',
+          type: 'shape',
+          x: 0,
+          y: 0,
+          width: 160,
+          height: 100,
+          data: { shape: 'ellipse', fill: 'transparent', stroke: 'transparent', text: '透明' },
+        },
+      ],
+      edges: [],
+    })
+    await ticks()
+    selection.value = { nodes: ['s'], edges: [] }
+    await ticks()
+
+    const node = root.find('.dou-whiteboard-node')
+    expect(node.classes()).toContain('is-borderless')
+    expect(node.attributes('style')).toContain('--dou-whiteboard-shape-fill: none')
+    const buttons = root.findAll('.dou-flow-toolbar button')
+    expect(buttons[0]!.attributes('aria-label')).toBe('背景颜色：无填充')
+    expect(buttons[1]!.attributes('aria-label')).toBe('边框颜色：无边框')
+  })
+
+  it('edits sticky, text, ink and connector colors, including custom hex colors', async () => {
+    const { root, flow, selection, editor } = setup({
+      version: 1,
+      nodes: [
+        { id: 'n', type: 'sticky', x: 0, y: 0, width: 140, height: 140, data: { text: '便签' } },
+        { id: 't', type: 'text', x: 200, y: 0, width: 160, data: { text: '独立文字' } },
+        {
+          id: 'i',
+          type: 'ink',
+          x: 0,
+          y: 200,
+          width: 60,
+          height: 20,
+          data: { box: [60, 20], points: [4, 10, 0.5, 56, 10, 0.5] },
+        },
+      ],
+      edges: [
+        {
+          id: 'c',
+          type: 'connector',
+          source: { node: 'n', port: 'right' },
+          target: { node: 't', port: 'left-in' },
+        },
+      ],
+    })
+    await ticks()
+
+    // Sticky: fill + text color (no border button)
+    selection.value = { nodes: ['n'], edges: [] }
+    await ticks()
+    let buttons = root.findAll('.dou-flow-toolbar button')
+    expect(buttons.slice(0, 2).map((b) => b.attributes('aria-label'))).toEqual([
+      '背景颜色：默认',
+      '文字颜色：默认',
+    ])
+    await buttons[0]!.trigger('click')
+    await ticks()
+    colorPopover()!.querySelector<HTMLButtonElement>('button[aria-label="绿色"]')!.click()
+    await ticks()
+    expect(flow.value.nodes[0]!.data).toEqual({ text: '便签', fill: 'green' })
+
+    // Text: text color only
+    selection.value = { nodes: ['t'], edges: [] }
+    await ticks()
+    buttons = root.findAll('.dou-flow-toolbar button')
+    expect(buttons[0]!.attributes('aria-label')).toBe('文字颜色：默认')
+    expect(buttons.map((b) => b.attributes('aria-label'))).not.toContain('背景颜色：默认')
+    await buttons[0]!.trigger('click')
+    await ticks()
+    // Open secondary custom DouColorPanel popover and type a hex color
+    colorPopover()!.querySelector<HTMLButtonElement>('button[aria-label="自定义颜色"]')!.click()
+    await ticks()
+    expect(colorPopover()!.querySelector('.dou-color-panel')).toBeNull()
+    const customPop = customColorPopover()
+    expect(customPop).toBeTruthy()
+    const input = customPop!.querySelector<HTMLInputElement>('.dou-color-panel input')!
+    expect(input).toBeTruthy()
+    input.value = '#e11d48'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    input.dispatchEvent(new Event('change', { bubbles: true }))
+    await ticks()
+    expect(flow.value.nodes[1]!.data).toEqual({ text: '独立文字', color: '#e11d48' })
+    expect(root.find('.dou-whiteboard-node.is-text').attributes('style')).toContain(
+      '--dou-whiteboard-text-color: #e11d48',
+    )
+    // Escape closes only the secondary custom popover, keeping the primary swatches open
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await ticks()
+    expect(customColorPopover()).toBeNull()
+    expect(colorPopover()).toBeTruthy()
+    // Second Escape closes the primary swatch popover
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await ticks()
+    expect(colorPopover()).toBeNull()
+
+    // Ink: line color
+    selection.value = { nodes: ['i'], edges: [] }
+    await ticks()
+    buttons = root.findAll('.dou-flow-toolbar button')
+    expect(buttons[0]!.attributes('aria-label')).toBe('线条颜色：默认')
+    await buttons[0]!.trigger('click')
+    await ticks()
+    colorPopover()!.querySelector<HTMLButtonElement>('button[aria-label="橙色"]')!.click()
+    await ticks()
+    expect(flow.value.nodes[2]!.data!.color).toBe('orange')
+
+    // Connector: line color applied to path and arrowhead marks, then reset to default
+    selection.value = { nodes: [], edges: ['c'] }
+    await ticks()
+    buttons = root.findAll('.dou-flow-toolbar button')
+    expect(buttons[3]!.attributes('aria-label')).toBe('线条颜色：默认')
+    await buttons[3]!.trigger('click')
+    await ticks()
+    colorPopover()!.querySelector<HTMLButtonElement>('button[aria-label="蓝色"]')!.click()
+    await ticks()
+    expect(flow.value.edges[0]!.data).toEqual({ color: 'blue' })
+    expect(root.find('.dou-flow-editor__edge:not(.is-mark)').attributes('style')).toContain(
+      '--dou-flow-connector-color: var(--dou-whiteboard-color-blue)',
+    )
+    expect(root.find('.dou-flow-editor__edge.is-mark').attributes('style')).toContain(
+      '--dou-flow-connector-color: var(--dou-whiteboard-color-blue)',
+    )
+    // Reset to default drops empty edge data cleanly
+    await root.findAll('.dou-flow-toolbar button')[3]!.trigger('click')
+    await ticks()
+    colorPopover()!.querySelector<HTMLButtonElement>('button[aria-label="默认"]')!.click()
+    await ticks()
+    expect(flow.value.edges[0]!.data).toBeUndefined()
+    expect(editor.value!.undo()).toBe(true)
+    await ticks()
+    expect(flow.value.edges[0]!.data).toEqual({ color: 'blue' })
+  })
+
+  it('supports mixed multi-selection on nodes and connectors, and disables locked nodes', async () => {
+    const { root, flow, selection } = setup({
+      version: 1,
+      nodes: [
+        {
+          id: 'a',
+          type: 'shape',
+          x: 0,
+          y: 0,
+          width: 120,
+          height: 80,
+          data: { shape: 'rect', text: 'A', fill: 'blue', stroke: 'blue', textColor: 'blue' },
+        },
+        {
+          id: 'b',
+          type: 'shape',
+          x: 200,
+          y: 0,
+          width: 120,
+          height: 80,
+          data: { shape: 'rect', text: 'B', fill: 'red', stroke: 'none', textColor: 'red' },
+        },
+        {
+          id: 't',
+          type: 'text',
+          x: 0,
+          y: 160,
+          width: 120,
+          data: { text: 'T', color: 'green' },
+        },
+        {
+          id: 'locked',
+          type: 'shape',
+          x: 200,
+          y: 160,
+          width: 120,
+          height: 80,
+          locked: true,
+          data: { shape: 'rect', text: '锁定' },
+        },
+      ],
+      edges: [
+        {
+          id: 'e1',
+          type: 'connector',
+          source: { node: 'a', port: 'right' },
+          target: { node: 'b', port: 'left-in' },
+          data: { color: 'red' },
+        },
+        {
+          id: 'e2',
+          type: 'connector',
+          source: { node: 'a', port: 'bottom' },
+          target: { node: 't', port: 'top-in' },
+          data: { color: 'blue' },
+        },
+      ],
+    })
+    await ticks()
+
+    // Two shapes with differing fill/stroke/textColor show mixed and update together
+    selection.value = { nodes: ['a', 'b'], edges: [] }
+    await ticks()
+    let buttons = root.findAll('.dou-flow-toolbar button')
+    expect(buttons.slice(0, 3).map((b) => b.attributes('aria-label'))).toEqual([
+      '背景颜色：多种',
+      '边框颜色：多种',
+      '文字颜色：多种',
+    ])
+    await buttons[1]!.trigger('click')
+    await ticks()
+    colorPopover()!.querySelector<HTMLButtonElement>('.dou-flow-color-popover__none')!.click()
+    await ticks()
+    expect(flow.value.nodes[0]!.data!.stroke).toBe('none')
+    expect(flow.value.nodes[1]!.data!.stroke).toBe('none')
+
+    // Shape + Text shows text color and writes `textColor` on shape and `color` on text
+    selection.value = { nodes: ['a', 't'], edges: [] }
+    await ticks()
+    buttons = root.findAll('.dou-flow-toolbar button')
+    expect(buttons[0]!.attributes('aria-label')).toBe('文字颜色：多种')
+    await buttons[0]!.trigger('click')
+    await ticks()
+    colorPopover()!.querySelector<HTMLButtonElement>('button[aria-label="粉色"]')!.click()
+    await ticks()
+    expect(flow.value.nodes[0]!.data!.textColor).toBe('pink')
+    expect(flow.value.nodes[2]!.data!.color).toBe('pink')
+
+    // Two connectors with differing colors show mixed and batch-update
+    selection.value = { nodes: [], edges: ['e1', 'e2'] }
+    await ticks()
+    buttons = root.findAll('.dou-flow-toolbar button')
+    expect(buttons[3]!.attributes('aria-label')).toBe('线条颜色：多种')
+    await buttons[3]!.trigger('click')
+    await ticks()
+    colorPopover()!.querySelector<HTMLButtonElement>('button[aria-label="绿色"]')!.click()
+    await ticks()
+    expect(flow.value.edges[0]!.data!.color).toBe('green')
+    expect(flow.value.edges[1]!.data!.color).toBe('green')
+
+    // Locked node disables color controls
+    selection.value = { nodes: ['locked'], edges: [] }
+    await ticks()
+    buttons = root.findAll('.dou-flow-toolbar button')
+    expect(buttons[0]!.attributes('disabled')).toBeDefined()
+    expect(buttons[1]!.attributes('disabled')).toBeDefined()
+    expect(buttons[2]!.attributes('disabled')).toBeDefined()
+  })
+
+  it('shows transparent sticky fill as no-fill and ignores none on opaque channels', async () => {
+    const { root, flow, selection } = setup({
+      version: 1,
+      nodes: [
+        {
+          id: 'sticky-none',
+          type: 'sticky',
+          x: 0,
+          y: 0,
+          width: 140,
+          height: 140,
+          data: { text: '透明便签', fill: 'none' },
+        },
+        {
+          id: 'shape-none',
+          type: 'shape',
+          x: 200,
+          y: 0,
+          width: 140,
+          height: 80,
+          data: { shape: 'rect', text: '透明矩形', fill: 'transparent', textColor: 'transparent' },
+        },
+        {
+          id: 'txt-none',
+          type: 'text',
+          x: 0,
+          y: 200,
+          width: 120,
+          data: { text: '文字', color: 'none' },
+        },
+        {
+          id: 'ink-none',
+          type: 'ink',
+          x: 200,
+          y: 200,
+          width: 60,
+          height: 20,
+          data: { box: [60, 20], points: [4, 10, 0.5, 56, 10, 0.5], color: 'none' },
+        },
+        {
+          id: 'ink-tone',
+          type: 'ink',
+          x: 320,
+          y: 200,
+          width: 60,
+          height: 20,
+          data: {
+            box: [60, 20],
+            points: [4, 10, 0.5, 56, 10, 0.5],
+            color: 'transparent',
+            tone: 'primary',
+          },
+        },
+      ],
+      edges: [
+        {
+          id: 'e-none',
+          type: 'connector',
+          source: { node: 'sticky-none', port: 'right' },
+          target: { node: 'shape-none', port: 'left-in' },
+          data: { color: 'none' },
+        },
+      ],
+    })
+    await ticks()
+
+    // 1. Transparent sticky shows "背景颜色：无填充" and does not mis-highlight custom button
+    selection.value = { nodes: ['sticky-none'], edges: [] }
+    await ticks()
+    let buttons = root.findAll('.dou-flow-toolbar button')
+    expect(buttons[0]!.attributes('aria-label')).toBe('背景颜色：无填充')
+    expect(buttons[0]!.classes()).toContain('is-none')
+    expect(buttons[0]!.find('.dou-flow-toolbar__color-bar').exists()).toBe(true)
+    expect(buttons[0]!.findAll('.dou-flow-toolbar__color-bar > span').length).toBe(3)
+    expect(buttons[0]!.findAll('svg').length).toBe(1)
+    expect(buttons[1]!.find('.dou-flow-toolbar__color-bar').exists()).toBe(true)
+    expect(buttons[1]!.findAll('.dou-flow-toolbar__color-bar > span').length).toBe(0)
+    expect(buttons[1]!.findAll('svg').length).toBe(1)
+    await buttons[0]!.trigger('click')
+    await ticks()
+    let pop = colorPopover()!
+    const noneBtn = pop.querySelector<HTMLButtonElement>('.dou-flow-color-popover__none')!
+    expect(noneBtn.textContent?.trim()).toBe('无填充')
+    expect(noneBtn.getAttribute('aria-pressed')).toBe('true')
+    const customBtn = pop.querySelector<HTMLButtonElement>(
+      '.dou-flow-color-popover__swatch.is-custom',
+    )!
+    expect(customBtn.getAttribute('aria-pressed')).toBe('false')
+    expect(customBtn.classList.contains('has-custom')).toBe(false)
+    expect(customBtn.querySelector('svg')).toBeTruthy()
+    // Sticky can switch from transparent to a preset color and back to transparent
+    pop.querySelector<HTMLButtonElement>('button[aria-label="蓝色"]')!.click()
+    await ticks()
+    expect(flow.value.nodes[0]!.data!.fill).toBe('blue')
+    const coloredFillBtn = root.findAll('.dou-flow-toolbar button')[0]!
+    expect(coloredFillBtn.classes()).toContain('has-swatch')
+    expect(coloredFillBtn.classes()).not.toContain('is-none')
+    expect(coloredFillBtn.attributes('style')).toContain('--dou-whiteboard-color-blue')
+    expect(coloredFillBtn.find('.dou-flow-toolbar__color-bar').exists()).toBe(true)
+    await coloredFillBtn.trigger('click')
+    await ticks()
+    colorPopover()!.querySelector<HTMLButtonElement>('.dou-flow-color-popover__none')!.click()
+    await ticks()
+    expect(flow.value.nodes[0]!.data!.fill).toBe('none')
+
+    // 2. Mixed transparent sticky + transparent shape shows "背景颜色：无填充" cleanly
+    selection.value = { nodes: ['sticky-none', 'shape-none'], edges: [] }
+    await ticks()
+    buttons = root.findAll('.dou-flow-toolbar button')
+    expect(buttons[0]!.attributes('aria-label')).toBe('背景颜色：无填充')
+    await buttons[0]!.trigger('click')
+    await ticks()
+    pop = colorPopover()!
+    expect(
+      pop
+        .querySelector<HTMLButtonElement>('.dou-flow-color-popover__none')!
+        .getAttribute('aria-pressed'),
+    ).toBe('true')
+    expect(
+      pop
+        .querySelector<HTMLButtonElement>('.dou-flow-color-popover__swatch.is-custom')!
+        .getAttribute('aria-pressed'),
+    ).toBe('false')
+
+    // 3. Opaque channels (shape textColor, standalone text, ink, connector) normalize 'none' to default
+    selection.value = { nodes: ['shape-none'], edges: [] }
+    await ticks()
+    buttons = root.findAll('.dou-flow-toolbar button')
+    expect(buttons[2]!.attributes('aria-label')).toBe('文字颜色：默认')
+    await buttons[2]!.trigger('click')
+    await ticks()
+    pop = colorPopover()!
+    expect(
+      pop
+        .querySelector<HTMLButtonElement>('.dou-flow-color-popover__swatch.is-default')!
+        .getAttribute('aria-pressed'),
+    ).toBe('true')
+    expect(
+      pop
+        .querySelector<HTMLButtonElement>('.dou-flow-color-popover__swatch.is-custom')!
+        .getAttribute('aria-pressed'),
+    ).toBe('false')
+
+    selection.value = { nodes: ['txt-none'], edges: [] }
+    await ticks()
+    expect(root.findAll('.dou-flow-toolbar button')[0]!.attributes('aria-label')).toBe(
+      '文字颜色：默认',
+    )
+
+    selection.value = { nodes: ['ink-none'], edges: [] }
+    await ticks()
+    expect(root.findAll('.dou-flow-toolbar button')[0]!.attributes('aria-label')).toBe(
+      '线条颜色：默认',
+    )
+
+    // Ink with color: 'transparent' and legacy tone: 'primary' reflects the active tone
+    selection.value = { nodes: ['ink-tone'], edges: [] }
+    await ticks()
+    expect(root.findAll('.dou-flow-toolbar button')[0]!.attributes('aria-label')).toBe(
+      '线条颜色：主色',
+    )
+
+    selection.value = { nodes: [], edges: ['e-none'] }
+    await ticks()
+    buttons = root.findAll('.dou-flow-toolbar button')
+    expect(buttons[3]!.attributes('aria-label')).toBe('线条颜色：默认')
+    await buttons[3]!.trigger('click')
+    await ticks()
+    pop = colorPopover()!
+    expect(
+      pop
+        .querySelector<HTMLButtonElement>('.dou-flow-color-popover__swatch.is-custom')!
+        .getAttribute('aria-pressed'),
+    ).toBe('false')
+  })
+
+  it('skips no-op color updates and resets live-drag undo groups on close or selection change', async () => {
+    let now = 10_000
+    const nowSpy = vi.spyOn(Date, 'now').mockImplementation(() => now)
+    try {
+      const { wrapper, root, flow, selection, editor } = setup({
+        version: 1,
+        nodes: [
+          {
+            id: 'a',
+            type: 'shape',
+            x: 0,
+            y: 0,
+            width: 140,
+            height: 80,
+            data: { shape: 'rect', text: 'A', fill: 'blue' },
+          },
+          {
+            id: 'b',
+            type: 'shape',
+            x: 200,
+            y: 0,
+            width: 140,
+            height: 80,
+            data: { shape: 'rect', text: 'B' },
+          },
+        ],
+        edges: [
+          {
+            id: 'e1',
+            type: 'connector',
+            source: { node: 'a', port: 'right' },
+            target: { node: 'b', port: 'left-in' },
+          },
+        ],
+      })
+      await ticks()
+
+      // 1. Repeat-clicking active preset / default / borderless skips no-op history steps and keeps redo stack
+      selection.value = { nodes: ['a'], edges: [] }
+      await ticks()
+      // Make one real edit then undo so redo is available
+      await root.findAll('.dou-flow-toolbar button')[0]!.trigger('click')
+      await ticks()
+      colorPopover()!.querySelector<HTMLButtonElement>('button[aria-label="红色"]')!.click()
+      await ticks()
+      expect(editor.value!.undo()).toBe(true)
+      await ticks()
+      expect(flow.value.nodes[0]!.data!.fill).toBe('blue')
+      expect(editor.value!.canRedo).toBe(true)
+
+      // Clicking already-active "蓝色" must not record an undo entry or clear redo
+      await root.findAll('.dou-flow-toolbar button')[0]!.trigger('click')
+      await ticks()
+      colorPopover()!.querySelector<HTMLButtonElement>('button[aria-label="蓝色"]')!.click()
+      await ticks()
+      expect(editor.value!.canUndo).toBe(false)
+      expect(editor.value!.canRedo).toBe(true)
+
+      // Clicking already-active "默认" on stroke and connector also preserves redo
+      await root.findAll('.dou-flow-toolbar button')[1]!.trigger('click')
+      await ticks()
+      colorPopover()!.querySelector<HTMLButtonElement>('button[aria-label="默认"]')!.click()
+      await ticks()
+      expect(editor.value!.canUndo).toBe(false)
+      expect(editor.value!.canRedo).toBe(true)
+
+      selection.value = { nodes: [], edges: ['e1'] }
+      await ticks()
+      await root.findAll('.dou-flow-toolbar button')[3]!.trigger('click')
+      await ticks()
+      colorPopover()!.querySelector<HTMLButtonElement>('button[aria-label="默认"]')!.click()
+      await ticks()
+      expect(editor.value!.canUndo).toBe(false)
+      expect(editor.value!.canRedo).toBe(true)
+
+      // 2. Live custom drag paused > 1000ms before release settles without adding a duplicate undo step
+      selection.value = { nodes: ['a'], edges: [] }
+      await ticks()
+      await root.findAll('.dou-flow-toolbar button')[0]!.trigger('click')
+      await ticks()
+      colorPopover()!.querySelector<HTMLButtonElement>('button[aria-label="自定义颜色"]')!.click()
+      await ticks()
+      let panel = wrapper.findComponent(DouColorPanel)
+      panel.vm.$emit('update:modelValue', '#112233')
+      await ticks()
+      now += 200
+      panel.vm.$emit('update:modelValue', '#445566')
+      await ticks()
+      // Pause beyond GROUP_WINDOW (1000ms) before releasing pointer with the same final color
+      now += 1500
+      panel.vm.$emit('change', '#445566')
+      await ticks()
+      expect(flow.value.nodes[0]!.data!.fill).toBe('#445566')
+      // Single undo returns straight to 'blue'
+      expect(editor.value!.undo()).toBe(true)
+      await ticks()
+      expect(flow.value.nodes[0]!.data!.fill).toBe('blue')
+      expect(editor.value!.canUndo).toBe(false)
+      // Close the still-open custom popover before starting the next interaction
+      await root.findAll('.dou-flow-toolbar button')[0]!.trigger('click')
+      await ticks()
+
+      // 3. Abandoning a live drag (closing popover without `change`) does not merge with a quick follow-up live drag
+      await root.findAll('.dou-flow-toolbar button')[0]!.trigger('click')
+      await ticks()
+      colorPopover()!.querySelector<HTMLButtonElement>('button[aria-label="自定义颜色"]')!.click()
+      await ticks()
+      panel = wrapper.findComponent(DouColorPanel)
+      panel.vm.$emit('update:modelValue', '#123456')
+      await ticks()
+      // Close popover via toggle click without emitting `change`
+      await root.findAll('.dou-flow-toolbar button')[0]!.trigger('click')
+      await ticks()
+      // Within 100ms, reopen on the same node and start a new live drag
+      now += 100
+      await root.findAll('.dou-flow-toolbar button')[0]!.trigger('click')
+      await ticks()
+      colorPopover()!.querySelector<HTMLButtonElement>('button[aria-label="自定义颜色"]')!.click()
+      await ticks()
+      panel = wrapper.findComponent(DouColorPanel)
+      panel.vm.$emit('update:modelValue', '#654321')
+      panel.vm.$emit('change', '#654321')
+      await ticks()
+      // Close popover before undo checks
+      await root.findAll('.dou-flow-toolbar button')[0]!.trigger('click')
+      await ticks()
+      expect(flow.value.nodes[0]!.data!.fill).toBe('#654321')
+      // Undo reverts '#654321' -> '#123456', then a second undo reverts '#123456' -> 'blue'
+      expect(editor.value!.undo()).toBe(true)
+      await ticks()
+      expect(flow.value.nodes[0]!.data!.fill).toBe('#123456')
+      expect(editor.value!.undo()).toBe(true)
+      await ticks()
+      expect(flow.value.nodes[0]!.data!.fill).toBe('blue')
+
+      // 4. Switching selection during an unfinished live drag never merges node B into node A's undo step
+      await root.findAll('.dou-flow-toolbar button')[0]!.trigger('click')
+      await ticks()
+      colorPopover()!.querySelector<HTMLButtonElement>('button[aria-label="自定义颜色"]')!.click()
+      await ticks()
+      panel = wrapper.findComponent(DouColorPanel)
+      panel.vm.$emit('update:modelValue', '#abcdef')
+      await ticks()
+      now += 100
+      selection.value = { nodes: ['b'], edges: [] }
+      await ticks()
+      await root.findAll('.dou-flow-toolbar button')[0]!.trigger('click')
+      await ticks()
+      colorPopover()!.querySelector<HTMLButtonElement>('button[aria-label="红色"]')!.click()
+      await ticks()
+      expect(flow.value.nodes[0]!.data!.fill).toBe('#abcdef')
+      expect(flow.value.nodes[1]!.data!.fill).toBe('red')
+      // First undo reverts only node B; node A stays '#abcdef'
+      expect(editor.value!.undo()).toBe(true)
+      await ticks()
+      expect(flow.value.nodes[1]!.data!.fill).toBeUndefined()
+      expect(flow.value.nodes[0]!.data!.fill).toBe('#abcdef')
+      // Second undo reverts node A
+      expect(editor.value!.undo()).toBe(true)
+      await ticks()
+      expect(flow.value.nodes[0]!.data!.fill).toBe('blue')
+    } finally {
+      nowSpy.mockRestore()
+    }
   })
 })

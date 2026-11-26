@@ -33,6 +33,7 @@ import { connectorEdge, connectorToolbar } from './connector'
 import { drawBoardNode } from './draw'
 import { drawInk, erase } from './pen'
 import { boardState, usable } from './state'
+import { boardNodeToolbar } from './toolbar'
 
 /** The node types the whiteboard adds; only they turn. */
 const BOARD_TYPES = new Set(['shape', 'sticky', 'text', 'ink', 'image'])
@@ -206,6 +207,7 @@ export function whiteboardKit(options: WhiteboardKitOptions = {}): FlowExtension
     name: 'whiteboard',
     nodeTypes: [shapeNode, stickyNode, textNode, inkNode, imageNode],
     edgeTypes: [connectorEdge],
+    toolbarItems: boardNodeToolbar,
     edgeToolbarItems: connectorToolbar,
     edgeType: 'connector',
     layers: { above: [BoardDraft] },

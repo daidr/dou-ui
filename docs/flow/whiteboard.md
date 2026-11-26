@@ -131,15 +131,27 @@ whiteboardKit({
 
 后加的节点在上面。调整层级来自 `flowKit()`，普通流程里也能用：右键菜单或 `Ctrl` / `⌘` + `]`、`[`，加 `Shift` 直接到顶层或底层，见[层级](./editing#层级)。协同编辑时层级也会同步。
 
+## 颜色与无边框
+
+选中白板上的元素后，浮动工具栏会按元素类型提供对应的颜色按钮，同时选中多个节点或多条连接线时会一起修改：
+
+- **形状**：可以分别设置背景颜色（含“无填充”）、边框颜色（含“无边框”）和文字颜色。
+- **便签**：可以设置背景颜色（含“无填充”）和文字颜色。
+- **文字**：可以设置文字颜色。
+- **笔迹和连接线**：可以设置线条颜色。
+
+色板提供 8 个内置预设色（`gray`、`red`、`orange`、`yellow`、`green`、`blue`、`purple`、`pink`），会随亮暗主题自动调整对比度；点击色板末尾的调色盘按钮可以打开自定义取色器，输入或选取任意 CSS 颜色。设置为无边框的形状在悬停或编辑文字时会显示淡虚线轮廓，导出 SVG/PNG 时不绘制边框。
+
 ## 连接线
 
 鼠标移到形状、便签或文字上，四边中点会出现锚点。自定义的白板节点用 `ports: 'sides'` 就有一样的锚点，见[端口的显示时机](./custom-nodes#显示时机)。从锚点拖出连接线，拖到另一个形状上任意位置松开，会接到离松手处最近的锚点上。形状移动时连接线跟着走，双击可以加文字。松手处的节点接不上时，读屏会提示没有可以连接的端口。
 
-新画的连接线是直线、实线，终点带箭头。选中连接线后，浮动工具栏上有三个按钮，可以换：
+新画的连接线是直线、实线，终点带箭头。选中连接线后，浮动工具栏上有四个按钮，可以换：
 
 - 走向：直线、折线、曲线。折线中间那一段可以拖动。
 - 线型：实线、虚线、点线、点划线。箭头始终是实线。
 - 箭头：无箭头、终点箭头、两端箭头。
+- 线条颜色：默认色、内置预设色或自定义颜色，箭头随线条一起变色。
 
 同时选中多条连接线时，选择会作用到每一条。
 
@@ -152,6 +164,7 @@ whiteboardKit({
 | `route` | 走向                                                                                                 | `'straight' \| 'elbow' \| 'curve'`              | `'straight'` |
 | `dash`  | 线型                                                                                                 | `'solid' \| 'dashed' \| 'dotted' \| 'dash-dot'` | `'solid'`    |
 | `arrow` | 箭头画在哪一端                                                                                       | `'none' \| 'end' \| 'both'`                     | `'end'`      |
+| `color` | 线条和箭头的颜色，取预设色名、主题语气色或任意 CSS 颜色                                              | `WhiteboardColor`                               | —            |
 | `bend`  | 折线中间一段的位置，0 到 1，拖动折线时自动写入。整理后经过中间各层的折线没有中段把手，挪动一端后恢复 | `number`                                        | `0.5`        |
 
 ## 整理
@@ -184,18 +197,18 @@ const extensions = [
 
 白板上的东西都是普通节点，`type` 和 `data` 如下：
 
-| 类型     | `data`                                                      | 说明                           |
-| -------- | ----------------------------------------------------------- | ------------------------------ |
-| `shape`  | `{ shape: 'rect' \| 'ellipse' \| 'diamond', text?, tone? }` | 形状                           |
-| `sticky` | `{ text?, tone? }`                                          | 便签，默认 `tone` 是 `warning` |
-| `text`   | `{ text? }`                                                 | 文字，没有高度，随内容变高     |
-| `ink`    | `{ points, box, size?, tone? }`                             | 笔迹，见下文                   |
-| `image`  | `{ src, alt? }`                                             | 图片，`alt` 给读屏用           |
+| 类型     | `data`                                                                                  | 说明                                                           |
+| -------- | --------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `shape`  | `{ shape: 'rect' \| 'ellipse' \| 'diamond', text?, tone?, fill?, stroke?, textColor? }` | 形状，`stroke: 'none'` 表示无边框，`fill: 'none'` 表示透明填充 |
+| `sticky` | `{ text?, tone?, fill?, textColor? }`                                                   | 便签，默认 `tone` 是 `warning`                                 |
+| `text`   | `{ text?, color? }`                                                                     | 文字，没有高度，随内容变高                                     |
+| `ink`    | `{ points, box, size?, tone?, color? }`                                                 | 笔迹，见下文                                                   |
+| `image`  | `{ src, alt? }`                                                                         | 图片，`alt` 给读屏用                                           |
 
 - 每种节点的 `data` 都可以带 `rotation`。旋转只属于白板节点，所以放在 `data` 里；层级 `z` 是所有节点都有的绘制顺序，放在节点上。
 - 笔迹的 `points` 是 `x, y, 压力` 三个一组的平铺数组，坐标相对节点左上角；`box` 是画下时的宽高，节点被拉伸时笔迹跟着按比例拉伸；`size` 是鼠标、手指画出的线宽，默认 `4`，用触控笔时随压力在 0.4 到 1.6 倍之间变化。
 
-`tone` 取主题的语气色：`neutral`、`primary`、`success`、`warning`、`danger`。形状默认是 `neutral`，用正文颜色描边；其他颜色会给形状描边并淡淡地铺底，给便签铺底。
+颜色字段（`fill`、`stroke`、`textColor`、`color`）都可以取内置预设色（`gray`、`red`、`orange`、`yellow`、`green`、`blue`、`purple`、`pink`）、主题语气色（`neutral`、`primary`、`success`、`warning`、`danger`）或任意 CSS 颜色字符串。旧有的 `tone` 字段继续兼容：同时设置了 `fill`、`stroke` 或 `color` 时，对应通道以新字段为准。
 
 锚点是端口。每条边上有两个：作为起点的 `top`、`right`、`bottom`、`left`，和作为终点的 `top-in`、`right-in`、`bottom-in`、`left-in`。在数据里写连线时，`source` 用前一种，`target` 用带 `-in` 的：
 
@@ -258,6 +271,8 @@ type WhiteboardTool =
 | ------------------------------------------------------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | `shapeNode`、`stickyNode`、`textNode`、`inkNode`、`imageNode` | 节点类型，可以单独放进自己的扩展里             | `NodeTypeSpec`                                                                               |
 | `connectorEdge`                                               | 连接线的连线类型，`data` 见[连接线](#连接线)   | `EdgeTypeSpec`                                                                               |
+| `whiteboardColors`                                            | 内置 8 个随深浅色主题自适应的预设色名          | `readonly WhiteboardPaletteColor[]`                                                          |
+| `isWhiteboardColor`                                           | 判断字符串是否为内置白板预设色名               | `(value: unknown) => value is WhiteboardPaletteColor`                                        |
 | `whiteboardKeys`                                              | 每个工具的按键，用来在自己的工具栏上显示       | `Record<WhiteboardTool, string>`                                                             |
 | `imageKey`                                                    | 插入图片的按键                                 | `string`                                                                                     |
 | `pickImages`                                                  | 打开文件选择并插入选中的图片，给自己的工具栏用 | `(ctx: FlowEditorContext, options?: WhiteboardImageOptions) => void`                         |
@@ -273,6 +288,8 @@ type WhiteboardTool =
 
 ### CSS 变量
 
-| 变量                        | 说明                     |
-| --------------------------- | ------------------------ |
-| `--dou-flow-whiteboard-ink` | 形状、笔迹和连接线的颜色 |
+| 变量                            | 说明                                                             |
+| ------------------------------- | ---------------------------------------------------------------- |
+| `--dou-flow-whiteboard-ink`     | 形状、笔迹和连接线的默认描边颜色                                 |
+| `--dou-whiteboard-color-<色名>` | 内置预设色用于边框、连接线、笔迹和文字时的前景颜色（亮暗自适应） |
+| `--dou-whiteboard-fill-<色名>`  | 内置预设色用于形状和便签填充时的柔和背景颜色（亮暗自适应）       |

@@ -7,7 +7,7 @@ export {
   textNode,
   whiteboardKit,
 } from './kit'
-export { imageKey, whiteboardKeys } from './model'
+export { imageKey, isWhiteboardColor, whiteboardColors, whiteboardKeys } from './model'
 export { insertImages, pickImages } from './image'
 export type { WhiteboardKitOptions } from './kit'
 export type {
@@ -17,13 +17,17 @@ export type {
   WhiteboardUploadErrorHandler,
 } from './image'
 export type {
+  WhiteboardColor,
+  WhiteboardFill,
   WhiteboardImageData,
   WhiteboardInkData,
   WhiteboardNodeData,
+  WhiteboardPaletteColor,
   WhiteboardShape,
   WhiteboardShapeData,
   WhiteboardShapeTool,
   WhiteboardStickyData,
+  WhiteboardStroke,
   WhiteboardTextData,
   WhiteboardTool,
   WhiteboardArrow,

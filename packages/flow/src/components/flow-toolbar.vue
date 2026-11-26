@@ -308,7 +308,28 @@ watch(hidden, (isHidden) => {
               aria-haspopup="dialog"
               :aria-expanded="openColor === item.key"
             >
-              <component :is="item.icon" />
+              <span class="dou-flow-toolbar__color-glyph">
+                <component :is="item.icon" class="dou-flow-toolbar__color-icon" />
+                <svg
+                  v-if="(item.color.kind ?? 'stroke') !== 'text'"
+                  class="dou-flow-toolbar__color-bar"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <path
+                    v-if="item.color.swatch && item.color.kind === 'fill'"
+                    class="dou-flow-toolbar__color-bar-halo"
+                    d="M4 20h16"
+                    vector-effect="non-scaling-stroke"
+                  />
+                  <path
+                    class="dou-flow-toolbar__color-bar-line"
+                    :d="item.color.none ? 'M4 20h2.5 M10.75 20h2.5 M17.5 20h2.5' : 'M4 20h16'"
+                    vector-effect="non-scaling-stroke"
+                  />
+                </svg>
+              </span>
             </button>
             <template #content>
               <div class="dou-flow-color-popover__body">

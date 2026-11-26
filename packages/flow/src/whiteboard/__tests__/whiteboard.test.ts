@@ -2126,6 +2126,11 @@ describe('colors and borderless shapes', () => {
     await ticks()
     let buttons = root.findAll('.dou-flow-toolbar button')
     expect(buttons[0]!.attributes('aria-label')).toBe('背景颜色：无填充')
+    expect(buttons[0]!.find('.dou-flow-toolbar__color-bar-line').attributes('d')).toBe(
+      'M4 20h2.5 M10.75 20h2.5 M17.5 20h2.5',
+    )
+    expect(buttons[0]!.find('.dou-flow-toolbar__color-bar-halo').exists()).toBe(false)
+    expect(buttons[1]!.find('.dou-flow-toolbar__color-bar').exists()).toBe(false)
     await buttons[0]!.trigger('click')
     await ticks()
     let pop = colorPopover()!
@@ -2142,7 +2147,12 @@ describe('colors and borderless shapes', () => {
     pop.querySelector<HTMLButtonElement>('button[aria-label="蓝色"]')!.click()
     await ticks()
     expect(flow.value.nodes[0]!.data!.fill).toBe('blue')
-    await root.findAll('.dou-flow-toolbar button')[0]!.trigger('click')
+    const coloredFillBtn = root.findAll('.dou-flow-toolbar button')[0]!
+    expect(coloredFillBtn.find('.dou-flow-toolbar__color-bar-line').attributes('d')).toBe(
+      'M4 20h16',
+    )
+    expect(coloredFillBtn.find('.dou-flow-toolbar__color-bar-halo').exists()).toBe(true)
+    await coloredFillBtn.trigger('click')
     await ticks()
     colorPopover()!.querySelector<HTMLButtonElement>('.dou-flow-color-popover__none')!.click()
     await ticks()

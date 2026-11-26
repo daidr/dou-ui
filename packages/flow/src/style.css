@@ -1193,36 +1193,51 @@
 
   /* color picker button on the floating toolbar */
   .dou-flow-toolbar__color {
-    position: relative;
+    .dou-flow-toolbar__color-glyph {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+    }
 
-    &.is-kind-text.has-swatch svg > :last-child {
+    .dou-flow-toolbar__color-bar {
+      position: absolute;
+      inset: 0;
+      width: 16px;
+      height: 16px;
+      pointer-events: none;
+    }
+
+    .dou-flow-toolbar__color-bar-line {
+      stroke: currentColor;
+      stroke-width: calc(0.75px + 0.03125em);
+      stroke-linecap: round;
+    }
+
+    .dou-flow-toolbar__color-bar-halo {
+      stroke: color-mix(in oklab, var(--dou-color-text) 24%, transparent);
+      stroke-width: 3.75px;
+      stroke-linecap: round;
+    }
+
+    &:is(.is-kind-fill, .is-kind-stroke) .dou-flow-toolbar__color-icon {
+      transform: translateY(-2px) scale(0.8);
+    }
+
+    &.is-kind-text.has-swatch .dou-flow-toolbar__color-icon > :last-child {
       stroke: var(--dou-flow-swatch);
-      stroke-width: 2.5;
+      stroke-width: 2.5px;
     }
 
-    &:is(.is-kind-fill, .is-kind-stroke).has-swatch,
-    &.is-kind-fill.is-none {
-      & svg {
-        translate: 0 -1.5px;
-      }
-      &::after {
-        position: absolute;
-        bottom: 2.5px;
-        left: 50%;
-        box-sizing: border-box;
-        width: 14px;
-        height: 3px;
-        border-radius: 2px;
-        translate: -50% 0;
-        content: '';
-      }
+    &:is(.is-kind-fill, .is-kind-stroke).has-swatch .dou-flow-toolbar__color-bar-line {
+      stroke: var(--dou-flow-swatch);
+      stroke-width: 2.5px;
     }
-    &:is(.is-kind-fill, .is-kind-stroke).has-swatch::after {
-      background-color: var(--dou-flow-swatch);
-      box-shadow: 0 0 0 0.75px color-mix(in oklab, var(--dou-color-text) 24%, transparent);
-    }
-    &.is-kind-fill.is-none::after {
-      border: 1px dashed var(--dou-color-text-tertiary);
+
+    &:is(.is-kind-fill, .is-kind-stroke).is-none .dou-flow-toolbar__color-bar-line {
+      stroke: var(--dou-color-text-tertiary);
     }
   }
 

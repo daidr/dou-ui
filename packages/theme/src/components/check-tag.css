@@ -110,6 +110,8 @@
   }
 
   .dou-check-tag__label {
+    /* a flex item, so it may shrink below its text and let the ellipsis show */
+    min-width: 0;
     /* center on the cap height, as tags do; clip sideways only */
     text-box: trim-both cap alphabetic;
     overflow-x: clip;
@@ -131,5 +133,7 @@
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
+    min-width: 0;
+    max-width: 100%;
   }
 }

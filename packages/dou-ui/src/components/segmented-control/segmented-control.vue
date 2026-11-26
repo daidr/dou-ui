@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import {
+  Comment,
+  Fragment,
+  Text,
   computed,
+  createTextVNode,
+  h,
+  isVNode,
   nextTick,
   onBeforeUnmount,
   onMounted,
@@ -9,7 +15,9 @@ import {
   useTemplateRef,
   watch,
 } from 'vue'
+import type { VNode } from 'vue'
 import { useNamespace } from '../../utils/namespace'
+import { SlotNodes } from '../../utils/slot'
 import { useFormDisabled, useFormItem, useFormReadonly, useFormSize } from '../form/use-form-item'
 import type {
   SegmentedControlOption,
@@ -27,7 +35,7 @@ const props = withDefaults(defineProps<SegmentedControlProps>(), {
 // An explicit default stops Vue from reading a missing value as `false`.
 const model = defineModel<SegmentedControlValue | undefined>({ default: undefined })
 const emit = defineEmits<{ change: [value: SegmentedControlValue] }>()
-defineSlots<SegmentedControlSlots>()
+const slots = defineSlots<SegmentedControlSlots>()
 
 const ns = useNamespace('segmented-control')
 
@@ -103,7 +111,79 @@ function measure() {
   indicator.value = { left, width: layoutWidth(item) }
 }
 
+function flattenSlotNodes(nodes: unknown, out: VNode[] = []): VNode[] {
+  for (const node of Array.isArray(nodes) ? nodes : [nodes]) {
+    if (!isVNode(node)) {
+      if (typeof node === 'string' || typeof node === 'number') {
+        out.push(createTextVNode(String(node)))
+      }
+      continue
+    }
+    if (node.type === Fragment && Array.isArray(node.children)) {
+      flattenSlotNodes(node.children, out)
+      continue
+    }
+    out.push(node)
+  }
+  return out
+}
+
+function isTextOrComment(node: VNode) {
+  return node.type === Text || node.type === Comment
+}
+
+function hasNonBlankText(node: VNode) {
+  return node.type === Text && String(node.children ?? '').trim() !== ''
+}
+
+// Render `#option` during this component's own render so dynamic slot swaps always update.
+// Returns `undefined` when the slot is absent or renders nothing (e.g. `v-if="false"`),
+// falling back to the default option label; wraps bare text beside elements in a block-level
+// span so ellipsis truncation still works inside the flex label.
+function renderOption(option: SegmentedControlOption, checked: boolean): unknown[] | undefined {
+  if (!slots.option) return undefined
+  const rendered = slots.option({ option, checked })
+  const nodes = flattenSlotNodes(rendered)
+  const hasElement = nodes.some((node) => !isTextOrComment(node))
+  const hasText = nodes.some(hasNonBlankText)
+  if (!hasElement && !hasText) return undefined
+  if (!hasElement) return nodes
+  if (!hasText) return Array.isArray(rendered) ? rendered : [rendered]
+
+  const result: VNode[] = []
+  let textRun: VNode[] = []
+  const flush = () => {
+    if (!textRun.length) return
+    if (textRun.some(hasNonBlankText)) {
+      result.push(h('span', { class: ns.e('text') }, textRun))
+    } else {
+      result.push(...textRun)
+    }
+    textRun = []
+  }
+
+  for (const node of nodes) {
+    if (isTextOrComment(node)) {
+      textRun.push(node)
+    } else {
+      flush()
+      result.push(node)
+    }
+  }
+  flush()
+  return result
+}
+
 let observer: ResizeObserver | undefined
+
+function observeItems() {
+  if (!observer || !rootRef.value) return
+  observer.disconnect()
+  observer.observe(rootRef.value)
+  for (const item of rootRef.value.querySelectorAll<HTMLElement>(`.${ns.e('item')}`)) {
+    observer.observe(item)
+  }
+}
 
 onMounted(() => {
   // Measured in the next frame, before it is painted: controls mounting
@@ -115,13 +195,21 @@ onMounted(() => {
   })
   if (typeof ResizeObserver !== 'undefined' && rootRef.value) {
     observer = new ResizeObserver(() => measure())
-    observer.observe(rootRef.value)
-    for (const item of rootRef.value.children) observer.observe(item)
+    observeItems()
   }
 })
 onBeforeUnmount(() => observer?.disconnect())
 
-watch([model, options, size], () => nextTick(measure), { deep: true })
+watch(
+  options,
+  () =>
+    nextTick(() => {
+      observeItems()
+      measure()
+    }),
+  { deep: true },
+)
+watch([model, size, () => props.block], () => nextTick(measure))
 
 const indicatorStyle = computed(() =>
   indicator.value
@@ -175,9 +263,10 @@ const classes = computed(() => [
         @change="select(option)"
       />
       <span :class="ns.e('label')">
-        <slot name="option" :option="option" :checked="option.value === model">
-          {{ option.label ?? String(option.value) }}
-        </slot>
+        <template v-for="custom in [renderOption(option, option.value === model)]" :key="0">
+          <SlotNodes v-if="custom" :nodes="custom" />
+          <template v-else>{{ option.label ?? String(option.value) }}</template>
+        </template>
       </span>
     </label>
   </div>

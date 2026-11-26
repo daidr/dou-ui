@@ -115,6 +115,9 @@ interface Layout {
   table: { top: number; left: number; width: number; height: number }
   /** The visible part of the table, when it scrolls sideways. */
   frame: { left: number; right: number }
+  /** Where the "+" row button starts: under the table, or flush under its scrollbar track. */
+  rowAddTop: number
+  rowAddAfterScrollbar: boolean
   column: { left: number; width: number }
   row: { top: number; height: number }
   /**
@@ -143,11 +146,18 @@ function measure() {
   if (!current || !host || !at) return (layout.value = null)
   const tableNode = current.state.doc.nodeAt(at.pos)
   const frameElement = current.nodeDOM(at.pos) as HTMLElement | null
-  const tableElement = frameElement?.querySelector('table')
-  if (!tableNode || !frameElement || !tableElement) return (layout.value = null)
+  const viewportElement =
+    frameElement?.querySelector<HTMLElement>(':scope > .dou-editor-table__viewport') ?? frameElement
+  const tableElement = viewportElement?.querySelector('table')
+  if (!tableNode || !frameElement || !viewportElement || !tableElement) return (layout.value = null)
   const box = host.getBoundingClientRect()
   const tableBox = tableElement.getBoundingClientRect()
-  const frameBox = frameElement.getBoundingClientRect()
+  const frameBox = viewportElement.getBoundingClientRect()
+  const outerBox = frameElement.getBoundingClientRect()
+  const scrollable = frameElement.classList.contains('is-scrollable')
+  const barElement = scrollable
+    ? frameElement.querySelector<HTMLElement>(':scope > .dou-editor-table__scrollbar')
+    : null
   const first = cellElement(at.pos, at.rect.top, at.rect.left)?.getBoundingClientRect()
   if (!first) return (layout.value = null)
   let bar: Layout['bar'] = null
@@ -179,6 +189,11 @@ function measure() {
       left: Math.max(frameBox.left, tableBox.left) - box.left,
       right: frameBox.right - box.left,
     },
+    rowAddTop:
+      (scrollable
+        ? (barElement?.getBoundingClientRect().bottom ?? outerBox.bottom)
+        : tableBox.bottom) - box.top,
+    rowAddAfterScrollbar: scrollable,
     column: { left: first.left - box.left, width: first.width },
     row: { top: first.top - box.top, height: first.height },
     bar,
@@ -212,8 +227,13 @@ function schedule() {
       const element = lastTarget instanceof Element ? lastTarget : null
       const cell = element?.closest<HTMLElement>('.dou-editor-table td, .dou-editor-table th')
       const inControls = element?.closest('.dou-editor-table-controls')
+      // keep the controls alive while the pointer crosses the table's own scrollbar to reach the row "+" button
+      const inScrollbar =
+        !!hovered.value &&
+        element?.closest('.dou-editor-table__scrollbar')?.parentElement ===
+          view.value?.nodeDOM(hovered.value.pos)
       if (cell) hovered.value = targetOf(cell)
-      else if (!inControls) hovered.value = null
+      else if (!inControls && !inScrollbar) hovered.value = null
     }
     measure()
   })
@@ -691,8 +711,9 @@ const visible = computed(() => !!layout.value && !!target.value)
       type="button"
       tabindex="-1"
       class="dou-editor-table__add is-row"
+      :class="{ 'is-after-scrollbar': layout.rowAddAfterScrollbar }"
       :style="{
-        top: `${layout.table.top + layout.table.height}px`,
+        top: `${layout.rowAddTop}px`,
         left: `${layout.frame.left}px`,
         width: `${Math.min(layout.table.left + layout.table.width, layout.frame.right) - layout.frame.left}px`,
       }"

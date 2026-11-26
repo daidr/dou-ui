@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { TextSelection } from 'prosemirror-state'
 import { CellSelection, TableMap } from 'prosemirror-tables'
 import type { EditorView } from 'prosemirror-view'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { getBlockSelection, selectBlocks } from '../../../core/block-selection'
 import { blocksToHTML, htmlToBlocks } from '../../../core/convert'
 import { createEditorView } from '../../../core/editor'
@@ -364,74 +364,223 @@ describe('copying selected blocks', () => {
   })
 })
 
-describe('table horizontal scroll mask', () => {
-  it('fades clipped edges through mask-image rather than an overlay shadow', () => {
+function extractCssRule(css: string, selector: string) {
+  const start = css.indexOf(`\n  ${selector} {`)
+  expect(start).toBeGreaterThan(-1)
+  let depth = 0
+  let end = css.length
+  for (let i = start; i < css.length; i++) {
+    if (css[i] === '{') depth++
+    else if (css[i] === '}') {
+      depth--
+      if (depth === 0) {
+        end = i + 1
+        break
+      }
+    }
+  }
+  return css.slice(start, end)
+}
+
+function setupScrollMetrics(
+  viewport: HTMLElement,
+  bar: HTMLElement,
+  options: { clientWidth: number; scrollWidth: number; trackWidth: number; trackLeft?: number },
+) {
+  let left = 0
+  Object.defineProperty(viewport, 'clientWidth', {
+    configurable: true,
+    get: () => options.clientWidth,
+  })
+  Object.defineProperty(viewport, 'scrollWidth', {
+    configurable: true,
+    get: () => options.scrollWidth,
+  })
+  Object.defineProperty(viewport, 'scrollLeft', {
+    configurable: true,
+    get: () => left,
+    set: (value: number) => {
+      left = value
+    },
+  })
+  Object.defineProperty(bar, 'clientWidth', {
+    configurable: true,
+    get: () => options.trackWidth,
+  })
+  const trackLeft = options.trackLeft ?? 100
+  bar.getBoundingClientRect = () =>
+    ({
+      left: trackLeft,
+      right: trackLeft + options.trackWidth,
+      top: 0,
+      bottom: 10,
+      width: options.trackWidth,
+      height: 10,
+      x: trackLeft,
+      y: 0,
+      toJSON: () => ({}),
+    }) as DOMRect
+  return {
+    getLeft: () => left,
+    setLeft: (value: number) => {
+      left = value
+    },
+  }
+}
+
+describe('table horizontal scroll mask and custom scrollbar', () => {
+  it('fades clipped edges on the inner viewport and aligns the custom scrollbar to frame start', () => {
     const here = dirname(fileURLToPath(import.meta.url))
     const css = readFileSync(resolve(here, '../../../style.css'), 'utf8').replace(
       /\/\*[\s\S]*?\*\//g,
       '',
     )
-    const start = css.indexOf('\n  .dou-editor__content--table {')
-    expect(start).toBeGreaterThan(-1)
-    let depth = 0
-    let end = css.length
-    for (let i = start; i < css.length; i++) {
-      if (css[i] === '{') depth++
-      else if (css[i] === '}') {
-        depth--
-        if (depth === 0) {
-          end = i + 1
-          break
-        }
-      }
-    }
-    const rule = css.slice(start, end)
+    const viewportRule = extractCssRule(css, '.dou-editor-table__viewport')
+    const barRule = extractCssRule(css, '.dou-editor-table__scrollbar')
+
     expect(css).toMatch(/--dou-editor-scroll-fade:\s*24px/)
     expect(css).not.toMatch(/--dou-editor-scroll-shadow/)
-    expect(rule).not.toMatch(/&::before|&::after/)
-    expect(rule).toMatch(/&\.is-cut-start\s*\{[^}]*mask-image:\s*linear-gradient\(/)
-    expect(rule).toMatch(/&\.is-cut-end\s*\{[^}]*mask-image:\s*linear-gradient\(/)
-    expect(rule).toMatch(/&\.is-cut-start\.is-cut-end\s*\{[^}]*mask-image:\s*linear-gradient\(/)
-    expect(rule).toMatch(/var\(--dou-editor-scroll-fade\)/)
+    expect(viewportRule).not.toMatch(/&::before|&::after/)
+    expect(viewportRule).toMatch(/scrollbar-width:\s*none/)
+    expect(viewportRule).toMatch(/&::-webkit-scrollbar\s*\{[^}]*display:\s*none/)
+    expect(viewportRule).toMatch(/&\.is-cut-start\s*\{[^}]*mask-image:\s*linear-gradient\(/)
+    expect(viewportRule).toMatch(/&\.is-cut-end\s*\{[^}]*mask-image:\s*linear-gradient\(/)
+    expect(viewportRule).toMatch(
+      /&\.is-cut-start\.is-cut-end\s*\{[^}]*mask-image:\s*linear-gradient\(/,
+    )
+    expect(viewportRule).toMatch(/var\(--dou-editor-scroll-fade\)/)
+    expect(barRule).toMatch(/inset-inline-start:\s*var\(--dou-editor-frame-start,\s*0px\)/)
   })
 
-  it('toggles is-cut-start and is-cut-end on scroll for LTR and RTL frames', () => {
+  it('toggles is-cut-start and is-cut-end on viewport scroll for LTR and RTL', () => {
     const target = create([grid])
-    const frame = target.dom.querySelector('.dou-editor__content--table') as HTMLElement
-    let left = 0
-    Object.defineProperty(frame, 'clientWidth', { configurable: true, get: () => 400 })
-    Object.defineProperty(frame, 'scrollWidth', { configurable: true, get: () => 900 })
-    Object.defineProperty(frame, 'scrollLeft', {
-      configurable: true,
-      get: () => left,
-      set: (value: number) => {
-        left = value
-      },
+    const viewport = target.dom.querySelector('.dou-editor-table__viewport') as HTMLElement
+    const bar = target.dom.querySelector('.dou-editor-table__scrollbar') as HTMLElement
+    const scroll = setupScrollMetrics(viewport, bar, {
+      clientWidth: 400,
+      scrollWidth: 900,
+      trackWidth: 300,
     })
 
-    frame.dispatchEvent(new Event('scroll'))
-    expect(frame.classList.contains('is-cut-start')).toBe(false)
-    expect(frame.classList.contains('is-cut-end')).toBe(true)
+    viewport.dispatchEvent(new Event('scroll'))
+    expect(viewport.classList.contains('is-cut-start')).toBe(false)
+    expect(viewport.classList.contains('is-cut-end')).toBe(true)
 
-    left = 200
-    frame.dispatchEvent(new Event('scroll'))
-    expect(frame.classList.contains('is-cut-start')).toBe(true)
-    expect(frame.classList.contains('is-cut-end')).toBe(true)
+    scroll.setLeft(200)
+    viewport.dispatchEvent(new Event('scroll'))
+    expect(viewport.classList.contains('is-cut-start')).toBe(true)
+    expect(viewport.classList.contains('is-cut-end')).toBe(true)
 
-    left = 500
-    frame.dispatchEvent(new Event('scroll'))
-    expect(frame.classList.contains('is-cut-start')).toBe(true)
-    expect(frame.classList.contains('is-cut-end')).toBe(false)
+    scroll.setLeft(500)
+    viewport.dispatchEvent(new Event('scroll'))
+    expect(viewport.classList.contains('is-cut-start')).toBe(true)
+    expect(viewport.classList.contains('is-cut-end')).toBe(false)
 
     // RTL negative scrollLeft
-    left = -200
-    frame.dispatchEvent(new Event('scroll'))
-    expect(frame.classList.contains('is-cut-start')).toBe(true)
-    expect(frame.classList.contains('is-cut-end')).toBe(true)
+    scroll.setLeft(-200)
+    viewport.dispatchEvent(new Event('scroll'))
+    expect(viewport.classList.contains('is-cut-start')).toBe(true)
+    expect(viewport.classList.contains('is-cut-end')).toBe(true)
 
-    left = -500
-    frame.dispatchEvent(new Event('scroll'))
-    expect(frame.classList.contains('is-cut-start')).toBe(true)
-    expect(frame.classList.contains('is-cut-end')).toBe(false)
+    scroll.setLeft(-500)
+    viewport.dispatchEvent(new Event('scroll'))
+    expect(viewport.classList.contains('is-cut-start')).toBe(true)
+    expect(viewport.classList.contains('is-cut-end')).toBe(false)
+  })
+
+  it('sizes and moves the custom scrollbar thumb, and toggles scrolling state', () => {
+    vi.useFakeTimers()
+    try {
+      const target = create([grid])
+      const frame = target.dom.querySelector('.dou-editor__content--table') as HTMLElement
+      const viewport = frame.querySelector('.dou-editor-table__viewport') as HTMLElement
+      const bar = frame.querySelector('.dou-editor-table__scrollbar') as HTMLElement
+      const thumb = bar.querySelector('.dou-editor-table__scrollbar-thumb') as HTMLElement
+      expect(bar.getAttribute('aria-hidden')).toBe('true')
+      expect(bar.contentEditable).toBe('false')
+
+      const scroll = setupScrollMetrics(viewport, bar, {
+        clientWidth: 400,
+        scrollWidth: 800,
+        trackWidth: 200,
+      })
+
+      viewport.dispatchEvent(new Event('scroll'))
+      expect(frame.classList.contains('is-scrollable')).toBe(true)
+      expect(frame.classList.contains('is-scrolling')).toBe(true)
+      expect(bar.classList.contains('is-active')).toBe(true)
+      // 400 / 800 * 200 = 100px thumb
+      expect(thumb.style.width).toBe('100px')
+      expect(thumb.style.transform).toBe('translateX(0px)')
+
+      // halfway scrolled -> thumb shifts half of free space (50px)
+      scroll.setLeft(200)
+      viewport.dispatchEvent(new Event('scroll'))
+      expect(thumb.style.transform).toBe('translateX(50px)')
+
+      // after idle delay, scrolling indicator clears
+      vi.advanceTimersByTime(1000)
+      expect(frame.classList.contains('is-scrolling')).toBe(false)
+
+      // RTL: thumb translates negatively from inline-start (right)
+      viewport.style.direction = 'rtl'
+      scroll.setLeft(-200)
+      viewport.dispatchEvent(new Event('scroll'))
+      expect(thumb.style.transform).toBe('translateX(-50px)')
+
+      // no overflow -> scrollbar deactivates
+      viewport.style.direction = ''
+      Object.defineProperty(viewport, 'scrollWidth', { configurable: true, get: () => 400 })
+      viewport.dispatchEvent(new Event('scroll'))
+      expect(frame.classList.contains('is-scrollable')).toBe(false)
+      expect(bar.classList.contains('is-active')).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('supports dragging the thumb and clicking the track without moving the selection', () => {
+    const target = create([grid])
+    const frame = target.dom.querySelector('.dou-editor__content--table') as HTMLElement
+    const viewport = frame.querySelector('.dou-editor-table__viewport') as HTMLElement
+    const bar = frame.querySelector('.dou-editor-table__scrollbar') as HTMLElement
+    const thumb = bar.querySelector('.dou-editor-table__scrollbar-thumb') as HTMLElement
+    const scroll = setupScrollMetrics(viewport, bar, {
+      clientWidth: 400,
+      scrollWidth: 800,
+      trackWidth: 200,
+      trackLeft: 100,
+    })
+
+    // prime thumb size: 100px thumb, 100px free track, 400px scroll room -> 4px scroll per 1px drag
+    viewport.dispatchEvent(new Event('scroll'))
+
+    const down = new MouseEvent('mousedown', { bubbles: true, cancelable: true })
+    bar.dispatchEvent(down)
+    expect(down.defaultPrevented).toBe(true)
+
+    // click track at x=250 (150px from trackLeft=100; centered thumb offset = 150 - 50 = 100 -> ratio 1 -> scrollLeft 400)
+    bar.dispatchEvent(
+      new PointerEvent('pointerdown', { button: 0, clientX: 250, bubbles: true, cancelable: true }),
+    )
+    expect(scroll.getLeft()).toBe(400)
+    expect(thumb.style.transform).toBe('translateX(100px)')
+
+    // drag thumb left by 50px -> scrollLeft 400 - 200 = 200
+    thumb.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        button: 0,
+        clientX: 250,
+        pointerId: 1,
+        bubbles: true,
+        cancelable: true,
+      }),
+    )
+    expect(frame.classList.contains('is-dragging')).toBe(true)
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 200, pointerId: 1 }))
+    expect(scroll.getLeft()).toBe(200)
+    expect(thumb.style.transform).toBe('translateX(50px)')
+    window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1 }))
+    expect(frame.classList.contains('is-dragging')).toBe(false)
   })
 })

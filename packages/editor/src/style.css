@@ -1209,7 +1209,7 @@
    * its left edge, stay clear of the block handle in the gap before it
    */
   .dou-editor__content--column + .dou-editor__group .dou-editor__content--table {
-    padding-inline-start: 12px;
+    --dou-editor-frame-start: 12px;
   }
 
   /* while editing, pointing at a set of columns outlines them, empty ones too */
@@ -1281,12 +1281,39 @@
   /* table */
 
   .dou-editor__content--table {
-    display: flex;
+    --dou-editor-frame-start: 0px;
+    --dou-editor-frame-end: 0px;
+
+    position: relative;
     margin-block: 4px;
     /* room for the column handles over the first row */
     padding-block: 8px 4px;
+
+    /* room for the custom horizontal scrollbar under overflowing tables,
+       leaving space so the row "+" button stays clear of both the bar and
+       the next block */
+    &.is-scrollable {
+      padding-block-end: 22px;
+    }
+
+    &.is-dragging {
+      user-select: none;
+    }
+  }
+
+  .dou-editor-table__viewport {
+    display: flex;
+    /* absorb vertical bleed from cell borders / column resize handles without vertical overflow */
+    margin-block: -2px;
+    padding-block: 2px;
+    padding-inline: var(--dou-editor-frame-start) var(--dou-editor-frame-end);
     overflow-x: auto;
     overscroll-behavior-x: contain;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
 
     & > .dou-editor-table {
       flex: none;
@@ -1295,7 +1322,7 @@
     /*
      * Fade any side that cuts columns off through a mask rather than an
      * overlay shadow, so the table blends cleanly over any surface, callout
-     * or selection tint.
+     * or selection tint, without fading the custom scrollbar outside it.
      */
     &.is-cut-start {
       mask-image: linear-gradient(to right, transparent, #000 var(--dou-editor-scroll-fade));
@@ -1325,14 +1352,84 @@
   }
 
   /*
+   * Custom horizontal scrollbar aligned to the table's start edge (the text
+   * column's start for top-level wide tables). Quiet until hovered, scrolling
+   * or dragged, matching DouScrollbar's look and tokens.
+   */
+  .dou-editor-table__scrollbar {
+    position: absolute;
+    z-index: 1;
+    inset-inline-start: var(--dou-editor-frame-start, 0px);
+    inset-inline-end: 2px;
+    bottom: 8px;
+    height: 14px;
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--dou-motion-duration-normal) var(--dou-motion-easing);
+
+    /* hidden, not removed, so the track can still be measured */
+    &.is-active {
+      visibility: visible;
+    }
+  }
+
+  .dou-editor__content--table:hover > .dou-editor-table__scrollbar.is-active,
+  .dou-editor__content--table.is-scrolling > .dou-editor-table__scrollbar.is-active,
+  .dou-editor__content--table.is-dragging > .dou-editor-table__scrollbar.is-active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .dou-editor-table__scrollbar-thumb {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: 0;
+    height: var(--dou-scrollbar-size, 6px);
+    margin-block: auto;
+    border-radius: var(--dou-radius-full, 9999px);
+    background-color: var(
+      --dou-scrollbar-thumb,
+      color-mix(in oklab, var(--dou-color-text) 24%, transparent)
+    );
+    cursor: default;
+    touch-action: none;
+    transition-property: background-color, height;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+  }
+
+  .dou-editor-table__scrollbar:hover .dou-editor-table__scrollbar-thumb,
+  .dou-editor__content--table.is-dragging .dou-editor-table__scrollbar-thumb {
+    height: var(--dou-scrollbar-size-hover, 8px);
+    background-color: var(
+      --dou-scrollbar-thumb-hover,
+      color-mix(in oklab, var(--dou-color-text) 40%, transparent)
+    );
+  }
+
+  @media (pointer: coarse) {
+    .dou-editor__content--table:hover > .dou-editor-table__scrollbar.is-active {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .dou-editor__content--table.is-scrolling > .dou-editor-table__scrollbar.is-active {
+      opacity: 1;
+      pointer-events: none;
+    }
+  }
+
+  /*
    * a top-level table, with a reading width: its frame reaches across the
-   * margins on both sides, and the padding before the table keeps it in line
-   * with the text. A wide table takes the right margin first; wider still, it
-   * scrolls, and scrolling takes the padding away first, so its left edge
-   * moves out to 10px from the editor's edge before the columns move; 28px stay after
-   * the table for the "+" bar. The margins are the
-   * surface's padding, which the table extension measures in px and sets on
-   * the mount (0 until then, and with no reading width).
+   * margins on both sides, and the viewport's start padding keeps the table
+   * in line with the text while the custom scrollbar starts at the same edge.
+   * A wide table takes the right margin first; wider still, it scrolls, and
+   * scrolling takes the padding away first, so its left edge moves out to
+   * 10px from the editor's edge before the columns move; 28px stay after the
+   * table for the "+" bar. The margins are the surface's padding, which the
+   * table extension measures in px and sets on the mount (0 until then, and
+   * with no reading width).
    */
   .dou-editor__mount > .dou-editor__surface > .dou-editor__block > .dou-editor__content--table {
     /* scrolled, the table stops 10px short of the editor's edge: room for its row handles */
@@ -1343,7 +1440,6 @@
     --dou-editor-frame-end: min(var(--dou-editor-bleed-end), 28px);
 
     margin-inline: calc(-1 * var(--dou-editor-bleed-start)) calc(-1 * var(--dou-editor-bleed-end));
-    padding-inline: var(--dou-editor-frame-start) var(--dou-editor-frame-end);
   }
 
   /*
@@ -1534,6 +1630,10 @@
     &.is-row {
       height: 16px;
       margin-block-start: 4px;
+
+      &.is-after-scrollbar {
+        margin-block-start: 0;
+      }
     }
 
     & svg {

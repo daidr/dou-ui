@@ -698,8 +698,10 @@ const edgeHandles = computed(() => {
   const item = edgeRoutes.value.find((e) => e.edge.id === id)
   if (!item) return null
   const ends: { end: 'source' | 'target'; at: EdgeAnchor }[] = []
-  if (!item.folded.source) ends.push({ end: 'source', at: item.source })
-  if (!item.folded.target) ends.push({ end: 'target', at: item.target })
+  if (!item.folded.source && resolvedPortEnd(item.edge.target, 'target'))
+    ends.push({ end: 'source', at: item.source })
+  if (!item.folded.target && resolvedPortEnd(item.edge.source, 'source'))
+    ends.push({ end: 'target', at: item.target })
   return ends.length ? { edge: item.edge, ends } : null
 })
 
@@ -1507,7 +1509,7 @@ type Gesture =
 
 /** An edge being drawn: one end stays, the other follows the pointer. */
 interface Link {
-  fixed: FlowEndpoint
+  fixed: Required<FlowEndpoint>
   /** The original fixed end when it omitted `port`, kept as-is when reconnecting. */
   fixedRaw?: FlowEndpoint
   /** Which end of the edge is moving. */
@@ -1517,6 +1519,8 @@ interface Link {
   /** Where the moving end is, in canvas coordinates. */
   point: Point
   candidate: Required<FlowEndpoint> | null
+  /** A non-container node currently under the pointer. */
+  over?: string | null
   /** A port under the pointer that can't be joined, and why. */
   refused?: { end: Required<FlowEndpoint>; refusal: JoinRefusal } | null
   /** Ports the moving end may land on: port ids by node. */
@@ -2105,7 +2109,9 @@ const canConnect = computed(() => {
 const connectOptions = () => ({
   portTypes: portTypes.value,
   acyclic: props.acyclic,
-  canConnect: canConnect.value,
+  canConnect: canConnect.value
+    ? (connection: FlowConnection) => canConnect.value!(connection, toRaw(doc.value))
+    : undefined,
 })
 
 const sameEnd = (a: FlowEndpoint, b: FlowEndpoint) => a.node === b.node && a.port === b.port
@@ -2122,14 +2128,41 @@ function resolveEndpoint(end: FlowEndpoint, role: 'source' | 'target'): FlowEndp
   return match ? { node: end.node, port: match.id } : end
 }
 
+/** Resolves an endpoint to a concrete port that currently exists with the matching direction. */
+function resolvedPortEnd(
+  end: FlowEndpoint,
+  role: 'source' | 'target',
+): Required<FlowEndpoint> | null {
+  const next = resolveEndpoint(end, role)
+  if (next.port == null) return null
+  const spec = portSpec(next)
+  if (!spec || spec.kind !== (role === 'source' ? 'output' : 'input')) return null
+  return next as Required<FlowEndpoint>
+}
+
+/** Document view with omitted edge ports resolved to concrete side ports for join checks. */
+function connectDoc(): FlowDocument {
+  const raw = toRaw(doc.value)
+  if (raw.edges.every((e) => e.source.port != null && e.target.port != null)) return raw
+  return {
+    ...raw,
+    edges: raw.edges.map((e) => {
+      const source = resolveEndpoint(e.source, 'source')
+      const target = resolveEndpoint(e.target, 'target')
+      return source === e.source && target === e.target ? e : { ...e, source, target }
+    }),
+  }
+}
+
 /** Picks up either end of an existing edge so it can be reconnected or disconnected. */
 function linkFromEdge(edge: FlowEdge, moving: 'source' | 'target'): Link | null {
   const fixedRole = moving === 'target' ? 'source' : 'target'
   const rawFixed = edge[fixedRole]
   const rawMoving = edge[moving]
+  const fixed = resolvedPortEnd(rawFixed, fixedRole)
+  if (!fixed) return null
   const point = anchorOf(edgeEnd(rawMoving), moving)
   if (!point) return null
-  const fixed = resolveEndpoint(rawFixed, fixedRole)
   const base: Omit<Link, 'valid'> = {
     fixed,
     fixedRaw: rawFixed.port == null ? rawFixed : undefined,
@@ -2159,9 +2192,10 @@ function linkFrom(at: Required<FlowEndpoint>): Link | null {
   if (port.kind === 'input')
     for (const e of doc.value.edges)
       if (e.target.node === at.node && e.target.port === at.port) taken = e
-  if (taken && taken.source.port != null) {
+  const fixed = taken && taken.source.port != null ? resolvedPortEnd(taken.source, 'source') : null
+  if (taken && fixed) {
     link = {
-      fixed: taken.source as Required<FlowEndpoint>,
+      fixed,
       moving: 'target',
       edge: taken.id,
       point: anchorOf(at, 'target') ?? { x: 0, y: 0 },
@@ -2189,8 +2223,9 @@ const connectionOf = (
 function validEnds(link: Pick<Link, 'fixed' | 'moving' | 'edge'>) {
   const valid = new Map<string, Set<string>>()
   const fixedPort = portSpec(link.fixed)
-  if (!fixedPort || link.fixed.port == null) return valid
-  const fixed = link.fixed as Required<FlowEndpoint>
+  if (!fixedPort) return valid
+  const fixed = link.fixed
+  const normalized = connectDoc()
   const options = connectOptions()
   for (const node of doc.value.nodes) {
     const ids = new Set<string>()
@@ -2203,7 +2238,7 @@ function validEnds(link: Pick<Link, 'fixed' | 'moving' | 'edge'>) {
         link.moving === 'target'
           ? { source: fixedPort, target: port }
           : { source: port, target: fixedPort }
-      if (canJoin(toRaw(doc.value), connection, ports, options, link.edge)) ids.add(port.id)
+      if (canJoin(normalized, connection, ports, options, link.edge)) ids.add(port.id)
     }
     if (ids.size) valid.set(node.id, ids)
   }
@@ -2212,6 +2247,29 @@ function validEnds(link: Pick<Link, 'fixed' | 'moving' | 'edge'>) {
 
 /** How close, in screen px, the pointer must come to a port to snap to it. */
 const MAGNET = 24
+
+/** The topmost non-container node under the pointer, if any. */
+function nodeUnderLink(point: Point, client: Point): string | null {
+  const scope = root.value?.getRootNode() as Document | ShadowRoot | undefined
+  const under = scope?.elementFromPoint?.(client.x, client.y)
+  const hit =
+    under && root.value?.contains(under)
+      ? under.closest<HTMLElement>('[data-node-id]')?.dataset.nodeId
+      : undefined
+  if (hit) {
+    const node = nodeById.value.get(hit)
+    if (node && !isContainer(node) && !hiddenIn.value.has(node.id)) return node.id
+  }
+  for (let i = doc.value.nodes.length - 1; i >= 0; i--) {
+    const node = doc.value.nodes[i]!
+    if (isContainer(node) || hiddenIn.value.has(node.id)) continue
+    const r = rectOf(node)
+    const rot = nodeRotation(node.id)
+    const p = rot ? turn(point, { x: r.x + r.width / 2, y: r.y + r.height / 2 }, -rot) : point
+    if (p.x >= r.x && p.x <= r.x + r.width && p.y >= r.y && p.y <= r.y + r.height) return node.id
+  }
+  return null
+}
 
 function updateLink(g: Extract<Gesture, { kind: 'connect' }>) {
   const link = g.link
@@ -2225,33 +2283,51 @@ function updateLink(g: Extract<Gesture, { kind: 'connect' }>) {
     if (d <= limit && (!best || d < best.d)) best = { end: { node, port }, d }
   }
   for (const [node, ports] of link.valid) for (const port of ports) consider(node, port, radius)
+  const over = nodeUnderLink(point, g.client)
   // Dropping anywhere on a node picks its nearest free port.
-  if (!best) {
-    const over = document
-      .elementFromPoint(g.client.x, g.client.y)
-      ?.closest<HTMLElement>('[data-node-id]')?.dataset.nodeId
-    for (const port of (over && link.valid.get(over)) || []) consider(over!, port, Infinity)
+  if (!best && over) {
+    for (const port of link.valid.get(over) || []) consider(over, port, Infinity)
   }
   const candidate = (best as { end: Required<FlowEndpoint> } | null)?.end ?? null
-  g.link = { ...link, point, candidate, refused: candidate ? null : refusedAt(link, point, radius) }
+  g.link = {
+    ...link,
+    point,
+    candidate,
+    over: candidate ? null : over,
+    refused: candidate ? null : refusedAt(link, point, radius, over),
+  }
   gesture.value = { ...g }
 }
 
-/** The nearest port within `radius` of `point` that the link can't land on, and why. */
-function refusedAt(link: Link, point: Point, radius: number) {
+/** The nearest port within `radius` (or on the hovered node) that the link can't land on, and why. */
+function refusedAt(link: Link, point: Point, radius: number, over: string | null) {
   const fixedPort = portSpec(link.fixed)
-  if (!fixedPort || link.fixed.port == null) return null
-  const fixed = link.fixed as Required<FlowEndpoint>
-  let best: { end: Required<FlowEndpoint>; d: number } | null = null
-  for (const node of doc.value.nodes)
+  if (!fixedPort) return null
+  const fixed = link.fixed
+  const wantedKind = link.moving === 'target' ? 'input' : 'output'
+  let best: { end: Required<FlowEndpoint>; d: number; matchKind: boolean } | null = null
+  const checkNode = (node: FlowNode, limit: number) => {
     for (const port of portsOf(specOf(node), node)) {
       if (link.valid.get(node.id)?.has(port.id)) continue
       const end = { node: node.id, port: port.id }
       if (end.node === fixed.node && end.port === fixed.port) continue
       const at = anchorOf(end, link.moving)
       const d = at ? Math.hypot(at.x - point.x, at.y - point.y) : Infinity
-      if (d <= radius && (!best || d < best.d)) best = { end, d }
+      if (d > limit) continue
+      const matchKind = port.kind === wantedKind
+      if (!best || (matchKind && !best.matchKind) || (matchKind === best.matchKind && d < best.d)) {
+        best = { end, d, matchKind }
+      }
     }
+  }
+  for (const node of doc.value.nodes) {
+    if (hiddenIn.value.has(node.id)) continue
+    checkNode(node, radius)
+  }
+  if (!best && over) {
+    const node = nodeById.value.get(over)
+    if (node && !isContainer(node) && !hiddenIn.value.has(node.id)) checkNode(node, Infinity)
+  }
   if (!best) return null
   const { end } = best as { end: Required<FlowEndpoint> }
   const port = portSpec(end)!
@@ -2260,7 +2336,7 @@ function refusedAt(link: Link, point: Point, radius: number) {
       ? { source: fixedPort, target: port }
       : { source: port, target: fixedPort }
   const refusal = joinRefusal(
-    toRaw(doc.value),
+    connectDoc(),
     connectionOf({ fixed, moving: link.moving }, end),
     ports,
     connectOptions(),
@@ -2275,16 +2351,6 @@ function refusalText(refusal: JoinRefusal) {
   return messages.value.refused[refusal.reason]
 }
 
-/** Whether a link was let go over a node other than its own. */
-function overNode(link: Link) {
-  const { x, y } = link.point
-  return doc.value.nodes.some((node) => {
-    if (node.id === link.fixed.node || isContainer(node)) return false
-    const r = rectOf(node)
-    return x >= r.x && x <= r.x + r.width && y >= r.y && y <= r.y + r.height
-  })
-}
-
 /** Adds or updates the edge a link describes, replacing what it must. */
 function finishLink(link: Link, event?: MouseEvent) {
   const { candidate } = link
@@ -2292,16 +2358,18 @@ function finishLink(link: Link, event?: MouseEvent) {
     if (link.refused) {
       // Dropped on a port that can't take it: say why, and leave things as they were.
       announce(refusalText(link.refused.refusal))
-    } else if (!link.edge && overNode(link)) {
-      // Dropped on a node with no port that can take it.
-      announce(messages.value.noTarget)
+    } else if (link.over) {
+      // Dropped on a node with no port that can take it: never detach an existing edge.
+      announce(
+        link.over === link.fixed.node ? messages.value.refused.self : messages.value.noTarget,
+      )
     } else if (link.edge) {
-      // Dropping a picked-up edge on nothing removes it.
+      // Dropping a picked-up edge on empty canvas removes it.
       const id = link.edge
       const tr = transact((t) => t.removeEdge(id))
       if (tr.changed) announce(format(messages.value.deleted, { count: 1 }))
-    } else if (event && link.fixed.port != null) {
-      const from = link.fixed as Required<FlowEndpoint>
+    } else if (event) {
+      const from = link.fixed
       emit('connectToCanvas', from, link.point, event)
       if (!event.defaultPrevented && paletteTypes.value.length) {
         quickAdd.value = {
@@ -2315,25 +2383,21 @@ function finishLink(link: Link, event?: MouseEvent) {
     }
     return
   }
-  if (link.fixed.port == null) return
-  const fixed = link.fixed as Required<FlowEndpoint>
+  const fixed = link.fixed
   const connection = connectionOf({ fixed, moving: link.moving }, candidate)
   const source = portSpec(connection.source)
   const target = portSpec(connection.target)
   const displaced =
-    source && target
-      ? displacedEdges(toRaw(doc.value), connection, { source, target }, link.edge)
-      : []
+    source && target ? displacedEdges(connectDoc(), connection, { source, target }, link.edge) : []
   if (link.edge) {
     const existing = doc.value.edges.find((e) => e.id === link.edge)
     if (!existing) return
-    const fixedEnd = link.fixedRaw ?? fixed
-    const nextSource = link.moving === 'target' ? fixedEnd : candidate
-    const nextTarget = link.moving === 'target' ? candidate : fixedEnd
-    if (sameEnd(existing.source, nextSource) && sameEnd(existing.target, nextTarget)) return
+    const originalSource = resolveEndpoint(existing.source, 'source')
+    const originalTarget = resolveEndpoint(existing.target, 'target')
+    if (sameEnd(originalSource, connection.source) && sameEnd(originalTarget, connection.target))
+      return
     const patch: Partial<FlowEdge> = {
-      ...(!sameEnd(existing.source, nextSource) ? { source: nextSource } : {}),
-      ...(!sameEnd(existing.target, nextTarget) ? { target: nextTarget } : {}),
+      ...(link.moving === 'source' ? { source: candidate } : { target: candidate }),
       ...(existing.points ? { points: undefined } : {}),
     }
     const tr = transact((t) => {
@@ -2384,7 +2448,7 @@ const previewEdge = computed(() => {
     route,
     style: moved ? edgeStyle(moved) : undefined,
     reconnecting: !!link.edge,
-    detaching: !!link.edge && !link.candidate && !link.refused,
+    detaching: !!link.edge && !link.candidate && !link.refused && !link.over,
     snapped: !!link.edge && !!link.candidate,
     end: { x: b.x, y: b.y },
   }
@@ -2402,7 +2466,7 @@ const portStates = computed(() => {
     ports.set(end.port, state)
   }
   for (const [node, ports] of link.valid) for (const port of ports) set({ node, port }, 'valid')
-  if (link.fixed.port != null) set(link.fixed as Required<FlowEndpoint>, 'active')
+  set(link.fixed, 'active')
   if (link.candidate) set(link.candidate, 'candidate')
   if (link.refused) set(link.refused.end, 'refused')
   return states
@@ -3868,7 +3932,9 @@ const classes = computed(() => ({
   'is-space': spaceHeld.value,
   'is-dragging': !!dragging.value,
   'is-connecting': !!connecting.value,
-  'is-refused': !!connecting.value?.refused,
+  'is-refused':
+    !!connecting.value &&
+    (!!connecting.value.refused || (!connecting.value.candidate && !!connecting.value.over)),
   'is-bordered': props.bordered,
 }))
 

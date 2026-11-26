@@ -609,6 +609,20 @@ describe('in the editor', () => {
       expect(boardIn(view).edges[0]!.target.node).toBe('n2')
       expect(editor.undo()).toBe(false)
 
+      // Dragging omitted-port target away and back onto n2's default anchor leaves no undo step.
+      const sameHandle = root.querySelector<HTMLElement>(
+        '.dou-flow-editor__edge-end[data-edge-end="target"]',
+      )!
+      sameHandle.dispatchEvent(pointer('pointerdown', 240, 60))
+      root.dispatchEvent(pointer('pointermove', 500, 120))
+      root.dispatchEvent(pointer('pointermove', 240, 60))
+      root.dispatchEvent(pointer('pointerup', 240, 60))
+      await nextTick()
+      expect(boardIn(view).edges).toEqual([
+        { id: 'e1', source: { node: 'n1' }, target: { node: 'n2' } },
+      ])
+      expect(editor.undo()).toBe(false)
+
       // Drag target endpoint to n3's left-in port at (240, 260) as one undo step.
       const activeHandle = root.querySelector<HTMLElement>(
         '.dou-flow-editor__edge-end[data-edge-end="target"]',

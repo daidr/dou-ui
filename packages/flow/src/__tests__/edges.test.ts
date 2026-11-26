@@ -542,6 +542,194 @@ describe('edge endpoint handles', () => {
     expect(doc.value.edges.map((e) => e.id)).toEqual(['e1', 'e2'])
     expect(doc.value.edges[0]!.target).toEqual({ node: 'b', port: 'in' })
   })
+
+  it('never detaches when dropped on an incompatible, portless, or single-port self node body, only on empty canvas or container space', async () => {
+    const { root, doc, editor, selection } = await setup({ extensions: [flowKit()] })
+    doc.value = {
+      version: 1,
+      nodes: [
+        {
+          id: 'group',
+          type: 'group',
+          x: 560,
+          y: 0,
+          width: 240,
+          height: 200,
+          data: { label: '分组' },
+        },
+        {
+          id: 'a',
+          x: 0,
+          y: 0,
+          data: { label: '源', outputs: [{ id: 'out', dataType: 'text' }] },
+        },
+        {
+          id: 'b',
+          x: 300,
+          y: 0,
+          data: { label: '目标', inputs: [{ id: 'in', dataType: 'text' }] },
+        },
+        {
+          id: 'bad',
+          x: 300,
+          y: 200,
+          data: { label: '数字节点', inputs: [{ id: 'num', dataType: 'number' }] },
+        },
+        {
+          id: 'plain',
+          x: 0,
+          y: 200,
+          data: { label: '无端口' },
+        },
+      ],
+      edges: [{ id: 'e1', source: { node: 'a', port: 'out' }, target: { node: 'b', port: 'in' } }],
+    }
+    selection.value = { nodes: [], edges: ['e1'] }
+    await ticks()
+
+    // 1. Drop in the middle of an incompatible node (>24px away from its port at x=300): refused, not detached.
+    const dragTargetTo = async (x: number, y: number) => {
+      const targetHandle = root.find('.dou-flow-editor__edge-end[data-edge-end="target"]')
+      targetHandle.element.dispatchEvent(pointer('pointerdown', 300, 30))
+      root.element.dispatchEvent(pointer('pointermove', x, y))
+      await ticks()
+      const state = {
+        refused: root.classes().includes('is-refused'),
+        detaching: root.find('.dou-flow-editor__edge.is-preview.is-detaching').exists(),
+      }
+      root.element.dispatchEvent(pointer('pointerup', x, y))
+      await ticks()
+      return state
+    }
+
+    const onBad = await dragTargetTo(420, 230)
+    expect(onBad).toEqual({ refused: true, detaching: false })
+    expect(doc.value.edges).toHaveLength(1)
+    expect(root.find('[aria-live]').text()).toBe('端口类型不匹配')
+    expect(editor.canUndo).toBe(false)
+
+    // 2. Drop on a portless node body: refused, not detached.
+    const onPlain = await dragTargetTo(100, 230)
+    expect(onPlain).toEqual({ refused: true, detaching: false })
+    expect(doc.value.edges).toHaveLength(1)
+    expect(root.find('[aria-live]').text()).toBe('没有可以连接的端口')
+    expect(editor.canUndo).toBe(false)
+
+    // 3. Drop in the middle of its own single-port source node body: refused, not detached.
+    const onSelf = await dragTargetTo(100, 30)
+    expect(onSelf).toEqual({ refused: true, detaching: false })
+    expect(doc.value.edges).toHaveLength(1)
+    expect(root.find('[aria-live]').text()).toBe('不能连到同一个节点')
+    expect(editor.canUndo).toBe(false)
+
+    // 4. Drop in empty space inside a container node: detaches as empty canvas.
+    const onContainerEmpty = await dragTargetTo(650, 100)
+    expect(onContainerEmpty).toEqual({ refused: false, detaching: true })
+    expect(doc.value.edges).toHaveLength(0)
+  })
+
+  it('hides endpoint handles whose fixed end has no valid portSpec, while letting stale edges fix their broken end', async () => {
+    const { root, doc, selection } = await setupEndpoints()
+    // 1. Stale edge: source port 'removed' is gone, target port 'in' is still valid.
+    doc.value = {
+      ...doc.value,
+      edges: [
+        {
+          id: 'stale',
+          source: { node: 'a', port: 'removed' },
+          target: { node: 'b', port: 'in' },
+        },
+      ],
+    }
+    selection.value = { nodes: [], edges: ['stale'] }
+    await ticks()
+    // Only the broken source end has a draggable handle (its fixed target b.in is valid).
+    expect(
+      root.findAll('.dou-flow-editor__edge-end').map((el) => el.attributes('data-edge-end')),
+    ).toEqual(['source'])
+
+    // Dragging the broken source handle to d.out repairs the edge.
+    const srcHandle = root.find('.dou-flow-editor__edge-end[data-edge-end="source"]')
+    srcHandle.element.dispatchEvent(pointer('pointerdown', 200, 30))
+    root.element.dispatchEvent(pointer('pointermove', 0, 200))
+    root.element.dispatchEvent(pointer('pointerup', 0, 200))
+    await ticks()
+    expect(doc.value.edges[0]!.source).toEqual({ node: 'd', port: 'out' })
+    expect(
+      root.findAll('.dou-flow-editor__edge-end').map((el) => el.attributes('data-edge-end')),
+    ).toEqual(['source', 'target'])
+
+    // 2. Edge between two portless nodes shows no endpoint handles at all.
+    doc.value = {
+      version: 1,
+      nodes: [
+        { id: 'p1', x: 0, y: 0, data: { label: '甲' } },
+        { id: 'p2', x: 300, y: 0, data: { label: '乙' } },
+      ],
+      edges: [{ id: 'plain-edge', source: { node: 'p1' }, target: { node: 'p2' } }],
+    }
+    selection.value = { nodes: [], edges: ['plain-edge'] }
+    await ticks()
+    expect(root.findAll('.dou-flow-editor__edge-end')).toHaveLength(0)
+  })
+
+  it('treats omitted-port edges consistently on origin drop, duplicate detection, and port capacity displacement', async () => {
+    const { root, doc, editor, selection, connected } = await setupEndpoints()
+    doc.value = {
+      ...doc.value,
+      edges: [
+        { id: 'e1', source: { node: 'a' }, target: { node: 'b' } },
+        { id: 'e2', source: { node: 'a' }, target: { node: 'c' } },
+      ],
+    }
+    selection.value = { nodes: [], edges: ['e1'] }
+    await ticks()
+
+    // 1. Dragging target away and dropping back onto its resolved origin (b.in) makes no change or undo step.
+    const targetHandle = root.find('.dou-flow-editor__edge-end[data-edge-end="target"]')
+    targetHandle.element.dispatchEvent(pointer('pointerdown', 300, 0))
+    root.element.dispatchEvent(pointer('pointermove', 450, 100))
+    root.element.dispatchEvent(pointer('pointermove', 300, 0))
+    root.element.dispatchEvent(pointer('pointerup', 300, 0))
+    await ticks()
+    expect(doc.value.edges[0]).toEqual({ id: 'e1', source: { node: 'a' }, target: { node: 'b' } })
+    expect(connected).toHaveLength(0)
+    expect(editor.canUndo).toBe(false)
+
+    // 2. Dragging e1's target onto c.in is refused as duplicate because e2 already joins a -> c with omitted ports.
+    targetHandle.element.dispatchEvent(pointer('pointerdown', 300, 0))
+    root.element.dispatchEvent(pointer('pointermove', 300, 200))
+    await ticks()
+    expect(root.classes()).toContain('is-refused')
+    expect(root.find('.dou-flow-editor__edge.is-preview.is-snapped').exists()).toBe(false)
+    root.element.dispatchEvent(pointer('pointerup', 300, 200))
+    await ticks()
+    expect(root.find('[aria-live]').text()).toBe('这两个端口已经连上了')
+    expect(doc.value.edges).toEqual([
+      { id: 'e1', source: { node: 'a' }, target: { node: 'b' } },
+      { id: 'e2', source: { node: 'a' }, target: { node: 'c' } },
+    ])
+    expect(editor.canUndo).toBe(false)
+
+    // 3. When c is occupied by an omitted-port edge from a different source (d -> c), reconnecting e1 displaces it.
+    doc.value = {
+      ...doc.value,
+      edges: [
+        { id: 'e1', source: { node: 'a' }, target: { node: 'b' } },
+        { id: 'e3', source: { node: 'd' }, target: { node: 'c' } },
+      ],
+    }
+    selection.value = { nodes: [], edges: ['e1'] }
+    await ticks()
+    const nextHandle = root.find('.dou-flow-editor__edge-end[data-edge-end="target"]')
+    nextHandle.element.dispatchEvent(pointer('pointerdown', 300, 0))
+    root.element.dispatchEvent(pointer('pointermove', 300, 200))
+    root.element.dispatchEvent(pointer('pointerup', 300, 200))
+    await ticks()
+    expect(doc.value.edges).toEqual([
+      { id: 'e1', source: { node: 'a' }, target: { node: 'c', port: 'in' } },
+    ])
+  })
 })
 
 describe('edges from the keyboard', () => {

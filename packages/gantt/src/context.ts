@@ -20,6 +20,8 @@ export interface GanttContext {
   readonly: ComputedRef<boolean>
   messages: ComputedRef<GanttMessages>
   scale: ComputedRef<GanttScale>
+  /** Whether the timeline is following the current time. */
+  follow: Ref<boolean>
   /** How wide a day is, in px. */
   dayWidth: Ref<number>
   /** Height of a row, in px. */

@@ -73,7 +73,14 @@ import {
   type GanttTransactionMeta,
 } from './core/transaction'
 import { DAY_WIDTH_RANGE, levelByName, snapStep, type GanttScale } from './core/scale'
-import { MINUTES_PER_DAY, dayIndex, dayStart, formatTime, parseTime } from './core/time'
+import {
+  MINUTES_PER_DAY,
+  dayIndex,
+  dayStart,
+  formatTime,
+  parseTime,
+  toTimestamp,
+} from './core/time'
 import { buildTree, type GanttRow } from './core/tree'
 import { useTimeAxis } from './time-axis'
 import {
@@ -83,6 +90,7 @@ import {
   endLabel,
   markerRoom,
   spokenDuration,
+  timedDurationLabel,
   unitLabel,
 } from './labels'
 import { format, useGanttMessages } from './locale'
@@ -93,6 +101,7 @@ import type {
   GanttInsertOptions,
   GanttExportOptions,
   GanttImageOptions,
+  GanttMarker,
   GanttMove,
   GanttPrintOptions,
   GanttCSVExportOptions,
@@ -103,6 +112,7 @@ import type {
 defineOptions({ name: 'DouGantt' })
 
 const props = withDefaults(defineProps<GanttProps>(), {
+  calendar: undefined,
   table: true,
   tableWidth: 360,
   rowHeight: 36,
@@ -120,6 +130,7 @@ const tasks = computed(() => source.value.tasks)
 const links = computed(() => source.value.links)
 const selection = defineModel<string[]>('selection', { default: () => [] })
 const scale = defineModel<GanttScale>('scale')
+const follow = defineModel<boolean>('follow', { default: false })
 const emit = defineEmits<GanttEmits>()
 defineSlots<GanttSlots>()
 
@@ -330,12 +341,14 @@ const critical = computed(() =>
 const content = computed(() => {
   let start = Infinity
   let end = -Infinity
+  let timed = true
   for (const row of tree.value.byId.values()) {
     if (!row.span) continue
     start = Math.min(start, row.span.start)
     end = Math.max(end, row.span.end)
+    if (row.span.dateOnly) timed = false
   }
-  return start > end ? null : { start, end }
+  return start > end ? null : { start, end, timed }
 })
 
 const axis = useTimeAxis({
@@ -343,6 +356,7 @@ const axis = useTimeAxis({
   tableBody,
   viewWidth,
   scale,
+  follow,
   range: () => props.range,
   today: () => props.today,
   weekStart,
@@ -371,6 +385,9 @@ const {
   scrollToDate,
   scrollToToday,
   fit,
+  panning,
+  startPan,
+  wasPanned,
   zoomTo,
   zoomIn,
   zoomOut,
@@ -399,7 +416,7 @@ watch(
           continue
         warned.add(`${task.id}:${key}`)
         console.warn(
-          `[@dou-ui/gantt] task "${task.id}" has a ${key} that can't be read: "${text}". Use YYYY-MM-DD or YYYY-MM-DD HH:mm.`,
+          `[@dou-ui/gantt] task "${task.id}" has a ${key} that can't be read: "${String(text)}". Use YYYY-MM-DD, YYYY-MM-DD HH:mm(:ss), ISO 8601, or a Unix timestamp in ms.`,
         )
       }
     }
@@ -588,7 +605,7 @@ function planChange(row: GanttRow) {
   const duration =
     plan.dateOnly && span.dateOnly
       ? format(m.days, { count: Math.round(gap / MINUTES_PER_DAY) })
-      : format(m.hours, { count: Math.round((gap / 60) * 10) / 10 })
+      : timedDurationLabel(gap, m)
   return format(span.end > plan.end ? m.baseline.late : m.baseline.early, { duration })
 }
 
@@ -816,7 +833,14 @@ function editorValue(row: GanttRow, column: GanttColumn) {
     case 'title':
       return task.title
     case 'start':
-      return task.start ?? ''
+      return span
+        ? formatTime(
+            span.start - (row.milestone && span.dateOnly ? MINUTES_PER_DAY / 2 : 0),
+            span.dateOnly,
+          )
+        : typeof task.start === 'string'
+          ? task.start
+          : ''
     case 'end':
       return span
         ? // a date-only span ends on its last day; a summary ending on a milestone, on that day
@@ -856,7 +880,8 @@ function editPatch(
     case 'start': {
       const at = parseTime(value)
       if (!at) return false
-      if (row.milestone) return { start: value }
+      if (row.milestone)
+        return { start: typeof task.start === 'number' ? toTimestamp(at.at) : value }
       if (!span)
         return writeSpan(
           { ...task, start: value },
@@ -1272,11 +1297,16 @@ function select(task: GanttTask, event: MouseEvent) {
 }
 
 function onTaskClick(row: GanttRow, event: MouseEvent) {
-  if (dragged) return
+  if (dragged || wasPanned()) return
   selectedLink.value = null
   active.value = row.task.id
   select(row.task, event)
   emit('taskClick', row.task, event)
+}
+
+function onMarkerClick(marker: GanttMarker, event: MouseEvent) {
+  if (wasPanned()) return
+  emit('markerClick', marker, event)
 }
 
 const highlightRows = computed(() =>
@@ -1683,6 +1713,7 @@ function stopDrag() {
 onBeforeUnmount(stopDrag)
 
 function onBarDown(event: PointerEvent, row: GanttRow) {
+  if (!editable.value) return
   const handle = (event.target as HTMLElement).closest<HTMLElement>('[data-handle]')?.dataset
     .handle as DragMode | `link-${End}` | undefined
   if (handle?.startsWith('link-')) {
@@ -1695,6 +1726,7 @@ function onBarDown(event: PointerEvent, row: GanttRow) {
 
 /** A press on an empty row of a task without dates draws its dates. */
 function onBodyDown(event: PointerEvent) {
+  if (!editable.value) return
   if (
     event.target !== event.currentTarget &&
     !(event.target as HTMLElement).matches(
@@ -2251,18 +2283,44 @@ const keysHint = `${useId()}-keys`
 
 // Markers ---------------------------------------------------------------------------
 
+const allMarkers = computed(() => [
+  ...(props.markers ?? []),
+  ...resolved.value.markers.flatMap((fromExtension) => fromExtension(context)),
+])
+
 const markers = computed(() => {
-  const list = [
-    ...(props.markers ?? []),
-    ...resolved.value.markers.flatMap((fromExtension) => fromExtension(context)),
-  ]
-  const inRange = list.flatMap((marker, index) => {
+  const inRange = allMarkers.value.flatMap((marker, index) => {
+    if (marker.task != null) return []
     const at = parseTime(marker.date)?.at
     if (at == null || at < extent.value.start || at > extent.value.end) return []
-    return [{ key: `${index}:${marker.date}`, x: xOf(at), marker }]
+    return [{ key: marker.id ?? `${index}:${marker.date}`, x: xOf(at), marker }]
   })
   const room = markerRoom(inRange.map((item) => (item.marker.label ? item.x : -Infinity)))
   return inRange.map((item, i) => ({ ...item, room: room[i]! }))
+})
+
+const rowMarkers = computed(() => {
+  const { start, end } = timeWindow.value
+  const { from, to } = rowWindow.value
+  const m = messages.value
+  const out: { key: string; x: number; y: number; tip: string; marker: GanttMarker }[] = []
+  allMarkers.value.forEach((marker, index) => {
+    if (marker.task == null) return
+    const row = tree.value.byId.get(marker.task)
+    if (!row || row.index < from || row.index >= to) return
+    const parsed = parseTime(marker.date)
+    if (!parsed || parsed.at < start || parsed.at > end) return
+    const time = dateLabel(parsed.at, parsed.dateOnly, m)
+    const tip = marker.label ? `${marker.label} · ${time}` : time
+    out.push({
+      key: marker.id ?? `row:${index}:${marker.task}:${marker.date}`,
+      x: xOf(parsed.at),
+      y: row.index * props.rowHeight + props.rowHeight / 2,
+      tip,
+      marker,
+    })
+  })
+  return out
 })
 
 // Export and print --------------------------------------------------------------------
@@ -2359,11 +2417,18 @@ function drawChart(options: {
       messages: messages.value,
       weekStart: weekStart.value,
       now: props.today ? now.value : null,
-      markers: markers.value.map((item) => ({
-        at: parseTime(item.marker.date)!.at,
-        label: item.marker.label,
-        tone: item.marker.tone,
-      })),
+      markers: allMarkers.value.flatMap((marker) => {
+        if (marker.task != null) return []
+        const at = parseTime(marker.date)?.at
+        return at == null ? [] : [{ at, label: marker.label, tone: marker.tone }]
+      }),
+      events: allMarkers.value.flatMap((marker) => {
+        if (marker.task == null) return []
+        const at = parseTime(marker.date)?.at
+        if (at == null) return []
+        const rowIndex = shownRows.findIndex((row) => row.task.id === marker.task)
+        return rowIndex < 0 ? [] : [{ row: rowIndex, at, tone: marker.tone }]
+      }),
       critical: critical.value,
       broken: brokenLinks.value,
       baseline: planned.value,
@@ -2591,6 +2656,7 @@ const context: GanttContext = {
   readonly: computed(() => !editable.value),
   messages,
   scale: computed(() => level.value.name),
+  follow,
   dayWidth,
   rowHeight: computed(() => props.rowHeight),
   rows,
@@ -2688,6 +2754,8 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
       'is-linking': !!keyLink,
       'has-baseline': !!planned,
       'is-bordered': bordered,
+      'is-following': follow,
+      'is-panning': panning,
     }"
     :style="{ '--dou-gantt-row-height': `${rowHeight}px` }"
     role="group"
@@ -2846,6 +2914,7 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
       <div
         class="dou-gantt__canvas"
         :style="{ width: `${totalWidth}px` }"
+        @pointerdown="!editable && startPan($event)"
         @contextmenu="onCanvasContextmenu"
       >
         <TimeHeader
@@ -3051,6 +3120,22 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
             }"
           />
           <component :is="layer" v-for="(layer, i) in resolved.above" :key="`above-${i}`" />
+          <button
+            v-for="item in rowMarkers"
+            :key="item.key"
+            type="button"
+            class="dou-gantt__event"
+            :class="item.marker.tone && `is-${item.marker.tone}`"
+            :style="{ left: `${item.x}px`, top: `${item.y}px` }"
+            :title="item.tip"
+            :aria-label="item.tip"
+            @pointerdown.stop
+            @click.stop="onMarkerClick(item.marker, $event)"
+          >
+            <slot name="marker" :marker="item.marker">
+              <span class="dou-gantt__event-dot" aria-hidden="true" />
+            </slot>
+          </button>
           <div
             v-if="dragTip"
             class="dou-gantt__tip"

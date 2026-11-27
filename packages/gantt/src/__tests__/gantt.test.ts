@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { defineGanttExtension, takeBaseline, useGantt } from '../index'
 import { DouGantt } from '../index'
-import type { GanttExpose, GanttMenuTarget, GanttTask } from '../index'
+import type { GanttExpose, GanttMarker, GanttMenuTarget, GanttTask } from '../index'
 import { later } from '../../../../test/later'
 import { bind, planRef } from './plan-ref'
 
@@ -900,5 +900,127 @@ describe('export', () => {
     await nextTick()
     const vm = wrapper.findComponent(DouGantt).vm as unknown as GanttExpose
     await expect(vm.exportPNG()).rejects.toThrow(RangeError)
+  })
+
+  it('supports calendar:false, sub-hour timestamps, row event markers and SVG export', async () => {
+    const clicked: GanttMarker[] = []
+    const base = new Date(2026, 2, 5, 14, 0, 0).getTime()
+    const { doc } = planRef([
+      { id: 't1', title: '编译任务', start: base, end: base + 125_000 },
+      { id: 't2', title: '测试任务', start: base + 125_000, end: base + 240_000 },
+    ])
+    const markers: GanttMarker[] = [
+      { id: 'm-line', date: base + 60_000, label: '快照', tone: 'primary' },
+      { id: 'm-ev', task: 't1', date: base + 90_000, label: '告警触发', tone: 'danger' },
+    ]
+    const wrapper = mount(
+      defineComponent(
+        () => () =>
+          h(
+            DouGantt,
+            {
+              ...bind(doc),
+              calendar: false,
+              scale: 'minute',
+              readonly: true,
+              markers,
+              onMarkerClick: (marker: GanttMarker) => clicked.push(marker),
+            },
+            {
+              marker: ({ marker }: { marker: GanttMarker }) =>
+                h('span', { class: 'custom-pin' }, marker.label),
+            },
+          ),
+      ),
+      { attachTo: document.body },
+    )
+    await nextTick()
+
+    // calendar:false produces no off-time shading bands
+    expect(wrapper.findAll('.dou-gantt__off')).toHaveLength(0)
+
+    // full-height line marker vs row-scoped discrete event marker
+    expect(wrapper.findAll('.dou-gantt__marker')).toHaveLength(1)
+    const eventButtons = wrapper.findAll('.dou-gantt__event')
+    expect(eventButtons).toHaveLength(1)
+    expect(eventButtons[0]!.classes()).toContain('is-danger')
+    expect(eventButtons[0]!.find('.custom-pin').text()).toBe('告警触发')
+
+    await eventButtons[0]!.trigger('click')
+    expect(clicked.map((m) => m.id)).toEqual(['m-ev'])
+
+    // SVG export draws row-scoped event markers as circles without errors
+    const vm = wrapper.findComponent(DouGantt).vm as unknown as GanttExpose
+    const svg = vm.exportSVG()
+    expect(svg).toContain('<circle ')
+    const parsed = new DOMParser().parseFromString(svg, 'image/svg+xml')
+    expect(parsed.querySelector('parsererror')).toBeNull()
+    wrapper.unmount()
+  })
+
+  it('pans readonly timeline by dragging and detaches follow mode', async () => {
+    const nowTs = Date.now()
+    const { doc } = planRef([
+      { id: 'live', title: '实时任务', start: nowTs - 10 * 60_000, end: nowTs - 2 * 60_000 },
+    ])
+    const follow = ref(true)
+    const taskClicks: string[] = []
+    const wrapper = mount(
+      defineComponent(
+        () => () =>
+          h(DouGantt, {
+            ...bind(doc),
+            readonly: true,
+            calendar: false,
+            scale: 'minute',
+            follow: follow.value,
+            'onUpdate:follow': (value: boolean) => (follow.value = value),
+            onTaskClick: (t: GanttTask) => taskClicks.push(t.id),
+          }),
+      ),
+      { attachTo: document.body },
+    )
+    await nextTick()
+    expect(wrapper.find('.dou-gantt').classes()).toContain('is-following')
+
+    const chartEl = wrapper.find('.dou-gantt__chart').element as HTMLElement
+    const barScreenX = () => {
+      const style = wrapper.find('.dou-gantt__bar[data-task="live"]').attributes('style') ?? ''
+      return Number.parseFloat(/left:\s*([\d.-]+)px/.exec(style)![1]!) - chartEl.scrollLeft
+    }
+    const beforeScreenX = barScreenX()
+    const canvas = wrapper.find('.dou-gantt__canvas').element
+    canvas.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        button: 0,
+        pointerType: 'mouse',
+        clientX: 400,
+        clientY: 60,
+        bubbles: true,
+      }),
+    )
+    window.dispatchEvent(
+      new PointerEvent('pointermove', {
+        pointerType: 'mouse',
+        clientX: 500,
+        clientY: 60,
+      }),
+    )
+    await nextTick()
+    expect(follow.value).toBe(false)
+    expect(wrapper.find('.dou-gantt').classes()).toContain('is-panning')
+    expect(barScreenX() - beforeScreenX).toBeCloseTo(100, 0)
+
+    window.dispatchEvent(
+      new PointerEvent('pointerup', {
+        pointerType: 'mouse',
+        clientX: 500,
+        clientY: 60,
+      }),
+    )
+    // click right after a drag-pan is suppressed
+    await wrapper.find('.dou-gantt__bar[data-task="live"]').trigger('click')
+    expect(taskClicks).toEqual([])
+    wrapper.unmount()
   })
 })

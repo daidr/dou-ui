@@ -52,6 +52,7 @@ import {
   type SchedulerLoadSegment,
   type SchedulerItem,
 } from './layout'
+import type { GanttMarker } from '../types'
 import type {
   SchedulerEmits,
   SchedulerExpose,
@@ -65,6 +66,7 @@ import type {
 defineOptions({ name: 'DouScheduler' })
 
 const props = withDefaults(defineProps<SchedulerProps>(), {
+  calendar: undefined,
   today: true,
   table: true,
   tableWidth: 200,
@@ -79,6 +81,7 @@ const source = computed(() => readDocument(model.value, false))
 const tasks = computed(() => source.value.tasks)
 const selection = defineModel<string[]>('selection', { default: () => [] })
 const scale = defineModel<GanttScale>('scale')
+const follow = defineModel<boolean>('follow', { default: false })
 const emit = defineEmits<SchedulerEmits>()
 defineSlots<SchedulerSlots>()
 
@@ -306,12 +309,14 @@ function toggle(row: GroupRow) {
 const content = computed(() => {
   let start = Infinity
   let end = -Infinity
+  let timed = true
   for (const entry of placed.value.values())
     for (const { span } of entry.items) {
       start = Math.min(start, span.start)
       end = Math.max(end, span.end)
+      if (span.dateOnly) timed = false
     }
-  return start > end ? null : { start, end }
+  return start > end ? null : { start, end, timed }
 })
 
 const axis = useTimeAxis({
@@ -319,6 +324,7 @@ const axis = useTimeAxis({
   tableBody,
   viewWidth,
   scale,
+  follow,
   range: () => props.range,
   today: () => props.today,
   weekStart,
@@ -339,6 +345,9 @@ const {
   scrollTop,
   scrollLeft,
   scrollbar,
+  panning,
+  startPan,
+  wasPanned,
   topCells,
   bottomCells,
   shaded,
@@ -351,9 +360,10 @@ watch([rootWidth, viewWidth], axis.fitWhenSized)
 
 const markers = computed(() => {
   const inRange = (props.markers ?? []).flatMap((marker, index) => {
+    if (marker.resource != null) return []
     const at = parseTime(marker.date)?.at
     if (at == null || at < extent.value.start || at > extent.value.end) return []
-    return [{ key: `${index}:${marker.date}`, x: xOf(at), marker }]
+    return [{ key: marker.id ?? `${index}:${marker.date}`, x: xOf(at), marker }]
   })
   const room = markerRoom(inRange.map((item) => (item.marker.label ? item.x : -Infinity)))
   return inRange.map((item, i) => ({ ...item, room: room[i]! }))
@@ -387,6 +397,31 @@ const resourceRows = computed(() =>
 
 /** Where a lane's bar row sits, in body px. */
 const laneTop = (row: ResourceRow, lane: number) => row.top + caption.value + lane * LANE
+
+const rowMarkers = computed(() => {
+  const { start, end } = timeWindow.value
+  const m = messages.value
+  const byResource = new Map<string, ResourceRow>()
+  for (const row of resourceRows.value) if (row.resource) byResource.set(row.resource.id, row)
+  const out: { key: string; x: number; y: number; tip: string; marker: GanttMarker }[] = []
+  ;(props.markers ?? []).forEach((marker, index) => {
+    if (marker.resource == null) return
+    const row = byResource.get(marker.resource)
+    if (!row) return
+    const parsed = parseTime(marker.date)
+    if (!parsed || parsed.at < start || parsed.at > end) return
+    const time = dateLabel(parsed.at, parsed.dateOnly, m)
+    const tip = marker.label ? `${marker.label} · ${time}` : time
+    out.push({
+      key: marker.id ?? `row:${index}:${marker.resource}:${marker.date}`,
+      x: xOf(parsed.at),
+      y: laneTop(row, 0) + props.rowHeight / 2,
+      tip,
+      marker,
+    })
+  })
+  return out
+})
 
 const describeRow = (row: ResourceRow) => {
   const text = format(sm.value.row, { title: row.title, count: row.items.length })
@@ -442,31 +477,63 @@ interface Bar {
   width: number
   top: number
   milestone: boolean
-  /** The title doesn't fit in the bar: it goes after it. */
-  outside: boolean
+  /** Where the title goes: inside the bar, after it, or hidden when neither has room. */
+  label: 'inside' | 'outside' | 'none'
+  /** Max width for an outside title when another bar follows on the same lane. */
+  sideMax?: number
   aria: string
 }
 
 const bars = computed<Bar[]>(() => {
   const { start, end } = timeWindow.value
   const out: Bar[] = []
-  for (const row of resourceRows.value)
+  for (const row of resourceRows.value) {
+    const byLane = new Map<number, SchedulerItem[]>()
     for (const item of row.items) {
-      const { span } = item
-      if (span.end < start || span.start > end) continue
-      const milestone = item.task.type === 'milestone'
-      const width = Math.max(milestone ? 0 : 2, (span.end - span.start) * ppm.value)
-      out.push({
-        item,
-        row,
-        left: xOf(span.start),
-        width,
-        top: laneTop(row, item.lane),
-        milestone,
-        outside: milestone || textWidth(item.task.title) + 20 > width,
-        aria: describe(item, row),
-      })
+      let list = byLane.get(item.lane)
+      if (!list) byLane.set(item.lane, (list = []))
+      list.push(item)
     }
+    for (const list of byLane.values()) {
+      // oxlint-disable-next-line unicorn/no-array-sort -- sorts a fresh array
+      list.sort((a, b) => a.span.start - b.span.start)
+      for (let i = 0; i < list.length; i++) {
+        const item = list[i]!
+        const { span } = item
+        if (span.end < start || span.start > end) continue
+        const milestone = item.task.type === 'milestone'
+        const width = Math.max(milestone ? 0 : 2, (span.end - span.start) * ppm.value)
+        const next = list[i + 1]
+        const gap = next ? (next.span.start - span.end) * ppm.value : Infinity
+        const titleW = textWidth(item.task.title)
+        let label: Bar['label'] = 'inside'
+        let sideMax: number | undefined
+        if (milestone) {
+          sideMax = next ? Math.max(0, gap - 20) : undefined
+          label = sideMax == null || sideMax >= 20 ? 'outside' : 'none'
+        } else if (titleW + 20 > width) {
+          const sideRoom = next ? gap - 14 : Infinity
+          if (sideRoom >= titleW) label = 'outside'
+          else if (width >= 28 && width >= sideRoom) label = 'inside'
+          else if (sideRoom >= 20) {
+            label = 'outside'
+            sideMax = sideRoom
+          } else label = 'none'
+        }
+        out.push({
+          item,
+          row,
+          left: xOf(span.start),
+          width,
+          top: laneTop(row, item.lane),
+          milestone,
+          label,
+          sideMax,
+          aria: describe(item, row),
+        })
+      }
+    }
+  }
   return out
 })
 
@@ -537,10 +604,15 @@ function select(task: GanttTask, event: MouseEvent | KeyboardEvent) {
 }
 
 function onTaskClick(task: GanttTask, event: MouseEvent) {
-  if (dragged) return
+  if (dragged || wasPanned()) return
   active.value = task.id
   select(task, event)
   emit('taskClick', task, event)
+}
+
+function onMarkerClick(marker: GanttMarker, event: MouseEvent) {
+  if (wasPanned()) return
+  emit('markerClick', marker, event)
 }
 
 // Dragging ---------------------------------------------------------------------------------
@@ -869,8 +941,8 @@ function finishDraw() {
   const span = writeSpan({ id: '', title: '' }, range.start, range.end)
   const out: SchedulerRange = {
     resource: range.row || undefined,
-    start: span.start!,
-    end: span.end ?? span.start!,
+    start: String(span.start!),
+    end: String(span.end ?? span.start!),
   }
   emit('create', out)
 }
@@ -1221,6 +1293,8 @@ defineExpose<SchedulerExpose>({
       'is-dragging': drag?.started,
       [`is-dragging-${drag?.mode}`]: drag?.started,
       'is-bordered': bordered,
+      'is-following': follow,
+      'is-panning': panning,
     }"
     :style="{ '--dou-gantt-row-height': `${rowHeight}px`, '--dou-gantt-lane': `${LANE}px` }"
     role="group"
@@ -1304,7 +1378,11 @@ defineExpose<SchedulerExpose>({
       @scroll.passive="axis.onChartScroll"
       @wheel="axis.onWheel"
     >
-      <div class="dou-gantt__canvas" :style="{ width: `${totalWidth}px` }">
+      <div
+        class="dou-gantt__canvas"
+        :style="{ width: `${totalWidth}px` }"
+        @pointerdown="!editable && startPan($event)"
+      >
         <TimeHeader
           :top-cells="topCells"
           :bottom-cells="bottomCells"
@@ -1413,13 +1491,14 @@ defineExpose<SchedulerExpose>({
               }"
               role="img"
               tabindex="-1"
+              :title="bar.aria"
               :aria-label="bar.aria"
               @pointerdown="onBarDown($event, bar)"
               @click="onTaskClick(bar.item.task, $event)"
               @dblclick="emit('taskDblclick', bar.item.task, $event)"
               @contextmenu="onTaskContextmenu(bar, $event)"
             >
-              <span v-if="!bar.outside" class="dou-gantt__bar-label">
+              <span v-if="bar.label === 'inside'" class="dou-gantt__bar-label">
                 <slot name="bar" :task="bar.item.task">{{ bar.item.task.title }}</slot>
               </span>
             </div>
@@ -1438,9 +1517,13 @@ defineExpose<SchedulerExpose>({
               />
             </template>
             <span
-              v-if="bar.outside"
+              v-if="bar.label === 'outside'"
               class="dou-gantt__bar-side"
-              :style="{ left: `${bar.left + (bar.milestone ? 12 : bar.width + 8)}px` }"
+              :class="{ 'is-clipped': bar.sideMax != null }"
+              :style="{
+                left: `${bar.left + (bar.milestone ? 12 : bar.width + 8)}px`,
+                maxWidth: bar.sideMax != null ? `${bar.sideMax}px` : undefined,
+              }"
             >
               <slot name="bar" :task="bar.item.task">{{ bar.item.task.title }}</slot>
             </span>
@@ -1453,6 +1536,22 @@ defineExpose<SchedulerExpose>({
               width: `${drawnBox.width}px`,
             }"
           />
+          <button
+            v-for="item in rowMarkers"
+            :key="item.key"
+            type="button"
+            class="dou-gantt__event"
+            :class="item.marker.tone && `is-${item.marker.tone}`"
+            :style="{ left: `${item.x}px`, top: `${item.y}px` }"
+            :title="item.tip"
+            :aria-label="item.tip"
+            @pointerdown.stop
+            @click.stop="onMarkerClick(item.marker, $event)"
+          >
+            <slot name="marker" :marker="item.marker">
+              <span class="dou-gantt__event-dot" aria-hidden="true" />
+            </slot>
+          </button>
           <div
             v-if="dragTip"
             class="dou-gantt__tip"

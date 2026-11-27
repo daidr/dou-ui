@@ -1,4 +1,5 @@
 import { spanOf, type GanttData, type GanttTask, type TaskSpan } from '../core/model'
+import type { GanttTime } from '../core/time'
 
 /** A row of the scheduler: a person, a room, a machine. */
 export interface SchedulerResource<Data extends GanttData = GanttData> {
@@ -27,10 +28,10 @@ export interface SchedulerLoadSegment {
   count: number
 }
 
-/** A milestone takes no time; for packing, it holds a moment this long, in minutes. */
-const POINT = 1
+/** A milestone takes no time; for packing, it holds a single millisecond. */
+const POINT = 1 / 60_000
 
-const endOf = (span: TaskSpan) => Math.max(span.end, span.start + POINT)
+const endOf = (span: TaskSpan) => (span.end > span.start ? span.end : span.start + POINT)
 
 /**
  * Puts overlapping tasks in separate lanes: each task takes the first lane
@@ -102,8 +103,8 @@ export interface SchedulerPlace {
   /** The task being moved; it never conflicts with itself. */
   task?: GanttTask
   resource?: string
-  start: string
-  end?: string
+  start: GanttTime
+  end?: GanttTime
 }
 
 /**

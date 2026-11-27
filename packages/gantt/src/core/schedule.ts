@@ -27,8 +27,8 @@ import { buildTree } from './tree'
  */
 
 export interface GanttScheduleOptions {
-  /** Which days and hours are worked; the chart's `calendar`. */
-  calendar?: GanttCalendar | WorkCalendar
+  /** Which days and hours are worked; the chart's `calendar`, or `false` to disable. */
+  calendar?: GanttCalendar | WorkCalendar | false
   /** Also bring tasks earlier, to the earliest their links allow. Only tasks with links in move. */
   pull?: boolean
   /** Tasks to leave where they are, e.g. the ones just moved by hand; `locked` tasks always stay. */
@@ -75,7 +75,9 @@ interface Graph {
 }
 
 const toCalendar = (calendar: GanttScheduleOptions['calendar']): WorkCalendar =>
-  calendar && 'isWorkday' in calendar ? calendar : resolveCalendar(calendar)
+  calendar && typeof calendar === 'object' && 'isWorkday' in calendar
+    ? calendar
+    : resolveCalendar(calendar)
 
 function push(map: Map<string, GanttLink[]>, id: string, link: GanttLink) {
   const list = map.get(id)

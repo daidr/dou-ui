@@ -1,9 +1,18 @@
 import { createScrollLink, scrollPositionOf, useNow, useTouchScroll } from 'dou-ui'
-import { computed, onMounted, ref, watch, type ComputedRef, type Ref, type ShallowRef } from 'vue'
+import {
+  computed,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  watch,
+  type ComputedRef,
+  type Ref,
+  type ShallowRef,
+} from 'vue'
 import { offTime, type WorkCalendar } from './core/calendar'
 import {
   DAY_WIDTH_RANGE,
-  hourStep,
+  headerStepFor,
   levelByName,
   levelOf,
   unitStart,
@@ -11,13 +20,20 @@ import {
   type GanttScale,
   type TimeUnit,
 } from './core/scale'
-import { MINUTES_PER_DAY, dayStart, parseTime, wallClockNow } from './core/time'
+import {
+  MINUTES_PER_DAY,
+  MINUTES_PER_HOUR,
+  dayStart,
+  parseTime,
+  wallClockNow,
+  type GanttTime,
+} from './core/time'
 import { unitLabel } from './labels'
 import type { GanttMessages } from './locale'
 
 /** Room around the visible part that is rendered too, in px. */
 const OVERSCAN_X = 320
-/** The widest a day gets when fitting, so short plans don't zoom to hours. */
+/** The widest a day gets when fitting whole-day plans, so short plans don't zoom to hours. */
 const FIT_MAX = 64
 const ZOOM_STEP = 1.5
 /**
@@ -39,6 +55,8 @@ const EARLIEST = -1e11
  * scrollbar thumb still shows where the view is.
  */
 const ROOM_BEFORE_POINTER = 4
+/** Maximum unfixed timeline width in px, well within browser layout coordinate limits. */
+const MAX_EXTENT_PX = 8_000_000
 /** Room kept after the view, in screens; time is added there as you scroll. */
 const ROOM_AFTER = 4
 
@@ -55,6 +73,13 @@ export interface HeaderCell {
   label: string
 }
 
+export interface TimeAxisContent {
+  start: number
+  end: number
+  /** True when all scheduled items have explicit times of day (not date-only). */
+  timed?: boolean
+}
+
 export interface TimeAxisOptions {
   /** The scrolling timeline. */
   chart: Readonly<ShallowRef<HTMLElement | null>>
@@ -62,26 +87,34 @@ export interface TimeAxisOptions {
   tableBody: Readonly<ShallowRef<HTMLElement | null>>
   viewWidth: Ref<number>
   scale: Ref<GanttScale | undefined>
-  range: () => [string, string] | undefined
+  /** Follow the current time on the right edge; turns off on horizontal user scroll/drag. */
+  follow?: Ref<boolean>
+  range: () => [GanttTime, GanttTime] | undefined
   today: () => boolean
   weekStart: ComputedRef<0 | 1>
   calendar: ComputedRef<WorkCalendar>
   messages: ComputedRef<GanttMessages>
   /** The time the content covers, or `null` when nothing is scheduled. */
-  content: ComputedRef<{ start: number; end: number } | null>
+  content: ComputedRef<TimeAxisContent | null>
   /** The width the timeline will have once laid out, for fitting. */
   fitWidth: () => number
 }
 
+const alignFloor = (at: number, unit: number) => Math.floor(at / unit) * unit
+const alignCeil = (at: number, unit: number) => Math.ceil(at / unit) * unit
+
 /**
  * The time axis the gantt chart and the scheduler share: zoom, the extent
- * that grows as you scroll, the header cells, days off and the today line.
+ * that grows as you scroll, the header cells, days off, the today line and
+ * live Follow Now panning.
  */
 export function useTimeAxis(o: TimeAxisOptions) {
+  const follow = o.follow ?? ref(false)
   /** How wide a day is, in px; zooming changes it smoothly. */
   const dayWidth = ref(levelByName(o.scale.value ?? 'day').base)
   /** Without a `scale`, the first view picks the day width that fits the content. */
-  let fitPending = o.scale.value == null
+  let fitPending = o.scale.value == null && !follow.value
+  let pendingFitRange: [GanttTime, GanttTime] | null = null
   const level = computed(() => levelOf(dayWidth.value))
   /** px per minute. */
   const ppm = computed(() => dayWidth.value / MINUTES_PER_DAY)
@@ -89,28 +122,40 @@ export function useTimeAxis(o: TimeAxisOptions) {
   watch(level, (next) => {
     if (o.scale.value !== next.name) o.scale.value = next.name
   })
-  // a picked level zooms around now when it is in view, else around the middle
+  // a picked level zooms around now when it is in view (or while following), else around the middle
   watch(o.scale, (name) => {
     if (!name || level.value.name === name) return
     const x = todayX.value == null ? null : todayX.value - scrollLeft.value
     zoomTo(levelByName(name).base, x != null && x >= 0 && x <= o.viewWidth.value ? x : undefined)
   })
 
-  const nowMs = useNow({ interval: 60_000 })
+  const nowInterval = computed(() =>
+    follow.value || level.value.name === 'second' || level.value.name === 'minute' ? 1000 : 60_000,
+  )
+  const nowMs = useNow({ interval: nowInterval })
   const now = computed(() => wallClockNow(new Date(nowMs.value)))
 
-  /** The content's time, or the coming month when nothing is scheduled. */
-  const content = computed(() => {
+  /** Right-side breathing room kept past `now` while following, in px. */
+  const followMargin = computed(() => {
+    const width = o.viewWidth.value || 800
+    return Math.min(80, Math.round(width * 0.12))
+  })
+  /** Horizontal offset of `now` from the left edge of the viewport while following, in px. */
+  const followAnchor = computed(() => Math.max(0, (o.viewWidth.value || 800) - followMargin.value))
+
+  /** The content's time, or a sensible default window when nothing is scheduled. */
+  const content = computed<TimeAxisContent>(() => {
     const known = o.content.value
     if (known) return known
+    if (follow.value || dayWidth.value >= 2880)
+      return { start: now.value - MINUTES_PER_HOUR, end: now.value, timed: true }
     const start = dayStart(now.value)
-    return { start, end: start + 30 * MINUTES_PER_DAY }
+    return { start, end: start + 30 * MINUTES_PER_DAY, timed: false }
   })
 
   /** The furthest the view has gone either way, so the timeline keeps it. */
   const reach = ref<{ start: number; end: number } | null>(null)
 
-  /** px of room kept before the view. */
   /** Whether there is a touch screen; read once mounted, so the server render matches. */
   const coarse = ref(false)
   const roomBefore = computed(() => {
@@ -119,12 +164,28 @@ export function useTimeAxis(o: TimeAxisOptions) {
     return Math.min(Math.max(ROOM_BEFORE * width, ROOM_BEFORE_MIN), ROOM_BEFORE_TIME * ppm.value)
   })
 
+  /** Alignment granularity for free timeline edges so sub-hour scales stay compact. */
+  const padUnit = computed(() => {
+    if (level.value.name === 'second') return 1
+    if (level.value.name === 'minute') return MINUTES_PER_HOUR
+    return MINUTES_PER_DAY
+  })
+
   const touch = useTouchScroll()
 
   /** Where the timeline would start, without a fixed range. */
   const freeStart = computed(() => {
-    const start = Math.min(content.value.start, reach.value?.start ?? Infinity)
-    return Math.max(EARLIEST, dayStart(start - roomBefore.value / ppm.value))
+    const start = Math.min(
+      content.value.start,
+      reach.value?.start ?? Infinity,
+      follow.value ? now.value - followAnchor.value / ppm.value : Infinity,
+    )
+    const unit = padUnit.value
+    const target = start - roomBefore.value / ppm.value
+    return Math.max(
+      EARLIEST,
+      unit === MINUTES_PER_DAY ? dayStart(target) : alignFloor(target, unit),
+    )
   })
 
   /**
@@ -144,16 +205,37 @@ export function useTimeAxis(o: TimeAxisOptions) {
 
   /** The span the timeline covers. */
   const extent = computed(() => {
-    const fixed = o.range()?.map((text) => parseTime(text))
-    if (fixed?.[0] && fixed[1])
-      return { start: dayStart(fixed[0].at), end: dayStart(fixed[1].at) + MINUTES_PER_DAY }
-    const width = o.viewWidth.value || 800
-    const after = Math.max((ROOM_AFTER * width) / ppm.value, 7 * MINUTES_PER_DAY)
-    const end = Math.max(content.value.end, reach.value?.end ?? -Infinity)
-    return {
-      start: heldStart.value ?? freeStart.value,
-      end: dayStart(end + after) + MINUTES_PER_DAY,
+    const fixed = o.range()?.map((value) => parseTime(value))
+    if (fixed?.[0] && fixed[1]) {
+      const start = fixed[0].dateOnly ? dayStart(fixed[0].at) : fixed[0].at
+      const end = fixed[1].dateOnly ? dayStart(fixed[1].at) + MINUTES_PER_DAY : fixed[1].at
+      if (end > start) return { start, end }
     }
+    const width = o.viewWidth.value || 800
+    const unit = padUnit.value
+    const after =
+      unit === MINUTES_PER_DAY
+        ? Math.max((ROOM_AFTER * width) / ppm.value, 7 * MINUTES_PER_DAY)
+        : Math.max((ROOM_AFTER * width) / ppm.value, 4 * unit)
+    const end = Math.max(
+      content.value.end,
+      reach.value?.end ?? -Infinity,
+      follow.value ? now.value : -Infinity,
+    )
+    const start = heldStart.value ?? freeStart.value
+    const endAligned =
+      unit === MINUTES_PER_DAY
+        ? dayStart(end + after) + MINUTES_PER_DAY
+        : alignCeil(end + after, unit)
+    const maxMinutes = MAX_EXTENT_PX / ppm.value
+    if (endAligned - start <= maxMinutes) return { start, end: endAligned }
+    // keep total scrollWidth within browser layout limits at very fine (e.g. second) scales
+    const step = Math.max(unit, Math.floor(maxMinutes / 4))
+    const anchor = follow.value ? now.value : viewStart.value || content.value.start
+    const clampedStart =
+      heldStart.value ?? Math.max(start, alignFloor(anchor - maxMinutes / 2, step))
+    const clampedEnd = Math.min(endAligned, alignCeil(clampedStart + maxMinutes, unit))
+    return { start: clampedStart, end: Math.max(clampedStart + unit, clampedEnd) }
   })
   const origin = computed(() => extent.value.start)
   const totalWidth = computed(() => Math.ceil((extent.value.end - extent.value.start) * ppm.value))
@@ -169,14 +251,46 @@ export function useTimeAxis(o: TimeAxisOptions) {
    */
   const viewStart = ref(0)
   const scrollbar = ref(0)
+  /** Last horizontal scroll position written programmatically, to ignore its async scroll event. */
+  let expectedLeft: number | null = null
+  /** True while `scrollToTime` is jumping to another time and detaching follow. */
+  let jumping = false
 
   const link = createScrollLink('y')
+
+  function writeScrollLeft(el: HTMLElement, target: number) {
+    const width = o.viewWidth.value || el.clientWidth
+    const max = Math.max(0, totalWidth.value - width)
+    const clamped = Math.min(Math.max(0, Math.round(target)), max)
+    if (Math.abs(el.scrollLeft - clamped) >= 1) {
+      expectedLeft = clamped
+      el.scrollLeft = clamped
+    }
+    const actual = scrollPositionOf(el).left
+    if (expectedLeft != null) expectedLeft = actual
+    scrollLeft.value = actual
+  }
+
+  function alignFollow() {
+    if (!follow.value) return
+    viewStart.value = now.value - followAnchor.value / ppm.value
+    const el = o.chart.value
+    if (!el) return
+    writeScrollLeft(el, (viewStart.value - origin.value) * ppm.value)
+  }
 
   function onChartScroll() {
     const el = o.chart.value!
     const body = o.tableBody.value
     // iOS reports positions past either end while the content bounces back
     const { top, left } = scrollPositionOf(el)
+    const baseline = expectedLeft ?? scrollLeft.value
+    const horizontalDelta = Math.abs(left - baseline)
+    if (expectedLeft != null && horizontalDelta <= 2) expectedLeft = null
+    else if (horizontalDelta > 2) {
+      expectedLeft = null
+      if (follow.value) follow.value = false
+    }
     scrollTop.value = top
     scrollLeft.value = left
     viewStart.value = origin.value + left / ppm.value
@@ -232,9 +346,39 @@ export function useTimeAxis(o: TimeAxisOptions) {
     () => {
       const el = o.chart.value
       if (!el) return
-      const target = Math.round((viewStart.value - origin.value) * ppm.value)
-      if (Math.abs(el.scrollLeft - target) >= 1) el.scrollLeft = target
-      scrollLeft.value = scrollPositionOf(el).left
+      if (follow.value) viewStart.value = now.value - followAnchor.value / ppm.value
+      writeScrollLeft(el, (viewStart.value - origin.value) * ppm.value)
+    },
+    { flush: 'post' },
+  )
+
+  // keep the current viewport anchored in extent when follow turns off in place
+  watch(
+    follow,
+    (on, was) => {
+      if (was && !on && !jumping && !o.range()) {
+        const width = o.viewWidth.value || 800
+        keep(viewStart.value, Math.max(now.value, viewStart.value + width / ppm.value))
+      }
+    },
+    { flush: 'sync' },
+  )
+
+  watch(
+    follow,
+    (on) => {
+      if (on) {
+        fitPending = false
+        alignFollow()
+      }
+    },
+    { flush: 'post' },
+  )
+
+  watch(
+    [now, () => o.viewWidth.value],
+    () => {
+      if (follow.value && !touch.active.value) alignFollow()
     },
     { flush: 'post' },
   )
@@ -245,45 +389,160 @@ export function useTimeAxis(o: TimeAxisOptions) {
   }
 
   function scrollToTime(at: number, offset = 48) {
+    if (follow.value) {
+      jumping = true
+      follow.value = false
+      jumping = false
+    }
     // start the view on a whole header cell, so its label isn't cut at the edge
     const target = at - offset / ppm.value
     viewStart.value = unitStart(level.value.bottom, target, o.weekStart.value, headerStep.value)
     if (!o.range()) keep(viewStart.value, viewStart.value + o.viewWidth.value / ppm.value)
     const el = o.chart.value
     if (!el) return
-    el.scrollLeft = Math.round((viewStart.value - origin.value) * ppm.value)
-    scrollLeft.value = scrollPositionOf(el).left
+    writeScrollLeft(el, (viewStart.value - origin.value) * ppm.value)
   }
 
-  function fit() {
-    const width = o.fitWidth()
-    if (!width) return
-    const days = Math.max(1, (content.value.end - content.value.start) / MINUTES_PER_DAY)
-    dayWidth.value = Math.min(FIT_MAX, Math.max(DAY_WIDTH_RANGE[0], (width - 96) / days))
-    scrollToTime(content.value.start)
+  function fit(span?: [GanttTime, GanttTime]) {
+    const width =
+      o.fitWidth() ||
+      o.chart.value?.clientWidth ||
+      o.chart.value?.getBoundingClientRect().width ||
+      0
+    if (!width) {
+      if (span) pendingFitRange = span
+      return
+    }
+    pendingFitRange = null
+    if (span) {
+      const from = parseTime(span[0])
+      const to = parseTime(span[1])
+      if (!from || !to) return
+      const start = from.dateOnly ? dayStart(from.at) : from.at
+      const end = to.dateOnly ? dayStart(to.at) + MINUTES_PER_DAY : to.at
+      const minutes = end - start
+      if (minutes <= 0) return
+      const followingLive = follow.value && Math.abs(end - now.value) <= Math.max(1, minutes * 0.15)
+      const targetWidth = followingLive
+        ? Math.max(120, followAnchor.value)
+        : Math.max(120, width - 32)
+      dayWidth.value = Math.min(
+        DAY_WIDTH_RANGE[1],
+        Math.max(DAY_WIDTH_RANGE[0], (targetWidth / minutes) * MINUTES_PER_DAY),
+      )
+      if (followingLive) alignFollow()
+      else scrollToTime(start, 16)
+      return
+    }
+    const current = content.value
+    const spanMinutes = current.end - current.start
+    if (current.timed && spanMinutes > 0 && spanMinutes < MINUTES_PER_DAY) {
+      const minutes = Math.max(1 / 60, spanMinutes)
+      dayWidth.value = Math.min(
+        DAY_WIDTH_RANGE[1],
+        Math.max(DAY_WIDTH_RANGE[0], (Math.max(120, width - 96) / minutes) * MINUTES_PER_DAY),
+      )
+    } else {
+      const days = Math.max(1, spanMinutes / MINUTES_PER_DAY)
+      dayWidth.value = Math.min(FIT_MAX, Math.max(DAY_WIDTH_RANGE[0], (width - 96) / days))
+    }
+    scrollToTime(current.start)
   }
 
   onMounted(() => {
     coarse.value = window.matchMedia?.('(any-pointer: coarse)').matches ?? false
     measureScrollbar()
-    scrollToTime(content.value.start)
+    if (follow.value) alignFollow()
+    else scrollToTime(content.value.start)
   })
 
-  /** Fits the content once the timeline has a width, unless a `scale` was given. */
+  /** Fits the content once the timeline has a width, unless a `scale` or `follow` was given. */
   function fitWhenSized() {
-    if (!fitPending || !o.fitWidth() || !o.viewWidth.value) return
+    if (!o.fitWidth() || !o.viewWidth.value) return
+    if (pendingFitRange) {
+      fit(pendingFitRange)
+      return
+    }
+    if (!fitPending) return
     fitPending = false
-    fit()
+    if (follow.value) alignFollow()
+    else fit()
   }
+
+  // Drag-to-pan (used in readonly mode) -------------------------------------------
+
+  const panning = ref(false)
+  let panned = false
+  let stopPanListeners: (() => void) | null = null
+
+  function startPan(event: PointerEvent) {
+    if (event.button !== 0 || event.pointerType === 'touch') return
+    if ((event.target as Element | null)?.closest('button, a, input, textarea, select')) return
+    const el = o.chart.value
+    if (!el) return
+    stopPanListeners?.()
+    const startX = event.clientX
+    let anchorX = startX
+    let anchorTime = origin.value + scrollPositionOf(el).left / ppm.value
+    let active = false
+    panned = false
+
+    const onMove = (e: PointerEvent) => {
+      const dx = e.clientX - startX
+      if (!active) {
+        if (Math.abs(dx) < 3) return
+        active = true
+        panned = true
+        panning.value = true
+        if (follow.value) follow.value = false
+      }
+      e.preventDefault()
+      const wanted = (anchorTime - origin.value) * ppm.value - (e.clientX - anchorX)
+      const width = o.viewWidth.value || el.clientWidth
+      const max = Math.max(0, totalWidth.value - width)
+      const clamped = Math.min(Math.max(0, Math.round(wanted)), max)
+      el.scrollLeft = clamped
+      const actual = scrollPositionOf(el).left
+      scrollLeft.value = actual
+      viewStart.value = origin.value + actual / ppm.value
+      grow()
+      if (clamped !== Math.round(wanted)) {
+        anchorX = e.clientX
+        anchorTime = viewStart.value
+      }
+    }
+    const cleanup = () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onUp)
+      stopPanListeners = null
+    }
+    const onUp = () => {
+      cleanup()
+      if (active) {
+        panning.value = false
+        setTimeout(() => (panned = false), 0)
+      }
+    }
+    stopPanListeners = cleanup
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onUp)
+  }
+
+  onBeforeUnmount(() => stopPanListeners?.())
+
+  const wasPanned = () => panned
 
   // Zoom --------------------------------------------------------------------------
 
-  /** Changes the day width, keeping the time under `anchor` (px from the view's left) in place. */
+  /** Changes the day width, keeping the time under `anchor` (or `now` while following) in place. */
   function zoomTo(width: number, anchor = o.viewWidth.value / 2) {
     const next = Math.min(DAY_WIDTH_RANGE[1], Math.max(DAY_WIDTH_RANGE[0], width))
-    const at = viewStart.value + anchor / ppm.value
+    const at = follow.value ? now.value : viewStart.value + anchor / ppm.value
+    const pin = follow.value ? followAnchor.value : anchor
     dayWidth.value = next
-    viewStart.value = at - anchor / ppm.value
+    viewStart.value = at - pin / ppm.value
     // what was scrolled past at the old zoom could be very wide at the new one
     if (reach.value && !o.range()) {
       reach.value = null
@@ -294,10 +553,18 @@ export function useTimeAxis(o: TimeAxisOptions) {
   }
 
   function onWheel(event: WheelEvent) {
-    if (!(event.ctrlKey || event.metaKey)) return
-    event.preventDefault()
-    const rect = o.chart.value!.getBoundingClientRect()
-    zoomTo(dayWidth.value * Math.exp(-event.deltaY * 0.01), event.clientX - rect.left)
+    if (event.ctrlKey || event.metaKey) {
+      event.preventDefault()
+      const rect = o.chart.value!.getBoundingClientRect()
+      zoomTo(dayWidth.value * Math.exp(-event.deltaY * 0.01), event.clientX - rect.left)
+      return
+    }
+    if (
+      follow.value &&
+      (Math.abs(event.deltaX) > 0 || (event.shiftKey && Math.abs(event.deltaY) > 0))
+    ) {
+      follow.value = false
+    }
   }
 
   const zoomIn = () => zoomTo(dayWidth.value * ZOOM_STEP)
@@ -357,15 +624,17 @@ export function useTimeAxis(o: TimeAxisOptions) {
     }))
   }
 
-  const headerStep = computed(() => (level.value.bottom === 'hour' ? hourStep(dayWidth.value) : 1))
+  const headerStep = computed(() => headerStepFor(level.value.bottom, dayWidth.value))
   const topCells = computed(() => cells(level.value.top))
   const bottomCells = computed(() => cells(level.value.bottom, headerStep.value))
 
-  /** Days off, shaded; at hour level the hours outside work too. */
+  /** Days off, shaded; at sub-day levels the hours outside work too. */
   const shaded = computed(() => {
     if (dayWidth.value < 8) return []
     const { start, end } = timeWindow.value
-    return offTime(o.calendar.value, start, end, level.value.name === 'hour').map((range) => ({
+    const subDay =
+      level.value.name === 'hour' || level.value.name === 'minute' || level.value.name === 'second'
+    return offTime(o.calendar.value, start, end, subDay).map((range) => ({
       key: range.start,
       left: xOf(range.start),
       width: (range.end - range.start) * ppm.value,
@@ -382,13 +651,14 @@ export function useTimeAxis(o: TimeAxisOptions) {
   const contentX = (clientX: number) =>
     clientX - o.chart.value!.getBoundingClientRect().left + o.chart.value!.scrollLeft
 
-  function scrollToDate(date: string) {
+  function scrollToDate(date: GanttTime) {
     const parsed = parseTime(date)
     if (parsed) scrollToTime(parsed.at)
   }
 
   function scrollToToday() {
-    scrollToTime(now.value, o.viewWidth.value / 3)
+    if (follow.value) alignFollow()
+    else scrollToTime(now.value, o.viewWidth.value / 3)
   }
 
   return {
@@ -412,6 +682,9 @@ export function useTimeAxis(o: TimeAxisOptions) {
     scrollToToday,
     fit,
     fitWhenSized,
+    panning,
+    startPan,
+    wasPanned,
     zoomTo,
     zoomIn,
     zoomOut,

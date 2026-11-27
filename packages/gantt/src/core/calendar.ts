@@ -32,7 +32,14 @@ const days = (list: string[] | undefined) => {
   return out
 }
 
-export function resolveCalendar(calendar: GanttCalendar = {}): WorkCalendar {
+const ALL_DAY: [number, number][] = [[0, MINUTES_PER_DAY]]
+const ALWAYS_OPEN: WorkCalendar = {
+  isWorkday: () => true,
+  hours: ALL_DAY,
+}
+
+export function resolveCalendar(calendar: GanttCalendar | false = {}): WorkCalendar {
+  if (calendar === false) return ALWAYS_OPEN
   const weekends = new Set(calendar.weekends ?? [0, 6])
   const holidays = days(calendar.holidays)
   const workdays = days(calendar.workdays)
@@ -77,6 +84,7 @@ export function workdaysBetween(calendar: WorkCalendar, from: number, to: number
 
 /** Working minutes in `[from, to)`: the working hours of working days. */
 export function workingMinutes(calendar: WorkCalendar, from: number, to: number) {
+  if (calendar === ALWAYS_OPEN) return Math.max(0, to - from)
   let total = 0
   for (let day = dayIndex(from); day * MINUTES_PER_DAY < to; day++) {
     if (!calendar.isWorkday(day)) continue
@@ -101,6 +109,7 @@ export interface TimeRange {
  * stretches are merged.
  */
 export function offTime(calendar: WorkCalendar, from: number, to: number, hours = false) {
+  if (calendar === ALWAYS_OPEN) return []
   const out: TimeRange[] = []
   const push = (start: number, end: number) => {
     start = Math.max(start, from)
@@ -153,6 +162,7 @@ export function shiftWorkdays(calendar: WorkCalendar, at: number, count: number)
  * It lands inside working hours, or at the end of a stretch going forward.
  */
 export function shiftWorkMinutes(calendar: WorkCalendar, at: number, count: number) {
+  if (calendar === ALWAYS_OPEN) return at + count
   let left = Math.abs(count)
   if (!left) return at
   const first = dayIndex(at)
@@ -194,6 +204,7 @@ export const workIn = (calendar: WorkCalendar, from: number, to: number, dateOnl
  * days, a moment inside working hours otherwise.
  */
 export function isWorkTime(calendar: WorkCalendar, at: number, dateOnly: boolean) {
+  if (calendar === ALWAYS_OPEN) return true
   const day = dayIndex(at)
   if (!calendar.isWorkday(day)) return false
   if (dateOnly) return true
@@ -206,6 +217,8 @@ export function isWorkTime(calendar: WorkCalendar, at: number, dateOnly: boolean
  * midnight for whole days, the next working minute otherwise.
  */
 export function nextWorkTime(calendar: WorkCalendar, at: number, dateOnly: boolean) {
+  if (calendar === ALWAYS_OPEN)
+    return dateOnly ? Math.ceil(at / MINUTES_PER_DAY) * MINUTES_PER_DAY : at
   const first = dateOnly ? Math.ceil(at / MINUTES_PER_DAY) : dayIndex(at)
   for (let day = first; day < first + LOOKAHEAD; day++) {
     if (!calendar.isWorkday(day)) continue

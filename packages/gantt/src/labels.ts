@@ -5,6 +5,7 @@ import { MINUTES_PER_DAY, MINUTES_PER_HOUR, partsOf } from './core/time'
 import { format, type GanttMessages } from './locale'
 
 const pad = (n: number) => String(n).padStart(2, '0')
+const round1 = (n: number) => Math.round(n * 10) / 10
 
 /** The text of a header cell for the `unit` starting at `at`. */
 export function unitLabel(unit: TimeUnit, at: number, m: GanttMessages, dayWidth: number) {
@@ -33,15 +34,34 @@ export function unitLabel(unit: TimeUnit, at: number, m: GanttMessages, dayWidth
           ? `${p.day} ${weekday}`
           : String(p.day)
     case 'hour':
-      return format(m.hour, { hour: pad(p.hour) })
+      // top row at minute scale shows date + hour; bottom row at hour scale shows HH:00
+      return dayWidth >= 2880
+        ? format(m.dateTime, {
+            date: format(m.monthDay, { month, day: p.day }),
+            time: format(m.hour, { hour: pad(p.hour) }),
+          })
+        : format(m.hour, { hour: pad(p.hour) })
+    case 'minute':
+      // top row at second scale shows date + HH:mm; bottom row at minute scale shows HH:mm
+      return dayWidth >= 216_000
+        ? format(m.dateTime, {
+            date: format(m.monthDay, { month, day: p.day }),
+            time: `${pad(p.hour)}:${pad(p.minute)}`,
+          })
+        : `${pad(p.hour)}:${pad(p.minute)}`
+    case 'second':
+      return `${pad(p.hour)}:${pad(p.minute)}:${pad(p.second)}`
   }
 }
 
-/** A date for reading out or for a table cell: `3月5日`, with the time when it has one. */
+/** A date for reading out or for a table cell: `3月5日`, with time (and seconds when non-zero). */
 export function dateLabel(at: number, dateOnly: boolean, m: GanttMessages) {
   const p = partsOf(at)
   const date = format(m.monthDay, { month: m.months[p.month - 1]!, day: p.day })
-  return dateOnly ? date : format(m.dateTime, { date, time: `${pad(p.hour)}:${pad(p.minute)}` })
+  if (dateOnly) return date
+  const hm = `${pad(p.hour)}:${pad(p.minute)}`
+  const time = p.second !== 0 || p.millisecond !== 0 ? `${hm}:${pad(p.second)}` : hm
+  return format(m.dateTime, { date, time })
 }
 
 /**
@@ -51,12 +71,19 @@ export function dateLabel(at: number, dateOnly: boolean, m: GanttMessages) {
 export const endLabel = (span: TaskSpan, m: GanttMessages) =>
   dateLabel(span.dateOnly ? span.end - 1 : span.end, span.dateOnly, m)
 
-/** Working days for a date-only span, working hours otherwise. */
+/** Formats a timed duration in minutes using seconds, minutes, or hours. */
+export function timedDurationLabel(minutes: number, m: GanttMessages) {
+  if (minutes > 0 && minutes < 1) return format(m.seconds, { count: round1(minutes * 60) })
+  if (minutes >= 1 && minutes < MINUTES_PER_HOUR)
+    return format(m.minutes, { count: round1(minutes) })
+  return format(m.hours, { count: round1(minutes / MINUTES_PER_HOUR) })
+}
+
+/** Working days for a date-only span, working time (seconds/minutes/hours) otherwise. */
 export function durationLabel(span: TaskSpan, calendar: WorkCalendar, m: GanttMessages) {
   if (span.dateOnly)
     return format(m.days, { count: workdaysBetween(calendar, span.start, span.end) })
-  const hours = workingMinutes(calendar, span.start, span.end) / MINUTES_PER_HOUR
-  return format(m.hours, { count: Math.round(hours * 10) / 10 })
+  return timedDurationLabel(workingMinutes(calendar, span.start, span.end), m)
 }
 
 /** A task's dates, read out: just the date for a task of one whole day. */

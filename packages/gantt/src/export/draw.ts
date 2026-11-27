@@ -2,7 +2,7 @@ import type { Tone } from 'dou-ui'
 import { offTime, type WorkCalendar } from '../core/calendar'
 import { arrowPath, roundedPath, routeLink, type BarBox } from '../core/geometry'
 import type { GanttLink, TaskSpan } from '../core/model'
-import { hourStep, levelOf, nextUnit, unitStart, unitsBetween } from '../core/scale'
+import { headerStepFor, levelOf, nextUnit, unitStart, unitsBetween } from '../core/scale'
 import { dayIndex } from '../core/time'
 import type { GanttRow } from '../core/tree'
 import { markerRoom, unitLabel } from '../labels'
@@ -46,6 +46,8 @@ export interface DrawInput {
   /** The current time, or `null` to leave the today line out. */
   now: number | null
   markers: readonly { at: number; label?: string; tone?: Tone }[]
+  /** Row-scoped discrete event markers: `row` is the index in `rows`. */
+  events?: readonly { row: number; at: number; tone?: Tone }[]
   critical: { tasks: ReadonlySet<string>; links: ReadonlySet<string> } | null
   broken: ReadonlySet<string>
   baseline: ReadonlyMap<string, TaskSpan> | null
@@ -89,9 +91,10 @@ function fit(text: string, max: number, measure: (text: string) => number) {
 /** The time the content covers, widened to whole header cells with one more on either side. */
 export function paddedRange(start: number, end: number, dayWidth: number, weekStart: 0 | 1) {
   const level = levelOf(dayWidth)
-  const step = level.bottom === 'hour' ? hourStep(dayWidth) : 1
+  const step = headerStepFor(level.bottom, dayWidth)
+  const epsilon = level.bottom === 'second' ? 1 / 60 : 1
   const first = unitStart(level.bottom, start, weekStart, step)
-  const before = unitStart(level.bottom, first - 1, weekStart, step)
+  const before = unitStart(level.bottom, first - epsilon, weekStart, step)
   let after = unitStart(level.bottom, end, weekStart, step)
   if (after < end) after = nextUnit(level.bottom, after, step)
   return { start: before, end: nextUnit(level.bottom, after, step) }
@@ -107,7 +110,7 @@ export function drawGantt(input: DrawInput, theme: ExportTheme): GanttDrawing {
   const xOf = (at: number) => round(tableWidth + (at - start) * ppm)
   const shift = input.baseline ? BASELINE_SHIFT : 0
   const level = levelOf(input.dayWidth)
-  const step = level.bottom === 'hour' ? hourStep(input.dayWidth) : 1
+  const step = headerStepFor(level.bottom, input.dayWidth)
   const font = (size = theme.fontSize, bold = false) =>
     `font-size="${size}"${bold ? ` font-weight="${theme.fontWeight}"` : ''}`
   const measure = (bold: boolean) => (text: string) => input.textWidth(text, bold)
@@ -210,11 +213,13 @@ export function drawGantt(input: DrawInput, theme: ExportTheme): GanttDrawing {
   const body: string[] = input.background
     ? [`<rect width="${width}" height="${bodyHeight}" fill="${theme.surface}"/>`]
     : []
-  if (input.dayWidth >= 8)
-    for (const range of offTime(input.calendar, start, end, level.name === 'hour'))
+  if (input.dayWidth >= 8) {
+    const subDay = level.name === 'hour' || level.name === 'minute' || level.name === 'second'
+    for (const range of offTime(input.calendar, start, end, subDay))
       body.push(
         `<rect x="${xOf(range.start)}" y="0" width="${round((range.end - range.start) * ppm)}" height="${bodyHeight}" fill="${theme.off}"/>`,
       )
+  }
   for (const cell of bottom)
     if (cell.start > start)
       body.push(
@@ -370,6 +375,16 @@ export function drawGantt(input: DrawInput, theme: ExportTheme): GanttDrawing {
       body.push(text(x, mid, shown, `${font()} fill="${theme.text}"`))
     } else if (input.barLabel !== 'none') side(left + w + 8)
   })
+
+  // row-scoped discrete event markers, over the bars
+  for (const event of input.events ?? []) {
+    if (event.at < start || event.at > end || event.row < 0 || event.row >= input.rows.length)
+      continue
+    const color = theme.marker[event.tone ?? 'neutral'].line
+    body.push(
+      `<circle cx="${xOf(event.at)}" cy="${round(event.row * rh + rh / 2)}" r="4" fill="${color}" stroke="${theme.surface}" stroke-width="2"/>`,
+    )
+  }
 
   const fontAttrs = `font-family="${escape(theme.fontFamily)}"`
   return {

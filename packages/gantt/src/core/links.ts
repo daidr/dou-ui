@@ -68,14 +68,15 @@ export interface GanttLag {
   unit: 'day' | 'minute'
 }
 
-/** Reads a `lag`: a number of working days, or `'2d'`, `'4h'`, `'30m'`; `null` when unreadable. */
+/** Reads a `lag`: a number of working days, or `'2d'`, `'4h'`, `'30m'`, `'30s'`; `null` when unreadable. */
 export function parseLag(lag: number | string | undefined): GanttLag | null {
   if (lag == null || lag === '') return { amount: 0, unit: 'day' }
   if (typeof lag === 'number') return Number.isFinite(lag) ? { amount: lag, unit: 'day' } : null
-  const match = /^\s*(-?\d+(?:\.\d+)?)\s*(d|h|m)\s*$/i.exec(lag)
+  const match = /^\s*(-?\d+(?:\.\d+)?)\s*(d|h|m|s)\s*$/i.exec(lag)
   if (!match) return null
   const value = Number(match[1])
   const unit = match[2]!.toLowerCase()
   if (unit === 'd') return { amount: value, unit: 'day' }
+  if (unit === 's') return { amount: value / 60, unit: 'minute' }
   return { amount: Math.round(unit === 'h' ? value * 60 : value), unit: 'minute' }
 }

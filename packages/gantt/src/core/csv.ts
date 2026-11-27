@@ -204,18 +204,27 @@ const unquoteFormula = (text: string) => (/^'[=+\-@\t\r]/.test(text) ? text.slic
 
 const pad = (n: string) => n.padStart(2, '0')
 
-const DATE = /^(\d{4})([-/.])(\d{1,2})\2(\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::\d{2})?)?$/
+const DATE =
+  /^(\d{4})([-/.])(\d{1,2})\2(\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2})(?:\.(\d{1,9}))?)?)?$/
 
 /**
  * A date as tasks write it, from the ways spreadsheets save one:
- * `2026/3/2`, `2026-3-2`, `2026.3.2`, with `9:30` or `09:30:00` after it.
+ * `2026/3/2`, `2026-3-2`, `2026.3.2`, with `9:30`, `09:30:15` or `09:30:15.250` after it.
  * `null` when it isn't a date.
  */
 export function readCSVDate(text: string) {
   const match = DATE.exec(text.trim())
   if (!match) return null
-  const [, y, , m, d, h, mi] = match
-  const value = `${y}-${pad(m!)}-${pad(d!)}${h != null ? ` ${pad(h)}:${mi}` : ''}`
+  const [, y, , m, d, h, mi, s, frac] = match
+  const ms = frac != null ? Number(frac.slice(0, 3).padEnd(3, '0')) : 0
+  const sec = s != null ? Number(s) : 0
+  let suffix = ''
+  if (h != null) {
+    suffix = ` ${pad(h)}:${mi}`
+    if (ms !== 0) suffix += `:${pad(String(sec))}.${String(ms).padStart(3, '0')}`
+    else if (sec !== 0) suffix += `:${pad(String(sec))}`
+  }
+  const value = `${y}-${pad(m!)}-${pad(d!)}${suffix}`
   return parseTime(value) ? value : null
 }
 
@@ -233,7 +242,7 @@ function readNumber(text: string, comma: boolean) {
   return Number(value.replace(',', '.'))
 }
 
-/** A duration with its unit, when it says one: `5`, `5 天`, `2 小时`, `2h`. */
+/** A duration with its unit, when it says one: `5`, `5 天`, `2 小时`, `2h`, `15 分钟`, `30s`. */
 function readDuration(text: string, messages: GanttMessages, comma: boolean) {
   const match = /^([+-]?[\d.,]+)\s*(.*)$/.exec(text.trim())
   if (!match) return null
@@ -246,6 +255,10 @@ function readDuration(text: string, messages: GanttMessages, comma: boolean) {
     return { count, unit: 'd' as const }
   if (unit === 'h' || all.some((m) => unitWord(m.hours) === unit))
     return { count, unit: 'h' as const }
+  if (unit === 'm' || unit === 'min' || all.some((m) => unitWord(m.minutes) === unit))
+    return { count, unit: 'm' as const }
+  if (unit === 's' || unit === 'sec' || all.some((m) => unitWord(m.seconds) === unit))
+    return { count, unit: 's' as const }
   return null
 }
 
@@ -333,16 +346,25 @@ export function readGanttCSV(text: string, context: ReadCSVContext): GanttCSVRes
           else warn('end', endText)
         } else if (durationText) {
           const read = readDuration(durationText, messages, comma)
-          const hours = read?.unit
-            ? read.unit === 'h'
-            : durationKey === 'duration:h' || (durationKey !== 'duration:d' && !start.dateOnly)
-          // working days are whole; hours are kept to the minute
-          const count = read ? (hours ? Math.round(read.count * 60) : read.count) : 0
-          if (!(count > 0) || !Number.isInteger(count)) warn('duration', durationText)
-          else
-            end = hours
-              ? shiftWorkMinutes(calendar, start.at, count)
-              : shiftWorkdays(calendar, start.at, count)
+          const unitKind =
+            read?.unit ??
+            (durationKey === 'duration:h' || (durationKey !== 'duration:d' && !start.dateOnly)
+              ? 'h'
+              : 'd')
+          if (!read || !(read.count > 0)) warn('duration', durationText)
+          else if (unitKind === 'd') {
+            if (!Number.isInteger(read.count)) warn('duration', durationText)
+            else end = shiftWorkdays(calendar, start.at, read.count)
+          } else if (unitKind === 'h') {
+            // hours are kept to the minute
+            const minutes = Math.round(read.count * 60)
+            if (!(minutes > 0)) warn('duration', durationText)
+            else end = shiftWorkMinutes(calendar, start.at, minutes)
+          } else {
+            const minutes = unitKind === 's' ? read.count / 60 : read.count
+            if (!(minutes > 0)) warn('duration', durationText)
+            else end = shiftWorkMinutes(calendar, start.at, minutes)
+          }
         }
         Object.assign(task, writeSpan(task, start.at, end ?? start.at + unit))
       }

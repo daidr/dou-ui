@@ -1,5 +1,13 @@
 import type { Tone } from 'dou-ui'
-import { MINUTES_PER_DAY, MINUTES_PER_HOUR, formatTime, isMidnight, parseTime } from './time'
+import {
+  MINUTES_PER_DAY,
+  MINUTES_PER_HOUR,
+  formatTime,
+  isMidnight,
+  parseTime,
+  toTimestamp,
+  type GanttTime,
+} from './time'
 
 export type GanttData = Record<string, unknown>
 
@@ -15,13 +23,14 @@ export interface GanttTask<Data extends GanttData = GanttData> {
   order?: string
   /** A milestone is a point in time: it only reads `start`. */
   type?: 'task' | 'milestone'
-  /** `YYYY-MM-DD` or `YYYY-MM-DD HH:mm`. Without it the task is not scheduled yet. */
-  start?: string
+  /** Date/time string (`YYYY-MM-DD`, `YYYY-MM-DD HH:mm:ss`) or Unix timestamp in ms. Without it the task is not scheduled yet. */
+  start?: GanttTime
   /**
-   * `YYYY-MM-DD` for the last day of the task, or `YYYY-MM-DD HH:mm` for the
-   * moment it ends. Defaults to one day, or one hour after a timed `start`.
+   * `YYYY-MM-DD` for the last day of the task, `YYYY-MM-DD HH:mm(:ss)` or Unix
+   * timestamp in ms for the moment it ends. Defaults to one day, or one hour
+   * after a timed `start`.
    */
-  end?: string
+  end?: GanttTime
   /** From `0` to `1`. */
   progress?: number
   tone?: Tone
@@ -85,14 +94,21 @@ export function spanOf(task: GanttTask): TaskSpan | null {
 }
 
 /**
- * The `start` and `end` strings for a span, in the task's own style: whole
- * days stay date-only, anything else is written with times.
+ * The `start` and `end` values for a span, in the task's own style: numeric
+ * timestamps stay Unix ms, whole days stay date-only, anything else is written
+ * with times.
  */
 export function writeSpan(
   task: GanttTask,
   start: number,
   end: number,
 ): Pick<GanttTask, 'start' | 'end'> {
+  const numeric =
+    typeof task.start === 'number' && (task.end == null || typeof task.end === 'number')
+  if (numeric) {
+    if (task.type === 'milestone') return { start: toTimestamp(start) }
+    return { start: toTimestamp(start), end: toTimestamp(end) }
+  }
   const was = spanOf(task)
   const wholeDays = isMidnight(start) && isMidnight(end) && end > start
   if (task.type === 'milestone') {

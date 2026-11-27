@@ -53,8 +53,8 @@ export { orderBetween } from './core/order'
 export { parseLag } from './core/links'
 export type { GanttLag, GanttLinkRefusal } from './core/links'
 export type { GanttScale } from './core/scale'
-export { formatTime, parseTime } from './core/time'
-export type { ParsedTime } from './core/time'
+export { formatTime, parseTime, toTimestamp } from './core/time'
+export type { GanttTime, ParsedTime } from './core/time'
 
 declare module 'vue' {
   export interface GlobalComponents {

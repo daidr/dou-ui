@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
-import { spanOf, type GanttTask } from '../../index'
+import { spanOf, type GanttDocument, type GanttMarker, type GanttTask } from '../../index'
 import {
   DouScheduler,
   findConflict,
@@ -10,7 +10,7 @@ import {
   packLanes,
   type SchedulerResource,
 } from '..'
-import type { SchedulerMenuTarget, SchedulerMove, SchedulerRange } from '../types'
+import type { SchedulerExpose, SchedulerMenuTarget, SchedulerMove, SchedulerRange } from '../types'
 import { later } from '../../../../../test/later'
 import { bind, planRef } from '../../__tests__/plan-ref'
 
@@ -103,6 +103,24 @@ describe('scheduler layout', () => {
     ]
     expect(packLanes(items)).toBe(3)
     expect(items.map((item) => item.lane)).toEqual([0, 1, 0, 2])
+  })
+
+  it('packs sub-minute spans without false overlap from point padding', () => {
+    const t0 = 100
+    const backToBack = [
+      { span: { start: t0, end: t0 + 0.5, dateOnly: false }, lane: -1 },
+      { span: { start: t0 + 0.5, end: t0 + 1, dateOnly: false }, lane: -1 },
+    ]
+    expect(packLanes(backToBack)).toBe(1)
+    expect(backToBack.map((item) => item.lane)).toEqual([0, 0])
+
+    const overlapping = [
+      { span: { start: t0, end: t0 + 0.5, dateOnly: false }, lane: -1 },
+      { span: { start: t0 + 0.25, end: t0 + 0.75, dateOnly: false }, lane: -1 },
+    ]
+    expect(packLanes(overlapping)).toBe(2)
+    expect(overlapping.map((item) => item.lane)).toEqual([0, 1])
+    expect(loadSegments(overlapping.map((i) => i.span)).some((s) => s.count === 2)).toBe(true)
   })
 
   it('counts how many tasks go on at once', () => {
@@ -395,5 +413,170 @@ describe('DouScheduler', () => {
     await nextTick()
     expect(spanOf(task(tasks, 'a'))).toEqual(spanOf(sample()[0]!))
     expect(wrapper.find('.dou-gantt__handle').exists()).toBe(false)
+  })
+
+  it('supports live timeline mode with calendar:false, swimlane markers, follow and readonly pan', async () => {
+    const base = new Date(2026, 2, 5, 15, 0, 0).getTime()
+    const { doc } = planRef([
+      { id: 'r1', title: '推理调用', resource: 'agent-a', start: base, end: base + 35_000 },
+      {
+        id: 'r2',
+        title: '工具执行',
+        resource: 'agent-a',
+        start: base + 35_000,
+        end: base + 80_000,
+      },
+      {
+        id: 'r3',
+        title: '代码审查',
+        resource: 'agent-b',
+        start: base + 15_000,
+        end: base + 95_000,
+      },
+    ])
+    const swimlanes: SchedulerResource[] = [
+      { id: 'agent-a', title: 'Coder' },
+      { id: 'agent-b', title: 'Reviewer' },
+    ]
+    const markers: GanttMarker[] = [
+      { id: 'global', date: base + 10_000, label: '触发', tone: 'primary' },
+      {
+        id: 'ev-a',
+        resource: 'agent-a',
+        date: base + 50_000,
+        label: '等待审批',
+        tone: 'warning',
+      },
+      {
+        id: 'ev-b',
+        resource: 'agent-b',
+        date: base + 70_000,
+        label: '评审通过',
+        tone: 'success',
+      },
+    ]
+    const follow = ref(true)
+    const clicked: GanttMarker[] = []
+    const wrapper = mount(
+      defineComponent(
+        () => () =>
+          h(
+            DouScheduler,
+            {
+              ...bind(doc),
+              resources: swimlanes,
+              calendar: false,
+              scale: 'minute',
+              readonly: true,
+              load: false,
+              markers,
+              follow: follow.value,
+              'onUpdate:follow': (value: boolean) => (follow.value = value),
+              onMarkerClick: (marker: GanttMarker) => clicked.push(marker),
+            },
+            {
+              marker: ({ marker }: { marker: GanttMarker }) =>
+                h('span', { class: 'lane-pin' }, marker.label),
+            },
+          ),
+      ),
+      { attachTo: document.body },
+    )
+    await nextTick()
+
+    expect(wrapper.findAll('.dou-gantt__off')).toHaveLength(0)
+    expect(wrapper.find('.dou-gantt').classes()).toContain('is-following')
+    expect(wrapper.findAll('.dou-gantt__marker')).toHaveLength(1)
+
+    const vm = wrapper.findComponent(DouScheduler).vm as unknown as SchedulerExpose
+    vm.fit([base - 30_000, base + 120_000])
+    await nextTick()
+    expect(follow.value).toBe(false)
+
+    const events = wrapper.findAll('.dou-gantt__event')
+    expect(events).toHaveLength(2)
+    expect(events.map((el) => el.find('.lane-pin').text())).toEqual(['等待审批', '评审通过'])
+    await events[0]!.trigger('click')
+    expect(clicked.map((m) => m.id)).toEqual(['ev-a'])
+
+    // re-enable follow, then drag-pan to detach
+    follow.value = true
+    await nextTick()
+    const chartEl = wrapper.find('.dou-gantt__chart').element as HTMLElement
+    const todayScreenX = () => {
+      const style = wrapper.find('.dou-gantt__today').attributes('style') ?? ''
+      return Number.parseFloat(/left:\s*([\d.-]+)px/.exec(style)![1]!) - chartEl.scrollLeft
+    }
+    const beforeScreenX = todayScreenX()
+    const canvas = wrapper.find('.dou-gantt__canvas').element
+    canvas.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        button: 0,
+        pointerType: 'mouse',
+        clientX: 300,
+        clientY: 60,
+        bubbles: true,
+      }),
+    )
+    window.dispatchEvent(
+      new PointerEvent('pointermove', {
+        pointerType: 'mouse',
+        clientX: 390,
+        clientY: 60,
+      }),
+    )
+    await nextTick()
+    expect(follow.value).toBe(false)
+    expect(todayScreenX() - beforeScreenX).toBeCloseTo(90, 0)
+    window.dispatchEvent(
+      new PointerEvent('pointerup', {
+        pointerType: 'mouse',
+        clientX: 390,
+        clientY: 60,
+      }),
+    )
+    wrapper.unmount()
+  })
+
+  it('keeps side labels from overlapping the next bar on the same lane', async () => {
+    const base = new Date(2026, 4, 10, 14, 0, 0).getTime()
+    const doc = ref<GanttDocument>({
+      version: 1,
+      tasks: [
+        // intentionally out of chronological order to verify lane sorting
+        { id: 'c', title: '汇总进度', resource: 'a', start: base + 360_000, end: base + 420_000 },
+        { id: 'a', title: '拆解任务', resource: 'a', start: base, end: base + 60_000 },
+        {
+          id: 'b',
+          title: '分配并行子任务',
+          resource: 'a',
+          start: base + 65_000,
+          end: base + 120_000,
+        },
+      ],
+      links: [],
+    })
+    const wrapper = mount(DouScheduler, {
+      props: {
+        modelValue: doc.value,
+        resources: [{ id: 'a', title: '调度器' }],
+        scale: 'minute',
+        calendar: false,
+      },
+      attachTo: document.body,
+    })
+    await nextTick()
+    const sides = wrapper.findAll('.dou-gantt__bar-side')
+    // 'a' is immediately followed by 'b' (5s gap): side label must be suppressed
+    expect(sides.some((el) => el.text() === '拆解任务')).toBe(false)
+    // 'b' has a 4m gap before 'c': side label is clipped with max-width so it stays clear of 'c'
+    const sideB = sides.find((el) => el.text() === '分配并行子任务')
+    expect(sideB).toBeDefined()
+    expect(sideB!.classes()).toContain('is-clipped')
+    // 'c' is last on the lane: unclipped outside label
+    const sideC = sides.find((el) => el.text() === '汇总进度')
+    expect(sideC).toBeDefined()
+    expect(sideC!.classes()).not.toContain('is-clipped')
+    wrapper.unmount()
   })
 })

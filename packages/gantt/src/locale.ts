@@ -22,6 +22,8 @@ export interface GanttMessages {
   /** Durations; `{count}` is a number. */
   days: string
   hours: string
+  minutes: string
+  seconds: string
   today: string
   expand: string
   collapse: string
@@ -153,6 +155,8 @@ const zhCN: GanttMessages = {
   hour: '{hour}:00',
   days: '{count} 天',
   hours: '{count} 小时',
+  minutes: '{count} 分钟',
+  seconds: '{count} 秒',
   today: '今天',
   expand: '展开',
   collapse: '收起',
@@ -238,6 +242,8 @@ const zhTW: GanttMessages = {
   weekdays: ['週日', '週一', '週二', '週三', '週四', '週五', '週六'],
   halves: ['上半年', '下半年'],
   hours: '{count} 小時',
+  minutes: '{count} 分鐘',
+  seconds: '{count} 秒',
   expand: '展開',
   collapse: '收合',
   task: '{title}，{dates}，{duration}，進度 {progress}%',
@@ -333,6 +339,8 @@ const en: GanttMessages = {
   hour: '{hour}:00',
   days: '{count} d',
   hours: '{count} h',
+  minutes: '{count} min',
+  seconds: '{count} s',
   today: 'Today',
   expand: 'Expand',
   collapse: 'Collapse',

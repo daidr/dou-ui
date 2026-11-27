@@ -1,6 +1,7 @@
 import { computed, defineComponent, h, onBeforeUnmount, shallowRef, type Component } from 'vue'
 import { useGantt } from '../context'
 import { spanOf } from '../core/model'
+import type { GanttTime } from '../core/time'
 
 /** The part of an `Awareness` (`y-protocols/awareness`) the chart uses. */
 export interface AwarenessLike {
@@ -15,7 +16,7 @@ export interface AwarenessLike {
 /** What each person shares under the awareness field `gantt`. */
 export interface GanttPresence {
   /** The tasks they are dragging, with the dates they would get. */
-  moving: { id: string; start?: string; end?: string }[]
+  moving: { id: string; start?: GanttTime; end?: GanttTime }[]
   selection: string[]
 }
 
@@ -51,7 +52,7 @@ export function createPeers(awareness: AwarenessLike): Component {
       const rowById = computed(() => new Map(ctx.rows.value.map((row) => [row.task.id, row])))
 
       /** Where a task's bar is, with `patch` applied: in timeline px. */
-      function box(id: string, patch?: { start?: string; end?: string }) {
+      function box(id: string, patch?: { start?: GanttTime; end?: GanttTime }) {
         const row = rowById.value.get(id)
         if (!row) return null
         const span = patch ? spanOf({ ...row.task, ...patch }) : row.span

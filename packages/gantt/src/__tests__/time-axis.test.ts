@@ -30,12 +30,18 @@ function iosScroller(total: () => number, width = 800) {
 }
 
 /** A timeline on a touch screen, or with `coarse` false, one with a mouse. */
-function setup(scale: GanttScale = 'day', coarse = true) {
+function setup(
+  scale: GanttScale = 'day',
+  coarse = true,
+  options?: { follow?: boolean; today?: boolean },
+) {
   vi.stubGlobal('matchMedia', (query: string) => ({ matches: coarse, media: query }))
   let axis!: ReturnType<typeof useTimeAxis>
   const { el, state } = iosScroller(() => axis?.totalWidth.value ?? 0)
   document.body.append(el)
   const content = ref({ start: parseTime('2026-03-02')!.at, end: parseTime('2026-03-20')!.at })
+  const follow = ref(options?.follow ?? false)
+  const scaleRef = ref<GanttScale | undefined>(scale)
   const wrapper = mount(
     defineComponent({
       setup() {
@@ -43,9 +49,10 @@ function setup(scale: GanttScale = 'day', coarse = true) {
           chart: shallowRef(el),
           tableBody: shallowRef(null),
           viewWidth: ref(800),
-          scale: ref(scale),
+          scale: scaleRef,
+          follow,
           range: () => undefined,
-          today: () => false,
+          today: () => options?.today ?? false,
           weekStart: computed(() => 1),
           calendar: computed(() => resolveCalendar()),
           messages: computed(() => ganttLocales['zh-CN']!),
@@ -65,7 +72,7 @@ function setup(scale: GanttScale = 'day', coarse = true) {
   }
   /** The time at the left edge of what's drawn. */
   const shownStart = () => axis.origin.value + axis.scrollLeft.value / axis.ppm.value
-  return { wrapper, axis, state, scroll, shownStart, el, content }
+  return { wrapper, axis, state, scroll, shownStart, el, content, follow, scaleRef }
 }
 
 const touch = (type: string) =>
@@ -195,6 +202,257 @@ describe('time axis on iOS', () => {
     const next = axis.origin.value
     await scroll(-40)
     expect(axis.origin.value).toBe(next)
+    wrapper.unmount()
+  })
+})
+
+describe('live monitoring time axis', () => {
+  it('follows current time at 1s granularity and keeps now anchored near the right edge', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 2, 5, 15, 0, 0))
+    const { wrapper, axis, follow } = setup('second', false, { follow: true, today: true })
+    await nextTick()
+
+    // followMargin = min(80, round(800 * 0.12)) = 80 => anchor at 720px from left edge
+    expect(axis.todayX.value! - axis.scrollLeft.value).toBeCloseTo(720, 0)
+    const beforeLeft = axis.scrollLeft.value
+
+    // advance 10 seconds: at second scale (432_000 px/day = 5 px/s), scrollLeft advances ~50px
+    vi.advanceTimersByTime(10_000)
+    await nextTick()
+    expect(follow.value).toBe(true)
+    expect(axis.scrollLeft.value - beforeLeft).toBeGreaterThanOrEqual(45)
+    expect(axis.todayX.value! - axis.scrollLeft.value).toBeCloseTo(720, 0)
+
+    // zooming while following keeps follow active and now pinned at the anchor
+    axis.zoomOut()
+    await nextTick()
+    expect(follow.value).toBe(true)
+    expect(axis.todayX.value! - axis.scrollLeft.value).toBeCloseTo(720, 0)
+    wrapper.unmount()
+  })
+
+  it('detaches follow on horizontal scroll/wheel/drag or scrollToDate, but not on vertical wheel', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 2, 5, 15, 0, 0))
+    const { wrapper, axis, follow, scroll } = setup('minute', false, { follow: true, today: true })
+    await nextTick()
+
+    // vertical wheel keeps follow active
+    axis.onWheel(new WheelEvent('wheel', { deltaY: 120, deltaX: 0 }))
+    expect(follow.value).toBe(true)
+
+    // horizontal wheel detaches follow
+    axis.onWheel(new WheelEvent('wheel', { deltaX: -60, deltaY: 0 }))
+    expect(follow.value).toBe(false)
+
+    // re-enable follow, then shift+wheel detaches follow
+    follow.value = true
+    await nextTick()
+    axis.onWheel(Object.assign(new WheelEvent('wheel', { deltaY: 60 }), { shiftKey: true }))
+    expect(follow.value).toBe(false)
+
+    // re-enable follow, then manual horizontal scroll detaches follow
+    follow.value = true
+    await nextTick()
+    await scroll(axis.scrollLeft.value - 120)
+    expect(follow.value).toBe(false)
+
+    // re-enable follow, then scrollToDate detaches follow
+    follow.value = true
+    await nextTick()
+    axis.scrollToDate('2026-03-05 14:30')
+    expect(follow.value).toBe(false)
+
+    // scrollToToday while following keeps follow on and aligns now to the right anchor
+    follow.value = true
+    await nextTick()
+    axis.scrollToToday()
+    await nextTick()
+    expect(follow.value).toBe(true)
+    expect(axis.todayX.value! - axis.scrollLeft.value).toBeCloseTo(720, 0)
+    wrapper.unmount()
+  })
+
+  it('fits an explicit sub-hour window and preserves follow when trailing now', async () => {
+    vi.useFakeTimers()
+    const nowTs = new Date(2026, 2, 5, 15, 0, 0).getTime()
+    vi.setSystemTime(nowTs)
+    const { wrapper, axis, follow, scaleRef } = setup('hour', false, {
+      follow: true,
+      today: true,
+    })
+    await nextTick()
+
+    // 15-minute trailing window while following => switches to minute scale and stays following
+    axis.fit([nowTs - 15 * 60_000, nowTs])
+    await nextTick()
+    expect(scaleRef.value).toBe('minute')
+    expect(follow.value).toBe(true)
+    expect(axis.todayX.value! - axis.scrollLeft.value).toBeCloseTo(720, 0)
+
+    // historical 2-minute window => switches to second scale and detaches follow
+    axis.fit(['2026-03-05 12:00:00', '2026-03-05 12:02:00'])
+    await nextTick()
+    expect(scaleRef.value).toBe('second')
+    expect(follow.value).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('pans horizontally by pointer drag and clamps second-scale totalWidth safely', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 2, 5, 15, 0, 0))
+    const { wrapper, axis, follow, el } = setup('second', false, { follow: true, today: true })
+    await nextTick()
+    expect(axis.totalWidth.value).toBeLessThanOrEqual(8_100_000)
+
+    const beforeLeft = axis.scrollLeft.value
+    axis.startPan(
+      new PointerEvent('pointerdown', {
+        button: 0,
+        pointerType: 'mouse',
+        clientX: 400,
+      }),
+    )
+    window.dispatchEvent(
+      new PointerEvent('pointermove', {
+        pointerType: 'mouse',
+        clientX: 520,
+      }),
+    )
+    expect(axis.panning.value).toBe(true)
+    expect(axis.wasPanned()).toBe(true)
+    expect(follow.value).toBe(false)
+    expect(axis.scrollLeft.value).toBe(beforeLeft - 120)
+
+    window.dispatchEvent(new PointerEvent('pointerup', { pointerType: 'mouse', clientX: 520 }))
+    expect(axis.panning.value).toBe(false)
+    vi.advanceTimersByTime(10)
+    expect(axis.wasPanned()).toBe(false)
+
+    // clicks on interactive descendants (e.g. marker buttons) do not start a pan
+    const btn = document.createElement('button')
+    el.append(btn)
+    const down = new PointerEvent('pointerdown', {
+      button: 0,
+      pointerType: 'mouse',
+      clientX: 400,
+    })
+    Object.defineProperty(down, 'target', { value: btn })
+    axis.startPan(down)
+    window.dispatchEvent(new PointerEvent('pointermove', { pointerType: 'mouse', clientX: 480 }))
+    expect(axis.panning.value).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('keeps truncated extent anchored during touch and pinch-zoom at second scale', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 2, 5, 15, 0, 0))
+    const { wrapper, axis } = setup('second', true, { follow: true, today: true })
+    await nextTick()
+
+    const beforeStart = axis.extent.value.start
+    expect(axis.todayX.value).not.toBeNull()
+    expect(axis.now.value).toBeGreaterThanOrEqual(beforeStart)
+    expect(axis.now.value).toBeLessThanOrEqual(axis.extent.value.end)
+
+    // starting a touch must lock the truncated extent start, not revert to freeStart (Mar 2)
+    touch('touchstart')
+    await nextTick()
+    expect(axis.extent.value.start).toBe(beforeStart)
+    expect(axis.todayX.value).not.toBeNull()
+    expect(axis.now.value).toBeGreaterThanOrEqual(axis.extent.value.start)
+    expect(axis.now.value).toBeLessThanOrEqual(axis.extent.value.end)
+
+    // zooming while touch is active re-locks to the new truncated extent around now
+    axis.zoomTo(8_640_000)
+    await nextTick()
+    expect(axis.todayX.value).not.toBeNull()
+    expect(axis.now.value).toBeGreaterThanOrEqual(axis.extent.value.start)
+    expect(axis.now.value).toBeLessThanOrEqual(axis.extent.value.end)
+    expect(axis.totalWidth.value).toBeLessThanOrEqual(8_200_000)
+
+    touch('touchend')
+    vi.advanceTimersByTime(200)
+    await nextTick()
+    wrapper.unmount()
+  })
+
+  it('fits an explicit non-aligned range symmetrically without clipping the right edge', async () => {
+    const { wrapper, axis, shownStart } = setup('minute', false)
+    await nextTick()
+
+    const start = parseTime('2026-03-05 12:00:05')!.at
+    const end = parseTime('2026-03-05 12:02:05')!.at
+    axis.fit(['2026-03-05 12:00:05', '2026-03-05 12:02:05'])
+    await nextTick()
+
+    const leftPad = (start - shownStart()) * axis.ppm.value
+    const rightPad = 800 - (end - shownStart()) * axis.ppm.value
+    expect(leftPad).toBeCloseTo(16, 0)
+    expect(rightPad).toBeCloseTo(16, 0)
+    wrapper.unmount()
+  })
+
+  it('does not let later fitWhenSized calls overwrite an explicit fit([start, end])', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query }))
+    let axis!: ReturnType<typeof useTimeAxis>
+    const viewWidth = ref(0)
+    let fitW = 0
+    const { el } = iosScroller(() => axis?.totalWidth.value ?? 0, 800)
+    document.body.append(el)
+    const content = ref({ start: parseTime('2026-03-01')!.at, end: parseTime('2026-03-31')!.at })
+    const scaleRef = ref<GanttScale | undefined>(undefined)
+    const wrapper = mount(
+      defineComponent({
+        setup() {
+          axis = useTimeAxis({
+            chart: shallowRef(el),
+            tableBody: shallowRef(null),
+            viewWidth,
+            scale: scaleRef,
+            range: () => undefined,
+            today: () => false,
+            weekStart: computed(() => 1),
+            calendar: computed(() => resolveCalendar()),
+            messages: computed(() => ganttLocales['zh-CN']!),
+            content: computed(() => content.value),
+            fitWidth: () => fitW,
+          })
+          return () => null
+        },
+      }),
+      { attachTo: document.body },
+    )
+    await nextTick()
+
+    // queued before layout width is known
+    axis.fit(['2026-03-05 12:00:00', '2026-03-05 12:10:00'])
+    fitW = 800
+    viewWidth.value = 800
+    axis.fitWhenSized()
+    await nextTick()
+    const fittedDayWidth = axis.dayWidth.value
+    expect(scaleRef.value).toBe('minute')
+
+    // subsequent resize must not trigger a fallback fit() that zooms out to the whole month
+    fitW = 960
+    viewWidth.value = 960
+    axis.fitWhenSized()
+    await nextTick()
+    expect(axis.dayWidth.value).toBe(fittedDayWidth)
+    expect(scaleRef.value).toBe('minute')
+
+    // explicit fit while already sized must also clear fitPending
+    axis.fit(['2026-03-05 12:00:00', '2026-03-05 12:01:00'])
+    await nextTick()
+    const secondDayWidth = axis.dayWidth.value
+    expect(scaleRef.value).toBe('second')
+    fitW = 1024
+    viewWidth.value = 1024
+    axis.fitWhenSized()
+    await nextTick()
+    expect(axis.dayWidth.value).toBe(secondDayWidth)
     wrapper.unmount()
   })
 })

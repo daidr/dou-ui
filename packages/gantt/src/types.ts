@@ -3,10 +3,11 @@ import type { GanttBaselineItem } from './core/baseline'
 import type { GanttCalendar } from './core/calendar'
 import type { GanttCSVImportOptions, GanttCSVResult } from './core/csv'
 import type { GanttExtension } from './core/extension'
-import type { GanttLink, GanttTask } from './core/model'
+import type { GanttData, GanttLink, GanttTask } from './core/model'
 import type { Tone } from 'dou-ui'
 import type { GanttSchedule } from './core/schedule'
 import type { GanttScale } from './core/scale'
+import type { GanttTime } from './core/time'
 import type { GanttDocument, GanttTransaction, GanttTransactionMeta } from './core/transaction'
 import type { GanttRow } from './core/tree'
 import type { GanttMenuTarget } from './core/menu'
@@ -57,28 +58,40 @@ export interface GanttInsertOptions {
   start?: string | number
 }
 
-/** A vertical line across the timeline, such as a release day or a freeze. */
-export interface GanttMarker {
-  /** Where, as `YYYY-MM-DD` (the start of that day) or `YYYY-MM-DD HH:mm`. */
-  date: string
-  /** Shown in the time header. */
+/**
+ * A vertical marker line across the timeline (such as a release day or freeze),
+ * or — when `task` (in `DouGantt`) or `resource` (in `DouScheduler`) is given —
+ * a discrete event marker point rendered inside that row or swimlane.
+ */
+export interface GanttMarker<Data extends GanttData = GanttData> {
+  /** Optional identifier, used as key and in `markerClick`. */
+  id?: string
+  /** Where, as `YYYY-MM-DD`, `YYYY-MM-DD HH:mm(:ss.SSS)`, ISO 8601, or Unix timestamp in ms. */
+  date: GanttTime
+  /** Shown in the time header (for timeline lines) or as tooltip/label (for row markers). */
   label?: string
   tone?: Tone
+  /** Scope to a resource swimlane in `DouScheduler` (renders as an inline event point). */
+  resource?: string
+  /** Scope to a task row in `DouGantt` (renders as an inline event point). */
+  task?: string
+  /** Your own fields, e.g. for custom rendering in the `marker` slot. */
+  data?: Data
 }
 
 /** New dates about to be given to a task, as they would be written. */
 export interface GanttMove {
   task: GanttTask
-  start: string
-  end?: string
+  start: GanttTime
+  end?: GanttTime
 }
 
 /** How a bar shows its task's title. */
 export type GanttBarLabel = 'auto' | 'inside' | 'outside' | 'none'
 
 export interface GanttProps {
-  /** Which days and hours are worked; shades the rest and counts durations. */
-  calendar?: GanttCalendar
+  /** Which days and hours are worked; shades the rest and counts durations. Pass `false` to disable. */
+  calendar?: GanttCalendar | false
   /** Columns of the task table. Defaults to title, start and duration. */
   columns?: GanttColumn[]
   /**
@@ -96,10 +109,10 @@ export interface GanttProps {
    */
   barLabel?: GanttBarLabel
   /**
-   * The span the timeline covers, as two dates. Leave it out to cover the
+   * The span the timeline covers, as two dates or timestamps. Leave it out to cover the
    * tasks with room around them; scrolling to either end adds more.
    */
-  range?: [string, string]
+  range?: [GanttTime, GanttTime]
   /** Mark the current time with a line. */
   today?: boolean
   /** The first day of a week: `0` Sunday, `1` Monday. Defaults to the locale's. */
@@ -137,7 +150,7 @@ export interface GanttProps {
    * is shown as the reason.
    */
   canMove?: (move: GanttMove, doc: GanttDocument) => boolean | string
-  /** Vertical marker lines, such as release days. */
+  /** Vertical marker lines or row-scoped discrete event markers (with `task`). */
   markers?: GanttMarker[]
   /**
    * The dates as planned, from `takeBaseline`: each task shows a thin line
@@ -174,6 +187,8 @@ export interface GanttEmits {
   linkClick: [link: GanttLink, event: MouseEvent]
   /** Sent before the menu opens; `event.preventDefault()` keeps it closed. */
   linkContextmenu: [link: GanttLink, event: MouseEvent]
+  /** A row-scoped discrete event marker was clicked. */
+  markerClick: [marker: GanttMarker, event: MouseEvent]
 }
 
 export interface GanttSlots {
@@ -181,6 +196,8 @@ export interface GanttSlots {
   cell?: (props: { task: GanttTask; row: GanttRow; column: GanttColumn; text: string }) => unknown
   /** The content of a bar, in place of its title. */
   bar?: (props: { task: GanttTask; row: GanttRow }) => unknown
+  /** Custom content for a row-scoped discrete event marker. */
+  marker?: (props: { marker: GanttMarker }) => unknown
   /** Drawn over the chart, e.g. a panel; it can call `useGantt()`. */
   default?: () => unknown
 }
@@ -266,10 +283,13 @@ export interface GanttExpose {
   indentTask: (id: string) => boolean
   /** Moves a task out of its parent, to just after it. */
   outdentTask: (id: string) => boolean
-  /** Picks the day width that fits all tasks into view and scrolls to the first one. */
-  fit: () => void
-  /** Scrolls so that a date (or time) is near the left of the timeline. */
-  scrollToDate: (date: string) => void
+  /**
+   * Picks the day width that fits all tasks (or an explicit `[start, end]`
+   * range) into view and scrolls to its start.
+   */
+  fit: (range?: [GanttTime, GanttTime]) => void
+  /** Scrolls so that a date (or timestamp) is near the left of the timeline. */
+  scrollToDate: (date: GanttTime) => void
   /** Scrolls a task into view, rows and time. */
   scrollToTask: (id: string) => void
   /** Scrolls so that now is in view. */

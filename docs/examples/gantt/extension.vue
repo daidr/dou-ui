@@ -35,7 +35,8 @@ function quietDays(from: string, to: string, label: string) {
     canMove: (move) => {
       const a = parseTime(move.start)!.at
       // 只有日期的结束是当天，算到那天结束
-      const b = move.end ? parseTime(move.end)!.at + (move.end.length === 10 ? 1440 : 0) : a
+      const endAt = parseTime(move.end)
+      const b = endAt ? endAt.at + (endAt.dateOnly ? 1440 : 0) : a
       return b <= start || a >= end || `${label}期间不排任务`
     },
   })

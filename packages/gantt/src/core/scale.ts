@@ -1,9 +1,11 @@
 import { MINUTES_PER_DAY, MINUTES_PER_HOUR, dayStart, fromParts, partsOf } from './time'
 
-export type GanttScale = 'hour' | 'day' | 'week' | 'month' | 'quarter' | 'year'
+export type GanttScale =
+  'second' | 'minute' | 'hour' | 'day' | 'week' | 'month' | 'quarter' | 'year'
 
 /** A step of the time header. */
-export type TimeUnit = 'hour' | 'day' | 'week' | 'month' | 'quarter' | 'half' | 'year'
+export type TimeUnit =
+  'second' | 'minute' | 'hour' | 'day' | 'week' | 'month' | 'quarter' | 'half' | 'year'
 
 export interface ScaleLevel {
   name: GanttScale
@@ -18,6 +20,8 @@ export interface ScaleLevel {
 
 /** From the widest days to the narrowest. */
 export const scaleLevels: readonly ScaleLevel[] = [
+  { name: 'second', min: 216_000, base: 432_000, top: 'minute', bottom: 'second' },
+  { name: 'minute', min: 2880, base: 21_600, top: 'hour', bottom: 'minute' },
   { name: 'hour', min: 288, base: 1152, top: 'day', bottom: 'hour' },
   { name: 'day', min: 24, base: 40, top: 'month', bottom: 'day' },
   { name: 'week', min: 8, base: 16, top: 'month', bottom: 'week' },
@@ -26,11 +30,16 @@ export const scaleLevels: readonly ScaleLevel[] = [
   { name: 'year', min: 0, base: 0.32, top: 'year', bottom: 'half' },
 ]
 
-/** The widest and narrowest a day may be, in px. */
-export const DAY_WIDTH_RANGE: [number, number] = [0.16, 2880]
+const SECOND_MIN = 216_000
+const MINUTE_MIN = 2880
+const HOUR_MIN = 288
+const DAY_LEVEL = scaleLevels.find((level) => level.name === 'day')!
+
+/** The widest and narrowest a day may be, in px (up to 6000 px/min = 100 px/sec). */
+export const DAY_WIDTH_RANGE: [number, number] = [0.16, 8_640_000]
 
 export const levelByName = (name: GanttScale) =>
-  scaleLevels.find((level) => level.name === name) ?? scaleLevels[1]!
+  scaleLevels.find((level) => level.name === name) ?? DAY_LEVEL
 
 /** The level that shows days `dayWidth` px wide. */
 export const levelOf = (dayWidth: number) =>
@@ -42,19 +51,58 @@ export function hourStep(dayWidth: number) {
   return [1, 2, 3, 4, 6, 12].find((step) => step * hour >= 48) ?? 12
 }
 
+/** Minutes per header cell at minute scale, so that labels have room. */
+export function minuteStep(dayWidth: number) {
+  const minute = dayWidth / MINUTES_PER_DAY
+  return [1, 2, 5, 10, 15, 30].find((step) => step * minute >= 56) ?? 30
+}
+
+/** Seconds per header cell at second scale, so that labels have room. */
+export function secondStep(dayWidth: number) {
+  const second = dayWidth / (MINUTES_PER_DAY * 60)
+  return [1, 2, 5, 10, 15, 30].find((step) => step * second >= 68) ?? 30
+}
+
+/** Bottom-row cell step for `unit` at `dayWidth`. */
+export function headerStepFor(unit: TimeUnit, dayWidth: number) {
+  if (unit === 'hour') return hourStep(dayWidth)
+  if (unit === 'minute') return minuteStep(dayWidth)
+  if (unit === 'second') return secondStep(dayWidth)
+  return 1
+}
+
 /** The step that drags and new dates snap to, in minutes. */
 export function snapStep(dayWidth: number) {
-  if (dayWidth < scaleLevels[0]!.min) return MINUTES_PER_DAY
-  const hour = dayWidth / 24
-  return hour >= 80 ? 15 : hour >= 40 ? 30 : MINUTES_PER_HOUR
+  if (dayWidth < HOUR_MIN) return MINUTES_PER_DAY
+  if (dayWidth < MINUTE_MIN) {
+    const hour = dayWidth / 24
+    return hour >= 80 ? 15 : hour >= 40 ? 30 : MINUTES_PER_HOUR
+  }
+  if (dayWidth < SECOND_MIN) {
+    const ppm = dayWidth / MINUTES_PER_DAY
+    return ppm >= 80 ? 0.5 : ppm >= 20 ? 1 : ppm >= 6 ? 5 : 15
+  }
+  const pps = dayWidth / (MINUTES_PER_DAY * 60)
+  return (pps >= 40 ? 1 : pps >= 10 ? 5 : pps >= 4 ? 10 : 15) / 60
 }
 
 /** The start of the `unit` that holds `at`. */
 export function unitStart(unit: TimeUnit, at: number, weekStart: 0 | 1 = 1, step = 1) {
   switch (unit) {
+    case 'second': {
+      const seconds = Math.floor(Math.round(at * 60_000) / 1000)
+      const mod = ((seconds % 60) + 60) % 60
+      return (seconds - (mod % step)) / 60
+    }
+    case 'minute': {
+      const minutes = Math.floor(Math.round(at * 60_000) / 60_000)
+      const mod = ((minutes % MINUTES_PER_HOUR) + MINUTES_PER_HOUR) % MINUTES_PER_HOUR
+      return minutes - (mod % step)
+    }
     case 'hour': {
-      const hours = Math.floor(at / MINUTES_PER_HOUR)
-      return (hours - ((((hours % 24) % step) + step) % step)) * MINUTES_PER_HOUR
+      const hours = Math.floor(Math.round(at * 60_000) / (MINUTES_PER_HOUR * 60_000))
+      const mod = ((hours % 24) + 24) % 24
+      return (hours - (mod % step)) * MINUTES_PER_HOUR
     }
     case 'day':
       return dayStart(at)
@@ -74,8 +122,12 @@ export function unitStart(unit: TimeUnit, at: number, weekStart: 0 | 1 = 1, step
 /** The start of the `unit` after the one that starts at `at`. */
 export function nextUnit(unit: TimeUnit, at: number, step = 1) {
   switch (unit) {
+    case 'second':
+      return (Math.round(at * 60) + step) / 60
+    case 'minute':
+      return Math.round(at) + step
     case 'hour':
-      return at + step * MINUTES_PER_HOUR
+      return Math.round(at) + step * MINUTES_PER_HOUR
     case 'day':
       return at + MINUTES_PER_DAY
     case 'week':

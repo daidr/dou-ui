@@ -475,10 +475,34 @@
     clip-path: polygon(50% 0, 100% 100%, 0 100%);
   }
 
+  /* live follow mode highlights the current-time notch as a steady dot */
+  .dou-gantt.is-following .dou-gantt__today-mark {
+    bottom: -3px;
+    width: 7px;
+    height: 7px;
+    margin-left: -3px;
+    border-radius: 50%;
+    clip-path: none;
+    box-shadow: 0 0 0 2px color-mix(in oklab, var(--dou-gantt-today) 28%, transparent);
+  }
+
   .dou-gantt__body {
     position: relative;
     background-image: linear-gradient(to top, var(--dou-gantt-line) 1px, transparent 1px);
     background-size: 100% var(--dou-gantt-row-height);
+  }
+
+  /* readonly timelines can be panned by dragging horizontally */
+  .dou-gantt:not(.is-editable) :is(.dou-gantt__header, .dou-gantt__body, .dou-gantt__bar) {
+    cursor: grab;
+  }
+
+  .dou-gantt.is-panning {
+    user-select: none;
+
+    :is(.dou-gantt__header, .dou-gantt__body, .dou-gantt__bar) {
+      cursor: grabbing;
+    }
   }
 
   /* titles pinned to the left edge when the table is hidden */
@@ -907,6 +931,13 @@
       font-weight: var(--dou-font-weight-medium);
     }
 
+    &.is-clipped {
+      display: block;
+      overflow: hidden;
+      line-height: var(--dou-gantt-row-height);
+      text-overflow: ellipsis;
+    }
+
     /* make room for the link knob while the bar shows its handles */
     .is-editable .dou-gantt__bar-row:is(:hover, .is-selected, .is-active) > & {
       transform: translateX(12px);
@@ -1120,7 +1151,8 @@
   /* marker lines ------------------------------------------------------------ */
 
   .dou-gantt__marker,
-  .dou-gantt__marker-label {
+  .dou-gantt__marker-label,
+  .dou-gantt__event {
     --dou-gantt-marker: color-mix(in oklab, var(--dou-color-text) 45%, transparent);
     --dou-gantt-marker-text: var(--dou-color-text-secondary);
 
@@ -1139,6 +1171,54 @@
     &.is-danger {
       --dou-gantt-marker: var(--dou-color-danger);
       --dou-gantt-marker-text: var(--dou-color-danger-text);
+    }
+  }
+
+  /* discrete event marker rendered inside a row or swimlane */
+  .dou-gantt__event {
+    --dou-gantt-marker: var(--dou-color-text-secondary);
+
+    position: absolute;
+    z-index: 3;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    min-height: 20px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--dou-radius-control);
+    background: transparent;
+    color: var(--dou-gantt-marker-text);
+    cursor: pointer;
+    transform: translate(-50%, -50%);
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 1px;
+    }
+
+    &:has(> .dou-gantt__event-dot):focus-visible {
+      outline: none;
+    }
+  }
+
+  .dou-gantt__event-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--dou-gantt-marker);
+    box-shadow: 0 0 0 2px var(--dou-color-bg-surface);
+    transition:
+      transform var(--dou-motion-duration-fast) var(--dou-motion-easing),
+      box-shadow var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    .dou-gantt__event:hover > &,
+    .dou-gantt__event:focus-visible > & {
+      transform: scale(1.35);
+      box-shadow:
+        0 0 0 2px var(--dou-color-bg-surface),
+        0 0 0 4px color-mix(in oklab, var(--dou-gantt-marker) 28%, transparent);
     }
   }
 

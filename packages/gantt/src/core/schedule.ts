@@ -27,8 +27,8 @@ import { buildTree } from './tree'
  */
 
 export interface GanttScheduleOptions {
-  /** Which days and hours are worked; the chart's `calendar`. */
-  calendar?: GanttCalendar | WorkCalendar
+  /** Which days and hours are worked; the chart's `calendar`, or `false` to disable. */
+  calendar?: GanttCalendar | WorkCalendar | false
   /** Also bring tasks earlier, to the earliest their links allow. Only tasks with links in move. */
   pull?: boolean
   /** Tasks to leave where they are, e.g. the ones just moved by hand; `locked` tasks always stay. */
@@ -75,7 +75,9 @@ interface Graph {
 }
 
 const toCalendar = (calendar: GanttScheduleOptions['calendar']): WorkCalendar =>
-  calendar && 'isWorkday' in calendar ? calendar : resolveCalendar(calendar)
+  calendar && typeof calendar === 'object' && 'isWorkday' in calendar
+    ? calendar
+    : resolveCalendar(calendar)
 
 function push(map: Map<string, GanttLink[]>, id: string, link: GanttLink) {
   const list = map.get(id)
@@ -149,6 +151,11 @@ function buildGraph(doc: GanttDocument, calendar: WorkCalendar): Graph {
   return { calendar, items, leavesOf, incoming, outgoing, order, cycle }
 }
 
+/** Sub-millisecond tolerance (in minutes) for floating-point comparisons at second precision. */
+const EPS = 1e-6
+
+const sameTime = (a: number, b: number) => Math.abs(a - b) <= EPS
+
 /** `at` moved by a link's lag, in working days or working minutes. */
 function shiftByLag(
   calendar: WorkCalendar,
@@ -163,7 +170,11 @@ function shiftByLag(
   if (dateOnly) {
     const days = lag.unit === 'day' ? lag.amount : lag.amount / perDay
     // a part of a day still takes the day
-    return shiftWorkdays(calendar, Math.ceil(at / MINUTES_PER_DAY) * MINUTES_PER_DAY, sign * days)
+    return shiftWorkdays(
+      calendar,
+      Math.ceil((at - EPS) / MINUTES_PER_DAY) * MINUTES_PER_DAY,
+      sign * days,
+    )
   }
   const minutes = lag.unit === 'day' ? lag.amount * perDay : lag.amount
   return shiftWorkMinutes(calendar, at, sign * minutes)
@@ -187,12 +198,12 @@ function requirement(graph: Graph, link: GanttLink, dateOnly: boolean) {
 
 /** `a` is not before `b`, counting only working time. */
 const notBefore = (calendar: WorkCalendar, a: number, b: number, dateOnly: boolean) =>
-  a >= b || workIn(calendar, a, b, dateOnly) === 0
+  a >= b - EPS || workIn(calendar, a, b, dateOnly) <= EPS
 
 /** The earliest a whole-day milestone can stand at or after `at`: the end of a working day. */
 function milestoneAt(calendar: WorkCalendar, at: number, dateOnly: boolean) {
   if (!dateOnly) return nextWorkTime(calendar, at, false)
-  let day = Math.ceil(at / MINUTES_PER_DAY) - 1
+  let day = Math.ceil((at - EPS) / MINUTES_PER_DAY) - 1
   while (!calendar.isWorkday(day) && day < at / MINUTES_PER_DAY + 3660) day++
   return (day + 1) * MINUTES_PER_DAY
 }
@@ -253,7 +264,11 @@ export function computeSchedule(
     if (item.task.locked || fixed.has(item.task.id)) continue
     const start = earliestStart(graph, item)
     if (start == null) continue
-    if (options.pull ? start === item.start : notBefore(calendar, item.start, start, item.dateOnly))
+    if (
+      options.pull
+        ? sameTime(start, item.start)
+        : notBefore(calendar, item.start, start, item.dateOnly)
+    )
       continue
     const end = item.milestone ? start : endKeepingWork(calendar, item, start)
     item.start = start
@@ -314,7 +329,7 @@ export function computeCriticalPath(
     }
     const latestStart = item.milestone ? latestEnd : startKeepingWork(cal, item, latestEnd)
     late.set(item.task.id, { start: latestStart, end: latestEnd })
-    if (workIn(cal, item.end, latestEnd, item.dateOnly) === 0) out.tasks.add(item.task.id)
+    if (workIn(cal, item.end, latestEnd, item.dateOnly) <= EPS) out.tasks.add(item.task.id)
   }
 
   for (const link of doc.links) {

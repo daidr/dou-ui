@@ -99,12 +99,13 @@ function contextMenu(target: SchedulerMenuTarget): ContextMenuItem[] {
 | `v-model`           | 排期，和甘特图的是同一种数据，只读写其中的 `tasks`                                                          | `GanttDocument`                                                  | `{ version: 1, tasks: [], links: [] }` |
 | `v-model:selection` | 选中的任务 id                                                                                               | `string[]`                                                       | `[]`                                   |
 | `v-model:scale`     | 时间刻度                                                                                                    | `GanttScale`                                                     | 按内容自动缩放                         |
+| `v-model:follow`    | 跟随当前时间到视口右侧，横向滚动或拖拽平移时自动关闭，见[实时监控时间线](./timeline#实时监控时间线)         | `boolean`                                                        | `false`                                |
 | `resources`         | 资源，按顺序排成行                                                                                          | `SchedulerResource[]`                                            | —                                      |
-| `calendar`          | 工作日历                                                                                                    | `GanttCalendar`                                                  | —                                      |
-| `range`             | 固定时间轴的范围；不设时两端随滚动延伸                                                                      | `[string, string]`                                               | —                                      |
+| `calendar`          | 工作日历；设为 `false` 关闭非工作时段底纹，按 24/7 连续时间计算                                             | `GanttCalendar \| false`                                         | —                                      |
+| `range`             | 固定时间轴的范围；不设时两端随滚动延伸                                                                      | `[GanttTime, GanttTime]`                                         | —                                      |
 | `today`             | 显示当前时间线                                                                                              | `boolean`                                                        | `true`                                 |
 | `weekStart`         | 一周的第一天                                                                                                | `0 \| 1`                                                         | 跟随语言                               |
-| `markers`           | 标记线                                                                                                      | `GanttMarker[]`                                                  | —                                      |
+| `markers`           | 标记线与泳道内离散事件点（设置 `resource` 时渲染在对应泳道内）                                              | `GanttMarker[]`                                                  | —                                      |
 | `table`             | 显示左侧的资源列表                                                                                          | `boolean`                                                        | `true`                                 |
 | `tableWidth`        | 资源列表的宽度                                                                                              | `number`                                                         | `200`                                  |
 | `rowHeight`         | 只有一道时的行高，每多一道增加 28px                                                                         | `number`                                                         | `36`                                   |
@@ -137,13 +138,14 @@ interface SchedulerResource {
 
 ### Scheduler Events
 
-| 名称              | 说明                                                        | 参数                                   |
-| ----------------- | ----------------------------------------------------------- | -------------------------------------- |
-| `transaction`     | 每次修改后触发，包括撤销和重做                              | `(tr: GanttTransaction)`               |
-| `taskClick`       | 点击任务                                                    | `(task: GanttTask, event: MouseEvent)` |
-| `taskDblclick`    | 双击任务                                                    | `(task: GanttTask, event: MouseEvent)` |
-| `taskContextmenu` | 在任务上打开菜单前触发，`event.preventDefault()` 可以不打开 | `(task: GanttTask, event: MouseEvent)` |
-| `create`          | 在空白处拖出一段时间                                        | `(range: SchedulerRange)`              |
+| 名称              | 说明                                                        | 参数                                       |
+| ----------------- | ----------------------------------------------------------- | ------------------------------------------ |
+| `transaction`     | 每次修改后触发，包括撤销和重做                              | `(tr: GanttTransaction)`                   |
+| `taskClick`       | 点击任务                                                    | `(task: GanttTask, event: MouseEvent)`     |
+| `taskDblclick`    | 双击任务                                                    | `(task: GanttTask, event: MouseEvent)`     |
+| `taskContextmenu` | 在任务上打开菜单前触发，`event.preventDefault()` 可以不打开 | `(task: GanttTask, event: MouseEvent)`     |
+| `markerClick`     | 点击泳道内离散事件标记点                                    | `(marker: GanttMarker, event: MouseEvent)` |
+| `create`          | 在空白处拖出一段时间                                        | `(range: SchedulerRange)`                  |
 
 ```ts
 interface SchedulerRange {
@@ -155,8 +157,8 @@ interface SchedulerRange {
 
 interface SchedulerMove {
   task: GanttTask
-  start: string
-  end?: string
+  start: GanttTime
+  end?: GanttTime
   /** 要去的资源，“未分配”一行时为 undefined */
   resource?: string
 }
@@ -168,21 +170,22 @@ type SchedulerMenuTarget =
 
 ### Scheduler Slots
 
-| 名称       | 说明             | 参数           |
-| ---------- | ---------------- | -------------- |
-| `bar`      | 任务条里的内容   | `{ task }`     |
-| `resource` | 资源列表里的一项 | `{ resource }` |
+| 名称       | 说明                       | 参数           |
+| ---------- | -------------------------- | -------------- |
+| `bar`      | 任务条里的内容             | `{ task }`     |
+| `resource` | 资源列表里的一项           | `{ resource }` |
+| `marker`   | 泳道内离散事件标记点的内容 | `{ marker }`   |
 
 ### Scheduler Exposes
 
-| 名称                                                          | 说明                                   |
-| ------------------------------------------------------------- | -------------------------------------- |
-| `transact(fn, meta?)`                                         | 把修改作为一次事务提交，撤销时一起撤销 |
-| `undo()` / `redo()`                                           | 撤销 / 重做                            |
-| `fit()`                                                       | 缩放到所有任务都能看到                 |
-| `scrollToDate(date)` / `scrollToToday()` / `scrollToTask(id)` | 滚动到某个时间或任务                   |
-| `focusTask(id)`                                               | 让某个任务获得焦点                     |
-| `zoomIn()` / `zoomOut()`                                      | 放大 / 缩小时间轴                      |
+| 名称                                                          | 说明                                                     |
+| ------------------------------------------------------------- | -------------------------------------------------------- |
+| `transact(fn, meta?)`                                         | 把修改作为一次事务提交，撤销时一起撤销                   |
+| `undo()` / `redo()`                                           | 撤销 / 重做                                              |
+| `fit(range?)`                                                 | 缩放到所有任务都能看到，或传入 `[start, end]` 适配时间窗 |
+| `scrollToDate(date)` / `scrollToToday()` / `scrollToTask(id)` | 滚动到某个时间或任务                                     |
+| `focusTask(id)`                                               | 让某个任务获得焦点                                       |
+| `zoomIn()` / `zoomOut()`                                      | 放大 / 缩小时间轴                                        |
 
 资源排期目前没有甘特图的 `exportSVG`、`exportPNG`、`toCSV` 和 `print`，需要导出时可以把 `tasks` 按资源整理后自己生成。
 

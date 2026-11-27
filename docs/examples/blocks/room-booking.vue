@@ -110,8 +110,8 @@ function edit(task: GanttTask) {
     title: task.title,
     room: task.resource,
     host: task.data?.host ?? '戴兜',
-    from: task.start?.slice(11),
-    to: task.end?.slice(11),
+    from: typeof task.start === 'string' ? task.start.slice(11) : '',
+    to: typeof task.end === 'string' ? task.end.slice(11) : '',
   })
   open.value = true
 }

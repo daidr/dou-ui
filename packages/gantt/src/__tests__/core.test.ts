@@ -14,25 +14,50 @@ import {
 import { roundedPath, routeLink } from '../core/geometry'
 import { linkRefusal, linkTypeOf, parseLag } from '../core/links'
 import { spanOf, writeSpan } from '../core/model'
-import { levelOf, unitStart, unitsBetween } from '../core/scale'
-import { formatTime, parseTime } from '../core/time'
+import {
+  DAY_WIDTH_RANGE,
+  headerStepFor,
+  levelOf,
+  minuteStep,
+  secondStep,
+  snapStep,
+  unitStart,
+  unitsBetween,
+} from '../core/scale'
+import { formatTime, parseTime, toTimestamp } from '../core/time'
 import { buildTree } from '../core/tree'
+import { dateLabel, durationLabel, timedDurationLabel, unitLabel } from '../labels'
+import { ganttLocales } from '../locale'
 
 const at = (text: string) => parseTime(text)!.at
 const DAY = 1440
 
 describe('time', () => {
-  it('reads dates and times to the minute, and refuses the rest', () => {
+  it('reads dates, seconds, milliseconds, ISO offsets and Unix timestamps, and refuses the rest', () => {
     expect(parseTime('2026-03-05')).toEqual({ at: at('2026-03-05 00:00'), dateOnly: true })
     expect(parseTime('2026-03-05 09:30')!.at - at('2026-03-05')).toBe(570)
-    expect(parseTime('2026-03-05 09:30:45')).toEqual(parseTime('2026-03-05 09:30'))
+    expect(parseTime('2026-03-05 09:30:45')!.at - at('2026-03-05 09:30')).toBeCloseTo(0.75, 10)
+    expect(parseTime('2026-03-05T09:30:45.250')!.at - at('2026-03-05 09:30:45')).toBeCloseTo(
+      0.25 / 60,
+      8,
+    )
+    const ts = new Date(2026, 2, 5, 9, 30, 45, 500).getTime()
+    expect(parseTime(ts)).toEqual({ at: at('2026-03-05 09:30:45.500'), dateOnly: false })
+    expect(toTimestamp(parseTime(ts)!.at)).toBe(ts)
+    const iso = new Date(ts).toISOString()
+    expect(parseTime(iso)!.at).toBeCloseTo(parseTime(ts)!.at, 10)
     expect(parseTime('2026-02-30')).toBeNull()
     expect(parseTime('2026-3-5')).toBeNull()
+    expect(parseTime(Number.NaN)).toBeNull()
+    expect(parseTime(Number.POSITIVE_INFINITY)).toBeNull()
     expect(parseTime(undefined)).toBeNull()
   })
 
-  it('writes what it reads', () => {
+  it('writes what it reads, keeping seconds and milliseconds only when non-zero', () => {
     expect(formatTime(at('2026-12-31 23:45'))).toBe('2026-12-31 23:45')
+    expect(formatTime(at('2026-12-31 23:45:00'))).toBe('2026-12-31 23:45')
+    expect(formatTime(at('2026-12-31 23:45:12'))).toBe('2026-12-31 23:45:12')
+    expect(formatTime(at('2026-12-31 23:45:12.050'))).toBe('2026-12-31 23:45:12.050')
     expect(formatTime(at('2026-01-02'), true)).toBe('2026-01-02')
   })
 })
@@ -79,6 +104,16 @@ describe('spans', () => {
     const milestone = { id: 'm', title: '', type: 'milestone' as const, start: '2026-03-05' }
     expect(writeSpan(milestone, at('2026-03-08 12:00'), at('2026-03-08 12:00'))).toEqual({
       start: '2026-03-08',
+    })
+    // numeric Unix timestamps stay numeric when moved
+    const startTs = new Date(2026, 2, 5, 10, 0, 0).getTime()
+    const endTs = new Date(2026, 2, 5, 10, 0, 15).getTime()
+    const liveTask = { id: 'live', title: '', start: startTs, end: endTs }
+    const span = spanOf(liveTask)!
+    expect(span.end - span.start).toBeCloseTo(0.25, 10)
+    expect(writeSpan(liveTask, span.start + 0.5, span.end + 0.5)).toEqual({
+      start: startTs + 30_000,
+      end: endTs + 30_000,
     })
   })
 })
@@ -175,6 +210,19 @@ describe('calendar', () => {
       { start: at('2026-10-05 18:00'), end: at('2026-10-06') },
     ])
   })
+
+  it('disables off-time shading and counts 24/7 continuous time when calendar is false', () => {
+    const open = resolveCalendar(false)
+    expect(open.isWorkday(0)).toBe(true)
+    expect(offTime(open, at('2026-03-06 00:00'), at('2026-03-09 23:00'), true)).toEqual([])
+    expect(workingMinutes(open, at('2026-03-07 23:59:30'), at('2026-03-08 00:00:15'))).toBeCloseTo(
+      0.75,
+      10,
+    )
+    expect(shiftWorkMinutes(open, at('2026-03-07 23:00'), 120)).toBe(at('2026-03-08 01:00'))
+    expect(isWorkTime(open, at('2026-03-07 02:30'), false)).toBe(true)
+    expect(nextWorkTime(open, at('2026-03-07 02:30'), false)).toBe(at('2026-03-07 02:30'))
+  })
 })
 
 describe('tree', () => {
@@ -207,21 +255,67 @@ describe('tree', () => {
 })
 
 describe('scale', () => {
-  it('picks the level by day width', () => {
+  it('picks the level by day width, including minute and second scales', () => {
+    expect(levelOf(432_000).name).toBe('second')
+    expect(levelOf(21_600).name).toBe('minute')
     expect(levelOf(960).name).toBe('hour')
     expect(levelOf(40).name).toBe('day')
     expect(levelOf(16).name).toBe('week')
     expect(levelOf(0.2).name).toBe('year')
+    expect(DAY_WIDTH_RANGE[1]).toBeGreaterThanOrEqual(432_000)
   })
 
-  it('finds unit starts', () => {
+  it('picks readable sub-hour header steps and snap steps', () => {
+    expect(minuteStep(21_600)).toBe(5)
+    expect(minuteStep(96_000)).toBe(1)
+    expect(minuteStep(4_000)).toBe(30)
+    expect(secondStep(432_000)).toBe(15)
+    expect(secondStep(1_440_000)).toBe(5)
+    expect(secondStep(8_640_000)).toBe(1)
+    expect(headerStepFor('minute', 21_600)).toBe(5)
+    expect(headerStepFor('second', 432_000)).toBe(15)
+    expect(snapStep(21_600)).toBe(5)
+    expect(snapStep(432_000)).toBeCloseTo(10 / 60, 10)
+  })
+
+  it('finds unit starts, including minute and second steps', () => {
     // a Wednesday
-    const wed = at('2026-10-14 15:00')
+    const wed = at('2026-10-14 15:23:47')
+    expect(unitStart('second', wed, 1, 15)).toBeCloseTo(at('2026-10-14 15:23:45'), 10)
+    expect(unitStart('minute', wed, 1, 5)).toBe(at('2026-10-14 15:20'))
     expect(unitStart('week', wed, 1)).toBe(at('2026-10-12'))
     expect(unitStart('week', wed, 0)).toBe(at('2026-10-11'))
     expect(unitStart('quarter', wed)).toBe(at('2026-10-01'))
     expect(unitStart('hour', wed, 1, 6)).toBe(at('2026-10-14 12:00'))
     expect(unitsBetween('month', at('2026-11-15'), at('2027-01-02')).length).toBe(3)
+    expect(
+      unitsBetween('minute', at('2026-10-14 15:00'), at('2026-10-14 15:15'), 1, 5).length,
+    ).toBe(3)
+    expect(
+      unitsBetween('second', at('2026-10-14 15:00:00'), at('2026-10-14 15:01:00'), 1, 15).length,
+    ).toBe(4)
+  })
+
+  it('formats sub-hour labels and durations cleanly', () => {
+    const zh = ganttLocales['zh-CN']!
+    const en = ganttLocales.en!
+    const moment = at('2026-10-14 15:05:30')
+    expect(unitLabel('hour', at('2026-10-14 15:00'), zh, 21_600)).toBe('10月14日 15:00')
+    expect(unitLabel('minute', at('2026-10-14 15:05'), zh, 21_600)).toBe('15:05')
+    expect(unitLabel('minute', at('2026-10-14 15:05'), zh, 432_000)).toBe('10月14日 15:05')
+    expect(unitLabel('second', moment, zh, 432_000)).toBe('15:05:30')
+    expect(dateLabel(moment, false, zh)).toBe('10月14日 15:05:30')
+    expect(timedDurationLabel(0.5, zh)).toBe('30 秒')
+    expect(timedDurationLabel(0.0005, zh)).toBe('0.03 秒')
+    expect(timedDurationLabel(12, zh)).toBe('12 分钟')
+    expect(timedDurationLabel(90, en)).toBe('1.5 h')
+    expect(
+      durationLabel(
+        { start: at('2026-10-14 15:00:00'), end: at('2026-10-14 15:00:18'), dateOnly: false },
+        resolveCalendar(false),
+        zh,
+      ),
+    ).toBe('18 秒')
   })
 })
 
@@ -309,11 +403,12 @@ describe('link rules', () => {
     expect(linkTypeOf('start', 'end')).toBe('sf')
   })
 
-  it('reads lags in days, hours and minutes', () => {
+  it('reads lags in days, hours, minutes and seconds', () => {
     expect(parseLag(2)).toEqual({ amount: 2, unit: 'day' })
     expect(parseLag('2d')).toEqual({ amount: 2, unit: 'day' })
     expect(parseLag('4h')).toEqual({ amount: 240, unit: 'minute' })
     expect(parseLag('-30m')).toEqual({ amount: -30, unit: 'minute' })
+    expect(parseLag('30s')).toEqual({ amount: 0.5, unit: 'minute' })
     expect(parseLag(undefined)).toEqual({ amount: 0, unit: 'day' })
     expect(parseLag('soon')).toBeNull()
   })

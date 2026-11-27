@@ -150,6 +150,43 @@ describe('schedule', () => {
     expect(result.moves.size).toBe(0)
     expect(new Set(result.cycle)).toEqual(new Set(['a', 'b']))
   })
+
+  it('keeps second-precision links with lag free of floating-point false positives', () => {
+    // 10s = 1/6 minute has a repeating binary fraction; check both calendar:false and working hours
+    for (const calendar of [false as const, undefined]) {
+      const plan = doc(
+        [
+          { id: 'a', title: 'A', start: '2026-03-02 09:00:00', end: '2026-03-02 09:00:10' },
+          { id: 'b', title: 'B', start: '2026-03-02 09:00:20', end: '2026-03-02 09:00:30' },
+          { id: 'c', title: 'C', start: '2026-03-02 09:00:40', end: '2026-03-02 09:00:50' },
+        ],
+        [
+          { id: 'ab', from: 'a', to: 'b', lag: '10s' },
+          { id: 'bc', from: 'b', to: 'c', lag: '10s' },
+        ],
+      )
+      expect(findBrokenLinks(plan, { calendar }).size).toBe(0)
+      expect(computeSchedule(plan, { calendar }).moves.size).toBe(0)
+      expect(computeSchedule(plan, { calendar, pull: true }).moves.size).toBe(0)
+      const critical = computeCriticalPath(plan, { calendar })
+      expect(critical.tasks).toEqual(new Set(['a', 'b', 'c']))
+      expect(critical.links).toEqual(new Set(['ab', 'bc']))
+    }
+
+    // crossing end of working hours (17:59:50 + 10s => next workday 09:00:00)
+    const acrossDay = doc(
+      [
+        { id: 'a', title: 'A', start: '2026-03-02 17:59:40', end: '2026-03-02 17:59:50' },
+        { id: 'b', title: 'B', start: '2026-03-03 09:00:00', end: '2026-03-03 09:00:10' },
+      ],
+      [{ id: 'ab', from: 'a', to: 'b', lag: '10s' }],
+    )
+    expect(findBrokenLinks(acrossDay).size).toBe(0)
+    expect(computeSchedule(acrossDay, { pull: true }).moves.size).toBe(0)
+    const critical = computeCriticalPath(acrossDay)
+    expect(critical.tasks).toEqual(new Set(['a', 'b']))
+    expect(critical.links).toEqual(new Set(['ab']))
+  })
 })
 
 describe('criticalPath', () => {

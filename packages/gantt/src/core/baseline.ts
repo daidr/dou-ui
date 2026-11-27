@@ -1,20 +1,22 @@
 import { spanOf, type GanttTask, type TaskSpan } from './model'
-import { MINUTES_PER_DAY, dayStart, formatTime } from './time'
+import { MINUTES_PER_DAY, dayStart, formatTime, type GanttTime } from './time'
 import { buildTree } from './tree'
 
 /** A task's dates as planned, to compare the current ones with. */
 export interface GanttBaselineItem {
   id: string
-  start: string
-  end?: string
+  start: GanttTime
+  end?: GanttTime
 }
 
 /**
  * Saves the current dates of every task as a baseline, summaries included
  * (with the dates their children cover). Tasks without dates are left out.
  */
-export function takeBaseline(tasks: readonly GanttTask[]): GanttBaselineItem[] {
-  const out: GanttBaselineItem[] = []
+export function takeBaseline(
+  tasks: readonly GanttTask[],
+): { id: string; start: string; end?: string }[] {
+  const out: { id: string; start: string; end?: string }[] = []
   for (const [id, row] of buildTree(tasks).byId) {
     if (!row.span) continue
     const { start, end, dateOnly } = row.span

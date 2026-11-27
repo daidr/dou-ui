@@ -344,4 +344,115 @@ describe('live monitoring time axis', () => {
     expect(axis.panning.value).toBe(false)
     wrapper.unmount()
   })
+
+  it('keeps truncated extent anchored during touch and pinch-zoom at second scale', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 2, 5, 15, 0, 0))
+    const { wrapper, axis } = setup('second', true, { follow: true, today: true })
+    await nextTick()
+
+    const beforeStart = axis.extent.value.start
+    expect(axis.todayX.value).not.toBeNull()
+    expect(axis.now.value).toBeGreaterThanOrEqual(beforeStart)
+    expect(axis.now.value).toBeLessThanOrEqual(axis.extent.value.end)
+
+    // starting a touch must lock the truncated extent start, not revert to freeStart (Mar 2)
+    touch('touchstart')
+    await nextTick()
+    expect(axis.extent.value.start).toBe(beforeStart)
+    expect(axis.todayX.value).not.toBeNull()
+    expect(axis.now.value).toBeGreaterThanOrEqual(axis.extent.value.start)
+    expect(axis.now.value).toBeLessThanOrEqual(axis.extent.value.end)
+
+    // zooming while touch is active re-locks to the new truncated extent around now
+    axis.zoomTo(8_640_000)
+    await nextTick()
+    expect(axis.todayX.value).not.toBeNull()
+    expect(axis.now.value).toBeGreaterThanOrEqual(axis.extent.value.start)
+    expect(axis.now.value).toBeLessThanOrEqual(axis.extent.value.end)
+    expect(axis.totalWidth.value).toBeLessThanOrEqual(8_200_000)
+
+    touch('touchend')
+    vi.advanceTimersByTime(200)
+    await nextTick()
+    wrapper.unmount()
+  })
+
+  it('fits an explicit non-aligned range symmetrically without clipping the right edge', async () => {
+    const { wrapper, axis, shownStart } = setup('minute', false)
+    await nextTick()
+
+    const start = parseTime('2026-03-05 12:00:05')!.at
+    const end = parseTime('2026-03-05 12:02:05')!.at
+    axis.fit(['2026-03-05 12:00:05', '2026-03-05 12:02:05'])
+    await nextTick()
+
+    const leftPad = (start - shownStart()) * axis.ppm.value
+    const rightPad = 800 - (end - shownStart()) * axis.ppm.value
+    expect(leftPad).toBeCloseTo(16, 0)
+    expect(rightPad).toBeCloseTo(16, 0)
+    wrapper.unmount()
+  })
+
+  it('does not let later fitWhenSized calls overwrite an explicit fit([start, end])', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query }))
+    let axis!: ReturnType<typeof useTimeAxis>
+    const viewWidth = ref(0)
+    let fitW = 0
+    const { el } = iosScroller(() => axis?.totalWidth.value ?? 0, 800)
+    document.body.append(el)
+    const content = ref({ start: parseTime('2026-03-01')!.at, end: parseTime('2026-03-31')!.at })
+    const scaleRef = ref<GanttScale | undefined>(undefined)
+    const wrapper = mount(
+      defineComponent({
+        setup() {
+          axis = useTimeAxis({
+            chart: shallowRef(el),
+            tableBody: shallowRef(null),
+            viewWidth,
+            scale: scaleRef,
+            range: () => undefined,
+            today: () => false,
+            weekStart: computed(() => 1),
+            calendar: computed(() => resolveCalendar()),
+            messages: computed(() => ganttLocales['zh-CN']!),
+            content: computed(() => content.value),
+            fitWidth: () => fitW,
+          })
+          return () => null
+        },
+      }),
+      { attachTo: document.body },
+    )
+    await nextTick()
+
+    // queued before layout width is known
+    axis.fit(['2026-03-05 12:00:00', '2026-03-05 12:10:00'])
+    fitW = 800
+    viewWidth.value = 800
+    axis.fitWhenSized()
+    await nextTick()
+    const fittedDayWidth = axis.dayWidth.value
+    expect(scaleRef.value).toBe('minute')
+
+    // subsequent resize must not trigger a fallback fit() that zooms out to the whole month
+    fitW = 960
+    viewWidth.value = 960
+    axis.fitWhenSized()
+    await nextTick()
+    expect(axis.dayWidth.value).toBe(fittedDayWidth)
+    expect(scaleRef.value).toBe('minute')
+
+    // explicit fit while already sized must also clear fitPending
+    axis.fit(['2026-03-05 12:00:00', '2026-03-05 12:01:00'])
+    await nextTick()
+    const secondDayWidth = axis.dayWidth.value
+    expect(scaleRef.value).toBe('second')
+    fitW = 1024
+    viewWidth.value = 1024
+    axis.fitWhenSized()
+    await nextTick()
+    expect(axis.dayWidth.value).toBe(secondDayWidth)
+    wrapper.unmount()
+  })
 })

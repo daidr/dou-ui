@@ -38,6 +38,10 @@ const ALWAYS_OPEN: WorkCalendar = {
   hours: ALL_DAY,
 }
 
+/** Sub-millisecond tolerance (in minutes) to absorb floating-point noise at second precision. */
+const EPS = 1e-6
+const roundMs = (at: number) => Math.round(at * 60_000) / 60_000
+
 export function resolveCalendar(calendar: GanttCalendar | false = {}): WorkCalendar {
   if (calendar === false) return ALWAYS_OPEN
   const weekends = new Set(calendar.weekends ?? [0, 6])
@@ -77,14 +81,14 @@ function readHours(hours: GanttCalendar['hours']): [number, number][] {
 /** Working days that start in `[from, to)`. */
 export function workdaysBetween(calendar: WorkCalendar, from: number, to: number) {
   let count = 0
-  for (let day = Math.ceil(from / MINUTES_PER_DAY); day * MINUTES_PER_DAY < to; day++)
+  for (let day = Math.ceil((from - EPS) / MINUTES_PER_DAY); day * MINUTES_PER_DAY < to - EPS; day++)
     if (calendar.isWorkday(day)) count++
   return count
 }
 
 /** Working minutes in `[from, to)`: the working hours of working days. */
 export function workingMinutes(calendar: WorkCalendar, from: number, to: number) {
-  if (calendar === ALWAYS_OPEN) return Math.max(0, to - from)
+  if (calendar === ALWAYS_OPEN) return to - from > EPS ? to - from : 0
   let total = 0
   for (let day = dayIndex(from); day * MINUTES_PER_DAY < to; day++) {
     if (!calendar.isWorkday(day)) continue
@@ -92,7 +96,7 @@ export function workingMinutes(calendar: WorkCalendar, from: number, to: number)
     for (const [open, close] of calendar.hours) {
       const start = Math.max(from, base + open)
       const end = Math.min(to, base + close)
-      if (end > start) total += end - start
+      if (end > start + EPS) total += end - start
     }
   }
   return total
@@ -162,9 +166,9 @@ export function shiftWorkdays(calendar: WorkCalendar, at: number, count: number)
  * It lands inside working hours, or at the end of a stretch going forward.
  */
 export function shiftWorkMinutes(calendar: WorkCalendar, at: number, count: number) {
-  if (calendar === ALWAYS_OPEN) return at + count
+  if (calendar === ALWAYS_OPEN) return roundMs(at + count)
   let left = Math.abs(count)
-  if (!left) return at
+  if (left <= EPS) return at
   const first = dayIndex(at)
   if (count > 0) {
     for (let day = first; day < first + LOOKAHEAD; day++) {
@@ -173,8 +177,8 @@ export function shiftWorkMinutes(calendar: WorkCalendar, at: number, count: numb
       for (const [open, close] of calendar.hours) {
         const from = Math.max(at, base + open)
         const room = base + close - from
-        if (room <= 0) continue
-        if (left <= room) return from + left
+        if (room <= EPS) continue
+        if (left <= room + EPS) return roundMs(from + Math.min(left, room))
         left -= room
       }
     }
@@ -186,13 +190,13 @@ export function shiftWorkMinutes(calendar: WorkCalendar, at: number, count: numb
         const [open, close] = calendar.hours[i]!
         const to = Math.min(at, base + close)
         const room = to - (base + open)
-        if (room <= 0) continue
-        if (left <= room) return to - left
+        if (room <= EPS) continue
+        if (left <= room + EPS) return roundMs(to - Math.min(left, room))
         left -= room
       }
     }
   }
-  return at + count
+  return roundMs(at + count)
 }
 
 /** Working days, or working minutes, in `[from, to)`. */
@@ -209,7 +213,7 @@ export function isWorkTime(calendar: WorkCalendar, at: number, dateOnly: boolean
   if (!calendar.isWorkday(day)) return false
   if (dateOnly) return true
   const clock = at - day * MINUTES_PER_DAY
-  return calendar.hours.some(([open, close]) => clock >= open && clock < close)
+  return calendar.hours.some(([open, close]) => clock >= open - EPS && clock < close - EPS)
 }
 
 /**
@@ -218,15 +222,15 @@ export function isWorkTime(calendar: WorkCalendar, at: number, dateOnly: boolean
  */
 export function nextWorkTime(calendar: WorkCalendar, at: number, dateOnly: boolean) {
   if (calendar === ALWAYS_OPEN)
-    return dateOnly ? Math.ceil(at / MINUTES_PER_DAY) * MINUTES_PER_DAY : at
-  const first = dateOnly ? Math.ceil(at / MINUTES_PER_DAY) : dayIndex(at)
+    return dateOnly ? Math.ceil((at - EPS) / MINUTES_PER_DAY) * MINUTES_PER_DAY : at
+  const first = dateOnly ? Math.ceil((at - EPS) / MINUTES_PER_DAY) : dayIndex(at)
   for (let day = first; day < first + LOOKAHEAD; day++) {
     if (!calendar.isWorkday(day)) continue
     const base = day * MINUTES_PER_DAY
     if (dateOnly) return base
     for (const [open, close] of calendar.hours) {
-      if (at < base + open) return base + open
-      if (at < base + close) return at
+      if (at < base + open - EPS) return base + open
+      if (at < base + close - EPS) return Math.max(at, base + open)
     }
   }
   return at
@@ -247,7 +251,7 @@ export function endKeepingWork(
   start: number,
 ) {
   const work = workOf(calendar, span)
-  if (!work) return start + span.end - span.start
+  if (work <= EPS) return roundMs(start + span.end - span.start)
   return span.dateOnly
     ? shiftWorkdays(calendar, start, work)
     : shiftWorkMinutes(calendar, start, work)
@@ -260,7 +264,7 @@ export function startKeepingWork(
   end: number,
 ) {
   const work = workOf(calendar, span)
-  if (!work) return end - (span.end - span.start)
+  if (work <= EPS) return roundMs(end - (span.end - span.start))
   return span.dateOnly
     ? shiftWorkdays(calendar, end, -work)
     : shiftWorkMinutes(calendar, end, -work)

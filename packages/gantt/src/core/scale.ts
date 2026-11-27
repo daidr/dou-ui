@@ -101,7 +101,8 @@ export function unitStart(unit: TimeUnit, at: number, weekStart: 0 | 1 = 1, step
     }
     case 'hour': {
       const hours = Math.floor(Math.round(at * 60_000) / (MINUTES_PER_HOUR * 60_000))
-      return (hours - ((((hours % 24) % step) + step) % step)) * MINUTES_PER_HOUR
+      const mod = ((hours % 24) + 24) % 24
+      return (hours - (mod % step)) * MINUTES_PER_HOUR
     }
     case 'day':
       return dayStart(at)

@@ -5,7 +5,7 @@ import { createId, spanOf, writeSpan, type GanttTask } from './model'
 import { orderKeys } from './order'
 import type { GanttTransaction } from './transaction'
 import { buildTree } from './tree'
-import { MINUTES_PER_DAY, MINUTES_PER_HOUR, parseTime } from './time'
+import { MINUTES_PER_DAY, MINUTES_PER_HOUR, formatTime, instantOf, parseTime } from './time'
 
 /*
  * Reading tasks back from CSV, as `toCSV` writes it: the columns are
@@ -205,17 +205,22 @@ const unquoteFormula = (text: string) => (/^'[=+\-@\t\r]/.test(text) ? text.slic
 const pad = (n: string) => n.padStart(2, '0')
 
 const DATE =
-  /^(\d{4})([-/.])(\d{1,2})\2(\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2})(?:\.(\d{1,9}))?)?)?$/
+  /^(\d{4})([-/.])(\d{1,2})\2(\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2})(?:\.(\d{1,9}))?)?(Z|[+-]\d{2}:?\d{2})?)?$/i
 
 /**
  * A date as tasks write it, from the ways spreadsheets save one:
- * `2026/3/2`, `2026-3-2`, `2026.3.2`, with `9:30`, `09:30:15` or `09:30:15.250` after it.
- * `null` when it isn't a date.
+ * `2026/3/2`, `2026-3-2`, `2026.3.2`, with `9:30`, `09:30:15`, `09:30:15.250`,
+ * or an ISO-8601 timezone offset (`Z`, `+08:00`) after it. `null` when it isn't a date.
  */
 export function readCSVDate(text: string) {
   const match = DATE.exec(text.trim())
   if (!match) return null
-  const [, y, , m, d, h, mi, s, frac] = match
+  const [, y, , m, d, h, mi, s, frac, tz] = match
+  if (tz && h != null) {
+    const iso = `${y}-${pad(m!)}-${pad(d!)}T${pad(h)}:${mi}${s != null ? `:${s}` : ''}${frac != null ? `.${frac}` : ''}${tz}`
+    const parsed = parseTime(iso)
+    return parsed ? formatTime(parsed.at, false) : null
+  }
   const ms = frac != null ? Number(frac.slice(0, 3).padEnd(3, '0')) : 0
   const sec = s != null ? Number(s) : 0
   let suffix = ''
@@ -243,7 +248,7 @@ function readNumber(text: string, comma: boolean) {
 }
 
 /** A duration with its unit, when it says one: `5`, `5 天`, `2 小时`, `2h`, `15 分钟`, `30s`. */
-function readDuration(text: string, messages: GanttMessages, comma: boolean) {
+export function parseDuration(text: string, messages: GanttMessages, comma = false) {
   const match = /^([+-]?[\d.,]+)\s*(.*)$/.exec(text.trim())
   if (!match) return null
   const count = readNumber(match[1]!, comma)
@@ -341,11 +346,17 @@ export function readGanttCSV(text: string, context: ReadCSVContext): GanttCSVRes
         if (endText) {
           const endValue = readCSVDate(endText)
           const at = endValue ? parseTime(endValue) : null
-          const to = at ? at.at + (at.dateOnly ? MINUTES_PER_DAY : 0) : null
+          let to = at ? at.at + (at.dateOnly ? MINUTES_PER_DAY : 0) : null
+          if (to != null && to <= start.at) {
+            const startMs = instantOf(startText)
+            const endMs = instantOf(endText)
+            if (startMs != null && endMs != null && endMs > startMs)
+              to = start.at + (endMs - startMs) / 60_000
+          }
           if (to != null && to > start.at) end = to
           else warn('end', endText)
         } else if (durationText) {
-          const read = readDuration(durationText, messages, comma)
+          const read = parseDuration(durationText, messages, comma)
           const unitKind =
             read?.unit ??
             (durationKey === 'duration:h' || (durationKey !== 'duration:d' && !start.dateOnly)
@@ -362,7 +373,7 @@ export function readGanttCSV(text: string, context: ReadCSVContext): GanttCSVRes
             else end = shiftWorkMinutes(calendar, start.at, minutes)
           } else {
             const minutes = unitKind === 's' ? read.count / 60 : read.count
-            if (!(minutes > 0)) warn('duration', durationText)
+            if (Math.round(minutes * 60_000) <= 0) warn('duration', durationText)
             else end = shiftWorkMinutes(calendar, start.at, minutes)
           }
         }

@@ -24,6 +24,7 @@ import {
   MINUTES_PER_DAY,
   MINUTES_PER_HOUR,
   dayStart,
+  instantOf,
   parseTime,
   wallClockNow,
   type GanttTime,
@@ -198,17 +199,24 @@ export function useTimeAxis(o: TimeAxisOptions) {
   watch(
     touch.active,
     (on) => {
-      heldStart.value = on ? freeStart.value : null
+      heldStart.value = on ? extent.value.start : null
     },
     { flush: 'sync' },
   )
 
   /** The span the timeline covers. */
   const extent = computed(() => {
-    const fixed = o.range()?.map((value) => parseTime(value))
+    const rawRange = o.range()
+    const fixed = rawRange?.map((value) => parseTime(value))
     if (fixed?.[0] && fixed[1]) {
       const start = fixed[0].dateOnly ? dayStart(fixed[0].at) : fixed[0].at
-      const end = fixed[1].dateOnly ? dayStart(fixed[1].at) + MINUTES_PER_DAY : fixed[1].at
+      let end = fixed[1].dateOnly ? dayStart(fixed[1].at) + MINUTES_PER_DAY : fixed[1].at
+      if (end <= start) {
+        const startMs = instantOf(rawRange![0])
+        const endMs = instantOf(rawRange![1])
+        if (startMs != null && endMs != null && endMs > startMs)
+          end = start + (endMs - startMs) / 60_000
+      }
       if (end > start) return { start, end }
     }
     const width = o.viewWidth.value || 800
@@ -410,7 +418,7 @@ export function useTimeAxis(o: TimeAxisOptions) {
       o.chart.value?.getBoundingClientRect().width ||
       0
     if (!width) {
-      if (span) pendingFitRange = span
+      pendingFitRange = span ?? null
       return
     }
     pendingFitRange = null
@@ -419,10 +427,19 @@ export function useTimeAxis(o: TimeAxisOptions) {
       const to = parseTime(span[1])
       if (!from || !to) return
       const start = from.dateOnly ? dayStart(from.at) : from.at
-      const end = to.dateOnly ? dayStart(to.at) + MINUTES_PER_DAY : to.at
+      const rawEnd = to.dateOnly ? dayStart(to.at) + MINUTES_PER_DAY : to.at
+      let end = rawEnd
+      if (end <= start) {
+        const startMs = instantOf(span[0])
+        const endMs = instantOf(span[1])
+        if (startMs != null && endMs != null && endMs > startMs)
+          end = start + (endMs - startMs) / 60_000
+      }
       const minutes = end - start
       if (minutes <= 0) return
-      const followingLive = follow.value && Math.abs(end - now.value) <= Math.max(1, minutes * 0.15)
+      fitPending = false
+      const followingLive =
+        follow.value && Math.abs(rawEnd - now.value) <= Math.max(1, minutes * 0.15)
       const targetWidth = followingLive
         ? Math.max(120, followAnchor.value)
         : Math.max(120, width - 32)
@@ -431,9 +448,21 @@ export function useTimeAxis(o: TimeAxisOptions) {
         Math.max(DAY_WIDTH_RANGE[0], (targetWidth / minutes) * MINUTES_PER_DAY),
       )
       if (followingLive) alignFollow()
-      else scrollToTime(start, 16)
+      else {
+        if (follow.value) {
+          jumping = true
+          follow.value = false
+          jumping = false
+        }
+        const pad = Math.max(0, (width - minutes * ppm.value) / 2)
+        viewStart.value = start - pad / ppm.value
+        if (!o.range()) keep(viewStart.value, viewStart.value + width / ppm.value)
+        const el = o.chart.value
+        if (el) writeScrollLeft(el, (viewStart.value - origin.value) * ppm.value)
+      }
       return
     }
+    fitPending = false
     const current = content.value
     const spanMinutes = current.end - current.start
     if (current.timed && spanMinutes > 0 && spanMinutes < MINUTES_PER_DAY) {
@@ -460,6 +489,7 @@ export function useTimeAxis(o: TimeAxisOptions) {
   function fitWhenSized() {
     if (!o.fitWidth() || !o.viewWidth.value) return
     if (pendingFitRange) {
+      fitPending = false
       fit(pendingFitRange)
       return
     }
@@ -548,8 +578,11 @@ export function useTimeAxis(o: TimeAxisOptions) {
       reach.value = null
       keep(viewStart.value, viewStart.value + o.viewWidth.value / ppm.value)
     }
-    // a pinch moves the scroll position anyway, so the start moves with it
-    if (heldStart.value != null) heldStart.value = freeStart.value
+    // a pinch moves the scroll position anyway, so re-lock to the new extent start
+    if (heldStart.value != null) {
+      heldStart.value = null
+      heldStart.value = extent.value.start
+    }
   }
 
   function onWheel(event: WheelEvent) {

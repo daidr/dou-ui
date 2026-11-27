@@ -73,10 +73,32 @@ export const endLabel = (span: TaskSpan, m: GanttMessages) =>
 
 /** Formats a timed duration in minutes using seconds, minutes, or hours. */
 export function timedDurationLabel(minutes: number, m: GanttMessages) {
-  if (minutes > 0 && minutes < 1) return format(m.seconds, { count: round1(minutes * 60) })
+  if (minutes > 0 && minutes < 1) {
+    const seconds = minutes * 60
+    const count = seconds >= 0.1 ? round1(seconds) : Math.round(seconds * 1000) / 1000
+    return format(m.seconds, { count })
+  }
   if (minutes >= 1 && minutes < MINUTES_PER_HOUR)
     return format(m.minutes, { count: round1(minutes) })
   return format(m.hours, { count: round1(minutes / MINUTES_PER_HOUR) })
+}
+
+/**
+ * Formats a timed duration without losing precision on editor/CSV round-trips:
+ * hours for exact 0.1h/0.25h multiples, minutes for exact 0.1m multiples, and
+ * seconds (up to millisecond precision) otherwise.
+ */
+export function exactTimedDuration(minutes: number, m: GanttMessages) {
+  const totalMs = Math.round(minutes * 60_000)
+  if (totalMs <= 0) return format(m.hours, { count: 0 })
+  if (totalMs >= 3_600_000) {
+    if (totalMs % 360_000 === 0)
+      return format(m.hours, { count: Math.round(totalMs / 360_000) / 10 })
+    if (totalMs % 900_000 === 0) return format(m.hours, { count: totalMs / 3_600_000 })
+  }
+  if (totalMs >= 60_000 && totalMs % 6_000 === 0)
+    return format(m.minutes, { count: Math.round(totalMs / 6_000) / 10 })
+  return format(m.seconds, { count: totalMs / 1000 })
 }
 
 /** Working days for a date-only span, working time (seconds/minutes/hours) otherwise. */

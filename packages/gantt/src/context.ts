@@ -47,7 +47,7 @@ export interface GanttContext {
   redo: () => boolean
   canUndo: Ref<boolean>
   canRedo: Ref<boolean>
-  fit: () => void
+  fit: GanttExpose['fit']
   zoomIn: () => void
   zoomOut: () => void
   scrollToDate: GanttExpose['scrollToDate']

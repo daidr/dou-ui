@@ -780,7 +780,79 @@ describe('export', () => {
       start: '2026-03-03 10:00',
       end: '2026-03-03 12:00',
     })
+    // all-timed tasks shorter than 3 minutes keep exact units instead of truncating to "0"
+    tasks.value = [
+      { id: 's1', title: '心跳', start: '2026-03-03 10:00:00', end: '2026-03-03 10:00:30' },
+      { id: 's2', title: '巡检', start: '2026-03-03 10:01:00', end: '2026-03-03 10:03:00' },
+      { id: 's3', title: '回包', start: '2026-03-03 10:05:00', end: '2026-03-03 10:05:00.500' },
+    ]
+    await nextTick()
+    const shortCsv = vm.toCSV({ bom: false })
+    expect(shortCsv.split('\r\n')).toEqual([
+      '任务,开始,工期',
+      '心跳,2026-03-03 10:00,30 秒',
+      '巡检,2026-03-03 10:01,2 分钟',
+      '回包,2026-03-03 10:05,0.5 秒',
+    ])
+    const parsedShort = vm.readCSV(shortCsv)
+    expect(parsedShort.warnings).toEqual([])
+    expect(parsedShort.tasks.map(({ id: _id, ...task }) => task)).toEqual([
+      { title: '心跳', start: '2026-03-03 10:00', end: '2026-03-03 10:00:30' },
+      { title: '巡检', start: '2026-03-03 10:01', end: '2026-03-03 10:03' },
+      { title: '回包', start: '2026-03-03 10:05', end: '2026-03-03 10:05:00.500' },
+    ])
     expect(() => vm.readCSV('名称,日期\n一,2026-03-02')).toThrow(/title column/)
+  })
+
+  it('edits short timed task durations in the table without truncating to 0', async () => {
+    const { doc, tasks } = planRef([
+      { id: 's1', title: '心跳', start: '2026-03-03 10:00:00', end: '2026-03-03 10:00:30' },
+    ])
+    const wrapper = mount(
+      defineComponent(() => () => h(DouGantt, { ...bind(doc) })),
+      { attachTo: document.body },
+    )
+    await nextTick()
+    const durationCell = () => wrapper.findAll('.dou-gantt__tr')[0]!.findAll('.dou-gantt__td')[2]!
+    await durationCell().trigger('dblclick')
+    let input = wrapper.find<HTMLInputElement>('.dou-gantt__editor-input')
+    expect(input.element.value).toBe('30 秒')
+    // confirming without edits stays valid
+    await input.trigger('keydown', { key: 'Enter' })
+    expect(wrapper.find('.dou-gantt__editor').exists()).toBe(false)
+    expect(tasks.value[0]).toMatchObject({
+      start: '2026-03-03 10:00:00',
+      end: '2026-03-03 10:00:30',
+    })
+
+    // editing with seconds, minutes, and bare hours all work
+    await durationCell().trigger('dblclick')
+    input = wrapper.find<HTMLInputElement>('.dou-gantt__editor-input')
+    await input.setValue('45s')
+    await input.trigger('keydown', { key: 'Enter' })
+    expect(tasks.value[0]).toMatchObject({
+      start: '2026-03-03 10:00',
+      end: '2026-03-03 10:00:45',
+    })
+
+    await durationCell().trigger('dblclick')
+    input = wrapper.find<HTMLInputElement>('.dou-gantt__editor-input')
+    await input.setValue('2 分钟')
+    await input.trigger('keydown', { key: 'Enter' })
+    expect(tasks.value[0]).toMatchObject({
+      start: '2026-03-03 10:00',
+      end: '2026-03-03 10:02',
+    })
+
+    await durationCell().trigger('dblclick')
+    input = wrapper.find<HTMLInputElement>('.dou-gantt__editor-input')
+    await input.setValue('1.5')
+    await input.trigger('keydown', { key: 'Enter' })
+    expect(tasks.value[0]).toMatchObject({
+      start: '2026-03-03 10:00',
+      end: '2026-03-03 11:30',
+    })
+    wrapper.unmount()
   })
 
   it('imports CSV as one undo step, keeping links of the tasks it has', async () => {

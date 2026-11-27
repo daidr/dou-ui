@@ -306,6 +306,7 @@ describe('scale', () => {
     expect(unitLabel('second', moment, zh, 432_000)).toBe('15:05:30')
     expect(dateLabel(moment, false, zh)).toBe('10月14日 15:05:30')
     expect(timedDurationLabel(0.5, zh)).toBe('30 秒')
+    expect(timedDurationLabel(0.0005, zh)).toBe('0.03 秒')
     expect(timedDurationLabel(12, zh)).toBe('12 分钟')
     expect(timedDurationLabel(90, en)).toBe('1.5 h')
     expect(

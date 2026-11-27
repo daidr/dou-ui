@@ -62,7 +62,7 @@ import { readTheme, type ExportTheme } from './export/theme'
 import { GanttHistory } from './core/history'
 import { readDocument } from './core/document'
 import { linkRefusal, linkTypeOf, type GanttLinkRefusal } from './core/links'
-import { applyGanttCSV, readGanttCSV, type GanttCSVImportOptions } from './core/csv'
+import { applyGanttCSV, parseDuration, readGanttCSV, type GanttCSVImportOptions } from './core/csv'
 import { createId, spanOf, writeSpan, type GanttLink, type GanttTask } from './core/model'
 import { computeCriticalPath, computeSchedule, findBrokenLinks } from './core/schedule'
 import {
@@ -88,6 +88,7 @@ import {
   datesLabel,
   durationLabel,
   endLabel,
+  exactTimedDuration,
   markerRoom,
   spokenDuration,
   timedDurationLabel,
@@ -821,7 +822,8 @@ function editCell(id: string, key = 'title') {
 function editorKind(row: GanttRow, column: GanttColumn) {
   const key = column.key
   if (key === 'start' || key === 'end') return row.span && !row.span.dateOnly ? 'datetime' : 'date'
-  if (key === 'duration' || key === 'progress') return 'number'
+  if (key === 'duration') return row.span && !row.span.dateOnly ? 'text' : 'number'
+  if (key === 'progress') return 'number'
   return BUILT_IN_EDITABLE.has(key) ? 'text' : (column.input ?? 'text')
 }
 
@@ -848,10 +850,11 @@ function editorValue(row: GanttRow, column: GanttColumn) {
         : ''
     case 'duration': {
       if (!span) return ''
-      const work = span.dateOnly
-        ? workdaysBetween(calendar.value, span.start, span.end)
-        : workingMinutes(calendar.value, span.start, span.end) / 60
-      return String(Math.round(work * 10) / 10)
+      if (span.dateOnly) return String(workdaysBetween(calendar.value, span.start, span.end))
+      return exactTimedDuration(
+        workingMinutes(calendar.value, span.start, span.end),
+        messages.value,
+      )
     }
     case 'progress':
       return String(Math.round(row.progress * 100))
@@ -898,13 +901,26 @@ function editPatch(
       return end > span.start ? writeSpan(task, span.start, end) : false
     }
     case 'duration': {
-      const count = Number(value)
       if (!span) return null
-      if (!value || !Number.isFinite(count) || count <= 0) return false
-      const end = span.dateOnly
-        ? shiftWorkdays(calendar.value, span.start, count)
-        : shiftWorkMinutes(calendar.value, span.start, Math.round(count * 60))
-      return writeSpan(task, span.start, end)
+      const parsed = parseDuration(value, messages.value)
+      if (!parsed || !(parsed.count > 0)) return false
+      if (span.dateOnly) {
+        if ((parsed.unit && parsed.unit !== 'd') || !Number.isInteger(parsed.count)) return false
+        const nextEnd = shiftWorkdays(calendar.value, span.start, parsed.count)
+        return nextEnd === span.end ? null : writeSpan(task, span.start, nextEnd)
+      }
+      const perDay = calendar.value.hours.reduce((sum, [open, close]) => sum + close - open, 0)
+      const minutes =
+        parsed.unit === 'd'
+          ? parsed.count * perDay
+          : parsed.unit === 's'
+            ? parsed.count / 60
+            : parsed.unit === 'm'
+              ? parsed.count
+              : parsed.count * 60
+      if (Math.round(minutes * 60_000) <= 0) return false
+      const nextEnd = shiftWorkMinutes(calendar.value, span.start, minutes)
+      return Math.abs(nextEnd - span.end) <= 1e-6 ? null : writeSpan(task, span.start, nextEnd)
     }
     case 'progress': {
       const count = Number(value)
@@ -940,6 +956,7 @@ function onEditDone(row: GanttRow, column: GanttColumn, value: string | null) {
 
 /** Tab in the title field indents, Shift+Tab outdents, and editing goes on. */
 function onEditTab(row: GanttRow, back: boolean) {
+  if (editing.value?.key !== 'title') return
   const id = row.task.id
   const moved = back ? outdentTask(id) : indentTask(id)
   if (moved) void nextTick(() => editCell(id))
@@ -2477,8 +2494,16 @@ function csvCell(text: string, escape = true) {
   return /[",\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe
 }
 
-/** A cell as a spreadsheet reads it: dates as `YYYY-MM-DD`, numbers without units. */
-function csvValue(row: GanttRow, column: GanttColumn, mixed: boolean) {
+/** Whether a timed duration in minutes can be exported as a clean hour number without rounding loss. */
+function isExactHours(minutes: number) {
+  const totalMs = Math.round(minutes * 60_000)
+  return (
+    totalMs === 0 || (totalMs >= 360_000 && (totalMs % 360_000 === 0 || totalMs % 900_000 === 0))
+  )
+}
+
+/** A cell as a spreadsheet reads it: dates as `YYYY-MM-DD`, numbers without units unless mixed/sub-hour. */
+function csvValue(row: GanttRow, column: GanttColumn, useUnits: boolean) {
   if (column.value) {
     const value = column.value(row.task)
     if (value == null) return ''
@@ -2493,26 +2518,44 @@ function csvValue(row: GanttRow, column: GanttColumn, mixed: boolean) {
         )
       : ''
   if (row.milestone && ['end', 'duration', 'progress'].includes(column.key)) return ''
-  if (column.key === 'duration' && mixed && span)
-    return durationLabel(span, calendar.value, messages.value)
+  if (column.key === 'duration' && span) {
+    if (span.dateOnly) {
+      const days = workdaysBetween(calendar.value, span.start, span.end)
+      return useUnits ? format(messages.value.days, { count: days }) : String(days)
+    }
+    const minutes = workingMinutes(calendar.value, span.start, span.end)
+    if (useUnits) return exactTimedDuration(minutes, messages.value)
+    return String(Math.round((minutes / 60) * 100) / 100)
+  }
   return editorValue(row, column)
 }
 
 function toCSV(options: GanttCSVExportOptions = {}) {
   const list = columns.value
   const m = messages.value
-  // durations are working days or working hours; the header says which, or each value does when both are in
+  // durations are working days or working hours; the header says which, or each value carries its unit
   const timed = new Set<boolean>()
-  for (const row of tree.value.byId.values())
-    if (row.span && !row.milestone) timed.add(!row.span.dateOnly)
-  const mixed = timed.size > 1
+  let exactHours = true
+  for (const row of tree.value.byId.values()) {
+    if (!row.span || row.milestone) continue
+    const isTimed = !row.span.dateOnly
+    timed.add(isTimed)
+    if (
+      isTimed &&
+      exactHours &&
+      !isExactHours(workingMinutes(calendar.value, row.span.start, row.span.end))
+    )
+      exactHours = false
+  }
+  const useUnits = timed.size > 1 || (timed.has(true) && !exactHours)
   const header = (column: GanttColumn) => {
     const title = headerOf(column)
-    if (options.text || column.value || column.key !== 'duration' || timed.size !== 1) return title
+    if (options.text || column.value || column.key !== 'duration' || useUnits || timed.size !== 1)
+      return title
     return format(timed.has(true) ? m.hoursColumn : m.daysColumn, { title })
   }
   const cell = (row: GanttRow, column: GanttColumn) =>
-    options.text ? cellText(row, column) : csvValue(row, column, mixed)
+    options.text ? cellText(row, column) : csvValue(row, column, useUnits)
   const ids = options.ids ? [m.idColumn, m.parentColumn] : []
   const escape = options.escapeFormulas !== false
   const field = (text: string) => csvCell(text, escape)

@@ -3,6 +3,7 @@ import {
   MINUTES_PER_DAY,
   MINUTES_PER_HOUR,
   formatTime,
+  instantOf,
   isMidnight,
   parseTime,
   toTimestamp,
@@ -89,7 +90,14 @@ export function spanOf(task: GanttTask): TaskSpan | null {
   const dateOnly = start.dateOnly && (!end || end.dateOnly)
   const unit = dateOnly ? MINUTES_PER_DAY : MINUTES_PER_HOUR
   let to = end ? (end.dateOnly ? end.at + MINUTES_PER_DAY : end.at) : start.at + unit
-  if (to <= start.at) to = start.at + unit
+  if (to <= start.at) {
+    // across a DST fall-back repeated hour, wall-clock end can look <= start even when real end > start
+    const startMs = instantOf(task.start)
+    const endMs = instantOf(task.end)
+    if (startMs != null && endMs != null && endMs > startMs)
+      to = start.at + (endMs - startMs) / 60_000
+    else to = start.at + unit
+  }
   return { start: start.at, end: to, dateOnly }
 }
 
@@ -106,8 +114,13 @@ export function writeSpan(
   const numeric =
     typeof task.start === 'number' && (task.end == null || typeof task.end === 'number')
   if (numeric) {
-    if (task.type === 'milestone') return { start: toTimestamp(start) }
-    return { start: toTimestamp(start), end: toTimestamp(end) }
+    const startMs = toTimestamp(start)
+    if (task.type === 'milestone') return { start: startMs }
+    let endMs = toTimestamp(end)
+    // keep a positive duration if both ends clamped into a DST spring-forward gap
+    if (end > start && endMs <= startMs)
+      endMs = startMs + Math.max(1, Math.round((end - start) * 60_000))
+    return { start: startMs, end: endMs }
   }
   const was = spanOf(task)
   const wholeDays = isMidnight(start) && isMidnight(end) && end > start

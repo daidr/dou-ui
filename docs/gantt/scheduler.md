@@ -151,8 +151,8 @@ interface SchedulerResource {
 interface SchedulerRange {
   /** 资源 id，在“未分配”一行时为 undefined */
   resource?: string
-  start: GanttTime
-  end: GanttTime
+  start: string
+  end: string
 }
 
 interface SchedulerMove {

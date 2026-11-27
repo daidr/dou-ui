@@ -64,7 +64,46 @@ export interface XColumn {
   sorted: boolean
 }
 
-const DATE = /^(\d{4})-(\d{1,2})(?:-(\d{1,2}))?(?:[ T](\d{1,2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?)?$/
+const DATE = /^(\d{4})-(\d{1,2})(?:-(\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?)?)?$/
+const ZONED_DATE =
+  /^(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?(?:([Zz])|([+-])(\d{2}):?(\d{2}))$/
+const YEAR_MONTH_TIME = /^\d{4}-\d{1,2}[ T]\d{1,2}:\d{2}/
+
+function daysInMonth(year: number, month: number): number {
+  const date = new Date(0)
+  date.setUTCFullYear(year, month, 0)
+  return date.getUTCDate()
+}
+
+function parseZonedDate(match: RegExpExecArray): number {
+  const [, y, mo, d, h, mi, s, ms, z, sign, oh, om] = match
+  const year = Number(y)
+  const month = Number(mo)
+  const day = Number(d)
+  const hour = Number(h)
+  const minute = Number(mi)
+  const second = s ? Number(s) : 0
+  const millis = ms ? Number(ms.slice(0, 3).padEnd(3, '0')) : 0
+  const offHour = z ? 0 : Number(oh)
+  const offMin = z ? 0 : Number(om)
+  if (
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > daysInMonth(year, month) ||
+    hour > 23 ||
+    minute > 59 ||
+    second > 59 ||
+    offHour > 23 ||
+    offMin > 59
+  )
+    return Number.NaN
+  const date = new Date(0)
+  date.setUTCFullYear(year, month - 1, day)
+  date.setUTCHours(hour, minute, second, millis)
+  const offset = z ? 0 : (sign === '+' ? 1 : -1) * (offHour * 60 + offMin)
+  return date.getTime() - offset * 60_000
+}
 
 /**
  * A point in time in ms, or `NaN`. Dates without a zone (`'2026-10-31'`,
@@ -74,19 +113,38 @@ export function toTime(value: unknown): number {
   if (value instanceof Date) return value.getTime()
   if (typeof value === 'number') return value
   if (typeof value !== 'string') return Number.NaN
-  const match = DATE.exec(value.trim())
+  const trimmed = value.trim()
+  const match = DATE.exec(trimmed)
   if (match) {
     const [, y, mo, d, h, mi, s, ms] = match
-    return new Date(
-      Number(y),
-      Number(mo) - 1,
-      d ? Number(d) : 1,
-      h ? Number(h) : 0,
-      mi ? Number(mi) : 0,
-      s ? Number(s) : 0,
-      ms ? Number(ms.slice(0, 3).padEnd(3, '0')) : 0,
-    ).getTime()
+    const year = Number(y)
+    const month = Number(mo)
+    const day = d ? Number(d) : 1
+    const hour = h ? Number(h) : 0
+    const minute = mi ? Number(mi) : 0
+    const second = s ? Number(s) : 0
+    const millis = ms ? Number(ms.slice(0, 3).padEnd(3, '0')) : 0
+    if (
+      month < 1 ||
+      month > 12 ||
+      day < 1 ||
+      day > daysInMonth(year, month) ||
+      hour > 23 ||
+      minute > 59 ||
+      second > 59
+    )
+      return Number.NaN
+    if (year < 100) {
+      const date = new Date(0)
+      date.setFullYear(year, month - 1, day)
+      date.setHours(hour, minute, second, millis)
+      return date.getTime()
+    }
+    return new Date(year, month - 1, day, hour, minute, second, millis).getTime()
   }
+  const zoned = ZONED_DATE.exec(trimmed)
+  if (zoned) return parseZonedDate(zoned)
+  if (YEAR_MONTH_TIME.test(trimmed)) return Number.NaN
   return Date.parse(value)
 }
 
@@ -107,7 +165,11 @@ export function inferXKind(rows: ChartData, accessor: ChartAccessor): XKind {
     if (value == null || value === '') continue
     if (typeof value === 'number') return 'linear'
     if (value instanceof Date) return 'time'
-    if (typeof value === 'string' && DATE.test(value.trim())) return 'time'
+    if (typeof value === 'string') {
+      const trimmed = value.trim()
+      if ((DATE.test(trimmed) || ZONED_DATE.test(trimmed)) && Number.isFinite(toTime(trimmed)))
+        return 'time'
+    }
     return 'category'
   }
   return 'linear'

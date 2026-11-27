@@ -136,6 +136,11 @@ describe('format', () => {
     expect(formatValue('2026-10-31', 'dddd', 'en')).toBe('Saturday')
     expect(formatValue('2026-10-31', 'm/d ddd', 'zh-CN')).toBe('10/31 周六')
     expect(formatValue('2026-10-31', 'dddd', 'zh-CN')).toBe('星期六')
+    // years 0-99 must not shift to 1900-1999 (0050-03-15 is Tue; 1950-03-15 was Wed)
+    const d = new Date(0)
+    d.setUTCFullYear(50, 2, 15)
+    const expected = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getUTCDay()]!
+    expect(formatValue('0050-03-15', 'ddd', 'en')).toBe(expected)
   })
 
   it.each([

@@ -406,4 +406,52 @@ describe('cellClick labels', () => {
     expect(clicks[0]!.labels).toEqual({ row: ['2026年1月'], column: ['门店'] })
     wrapper.unmount()
   })
+
+  it('exports date min/max values as local date text in CSV and sheet instead of timestamps', () => {
+    const pivot = ref<PivotExpose>()
+    const dated = [
+      { region: '华东', day: '2026-03-08' },
+      { region: '华东', day: '2026-03-15' },
+      { region: '华南', day: new Date(2026, 2, 10, 9, 30) },
+    ]
+    const wrapper = mount(
+      defineComponent(
+        () => () =>
+          h(DouPivot, {
+            ref: pivot,
+            data: dated,
+            fields: [
+              { name: 'region', type: 'string' },
+              { name: 'day', type: 'date' },
+            ],
+            config: {
+              rows: ['region'],
+              values: [
+                { field: 'day', aggregate: 'min' },
+                { field: 'day', aggregate: 'max' },
+              ],
+            },
+          }),
+      ),
+      { attachTo: document.body },
+    )
+    const csv = pivot.value!.toCSV({ bom: false })
+    expect(csv).toContain('2026-03-08,2026-03-15')
+    expect(csv).toContain('2026-03-10 09:30,2026-03-10 09:30')
+    expect(csv).not.toContain(String(new Date(2026, 2, 8).getTime()))
+
+    const sheet = pivot.value!.toSheet()
+    const body = sheet.sheets[0]!.cells.slice(1)
+    expect(body[0]).toEqual([
+      '华东',
+      { value: '2026-03-08', style: 'pivot-total' },
+      { value: '2026-03-15', style: 'pivot-total' },
+    ])
+    expect(body[1]).toEqual([
+      '华南',
+      { value: '2026-03-10 09:30', style: 'pivot-total' },
+      { value: '2026-03-10 09:30', style: 'pivot-total' },
+    ])
+    wrapper.unmount()
+  })
 })

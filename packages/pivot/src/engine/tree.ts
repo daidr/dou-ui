@@ -90,15 +90,22 @@ export class PivotTree {
       enter: this.enter,
       exit: this.exit,
       index: this.index.pack(),
-      levels: this.levels.map((l) => ({
-        field: l.field.name,
-        sort: l.sort,
-        subtotal: l.subtotal,
-        ...(l.by === undefined ? {} : { by: l.by }),
-        labels: l.column.labels,
-        empty: l.column.empty,
-        rank: l.column.rank,
-      })),
+      levels: this.levels.map((l) => {
+        const dateLabels: number[] = []
+        l.column.labels.forEach((v, i) => {
+          if (v instanceof Date) dateLabels.push(i)
+        })
+        return {
+          field: l.field.name,
+          sort: l.sort,
+          subtotal: l.subtotal,
+          ...(l.by === undefined ? {} : { by: l.by }),
+          labels: l.column.labels,
+          ...(dateLabels.length ? { dateLabels } : {}),
+          empty: l.column.empty,
+          rank: l.column.rank,
+        }
+      }),
     }
   }
 
@@ -110,11 +117,11 @@ export class PivotTree {
     const tree = Object.create(PivotTree.prototype) as PivotTree
     const levels: PivotLevel[] = packet.levels.map((l) => {
       const f = field(l.field)
-      // JSON writes dates as text
-      const labels =
-        f.type === 'date' && l.by === undefined
-          ? l.labels.map((v) => (typeof v === 'string' ? new Date(v) : v))
-          : l.labels
+      // JSON writes Date instances as ISO strings; restore only labels that were Dates
+      const dateIndices = l.dateLabels?.length ? new Set(l.dateLabels) : null
+      const labels = dateIndices
+        ? l.labels.map((v, i) => (dateIndices.has(i) && typeof v === 'string' ? new Date(v) : v))
+        : l.labels
       return {
         field: f,
         sort: l.sort,
@@ -228,6 +235,8 @@ export interface PivotTreePacket {
     subtotal: boolean
     by?: PivotGroupBy
     labels: unknown[]
+    /** Indexes in `labels` that were `Date` instances before serialization. */
+    dateLabels?: number[]
     empty: number
     rank: ArrayLike<number>
   }[]

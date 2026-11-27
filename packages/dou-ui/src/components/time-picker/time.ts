@@ -24,8 +24,7 @@ export function parseTime(text: string): TimeParts | null {
   return { hour: hour!, minute: minute!, second: second! }
 }
 
-export function now(): TimeParts {
-  const date = new Date()
+export function now(date = new Date()): TimeParts {
   return { hour: date.getHours(), minute: date.getMinutes(), second: date.getSeconds() }
 }
 

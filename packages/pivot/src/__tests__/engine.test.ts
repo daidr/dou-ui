@@ -6,8 +6,11 @@ import {
   defineAggregator,
   isoWeek,
   PivotSource,
+  readBucket,
+  toDate,
   type PivotConfig,
 } from '../engine'
+import { labelFormatter } from '../core/format'
 
 interface Order {
   region: string | null
@@ -323,5 +326,78 @@ describe('computePivot', () => {
     expect(bucketer({ step: 0.1 })(0.35)).toBe(0.3)
     expect(bucketer({ step: 10, start: 5 })(3)).toBe(-5)
     expect(bucketer('year')('not a date')).toBeNull()
+    // zoneless partial and full dates stay in local calendar regardless of timezone offset
+    expect(bucketer('month')('2026-03')).toBe('2026-03')
+    expect(bucketer('year')('2026-01')).toBe(2026)
+    expect(bucketer('day')('2026-03-08 09:30')).toBe('2026-03-08')
+    expect(toDate('2026-03-08 9:30:00+08:00')?.getTime()).toBe(
+      Date.parse('2026-03-08T09:30:00+08:00'),
+    )
+    expect(toDate('2026-3-8 09:30:00Z')?.getTime()).toBe(Date.parse('2026-03-08T09:30:00Z'))
+    expect(toDate('2026-02-31')).toBeNull()
+    expect(toDate('2026-02-31T10:00:00Z')).toBeNull()
+    expect(toDate('2026-03-08T10:00:00+25:00')).toBeNull()
+    expect(toDate('2026-03 09:30')).toBeNull()
+    expect(toDate('0050-03-15')?.getFullYear()).toBe(50)
+    // readBucket('week') returns the ISO week's Monday
+    const w01 = readBucket('week', '2026-W01')
+    expect(w01?.date.getDay()).toBe(1)
+    expect(w01?.date.getFullYear()).toBe(2025)
+    expect(w01?.date.getMonth()).toBe(11)
+    expect(w01?.date.getDate()).toBe(29)
+    const w11 = readBucket('week', '2026-W11')
+    expect(w11?.date.getDay()).toBe(1)
+    expect(w11?.date.getFullYear()).toBe(2026)
+    expect(w11?.date.getMonth()).toBe(2)
+    expect(w11?.date.getDate()).toBe(9)
+    // labelFormatter handles string date labels with custom Intl.DateTimeFormatOptions
+    const fmt = labelFormatter(
+      {
+        name: 'day',
+        label: 'day',
+        type: 'date',
+        format: { year: 'numeric', month: '2-digit', day: '2-digit' },
+      },
+      'en-US',
+      {
+        empty: '—',
+        yes: 'Yes',
+        no: 'No',
+        year: '{year}',
+        quarter: '{year} Q{quarter}',
+        week: '{year} W{week}',
+        range: '{from}–{to}',
+      },
+    )
+    expect(fmt('2026-03-15')).toBe('03/15/2026')
+    expect(fmt('2026-03-08')).toBe('03/08/2026')
+  })
+
+  it('computes min/max on string date fields using local time and finds Date groups by string', () => {
+    const dated = new PivotSource(
+      [
+        { group: 'A', day: '2026-03-08', stamp: new Date(2026, 2, 8) },
+        { group: 'A', day: '2026-03-15', stamp: new Date(2026, 2, 15) },
+      ],
+      {
+        fields: [
+          { name: 'group', type: 'string' },
+          { name: 'day', type: 'date' },
+          { name: 'stamp', type: 'date' },
+        ],
+      },
+    )
+    const res = computePivot(dated, {
+      rows: ['stamp'],
+      values: [
+        { field: 'day', aggregate: 'min' },
+        { field: 'day', aggregate: 'max' },
+      ],
+    })
+    expect(res.get(0, 0, 0)).toBe(new Date(2026, 2, 8).getTime())
+    expect(res.get(0, 0, 1)).toBe(new Date(2026, 2, 15).getTime())
+    // finder matches Date labels with either a Date or equivalent date string
+    expect(res.rows.find([new Date(2026, 2, 8)])).toBeGreaterThan(0)
+    expect(res.rows.find(['2026-03-08'])).toBe(res.rows.find([new Date(2026, 2, 8)]))
   })
 })

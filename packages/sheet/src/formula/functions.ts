@@ -13,6 +13,7 @@ import {
   toBoolean,
   toNumber,
   toText,
+  utcMs,
   type SheetArg,
   type SheetRangeArg,
   type SheetResult,
@@ -398,13 +399,17 @@ const asRange = (arg: SheetArg): SheetRangeArg =>
         entries: () => (arg == null ? [] : [[0, 0, arg]]),
       }
 
-const pad = (n: number) => String(n).padStart(2, '0')
+const pad = (n: number, width = 2) => String(n).padStart(width, '0')
+const EPOCH = Date.UTC(1899, 11, 30)
+
 function localDay(now: Date) {
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+  const y = now.getFullYear()
+  const year = y < 0 ? `-${pad(-y, 4)}` : pad(y, 4)
+  return `${year}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
 }
 
 function daysInMonth(year: number, month: number) {
-  return new Date(Date.UTC(year, month, 0)).getUTCDate()
+  return new Date(utcMs(year, month, 0)).getUTCDate()
 }
 
 // Helpers of the second batch ------------------------------------------------------------
@@ -459,7 +464,7 @@ const dayText = (serial: number) => dateText(Math.floor(serial))
 
 /** The day number of a year, month and day, months past 12 or below 1 rolling over. */
 const serialFor = (year: number, month: number, day: number) =>
-  (Date.UTC(year, month - 1, day) - Date.UTC(1899, 11, 30)) / 86_400_000
+  (utcMs(year, month - 1, day) - EPOCH) / 86_400_000
 
 /** 0 for Sunday to 6 for Saturday. */
 const weekdayOf = (serial: number) => (((Math.floor(serial) + 6) % 7) + 7) % 7
@@ -937,8 +942,8 @@ export const builtinFunctions: SheetFunction[] = [
     'DATE',
     (y, m, d) => {
       const year = Math.floor(y) < 1900 ? Math.floor(y) + 1900 : Math.floor(y)
-      const ms = Date.UTC(year, Math.floor(m) - 1, Math.floor(d))
-      return Number.isNaN(ms) ? NUM : dateText((ms - Date.UTC(1899, 11, 30)) / 86_400_000)
+      const ms = utcMs(year, Math.floor(m) - 1, Math.floor(d))
+      return Number.isNaN(ms) ? NUM : dateText((ms - EPOCH) / 86_400_000)
     },
     3,
   ),
@@ -999,8 +1004,8 @@ export const builtinFunctions: SheetFunction[] = [
         case 'YD': {
           const year =
             b.month > a.month || (b.month === a.month && b.day >= a.day) ? b.year : b.year - 1
-          const from = Date.UTC(year, a.month - 1, a.day)
-          const to = Date.UTC(b.year, b.month - 1, b.day)
+          const from = utcMs(year, a.month - 1, a.day)
+          const to = utcMs(b.year, b.month - 1, b.day)
           return Math.round((to - from) / 86_400_000)
         }
         default:
@@ -1607,7 +1612,7 @@ export const builtinFunctions: SheetFunction[] = [
         const month = parts.month + Math.trunc(n)
         if (name === 'EOMONTH') return dayText(serialFor(parts.year, month + 1, 0))
         // the same day, or the month's last when it is shorter
-        const last = new Date(Date.UTC(parts.year, month, 0)).getUTCDate()
+        const last = daysInMonth(parts.year, month)
         return dayText(serialFor(parts.year, month, Math.min(parts.day, last)))
       },
     }),

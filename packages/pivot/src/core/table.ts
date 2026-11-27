@@ -16,6 +16,8 @@ export interface PivotGridCell {
   value?: number
   /** For `value`: the value's place in `config.values`. */
   valueIndex?: number
+  /** For `value`: whether `value` is a date timestamp (e.g. `min`/`max` of a date field). */
+  date?: boolean
   /** A subtotal or a total: a line, a column or both. */
   total?: boolean
   /** A header over several columns or rows; the cells it covers are `null`. */
@@ -41,12 +43,39 @@ export const tidyNumber = (n: number) => (Number.isFinite(n) ? Number(n.toPrecis
 /** What a spreadsheet program would start a formula with. */
 const FORMULA_START = /^[=+\-@\t\r]/
 
+const pad = (n: number, width = 2) => String(n).padStart(width, '0')
+
+/** Formats a local date timestamp as ISO-like wall-clock text for CSV and sheets. */
+function formatLocalDateValue(ms: number): string {
+  const d = new Date(ms)
+  const y = d.getFullYear()
+  const mo = d.getMonth()
+  const day = d.getDate()
+  const dateText = `${pad(y, 4)}-${pad(mo + 1)}-${pad(day)}`
+  let dayStart: number
+  if (y >= 0 && y < 100) {
+    const start = new Date(0)
+    start.setFullYear(y, mo, day)
+    start.setHours(0, 0, 0, 0)
+    dayStart = start.getTime()
+  } else {
+    dayStart = new Date(y, mo, day).getTime()
+  }
+  if (ms === dayStart) return dateText
+  const h = pad(d.getHours())
+  const mi = pad(d.getMinutes())
+  const s = d.getSeconds()
+  return s ? `${dateText} ${h}:${mi}:${pad(s)}` : `${dateText} ${h}:${mi}`
+}
+
 /** A cell's text in CSV or tab-separated text, with a number as its value or its text. */
 function plainText(cell: PivotGridCell | null, text: boolean) {
   if (!cell) return ''
   if (cell.kind === 'value') {
     const v = cell.value!
-    return text ? cell.text : v === v ? String(tidyNumber(v)) : ''
+    if (text) return cell.text
+    if (v !== v) return ''
+    return cell.date ? formatLocalDateValue(v) : String(tidyNumber(v))
   }
   return cell.text
 }
@@ -117,8 +146,13 @@ function fitFormat(format: string, value: number) {
 function sheetCell(cell: PivotGridCell | null, formats: PivotGrid['formats']): PivotSheetCell {
   if (!cell) return null
   if (cell.kind === 'value') {
-    const v = tidyNumber(cell.value!)
-    if (v !== v) return null
+    const raw = cell.value!
+    if (raw !== raw) return null
+    if (cell.date) {
+      const value = formatLocalDateValue(raw)
+      return cell.total ? { value, style: 'pivot-total' } : value
+    }
+    const v = tidyNumber(raw)
     const given = formats[cell.valueIndex!]
     const format = given && fitFormat(given, v)
     if (!format && !cell.total) return v

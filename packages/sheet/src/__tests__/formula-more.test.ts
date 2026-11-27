@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import { formatValue } from '../core/format'
 import type { SheetWorkbook } from '../index'
-import { SheetError, SheetFormulaEngine, type SheetResult } from '../formula'
+import { dateText, serialOf, SheetError, SheetFormulaEngine, type SheetResult } from '../formula'
 
 /** Works out one formula over some cells of a sheet named 表1. */
 function calc(formula: string, cells: SheetWorkbook['sheets'][number]['cells'] = []) {
@@ -312,5 +313,37 @@ describe('the second batch, after review', () => {
     expect(calc('=MROUND(5, -2)')).toBe('#NUM!')
     expect(calc('=MROUND(5, 0)')).toBe(0)
     expect(calc('=ROUND(PMT(4.9%/12, 360, 300000), 2)')).toBe(-1592.18)
+  })
+
+  it('handles years 0–99 and pads 4-digit years consistently in date formulas', () => {
+    expect(calc('=YEAR("0050-03-15")')).toBe(50)
+    expect(calc('=MONTH("0050-03-15")')).toBe(3)
+    expect(calc('=DAY("0050-03-15")')).toBe(15)
+    // 0050-03-15 is a Tuesday (WEEKDAY type 1 => 3), matching core formatValue
+    expect(formatValue('0050-03-15', 'ddd', 'en')).toBe('Tue')
+    expect(calc('=WEEKDAY("0050-03-15")')).toBe(3)
+    expect(calc('=DAYS("0100-01-01", "0099-12-31")')).toBe(1)
+    expect(dateText(serialOf('0050-03-15')!)).toBe('0050-03-15')
+    expect(dateText(serialOf('0500-01-01')!)).toBe('0500-01-01')
+    // year 0000 is a proleptic Gregorian leap year (29 days in February), year 0100 is not
+    expect(calc('=EDATE("0000-01-31", 1)')).toBe('0000-02-29')
+    expect(calc('=EOMONTH("0000-02-01", 0)')).toBe('0000-02-29')
+    expect(calc('=EDATE("0099-12-31", 2)')).toBe('0100-02-28')
+    expect(calc('=DATEDIF("0000-02-28", "0000-03-01", "YD")')).toBe(2)
+    expect(calc('=DATEDIF("0000-02-28", "0000-03-01", "MD")')).toBe(2)
+    expect(calc('=WEEKNUM("0050-01-01")')).toBe(1)
+    expect(calc('=ISOWEEKNUM("0050-01-04")')).toBe(1)
+    // Excel compatibility for DATE(y < 1900, m, d) stays intact
+    expect(calc('=DATE(50, 3, 15)')).toBe('1950-03-15')
+    // localDay pads years below 1000 to 4 digits
+    const earlyNow = new Date(0)
+    earlyNow.setFullYear(50, 2, 15)
+    earlyNow.setHours(9, 30, 0, 0)
+    const earlyEngine = new SheetFormulaEngine(
+      { version: 1, sheets: [{ name: '表1', cells: [] }] },
+      { now: () => earlyNow },
+    )
+    expect(earlyEngine.evaluate('=TODAY()')).toBe('0050-03-15')
+    expect(earlyEngine.evaluate('=NOW()')).toBe('0050-03-15 09:30')
   })
 })

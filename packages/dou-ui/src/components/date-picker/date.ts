@@ -21,7 +21,9 @@ export function parts(date: string) {
 }
 
 export function daysInMonth(year: number, month: number) {
-  return new Date(Date.UTC(year, month, 0)).getUTCDate()
+  const value = new Date(0)
+  value.setUTCFullYear(year, month, 0)
+  return value.getUTCDate()
 }
 
 function fromUTC(date: Date) {
@@ -55,9 +57,8 @@ export function weekday(date: string) {
   return utc(date).getUTCDay()
 }
 
-export function today() {
-  const now = new Date()
-  return toDateString(now.getFullYear(), now.getMonth() + 1, now.getDate())
+export function today(at = new Date()) {
+  return toDateString(at.getFullYear(), at.getMonth() + 1, at.getDate())
 }
 
 function ordinal(date: string) {

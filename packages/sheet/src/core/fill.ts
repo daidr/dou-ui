@@ -23,7 +23,11 @@ function kindOf(value: SheetValue): Kind {
   if (typeof value === 'number') return { kind: 'number', n: value }
   if (typeof value !== 'string' || value.startsWith('=')) return { kind: 'other' }
   const date = DATE.exec(value)
-  if (date) return { kind: 'date', day: Date.UTC(+date[1]!, +date[2]! - 1, +date[3]!) / DAY }
+  if (date) {
+    const d = new Date(0)
+    d.setUTCFullYear(+date[1]!, +date[2]! - 1, +date[3]!)
+    return { kind: 'date', day: Math.floor(d.getTime() / DAY) }
+  }
   const time = TIME.exec(value)
   if (time) return { kind: 'time', minute: +time[1]! * 60 + +time[2]! }
   const numbered = NUMBERED.exec(value)
@@ -44,7 +48,7 @@ const pad = (n: number, width = 2) => String(n).padStart(width, '0')
 
 function dateText(day: number) {
   const date = new Date(day * DAY)
-  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`
+  return `${pad(date.getUTCFullYear(), 4)}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`
 }
 
 /** The step between equal-spaced numbers, or `null` when they aren't. */
@@ -149,8 +153,11 @@ export function continueValues(
         return Array.from({ length: count }, (_, i) => {
           const month = months.first + months.step * after(i)
           const year = Math.floor(month / 12)
-          const last = new Date(Date.UTC(year, (month % 12) + 1, 0)).getUTCDate()
-          return `${year}-${pad((month % 12) + 1)}-${pad(Math.min(months.date, last))}`
+          const m = ((month % 12) + 12) % 12
+          const end = new Date(0)
+          end.setUTCFullYear(year, m + 1, 0)
+          const last = end.getUTCDate()
+          return `${String(year).padStart(4, '0')}-${pad(m + 1)}-${pad(Math.min(months.date, last))}`
         })
       }
       const step = n === 1 ? one : days[1]! - days[0]!

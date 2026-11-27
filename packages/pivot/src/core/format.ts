@@ -1,6 +1,6 @@
 import type { PivotResolvedField, PivotResolvedValue } from '../engine'
 import { isEmpty, PERCENT_SHOWS } from '../engine'
-import { readBucket, type PivotGroupBy } from '../engine/group'
+import { readBucket, toDate, type PivotGroupBy } from '../engine/group'
 import type { PivotFormat } from '../engine/types'
 
 export interface PivotLabelTexts {
@@ -88,6 +88,15 @@ function groupFormatter(
   }
 }
 
+/** Whether a value column produces timestamps rather than numeric magnitudes (`min`/`max` on a date field). */
+export function isDateValue(value: PivotResolvedValue): boolean {
+  return (
+    value.field?.type === 'date' &&
+    !value.show?.as &&
+    (value.aggregate === 'min' || value.aggregate === 'max')
+  )
+}
+
 /**
  * The number format a value is written with: the share, sign and rank
  * defaults, or its own `format`. `null` for a format function and for
@@ -109,12 +118,7 @@ export function valueNumberOptions(value: PivotResolvedValue): Intl.NumberFormat
     )
   }
   if (show === 'rank') return (format as Intl.NumberFormatOptions) ?? { maximumFractionDigits: 0 }
-  if (
-    value.field?.type === 'date' &&
-    !show &&
-    (value.aggregate === 'min' || value.aggregate === 'max')
-  )
-    return null
+  if (isDateValue(value)) return null
   const options =
     (format as Intl.NumberFormatOptions) ??
     (value.integer ? { maximumFractionDigits: 0 } : { maximumFractionDigits: 2 })
@@ -153,5 +157,8 @@ function dateFormat(locale: string, options: Intl.DateTimeFormatOptions) {
   const key = `${locale}|${JSON.stringify(options)}`
   let format = dates.get(key)
   if (!format) dates.set(key, (format = new Intl.DateTimeFormat(locale, options)))
-  return (d: unknown) => format!.format(d as Date)
+  return (d: unknown) => {
+    const date = d instanceof Date ? d : toDate(d)
+    return date ? format!.format(date) : String(d)
+  }
 }

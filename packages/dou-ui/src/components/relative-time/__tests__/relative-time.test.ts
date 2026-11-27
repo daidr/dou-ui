@@ -2,7 +2,7 @@ import { mount } from '@vue/test-utils'
 import { h, nextTick } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DouConfigProvider, DouRelativeTime, en } from '../../../index'
-import { formatMoment, nextChange, relativeUnit } from '../format'
+import { formatMoment, nextChange, relativeUnit, toTime } from '../format'
 
 const MINUTE = 60_000
 const HOUR = 60 * MINUTE
@@ -29,6 +29,28 @@ describe('relative time helpers', () => {
     expect(formatMoment(time, 'YYYY-MM-DD HH:mm:ss', meridiem)).toBe('2026-10-29 14:05:09')
     expect(formatMoment(time, 'MM/DD/YYYY hh:mm A', meridiem)).toBe('10/29/2026 02:05 PM')
     expect(formatMoment(time, 'YYYY[年]MM[月]', meridiem)).toBe('2026年10月')
+    const early = new Date(0)
+    early.setFullYear(50, 2, 15)
+    early.setHours(8, 5, 0, 0)
+    expect(formatMoment(early.getTime(), 'YYYY-MM-DD HH:mm', meridiem)).toBe('0050-03-15 08:05')
+  })
+
+  it('parses zoneless dates in local time and validates calendar bounds', () => {
+    expect(toTime('2026-03-08')).toBe(new Date(2026, 2, 8).getTime())
+    expect(toTime('2026-03')).toBe(new Date(2026, 2, 1).getTime())
+    expect(toTime('2026-03-08 09:30:15')).toBe(new Date(2026, 2, 8, 9, 30, 15).getTime())
+    expect(toTime('2026-03-08T10:00:00Z')).toBe(Date.parse('2026-03-08T10:00:00Z'))
+    expect(toTime('2026-03-08 10:00:00+08:00')).toBe(Date.parse('2026-03-08T10:00:00+08:00'))
+    expect(toTime('2026-03-08 9:30:00+08:00')).toBe(Date.parse('2026-03-08T09:30:00+08:00'))
+    expect(toTime('2026-3-8 09:30:00Z')).toBe(Date.parse('2026-03-08T09:30:00Z'))
+    expect(Number.isNaN(toTime('2026-02-31'))).toBe(true)
+    expect(Number.isNaN(toTime('2026-02-31T10:00:00Z'))).toBe(true)
+    expect(Number.isNaN(toTime('2026-03-08T10:00:00+25:00'))).toBe(true)
+    expect(Number.isNaN(toTime('2026-03 09:30'))).toBe(true)
+    const early = new Date(0)
+    early.setFullYear(50, 2, 15)
+    early.setHours(0, 0, 0, 0)
+    expect(toTime('0050-03-15')).toBe(early.getTime())
   })
 })
 
@@ -82,5 +104,14 @@ describe('DouRelativeTime', () => {
         ),
     })
     expect(wrapper.text()).toBe('2 days ago')
+  })
+
+  it('reads date-only strings at local midnight regardless of timezone', () => {
+    const wrapper = mount(DouRelativeTime, {
+      props: { value: '2026-10-29', now: new Date(2026, 9, 29, 12, 0, 0) },
+    })
+    const time = wrapper.find('time')
+    expect(time.text()).toBe('12小时前')
+    expect(time.attributes('title')).toBe('2026-10-29 00:00')
   })
 })

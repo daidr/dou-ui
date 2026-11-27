@@ -138,7 +138,11 @@ describe('expression functions', () => {
     ['abs(null)', null],
     ["days('2026-10-01', '2026-10-31')", 30],
     ["days('2026-03-28', '2026-03-30')", 2],
+    ["days('2026-03-07', '2026-03-09')", 2],
+    ["days('2026-10-31', '2026-11-02')", 2],
+    ["days('2026-02-31', '2026-03-05')", null],
     ["days('x', '2026-10-31')", null],
+    ["today('abc')", null],
     ["contains(['a', 'b'], 'b')", true],
     ["contains('上海', '上')", true],
   ])('%s → %j', (source, expected) => {
@@ -152,6 +156,46 @@ describe('expression functions', () => {
     expect(run('today(1)')).toBe('2026-11-01')
     expect(run('today(-31)')).toBe('2026-09-30')
     vi.useRealTimers()
+  })
+
+  it('compares zoned ISO strings and matching Date instances consistently across timezones', () => {
+    const nyBoundary = '2026-11-01T02:00:00Z'
+    const shanghaiBoundary = '2026-10-31T20:00:00Z'
+    expect(
+      evaluateExpression('days(values.a, values.b)', {
+        values: { a: nyBoundary, b: new Date(nyBoundary) },
+      }),
+    ).toBe(0)
+    expect(
+      evaluateExpression('days(values.a, values.b)', {
+        values: { a: shanghaiBoundary, b: new Date(shanghaiBoundary) },
+      }),
+    ).toBe(0)
+    expect(
+      evaluateExpression('days(values.a, values.b)', {
+        values: { a: '2026-03-08 09:30:00+08:00', b: new Date('2026-03-08T09:30:00+08:00') },
+      }),
+    ).toBe(0)
+    expect(
+      evaluateExpression('days(values.a, values.b)', {
+        values: { a: '2026-03-08 9:30:00+08:00', b: new Date('2026-03-08T09:30:00+08:00') },
+      }),
+    ).toBe(0)
+    expect(
+      evaluateExpression('days(values.a, values.b)', {
+        values: { a: '2026-3-8 09:30:00Z', b: new Date('2026-03-08T09:30:00Z') },
+      }),
+    ).toBe(0)
+    expect(
+      evaluateExpression('days(values.a, values.b)', {
+        values: { a: '2026-02-31T10:00:00Z', b: '2026-03-01' },
+      }),
+    ).toBeNull()
+    expect(
+      evaluateExpression('days(values.a, values.b)', {
+        values: { a: '2026-03-08T10:00:00+25:00', b: '2026-03-08' },
+      }),
+    ).toBeNull()
   })
 
   it('calls functions the app registers, which can replace built-in ones', () => {

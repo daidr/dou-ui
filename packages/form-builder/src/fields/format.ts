@@ -144,6 +144,79 @@ export function formatRange(
     : formatValue(value, context)
 }
 
+const pad2 = (n: number) => String(n).padStart(2, '0')
+const ZONED_ISO =
+  /^(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?(?:([Zz])|([+-])(\d{2}):?(\d{2}))$/
+
+function daysInMonth(year: number, month: number): number {
+  const date = new Date(0)
+  date.setUTCFullYear(year, month, 0)
+  return date.getUTCDate()
+}
+
+function parseZonedDate(match: RegExpExecArray): Date | null {
+  const [, y, mo, d, hr, mi, s, ms, z, sign, oh, om] = match
+  const year = Number(y)
+  const month = Number(mo)
+  const day = Number(d)
+  const hour = Number(hr)
+  const minute = Number(mi)
+  const second = s ? Number(s) : 0
+  const millis = ms ? Number(ms.slice(0, 3).padEnd(3, '0')) : 0
+  const offHour = z ? 0 : Number(oh)
+  const offMin = z ? 0 : Number(om)
+  if (
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > daysInMonth(year, month) ||
+    hour > 23 ||
+    minute > 59 ||
+    second > 59 ||
+    offHour > 23 ||
+    offMin > 59
+  )
+    return null
+  const date = new Date(0)
+  date.setUTCFullYear(year, month - 1, day)
+  date.setUTCHours(hour, minute, second, millis)
+  const offset = z ? 0 : (sign === '+' ? 1 : -1) * (offHour * 60 + offMin)
+  return new Date(date.getTime() - offset * 60_000)
+}
+
+function isoWeekOfLocal(date: Date): string {
+  const day = new Date(Date.UTC(2000, date.getMonth(), date.getDate()))
+  day.setUTCFullYear(date.getFullYear())
+  const weekday = (day.getUTCDay() + 6) % 7
+  day.setUTCDate(day.getUTCDate() - weekday + 3)
+  const year = day.getUTCFullYear()
+  const jan4 = new Date(Date.UTC(2000, 0, 4))
+  jan4.setUTCFullYear(year)
+  const firstThu = new Date(Date.UTC(2000, 0, 4 - ((jan4.getUTCDay() + 6) % 7) + 3))
+  firstThu.setUTCFullYear(year)
+  const week = 1 + Math.round((day.getTime() - firstThu.getTime()) / 604_800_000)
+  return `${String(year).padStart(4, '0')}-W${pad2(week)}`
+}
+
+function dateToPickerValue(
+  date: Date,
+  type: DatePickerType | undefined,
+  timeFormat: unknown,
+): string {
+  const year = String(date.getFullYear()).padStart(4, '0')
+  const month = date.getMonth() + 1
+  if (type === 'year') return year
+  if (type === 'month') return `${year}-${pad2(month)}`
+  if (type === 'quarter') return `${year}-Q${Math.floor((month - 1) / 3) + 1}`
+  if (type === 'week') return isoWeekOfLocal(date)
+  const day = `${year}-${pad2(month)}-${pad2(date.getDate())}`
+  if (type === 'datetime') {
+    const base = `${day} ${pad2(date.getHours())}:${pad2(date.getMinutes())}`
+    return timeFormat === 'HH:mm:ss' ? `${base}:${pad2(date.getSeconds())}` : base
+  }
+  return day
+}
+
 /** A date written the way the date picker writes it (`displayFormat`, else the locale's); a range as both ends. */
 export function formatDate(
   value: unknown,
@@ -154,10 +227,27 @@ export function formatDate(
     return value
       .map((item) => formatDate(item, props, context))
       .join(context.messages.rangeSeparator)
-  if (typeof value !== 'string') return formatValue(value, context)
-  return formatDateValue(value, {
+  const type = typeof props.type === 'string' ? (props.type as DatePickerType) : undefined
+  let text: string
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return ''
+    text = dateToPickerValue(value, type, props.timeFormat)
+  } else if (typeof value === 'string') {
+    const trimmed = value.trim()
+    const zoned = ZONED_ISO.exec(trimmed)
+    if (zoned) {
+      const parsed = parseZonedDate(zoned)
+      if (!parsed) return value
+      text = dateToPickerValue(parsed, type, props.timeFormat)
+    } else {
+      text = value
+    }
+  } else {
+    return formatValue(value, context)
+  }
+  return formatDateValue(text, {
     locale: context.locale,
-    type: typeof props.type === 'string' ? (props.type as DatePickerType) : undefined,
+    type,
     displayFormat: typeof props.displayFormat === 'string' ? props.displayFormat : undefined,
   })
 }

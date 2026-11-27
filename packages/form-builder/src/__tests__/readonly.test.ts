@@ -318,6 +318,93 @@ describe('readonly', () => {
     expect('note' in model).toBe(false)
   })
 
+  it('applies displayFormat and picker type when date values are Date instances or zoned ISO text', async () => {
+    const d1 = new Date(2026, 2, 8, 9, 30, 15)
+    const d2 = new Date(2026, 2, 10)
+    const zoned = '2026-03-08T10:00:00Z'
+    const zonedLocal = new Date(zoned)
+    const expectedZoned = `${zonedLocal.getFullYear()}年${String(zonedLocal.getMonth() + 1).padStart(2, '0')}月${String(zonedLocal.getDate()).padStart(2, '0')}日`
+    const zonedSingle = '2026-3-8 9:30:00+08:00'
+    const zonedSingleLocal = new Date('2026-03-08T09:30:00+08:00')
+    const expectedSingle = `${zonedSingleLocal.getFullYear()}/${String(zonedSingleLocal.getMonth() + 1).padStart(2, '0')}/${String(zonedSingleLocal.getDate()).padStart(2, '0')} ${String(zonedSingleLocal.getHours()).padStart(2, '0')}:${String(zonedSingleLocal.getMinutes()).padStart(2, '0')}`
+    const wrapper = mount(DouFormRenderer, {
+      props: {
+        readonly: true,
+        model: {
+          day: d1,
+          dt: d1,
+          range: [d1, d2],
+          q: d1,
+          w: new Date(2026, 0, 1),
+          z: zoned,
+          zs: zonedSingle,
+          bad: '2026-02-31T10:00:00Z',
+        },
+        form: doc([
+          {
+            id: 'a',
+            type: 'date-picker',
+            name: 'day',
+            props: { displayFormat: 'YYYY[年]MM[月]DD[日]' },
+          },
+          {
+            id: 'b',
+            type: 'date-picker',
+            name: 'dt',
+            props: { type: 'datetime', displayFormat: 'YYYY/MM/DD' },
+          },
+          {
+            id: 'c',
+            type: 'date-picker',
+            name: 'range',
+            props: { range: true, displayFormat: 'YYYY.MM.DD' },
+          },
+          {
+            id: 'd',
+            type: 'date-picker',
+            name: 'q',
+            props: { type: 'quarter' },
+          },
+          {
+            id: 'e',
+            type: 'date-picker',
+            name: 'w',
+            props: { type: 'week' },
+          },
+          {
+            id: 'f',
+            type: 'date-picker',
+            name: 'z',
+            props: { displayFormat: 'YYYY[年]MM[月]DD[日]' },
+          },
+          {
+            id: 'g',
+            type: 'date-picker',
+            name: 'zs',
+            props: { type: 'datetime', displayFormat: 'YYYY/MM/DD' },
+          },
+          {
+            id: 'h',
+            type: 'date-picker',
+            name: 'bad',
+            props: { displayFormat: 'YYYY[年]MM[月]DD[日]' },
+          },
+        ]),
+      },
+    })
+    await flush()
+    expect(values(wrapper)).toEqual([
+      '2026年03月08日',
+      '2026/03/08 09:30',
+      '2026.03.08 ~ 2026.03.10',
+      '2026 年第 1 季度',
+      '2026-W01',
+      expectedZoned,
+      expectedSingle,
+      '2026-02-31T10:00:00Z',
+    ])
+  })
+
   it('works out formulas without writing them', async () => {
     const model: Record<string, unknown> = { price: 4, count: 3 }
     const wrapper = mount(DouFormRenderer, {

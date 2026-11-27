@@ -286,8 +286,9 @@ function confirm() {
 }
 
 function pickNow() {
-  const time = now()
-  const day = today()
+  const current = new Date()
+  const time = now(current)
+  const day = today(current)
   const value = withTime(day, fitOn(day, { ...time, second: seconds.value ? time.second : 0 }))
   if (allowed(value)) onSelect(value)
 }

@@ -584,20 +584,89 @@ function arithmetic(operator: BinaryOperator, a: unknown, b: unknown): unknown {
 
 const pad = (n: number) => String(n).padStart(2, '0')
 const formatDay = (date: Date) =>
-  `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+  `${String(date.getFullYear()).padStart(4, '0')}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+
+const LOCAL_DATE =
+  /^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?)?$/
+const ZONED_DATE =
+  /^(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?(?:([Zz])|([+-])(\d{2}):?(\d{2}))$/
+
+function daysInMonth(year: number, month: number): number {
+  const date = new Date(0)
+  date.setUTCFullYear(year, month, 0)
+  return date.getUTCDate()
+}
+
+function parseZonedDate(match: RegExpExecArray): Date | null {
+  const [, y, mo, d, h, mi, s, ms, z, sign, oh, om] = match
+  const year = Number(y)
+  const month = Number(mo)
+  const day = Number(d)
+  const hour = Number(h)
+  const minute = Number(mi)
+  const second = s ? Number(s) : 0
+  const millis = ms ? Number(ms.slice(0, 3).padEnd(3, '0')) : 0
+  const offHour = z ? 0 : Number(oh)
+  const offMin = z ? 0 : Number(om)
+  if (
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > daysInMonth(year, month) ||
+    hour > 23 ||
+    minute > 59 ||
+    second > 59 ||
+    offHour > 23 ||
+    offMin > 59
+  )
+    return null
+  const date = new Date(0)
+  date.setUTCFullYear(year, month - 1, day)
+  date.setUTCHours(hour, minute, second, millis)
+  const offset = z ? 0 : (sign === '+' ? 1 : -1) * (offHour * 60 + offMin)
+  return new Date(date.getTime() - offset * 60_000)
+}
+
+function utcDayNumber(year: number, month: number, day: number): number {
+  const date = new Date(0)
+  date.setUTCFullYear(year, month - 1, day)
+  return Math.floor(date.getTime() / 86_400_000)
+}
 
 /** A day as a count of days since 1970, read from `YYYY-MM-DD…` text, a `Date` or a timestamp. */
 function dayNumber(value: unknown): number | null {
   let date: Date | null = null
   if (value instanceof Date) date = value
-  else if (typeof value === 'number') date = new Date(value)
+  else if (typeof value === 'number') date = Number.isFinite(value) ? new Date(value) : null
   else if (typeof value === 'string') {
-    const match = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(value.trim())
-    if (match) return Date.UTC(+match[1]!, +match[2]! - 1, +match[3]!) / 86_400_000
-    return null
+    const trimmed = value.trim()
+    const zoned = ZONED_DATE.exec(trimmed)
+    if (zoned) {
+      date = parseZonedDate(zoned)
+    } else {
+      const match = LOCAL_DATE.exec(trimmed)
+      if (!match) return null
+      const year = Number(match[1])
+      const month = Number(match[2])
+      const day = Number(match[3])
+      const hour = match[4] ? Number(match[4]) : 0
+      const minute = match[5] ? Number(match[5]) : 0
+      const second = match[6] ? Number(match[6]) : 0
+      if (
+        month < 1 ||
+        month > 12 ||
+        day < 1 ||
+        day > daysInMonth(year, month) ||
+        hour > 23 ||
+        minute > 59 ||
+        second > 59
+      )
+        return null
+      return utcDayNumber(year, month, day)
+    }
   }
   if (!date || Number.isNaN(date.getTime())) return null
-  return Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86_400_000
+  return utcDayNumber(date.getFullYear(), date.getMonth() + 1, date.getDate())
 }
 
 /** The numbers among the arguments, lists flattened one level. */
@@ -663,9 +732,12 @@ export const builtinFunctions: Readonly<Record<string, FormFunction>> = Object.f
   },
   abs: (value: unknown) => (blank(value) ? null : finite(Math.abs(toNumber(value)))),
   today(offset: unknown = 0) {
-    const date = new Date()
-    date.setDate(date.getDate() + Math.trunc(toNumber(offset)))
-    return formatDay(date)
+    const delta = toNumber(offset)
+    if (!Number.isFinite(delta)) return null
+    const now = new Date()
+    const date = new Date(0)
+    date.setUTCFullYear(now.getFullYear(), now.getMonth(), now.getDate() + Math.trunc(delta))
+    return `${String(date.getUTCFullYear()).padStart(4, '0')}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`
   },
   days(from: unknown, to: unknown) {
     const a = dayNumber(from)

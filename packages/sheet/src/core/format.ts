@@ -184,7 +184,9 @@ function weekday(y: number, m: number, d: number, style: 'short' | 'long', local
     }
     weekdayNames.set(key, names)
   }
-  return names.format(new Date(Date.UTC(y, m - 1, d)))
+  const date = new Date(Date.UTC(2000, m - 1, d))
+  date.setUTCFullYear(y)
+  return names.format(date)
 }
 
 function formatDate(value: string, format: string, locale?: string) {

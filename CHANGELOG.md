@@ -7,6 +7,16 @@ DouUI 的所有包（`dou-ui`、`@dou-ui/theme`、`@dou-ui/icons` 以及生态�
 
 这个文件由发版脚本生成：改动先以碎片文件记在 [`.changes/`](./.changes/README.md) 里，发布时汇总到这里。
 
+## 0.1.0-alpha.31 · 2026-11-27
+
+### 新增
+
+- **@dou-ui/gantt**：`DouGantt` 与 `DouScheduler` 支持分钟/秒级时间精度（含秒、毫秒、带时区偏移 ISO-8601 字符串与 Unix 毫秒时间戳）、`minute`/`second` 亚小时刻度与 `fit([start, end])` 时间窗适配、`:calendar="false"` 关闭工作日历、行/泳道内离散事件标记点（`marker.task`/`marker.resource`、`#marker` 插槽与 `markerClick` 事件），以及 `v-model:follow` 实时跟随与只读拖拽平移。 ([#561](https://github.com/daidr/dou-ui/pull/561))
+
+### 修复
+
+- **dou-ui、@dou-ui/chart、@dou-ui/pivot、@dou-ui/form-builder、@dou-ui/dashboard、@dou-ui/sheet**：修复各时间相关组件在跨时区与夏令时切换时的偏移与精度问题：`@dou-ui/chart` 修复跨夏令时日/小时刻度漂移、秋季回拨重复小时重叠及带时区 ISO 时间轴推断，并对歧义重复时刻补充短时区标识；`dou-ui` 修复 `DouRelativeTime` 对无时区日期与日期时间字符串的本地解析、`DouDatePicker` / `DouCalendarView` / `DouCalendarHeatmap` 的跨午夜读表竞态及 0–99 年构造偏移；`@dou-ui/pivot` 修复无时区日期字符串分桶偏移、Worker 序列化回传格式、自定义标签格式化与日期导出格式；`@dou-ui/form-builder` 修复 `days()` / `today()` 跨时区及跨夏令时计算偏差，以及只读模式 `formatDate` 对 `Date` 实例和带时区 ISO 字符串的支持；`@dou-ui/dashboard` 修复图表点击联动筛选与高亮丢弃时间精度及混淆夏令时重复小时的问题；`@dou-ui/sheet` 修复 0–99 年日期格式、公式计算与按月续填偏差。 ([#563](https://github.com/daidr/dou-ui/pull/563))
+
 ## 0.1.0-alpha.30 · 2026-11-26
 
 ### 新增

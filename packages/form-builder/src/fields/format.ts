@@ -144,6 +144,43 @@ export function formatRange(
     : formatValue(value, context)
 }
 
+const pad2 = (n: number) => String(n).padStart(2, '0')
+const ZONED_ISO =
+  /^\d{4}-\d{1,2}-\d{1,2}[ T]\d{1,2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:[Zz]|[+-]\d{2}:?\d{2})$/
+
+function isoWeekOfLocal(date: Date): string {
+  const day = new Date(Date.UTC(2000, date.getMonth(), date.getDate()))
+  day.setUTCFullYear(date.getFullYear())
+  const weekday = (day.getUTCDay() + 6) % 7
+  day.setUTCDate(day.getUTCDate() - weekday + 3)
+  const year = day.getUTCFullYear()
+  const jan4 = new Date(Date.UTC(2000, 0, 4))
+  jan4.setUTCFullYear(year)
+  const firstThu = new Date(Date.UTC(2000, 0, 4 - ((jan4.getUTCDay() + 6) % 7) + 3))
+  firstThu.setUTCFullYear(year)
+  const week = 1 + Math.round((day.getTime() - firstThu.getTime()) / 604_800_000)
+  return `${String(year).padStart(4, '0')}-W${pad2(week)}`
+}
+
+function dateToPickerValue(
+  date: Date,
+  type: DatePickerType | undefined,
+  timeFormat: unknown,
+): string {
+  const year = String(date.getFullYear()).padStart(4, '0')
+  const month = date.getMonth() + 1
+  if (type === 'year') return year
+  if (type === 'month') return `${year}-${pad2(month)}`
+  if (type === 'quarter') return `${year}-Q${Math.floor((month - 1) / 3) + 1}`
+  if (type === 'week') return isoWeekOfLocal(date)
+  const day = `${year}-${pad2(month)}-${pad2(date.getDate())}`
+  if (type === 'datetime') {
+    const base = `${day} ${pad2(date.getHours())}:${pad2(date.getMinutes())}`
+    return timeFormat === 'HH:mm:ss' ? `${base}:${pad2(date.getSeconds())}` : base
+  }
+  return day
+}
+
 /** A date written the way the date picker writes it (`displayFormat`, else the locale's); a range as both ends. */
 export function formatDate(
   value: unknown,
@@ -154,10 +191,27 @@ export function formatDate(
     return value
       .map((item) => formatDate(item, props, context))
       .join(context.messages.rangeSeparator)
-  if (typeof value !== 'string') return formatValue(value, context)
-  return formatDateValue(value, {
+  const type = typeof props.type === 'string' ? (props.type as DatePickerType) : undefined
+  let text: string
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return ''
+    text = dateToPickerValue(value, type, props.timeFormat)
+  } else if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (ZONED_ISO.test(trimmed)) {
+      const parsed = new Date(trimmed.replace(' ', 'T'))
+      text = Number.isNaN(parsed.getTime())
+        ? value
+        : dateToPickerValue(parsed, type, props.timeFormat)
+    } else {
+      text = value
+    }
+  } else {
+    return formatValue(value, context)
+  }
+  return formatDateValue(text, {
     locale: context.locale,
-    type: typeof props.type === 'string' ? (props.type as DatePickerType) : undefined,
+    type,
     displayFormat: typeof props.displayFormat === 'string' ? props.displayFormat : undefined,
   })
 }

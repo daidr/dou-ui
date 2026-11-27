@@ -36,13 +36,14 @@ const weekStart = computed(() => props.weekStart ?? locale.value.region.weekStar
 const row = (date: string) => (weekday(date) - weekStart.value + 7) % 7
 /** The first column starts on the week's first day, so earlier days of that week stay blank. */
 const origin = computed(() => addDays(first.value, -row(first.value)))
-const daysBetween = (from: string, to: string) => {
-  const a = parts(from)
-  const b = parts(to)
-  return Math.round(
-    (Date.UTC(b.year, b.month - 1, b.day) - Date.UTC(a.year, a.month - 1, a.day)) / 86_400_000,
-  )
+const asUTC = (date: string) => {
+  const { year, month, day } = parts(date)
+  const value = new Date(Date.UTC(2000, month - 1, day))
+  value.setUTCFullYear(year)
+  return value
 }
+const daysBetween = (from: string, to: string) =>
+  Math.round((asUTC(to).getTime() - asUTC(from).getTime()) / 86_400_000)
 const column = (date: string) => Math.floor(daysBetween(origin.value, date) / 7)
 
 const values = computed(() => {
@@ -101,10 +102,6 @@ const weeks = computed(() => column(last.value) + 1)
 
 const formatter = (options: Intl.DateTimeFormatOptions) =>
   new Intl.DateTimeFormat(locale.value.name, { timeZone: 'UTC', ...options })
-const asUTC = (date: string) => {
-  const { year, month, day } = parts(date)
-  return new Date(Date.UTC(year, month - 1, day))
-}
 
 const months = computed(() => {
   const short = formatter({ month: 'short' })

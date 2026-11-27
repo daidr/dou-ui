@@ -96,6 +96,31 @@ describe('packets', () => {
       expect(r.indices(1, 0)).toEqual(result.indices(1, 0))
     }
   })
+
+  it('keeps string date labels as strings through pack/unpack without UTC shift', () => {
+    const stringRows = [
+      { day: '2026-03-08', amount: 10 },
+      { day: '2026-03-15', amount: 25 },
+    ]
+    const source = new PivotSource(stringRows, {
+      fields: [
+        { name: 'day', type: 'date' },
+        { name: 'amount', type: 'number' },
+      ],
+    })
+    const config = { rows: ['day'], values: ['amount'] }
+    const result = computePivot(source, config)
+    const json = PivotResult.unpack(
+      JSON.parse(JSON.stringify(result.pack({ plain: true }))),
+      source,
+      config,
+    )
+    const first = json.rows.children[0]!
+    expect(json.rows.label(first)).toBe('2026-03-08')
+    expect(typeof json.rows.label(first)).toBe('string')
+    expect(json.rows.find(['2026-03-08'])).toBe(first)
+    expect(json.rows.find(['2026-03-15'])).toBeGreaterThan(0)
+  })
 })
 
 describe('createPivotWorker', () => {

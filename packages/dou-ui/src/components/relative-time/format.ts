@@ -18,8 +18,51 @@ const UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
 /** Below this, the moment is "just now". */
 export const JUST_NOW = 45 * SECOND
 
+const LOCAL_DATE =
+  /^(\d{4})-(\d{1,2})(?:-(\d{1,2}))?(?:[ T](\d{1,2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?)?$/
+const ZONED_DATE =
+  /^\d{4}-\d{1,2}-\d{1,2}[ T]\d{1,2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:[Zz]|[+-]\d{2}:?\d{2})$/
+
+function daysInMonth(year: number, month: number): number {
+  const date = new Date(0)
+  date.setUTCFullYear(year, month, 0)
+  return date.getUTCDate()
+}
+
 export function toTime(value: RelativeTimeValue): number {
-  return value instanceof Date ? value.getTime() : new Date(value).getTime()
+  if (value instanceof Date) return value.getTime()
+  if (typeof value === 'number') return value
+  const trimmed = value.trim()
+  const match = LOCAL_DATE.exec(trimmed)
+  if (match) {
+    const [, y, mo, d, h, mi, s, ms] = match
+    const year = Number(y)
+    const month = Number(mo)
+    const day = d ? Number(d) : 1
+    const hour = h ? Number(h) : 0
+    const minute = mi ? Number(mi) : 0
+    const second = s ? Number(s) : 0
+    const millis = ms ? Number(ms.slice(0, 3).padEnd(3, '0')) : 0
+    if (
+      month < 1 ||
+      month > 12 ||
+      day < 1 ||
+      day > daysInMonth(year, month) ||
+      hour > 23 ||
+      minute > 59 ||
+      second > 59
+    )
+      return Number.NaN
+    if (year < 100) {
+      const date = new Date(0)
+      date.setFullYear(year, month - 1, day)
+      date.setHours(hour, minute, second, millis)
+      return date.getTime()
+    }
+    return new Date(year, month - 1, day, hour, minute, second, millis).getTime()
+  }
+  if (ZONED_DATE.test(trimmed)) return new Date(trimmed.replace(' ', 'T')).getTime()
+  return new Date(value).getTime()
 }
 
 /**
@@ -78,7 +121,7 @@ export function formatMoment(
   const date = new Date(time)
   const hours = date.getHours()
   const tokens: Record<string, string> = {
-    YYYY: String(date.getFullYear()),
+    YYYY: String(date.getFullYear()).padStart(4, '0'),
     MM: pad(date.getMonth() + 1),
     DD: pad(date.getDate()),
     HH: pad(hours),

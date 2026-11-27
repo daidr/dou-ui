@@ -44,7 +44,7 @@ import {
   type PivotHeaderSpan,
   type PivotLine,
 } from './core/layout'
-import { labelFormatter, valueFormatter, valueNumberOptions } from './core/format'
+import { isDateValue, labelFormatter, valueFormatter, valueNumberOptions } from './core/format'
 import { valueLabel } from './core/labels'
 import { usePivotSource } from './core/source'
 import {
@@ -340,6 +340,7 @@ const valueDisplay = computed(() => {
     return {
       label: valueLabel(shownValue, spec?.label, m),
       write: valueFormatter(shownValue, locale.value.name),
+      isDate: isDateValue(shownValue),
       /** The same format for a sheet, when there is one. */
       sheetFormat: options ? sheetFormat(options, locale.value.name) : undefined,
       show: show ?? null,
@@ -1350,6 +1351,7 @@ function gridOf(range: GridRange, heads: boolean): PivotGrid {
         kind: 'value',
         value: n,
         valueIndex: v,
+        ...(display[v]!.isDate ? { date: true } : {}),
         ...(total ? { total: true } : {}),
       })
     }

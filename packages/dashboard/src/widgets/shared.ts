@@ -74,20 +74,123 @@ export function numberFieldsOf(data: unknown): string[] {
   return fieldsOf(data).filter((key) => typeof (first as Record<string, unknown>)[key] === 'number')
 }
 
-/** A filter value from a value of the data: dates as `YYYY-MM-DD`, so the filters stay JSON. */
-const pad = (n: number) => String(n).padStart(2, '0')
+/** A filter value from a value of the data: dates as JSON-safe local text. */
+const pad = (n: number, width = 2) => String(n).padStart(width, '0')
+
+const LOCAL_DATE_TIME =
+  /^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?)?$/
+const ZONED_DATE_TIME =
+  /^\d{4}-\d{1,2}-\d{1,2}[ T]\d{1,2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:[Zz]|[+-]\d{2}:?\d{2})$/
+
+function localDayStart(year: number, month: number, day: number): number {
+  if (year >= 0 && year < 100) {
+    const d = new Date(0)
+    d.setFullYear(year, month, day)
+    d.setHours(0, 0, 0, 0)
+    return d.getTime()
+  }
+  return new Date(year, month, day).getTime()
+}
+
+function isAmbiguousLocalTime(time: number): boolean {
+  const offset = new Date(time).getTimezoneOffset()
+  const later = new Date(time + 7_200_000).getTimezoneOffset()
+  if (later > offset) {
+    const shift = (later - offset) * 60_000
+    if (new Date(time + shift).getTimezoneOffset() === later) return true
+  }
+  const earlier = new Date(time - 7_200_000).getTimezoneOffset()
+  if (earlier < offset) {
+    const shift = (offset - earlier) * 60_000
+    if (new Date(time - shift).getTimezoneOffset() === earlier) return true
+  }
+  return false
+}
+
+function daysInMonth(year: number, month: number): number {
+  const d = new Date(0)
+  d.setUTCFullYear(year, month, 0)
+  return d.getUTCDate()
+}
+
+function parseDateTimestamp(text: string): number {
+  const trimmed = text.trim()
+  const local = LOCAL_DATE_TIME.exec(trimmed)
+  if (local) {
+    const year = Number(local[1])
+    const month = Number(local[2])
+    const day = Number(local[3])
+    const hour = local[4] ? Number(local[4]) : 0
+    const minute = local[5] ? Number(local[5]) : 0
+    const second = local[6] ? Number(local[6]) : 0
+    const ms = local[7] ? Number(local[7].slice(0, 3).padEnd(3, '0')) : 0
+    if (
+      month < 1 ||
+      month > 12 ||
+      day < 1 ||
+      day > daysInMonth(year, month) ||
+      hour > 23 ||
+      minute > 59 ||
+      second > 59
+    )
+      return Number.NaN
+    if (year < 100) {
+      const d = new Date(0)
+      d.setFullYear(year, month - 1, day)
+      d.setHours(hour, minute, second, ms)
+      return d.getTime()
+    }
+    return new Date(year, month - 1, day, hour, minute, second, ms).getTime()
+  }
+  if (ZONED_DATE_TIME.test(trimmed)) return Date.parse(trimmed.replace(' ', 'T'))
+  return Number.NaN
+}
 
 export function filterValueOf(value: unknown): unknown {
   if (!(value instanceof Date)) return value
-  return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`
+  const time = value.getTime()
+  if (Number.isNaN(time)) return undefined
+  const year = value.getFullYear()
+  const month = value.getMonth()
+  const day = value.getDate()
+  const date = `${pad(year, 4)}-${pad(month + 1)}-${pad(day)}`
+  if (time === localDayStart(year, month, day)) return date
+  const h = pad(value.getHours())
+  const mi = pad(value.getMinutes())
+  const s = value.getSeconds()
+  const ms = value.getMilliseconds()
+  if (isAmbiguousLocalTime(time)) {
+    const off = -value.getTimezoneOffset()
+    const sign = off >= 0 ? '+' : '-'
+    const abs = Math.abs(off)
+    const frac = ms ? `.${pad(ms, 3)}` : ''
+    return `${date}T${h}:${mi}:${pad(s)}${frac}${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`
+  }
+  if (ms) return `${date} ${h}:${mi}:${pad(s)}.${pad(ms, 3)}`
+  return s ? `${date} ${h}:${mi}:${pad(s)}` : `${date} ${h}:${mi}`
 }
 
-/** A value of the data as a sheet cell's: dates as `YYYY-MM-DD`, text starting with `=` kept as text. */
+/** Whether a row value and a filter value represent the same value, including matching date instants. */
+export function sameFilterValue(a: unknown, b: unknown): boolean {
+  const fa = filterValueOf(a)
+  const fb = filterValueOf(b)
+  if (fa === fb) return true
+  if (typeof fa !== 'string' || typeof fb !== 'string') return false
+  const ta = parseDateTimestamp(fa)
+  const tb = parseDateTimestamp(fb)
+  return Number.isFinite(ta) && Number.isFinite(tb) && ta === tb
+}
+
+/** A value of the data as a sheet cell's: dates as wall-clock text, text starting with `=` kept as text. */
 function sheetValueOf(value: unknown): SheetValue {
   if (value == null) return null
   if (typeof value === 'number') return Number.isFinite(value) ? value : null
   if (typeof value === 'boolean') return value
-  const text = value instanceof Date ? (filterValueOf(value) as string) : String(value)
+  if (value instanceof Date) {
+    const formatted = filterValueOf(value)
+    return typeof formatted === 'string' ? formatted : null
+  }
+  const text = String(value)
   return text.startsWith('=') ? `'${text}` : text
 }
 

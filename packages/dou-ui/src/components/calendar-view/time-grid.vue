@@ -124,7 +124,7 @@ const now = ref<{ date: string; minutes: number } | null>(null)
 let timer: ReturnType<typeof setInterval> | undefined
 function tick() {
   const date = new Date()
-  now.value = { date: today(), minutes: date.getHours() * 60 + date.getMinutes() }
+  now.value = { date: today(date), minutes: date.getHours() * 60 + date.getMinutes() }
 }
 
 /* scrolling to the start time */

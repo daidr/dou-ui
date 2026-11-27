@@ -1,5 +1,13 @@
 import { stepDecimals } from './scale'
-import { floorTime, parentUnit, startsUnit, type TimeInterval, type TimeUnit } from './time'
+import {
+  adjacentDaySpan,
+  floorTime,
+  isAmbiguousLocalTime,
+  parentUnit,
+  startsUnit,
+  type TimeInterval,
+  type TimeUnit,
+} from './time'
 
 const formatters = new Map<string, Intl.NumberFormat | Intl.DateTimeFormat>()
 
@@ -92,6 +100,11 @@ export function timeTickFormat(
   const contextFormat = context ? dateFormat(locale, context) : null
   // hours and minutes: a new day is marked by its date alone
   const dayOnly = unit === 'hour' || unit === 'minute' || unit === 'second'
+  const zoned = dayOnly
+    ? dateFormat(locale, { ...UNIT_FORMATS[unit], timeZoneName: 'short' })
+    : null
+  const formatPlain = (value: number) =>
+    zoned && isAmbiguousLocalTime(value) ? zoned.format(value) : plain.format(value)
   return (value, previous) => {
     const startsParent =
       parent !== null &&
@@ -100,13 +113,13 @@ export function timeTickFormat(
     if (contextFormat && (previous === undefined || startsParent)) {
       if (dayOnly && !startsUnit(value, 'day')) {
         // the first tick of a time-of-day axis that doesn't start at midnight
-        return plain.format(value)
+        return formatPlain(value)
       }
       if (unit === 'month' && startsParent)
         return dateFormat(locale, { year: 'numeric' }).format(value)
       return contextFormat.format(value)
     }
-    return plain.format(value)
+    return formatPlain(value)
   }
 }
 
@@ -134,10 +147,12 @@ export function timePrecision(value: number, gap = Number.POSITIVE_INFINITY) {
       ? rank(ms % 100 === 0 ? 100 : ms % 10 === 0 ? 10 : 1)
       : date.getSeconds() !== 0
         ? 2
-        : date.getMinutes() !== 0 || date.getHours() !== 0
+        : !startsUnit(value, 'day')
           ? 1
           : 0
-  const r = Math.max(own, gap > 0 ? rank(gap) : 0)
+  let gapRank = gap > 0 ? rank(gap) : 0
+  if (gapRank === 1 && own === 0 && gap >= adjacentDaySpan(value)) gapRank = 0
+  const r = Math.max(own, gapRank)
   const unit: TimeUnit = r === 0 ? 'day' : r === 1 ? 'minute' : 'second'
   return { unit, digits: (r > 3 ? r - 3 : 0) as 0 | 1 | 2 | 3 }
 }
@@ -149,6 +164,7 @@ export function timeFormatFull(
   /** Digits of a second, for times less than a second apart. */
   digits: 0 | 1 | 2 | 3 = 0,
 ): (value: number) => string {
+  const subDay = unit !== 'year' && unit !== 'month' && unit !== 'day' && unit !== 'week'
   const options: Intl.DateTimeFormatOptions =
     unit === 'year'
       ? { year: 'numeric' }
@@ -167,5 +183,7 @@ export function timeFormatFull(
               hourCycle: 'h23',
             }
   const format = dateFormat(locale, options)
-  return (value) => format.format(value)
+  const zoned = subDay ? dateFormat(locale, { ...options, timeZoneName: 'short' }) : null
+  return (value) =>
+    zoned && isAmbiguousLocalTime(value) ? zoned.format(value) : format.format(value)
 }

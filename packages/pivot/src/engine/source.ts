@@ -1,4 +1,4 @@
-import { bucketer, groupKey, type PivotGroupBy } from './group'
+import { bucketer, groupKey, toDate, type PivotGroupBy } from './group'
 import type { PivotField, PivotFieldType } from './types'
 
 /** A field's groups: each record's group number, and each group's value. */
@@ -211,10 +211,16 @@ export class PivotSource<Row = Record<string, unknown>> {
     if (given instanceof Float64Array && given.length === this.length)
       return copy ? given.slice() : given
     const read = this.reader(field)
+    const isDate = field.type === 'date'
     const column = new Float64Array(this.length)
     for (let i = 0; i < this.length; i++) {
       if (i % STEP === 0 && i) yield
-      column[i] = toNumber(read(i))
+      const value = read(i)
+      column[i] = isDate
+        ? typeof value === 'number'
+          ? value
+          : (toDate(value)?.getTime() ?? Number.NaN)
+        : toNumber(value)
     }
     return column
   }
@@ -393,7 +399,13 @@ export function finder(labels: readonly unknown[], empty: number) {
   return (value: unknown) => {
     if (isEmpty(value)) return empty
     if (value instanceof Date) return byTime.get(value.getTime()) ?? -1
-    return byValue.get(value) ?? -1
+    const found = byValue.get(value)
+    if (found !== undefined) return found
+    if (byTime.size > 0 && typeof value === 'string') {
+      const parsed = toDate(value)
+      if (parsed) return byTime.get(parsed.getTime()) ?? -1
+    }
+    return -1
   }
 }
 

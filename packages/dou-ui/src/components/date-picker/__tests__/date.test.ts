@@ -8,6 +8,7 @@ import {
   isoWeek,
   parseDate,
   quarterOf,
+  today,
   truncate,
   unitOf,
   weekday,
@@ -21,6 +22,10 @@ describe('date helpers', () => {
     expect(addMonths('2026-01-31', 1)).toBe('2026-02-28')
     expect(addMonths('2026-03-15', -14)).toBe('2025-01-15')
     expect(daysInMonth(2024, 2)).toBe(29)
+    expect(daysInMonth(4, 2)).toBe(29)
+    expect(daysInMonth(1, 2)).toBe(28)
+    expect(daysInMonth(0, 2)).toBe(29)
+    expect(today(new Date(2026, 2, 8, 23, 59, 59))).toBe('2026-03-08')
     expect(weekday('2026-10-28')).toBe(3)
   })
 

@@ -16,7 +16,7 @@ import {
   nextNiceStep,
   niceStep,
 } from '../core/scale'
-import { timeInterval, timeTicks } from '../core/time'
+import { floorTime, isAmbiguousLocalTime, startsUnit, timeInterval, timeTicks } from '../core/time'
 
 const day = (y: number, m: number, d: number, h = 0) => new Date(y, m - 1, d, h).getTime()
 
@@ -30,8 +30,13 @@ describe('data', () => {
   it('guesses the kind of x from the first value there', () => {
     expect(inferXKind([{ x: null }, { x: 3 }], 'x')).toBe('linear')
     expect(inferXKind([{ x: '2026-01-02' }], 'x')).toBe('time')
+    expect(inferXKind([{ x: '2026-03-08T10:00:00Z' }], 'x')).toBe('time')
+    expect(inferXKind([{ x: '2026-03-08T10:00:00+08:00' }], 'x')).toBe('time')
+    expect(inferXKind([{ x: '2026-03-08 10:00:00-05:00' }], 'x')).toBe('time')
     expect(inferXKind([{ x: new Date() }], 'x')).toBe('time')
     expect(inferXKind([{ x: '一月' }], 'x')).toBe('category')
+    expect(toTime('2026-03-08T10:00:00Z')).toBe(Date.parse('2026-03-08T10:00:00Z'))
+    expect(toTime('2026-03-08 10:00:00+08:00')).toBe(Date.parse('2026-03-08T10:00:00+08:00'))
   })
 
   it('reads columns once per array and accessor', () => {
@@ -228,6 +233,90 @@ describe('time ticks', () => {
       '4月',
     ])
   })
+
+  it('keeps day and hour ticks aligned across DST transitions in the active timezone', () => {
+    // Check across known transition dates (Northern & Southern hemispheres, including midnight & 30m DST)
+    const sampleRanges: Array<[string, string]> = [
+      ['2026-03-06', '2026-03-11'],
+      ['2026-03-27', '2026-04-01'],
+      ['2026-04-03', '2026-04-07'],
+      ['2026-10-02', '2026-10-06'],
+      ['2026-10-23', '2026-10-27'],
+      ['2026-10-30', '2026-11-03'],
+    ]
+    for (const [fromText, toText] of sampleRanges) {
+      const lo = toTime(fromText)
+      const hi = toTime(toText)
+      const dayTicks = timeTicks(lo, hi, { unit: 'day', every: 1 })
+      // Inclusive of both ends: never drops the final tick due to midnight-DST drift
+      expect(dayTicks[0]).toBe(lo)
+      expect(dayTicks.at(-1)).toBe(hi)
+      for (const tick of dayTicks) {
+        expect(startsUnit(tick, 'day')).toBe(true)
+      }
+      for (let i = 1; i < dayTicks.length; i++) {
+        const gap = dayTicks[i]! - dayTicks[i - 1]!
+        expect(timePrecision(dayTicks[i - 1]!, gap)).toEqual({ unit: 'day', digits: 0 })
+        expect(timePrecision(dayTicks[i]!, gap)).toEqual({ unit: 'day', digits: 0 })
+      }
+      // Hourly ticks stay strictly monotonic and always snap onto whole local hours (:00)
+      const hourTicks = timeTicks(lo, hi, { unit: 'hour', every: 1 })
+      for (const tick of hourTicks) {
+        expect(new Date(tick).getMinutes()).toBe(0)
+      }
+      for (let i = 1; i < hourTicks.length; i++) {
+        expect(hourTicks[i]!).toBeGreaterThan(hourTicks[i - 1]!)
+      }
+    }
+  })
+
+  const fallTransition = (() => {
+    for (let t = Date.UTC(2026, 0, 1); t < Date.UTC(2027, 0, 1); t += 3600e3) {
+      if (new Date(t).getTimezoneOffset() > new Date(t - 3600e3).getTimezoneOffset()) return t
+    }
+    return null
+  })()
+
+  it.runIf(fallTransition !== null)(
+    'distinguishes repeated fall-back hours in floorTime, ticks and tooltip formatting',
+    () => {
+      const second = fallTransition!
+      const shift =
+        (new Date(second).getTimezoneOffset() - new Date(second - 3600e3).getTimezoneOffset()) *
+        60e3
+      const first = second - shift
+      expect(isAmbiguousLocalTime(first)).toBe(true)
+      expect(isAmbiguousLocalTime(second)).toBe(true)
+      // Minute floor must not jump back into the earlier occurrence
+      const insideSecond = second + 15 * 60e3
+      expect(floorTime(insideSecond, 'minute').getTime()).toBe(insideSecond)
+      // Tick and full tooltip formats distinguish the two repeated instants
+      const step =
+        shift >= 3600e3
+          ? ({ unit: 'hour', every: 1 } as const)
+          : ({ unit: 'minute', every: 30 } as const)
+      const ticks = timeTicks(first - 3600e3, second + 2 * 3600e3, step)
+      const format = timeTickFormat('en-US', step)
+      const labels = ticks.map((tick, i) => format(tick, ticks[i - 1]))
+      const firstIdx = ticks.indexOf(first)
+      const secondIdx = ticks.indexOf(second)
+      expect(firstIdx).toBeGreaterThanOrEqual(0)
+      expect(secondIdx).toBeGreaterThan(firstIdx)
+      expect(labels[firstIdx]).not.toBe(labels[secondIdx])
+      expect(timeFormatFull('en-US', 'minute')(first + 15 * 60e3)).not.toBe(
+        timeFormatFull('en-US', 'minute')(second + 15 * 60e3),
+      )
+    },
+  )
+
+  it.runIf(fallTransition !== null && new Date(fallTransition).getMinutes() === 0)(
+    'floors the second repeated hour to itself rather than jumping back to the first',
+    () => {
+      const second = fallTransition!
+      expect(floorTime(second + 15 * 60e3, 'hour').getTime()).toBe(second)
+      expect(startsUnit(second, 'hour')).toBe(true)
+    },
+  )
 })
 
 describe('number labels', () => {

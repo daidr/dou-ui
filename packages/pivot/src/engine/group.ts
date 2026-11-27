@@ -18,17 +18,74 @@ export function groupKey(by: PivotGroupBy | undefined): string {
 
 const pad = (n: number, width = 2) => String(n).padStart(width, '0')
 
+const LOCAL_DATE =
+  /^(\d{4})-(\d{1,2})(?:-(\d{1,2}))?(?:[ T](\d{1,2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?)?$/
+const ZONED_DATE =
+  /^\d{4}-\d{1,2}-\d{1,2}[ T]\d{1,2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:[Zz]|[+-]\d{2}:?\d{2})$/
+
+function utcDate(year: number, month: number, day: number): Date {
+  const value = new Date(Date.UTC(2000, month, day))
+  value.setUTCFullYear(year)
+  return value
+}
+
+function localDate(
+  year: number,
+  month: number,
+  day: number,
+  hour = 0,
+  minute = 0,
+  second = 0,
+  ms = 0,
+): Date {
+  if (year >= 0 && year < 100) {
+    const value = new Date(0)
+    value.setFullYear(year, month, day)
+    value.setHours(hour, minute, second, ms)
+    return value
+  }
+  return new Date(year, month, day, hour, minute, second, ms)
+}
+
+function daysInMonth(year: number, month: number): number {
+  const value = new Date(0)
+  value.setUTCFullYear(year, month, 0)
+  return value.getUTCDate()
+}
+
 /**
  * A date out of a value: a `Date`, a time in ms, or text such as
- * `'2026-03-15'` (read in local time, like the other parts of a day).
+ * `'2026-03-15'`, `'2026-03'`, or `'2026-03-15 09:30'` (read in local time,
+ * like the other parts of a day).
  */
 export function toDate(value: unknown): Date | null {
   if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value
   if (typeof value === 'number') return Number.isFinite(value) ? new Date(value) : null
   if (typeof value === 'string') {
-    const day = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(value.trim())
-    // a bare date is midnight here, not in UTC
-    const date = day ? new Date(+day[1]!, +day[2]! - 1, +day[3]!) : new Date(value)
+    const trimmed = value.trim()
+    const match = LOCAL_DATE.exec(trimmed)
+    if (match) {
+      const [, y, mo, d, h, mi, s, ms] = match
+      const year = Number(y)
+      const month = Number(mo)
+      const day = d ? Number(d) : 1
+      const hour = h ? Number(h) : 0
+      const minute = mi ? Number(mi) : 0
+      const second = s ? Number(s) : 0
+      const millis = ms ? Number(ms.slice(0, 3).padEnd(3, '0')) : 0
+      if (
+        month < 1 ||
+        month > 12 ||
+        day < 1 ||
+        day > daysInMonth(year, month) ||
+        hour > 23 ||
+        minute > 59 ||
+        second > 59
+      )
+        return null
+      return localDate(year, month - 1, day, hour, minute, second, millis)
+    }
+    const date = new Date(ZONED_DATE.test(trimmed) ? trimmed.replace(' ', 'T') : value)
     return Number.isNaN(date.getTime()) ? null : date
   }
   return null
@@ -36,13 +93,13 @@ export function toDate(value: unknown): Date | null {
 
 /** The ISO week a day is in, and the year that week belongs to. */
 export function isoWeek(date: Date): [year: number, week: number] {
-  const day = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  const day = utcDate(date.getFullYear(), date.getMonth(), date.getDate())
   // the Thursday of the same week decides the year
-  const weekday = (day.getDay() + 6) % 7
-  day.setDate(day.getDate() - weekday + 3)
-  const year = day.getFullYear()
-  const first = new Date(year, 0, 4)
-  const firstThursday = new Date(year, 0, 4 - ((first.getDay() + 6) % 7) + 3)
+  const weekday = (day.getUTCDay() + 6) % 7
+  day.setUTCDate(day.getUTCDate() - weekday + 3)
+  const year = day.getUTCFullYear()
+  const first = utcDate(year, 0, 4)
+  const firstThursday = utcDate(year, 0, 4 - ((first.getUTCDay() + 6) % 7) + 3)
   const week = 1 + Math.round((day.getTime() - firstThursday.getTime()) / 604_800_000)
   return [year, week]
 }
@@ -73,15 +130,15 @@ export function bucketer(by: PivotGroupBy): (value: unknown) => number | string 
       case 'year':
         return year
       case 'quarter':
-        return `${year}-Q${Math.floor(date.getMonth() / 3) + 1}`
+        return `${pad(year, 4)}-Q${Math.floor(date.getMonth() / 3) + 1}`
       case 'month':
-        return `${year}-${pad(date.getMonth() + 1)}`
+        return `${pad(year, 4)}-${pad(date.getMonth() + 1)}`
       case 'week': {
         const [y, w] = isoWeek(date)
-        return `${y}-W${pad(w)}`
+        return `${pad(y, 4)}-W${pad(w)}`
       }
       default:
-        return `${year}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+        return `${pad(year, 4)}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
     }
   }
 }
@@ -93,14 +150,18 @@ export function readBucket(
 ): { year: number; part: number; date: Date } | null {
   if (by === 'year') {
     const year = Number(bucket)
-    return Number.isFinite(year) ? { year, part: 0, date: new Date(year, 0, 1) } : null
+    return Number.isFinite(year) ? { year, part: 0, date: localDate(year, 0, 1) } : null
   }
   if (typeof bucket !== 'string') return null
   const m = /^(\d{4})-(Q|W)?(\d{1,2})(?:-(\d{1,2}))?$/.exec(bucket)
   if (!m) return null
   const year = +m[1]!
   const part = +m[3]!
-  if (m[2] === 'Q') return { year, part, date: new Date(year, (part - 1) * 3, 1) }
-  if (m[2] === 'W') return { year, part, date: new Date(year, 0, 4 + (part - 1) * 7) }
-  return { year, part, date: new Date(year, part - 1, m[4] ? +m[4] : 1) }
+  if (m[2] === 'Q') return { year, part, date: localDate(year, (part - 1) * 3, 1) }
+  if (m[2] === 'W') {
+    const jan4 = utcDate(year, 0, 4)
+    const offset = (jan4.getUTCDay() + 6) % 7
+    return { year, part, date: localDate(year, 0, 4 - offset + (part - 1) * 7) }
+  }
+  return { year, part, date: localDate(year, part - 1, m[4] ? +m[4] : 1) }
 }

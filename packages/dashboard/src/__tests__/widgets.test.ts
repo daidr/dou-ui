@@ -23,6 +23,7 @@ import {
   valueAt,
 } from '../widgets'
 import { statPropsOf, tablePropsOf, textPropsOf } from '../widgets/read-props'
+import { sameFilterValue } from '../widgets/shared'
 
 const flush = async () => {
   for (let i = 0; i < 4; i++) {
@@ -85,7 +86,34 @@ describe('shared helpers', () => {
     expect(valueAt({ a: 1 }, ['a'])).toBeUndefined()
     expect(valueAt({ a: 1 }, null)).toEqual({ a: 1 })
     expect(filterValueOf(new Date(2026, 9, 31))).toBe('2026-10-31')
+    expect(filterValueOf(new Date(2026, 2, 8, 9, 30))).toBe('2026-03-08 09:30')
+    expect(filterValueOf(new Date(2026, 2, 8, 9, 30, 15))).toBe('2026-03-08 09:30:15')
     expect(filterValueOf('上海')).toBe('上海')
+    expect(sameFilterValue('2026-03-08T10:00:00Z', new Date('2026-03-08T10:00:00Z'))).toBe(true)
+    expect(sameFilterValue('2026-03-08', new Date(2026, 2, 8))).toBe(true)
+    expect(sameFilterValue(new Date(2026, 2, 8, 9, 0), new Date(2026, 2, 8, 10, 0))).toBe(false)
+  })
+
+  const repeatPair = (() => {
+    for (let t = Date.UTC(2026, 0, 1); t < Date.UTC(2027, 0, 1); t += 3_600_000) {
+      const before = new Date(t - 3_600_000).getTimezoneOffset()
+      const at = new Date(t).getTimezoneOffset()
+      if (at > before) {
+        const shift = (at - before) * 60_000
+        return [t - shift + 15 * 60_000, t + 15 * 60_000] as const
+      }
+    }
+    return null
+  })()
+
+  it.runIf(repeatPair !== null)('keeps ambiguous fall-back times distinct as filter values', () => {
+    const [first, second] = repeatPair!
+    const f1 = filterValueOf(new Date(first))
+    const f2 = filterValueOf(new Date(second))
+    expect(f1).not.toBe(f2)
+    expect(sameFilterValue(new Date(first), f1)).toBe(true)
+    expect(sameFilterValue(new Date(second), f1)).toBe(false)
+    expect(sameFilterValue(new Date(second), f2)).toBe(true)
   })
 
   it('lets a definition change its type and label', () => {
@@ -205,6 +233,41 @@ describe('built-in widgets', () => {
     await flush()
     expect(filters.value).toEqual({ region: '华南' })
     pivot.vm.$emit('cellClick', cell([]))
+    await flush()
+    expect(filters.value).toEqual({})
+    wrapper.unmount()
+  })
+
+  it('keeps hourly and zoned date bar selection distinct and toggles cleanly', async () => {
+    const hourlyRows = [
+      { at: '2026-03-08T10:00:00Z', amount: 10 },
+      { at: '2026-03-08T11:00:00Z', amount: 20 },
+    ]
+    const { wrapper, filters } = setup(
+      [
+        {
+          id: 'c',
+          type: 'chart',
+          props: { source: 'rows', kind: 'bar', x: 'at', y: ['amount'], filter: 'at' },
+          place: place(0),
+        },
+      ],
+      { rows: () => hourlyRows },
+    )
+    await flush()
+    const chart = wrapper.findComponent({ name: 'DouChart' })
+    const bar = wrapper.findComponent({ name: 'DouChartBar' })
+    const firstDate = new Date(hourlyRows[0]!.at)
+    const secondDate = new Date(hourlyRows[1]!.at)
+    chart.vm.$emit('select', { x: firstDate, title: 'first', items: [] })
+    await flush()
+    expect(filters.value.at).toBe(filterValueOf(firstDate))
+    const colorFn = bar.props('color') as (row: Record<string, unknown>) => string | undefined
+    expect(colorFn(hourlyRows[0]!)).toBeUndefined()
+    expect(colorFn(hourlyRows[1]!)).toBe('var(--dou-color-border-strong)')
+    expect(sameFilterValue(secondDate, filters.value.at)).toBe(false)
+    // selecting the same timestamp again clears the filter
+    chart.vm.$emit('select', { x: firstDate, title: 'first', items: [] })
     await flush()
     expect(filters.value).toEqual({})
     wrapper.unmount()

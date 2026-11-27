@@ -57,24 +57,48 @@ export function timeInterval(span: number, count: number): TimeInterval {
   }
 }
 
+function localDay(year: number, month: number, day: number): Date {
+  if (year >= 0 && year < 100) {
+    const d = new Date(0)
+    d.setFullYear(year, month, day)
+    d.setHours(0, 0, 0, 0)
+    return d
+  }
+  return new Date(year, month, day)
+}
+
+function utcDay(year: number, month: number, day: number): number {
+  if (year >= 0 && year < 100) {
+    const d = new Date(0)
+    d.setUTCFullYear(year, month, day)
+    d.setUTCHours(0, 0, 0, 0)
+    return d.getTime()
+  }
+  return Date.UTC(year, month, day)
+}
+
 /** The start of the `unit` that `time` falls in (weeks start on Monday). */
 export function floorTime(time: number, unit: TimeUnit): Date {
   const d = new Date(time)
   switch (unit) {
     case 'year':
-      return new Date(d.getFullYear(), 0, 1)
+      return localDay(d.getFullYear(), 0, 1)
     case 'month':
-      return new Date(d.getFullYear(), d.getMonth(), 1)
+      return localDay(d.getFullYear(), d.getMonth(), 1)
     case 'week': {
       const back = (d.getDay() + 6) % 7
-      return new Date(d.getFullYear(), d.getMonth(), d.getDate() - back)
+      return localDay(d.getFullYear(), d.getMonth(), d.getDate() - back)
     }
     case 'day':
-      return new Date(d.getFullYear(), d.getMonth(), d.getDate())
-    case 'hour':
-      return new Date(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours())
+      return localDay(d.getFullYear(), d.getMonth(), d.getDate())
+    case 'hour': {
+      const base = time - d.getSeconds() * SECOND - d.getMilliseconds()
+      const cand = base - d.getMinutes() * MINUTE
+      const offsetDelta = new Date(cand).getTimezoneOffset() - d.getTimezoneOffset()
+      return new Date(offsetDelta === 0 ? cand : cand + offsetDelta * MINUTE)
+    }
     case 'minute':
-      return new Date(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes())
+      return new Date(time - d.getSeconds() * SECOND - d.getMilliseconds())
     default:
       return new Date(Math.floor(time / SECOND) * SECOND)
   }
@@ -96,38 +120,78 @@ function aligned(date: Date, { unit, every }: TimeInterval): boolean {
       return date.getMinutes() % every === 0
     case 'second':
       return date.getSeconds() % every === 0
-    case 'week':
+    case 'week': {
       // counted from a Monday long ago, so the same weeks are picked whatever is shown
-      return Math.round((date.getTime() - new Date(1970, 0, 5).getTime()) / (7 * DAY)) % every === 0
+      const days = Math.round(
+        (utcDay(date.getFullYear(), date.getMonth(), date.getDate()) - Date.UTC(1970, 0, 5)) / DAY,
+      )
+      const weeks = Math.floor(days / 7)
+      return ((weeks % every) + every) % every === 0
+    }
     default:
       return true
   }
 }
 
 function next(date: Date, unit: TimeUnit): Date {
-  const d = new Date(date)
   switch (unit) {
     case 'year':
-      d.setFullYear(d.getFullYear() + 1)
-      break
+      return localDay(date.getFullYear() + 1, 0, 1)
     case 'month':
-      d.setMonth(d.getMonth() + 1)
-      break
+      return localDay(date.getFullYear(), date.getMonth() + 1, 1)
     case 'week':
-      d.setDate(d.getDate() + 7)
-      break
+      return localDay(date.getFullYear(), date.getMonth(), date.getDate() + 7)
     case 'day':
-      d.setDate(d.getDate() + 1)
-      break
-    case 'hour':
-      // by the clock, so a daylight saving change doesn't shift every tick after it
-      return new Date(d.getTime() + HOUR)
+      return localDay(date.getFullYear(), date.getMonth(), date.getDate() + 1)
+    case 'hour': {
+      // step in epoch time so 1-hour spring/fall DST transitions don't loop or drift,
+      // and snap back onto whole hours after sub-hour DST shifts (such as Australia/Lord_Howe)
+      const base = date.getTime() - date.getSeconds() * SECOND - date.getMilliseconds()
+      const step = date.getMinutes() > 0 ? (60 - date.getMinutes()) * MINUTE : HOUR
+      const candidate = base + step
+      const minutes = new Date(candidate).getMinutes()
+      if (minutes === 0) return new Date(candidate)
+      const back = candidate - minutes * MINUTE
+      if (back > date.getTime() && new Date(back).getMinutes() === 0) return new Date(back)
+      return new Date(candidate + (60 - minutes) * MINUTE)
+    }
     case 'minute':
-      return new Date(d.getTime() + MINUTE)
+      return new Date(date.getTime() + MINUTE)
     default:
-      return new Date(d.getTime() + SECOND)
+      return new Date(date.getTime() + SECOND)
   }
-  return d
+}
+
+/**
+ * Whether `time` falls inside a repeated local clock interval created by
+ * setting the clock back (for example, the two 01:00–01:59 hours on an
+ * autumn DST transition).
+ */
+export function isAmbiguousLocalTime(time: number): boolean {
+  const offset = new Date(time).getTimezoneOffset()
+  const later = new Date(time + 2 * HOUR).getTimezoneOffset()
+  if (later > offset) {
+    const shift = (later - offset) * MINUTE
+    if (new Date(time + shift).getTimezoneOffset() === later) return true
+  }
+  const earlier = new Date(time - 2 * HOUR).getTimezoneOffset()
+  if (earlier < offset) {
+    const shift = (offset - earlier) * MINUTE
+    if (new Date(time - shift).getTimezoneOffset() === earlier) return true
+  }
+  return false
+}
+
+/** The shortest calendar-day span (ms) adjacent to the day containing `time`. */
+export function adjacentDaySpan(time: number): number {
+  const d = new Date(time)
+  const y = d.getFullYear()
+  const m = d.getMonth()
+  const day = d.getDate()
+  const start = localDay(y, m, day).getTime()
+  const prev = localDay(y, m, day - 1).getTime()
+  const following = localDay(y, m, day + 1).getTime()
+  return Math.min(start - prev, following - start)
 }
 
 /** The ticks of `interval` from `lo` to `hi` (ms), both ends included when they fall on one. */

@@ -10,7 +10,7 @@ import {
 import type { ChartPointEvent } from '@dou-ui/chart'
 import { computed, watch } from 'vue'
 import { useDashboardWidget } from '../widget/context'
-import { filterValueOf, rowsOf, rowsToWorkbook } from '../widgets/shared'
+import { filterValueOf, rowsOf, rowsToWorkbook, sameFilterValue } from '../widgets/shared'
 import { chartPropsOf } from './read-props'
 
 defineOptions({ name: 'DouDashboardChartWidget' })
@@ -31,7 +31,7 @@ const barColor = computed(() => {
   const field = x.value ?? ''
   if (!filter.value || value === undefined) return undefined
   return (row: Record<string, unknown>) =>
-    filterValueOf(row[field]) === value ? undefined : 'var(--dou-color-border-strong)'
+    sameFilterValue(row[field], value) ? undefined : 'var(--dou-color-border-strong)'
 })
 
 // the export menu writes the chart's data: a column for x, one for each series;
@@ -63,7 +63,7 @@ function onSelect(event: ChartPointEvent) {
   const key = filter.value
   if (!key) return
   const value = filterValueOf(event.x)
-  if (value === picked.value) setFilter(key, undefined)
+  if (sameFilterValue(value, picked.value)) setFilter(key, undefined)
   else setFilter(key, value, { label: event.title ?? String(value) })
 }
 </script>

@@ -64,14 +64,45 @@ export interface XColumn {
   sorted: boolean
 }
 
-const DATE = /^(\d{4})-(\d{1,2})(?:-(\d{1,2}))?(?:[ T](\d{1,2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?)?$/
+const DATE = /^(\d{4})-(\d{1,2})(?:-(\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?)?)?$/
 const ZONED_DATE =
-  /^\d{4}-\d{1,2}-\d{1,2}[ T]\d{1,2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:[Zz]|[+-]\d{2}:?\d{2})$/
+  /^(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?(?:([Zz])|([+-])(\d{2}):?(\d{2}))$/
+const YEAR_MONTH_TIME = /^\d{4}-\d{1,2}[ T]\d{1,2}:\d{2}/
 
 function daysInMonth(year: number, month: number): number {
   const date = new Date(0)
   date.setUTCFullYear(year, month, 0)
   return date.getUTCDate()
+}
+
+function parseZonedDate(match: RegExpExecArray): number {
+  const [, y, mo, d, h, mi, s, ms, z, sign, oh, om] = match
+  const year = Number(y)
+  const month = Number(mo)
+  const day = Number(d)
+  const hour = Number(h)
+  const minute = Number(mi)
+  const second = s ? Number(s) : 0
+  const millis = ms ? Number(ms.slice(0, 3).padEnd(3, '0')) : 0
+  const offHour = z ? 0 : Number(oh)
+  const offMin = z ? 0 : Number(om)
+  if (
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > daysInMonth(year, month) ||
+    hour > 23 ||
+    minute > 59 ||
+    second > 59 ||
+    offHour > 23 ||
+    offMin > 59
+  )
+    return Number.NaN
+  const date = new Date(0)
+  date.setUTCFullYear(year, month - 1, day)
+  date.setUTCHours(hour, minute, second, millis)
+  const offset = z ? 0 : (sign === '+' ? 1 : -1) * (offHour * 60 + offMin)
+  return date.getTime() - offset * 60_000
 }
 
 /**
@@ -111,7 +142,9 @@ export function toTime(value: unknown): number {
     }
     return new Date(year, month - 1, day, hour, minute, second, millis).getTime()
   }
-  if (ZONED_DATE.test(trimmed)) return Date.parse(trimmed.replace(' ', 'T'))
+  const zoned = ZONED_DATE.exec(trimmed)
+  if (zoned) return parseZonedDate(zoned)
+  if (YEAR_MONTH_TIME.test(trimmed)) return Number.NaN
   return Date.parse(value)
 }
 

@@ -46,12 +46,27 @@ export const isDateText = (value: unknown): value is string =>
 export const isTimeText = (value: unknown): value is string =>
   typeof value === 'string' && TIME.test(value)
 
+/** UTC timestamp in ms without shifting years 0–99 into 1900–1999. */
+export function utcMs(
+  year: number,
+  monthIndex: number,
+  day: number,
+  hour = 0,
+  minute = 0,
+  second = 0,
+): number {
+  const d = new Date(0)
+  d.setUTCFullYear(year, monthIndex, day)
+  d.setUTCHours(hour, minute, second, 0)
+  return d.getTime()
+}
+
 /** A date or time written in a cell as a day number (a time as part of a day); `null` when it isn't one. */
 export function serialOf(text: string): number | null {
   const date = DATE.exec(text)
   if (date) {
     const [, y, m, d, h = '0', min = '0', s = '0'] = date
-    const ms = Date.UTC(+y!, +m! - 1, +d!, +h, +min, +s)
+    const ms = utcMs(+y!, +m! - 1, +d!, +h, +min, +s)
     return (ms - EPOCH) / DAY
   }
   const time = TIME.exec(text)
@@ -59,13 +74,14 @@ export function serialOf(text: string): number | null {
   return null
 }
 
-const pad = (n: number) => String(n).padStart(2, '0')
+const pad = (n: number, width = 2) => String(n).padStart(width, '0')
+const formatYear = (year: number) => (year < 0 ? `-${pad(-year, 4)}` : pad(year, 4))
 
 /** A day number as a date, with its time when it has a part of a day. */
 export function dateText(serial: number) {
   const ms = Math.round((serial * DAY + EPOCH) / 1000) * 1000
   const d = new Date(ms)
-  const day = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`
+  const day = `${formatYear(d.getUTCFullYear())}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`
   const seconds = d.getUTCHours() * 3600 + d.getUTCMinutes() * 60 + d.getUTCSeconds()
   if (!seconds) return day
   const time = `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`

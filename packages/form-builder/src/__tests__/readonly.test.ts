@@ -324,6 +324,9 @@ describe('readonly', () => {
     const zoned = '2026-03-08T10:00:00Z'
     const zonedLocal = new Date(zoned)
     const expectedZoned = `${zonedLocal.getFullYear()}年${String(zonedLocal.getMonth() + 1).padStart(2, '0')}月${String(zonedLocal.getDate()).padStart(2, '0')}日`
+    const zonedSingle = '2026-3-8 9:30:00+08:00'
+    const zonedSingleLocal = new Date('2026-03-08T09:30:00+08:00')
+    const expectedSingle = `${zonedSingleLocal.getFullYear()}/${String(zonedSingleLocal.getMonth() + 1).padStart(2, '0')}/${String(zonedSingleLocal.getDate()).padStart(2, '0')} ${String(zonedSingleLocal.getHours()).padStart(2, '0')}:${String(zonedSingleLocal.getMinutes()).padStart(2, '0')}`
     const wrapper = mount(DouFormRenderer, {
       props: {
         readonly: true,
@@ -334,6 +337,8 @@ describe('readonly', () => {
           q: d1,
           w: new Date(2026, 0, 1),
           z: zoned,
+          zs: zonedSingle,
+          bad: '2026-02-31T10:00:00Z',
         },
         form: doc([
           {
@@ -372,6 +377,18 @@ describe('readonly', () => {
             name: 'z',
             props: { displayFormat: 'YYYY[年]MM[月]DD[日]' },
           },
+          {
+            id: 'g',
+            type: 'date-picker',
+            name: 'zs',
+            props: { type: 'datetime', displayFormat: 'YYYY/MM/DD' },
+          },
+          {
+            id: 'h',
+            type: 'date-picker',
+            name: 'bad',
+            props: { displayFormat: 'YYYY[年]MM[月]DD[日]' },
+          },
         ]),
       },
     })
@@ -383,6 +400,8 @@ describe('readonly', () => {
       '2026 年第 1 季度',
       '2026-W01',
       expectedZoned,
+      expectedSingle,
+      '2026-02-31T10:00:00Z',
     ])
   })
 

@@ -146,7 +146,43 @@ export function formatRange(
 
 const pad2 = (n: number) => String(n).padStart(2, '0')
 const ZONED_ISO =
-  /^\d{4}-\d{1,2}-\d{1,2}[ T]\d{1,2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:[Zz]|[+-]\d{2}:?\d{2})$/
+  /^(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?(?:([Zz])|([+-])(\d{2}):?(\d{2}))$/
+
+function daysInMonth(year: number, month: number): number {
+  const date = new Date(0)
+  date.setUTCFullYear(year, month, 0)
+  return date.getUTCDate()
+}
+
+function parseZonedDate(match: RegExpExecArray): Date | null {
+  const [, y, mo, d, hr, mi, s, ms, z, sign, oh, om] = match
+  const year = Number(y)
+  const month = Number(mo)
+  const day = Number(d)
+  const hour = Number(hr)
+  const minute = Number(mi)
+  const second = s ? Number(s) : 0
+  const millis = ms ? Number(ms.slice(0, 3).padEnd(3, '0')) : 0
+  const offHour = z ? 0 : Number(oh)
+  const offMin = z ? 0 : Number(om)
+  if (
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > daysInMonth(year, month) ||
+    hour > 23 ||
+    minute > 59 ||
+    second > 59 ||
+    offHour > 23 ||
+    offMin > 59
+  )
+    return null
+  const date = new Date(0)
+  date.setUTCFullYear(year, month - 1, day)
+  date.setUTCHours(hour, minute, second, millis)
+  const offset = z ? 0 : (sign === '+' ? 1 : -1) * (offHour * 60 + offMin)
+  return new Date(date.getTime() - offset * 60_000)
+}
 
 function isoWeekOfLocal(date: Date): string {
   const day = new Date(Date.UTC(2000, date.getMonth(), date.getDate()))
@@ -198,11 +234,11 @@ export function formatDate(
     text = dateToPickerValue(value, type, props.timeFormat)
   } else if (typeof value === 'string') {
     const trimmed = value.trim()
-    if (ZONED_ISO.test(trimmed)) {
-      const parsed = new Date(trimmed.replace(' ', 'T'))
-      text = Number.isNaN(parsed.getTime())
-        ? value
-        : dateToPickerValue(parsed, type, props.timeFormat)
+    const zoned = ZONED_ISO.exec(trimmed)
+    if (zoned) {
+      const parsed = parseZonedDate(zoned)
+      if (!parsed) return value
+      text = dateToPickerValue(parsed, type, props.timeFormat)
     } else {
       text = value
     }

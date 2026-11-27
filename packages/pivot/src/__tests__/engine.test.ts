@@ -330,7 +330,14 @@ describe('computePivot', () => {
     expect(bucketer('month')('2026-03')).toBe('2026-03')
     expect(bucketer('year')('2026-01')).toBe(2026)
     expect(bucketer('day')('2026-03-08 09:30')).toBe('2026-03-08')
+    expect(toDate('2026-03-08 9:30:00+08:00')?.getTime()).toBe(
+      Date.parse('2026-03-08T09:30:00+08:00'),
+    )
+    expect(toDate('2026-3-8 09:30:00Z')?.getTime()).toBe(Date.parse('2026-03-08T09:30:00Z'))
     expect(toDate('2026-02-31')).toBeNull()
+    expect(toDate('2026-02-31T10:00:00Z')).toBeNull()
+    expect(toDate('2026-03-08T10:00:00+25:00')).toBeNull()
+    expect(toDate('2026-03 09:30')).toBeNull()
     expect(toDate('0050-03-15')?.getFullYear()).toBe(50)
     // readBucket('week') returns the ISO week's Monday
     const w01 = readBucket('week', '2026-W01')

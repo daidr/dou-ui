@@ -176,6 +176,26 @@ describe('expression functions', () => {
         values: { a: '2026-03-08 09:30:00+08:00', b: new Date('2026-03-08T09:30:00+08:00') },
       }),
     ).toBe(0)
+    expect(
+      evaluateExpression('days(values.a, values.b)', {
+        values: { a: '2026-03-08 9:30:00+08:00', b: new Date('2026-03-08T09:30:00+08:00') },
+      }),
+    ).toBe(0)
+    expect(
+      evaluateExpression('days(values.a, values.b)', {
+        values: { a: '2026-3-8 09:30:00Z', b: new Date('2026-03-08T09:30:00Z') },
+      }),
+    ).toBe(0)
+    expect(
+      evaluateExpression('days(values.a, values.b)', {
+        values: { a: '2026-02-31T10:00:00Z', b: '2026-03-01' },
+      }),
+    ).toBeNull()
+    expect(
+      evaluateExpression('days(values.a, values.b)', {
+        values: { a: '2026-03-08T10:00:00+25:00', b: '2026-03-08' },
+      }),
+    ).toBeNull()
   })
 
   it('calls functions the app registers, which can replace built-in ones', () => {

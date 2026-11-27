@@ -90,6 +90,12 @@ describe('shared helpers', () => {
     expect(filterValueOf(new Date(2026, 2, 8, 9, 30, 15))).toBe('2026-03-08 09:30:15')
     expect(filterValueOf('上海')).toBe('上海')
     expect(sameFilterValue('2026-03-08T10:00:00Z', new Date('2026-03-08T10:00:00Z'))).toBe(true)
+    expect(sameFilterValue('2026-03-08 9:30:00+08:00', '2026-03-08T01:30:00Z')).toBe(true)
+    expect(sameFilterValue('2026-3-8 09:30:00Z', new Date('2026-03-08T09:30:00Z'))).toBe(true)
+    expect(sameFilterValue('2026-02-31T10:00:00Z', '2026-03-03T10:00:00Z')).toBe(false)
+    expect(sameFilterValue('2026-03', '2026-03-01')).toBe(true)
+    expect(sameFilterValue('2026-03', new Date(2026, 2, 1))).toBe(true)
+    expect(sameFilterValue('2026-03 09:30', '2026-03-01 09:30')).toBe(false)
     expect(sameFilterValue('2026-03-08', new Date(2026, 2, 8))).toBe(true)
     expect(sameFilterValue(new Date(2026, 2, 8, 9, 0), new Date(2026, 2, 8, 10, 0))).toBe(false)
   })
@@ -270,6 +276,34 @@ describe('built-in widgets', () => {
     chart.vm.$emit('select', { x: firstDate, title: 'first', items: [] })
     await flush()
     expect(filters.value).toEqual({})
+    wrapper.unmount()
+  })
+
+  it('keeps selected YYYY-MM bar highlighted when chart selects the month start date', async () => {
+    const monthlyRows = [
+      { month: '2026-03', amount: 10 },
+      { month: '2026-04', amount: 20 },
+    ]
+    const { wrapper, filters } = setup(
+      [
+        {
+          id: 'm',
+          type: 'chart',
+          props: { source: 'rows', kind: 'bar', x: 'month', y: ['amount'], filter: 'month' },
+          place: place(0),
+        },
+      ],
+      { rows: () => monthlyRows },
+    )
+    await flush()
+    const chart = wrapper.findComponent({ name: 'DouChart' })
+    const bar = wrapper.findComponent({ name: 'DouChartBar' })
+    chart.vm.$emit('select', { x: new Date(2026, 2, 1), title: '2026-03', items: [] })
+    await flush()
+    expect(filters.value.month).toBe('2026-03-01')
+    const colorFn = bar.props('color') as (row: Record<string, unknown>) => string | undefined
+    expect(colorFn(monthlyRows[0]!)).toBeUndefined()
+    expect(colorFn(monthlyRows[1]!)).toBe('var(--dou-color-border-strong)')
     wrapper.unmount()
   })
 })

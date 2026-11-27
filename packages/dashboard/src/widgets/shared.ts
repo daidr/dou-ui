@@ -78,9 +78,9 @@ export function numberFieldsOf(data: unknown): string[] {
 const pad = (n: number, width = 2) => String(n).padStart(width, '0')
 
 const LOCAL_DATE_TIME =
-  /^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?)?$/
+  /^(\d{4})-(\d{1,2})(?:-(\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?)?)?$/
 const ZONED_DATE_TIME =
-  /^\d{4}-\d{1,2}-\d{1,2}[ T]\d{1,2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:[Zz]|[+-]\d{2}:?\d{2})$/
+  /^(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?(?:([Zz])|([+-])(\d{2}):?(\d{2}))$/
 
 function localDayStart(year: number, month: number, day: number): number {
   if (year >= 0 && year < 100) {
@@ -113,13 +113,43 @@ function daysInMonth(year: number, month: number): number {
   return d.getUTCDate()
 }
 
+function parseZonedDateTimestamp(match: RegExpExecArray): number {
+  const [, y, mo, d, h, mi, s, ms, z, sign, oh, om] = match
+  const year = Number(y)
+  const month = Number(mo)
+  const day = Number(d)
+  const hour = Number(h)
+  const minute = Number(mi)
+  const second = s ? Number(s) : 0
+  const millis = ms ? Number(ms.slice(0, 3).padEnd(3, '0')) : 0
+  const offHour = z ? 0 : Number(oh)
+  const offMin = z ? 0 : Number(om)
+  if (
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > daysInMonth(year, month) ||
+    hour > 23 ||
+    minute > 59 ||
+    second > 59 ||
+    offHour > 23 ||
+    offMin > 59
+  )
+    return Number.NaN
+  const date = new Date(0)
+  date.setUTCFullYear(year, month - 1, day)
+  date.setUTCHours(hour, minute, second, millis)
+  const offset = z ? 0 : (sign === '+' ? 1 : -1) * (offHour * 60 + offMin)
+  return date.getTime() - offset * 60_000
+}
+
 function parseDateTimestamp(text: string): number {
   const trimmed = text.trim()
   const local = LOCAL_DATE_TIME.exec(trimmed)
   if (local) {
     const year = Number(local[1])
     const month = Number(local[2])
-    const day = Number(local[3])
+    const day = local[3] ? Number(local[3]) : 1
     const hour = local[4] ? Number(local[4]) : 0
     const minute = local[5] ? Number(local[5]) : 0
     const second = local[6] ? Number(local[6]) : 0
@@ -142,7 +172,8 @@ function parseDateTimestamp(text: string): number {
     }
     return new Date(year, month - 1, day, hour, minute, second, ms).getTime()
   }
-  if (ZONED_DATE_TIME.test(trimmed)) return Date.parse(trimmed.replace(' ', 'T'))
+  const zoned = ZONED_DATE_TIME.exec(trimmed)
+  if (zoned) return parseZonedDateTimestamp(zoned)
   return Number.NaN
 }
 

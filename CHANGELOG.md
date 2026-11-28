@@ -7,6 +7,12 @@ DouUI 的所有包（`dou-ui`、`@dou-ui/theme`、`@dou-ui/icons` 以及生态�
 
 这个文件由发版脚本生成：改动先以碎片文件记在 [`.changes/`](./.changes/README.md) 里，发布时汇总到这里。
 
+## 0.1.0-alpha.32 · 2026-11-28
+
+### 新增
+
+- **@dou-ui/gantt**：`DouScheduler` 与 `DouGantt` 补齐实时监控画布集成能力：新增 `viewportChange` 事件、`getViewport()`/`xOf()`/`timeAt()` 视口与坐标换算、`v-model:tableWidth` 列宽双向同步及分隔线/平移拖拽全局防选区、外部校准时钟 `now`、`GanttMarker.endDate` 区间底纹渲染与导出、`GanttTask.class` / `#bar-content` / `#bar-tooltip` / `#marker-tooltip` / `nativeTitle`；`DouScheduler` 同步支持 `barLabel`、泳道行点击（`resourceClick`、`v-model:selectedResource`、`rowClass`）、可控分组折叠（`v-model:collapsedGroups`、`#group`）、顶部辅助轨道（`#rail` / `#rail-header` / `railHeight`）、画布扩展图层（`#underlay` / `#overlay`）、`rowBox()`/`barBox()` 与 `useScheduler()` 上下文。 ([#565](https://github.com/daidr/dou-ui/pull/565))
+
 ## 0.1.0-alpha.31 · 2026-11-27
 
 ### 新增

@@ -12,6 +12,7 @@ import {
   computed,
   nextTick,
   onBeforeUnmount,
+  onBeforeUpdate,
   onMounted,
   provide,
   ref,
@@ -128,7 +129,10 @@ const { width: viewWidth, height: viewHeight } = useElementSize(chart)
 const narrow = computed(() => rootWidth.value > 0 && rootWidth.value < NARROW)
 const showTable = computed(() => props.table && !narrow.value)
 const caption = computed(() => (showTable.value ? 0 : CAPTION))
-const hasRail = computed(() => Boolean(slots.rail || slots['rail-header']))
+const hasRail = ref(Boolean(slots.rail || slots['rail-header']))
+onBeforeUpdate(() => {
+  hasRail.value = Boolean(slots.rail || slots['rail-header'])
+})
 const effectiveRailHeight = computed(() =>
   hasRail.value ? Math.max(0, props.railHeight ?? RAIL_DEFAULT) : 0,
 )
@@ -451,7 +455,7 @@ const headerMarkers = computed(() => {
     if (marker.resource != null) return []
     const band = markerSpanOf(marker.date, marker.endDate)
     if (band) {
-      if (band.end < extent.value.start || band.start > extent.value.end) return []
+      if (band.end <= extent.value.start || band.start >= extent.value.end) return []
       const clampedStart = Math.max(extent.value.start, band.start)
       return [
         {
@@ -806,7 +810,7 @@ function onMarkerClick(marker: GanttMarker, event: MouseEvent) {
 const INTERACTIVE = 'button, a, input, textarea, select, [data-gantt-interactive]'
 
 function onResourceRowClick(row: ResourceRow, event: MouseEvent) {
-  emit('update:selectedResource', row.resource?.id ?? null)
+  emit('update:selectedResource', row.key)
   emit('resourceClick', row.resource, event)
 }
 
@@ -1644,7 +1648,7 @@ defineExpose<SchedulerExpose>({
           <div class="dou-gantt__th is-title">{{ sm.resource }}</div>
         </div>
         <div
-          v-if="$slots.rail || $slots['rail-header']"
+          v-if="hasRail"
           class="dou-gantt__table-rail"
           :style="{ height: `${effectiveRailHeight}px` }"
         >
@@ -1779,11 +1783,7 @@ defineExpose<SchedulerExpose>({
             }}</span>
           </span>
         </TimeHeader>
-        <div
-          v-if="$slots.rail || $slots['rail-header']"
-          class="dou-gantt__rail"
-          :style="{ height: `${effectiveRailHeight}px` }"
-        >
+        <div v-if="hasRail" class="dou-gantt__rail" :style="{ height: `${effectiveRailHeight}px` }">
           <div v-if="todayX != null" class="dou-gantt__today" :style="{ left: `${todayX}px` }" />
           <slot name="rail" v-bind="railScope" />
         </div>

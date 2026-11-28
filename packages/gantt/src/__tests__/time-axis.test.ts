@@ -568,4 +568,84 @@ describe('live monitoring time axis', () => {
     expect(msSpan).not.toBeNull()
     expect(msSpan!.end - msSpan!.start).toBeCloseTo(1.5, 6)
   })
+
+  it('keeps external lockSelection listeners intact and resets panning when startPan is interrupted', async () => {
+    const { axis, wrapper, el } = setup('day', false)
+    await nextTick()
+
+    // 1. An active external lockSelection() must stay active after startPan finishes
+    const releaseExternal = lockSelection('col-resize')
+    axis.startPan(
+      new PointerEvent('pointerdown', {
+        button: 0,
+        pointerId: 1,
+        pointerType: 'mouse',
+        clientX: 200,
+      }),
+    )
+    window.dispatchEvent(
+      new PointerEvent('pointerup', { pointerId: 1, pointerType: 'mouse', clientX: 200 }),
+    )
+    const stillBlocked = new Event('selectstart', { cancelable: true })
+    document.dispatchEvent(stillBlocked)
+    expect(stillBlocked.defaultPrevented).toBe(true)
+
+    // Also verify after an active drag (> 3px) finishes while the external lock is held
+    axis.startPan(
+      new PointerEvent('pointerdown', {
+        button: 0,
+        pointerId: 2,
+        pointerType: 'mouse',
+        clientX: 200,
+      }),
+    )
+    window.dispatchEvent(
+      new PointerEvent('pointermove', { pointerId: 2, pointerType: 'mouse', clientX: 220 }),
+    )
+    expect(axis.panning.value).toBe(true)
+    window.dispatchEvent(
+      new PointerEvent('pointerup', { pointerId: 2, pointerType: 'mouse', clientX: 220 }),
+    )
+    expect(axis.panning.value).toBe(false)
+    const blockedAfterDrag = new Event('selectstart', { cancelable: true })
+    document.dispatchEvent(blockedAfterDrag)
+    expect(blockedAfterDrag.defaultPrevented).toBe(true)
+
+    releaseExternal()
+    const allowed = new Event('selectstart', { cancelable: true })
+    document.dispatchEvent(allowed)
+    expect(allowed.defaultPrevented).toBe(false)
+
+    // 2. If pointerup is lost during an active pan and a new click starts, panning resets cleanly
+    axis.startPan(
+      new PointerEvent('pointerdown', {
+        button: 0,
+        pointerId: 3,
+        pointerType: 'mouse',
+        clientX: 200,
+      }),
+    )
+    window.dispatchEvent(
+      new PointerEvent('pointermove', { pointerId: 3, pointerType: 'mouse', clientX: 230 }),
+    )
+    expect(axis.panning.value).toBe(true)
+
+    // Start a fresh click without pointerup for pointerId 3
+    axis.startPan(
+      new PointerEvent('pointerdown', {
+        button: 0,
+        pointerId: 4,
+        pointerType: 'mouse',
+        clientX: 230,
+      }),
+    )
+    expect(axis.panning.value).toBe(false)
+    window.dispatchEvent(
+      new PointerEvent('pointerup', { pointerId: 4, pointerType: 'mouse', clientX: 231 }),
+    )
+    expect(axis.panning.value).toBe(false)
+
+    wrapper.unmount()
+    el.remove()
+  })
 })

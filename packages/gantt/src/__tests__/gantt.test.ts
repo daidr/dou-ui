@@ -1132,6 +1132,20 @@ describe('export', () => {
                   label: '封板窗口',
                   tone: 'warning',
                 },
+                {
+                  id: 'past-band',
+                  date: '2025-01-01',
+                  endDate: '2025-01-03',
+                  label: '历史窗口',
+                  tone: 'neutral',
+                },
+                {
+                  id: 'future-band',
+                  date: '2027-01-01',
+                  endDate: '2027-01-03',
+                  label: '远期窗口',
+                  tone: 'neutral',
+                },
               ],
             },
             {
@@ -1160,6 +1174,8 @@ describe('export', () => {
     const svg = gantt.exportSVG()
     expect(svg).toContain('fill-opacity="0.12"')
     expect(svg).toContain('封板窗口')
+    expect(svg).not.toContain('历史窗口')
+    expect(svg).not.toContain('远期窗口')
 
     const divider = wrapper.find('.dou-gantt__divider')
     divider.element.dispatchEvent(

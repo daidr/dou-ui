@@ -1008,4 +1008,112 @@ describe('DouScheduler', () => {
     expect(clicked).toEqual(['r2'])
     railClickWrapper.unmount()
   })
+
+  it('selects the unassigned row with empty string key when clicked', async () => {
+    const selectedResource = ref<string | null>(null)
+    const clicked: (SchedulerResource | null)[] = []
+    const wrapper = mount(
+      defineComponent(
+        () => () =>
+          h(DouScheduler, {
+            modelValue: {
+              version: 1,
+              tasks: [{ id: 'u1', title: '未分配任务', start: '2026-03-02', end: '2026-03-04' }],
+              links: [],
+            },
+            resources: [{ id: 'a', title: 'Agent A' }],
+            readonly: true,
+            selectedResource: selectedResource.value,
+            'onUpdate:selectedResource': (id: string | null) => (selectedResource.value = id),
+            onResourceClick: (res: SchedulerResource | null) => clicked.push(res),
+          }),
+      ),
+      { attachTo: document.body },
+    )
+    await nextTick()
+
+    const rows = wrapper.findAll('.dou-gantt__tr')
+    expect(rows).toHaveLength(2)
+    await rows[1]!.trigger('click')
+    await nextTick()
+
+    expect(selectedResource.value).toBe('')
+    expect(clicked).toEqual([null])
+    expect(wrapper.findAll('.dou-gantt__tr')[1]!.classes()).toContain('is-selected')
+    expect(wrapper.findAll('.dou-gantt__lane-row')[1]!.classes()).toContain('is-selected')
+
+    // clicking the empty track of the unassigned row also emits ''
+    selectedResource.value = 'a'
+    await nextTick()
+    const body = wrapper.find('.dou-gantt__body').element
+    // header 56 + row0 (36) + middle of row1 (+18) = 110
+    body.dispatchEvent(new MouseEvent('click', { clientX: 300, clientY: 56 + 54, bubbles: true }))
+    await nextTick()
+    expect(selectedResource.value).toBe('')
+    expect(clicked).toEqual([null, null])
+    wrapper.unmount()
+  })
+
+  it('updates rail height and body coordinate mapping when #rail slot toggles dynamically', async () => {
+    const showRail = ref(false)
+    let latestRailScope: SchedulerRailScope | null = null
+    const clicked: (string | null)[] = []
+
+    const wrapper = mount(
+      defineComponent(
+        () => () =>
+          h(
+            DouScheduler,
+            {
+              modelValue: { version: 1, tasks: [], links: [] },
+              resources: [
+                { id: 'r1', title: 'Row 1' },
+                { id: 'r2', title: 'Row 2' },
+              ],
+              readonly: true,
+              railHeight: 40,
+              onResourceClick: (res: SchedulerResource | null) => clicked.push(res?.id ?? null),
+            },
+            showRail.value
+              ? {
+                  rail: (scope: SchedulerRailScope) => {
+                    latestRailScope = scope
+                    return h('div', { class: 'dynamic-rail' })
+                  },
+                }
+              : {},
+          ),
+      ),
+      { attachTo: document.body },
+    )
+    await nextTick()
+
+    // initially without #rail: headerHeight is 56, so y = 56 + 18 hits r1
+    expect(wrapper.find('.dou-gantt__rail').exists()).toBe(false)
+    const body = wrapper.find('.dou-gantt__body').element
+    body.dispatchEvent(new MouseEvent('click', { clientX: 300, clientY: 56 + 18, bubbles: true }))
+    expect(clicked).toEqual(['r1'])
+
+    // mount #rail dynamically: rail gets height 40px and headerHeight becomes 96
+    showRail.value = true
+    await nextTick()
+    expect(wrapper.find('.dou-gantt__rail').exists()).toBe(true)
+    expect(wrapper.find('.dou-gantt__rail').attributes('style')).toContain('height: 40px')
+    expect(latestRailScope).not.toBeNull()
+    expect(latestRailScope!.height).toBe(40)
+    // y = 56 + 40 + 50 => body y = 50 => hits r2 (36..72)
+    body.dispatchEvent(
+      new MouseEvent('click', { clientX: 300, clientY: 56 + 40 + 50, bubbles: true }),
+    )
+    expect(clicked).toEqual(['r1', 'r2'])
+
+    // unmount #rail dynamically: rail disappears and headerHeight returns to 56
+    showRail.value = false
+    await nextTick()
+    expect(wrapper.find('.dou-gantt__rail').exists()).toBe(false)
+    // y = 56 + 18 => body y = 18 => hits r1 again (would be negative if stale headerHeight stayed 96)
+    body.dispatchEvent(new MouseEvent('click', { clientX: 300, clientY: 56 + 18, bubbles: true }))
+    expect(clicked).toEqual(['r1', 'r2', 'r1'])
+    wrapper.unmount()
+  })
 })

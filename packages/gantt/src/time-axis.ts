@@ -65,11 +65,26 @@ const ROOM_AFTER = 4
 
 const preventSelect = (event: Event) => event.preventDefault()
 
+let selectStartLocks = 0
 let selectionLocks = 0
 let savedUserSelect = ''
 let savedWebkitUserSelect = ''
 let savedCursor = ''
 let cursorLocks = 0
+
+/** Reference-counted `selectstart` blocker shared by `lockSelection` and `startPan`. */
+function lockSelectStart() {
+  if (typeof document === 'undefined') return () => {}
+  if (selectStartLocks === 0) document.addEventListener('selectstart', preventSelect)
+  selectStartLocks++
+  let active = true
+  return () => {
+    if (!active) return
+    active = false
+    selectStartLocks = Math.max(0, selectStartLocks - 1)
+    if (selectStartLocks === 0) document.removeEventListener('selectstart', preventSelect)
+  }
+}
 
 /**
  * Blocks browser text selection across the entire document (and optionally locks
@@ -79,12 +94,12 @@ export function lockSelection(cursor?: string) {
   if (typeof document === 'undefined') return () => {}
   const docEl = document.documentElement
   const style = docEl.style as CSSStyleDeclaration & { webkitUserSelect?: string }
+  const unlockSelectStart = lockSelectStart()
   if (selectionLocks === 0) {
     savedUserSelect = style.userSelect
     savedWebkitUserSelect = style.webkitUserSelect ?? ''
     style.userSelect = 'none'
     style.webkitUserSelect = 'none'
-    document.addEventListener('selectstart', preventSelect)
   }
   selectionLocks++
   if (cursor) {
@@ -97,11 +112,11 @@ export function lockSelection(cursor?: string) {
   return () => {
     if (!active) return
     active = false
+    unlockSelectStart()
     selectionLocks = Math.max(0, selectionLocks - 1)
     if (selectionLocks === 0) {
       style.userSelect = savedUserSelect
       style.webkitUserSelect = savedWebkitUserSelect
-      document.removeEventListener('selectstart', preventSelect)
     }
     if (cursor) {
       cursorLocks = Math.max(0, cursorLocks - 1)
@@ -624,8 +639,8 @@ export function useTimeAxis(o: TimeAxisOptions) {
     let active = false
     let captured = false
     let unlock: (() => void) | null = null
+    let unlockSelectStart: (() => void) | null = lockSelectStart()
     panned = false
-    if (typeof document !== 'undefined') document.addEventListener('selectstart', preventSelect)
 
     const onMove = (e: PointerEvent) => {
       const dx = e.clientX - startX
@@ -660,8 +675,9 @@ export function useTimeAxis(o: TimeAxisOptions) {
       }
     }
     const cleanup = () => {
-      if (typeof document !== 'undefined')
-        document.removeEventListener('selectstart', preventSelect)
+      panning.value = false
+      unlockSelectStart?.()
+      unlockSelectStart = null
       unlock?.()
       unlock = null
       if (captured) {
@@ -679,10 +695,7 @@ export function useTimeAxis(o: TimeAxisOptions) {
     }
     const onUp = () => {
       cleanup()
-      if (active) {
-        panning.value = false
-        setTimeout(() => (panned = false), 0)
-      }
+      if (active) setTimeout(() => (panned = false), 0)
     }
     stopPanListeners = cleanup
     window.addEventListener('pointermove', onMove)

@@ -2356,7 +2356,7 @@ const headerMarkers = computed(() => {
     if (marker.task != null) return []
     const band = markerSpanOf(marker.date, marker.endDate)
     if (band) {
-      if (band.end < extent.value.start || band.start > extent.value.end) return []
+      if (band.end <= extent.value.start || band.start >= extent.value.end) return []
       const clampedStart = Math.max(extent.value.start, band.start)
       return [
         {
@@ -2539,7 +2539,8 @@ function drawChart(options: {
       markers: allMarkers.value.flatMap((marker) => {
         if (marker.task != null) return []
         const band = markerSpanOf(marker.date, marker.endDate)
-        if (band)
+        if (band) {
+          if (band.end <= start || band.start >= end) return []
           return marker.label
             ? [
                 {
@@ -2550,6 +2551,7 @@ function drawChart(options: {
                 },
               ]
             : []
+        }
         const at = parseTime(marker.date)?.at
         return at == null ? [] : [{ at, label: marker.label, tone: marker.tone }]
       }),

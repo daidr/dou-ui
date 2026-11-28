@@ -73,6 +73,13 @@ function contextMenu(target: SchedulerMenuTarget): ContextMenuItem[] {
 
 排期视图没有任务表格，不能就地改名；需要编辑任务时，可以在 `taskDblclick` 或自己的菜单项里打开表单。
 
+## 泳道交互与自定义渲染
+
+- **泳道行选中与点击**：通过 `v-model:selectedResource` 控制高亮泳道（左侧列表行与右侧时间轴泳道同步套用 `.is-selected`），点击左侧列表或右侧泳道空白区会触发 `resourceClick(resource, event)`（已自动忽略交互子控件及拖拽平移后的松手点击）；`rowClass` 支持按行附加自定义类名，同时应用到左右两侧。
+- **可控分组折叠与 `#group` 插槽**：`v-model:collapsedGroups` 可受控或默认指定折叠的分组名列表；`#group` 插槽接收 `{ group, title, resources, count, collapsed, toggle }`，用于自定义组头外观或操作。
+- **任务条标签、内容与悬浮提示**：`barLabel` 控制任务名位置（`'auto' | 'inside' | 'outside' | 'none'`）；`#bar-content` 在任务条内部常驻渲染而不受 `barLabel` 影响；`#bar-tooltip` 与 `#marker-tooltip` 接入 `DouTooltip` 渲染自定义富提示并自动关闭原生 `title`，也可通过 `:native-title="false"` 单独关闭原生 `title`；任务自身的 `class` 会附加到任务条元素上。
+- **顶部辅助轨道、画布图层与 `useScheduler()`**：`#rail` 与 `#rail-header` 在时间轴表头正下方渲染一条与时间轴及 `tableWidth` 同步的辅助轨道（默认高度 36px，可通过 `railHeight` 调整），适合绘制并发水位图或资源统计条；`#underlay` 与 `#overlay` 分别在任务条下方和上方提供与画布坐标系对齐的扩展图层，插槽参数和 `useScheduler()` 均提供 `viewport`、`xOf`、`timeAt`、`rowBox`、`barBox` 等几何信息。完整示例见[实时监控时间线](./timeline#实时监控时间线)。
+
 ## 键盘
 
 | 按键                                | 作用                                                                 |
@@ -94,29 +101,36 @@ function contextMenu(target: SchedulerMenuTarget): ContextMenuItem[] {
 
 ### Scheduler Props
 
-| 名称                | 说明                                                                                                        | 类型                                                             | 默认值                                 |
-| ------------------- | ----------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- | -------------------------------------- |
-| `v-model`           | 排期，和甘特图的是同一种数据，只读写其中的 `tasks`                                                          | `GanttDocument`                                                  | `{ version: 1, tasks: [], links: [] }` |
-| `v-model:selection` | 选中的任务 id                                                                                               | `string[]`                                                       | `[]`                                   |
-| `v-model:scale`     | 时间刻度                                                                                                    | `GanttScale`                                                     | 按内容自动缩放                         |
-| `v-model:follow`    | 跟随当前时间到视口右侧，横向滚动或拖拽平移时自动关闭，见[实时监控时间线](./timeline#实时监控时间线)         | `boolean`                                                        | `false`                                |
-| `resources`         | 资源，按顺序排成行                                                                                          | `SchedulerResource[]`                                            | —                                      |
-| `calendar`          | 工作日历；设为 `false` 关闭非工作时段底纹，按 24/7 连续时间计算                                             | `GanttCalendar \| false`                                         | —                                      |
-| `range`             | 固定时间轴的范围；不设时两端随滚动延伸                                                                      | `[GanttTime, GanttTime]`                                         | —                                      |
-| `today`             | 显示当前时间线                                                                                              | `boolean`                                                        | `true`                                 |
-| `weekStart`         | 一周的第一天                                                                                                | `0 \| 1`                                                         | 跟随语言                               |
-| `markers`           | 标记线与泳道内离散事件点（设置 `resource` 时渲染在对应泳道内）                                              | `GanttMarker[]`                                                  | —                                      |
-| `table`             | 显示左侧的资源列表                                                                                          | `boolean`                                                        | `true`                                 |
-| `tableWidth`        | 资源列表的宽度                                                                                              | `number`                                                         | `200`                                  |
-| `rowHeight`         | 只有一道时的行高，每多一道增加 28px                                                                         | `number`                                                         | `36`                                   |
-| `load`              | 显示负载条                                                                                                  | `boolean`                                                        | `true`                                 |
-| `readonly`          | 只读                                                                                                        | `boolean`                                                        | `false`                                |
-| `bordered`          | 外框和圆角；关闭后去掉外框和圆角，用于放进已有边框的容器，见[去掉外框](/guide/theming#去掉外框与调整内边距) | `boolean`                                                        | `true`                                 |
-| `canMove`           | 移动前的检查，见上文                                                                                        | `(move: SchedulerMove, doc: GanttDocument) => boolean \| string` | —                                      |
-| `menu`              | 菜单里显示内置的“删除任务”                                                                                  | `boolean`                                                        | `true`                                 |
-| `contextMenu`       | 自己的菜单项                                                                                                | `(target: SchedulerMenuTarget) => ContextMenuItem[]`             | —                                      |
-| `ariaLabel`         | 读屏名称                                                                                                    | `string`                                                         | `'资源排期'`                           |
-| `messages`          | 覆盖文案，如表头 `{ scheduler: { resource: '会议室' } }`                                                    | `GanttMessagesOverride`                                          | —                                      |
+| 名称                       | 说明                                                                                                        | 类型                                                             | 默认值                                 |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- | -------------------------------------- |
+| `v-model`                  | 排期，和甘特图的是同一种数据，只读写其中的 `tasks`                                                          | `GanttDocument`                                                  | `{ version: 1, tasks: [], links: [] }` |
+| `v-model:selection`        | 选中的任务 id                                                                                               | `string[]`                                                       | `[]`                                   |
+| `v-model:scale`            | 时间刻度                                                                                                    | `GanttScale`                                                     | 按内容自动缩放                         |
+| `v-model:follow`           | 跟随当前时间到视口右侧，横向滚动或拖拽平移时自动关闭，见[实时监控时间线](./timeline#实时监控时间线)         | `boolean`                                                        | `false`                                |
+| `v-model:tableWidth`       | 资源列表的宽度（px），拖动或键盘调整分隔线时双向同步                                                        | `number`                                                         | `200`                                  |
+| `v-model:selectedResource` | 当前选中的资源 id（`''` 表示未分配行，点击泳道行时同步更新）                                                | `string \| null`                                                 | —                                      |
+| `v-model:collapsedGroups`  | 当前收起的分组名称列表，支持默认折叠与受控同步                                                              | `string[]`                                                       | `[]`                                   |
+| `resources`                | 资源，按顺序排成行                                                                                          | `SchedulerResource[]`                                            | —                                      |
+| `calendar`                 | 工作日历；设为 `false` 关闭非工作时段底纹，按 24/7 连续时间计算                                             | `GanttCalendar \| false`                                         | —                                      |
+| `range`                    | 固定时间轴的范围；不设时两端随滚动延伸                                                                      | `[GanttTime, GanttTime]`                                         | —                                      |
+| `today`                    | 显示当前时间线                                                                                              | `boolean`                                                        | `true`                                 |
+| `now`                      | 外部校准的当前时间（如服务端时间戳），驱动当前时间线与跟随锚点；暂停更新即可冻结推进而不关闭 `follow`       | `GanttTime`                                                      | 本地时钟                               |
+| `weekStart`                | 一周的第一天                                                                                                | `0 \| 1`                                                         | 跟随语言                               |
+| `markers`                  | 标记线、区间底纹（设置 `endDate`）与泳道内离散事件点（设置 `resource`）                                     | `GanttMarker[]`                                                  | —                                      |
+| `table`                    | 显示左侧的资源列表                                                                                          | `boolean`                                                        | `true`                                 |
+| `rowHeight`                | 只有一道时的行高，每多一道增加 28px                                                                         | `number`                                                         | `36`                                   |
+| `railHeight`               | 顶部辅助轨道（`#rail` / `#rail-header`）的高度（px）                                                        | `number`                                                         | `36`                                   |
+| `barLabel`                 | 任务名放在哪里：`auto` 放得下时在条内，否则在条旁                                                           | `'auto' \| 'inside' \| 'outside' \| 'none'`                      | `'auto'`                               |
+| `nativeTitle`              | 是否在任务条与事件点上输出浏览器原生 `title`；提供 `#bar-tooltip` / `#marker-tooltip` 时自动关闭            | `boolean`                                                        | `true`                                 |
+| `rowClass`                 | 附加到左侧列表行和右侧泳道行的自定义类名                                                                    | `string \| ((row: SchedulerRowInfo) => GanttClassValue)`         | —                                      |
+| `load`                     | 显示负载条                                                                                                  | `boolean`                                                        | `true`                                 |
+| `readonly`                 | 只读                                                                                                        | `boolean`                                                        | `false`                                |
+| `bordered`                 | 外框和圆角；关闭后去掉外框和圆角，用于放进已有边框的容器，见[去掉外框](/guide/theming#去掉外框与调整内边距) | `boolean`                                                        | `true`                                 |
+| `canMove`                  | 移动前的检查，见上文                                                                                        | `(move: SchedulerMove, doc: GanttDocument) => boolean \| string` | —                                      |
+| `menu`                     | 菜单里显示内置的“删除任务”                                                                                  | `boolean`                                                        | `true`                                 |
+| `contextMenu`              | 自己的菜单项                                                                                                | `(target: SchedulerMenuTarget) => ContextMenuItem[]`             | —                                      |
+| `ariaLabel`                | 读屏名称                                                                                                    | `string`                                                         | `'资源排期'`                           |
+| `messages`                 | 覆盖文案，如表头 `{ scheduler: { resource: '会议室' } }`                                                    | `GanttMessagesOverride`                                          | —                                      |
 
 ```ts
 interface SchedulerResource {
@@ -138,14 +152,16 @@ interface SchedulerResource {
 
 ### Scheduler Events
 
-| 名称              | 说明                                                        | 参数                                       |
-| ----------------- | ----------------------------------------------------------- | ------------------------------------------ |
-| `transaction`     | 每次修改后触发，包括撤销和重做                              | `(tr: GanttTransaction)`                   |
-| `taskClick`       | 点击任务                                                    | `(task: GanttTask, event: MouseEvent)`     |
-| `taskDblclick`    | 双击任务                                                    | `(task: GanttTask, event: MouseEvent)`     |
-| `taskContextmenu` | 在任务上打开菜单前触发，`event.preventDefault()` 可以不打开 | `(task: GanttTask, event: MouseEvent)`     |
-| `markerClick`     | 点击泳道内离散事件标记点                                    | `(marker: GanttMarker, event: MouseEvent)` |
-| `create`          | 在空白处拖出一段时间                                        | `(range: SchedulerRange)`                  |
+| 名称              | 说明                                                        | 参数                                           |
+| ----------------- | ----------------------------------------------------------- | ---------------------------------------------- |
+| `viewportChange`  | 可见时间范围、缩放比例或视口几何变化时触发                  | `(viewport: GanttViewport)`                    |
+| `transaction`     | 每次修改后触发，包括撤销和重做                              | `(tr: GanttTransaction)`                       |
+| `taskClick`       | 点击任务                                                    | `(task: GanttTask, event: MouseEvent)`         |
+| `taskDblclick`    | 双击任务                                                    | `(task: GanttTask, event: MouseEvent)`         |
+| `taskContextmenu` | 在任务上打开菜单前触发，`event.preventDefault()` 可以不打开 | `(task: GanttTask, event: MouseEvent)`         |
+| `resourceClick`   | 点击左侧资源行或右侧泳道空白区                              | `(resource: SchedulerResource \| null, event)` |
+| `markerClick`     | 点击泳道内离散事件标记点                                    | `(marker: GanttMarker, event: MouseEvent)`     |
+| `create`          | 在空白处拖出一段时间                                        | `(range: SchedulerRange)`                      |
 
 ```ts
 interface SchedulerRange {
@@ -170,30 +186,45 @@ type SchedulerMenuTarget =
 
 ### Scheduler Slots
 
-| 名称       | 说明                       | 参数           |
-| ---------- | -------------------------- | -------------- |
-| `bar`      | 任务条里的内容             | `{ task }`     |
-| `resource` | 资源列表里的一项           | `{ resource }` |
-| `marker`   | 泳道内离散事件标记点的内容 | `{ marker }`   |
+| 名称             | 说明                                              | 参数                                                                 |
+| ---------------- | ------------------------------------------------- | -------------------------------------------------------------------- |
+| `bar`            | 任务条的标题内容（受 `barLabel` 控制）            | `{ task, resource, width, placement }`                               |
+| `bar-content`    | 常驻渲染在任务条内部的内容，不受 `barLabel` 影响  | `{ task, resource, width, milestone }`                               |
+| `bar-tooltip`    | 任务条悬浮提示（通过 `DouTooltip` 渲染）          | `{ task, resource }`                                                 |
+| `resource`       | 资源列表里的一项                                  | `{ resource, count, overloaded, selected }`                          |
+| `group`          | 分组头行自定义内容                                | `{ group, title, resources, count, collapsed, toggle }`              |
+| `marker`         | 泳道内离散事件标记点的内容                        | `{ marker }`                                                         |
+| `marker-tooltip` | 泳道事件标记点悬浮提示（通过 `DouTooltip` 渲染）  | `{ marker }`                                                         |
+| `rail-header`    | 顶部辅助轨道的左侧列头，宽度与 `tableWidth` 同步  | `{ width, height }`                                                  |
+| `rail`           | 固定在时间轴表头正下方的顶部辅助轨道              | `SchedulerRailScope`（`viewport`、`xOf`、`timeAt`、`totalWidth` 等） |
+| `underlay`       | 渲染在任务条下方的画布扩展图层                    | `SchedulerCanvasScope`（含 `xOf`、`timeAt`、`rowBox`、`barBox` 等）  |
+| `overlay`        | 渲染在任务条上方的画布扩展图层                    | `SchedulerCanvasScope`（含 `xOf`、`timeAt`、`rowBox`、`barBox` 等）  |
+| `default`        | 渲染在根容器内的附加内容，可调用 `useScheduler()` | —                                                                    |
 
 ### Scheduler Exposes
 
-| 名称                                                          | 说明                                                     |
-| ------------------------------------------------------------- | -------------------------------------------------------- |
-| `transact(fn, meta?)`                                         | 把修改作为一次事务提交，撤销时一起撤销                   |
-| `undo()` / `redo()`                                           | 撤销 / 重做                                              |
-| `fit(range?)`                                                 | 缩放到所有任务都能看到，或传入 `[start, end]` 适配时间窗 |
-| `scrollToDate(date)` / `scrollToToday()` / `scrollToTask(id)` | 滚动到某个时间或任务                                     |
-| `focusTask(id)`                                               | 让某个任务获得焦点                                       |
-| `zoomIn()` / `zoomOut()`                                      | 放大 / 缩小时间轴                                        |
+| 名称                                                          | 说明                                                        |
+| ------------------------------------------------------------- | ----------------------------------------------------------- |
+| `transact(fn, meta?)`                                         | 把修改作为一次事务提交，撤销时一起撤销                      |
+| `undo()` / `redo()`                                           | 撤销 / 重做                                                 |
+| `fit(range?)`                                                 | 缩放到所有任务都能看到，或传入 `[start, end]` 适配时间窗    |
+| `scrollToDate(date)` / `scrollToToday()` / `scrollToTask(id)` | 滚动到某个时间或任务                                        |
+| `focusTask(id)`                                               | 让某个任务获得焦点                                          |
+| `zoomIn()` / `zoomOut()`                                      | 放大 / 缩小时间轴                                           |
+| `getViewport()`                                               | 返回当前可见时间范围与时间轴几何（`GanttViewport`）         |
+| `xOf(time)`                                                   | 将日期或时间戳换算为画布水平坐标（px），无效时间返回 `null` |
+| `timeAt(x)`                                                   | 将画布水平坐标（px）换算为 Unix 毫秒时间戳                  |
+| `rowBox(resourceId)`                                          | 返回已展开资源行的纵向几何信息，隐藏或不存在时返回 `null`   |
+| `barBox(taskId)`                                              | 返回任务条在画布中的几何信息，未排期或不可见时返回 `null`   |
 
 资源排期目前没有甘特图的 `exportSVG`、`exportPNG`、`toCSV` 和 `print`，需要导出时可以把 `tasks` 按资源整理后自己生成。
 
-### 函数
+### 函数与上下文
 
-| 名称              | 说明                               | 类型                                                       |
-| ----------------- | ---------------------------------- | ---------------------------------------------------------- |
-| `packLanes`       | 把重叠的任务分到不同的道，返回道数 | `(items: { span, lane }[]) => number`                      |
-| `loadSegments`    | 计算每段时间同时进行的任务数       | `(spans: Iterable<TaskSpan>) => SchedulerLoadSegment[]`    |
-| `groupByResource` | 按资源分组并分道                   | `(tasks, resources) => Map<string, { items, lanes }>`      |
-| `findConflict`    | 同一资源上时间重叠的第一个任务     | `(tasks, place: SchedulerPlace) => GanttTask \| undefined` |
+| 名称              | 说明                                                 | 类型                                                       |
+| ----------------- | ---------------------------------------------------- | ---------------------------------------------------------- |
+| `useScheduler`    | 在插槽或子组件内读取当前 `DouScheduler` 上下文与坐标 | `() => SchedulerContext`                                   |
+| `packLanes`       | 把重叠的任务分到不同的道，返回道数                   | `(items: { span, lane }[]) => number`                      |
+| `loadSegments`    | 计算每段时间同时进行的任务数                         | `(spans: Iterable<TaskSpan>) => SchedulerLoadSegment[]`    |
+| `groupByResource` | 按资源分组并分道                                     | `(tasks, resources) => Map<string, { items, lanes }>`      |
+| `findConflict`    | 同一资源上时间重叠的第一个任务                       | `(tasks, place: SchedulerPlace) => GanttTask \| undefined` |

@@ -3,7 +3,7 @@ import type { GanttBaselineItem } from './core/baseline'
 import type { GanttCalendar } from './core/calendar'
 import type { GanttCSVImportOptions, GanttCSVResult } from './core/csv'
 import type { GanttExtension } from './core/extension'
-import type { GanttData, GanttLink, GanttTask } from './core/model'
+import type { GanttClassValue, GanttData, GanttLink, GanttTask } from './core/model'
 import type { Tone } from 'dou-ui'
 import type { GanttSchedule } from './core/schedule'
 import type { GanttScale } from './core/scale'
@@ -60,23 +60,51 @@ export interface GanttInsertOptions {
 
 /**
  * A vertical marker line across the timeline (such as a release day or freeze),
- * or — when `task` (in `DouGantt`) or `resource` (in `DouScheduler`) is given —
- * a discrete event marker point rendered inside that row or swimlane.
+ * a shaded time band when `endDate` is given, or — when `task` (in `DouGantt`)
+ * or `resource` (in `DouScheduler`) is given — a discrete event marker point
+ * (or row-scoped band when `endDate` is also given) inside that row or swimlane.
  */
 export interface GanttMarker<Data extends GanttData = GanttData> {
   /** Optional identifier, used as key and in `markerClick`. */
   id?: string
   /** Where, as `YYYY-MM-DD`, `YYYY-MM-DD HH:mm(:ss.SSS)`, ISO 8601, or Unix timestamp in ms. */
   date: GanttTime
-  /** Shown in the time header (for timeline lines) or as tooltip/label (for row markers). */
+  /**
+   * Optional end time; when given, renders a shaded time band spanning `[date, endDate]`
+   * instead of a single line or event dot.
+   */
+  endDate?: GanttTime
+  /** Shown in the time header (for timeline lines/bands) or as tooltip/label (for row markers). */
   label?: string
   tone?: Tone
-  /** Scope to a resource swimlane in `DouScheduler` (renders as an inline event point). */
+  /** Scope to a resource swimlane in `DouScheduler` (renders as an inline event point or band). */
   resource?: string
-  /** Scope to a task row in `DouGantt` (renders as an inline event point). */
+  /** Scope to a task row in `DouGantt` (renders as an inline event point or band). */
   task?: string
+  /** Extra CSS class(es) applied to the marker line, event point or band. */
+  class?: GanttClassValue
   /** Your own fields, e.g. for custom rendering in the `marker` slot. */
   data?: Data
+}
+
+/** The visible slice of the time axis and its geometry. */
+export interface GanttViewport {
+  /** Start of the visible time range, as a Unix timestamp in ms. */
+  start: number
+  /** End of the visible time range, as a Unix timestamp in ms. */
+  end: number
+  /** Current time scale level. */
+  scale: GanttScale
+  /** Current day width, in px. */
+  dayWidth: number
+  /** Current pixels per minute (`dayWidth / 1440`). */
+  ppm: number
+  /** Horizontal scroll offset of the timeline scroller, in px. */
+  scrollLeft: number
+  /** Visible width of the timeline viewport, in px. */
+  width: number
+  /** Origin of the timeline canvas coordinate space, as a Unix timestamp in ms. */
+  origin: number
 }
 
 /** New dates about to be given to a task, as they would be written. */
@@ -99,7 +127,7 @@ export interface GanttProps {
    * the task titles show on the timeline.
    */
   table?: boolean
-  /** Starting width of the task table, in px. */
+  /** Width of the task table, in px. Supports `v-model:tableWidth`. */
   tableWidth?: number
   /** Height of a row, in px. */
   rowHeight?: number
@@ -115,6 +143,18 @@ export interface GanttProps {
   range?: [GanttTime, GanttTime]
   /** Mark the current time with a line. */
   today?: boolean
+  /**
+   * External current time (e.g. a server-calibrated timestamp). Drives the `today`
+   * line, `follow` anchor and `fit([start, end])` follow detection; pausing updates
+   * to `now` freezes live panning without turning `follow` off. Defaults to the
+   * local clock.
+   */
+  now?: GanttTime
+  /**
+   * Show native browser `title` tooltips on task bars and event markers. Defaults
+   * to `true`; automatically suppressed when `#bar-tooltip` / `#marker-tooltip` is used.
+   */
+  nativeTitle?: boolean
   /** The first day of a week: `0` Sunday, `1` Monday. Defaults to the locale's. */
   weekStart?: 0 | 1
   /**
@@ -172,6 +212,10 @@ export interface GanttProps {
 }
 
 export interface GanttEmits {
+  /** Emitted when the table column width changes via divider drag or keyboard. */
+  'update:tableWidth': [width: number]
+  /** Emitted when the visible time range, zoom level or viewport geometry changes. */
+  viewportChange: [viewport: GanttViewport]
   /** Every change to tasks or links, with its steps; sent after the `update:` events. */
   transaction: [tr: GanttTransaction]
   /**
@@ -196,8 +240,14 @@ export interface GanttSlots {
   cell?: (props: { task: GanttTask; row: GanttRow; column: GanttColumn; text: string }) => unknown
   /** The content of a bar, in place of its title. */
   bar?: (props: { task: GanttTask; row: GanttRow }) => unknown
+  /** Always-mounted interior content inside a bar element, regardless of `barLabel`. */
+  'bar-content'?: (props: { task: GanttTask; row: GanttRow; width: number }) => unknown
+  /** Rich tooltip content rendered via `DouTooltip` when hovering or focusing a bar. */
+  'bar-tooltip'?: (props: { task: GanttTask; row: GanttRow }) => unknown
   /** Custom content for a row-scoped discrete event marker. */
   marker?: (props: { marker: GanttMarker }) => unknown
+  /** Rich tooltip content rendered via `DouTooltip` when hovering or focusing a row marker. */
+  'marker-tooltip'?: (props: { marker: GanttMarker }) => unknown
   /** Drawn over the chart, e.g. a panel; it can call `useGantt()`. */
   default?: () => unknown
 }
@@ -299,6 +349,12 @@ export interface GanttExpose {
   /** Widens the days by a step, keeping the middle of the view in place. */
   zoomIn: () => void
   zoomOut: () => void
+  /** Returns the current visible time range and timeline geometry. */
+  getViewport: () => GanttViewport
+  /** Converts a `GanttTime` (date string or Unix ms) to canvas x, in px. */
+  xOf: (time: GanttTime) => number | null
+  /** Converts a canvas x (in px) to a Unix timestamp in ms. */
+  timeAt: (x: number) => number
   /** The chart as an SVG document, in the current theme. */
   exportSVG: (options?: GanttExportOptions) => string
   /** The chart as a PNG image. */

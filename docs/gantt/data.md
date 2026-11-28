@@ -25,6 +25,7 @@ interface GanttTask {
   end?: GanttTime
   progress?: number // 0–1
   tone?: 'neutral' | 'primary' | 'success' | 'warning' | 'danger'
+  class?: GanttClassValue // 附加到任务条元素的自定义类名
   collapsed?: boolean // 收起子任务
   locked?: boolean // 不能拖动和调整
   data?: Record<string, unknown> // 你自己的字段，可以显示成表格的列

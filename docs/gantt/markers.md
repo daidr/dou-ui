@@ -14,7 +14,9 @@
 
 两个竖向标记线离得太近时，左边的标签会截短或只留下线，鼠标悬停可以看到完整文字。
 
-给标记指定 `task`（在 `DouGantt` 中）或 `resource`（在 `DouScheduler` 中）后，它会渲染为对应行或泳道内的离散事件点，而不是贯穿全高的竖线。点击事件点会触发 `markerClick(marker, event)`，通过 `#marker="{ marker }"` 插槽可以自定义圆点或图标样式。完整演示见[实时监控时间线](./timeline#实时监控时间线)。
+给标记指定 `endDate` 后，它会渲染为跨越 `[date, endDate]` 的半透明时间区间底纹（如离开回看区间、封板窗口），并在 `DouGantt` 导出 SVG 时同步绘制；同时指定 `task` 或 `resource` 时，底纹仅限定在对应行或泳道内。
+
+给标记仅指定 `task`（在 `DouGantt` 中）或 `resource`（在 `DouScheduler` 中）而不设 `endDate` 时，它会渲染为对应行或泳道内的离散事件点。点击事件点会触发 `markerClick(marker, event)`，通过 `#marker="{ marker }"` 与 `#marker-tooltip="{ marker }"` 可以自定义圆点样式和 `DouTooltip` 悬浮提示。完整演示见[实时监控时间线](./timeline#实时监控时间线)。
 
 ## 基线
 
@@ -37,15 +39,17 @@ baseline.value = takeBaseline(plan.value.tasks) // [{ id, start, end }, …]
 
 ### GanttMarker
 
-| 名称       | 说明                                                                | 类型                                                           | 默认值      |
-| ---------- | ------------------------------------------------------------------- | -------------------------------------------------------------- | ----------- |
-| `id`       | 可选唯一标识，便于事件回调与列表更新复用                            | `string`                                                       | —           |
-| `date`     | 位置，支持日期、时刻字符串（含秒/毫秒/时区）或 Unix 毫秒时间戳      | `GanttTime`                                                    | —           |
-| `label`    | 竖向标记线显示在表头；行内/泳道事件点用作悬停提示和无障碍名称       | `string`                                                       | —           |
-| `tone`     | 颜色                                                                | `'neutral' \| 'primary' \| 'success' \| 'warning' \| 'danger'` | `'neutral'` |
-| `task`     | 归属的任务 id；在 `DouGantt` 中设置后渲染在该任务行内的离散事件点   | `string`                                                       | —           |
-| `resource` | 归属的资源 id；在 `DouScheduler` 中设置后渲染在该泳道内的离散事件点 | `string`                                                       | —           |
-| `data`     | 附加业务数据，可在 `#marker` 插槽或 `markerClick` 中读取            | `Record<string, unknown>`                                      | —           |
+| 名称       | 说明                                                                                   | 类型                                                           | 默认值      |
+| ---------- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ----------- |
+| `id`       | 可选唯一标识，便于事件回调与列表更新复用                                               | `string`                                                       | —           |
+| `date`     | 位置或区间开始时间，支持日期、时刻字符串（含秒/毫秒/时区）或 Unix 毫秒时间戳           | `GanttTime`                                                    | —           |
+| `endDate`  | 可选结束时间；传入时渲染为 `[date, endDate]` 半透明区间底纹                            | `GanttTime`                                                    | —           |
+| `label`    | 竖向标记线与全局区间底纹显示在表头；行内/泳道事件点用作悬停提示和无障碍名称            | `string`                                                       | —           |
+| `tone`     | 颜色                                                                                   | `'neutral' \| 'primary' \| 'success' \| 'warning' \| 'danger'` | `'neutral'` |
+| `task`     | 归属的任务 id；在 `DouGantt` 中渲染为行内离散事件点（配合 `endDate` 时为行内底纹）     | `string`                                                       | —           |
+| `resource` | 归属的资源 id；在 `DouScheduler` 中渲染为泳道离散事件点（配合 `endDate` 时为泳道底纹） | `string`                                                       | —           |
+| `class`    | 附加在标记线、事件点或区间底纹元素上的自定义类名                                       | `GanttClassValue`                                              | —           |
+| `data`     | 附加业务数据，可在 `#marker` / `#marker-tooltip` 插槽或 `markerClick` 中读取           | `Record<string, unknown>`                                      | —           |
 
 ### GanttBaselineItem
 

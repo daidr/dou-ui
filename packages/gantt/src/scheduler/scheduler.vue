@@ -13,14 +13,17 @@ import {
   nextTick,
   onBeforeUnmount,
   onMounted,
+  provide,
   ref,
   shallowRef,
   toRaw,
   useId,
+  useSlots,
   useTemplateRef,
   watch,
 } from 'vue'
 import GanttMenu from '../components/gantt-menu.vue'
+import { OptionalTooltip } from '../components/optional-tooltip'
 import TimeGrid from '../components/time-grid.vue'
 import TimeHeader from '../components/time-header.vue'
 import { resolveCalendar } from '../core/calendar'
@@ -44,7 +47,8 @@ import {
   spokenDuration,
 } from '../labels'
 import { format, useGanttMessages } from '../locale'
-import { useTimeAxis } from '../time-axis'
+import { lockSelection, markerSpanOf, useTimeAxis } from '../time-axis'
+import { schedulerKey, type SchedulerContext } from './context'
 import {
   groupByResource,
   loadSegments,
@@ -54,12 +58,17 @@ import {
 } from './layout'
 import type { GanttMarker } from '../types'
 import type {
+  SchedulerBarBox,
+  SchedulerCanvasScope,
   SchedulerEmits,
   SchedulerExpose,
   SchedulerMenuTarget,
   SchedulerMove,
   SchedulerProps,
+  SchedulerRailScope,
   SchedulerRange,
+  SchedulerRowBox,
+  SchedulerRowInfo,
   SchedulerSlots,
 } from './types'
 
@@ -71,6 +80,8 @@ const props = withDefaults(defineProps<SchedulerProps>(), {
   table: true,
   tableWidth: 200,
   rowHeight: 36,
+  barLabel: 'auto',
+  nativeTitle: true,
   load: true,
   menu: true,
   bordered: true,
@@ -84,6 +95,7 @@ const scale = defineModel<GanttScale>('scale')
 const follow = defineModel<boolean>('follow', { default: false })
 const emit = defineEmits<SchedulerEmits>()
 defineSlots<SchedulerSlots>()
+const slots = useSlots()
 
 const messages = useGanttMessages(() => props.messages)
 const sm = computed(() => messages.value.scheduler)
@@ -94,6 +106,10 @@ const editable = computed(() => !props.readonly)
 
 /** Height of the two-row time header, in px. */
 const HEADER = 56
+/** Height of a task bar, in px. */
+const BAR_HEIGHT = 20
+/** Default height of the top auxiliary rail when `#rail` or `#rail-header` is provided, in px. */
+const RAIL_DEFAULT = 36
 /** The distance from one lane to the next, in px. */
 const LANE = 28
 /** Without the list, room above a resource's lanes for its name, in px. */
@@ -112,7 +128,13 @@ const { width: viewWidth, height: viewHeight } = useElementSize(chart)
 const narrow = computed(() => rootWidth.value > 0 && rootWidth.value < NARROW)
 const showTable = computed(() => props.table && !narrow.value)
 const caption = computed(() => (showTable.value ? 0 : CAPTION))
+const hasRail = computed(() => Boolean(slots.rail || slots['rail-header']))
+const effectiveRailHeight = computed(() =>
+  hasRail.value ? Math.max(0, props.railHeight ?? RAIL_DEFAULT) : 0,
+)
+const headerHeight = computed(() => HEADER + effectiveRailHeight.value)
 const tableSize = ref(props.tableWidth)
+const resizing = ref(false)
 watch(
   () => props.tableWidth,
   (width) => (tableSize.value = width),
@@ -197,7 +219,12 @@ function announceTravel(direction: 'undo' | 'redo') {
 interface GroupRow {
   kind: 'group'
   key: string
+  /** The group name (`resource.group`). */
+  group: string
   title: string
+  resources: SchedulerResource[]
+  count: number
+  collapsed: boolean
   top: number
   height: number
 }
@@ -219,7 +246,16 @@ interface ResourceRow {
 
 type Row = GroupRow | ResourceRow
 
-const collapsed = ref(new Set<string>())
+const collapsedGroups = ref<string[]>(props.collapsedGroups ? [...props.collapsedGroups] : [])
+watch(
+  () => (props.collapsedGroups ? [...props.collapsedGroups] : undefined),
+  (next, prev) => {
+    if (next === undefined) return
+    if (prev && prev.length === next.length && next.every((value, i) => value === prev[i])) return
+    collapsedGroups.value = next
+  },
+)
+const collapsedSet = computed(() => new Set(collapsedGroups.value))
 const drag = shallowRef<Drag | null>(null)
 const taskList = computed(() => toRaw(tasks.value))
 /** The tasks as shown: while dragging, as they would be after the drop. */
@@ -275,10 +311,20 @@ const rows = computed<Row[]>(() => {
     if (done.has(resource.group)) continue
     done.add(resource.group)
     const key = `group:${resource.group}`
-    push({ kind: 'group', key, title: resource.group, height: props.rowHeight })
-    if (collapsed.value.has(key)) continue
-    for (const member of props.resources)
-      if (member.group === resource.group) push(resourceRow(member))
+    const members = props.resources.filter((member) => member.group === resource.group)
+    const isCollapsed = collapsedSet.value.has(resource.group)
+    push({
+      kind: 'group',
+      key,
+      group: resource.group,
+      title: resource.group,
+      resources: members,
+      count: members.length,
+      collapsed: isCollapsed,
+      height: props.rowHeight,
+    })
+    if (isCollapsed) continue
+    for (const member of members) push(resourceRow(member))
   }
   if (placed.value.has('')) push(resourceRow(null))
   return out
@@ -298,10 +344,44 @@ const itemById = computed(() => {
 })
 
 function toggle(row: GroupRow) {
-  const next = new Set(collapsed.value)
-  if (next.has(row.key)) next.delete(row.key)
-  else next.add(row.key)
-  collapsed.value = next
+  const next = collapsedSet.value.has(row.group)
+    ? collapsedGroups.value.filter((name) => name !== row.group)
+    : [...collapsedGroups.value, row.group]
+  collapsedGroups.value = next
+  emit('update:collapsedGroups', next)
+}
+
+const isRowSelected = (row: Row) =>
+  row.kind === 'resource' && props.selectedResource != null && row.key === props.selectedResource
+
+function rowInfoOf(row: Row): SchedulerRowInfo {
+  if (row.kind === 'group') {
+    return {
+      kind: 'group',
+      key: row.group,
+      title: row.title,
+      resource: null,
+      group: row.group,
+      count: row.count,
+      overloaded: false,
+      selected: false,
+    }
+  }
+  return {
+    kind: 'resource',
+    key: row.key,
+    title: row.title,
+    resource: row.resource,
+    group: row.resource?.group,
+    count: row.items.length,
+    overloaded: row.overloaded,
+    selected: isRowSelected(row),
+  }
+}
+
+function extraRowClass(row: Row) {
+  if (!props.rowClass) return undefined
+  return typeof props.rowClass === 'function' ? props.rowClass(rowInfoOf(row)) : props.rowClass
 }
 
 // Time axis ----------------------------------------------------------------------------
@@ -327,6 +407,8 @@ const axis = useTimeAxis({
   follow,
   range: () => props.range,
   today: () => props.today,
+  now: () => props.now,
+  onViewportChange: (vp) => emit('viewportChange', vp),
   weekStart,
   calendar,
   messages,
@@ -334,6 +416,7 @@ const axis = useTimeAxis({
   fitWidth: () => (showTable.value ? viewWidth.value : rootWidth.value),
 })
 const {
+  dayWidth,
   level,
   ppm,
   now,
@@ -341,7 +424,11 @@ const {
   origin,
   totalWidth,
   xOf,
+  timeToX,
+  xToTime,
   contentX,
+  viewport,
+  getViewport,
   scrollTop,
   scrollLeft,
   scrollbar,
@@ -358,20 +445,36 @@ const {
 watch([viewHeight, viewWidth], axis.measureScrollbar, { flush: 'post' })
 watch([rootWidth, viewWidth], axis.fitWhenSized)
 
-const markers = computed(() => {
+/** Vertical marker lines and header labels (including labeled timeline bands). */
+const headerMarkers = computed(() => {
   const inRange = (props.markers ?? []).flatMap((marker, index) => {
     if (marker.resource != null) return []
+    const band = markerSpanOf(marker.date, marker.endDate)
+    if (band) {
+      if (band.end < extent.value.start || band.start > extent.value.end) return []
+      const clampedStart = Math.max(extent.value.start, band.start)
+      return [
+        {
+          key: marker.id ?? `band:${index}:${marker.date}:${marker.endDate}`,
+          x: xOf(clampedStart),
+          marker,
+          isBand: true,
+        },
+      ]
+    }
     const at = parseTime(marker.date)?.at
     if (at == null || at < extent.value.start || at > extent.value.end) return []
-    return [{ key: marker.id ?? `${index}:${marker.date}`, x: xOf(at), marker }]
+    return [{ key: marker.id ?? `${index}:${marker.date}`, x: xOf(at), marker, isBand: false }]
   })
   const room = markerRoom(inRange.map((item) => (item.marker.label ? item.x : -Infinity)))
   return inRange.map((item, i) => ({ ...item, room: room[i]! }))
 })
 
+const markers = computed(() => headerMarkers.value.filter((item) => !item.isBand))
+
 // What is in view ---------------------------------------------------------------------
 
-const bodyHeight = computed(() => Math.max(0, viewHeight.value - HEADER))
+const bodyHeight = computed(() => Math.max(0, viewHeight.value - headerHeight.value))
 
 /** The rows in view, with some room above and below. */
 const visibleRows = computed(() => {
@@ -398,6 +501,49 @@ const resourceRows = computed(() =>
 /** Where a lane's bar row sits, in body px. */
 const laneTop = (row: ResourceRow, lane: number) => row.top + caption.value + lane * LANE
 
+/** Shaded time interval bands (`marker.endDate`), full-height or resource-scoped. */
+const bands = computed(() => {
+  const { start: winStart, end: winEnd } = timeWindow.value
+  const { start: extStart, end: extEnd } = extent.value
+  const byResource = new Map<string, ResourceRow>()
+  for (const row of resourceRows.value) if (row.resource) byResource.set(row.resource.id, row)
+  const out: {
+    key: string
+    left: number
+    width: number
+    top?: number
+    height?: number
+    marker: GanttMarker
+  }[] = []
+  ;(props.markers ?? []).forEach((marker, index) => {
+    const span = markerSpanOf(marker.date, marker.endDate)
+    if (!span) return
+    const from = Math.max(extStart, span.start)
+    const to = Math.min(extEnd, span.end)
+    if (to <= from || to < winStart || from > winEnd) return
+    if (marker.resource != null) {
+      const row = byResource.get(marker.resource)
+      if (!row) return
+      out.push({
+        key: marker.id ?? `row-band:${index}:${marker.resource}:${marker.date}:${marker.endDate}`,
+        left: xOf(from),
+        width: Math.max(2, (to - from) * ppm.value),
+        top: row.top,
+        height: row.height,
+        marker,
+      })
+      return
+    }
+    out.push({
+      key: marker.id ?? `band:${index}:${marker.date}:${marker.endDate}`,
+      left: xOf(from),
+      width: Math.max(2, (to - from) * ppm.value),
+      marker,
+    })
+  })
+  return out
+})
+
 const rowMarkers = computed(() => {
   const { start, end } = timeWindow.value
   const m = messages.value
@@ -405,7 +551,7 @@ const rowMarkers = computed(() => {
   for (const row of resourceRows.value) if (row.resource) byResource.set(row.resource.id, row)
   const out: { key: string; x: number; y: number; tip: string; marker: GanttMarker }[] = []
   ;(props.markers ?? []).forEach((marker, index) => {
-    if (marker.resource == null) return
+    if (marker.resource == null || marker.endDate != null) return
     const row = byResource.get(marker.resource)
     if (!row) return
     const parsed = parseTime(marker.date)
@@ -508,7 +654,19 @@ const bars = computed<Bar[]>(() => {
         const titleW = textWidth(item.task.title)
         let label: Bar['label'] = 'inside'
         let sideMax: number | undefined
-        if (milestone) {
+        if (props.barLabel === 'none') {
+          label = 'none'
+        } else if (props.barLabel === 'outside') {
+          label = 'outside'
+          sideMax = next ? Math.max(0, gap - (milestone ? 20 : 14)) : undefined
+        } else if (props.barLabel === 'inside') {
+          if (milestone) {
+            sideMax = next ? Math.max(0, gap - 20) : undefined
+            label = sideMax == null || sideMax >= 20 ? 'outside' : 'none'
+          } else {
+            label = 'inside'
+          }
+        } else if (milestone) {
           sideMax = next ? Math.max(0, gap - 20) : undefined
           label = sideMax == null || sideMax >= 20 ? 'outside' : 'none'
         } else if (titleW + 20 > width) {
@@ -564,30 +722,60 @@ const rowTitles = computed(() => (showTable.value ? [] : visibleRows.value))
 
 const tableMax = computed(() => Math.max(TABLE_MIN, Math.round((rootWidth.value || 1000) * 0.5)))
 const hovered = ref<string | null>(null)
+let stopResizeListeners: (() => void) | null = null
+
+function setTableSize(width: number) {
+  const next = Math.round(Math.min(tableMax.value, Math.max(TABLE_MIN, width)))
+  if (next === tableSize.value) return
+  tableSize.value = next
+  emit('update:tableWidth', next)
+}
 
 function onDividerDown(event: PointerEvent) {
   if (event.button !== 0) return
   event.preventDefault()
+  stopResizeListeners?.()
+  const el = event.currentTarget as HTMLElement
+  const pointerId = event.pointerId
+  let captured = false
+  try {
+    el.setPointerCapture?.(pointerId)
+    captured = true
+  } catch {
+    // synthetic PointerEvents in tests have no active pointer to capture
+  }
+  const unlock = lockSelection('col-resize')
+  resizing.value = true
   const x0 = event.clientX
   const width0 = tableSize.value
-  const move = (e: PointerEvent) =>
-    (tableSize.value = Math.min(tableMax.value, Math.max(TABLE_MIN, width0 + e.clientX - x0)))
-  const up = () => {
+  const move = (e: PointerEvent) => setTableSize(width0 + e.clientX - x0)
+  const cleanup = () => {
+    unlock()
+    resizing.value = false
+    if (captured) {
+      captured = false
+      try {
+        if (el.hasPointerCapture?.(pointerId)) el.releasePointerCapture(pointerId)
+      } catch {
+        // pointer capture already ended
+      }
+    }
     window.removeEventListener('pointermove', move)
-    window.removeEventListener('pointerup', up)
-    window.removeEventListener('pointercancel', up)
+    window.removeEventListener('pointerup', cleanup)
+    window.removeEventListener('pointercancel', cleanup)
+    stopResizeListeners = null
   }
+  stopResizeListeners = cleanup
   window.addEventListener('pointermove', move)
-  window.addEventListener('pointerup', up)
-  window.addEventListener('pointercancel', up)
+  window.addEventListener('pointerup', cleanup)
+  window.addEventListener('pointercancel', cleanup)
 }
 
 function onDividerKey(event: KeyboardEvent) {
   const step = event.shiftKey ? 40 : 10
   if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
   event.preventDefault()
-  const next = tableSize.value + (event.key === 'ArrowLeft' ? -step : step)
-  tableSize.value = Math.min(tableMax.value, Math.max(TABLE_MIN, next))
+  setTableSize(tableSize.value + (event.key === 'ArrowLeft' ? -step : step))
 }
 
 // Selection ------------------------------------------------------------------------------
@@ -613,6 +801,32 @@ function onTaskClick(task: GanttTask, event: MouseEvent) {
 function onMarkerClick(marker: GanttMarker, event: MouseEvent) {
   if (wasPanned()) return
   emit('markerClick', marker, event)
+}
+
+const INTERACTIVE = 'button, a, input, textarea, select, [data-gantt-interactive]'
+
+function onResourceRowClick(row: ResourceRow, event: MouseEvent) {
+  emit('update:selectedResource', row.resource?.id ?? null)
+  emit('resourceClick', row.resource, event)
+}
+
+function onTableRowClick(row: Row, event: MouseEvent) {
+  if (row.kind !== 'resource') return
+  if ((event.target as Element | null)?.closest(INTERACTIVE)) return
+  onResourceRowClick(row, event)
+}
+
+function onBodyClick(event: MouseEvent) {
+  if (dragged || wasPanned()) return
+  const target = event.target as Element | null
+  if (
+    target?.closest(
+      `.dou-gantt__bar, .dou-gantt__bar-side, .dou-gantt__handle, .dou-gantt__event, ${INTERACTIVE}`,
+    )
+  )
+    return
+  const row = resourceRowAt(contentY(event.clientY))
+  if (row) onResourceRowClick(row, event)
 }
 
 // Dragging ---------------------------------------------------------------------------------
@@ -661,7 +875,7 @@ function stepFor(spans: Iterable<{ dateOnly: boolean }>) {
 
 /** The body y of a pointer. */
 const contentY = (clientY: number) =>
-  clientY - chart.value!.getBoundingClientRect().top - HEADER + chart.value!.scrollTop
+  clientY - chart.value!.getBoundingClientRect().top - headerHeight.value + chart.value!.scrollTop
 
 /** The resource row at a body y, if any. */
 function resourceRowAt(y: number): ResourceRow | null {
@@ -892,7 +1106,8 @@ function autoScroll() {
   // only towards where the pointer has gone, so a bar picked up by the edge doesn't run off
   let dx = -edgeSpeed(d.clientX - rect.left) || edgeSpeed(rect.right - d.clientX)
   if (Math.sign(dx) !== Math.sign(d.x - d.x0)) dx = 0
-  let dy = -edgeSpeed(d.clientY - rect.top - HEADER) || edgeSpeed(rect.bottom - d.clientY)
+  let dy =
+    -edgeSpeed(d.clientY - rect.top - headerHeight.value) || edgeSpeed(rect.bottom - d.clientY)
   if (d.mode !== 'move' || Math.sign(dy) !== Math.sign(d.y - d.y0)) dy = 0
   if (dx || dy) {
     el.scrollLeft += dx
@@ -1004,6 +1219,7 @@ onBeforeUnmount(() => {
   el?.removeEventListener('touchend', onTouchEnd)
   el?.removeEventListener('touchcancel', onTouchEnd)
   stopDrag()
+  stopResizeListeners?.()
 })
 
 // Menu -------------------------------------------------------------------------------------
@@ -1261,7 +1477,117 @@ function onKeydown(event: KeyboardEvent) {
   }
 }
 
-// Exposed ------------------------------------------------------------------------------------
+// Exposed & Context --------------------------------------------------------------------------
+
+const rowBoxes = computed<SchedulerRowBox[]>(() =>
+  rows.value.map((row) => ({
+    kind: row.kind,
+    key: row.kind === 'group' ? row.group : row.key,
+    resource: row.kind === 'resource' ? row.resource : null,
+    top: row.top,
+    height: row.height,
+    centerY:
+      row.kind === 'resource' ? laneTop(row, 0) + props.rowHeight / 2 : row.top + row.height / 2,
+    lanes: row.kind === 'resource' ? row.lanes : 0,
+  })),
+)
+
+function rowBox(resourceId: string): SchedulerRowBox | null {
+  const row = rowByKey.value.get(resourceId)
+  if (!row || row.kind !== 'resource') return null
+  return {
+    kind: 'resource',
+    key: row.key,
+    resource: row.resource,
+    top: row.top,
+    height: row.height,
+    centerY: laneTop(row, 0) + props.rowHeight / 2,
+    lanes: row.lanes,
+  }
+}
+
+function barBox(taskId: string): SchedulerBarBox | null {
+  const found = itemById.value.get(taskId)
+  if (!found) return null
+  const { item, row } = found
+  const milestone = item.task.type === 'milestone'
+  const left = xOf(item.span.start)
+  const width = Math.max(milestone ? 0 : 2, (item.span.end - item.span.start) * ppm.value)
+  const y = laneTop(row, item.lane)
+  return {
+    task: item.task,
+    resource: row.resource,
+    resourceId: row.key,
+    lane: item.lane,
+    left,
+    right: left + width,
+    width,
+    top: y + (props.rowHeight - BAR_HEIGHT) / 2,
+    height: BAR_HEIGHT,
+    centerY: y + props.rowHeight / 2,
+    milestone,
+  }
+}
+
+const railScope = computed<SchedulerRailScope>(() => ({
+  viewport: viewport.value,
+  xOf: timeToX,
+  timeAt: xToTime,
+  totalWidth: totalWidth.value,
+  height: effectiveRailHeight.value,
+}))
+
+const canvasScope = computed<SchedulerCanvasScope>(() => ({
+  viewport: viewport.value,
+  xOf: timeToX,
+  timeAt: xToTime,
+  rowBox,
+  barBox,
+  totalWidth: totalWidth.value,
+  totalHeight: totalHeight.value,
+  rows: rowBoxes.value,
+}))
+
+const context: SchedulerContext = {
+  doc: source,
+  tasks,
+  resources: computed(() => props.resources),
+  selection,
+  selectedResource: computed(() => props.selectedResource),
+  collapsedGroups: computed(() => collapsedGroups.value),
+  readonly: computed(() => !editable.value),
+  messages,
+  scale: computed(() => level.value.name),
+  follow,
+  dayWidth,
+  ppm,
+  tableWidth: computed(() => tableSize.value),
+  rowHeight: computed(() => props.rowHeight),
+  totalWidth,
+  totalHeight,
+  viewport,
+  panning,
+  resizing,
+  rows: rowBoxes,
+  transact,
+  undo,
+  redo,
+  canUndo,
+  canRedo,
+  fit: axis.fit,
+  zoomIn: axis.zoomIn,
+  zoomOut: axis.zoomOut,
+  scrollToDate: axis.scrollToDate,
+  scrollToToday: axis.scrollToToday,
+  scrollToTask,
+  focusTask,
+  xOf: timeToX,
+  timeAt: xToTime,
+  rowBox,
+  barBox,
+  announce,
+}
+provide(schedulerKey, context)
 
 defineExpose<SchedulerExpose>({
   transact,
@@ -1280,6 +1606,11 @@ defineExpose<SchedulerExpose>({
   focusTask,
   zoomIn: axis.zoomIn,
   zoomOut: axis.zoomOut,
+  getViewport,
+  xOf: timeToX,
+  timeAt: xToTime,
+  rowBox,
+  barBox,
 })
 </script>
 
@@ -1295,6 +1626,7 @@ defineExpose<SchedulerExpose>({
       'is-bordered': bordered,
       'is-following': follow,
       'is-panning': panning,
+      'is-resizing': resizing,
     }"
     :style="{ '--dou-gantt-row-height': `${rowHeight}px`, '--dou-gantt-lane': `${LANE}px` }"
     role="group"
@@ -1312,6 +1644,13 @@ defineExpose<SchedulerExpose>({
           <div class="dou-gantt__th is-title">{{ sm.resource }}</div>
         </div>
         <div
+          v-if="$slots.rail || $slots['rail-header']"
+          class="dou-gantt__table-rail"
+          :style="{ height: `${effectiveRailHeight}px` }"
+        >
+          <slot name="rail-header" :width="tableSize" :height="effectiveRailHeight" />
+        </div>
+        <div
           ref="tableBody"
           class="dou-gantt__table-body"
           tabindex="-1"
@@ -1322,17 +1661,23 @@ defineExpose<SchedulerExpose>({
               v-for="row in visibleRows"
               :key="row.key"
               class="dou-gantt__tr"
-              :class="{
-                'is-group': row.kind === 'group',
-                'is-hovered': hovered === row.key,
-                'is-overloaded': row.kind === 'resource' && row.overloaded,
-              }"
+              :class="[
+                {
+                  'is-group': row.kind === 'group',
+                  'is-hovered': hovered === row.key,
+                  'is-selected': isRowSelected(row),
+                  'is-overloaded': row.kind === 'resource' && row.overloaded,
+                },
+                extraRowClass(row),
+              ]"
               :style="{ transform: `translateY(${row.top}px)`, height: `${row.height}px` }"
               :data-row="row.key"
               role="listitem"
               :aria-label="row.kind === 'resource' ? describeRow(row) : row.title"
+              :aria-current="isRowSelected(row) ? 'true' : undefined"
               @pointerenter="hovered = row.key"
               @pointerleave="hovered = null"
+              @click="onTableRowClick(row, $event)"
             >
               <div class="dou-gantt__td is-title">
                 <template v-if="row.kind === 'group'">
@@ -1340,19 +1685,38 @@ defineExpose<SchedulerExpose>({
                     type="button"
                     class="dou-gantt__toggle"
                     tabindex="-1"
-                    :aria-label="collapsed.has(row.key) ? messages.expand : messages.collapse"
-                    :aria-expanded="!collapsed.has(row.key)"
-                    @click="toggle(row)"
+                    :aria-label="row.collapsed ? messages.expand : messages.collapse"
+                    :aria-expanded="!row.collapsed"
+                    @click.stop="toggle(row)"
                   >
-                    <component :is="collapsed.has(row.key) ? ChevronRightIcon : ChevronDownIcon" />
+                    <component :is="row.collapsed ? ChevronRightIcon : ChevronDownIcon" />
                   </button>
-                  <span class="dou-gantt__cell-text">{{ row.title }}</span>
+                  <span class="dou-gantt__cell-text">
+                    <slot
+                      name="group"
+                      :group="row.group"
+                      :title="row.title"
+                      :resources="row.resources"
+                      :count="row.count"
+                      :collapsed="row.collapsed"
+                      :toggle="() => toggle(row)"
+                    >
+                      {{ row.title }}
+                    </slot>
+                  </span>
                 </template>
                 <template v-else>
                   <span v-if="row.resource?.group" class="dou-gantt__indent" style="width: 16px" />
                   <span class="dou-gantt__toggle-space" />
                   <span class="dou-gantt__cell-text" :class="{ 'is-unassigned': !row.resource }">
-                    <slot v-if="row.resource" name="resource" :resource="row.resource">
+                    <slot
+                      v-if="row.resource"
+                      name="resource"
+                      :resource="row.resource"
+                      :count="row.items.length"
+                      :overloaded="row.overloaded"
+                      :selected="isRowSelected(row)"
+                    >
                       {{ row.title }}
                     </slot>
                     <template v-else>{{ row.title }}</template>
@@ -1392,12 +1756,17 @@ defineExpose<SchedulerExpose>({
           :today-x="todayX"
         >
           <span
-            v-for="item in markers"
+            v-for="item in headerMarkers"
             :key="item.key"
             class="dou-gantt__marker-label"
             :class="[
               item.marker.tone && `is-${item.marker.tone}`,
-              { 'is-cut': item.room !== Infinity, 'is-crowded': !item.room },
+              {
+                'is-cut': item.room !== Infinity,
+                'is-crowded': !item.room,
+                'is-band': item.isBand,
+              },
+              item.marker.class,
             ]"
             :title="item.room !== Infinity ? item.marker.label : undefined"
             :style="{
@@ -1411,9 +1780,18 @@ defineExpose<SchedulerExpose>({
           </span>
         </TimeHeader>
         <div
+          v-if="$slots.rail || $slots['rail-header']"
+          class="dou-gantt__rail"
+          :style="{ height: `${effectiveRailHeight}px` }"
+        >
+          <div v-if="todayX != null" class="dou-gantt__today" :style="{ left: `${todayX}px` }" />
+          <slot name="rail" v-bind="railScope" />
+        </div>
+        <div
           class="dou-gantt__body"
           :style="{ height: `${totalHeight}px` }"
           @pointerdown="onBodyDown"
+          @click="onBodyClick"
           @contextmenu="onBodyContextmenu"
         >
           <div v-if="!showTable" class="dou-gantt__row-titles">
@@ -1425,9 +1803,24 @@ defineExpose<SchedulerExpose>({
               :style="{ transform: `translateY(${row.top}px)` }"
             >
               <slot
-                v-if="row.kind === 'resource' && row.resource"
+                v-if="row.kind === 'group'"
+                name="group"
+                :group="row.group"
+                :title="row.title"
+                :resources="row.resources"
+                :count="row.count"
+                :collapsed="row.collapsed"
+                :toggle="() => toggle(row)"
+              >
+                {{ row.title }}
+              </slot>
+              <slot
+                v-else-if="row.resource"
                 name="resource"
                 :resource="row.resource"
+                :count="row.items.length"
+                :overloaded="row.overloaded"
+                :selected="isRowSelected(row)"
               >
                 {{ row.title }}
               </slot>
@@ -1439,15 +1832,41 @@ defineExpose<SchedulerExpose>({
             v-for="row in visibleRows"
             :key="row.key"
             class="dou-gantt__lane-row"
-            :class="{ 'is-group': row.kind === 'group', 'is-hovered': hovered === row.key }"
+            :class="[
+              {
+                'is-group': row.kind === 'group',
+                'is-hovered': hovered === row.key,
+                'is-selected': isRowSelected(row),
+              },
+              extraRowClass(row),
+            ]"
             :style="{ transform: `translateY(${row.top}px)`, height: `${row.height}px` }"
           />
+          <div
+            v-for="band in bands"
+            :key="band.key"
+            class="dou-gantt__band"
+            :class="[
+              band.marker.tone && `is-${band.marker.tone}`,
+              { 'is-row': band.top != null },
+              band.marker.class,
+            ]"
+            :style="{
+              left: `${band.left}px`,
+              width: `${band.width}px`,
+              top: band.top != null ? `${band.top}px` : undefined,
+              height: band.height != null ? `${band.height}px` : undefined,
+            }"
+          />
+          <div v-if="$slots.underlay" class="dou-gantt__layer is-below">
+            <slot name="underlay" v-bind="canvasScope" />
+          </div>
           <div v-if="todayX != null" class="dou-gantt__today" :style="{ left: `${todayX}px` }" />
           <div
             v-for="item in markers"
             :key="item.key"
             class="dou-gantt__marker"
-            :class="item.marker.tone && `is-${item.marker.tone}`"
+            :class="[item.marker.tone && `is-${item.marker.tone}`, item.marker.class]"
             :style="{ left: `${item.x}px` }"
           />
           <div
@@ -1471,37 +1890,61 @@ defineExpose<SchedulerExpose>({
             }"
             :style="{ transform: `translateY(${bar.top}px)` }"
           >
-            <div
-              class="dou-gantt__bar"
-              :class="[
-                bar.item.task.tone && `is-${bar.item.task.tone}`,
-                {
-                  'is-milestone': bar.milestone,
-                  'is-selected': selected.has(bar.item.task.id),
-                  'is-locked': bar.item.task.locked,
-                  'is-active': active === bar.item.task.id,
-                  'is-move-refused':
-                    !!dragRefusal && drag?.started && drag.spans.has(bar.item.task.id),
-                },
-              ]"
-              :data-task="bar.item.task.id"
-              :style="{
-                left: `${bar.left}px`,
-                width: bar.milestone ? undefined : `${bar.width}px`,
-              }"
-              role="img"
-              tabindex="-1"
-              :title="bar.aria"
-              :aria-label="bar.aria"
-              @pointerdown="onBarDown($event, bar)"
-              @click="onTaskClick(bar.item.task, $event)"
-              @dblclick="emit('taskDblclick', bar.item.task, $event)"
-              @contextmenu="onTaskContextmenu(bar, $event)"
+            <OptionalTooltip
+              :enabled="Boolean($slots['bar-tooltip'])"
+              :disabled="panning || !!drag?.started"
             >
-              <span v-if="bar.label === 'inside'" class="dou-gantt__bar-label">
-                <slot name="bar" :task="bar.item.task">{{ bar.item.task.title }}</slot>
-              </span>
-            </div>
+              <div
+                class="dou-gantt__bar"
+                :class="[
+                  bar.item.task.tone && `is-${bar.item.task.tone}`,
+                  {
+                    'is-milestone': bar.milestone,
+                    'is-selected': selected.has(bar.item.task.id),
+                    'is-locked': bar.item.task.locked,
+                    'is-active': active === bar.item.task.id,
+                    'is-move-refused':
+                      !!dragRefusal && drag?.started && drag.spans.has(bar.item.task.id),
+                  },
+                  bar.item.task.class,
+                ]"
+                :data-task="bar.item.task.id"
+                :style="{
+                  left: `${bar.left}px`,
+                  width: bar.milestone ? undefined : `${bar.width}px`,
+                }"
+                role="img"
+                tabindex="-1"
+                :title="nativeTitle && !$slots['bar-tooltip'] ? bar.aria : undefined"
+                :aria-label="bar.aria"
+                @pointerdown="onBarDown($event, bar)"
+                @click="onTaskClick(bar.item.task, $event)"
+                @dblclick="emit('taskDblclick', bar.item.task, $event)"
+                @contextmenu="onTaskContextmenu(bar, $event)"
+              >
+                <slot
+                  v-if="$slots['bar-content']"
+                  name="bar-content"
+                  :task="bar.item.task"
+                  :resource="bar.row.resource"
+                  :width="bar.width"
+                  :milestone="bar.milestone"
+                />
+                <span v-if="bar.label === 'inside'" class="dou-gantt__bar-label">
+                  <slot
+                    name="bar"
+                    :task="bar.item.task"
+                    :resource="bar.row.resource"
+                    :width="bar.width"
+                    placement="inside"
+                    >{{ bar.item.task.title }}</slot
+                  >
+                </span>
+              </div>
+              <template #content>
+                <slot name="bar-tooltip" :task="bar.item.task" :resource="bar.row.resource" />
+              </template>
+            </OptionalTooltip>
             <template v-if="editable && !bar.item.task.locked && !bar.milestone">
               <span
                 class="dou-gantt__handle is-start"
@@ -1525,7 +1968,14 @@ defineExpose<SchedulerExpose>({
                 maxWidth: bar.sideMax != null ? `${bar.sideMax}px` : undefined,
               }"
             >
-              <slot name="bar" :task="bar.item.task">{{ bar.item.task.title }}</slot>
+              <slot
+                name="bar"
+                :task="bar.item.task"
+                :resource="bar.row.resource"
+                :width="bar.width"
+                placement="outside"
+                >{{ bar.item.task.title }}</slot
+              >
             </span>
           </div>
           <div
@@ -1536,22 +1986,33 @@ defineExpose<SchedulerExpose>({
               width: `${drawnBox.width}px`,
             }"
           />
-          <button
+          <div v-if="$slots.overlay" class="dou-gantt__layer is-above">
+            <slot name="overlay" v-bind="canvasScope" />
+          </div>
+          <OptionalTooltip
             v-for="item in rowMarkers"
             :key="item.key"
-            type="button"
-            class="dou-gantt__event"
-            :class="item.marker.tone && `is-${item.marker.tone}`"
-            :style="{ left: `${item.x}px`, top: `${item.y}px` }"
-            :title="item.tip"
-            :aria-label="item.tip"
-            @pointerdown.stop
-            @click.stop="onMarkerClick(item.marker, $event)"
+            :enabled="Boolean($slots['marker-tooltip'])"
+            :disabled="panning || !!drag?.started"
           >
-            <slot name="marker" :marker="item.marker">
-              <span class="dou-gantt__event-dot" aria-hidden="true" />
-            </slot>
-          </button>
+            <button
+              type="button"
+              class="dou-gantt__event"
+              :class="[item.marker.tone && `is-${item.marker.tone}`, item.marker.class]"
+              :style="{ left: `${item.x}px`, top: `${item.y}px` }"
+              :title="nativeTitle && !$slots['marker-tooltip'] ? item.tip : undefined"
+              :aria-label="item.tip"
+              @pointerdown.stop
+              @click.stop="onMarkerClick(item.marker, $event)"
+            >
+              <slot name="marker" :marker="item.marker">
+                <span class="dou-gantt__event-dot" aria-hidden="true" />
+              </slot>
+            </button>
+            <template #content>
+              <slot name="marker-tooltip" :marker="item.marker" />
+            </template>
+          </OptionalTooltip>
           <div
             v-if="dragTip"
             class="dou-gantt__tip"

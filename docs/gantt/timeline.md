@@ -28,6 +28,8 @@
 - `:calendar="false"` 关闭工作日历与非工作时段底纹，所有时长按连续时间计算；
 - `v-model:scale` 支持 `minute` 和 `second` 两级亚小时刻度，表头按 1/5/10/15/30 分钟或 1/5/10/15/30 秒自适应步进；
 - `v-model:follow` 开启“跟随当前时间”模式：当前时间线每秒更新，自动保持在视口右侧留白处；用户手动横向滚动、滚轮横向平移、拖动时间轴或调用 `scrollToDate` 时自动将 `follow` 置为 `false`，点击“回到现在”可重新开启；
+- `now` 支持传入外部校准时钟（如服务端时间戳），统一驱动当前时间线、`follow` 锚点与 `fit([start, end])` 跟随判定；鼠标悬停画布时暂停更新 `now`，即可暂缓时间轴推进且保持 `follow` 开启；
+- `viewportChange` 事件与 `getViewport()` / `xOf()` / `timeAt()` 暴露当前可见时间范围与坐标换算，便于拖拽平移或缩放进入历史时段时按需补拉数据，并与顶部并发水位轨（`#rail` / `#rail-header`）、画布叠加层（`#underlay` / `#overlay`）严格对齐；
 - `fit([start, end])` 适配预设时间窗，若处于跟随状态且窗口右端紧贴当前时间，缩放后会保持跟随。
 
 <DocDemo src="gantt/live" column />
@@ -63,6 +65,7 @@ const calendar: GanttCalendar = {
 | `v-model:follow` | 跟随当前时间到视口右侧，横向滚动或拖拽平移时自动关闭                                   | `boolean`                | `false`        |
 | `range`          | 固定时间轴的范围；不设时两端随滚动延伸                                                 | `[GanttTime, GanttTime]` | —              |
 | `today`          | 显示当前时间线                                                                         | `boolean`                | `true`         |
+| `now`            | 外部当前时间（如服务端校准时钟），驱动 `today` 线、`follow` 锚点及 `fit` 跟随判定      | `GanttTime`              | 本地时钟       |
 | `weekStart`      | 一周的第一天：`0` 周日，`1` 周一                                                       | `0 \| 1`                 | 跟随语言       |
 | `calendar`       | 工作日历；设为 `false` 关闭非工作时段底纹，按 24/7 连续时间计算                        | `GanttCalendar \| false` | —              |
 
@@ -75,12 +78,16 @@ const calendar: GanttCalendar = {
 | `workdays` | 调休上班的日子，优先于 `weekends`      | `string[]`                               | —                    |
 | `hours`    | 每个工作日的上班时段，有午休时写成多段 | `[string, string] \| [string, string][]` | `['09:00', '18:00']` |
 
-### 相关 Exposes
+### 相关 Events & Exposes
 
 | 名称                 | 说明                                                     | 类型                                       |
 | -------------------- | -------------------------------------------------------- | ------------------------------------------ |
+| `viewportChange`     | 视口滚动、拖拽平移、缩放、`fit` 或跟随推进后触发（事件） | `(viewport: GanttViewport) => void`        |
 | `zoomIn` / `zoomOut` | 放大、缩小时间轴，视图中间的时间（或跟随时当前时间）不动 | `() => void`                               |
 | `fit`                | 缩放到放下全部任务，或传入 `[start, end]` 适配指定时间窗 | `(range?: [GanttTime, GanttTime]) => void` |
 | `scrollToDate`       | 滚动到某个时间                                           | `(date: GanttTime) => void`                |
 | `scrollToToday`      | 滚动到现在；跟随模式开启时重新对齐到视口右侧             | `() => void`                               |
 | `scrollToTask`       | 滚动到某个任务                                           | `(id: string) => void`                     |
+| `getViewport`        | 读取当前可见时间范围（Unix ms）与视口几何信息            | `() => GanttViewport`                      |
+| `xOf`                | 将 `GanttTime` 换算为画布横坐标（px）                    | `(time: GanttTime) => number \| null`      |
+| `timeAt`             | 将画布横坐标（px）换算为 Unix 毫秒时间戳                 | `(x: number) => number`                    |

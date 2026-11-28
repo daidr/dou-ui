@@ -26,11 +26,13 @@ import {
   dayStart,
   instantOf,
   parseTime,
+  toTimestamp,
   wallClockNow,
   type GanttTime,
 } from './core/time'
 import { unitLabel } from './labels'
 import type { GanttMessages } from './locale'
+import type { GanttViewport } from './types'
 
 /** Room around the visible part that is rendered too, in px. */
 const OVERSCAN_X = 320
@@ -60,6 +62,85 @@ const ROOM_BEFORE_POINTER = 4
 const MAX_EXTENT_PX = 8_000_000
 /** Room kept after the view, in screens; time is added there as you scroll. */
 const ROOM_AFTER = 4
+
+const preventSelect = (event: Event) => event.preventDefault()
+
+let selectStartLocks = 0
+let selectionLocks = 0
+let savedUserSelect = ''
+let savedWebkitUserSelect = ''
+let savedCursor = ''
+let cursorLocks = 0
+
+/** Reference-counted `selectstart` blocker shared by `lockSelection` and `startPan`. */
+function lockSelectStart() {
+  if (typeof document === 'undefined') return () => {}
+  if (selectStartLocks === 0) document.addEventListener('selectstart', preventSelect)
+  selectStartLocks++
+  let active = true
+  return () => {
+    if (!active) return
+    active = false
+    selectStartLocks = Math.max(0, selectStartLocks - 1)
+    if (selectStartLocks === 0) document.removeEventListener('selectstart', preventSelect)
+  }
+}
+
+/**
+ * Blocks browser text selection across the entire document (and optionally locks
+ * the root cursor) until the returned cleanup is called. Safe for nested calls.
+ */
+export function lockSelection(cursor?: string) {
+  if (typeof document === 'undefined') return () => {}
+  const docEl = document.documentElement
+  const style = docEl.style as CSSStyleDeclaration & { webkitUserSelect?: string }
+  const unlockSelectStart = lockSelectStart()
+  if (selectionLocks === 0) {
+    savedUserSelect = style.userSelect
+    savedWebkitUserSelect = style.webkitUserSelect ?? ''
+    style.userSelect = 'none'
+    style.webkitUserSelect = 'none'
+  }
+  selectionLocks++
+  if (cursor) {
+    if (cursorLocks === 0) savedCursor = style.cursor
+    cursorLocks++
+    style.cursor = cursor
+  }
+  window.getSelection()?.removeAllRanges()
+  let active = true
+  return () => {
+    if (!active) return
+    active = false
+    unlockSelectStart()
+    selectionLocks = Math.max(0, selectionLocks - 1)
+    if (selectionLocks === 0) {
+      style.userSelect = savedUserSelect
+      style.webkitUserSelect = savedWebkitUserSelect
+    }
+    if (cursor) {
+      cursorLocks = Math.max(0, cursorLocks - 1)
+      if (cursorLocks === 0) style.cursor = savedCursor
+    }
+  }
+}
+
+/** Parses a marker's `[date, endDate]` interval into wall-clock minutes, or `null` when invalid or single-point. */
+export function markerSpanOf(date: GanttTime, endDate: GanttTime | undefined) {
+  if (endDate == null) return null
+  const from = parseTime(date)
+  const to = parseTime(endDate)
+  if (!from || !to) return null
+  const start = from.dateOnly ? dayStart(from.at) : from.at
+  let end = to.dateOnly ? dayStart(to.at) + MINUTES_PER_DAY : to.at
+  if (end <= start) {
+    const startMs = instantOf(date)
+    const endMs = instantOf(endDate)
+    if (startMs != null && endMs != null && endMs > startMs)
+      end = start + (endMs - startMs) / 60_000
+  }
+  return end > start ? { start, end } : null
+}
 
 function fingers(event: TouchEvent) {
   const [a, b] = [event.touches[0]!, event.touches[1]!]
@@ -92,6 +173,10 @@ export interface TimeAxisOptions {
   follow?: Ref<boolean>
   range: () => [GanttTime, GanttTime] | undefined
   today: () => boolean
+  /** Optional external current time (e.g. server clock); falls back to `useNow()`. */
+  now?: () => GanttTime | undefined
+  /** Called when the visible time range or timeline geometry changes. */
+  onViewportChange?: (viewport: GanttViewport) => void
   weekStart: ComputedRef<0 | 1>
   calendar: ComputedRef<WorkCalendar>
   messages: ComputedRef<GanttMessages>
@@ -130,11 +215,22 @@ export function useTimeAxis(o: TimeAxisOptions) {
     zoomTo(levelByName(name).base, x != null && x >= 0 && x <= o.viewWidth.value ? x : undefined)
   })
 
+  const externalNow = computed(() => {
+    const raw = o.now?.()
+    if (raw == null) return null
+    const parsed = parseTime(raw)
+    if (!parsed) return null
+    return parsed.dateOnly ? dayStart(parsed.at) : parsed.at
+  })
   const nowInterval = computed(() =>
-    follow.value || level.value.name === 'second' || level.value.name === 'minute' ? 1000 : 60_000,
+    externalNow.value != null
+      ? 3_600_000
+      : follow.value || level.value.name === 'second' || level.value.name === 'minute'
+        ? 1000
+        : 60_000,
   )
   const nowMs = useNow({ interval: nowInterval })
-  const now = computed(() => wallClockNow(new Date(nowMs.value)))
+  const now = computed(() => externalNow.value ?? wallClockNow(new Date(nowMs.value)))
 
   /** Right-side breathing room kept past `now` while following, in px. */
   const followMargin = computed(() => {
@@ -259,6 +355,9 @@ export function useTimeAxis(o: TimeAxisOptions) {
    */
   const viewStart = ref(0)
   const scrollbar = ref(0)
+  const mounted = ref(false)
+  /** True between a zoom change and its post-flush scroll sync. */
+  const pendingScrollSync = ref(false)
   /** Last horizontal scroll position written programmatically, to ignore its async scroll event. */
   let expectedLeft: number | null = null
   /** True while `scrollToTime` is jumping to another time and detaching follow. */
@@ -267,6 +366,7 @@ export function useTimeAxis(o: TimeAxisOptions) {
   const link = createScrollLink('y')
 
   function writeScrollLeft(el: HTMLElement, target: number) {
+    pendingScrollSync.value = false
     const width = o.viewWidth.value || el.clientWidth
     const max = Math.max(0, totalWidth.value - width)
     const clamped = Math.min(Math.max(0, Math.round(target)), max)
@@ -290,6 +390,7 @@ export function useTimeAxis(o: TimeAxisOptions) {
   function onChartScroll() {
     const el = o.chart.value!
     const body = o.tableBody.value
+    pendingScrollSync.value = false
     // iOS reports positions past either end while the content bounces back
     const { top, left } = scrollPositionOf(el)
     const baseline = expectedLeft ?? scrollLeft.value
@@ -438,6 +539,9 @@ export function useTimeAxis(o: TimeAxisOptions) {
       const minutes = end - start
       if (minutes <= 0) return
       fitPending = false
+      const prevDayWidth = dayWidth.value
+      const prevOrigin = origin.value
+      const prevTotalWidth = totalWidth.value
       const followingLive =
         follow.value && Math.abs(rawEnd - now.value) <= Math.max(1, minutes * 0.15)
       const targetWidth = followingLive
@@ -447,8 +551,15 @@ export function useTimeAxis(o: TimeAxisOptions) {
         DAY_WIDTH_RANGE[1],
         Math.max(DAY_WIDTH_RANGE[0], (targetWidth / minutes) * MINUTES_PER_DAY),
       )
-      if (followingLive) alignFollow()
-      else {
+      if (followingLive) {
+        viewStart.value = now.value - followAnchor.value / ppm.value
+        const layoutChanged =
+          dayWidth.value !== prevDayWidth ||
+          origin.value !== prevOrigin ||
+          totalWidth.value !== prevTotalWidth
+        if (layoutChanged) pendingScrollSync.value = true
+        else alignFollow()
+      } else {
         if (follow.value) {
           jumping = true
           follow.value = false
@@ -457,12 +568,20 @@ export function useTimeAxis(o: TimeAxisOptions) {
         const pad = Math.max(0, (width - minutes * ppm.value) / 2)
         viewStart.value = start - pad / ppm.value
         if (!o.range()) keep(viewStart.value, viewStart.value + width / ppm.value)
-        const el = o.chart.value
-        if (el) writeScrollLeft(el, (viewStart.value - origin.value) * ppm.value)
+        const layoutChanged =
+          dayWidth.value !== prevDayWidth ||
+          origin.value !== prevOrigin ||
+          totalWidth.value !== prevTotalWidth
+        if (layoutChanged) pendingScrollSync.value = true
+        else {
+          const el = o.chart.value
+          if (el) writeScrollLeft(el, (viewStart.value - origin.value) * ppm.value)
+        }
       }
       return
     }
     fitPending = false
+    const prevDayWidth = dayWidth.value
     const current = content.value
     const spanMinutes = current.end - current.start
     if (current.timed && spanMinutes > 0 && spanMinutes < MINUTES_PER_DAY) {
@@ -475,6 +594,7 @@ export function useTimeAxis(o: TimeAxisOptions) {
       const days = Math.max(1, spanMinutes / MINUTES_PER_DAY)
       dayWidth.value = Math.min(FIT_MAX, Math.max(DAY_WIDTH_RANGE[0], (width - 96) / days))
     }
+    if (dayWidth.value !== prevDayWidth) pendingScrollSync.value = true
     scrollToTime(current.start)
   }
 
@@ -483,6 +603,7 @@ export function useTimeAxis(o: TimeAxisOptions) {
     measureScrollbar()
     if (follow.value) alignFollow()
     else scrollToTime(content.value.start)
+    mounted.value = true
   })
 
   /** Fits the content once the timeline has a width, unless a `scale` or `follow` was given. */
@@ -512,9 +633,13 @@ export function useTimeAxis(o: TimeAxisOptions) {
     if (!el) return
     stopPanListeners?.()
     const startX = event.clientX
+    const pointerId = event.pointerId
     let anchorX = startX
     let anchorTime = origin.value + scrollPositionOf(el).left / ppm.value
     let active = false
+    let captured = false
+    let unlock: (() => void) | null = null
+    let unlockSelectStart: (() => void) | null = lockSelectStart()
     panned = false
 
     const onMove = (e: PointerEvent) => {
@@ -524,6 +649,14 @@ export function useTimeAxis(o: TimeAxisOptions) {
         active = true
         panned = true
         panning.value = true
+        pendingScrollSync.value = false
+        unlock = lockSelection('grabbing')
+        try {
+          el.setPointerCapture?.(pointerId)
+          captured = true
+        } catch {
+          // synthetic PointerEvents in tests have no active pointer to capture
+        }
         if (follow.value) follow.value = false
       }
       e.preventDefault()
@@ -542,6 +675,19 @@ export function useTimeAxis(o: TimeAxisOptions) {
       }
     }
     const cleanup = () => {
+      panning.value = false
+      unlockSelectStart?.()
+      unlockSelectStart = null
+      unlock?.()
+      unlock = null
+      if (captured) {
+        captured = false
+        try {
+          if (el.hasPointerCapture?.(pointerId)) el.releasePointerCapture(pointerId)
+        } catch {
+          // pointer capture already ended
+        }
+      }
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
       window.removeEventListener('pointercancel', onUp)
@@ -549,10 +695,7 @@ export function useTimeAxis(o: TimeAxisOptions) {
     }
     const onUp = () => {
       cleanup()
-      if (active) {
-        panning.value = false
-        setTimeout(() => (panned = false), 0)
-      }
+      if (active) setTimeout(() => (panned = false), 0)
     }
     stopPanListeners = cleanup
     window.addEventListener('pointermove', onMove)
@@ -571,6 +714,7 @@ export function useTimeAxis(o: TimeAxisOptions) {
     const next = Math.min(DAY_WIDTH_RANGE[1], Math.max(DAY_WIDTH_RANGE[0], width))
     const at = follow.value ? now.value : viewStart.value + anchor / ppm.value
     const pin = follow.value ? followAnchor.value : anchor
+    pendingScrollSync.value = true
     dayWidth.value = next
     viewStart.value = at - pin / ppm.value
     // what was scrolled past at the old zoom could be very wide at the new one
@@ -694,6 +838,62 @@ export function useTimeAxis(o: TimeAxisOptions) {
     else scrollToTime(now.value, o.viewWidth.value / 3)
   }
 
+  /** Converts a public `GanttTime` (date string or Unix ms) to canvas x, in px. */
+  function timeToX(time: GanttTime): number | null {
+    const parsed = parseTime(time)
+    return parsed ? xOf(parsed.at) : null
+  }
+
+  /** Converts a canvas x (in px) to a Unix timestamp in ms. */
+  const xToTime = (x: number): number => toTimestamp(origin.value + x / ppm.value)
+
+  const viewport = computed<GanttViewport>(() => {
+    const el = o.chart.value
+    const width = o.viewWidth.value || el?.clientWidth || el?.getBoundingClientRect().width || 0
+    const projected = Math.min(
+      Math.max(0, (viewStart.value - origin.value) * ppm.value),
+      Math.max(0, totalWidth.value - width),
+    )
+    const useLogical = pendingScrollSync.value || !el || el.scrollWidth <= 0
+    const leftPx = useLogical ? projected : scrollLeft.value
+    const startAt = origin.value + leftPx / ppm.value
+    const endAt = startAt + width / ppm.value
+    return {
+      start: toTimestamp(startAt),
+      end: toTimestamp(endAt),
+      scale: level.value.name,
+      dayWidth: dayWidth.value,
+      ppm: ppm.value,
+      scrollLeft: leftPx,
+      width,
+      origin: toTimestamp(origin.value),
+    }
+  })
+
+  const getViewport = (): GanttViewport => ({ ...viewport.value })
+
+  let lastViewport: GanttViewport | null = null
+  watch(
+    [mounted, viewport],
+    ([ready, next]) => {
+      if (!ready || !o.onViewportChange || next.width <= 0) return
+      if (
+        lastViewport &&
+        lastViewport.start === next.start &&
+        lastViewport.end === next.end &&
+        lastViewport.scale === next.scale &&
+        lastViewport.dayWidth === next.dayWidth &&
+        Math.round(lastViewport.scrollLeft) === Math.round(next.scrollLeft) &&
+        Math.round(lastViewport.width) === Math.round(next.width) &&
+        lastViewport.origin === next.origin
+      )
+        return
+      lastViewport = next
+      o.onViewportChange(next)
+    },
+    { flush: 'post' },
+  )
+
   return {
     dayWidth,
     level,
@@ -703,7 +903,11 @@ export function useTimeAxis(o: TimeAxisOptions) {
     origin,
     totalWidth,
     xOf,
+    timeToX,
+    xToTime,
     contentX,
+    viewport,
+    getViewport,
     scrollTop,
     scrollLeft,
     scrollbar,

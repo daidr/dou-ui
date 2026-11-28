@@ -4,7 +4,7 @@ import type { GanttCriticalPath } from './core/schedule'
 import type { GanttScale } from './core/scale'
 import type { GanttDocument } from './core/transaction'
 import type { GanttRow } from './core/tree'
-import type { GanttExpose } from './types'
+import type { GanttExpose, GanttViewport } from './types'
 import type { GanttMessages } from './locale'
 
 /** The surrounding Gantt chart, as `useGantt()` and extensions see it. */
@@ -24,8 +24,12 @@ export interface GanttContext {
   follow: Ref<boolean>
   /** How wide a day is, in px. */
   dayWidth: Ref<number>
+  /** Current pixels per minute (`dayWidth / 1440`). */
+  ppm: ComputedRef<number>
   /** Height of a row, in px. */
   rowHeight: ComputedRef<number>
+  /** Current visible time slice and timeline geometry. */
+  viewport: ComputedRef<GanttViewport>
   /** The rows as laid out, with spans and summaries worked out. */
   rows: ComputedRef<GanttRow[]>
   /**
@@ -57,6 +61,8 @@ export interface GanttContext {
   focusTask: (id: string) => void
   /** Where a time (a date string or minutes) is on the timeline, in px from its start. */
   xOf: (time: string | number) => number | null
+  /** Converts a canvas x (in px) to a Unix timestamp in ms. */
+  timeAt: (x: number) => number
   /** Where a task's row is on the timeline, in px from the top of the rows. */
   rowTop: (id: string) => number | null
   /** Says `text` to screen readers. */

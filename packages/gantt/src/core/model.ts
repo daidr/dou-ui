@@ -12,6 +12,10 @@ import {
 
 export type GanttData = Record<string, unknown>
 
+/** CSS class value accepted on tasks, markers and scheduler rows. */
+export type GanttClassValue =
+  string | Record<string, boolean> | (string | Record<string, boolean> | undefined | false | null)[]
+
 export interface GanttTask<Data extends GanttData = GanttData> {
   id: string
   title: string
@@ -41,6 +45,8 @@ export interface GanttTask<Data extends GanttData = GanttData> {
   locked?: boolean
   /** The id of the resource it is assigned to, for `DouScheduler`. */
   resource?: string
+  /** Extra CSS class(es) applied to the task bar (e.g. running or waiting states). */
+  class?: GanttClassValue
   /** Your own fields, e.g. for columns. */
   data?: Data
 }

@@ -47,9 +47,18 @@
       }
     }
     &.is-dragging,
-    &.is-dragging * {
+    &.is-dragging *,
+    &.is-resizing,
+    &.is-resizing * {
       user-select: none;
       -webkit-user-select: none;
+    }
+    &.is-resizing,
+    &.is-resizing * {
+      cursor: col-resize;
+    }
+    &.is-resizing > .dou-gantt__divider {
+      background-color: var(--dou-color-focus);
     }
     &.is-dragging-move,
     &.is-dragging-move * {
@@ -97,6 +106,19 @@
     color: var(--dou-color-text-secondary);
     font-size: var(--dou-font-size-sm);
     font-weight: var(--dou-font-weight-medium);
+  }
+
+  .dou-gantt__table-rail {
+    display: flex;
+    flex: none;
+    align-items: center;
+    box-sizing: border-box;
+    min-width: 0;
+    overflow: hidden;
+    border-bottom: 1px solid var(--dou-gantt-line-strong);
+    background-color: var(--dou-gantt-header-bg);
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-sm);
   }
 
   .dou-gantt__th,
@@ -397,8 +419,8 @@
   .dou-gantt__header {
     position: sticky;
     top: 0;
-    /* above the bars and pinned titles scrolled under it */
-    z-index: 4;
+    /* above the rail, bars and pinned titles scrolled under it */
+    z-index: 5;
     box-sizing: border-box;
     height: 56px;
     border-bottom: 1px solid var(--dou-gantt-line-strong);
@@ -406,6 +428,16 @@
     color: var(--dou-color-text-secondary);
     font-size: var(--dou-font-size-sm);
     white-space: nowrap;
+  }
+
+  .dou-gantt__rail {
+    position: sticky;
+    top: 56px;
+    z-index: 4;
+    box-sizing: border-box;
+    overflow: clip;
+    border-bottom: 1px solid var(--dou-gantt-line-strong);
+    background-color: var(--dou-gantt-header-bg);
   }
 
   .dou-gantt__tier {
@@ -493,15 +525,29 @@
   }
 
   /* readonly timelines can be panned by dragging horizontally */
-  .dou-gantt:not(.is-editable) :is(.dou-gantt__header, .dou-gantt__body, .dou-gantt__bar) {
+  .dou-gantt:not(.is-editable)
+    :is(.dou-gantt__header, .dou-gantt__rail, .dou-gantt__body, .dou-gantt__bar) {
     cursor: grab;
   }
 
-  .dou-gantt.is-panning {
+  .dou-gantt.is-panning,
+  .dou-gantt.is-panning * {
     user-select: none;
+    -webkit-user-select: none;
+    cursor: grabbing;
+  }
 
-    :is(.dou-gantt__header, .dou-gantt__body, .dou-gantt__bar) {
-      cursor: grabbing;
+  /* custom underlay / overlay layers in the timeline body coordinate space */
+  .dou-gantt__layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+
+    &.is-below {
+      z-index: 1;
+    }
+    &.is-above {
+      z-index: 3;
     }
   }
 
@@ -1148,10 +1194,11 @@
     white-space: nowrap;
   }
 
-  /* marker lines ------------------------------------------------------------ */
+  /* marker lines & shaded bands -------------------------------------------- */
 
   .dou-gantt__marker,
   .dou-gantt__marker-label,
+  .dou-gantt__band,
   .dou-gantt__event {
     --dou-gantt-marker: color-mix(in oklab, var(--dou-color-text) 45%, transparent);
     --dou-gantt-marker-text: var(--dou-color-text-secondary);
@@ -1222,6 +1269,21 @@
     }
   }
 
+  .dou-gantt__band {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: 0;
+    box-sizing: border-box;
+    background-color: color-mix(in oklab, var(--dou-gantt-marker) 10%, transparent);
+    border-inline: 1px solid color-mix(in oklab, var(--dou-gantt-marker) 24%, transparent);
+    pointer-events: none;
+
+    &.is-row {
+      bottom: auto;
+    }
+  }
+
   .dou-gantt__marker {
     position: absolute;
     top: 0;
@@ -1276,6 +1338,11 @@
       content: '';
     }
 
+    &.is-band::before {
+      border-left-style: solid;
+      border-left-color: color-mix(in oklab, var(--dou-gantt-marker) 40%, transparent);
+    }
+
     &:empty {
       display: none;
     }
@@ -1315,6 +1382,9 @@
     &.is-hovered {
       background-color: var(--dou-gantt-hover);
     }
+    &.is-selected {
+      background-color: var(--dou-gantt-selected);
+    }
     &.is-group {
       background-color: var(--dou-gantt-hover);
     }
@@ -1323,8 +1393,20 @@
   .is-scheduler .dou-gantt__tr {
     align-items: flex-start;
 
+    &:not(.is-group) {
+      cursor: pointer;
+    }
     > .dou-gantt__td {
+      flex: 1;
       height: var(--dou-gantt-row-height);
+    }
+    .dou-gantt__cell-text {
+      flex: 1;
+    }
+    &.is-selected {
+      box-shadow:
+        inset 2px 0 0 var(--dou-color-primary),
+        inset 0 -1px 0 var(--dou-gantt-line);
     }
     &.is-group {
       background-color: var(--dou-gantt-hover);

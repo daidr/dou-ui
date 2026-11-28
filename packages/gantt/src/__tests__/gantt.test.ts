@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { defineGanttExtension, takeBaseline, useGantt } from '../index'
 import { DouGantt } from '../index'
-import type { GanttExpose, GanttMarker, GanttMenuTarget, GanttTask } from '../index'
+import type { GanttExpose, GanttMarker, GanttMenuTarget, GanttTask, GanttViewport } from '../index'
 import { later } from '../../../../test/later'
 import { bind, planRef } from './plan-ref'
 
@@ -1093,6 +1093,96 @@ describe('export', () => {
     // click right after a drag-pan is suppressed
     await wrapper.find('.dou-gantt__bar[data-task="live"]').trigger('click')
     expect(taskClicks).toEqual([])
+    wrapper.unmount()
+  })
+
+  it('supports now, viewportChange, v-model:tableWidth, marker bands in DOM/SVG, task class and tooltip slots', async () => {
+    const fixedNow = new Date(2026, 2, 10, 12, 0, 0).getTime()
+    const tableWidth = ref(280)
+    const viewports: GanttViewport[] = []
+    const wrapper = mount(
+      defineComponent(
+        () => () =>
+          h(
+            DouGantt,
+            {
+              modelValue: {
+                version: 1,
+                tasks: [
+                  {
+                    id: 'a',
+                    title: '研发',
+                    start: '2026-03-08',
+                    end: '2026-03-14',
+                    class: 'custom-task-bar',
+                  },
+                ],
+                links: [],
+              },
+              now: fixedNow,
+              today: true,
+              tableWidth: tableWidth.value,
+              'onUpdate:tableWidth': (w: number) => (tableWidth.value = w),
+              onViewportChange: (vp: GanttViewport) => viewports.push(vp),
+              markers: [
+                {
+                  id: 'freeze',
+                  date: '2026-03-09',
+                  endDate: '2026-03-11',
+                  label: '封板窗口',
+                  tone: 'warning',
+                },
+                {
+                  id: 'past-band',
+                  date: '2025-01-01',
+                  endDate: '2025-01-03',
+                  label: '历史窗口',
+                  tone: 'neutral',
+                },
+                {
+                  id: 'future-band',
+                  date: '2027-01-01',
+                  endDate: '2027-01-03',
+                  label: '远期窗口',
+                  tone: 'neutral',
+                },
+              ],
+            },
+            {
+              'bar-content': () => h('span', { class: 'gantt-bar-badge' }, 'LIVE'),
+              'bar-tooltip': ({ task }: { task: GanttTask }) => h('span', task.title),
+            },
+          ),
+      ),
+      { attachTo: document.body },
+    )
+    await nextTick()
+
+    const gantt = wrapper.findComponent(DouGantt).vm as unknown as GanttExpose
+    expect(viewports.length).toBeGreaterThan(0)
+    const xNow = gantt.xOf(fixedNow)!
+    expect(gantt.timeAt(xNow)).toBeCloseTo(fixedNow, -1)
+    expect(gantt.getViewport().width).toBeGreaterThan(0)
+
+    const bar = wrapper.find('.dou-gantt__bar[data-task="a"]')
+    expect(bar.classes()).toContain('custom-task-bar')
+    expect(bar.find('.gantt-bar-badge').text()).toBe('LIVE')
+    expect(bar.attributes('title')).toBeUndefined()
+
+    expect(wrapper.find('.dou-gantt__band').classes()).toContain('is-warning')
+    expect(wrapper.find('.dou-gantt__marker-label.is-band').text()).toBe('封板窗口')
+    const svg = gantt.exportSVG()
+    expect(svg).toContain('fill-opacity="0.12"')
+    expect(svg).toContain('封板窗口')
+    expect(svg).not.toContain('历史窗口')
+    expect(svg).not.toContain('远期窗口')
+
+    const divider = wrapper.find('.dou-gantt__divider')
+    divider.element.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }),
+    )
+    await nextTick()
+    expect(tableWidth.value).toBe(296)
     wrapper.unmount()
   })
 })

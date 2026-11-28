@@ -3,9 +3,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { computed, defineComponent, nextTick, ref, shallowRef } from 'vue'
 import { resolveCalendar } from '../core/calendar'
 import type { GanttScale } from '../core/scale'
-import { parseTime } from '../core/time'
+import { parseTime, toTimestamp, type GanttTime } from '../core/time'
 import { ganttLocales } from '../locale'
-import { useTimeAxis } from '../time-axis'
+import { lockSelection, markerSpanOf, useTimeAxis } from '../time-axis'
+import type { GanttViewport } from '../types'
 
 /**
  * A timeline that scrolls like one on iOS: while a finger is down, or the
@@ -454,5 +455,197 @@ describe('live monitoring time axis', () => {
     await nextTick()
     expect(axis.dayWidth.value).toBe(secondDayWidth)
     wrapper.unmount()
+  })
+
+  it('supports external now clock, follow retention in fit(), pause without closing follow, and viewport sync', async () => {
+    vi.useFakeTimers()
+    // local clock intentionally differs by 30 minutes from serverNow
+    vi.setSystemTime(new Date(2026, 4, 10, 14, 0, 0))
+    const serverNow = ref<GanttTime>(new Date(2026, 4, 10, 14, 30, 0).getTime())
+    const viewports: GanttViewport[] = []
+    let axis!: ReturnType<typeof useTimeAxis>
+    const { el } = iosScroller(() => axis?.totalWidth.value ?? 0, 800)
+    document.body.append(el)
+    const content = ref({
+      start: parseTime(new Date(2026, 4, 10, 14, 0, 0).getTime())!.at,
+      end: parseTime(new Date(2026, 4, 10, 14, 30, 0).getTime())!.at,
+      timed: true,
+    })
+    const follow = ref(true)
+    const scaleRef = ref<GanttScale | undefined>('minute')
+    const wrapper = mount(
+      defineComponent({
+        setup() {
+          axis = useTimeAxis({
+            chart: shallowRef(el),
+            tableBody: shallowRef(null),
+            viewWidth: ref(800),
+            scale: scaleRef,
+            follow,
+            range: () => undefined,
+            today: () => true,
+            now: () => serverNow.value,
+            onViewportChange: (vp) => viewports.push(vp),
+            weekStart: computed(() => 1),
+            calendar: computed(() => resolveCalendar()),
+            messages: computed(() => ganttLocales['zh-CN']!),
+            content: computed(() => content.value),
+            fitWidth: () => 800,
+          })
+          return () => null
+        },
+      }),
+      { attachTo: document.body },
+    )
+    await nextTick()
+
+    expect(viewports.length).toBeGreaterThan(0)
+    // external now drives todayX and coordinate round-trip
+    const xNow = axis.timeToX(serverNow.value)!
+    expect(axis.todayX.value).toBeCloseTo(xNow, 3)
+    expect(axis.xToTime(xNow)).toBeCloseTo(serverNow.value as number, -1)
+
+    // fitting [serverNow - 10m, serverNow] keeps follow=true despite 30m clock skew vs Date.now()
+    const endMs = serverNow.value as number
+    axis.fit([endMs - 10 * 60_000, endMs])
+    await nextTick()
+    expect(follow.value).toBe(true)
+
+    // advancing local timers does NOT move viewport when external now is paused (hover pause)
+    const beforePause = axis.getViewport()
+    const countBeforePause = viewports.length
+    vi.advanceTimersByTime(5000)
+    await nextTick()
+    expect(follow.value).toBe(true)
+    expect(axis.getViewport().start).toBe(beforePause.start)
+    expect(viewports.length).toBe(countBeforePause)
+
+    // advancing external now moves viewport and emits viewportChange while keeping follow=true
+    serverNow.value = endMs + 2 * 60_000
+    await nextTick()
+    expect(follow.value).toBe(true)
+    expect(axis.getViewport().end).toBeGreaterThan(beforePause.end)
+    expect(viewports.length).toBeGreaterThan(countBeforePause)
+    expect(toTimestamp(axis.now.value)).toBe(serverNow.value)
+
+    wrapper.unmount()
+  })
+
+  it('locks and restores global selection and cursor safely across nested calls', () => {
+    const docStyle = document.documentElement.style
+    docStyle.userSelect = 'text'
+    docStyle.cursor = 'default'
+    const releaseA = lockSelection('grabbing')
+    expect(docStyle.userSelect).toBe('none')
+    expect(docStyle.cursor).toBe('grabbing')
+    const blocked = new Event('selectstart', { cancelable: true })
+    document.dispatchEvent(blocked)
+    expect(blocked.defaultPrevented).toBe(true)
+
+    const releaseB = lockSelection('col-resize')
+    expect(docStyle.cursor).toBe('col-resize')
+    releaseB()
+    expect(docStyle.userSelect).toBe('none')
+
+    releaseA()
+    expect(docStyle.userSelect).toBe('text')
+    expect(docStyle.cursor).toBe('default')
+    const allowed = new Event('selectstart', { cancelable: true })
+    document.dispatchEvent(allowed)
+    expect(allowed.defaultPrevented).toBe(false)
+    docStyle.userSelect = ''
+    docStyle.cursor = ''
+  })
+
+  it('parses markerSpanOf intervals for date-only, datetime and Unix ms values', () => {
+    expect(markerSpanOf('2026-03-02', undefined)).toBeNull()
+    expect(markerSpanOf('2026-03-05', '2026-03-02')).toBeNull()
+    const dateSpan = markerSpanOf('2026-03-02', '2026-03-04')
+    expect(dateSpan).not.toBeNull()
+    expect(dateSpan!.end - dateSpan!.start).toBe(3 * 1440)
+    const t0 = new Date(2026, 4, 10, 14, 0, 0).getTime()
+    const msSpan = markerSpanOf(t0, t0 + 90_000)
+    expect(msSpan).not.toBeNull()
+    expect(msSpan!.end - msSpan!.start).toBeCloseTo(1.5, 6)
+  })
+
+  it('keeps external lockSelection listeners intact and resets panning when startPan is interrupted', async () => {
+    const { axis, wrapper, el } = setup('day', false)
+    await nextTick()
+
+    // 1. An active external lockSelection() must stay active after startPan finishes
+    const releaseExternal = lockSelection('col-resize')
+    axis.startPan(
+      new PointerEvent('pointerdown', {
+        button: 0,
+        pointerId: 1,
+        pointerType: 'mouse',
+        clientX: 200,
+      }),
+    )
+    window.dispatchEvent(
+      new PointerEvent('pointerup', { pointerId: 1, pointerType: 'mouse', clientX: 200 }),
+    )
+    const stillBlocked = new Event('selectstart', { cancelable: true })
+    document.dispatchEvent(stillBlocked)
+    expect(stillBlocked.defaultPrevented).toBe(true)
+
+    // Also verify after an active drag (> 3px) finishes while the external lock is held
+    axis.startPan(
+      new PointerEvent('pointerdown', {
+        button: 0,
+        pointerId: 2,
+        pointerType: 'mouse',
+        clientX: 200,
+      }),
+    )
+    window.dispatchEvent(
+      new PointerEvent('pointermove', { pointerId: 2, pointerType: 'mouse', clientX: 220 }),
+    )
+    expect(axis.panning.value).toBe(true)
+    window.dispatchEvent(
+      new PointerEvent('pointerup', { pointerId: 2, pointerType: 'mouse', clientX: 220 }),
+    )
+    expect(axis.panning.value).toBe(false)
+    const blockedAfterDrag = new Event('selectstart', { cancelable: true })
+    document.dispatchEvent(blockedAfterDrag)
+    expect(blockedAfterDrag.defaultPrevented).toBe(true)
+
+    releaseExternal()
+    const allowed = new Event('selectstart', { cancelable: true })
+    document.dispatchEvent(allowed)
+    expect(allowed.defaultPrevented).toBe(false)
+
+    // 2. If pointerup is lost during an active pan and a new click starts, panning resets cleanly
+    axis.startPan(
+      new PointerEvent('pointerdown', {
+        button: 0,
+        pointerId: 3,
+        pointerType: 'mouse',
+        clientX: 200,
+      }),
+    )
+    window.dispatchEvent(
+      new PointerEvent('pointermove', { pointerId: 3, pointerType: 'mouse', clientX: 230 }),
+    )
+    expect(axis.panning.value).toBe(true)
+
+    // Start a fresh click without pointerup for pointerId 3
+    axis.startPan(
+      new PointerEvent('pointerdown', {
+        button: 0,
+        pointerId: 4,
+        pointerType: 'mouse',
+        clientX: 230,
+      }),
+    )
+    expect(axis.panning.value).toBe(false)
+    window.dispatchEvent(
+      new PointerEvent('pointerup', { pointerId: 4, pointerType: 'mouse', clientX: 231 }),
+    )
+    expect(axis.panning.value).toBe(false)
+
+    wrapper.unmount()
+    el.remove()
   })
 })

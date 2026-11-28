@@ -8,9 +8,20 @@ import {
   groupByResource,
   loadSegments,
   packLanes,
+  useScheduler,
+  type SchedulerCanvasScope,
+  type SchedulerContext,
+  type SchedulerRailScope,
   type SchedulerResource,
+  type SchedulerRowInfo,
 } from '..'
-import type { SchedulerExpose, SchedulerMenuTarget, SchedulerMove, SchedulerRange } from '../types'
+import type {
+  GanttViewport,
+  SchedulerExpose,
+  SchedulerMenuTarget,
+  SchedulerMove,
+  SchedulerRange,
+} from '../index'
 import { later } from '../../../../../test/later'
 import { bind, planRef } from '../../__tests__/plan-ref'
 
@@ -577,6 +588,532 @@ describe('DouScheduler', () => {
     const sideC = sides.find((el) => el.text() === '汇总进度')
     expect(sideC).toBeDefined()
     expect(sideC!.classes()).not.toContain('is-clipped')
+    wrapper.unmount()
+  })
+
+  it('emits viewportChange and exposes getViewport, xOf, timeAt, rowBox and barBox', async () => {
+    const base = new Date(2026, 4, 10, 14, 0, 0).getTime()
+    const doc = ref<GanttDocument>({
+      version: 1,
+      tasks: [
+        { id: 't1', title: '编译', resource: 'a', start: base, end: base + 120_000 },
+        { id: 't2', title: '测试', resource: 'b', start: base + 60_000, end: base + 240_000 },
+      ],
+      links: [],
+    })
+    const viewports: GanttViewport[] = []
+    const wrapper = mount(DouScheduler, {
+      props: {
+        modelValue: doc.value,
+        resources: [
+          { id: 'a', title: 'Agent A', group: '运行中' },
+          { id: 'b', title: 'Agent B', group: '运行中' },
+        ],
+        scale: 'minute',
+        calendar: false,
+        onViewportChange: (vp: GanttViewport) => viewports.push(vp),
+      },
+      attachTo: document.body,
+    })
+    await nextTick()
+    const vm = wrapper.vm as unknown as SchedulerExpose
+    expect(viewports.length).toBeGreaterThan(0)
+
+    const vp = vm.getViewport()
+    expect(vp.scale).toBe('minute')
+    expect(vp.width).toBe(800)
+    expect(vp.end).toBeGreaterThan(vp.start)
+
+    const x = vm.xOf(base + 60_000)!
+    expect(typeof x).toBe('number')
+    expect(vm.timeAt(x)).toBeCloseTo(base + 60_000, -1)
+
+    const rowA = vm.rowBox('a')
+    const rowB = vm.rowBox('b')
+    expect(rowA).not.toBeNull()
+    expect(rowB).not.toBeNull()
+    expect(rowB!.top).toBeGreaterThan(rowA!.top)
+
+    const bar1 = vm.barBox('t1')
+    expect(bar1).not.toBeNull()
+    expect(bar1!.resourceId).toBe('a')
+    expect(bar1!.left).toBeCloseTo(vm.xOf(base)!, 2)
+    expect(bar1!.width).toBeGreaterThan(0)
+
+    const countBefore = viewports.length
+    vm.zoomIn()
+    await nextTick()
+    expect(viewports.length).toBeGreaterThan(countBefore)
+    expect(vm.getViewport().dayWidth).toBeGreaterThan(vp.dayWidth)
+    wrapper.unmount()
+  })
+
+  it('syncs v-model:tableWidth via divider drag and keyboard while protecting document selection', async () => {
+    const tableWidth = ref(220)
+    const { wrapper } = setup({
+      tableWidth: tableWidth.value,
+      'onUpdate:tableWidth': (w: number) => (tableWidth.value = w),
+    })
+    await nextTick()
+    expect(wrapper.find('.dou-gantt__table-pane').attributes('style')).toContain('width: 220px')
+
+    const divider = wrapper.find('.dou-gantt__divider')
+    divider.element.dispatchEvent(
+      new PointerEvent('pointerdown', { button: 0, clientX: 220, pointerId: 1, bubbles: true }),
+    )
+    await nextTick()
+    expect(wrapper.find('.dou-gantt').classes()).toContain('is-resizing')
+    expect(document.documentElement.style.userSelect).toBe('none')
+
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 280, pointerId: 1 }))
+    await nextTick()
+    expect(tableWidth.value).toBe(280)
+
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: 280, pointerId: 1 }))
+    await nextTick()
+    expect(wrapper.find('.dou-gantt').classes()).not.toContain('is-resizing')
+    expect(document.documentElement.style.userSelect).toBe('')
+
+    await pressKey(divider.element, 'ArrowLeft')
+    expect(tableWidth.value).toBe(270)
+    await pressKey(divider.element, 'ArrowRight', { shiftKey: true })
+    expect(tableWidth.value).toBe(310)
+    wrapper.unmount()
+  })
+
+  it('supports resourceClick on left list and empty swimlane track, v-model:selectedResource and rowClass', async () => {
+    const selectedResource = ref<string | null>(null)
+    const clicked: (string | null)[] = []
+    const rowInfos: SchedulerRowInfo[] = []
+    const wrapper = mount(
+      defineComponent(
+        () => () =>
+          h(
+            DouScheduler,
+            {
+              modelValue: { version: 1, tasks: sample(), links: [] },
+              resources,
+              readonly: true,
+              selectedResource: selectedResource.value,
+              'onUpdate:selectedResource': (id: string | null) => (selectedResource.value = id),
+              onResourceClick: (res: SchedulerResource | null) => clicked.push(res?.id ?? null),
+              rowClass: (info: SchedulerRowInfo) => {
+                rowInfos.push(info)
+                return info.kind === 'resource' && info.key === 'dai' ? 'is-agent-dai' : undefined
+              },
+            },
+            {
+              resource: ({ resource }: { resource: SchedulerResource }) =>
+                h('div', { class: 'custom-res' }, [
+                  h('span', resource.title),
+                  h('button', { type: 'button', class: 'res-action' }, '详情'),
+                ]),
+            },
+          ),
+      ),
+      { attachTo: document.body },
+    )
+    await nextTick()
+
+    // rowClass applies to both table row and canvas lane row
+    expect(wrapper.find('.dou-gantt__tr[data-row="dai"]').classes()).toContain('is-agent-dai')
+    expect(wrapper.findAll('.dou-gantt__lane-row.is-agent-dai')).toHaveLength(1)
+
+    // clicking interactive button inside #resource does not trigger resourceClick
+    await wrapper.find('.dou-gantt__tr[data-row="dai"] .res-action').trigger('click')
+    expect(clicked).toEqual([])
+
+    // clicking left list row selects the resource
+    await wrapper.find('.dou-gantt__tr[data-row="dai"]').trigger('click')
+    await nextTick()
+    expect(selectedResource.value).toBe('dai')
+    expect(clicked).toEqual(['dai'])
+    expect(wrapper.find('.dou-gantt__tr[data-row="dai"]').classes()).toContain('is-selected')
+    expect(wrapper.findAll('.dou-gantt__lane-row.is-selected')).toHaveLength(1)
+
+    // clicking empty track on 'qing' row ('设计'=0..36, 'dai' has 2 lanes=36..100, 'qing'=100..136; header=56)
+    const body = wrapper.find('.dou-gantt__body').element
+    body.dispatchEvent(new MouseEvent('click', { clientX: 500, clientY: 56 + 115, bubbles: true }))
+    await nextTick()
+    expect(selectedResource.value).toBe('qing')
+    expect(clicked).toEqual(['dai', 'qing'])
+
+    // clicking a task bar must NOT trigger resourceClick
+    await wrapper.find('.dou-gantt__bar[data-task="a"]').trigger('click')
+    expect(clicked).toEqual(['dai', 'qing'])
+
+    // drag-panning across the body must suppress resourceClick
+    const canvas = wrapper.find('.dou-gantt__canvas').element
+    canvas.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        button: 0,
+        pointerType: 'mouse',
+        clientX: 400,
+        clientY: 56 + 50,
+        bubbles: true,
+      }),
+    )
+    window.dispatchEvent(
+      new PointerEvent('pointermove', { pointerType: 'mouse', clientX: 440, clientY: 56 + 50 }),
+    )
+    window.dispatchEvent(
+      new PointerEvent('pointerup', { pointerType: 'mouse', clientX: 440, clientY: 56 + 50 }),
+    )
+    body.dispatchEvent(new MouseEvent('click', { clientX: 440, clientY: 56 + 50, bubbles: true }))
+    await nextTick()
+    expect(clicked).toEqual(['dai', 'qing'])
+    wrapper.unmount()
+  })
+
+  it('supports v-model:collapsedGroups and #group slot', async () => {
+    const collapsedGroups = ref<string[]>(['设计'])
+    const wrapper = mount(
+      defineComponent(
+        () => () =>
+          h(
+            DouScheduler,
+            {
+              modelValue: { version: 1, tasks: sample(), links: [] },
+              resources,
+              collapsedGroups: collapsedGroups.value,
+              'onUpdate:collapsedGroups': (next: string[]) => (collapsedGroups.value = next),
+            },
+            {
+              group: ({
+                title,
+                count,
+                collapsed,
+                toggle,
+              }: {
+                title: string
+                count: number
+                collapsed: boolean
+                toggle: () => void
+              }) =>
+                h(
+                  'button',
+                  { type: 'button', class: 'custom-group-btn', onClick: toggle },
+                  `${title} (${count}) ${collapsed ? '已折叠' : '已展开'}`,
+                ),
+            },
+          ),
+      ),
+      { attachTo: document.body },
+    )
+    await nextTick()
+    // '设计' starts collapsed: 'dai' and 'qing' rows are hidden
+    expect(wrapper.find('.dou-gantt__tr[data-row="dai"]').exists()).toBe(false)
+    expect(wrapper.find('.custom-group-btn').text()).toBe('设计 (2) 已折叠')
+
+    await wrapper.find('.custom-group-btn').trigger('click')
+    await nextTick()
+    expect(collapsedGroups.value).toEqual([])
+    expect(wrapper.find('.dou-gantt__tr[data-row="dai"]').exists()).toBe(true)
+    expect(wrapper.find('.custom-group-btn').text()).toBe('设计 (2) 已展开')
+    wrapper.unmount()
+  })
+
+  it('supports barLabel, task class, nativeTitle, #bar-content, #bar-tooltip and #marker-tooltip', async () => {
+    const base = new Date(2026, 4, 10, 14, 0, 0).getTime()
+    const markers: GanttMarker[] = [
+      {
+        id: 'ev1',
+        resource: 'a',
+        date: base + 30_000,
+        label: '审阅通过',
+        tone: 'success',
+        class: 'ev-custom',
+      },
+    ]
+    const wrapper = mount(
+      defineComponent(
+        () => () =>
+          h(
+            DouScheduler,
+            {
+              modelValue: {
+                version: 1,
+                tasks: [
+                  {
+                    id: 's1',
+                    title: '短任务',
+                    resource: 'a',
+                    start: base,
+                    end: base + 10_000,
+                    class: ['is-running', { 'is-live': true }],
+                  },
+                ],
+                links: [],
+              },
+              resources: [{ id: 'a', title: 'Agent A' }],
+              markers,
+              scale: 'minute',
+              calendar: false,
+              barLabel: 'none',
+              nativeTitle: false,
+            },
+            {
+              'bar-content': ({ task: item }: { task: GanttTask }) =>
+                h('span', { class: 'pulse-dot', 'data-id': item.id }),
+              'bar-tooltip': ({ task: item }: { task: GanttTask }) =>
+                h('div', { class: 'rich-bar-tip' }, `详情：${item.title}`),
+              'marker-tooltip': ({ marker }: { marker: GanttMarker }) =>
+                h('div', { class: 'rich-marker-tip' }, `事件：${marker.label}`),
+            },
+          ),
+      ),
+      { attachTo: document.body },
+    )
+    await nextTick()
+
+    const bar = wrapper.find('.dou-gantt__bar[data-task="s1"]')
+    expect(bar.classes()).toContain('is-running')
+    expect(bar.classes()).toContain('is-live')
+    // barLabel='none' hides standard text labels, while #bar-content still mounts inside the bar
+    expect(wrapper.find('.dou-gantt__bar-label').exists()).toBe(false)
+    expect(wrapper.find('.dou-gantt__bar-side').exists()).toBe(false)
+    expect(bar.find('.pulse-dot').exists()).toBe(true)
+    // native title is suppressed when #bar-tooltip / nativeTitle=false
+    expect(bar.attributes('title')).toBeUndefined()
+
+    const ev = wrapper.find('.dou-gantt__event')
+    expect(ev.classes()).toContain('ev-custom')
+    expect(ev.attributes('title')).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('renders shaded marker bands, top auxiliary rail, canvas layers and useScheduler() context', async () => {
+    const base = new Date(2026, 4, 10, 14, 0, 0).getTime()
+    const markers: GanttMarker[] = [
+      {
+        id: 'away',
+        date: base - 120_000,
+        endDate: base + 120_000,
+        label: '离开期间',
+        tone: 'warning',
+        class: 'away-band',
+      },
+      {
+        id: 'row-band',
+        resource: 'a',
+        date: base,
+        endDate: base + 60_000,
+        tone: 'primary',
+      },
+    ]
+    let capturedRail: SchedulerRailScope | null = null
+    let capturedOverlay: SchedulerCanvasScope | null = null
+    let capturedCtx: SchedulerContext | null = null
+
+    const OverlayProbe = defineComponent({
+      setup() {
+        capturedCtx = useScheduler()
+        return () => h('div', { class: 'probe-ctx' }, String(capturedCtx!.tableWidth.value))
+      },
+    })
+
+    const wrapper = mount(
+      defineComponent(
+        () => () =>
+          h(
+            DouScheduler,
+            {
+              modelValue: {
+                version: 1,
+                tasks: [
+                  { id: 't1', title: '任务 1', resource: 'a', start: base, end: base + 60_000 },
+                ],
+                links: [],
+              },
+              resources: [{ id: 'a', title: 'Agent A' }],
+              markers,
+              scale: 'minute',
+              calendar: false,
+              tableWidth: 240,
+              railHeight: 40,
+            },
+            {
+              'rail-header': ({ width, height }: { width: number; height: number }) =>
+                h('div', { class: 'rail-title' }, `${width}x${height}`),
+              rail: (scope: SchedulerRailScope) => {
+                capturedRail = scope
+                return h('div', { class: 'rail-bars' })
+              },
+              underlay: () => h('div', { class: 'custom-underlay' }),
+              overlay: (scope: SchedulerCanvasScope) => {
+                capturedOverlay = scope
+                return h(OverlayProbe)
+              },
+            },
+          ),
+      ),
+      { attachTo: document.body },
+    )
+    await nextTick()
+
+    // shaded bands render (full-height + row-scoped), and NOT as point events
+    expect(wrapper.find('.dou-gantt__band.away-band').classes()).toContain('is-warning')
+    expect(wrapper.find('.dou-gantt__band.is-row').classes()).toContain('is-primary')
+    expect(wrapper.find('.dou-gantt__marker-label.is-band').text()).toBe('离开期间')
+    expect(wrapper.findAll('.dou-gantt__event')).toHaveLength(0)
+
+    // top auxiliary rail
+    expect(wrapper.find('.dou-gantt__table-rail').attributes('style')).toContain('height: 40px')
+    expect(wrapper.find('.rail-title').text()).toBe('240x40')
+    expect(wrapper.find('.dou-gantt__rail .rail-bars').exists()).toBe(true)
+    expect(capturedRail).not.toBeNull()
+    expect(capturedRail!.height).toBe(40)
+    expect(capturedRail!.xOf(base)).not.toBeNull()
+
+    // underlay & overlay + useScheduler()
+    expect(wrapper.find('.dou-gantt__layer.is-below .custom-underlay').exists()).toBe(true)
+    expect(wrapper.find('.dou-gantt__layer.is-above .probe-ctx').text()).toBe('240')
+    expect(capturedOverlay).not.toBeNull()
+    expect(capturedOverlay!.rowBox('a')).not.toBeNull()
+    expect(capturedOverlay!.barBox('t1')).not.toBeNull()
+    expect(capturedCtx).not.toBeNull()
+    expect(capturedCtx!.xOf(base)).toBeCloseTo(capturedOverlay!.xOf(base)!, 2)
+
+    // clicking body track accounts for the 40px top rail offset (56 header + 40 rail = 96)
+    const clicked: (string | null)[] = []
+    wrapper.unmount()
+    const railClickWrapper = mount(
+      defineComponent(
+        () => () =>
+          h(
+            DouScheduler,
+            {
+              modelValue: { version: 1, tasks: [], links: [] },
+              resources: [
+                { id: 'r1', title: 'Row 1' },
+                { id: 'r2', title: 'Row 2' },
+              ],
+              readonly: true,
+              railHeight: 40,
+              onResourceClick: (res: SchedulerResource | null) => clicked.push(res?.id ?? null),
+            },
+            {
+              rail: () => h('div'),
+            },
+          ),
+      ),
+      { attachTo: document.body },
+    )
+    await nextTick()
+    const body = railClickWrapper.find('.dou-gantt__body').element
+    // y = 56 + 40 + 50 => body y = 50 => hits second row 'r2' (36..72), NOT 'r1' (0..36)
+    body.dispatchEvent(
+      new MouseEvent('click', { clientX: 300, clientY: 56 + 40 + 50, bubbles: true }),
+    )
+    expect(clicked).toEqual(['r2'])
+    railClickWrapper.unmount()
+  })
+
+  it('selects the unassigned row with empty string key when clicked', async () => {
+    const selectedResource = ref<string | null>(null)
+    const clicked: (SchedulerResource | null)[] = []
+    const wrapper = mount(
+      defineComponent(
+        () => () =>
+          h(DouScheduler, {
+            modelValue: {
+              version: 1,
+              tasks: [{ id: 'u1', title: '未分配任务', start: '2026-03-02', end: '2026-03-04' }],
+              links: [],
+            },
+            resources: [{ id: 'a', title: 'Agent A' }],
+            readonly: true,
+            selectedResource: selectedResource.value,
+            'onUpdate:selectedResource': (id: string | null) => (selectedResource.value = id),
+            onResourceClick: (res: SchedulerResource | null) => clicked.push(res),
+          }),
+      ),
+      { attachTo: document.body },
+    )
+    await nextTick()
+
+    const rows = wrapper.findAll('.dou-gantt__tr')
+    expect(rows).toHaveLength(2)
+    await rows[1]!.trigger('click')
+    await nextTick()
+
+    expect(selectedResource.value).toBe('')
+    expect(clicked).toEqual([null])
+    expect(wrapper.findAll('.dou-gantt__tr')[1]!.classes()).toContain('is-selected')
+    expect(wrapper.findAll('.dou-gantt__lane-row')[1]!.classes()).toContain('is-selected')
+
+    // clicking the empty track of the unassigned row also emits ''
+    selectedResource.value = 'a'
+    await nextTick()
+    const body = wrapper.find('.dou-gantt__body').element
+    // header 56 + row0 (36) + middle of row1 (+18) = 110
+    body.dispatchEvent(new MouseEvent('click', { clientX: 300, clientY: 56 + 54, bubbles: true }))
+    await nextTick()
+    expect(selectedResource.value).toBe('')
+    expect(clicked).toEqual([null, null])
+    wrapper.unmount()
+  })
+
+  it('updates rail height and body coordinate mapping when #rail slot toggles dynamically', async () => {
+    const showRail = ref(false)
+    let latestRailScope: SchedulerRailScope | null = null
+    const clicked: (string | null)[] = []
+
+    const wrapper = mount(
+      defineComponent(
+        () => () =>
+          h(
+            DouScheduler,
+            {
+              modelValue: { version: 1, tasks: [], links: [] },
+              resources: [
+                { id: 'r1', title: 'Row 1' },
+                { id: 'r2', title: 'Row 2' },
+              ],
+              readonly: true,
+              railHeight: 40,
+              onResourceClick: (res: SchedulerResource | null) => clicked.push(res?.id ?? null),
+            },
+            showRail.value
+              ? {
+                  rail: (scope: SchedulerRailScope) => {
+                    latestRailScope = scope
+                    return h('div', { class: 'dynamic-rail' })
+                  },
+                }
+              : {},
+          ),
+      ),
+      { attachTo: document.body },
+    )
+    await nextTick()
+
+    // initially without #rail: headerHeight is 56, so y = 56 + 18 hits r1
+    expect(wrapper.find('.dou-gantt__rail').exists()).toBe(false)
+    const body = wrapper.find('.dou-gantt__body').element
+    body.dispatchEvent(new MouseEvent('click', { clientX: 300, clientY: 56 + 18, bubbles: true }))
+    expect(clicked).toEqual(['r1'])
+
+    // mount #rail dynamically: rail gets height 40px and headerHeight becomes 96
+    showRail.value = true
+    await nextTick()
+    expect(wrapper.find('.dou-gantt__rail').exists()).toBe(true)
+    expect(wrapper.find('.dou-gantt__rail').attributes('style')).toContain('height: 40px')
+    expect(latestRailScope).not.toBeNull()
+    expect(latestRailScope!.height).toBe(40)
+    // y = 56 + 40 + 50 => body y = 50 => hits r2 (36..72)
+    body.dispatchEvent(
+      new MouseEvent('click', { clientX: 300, clientY: 56 + 40 + 50, bubbles: true }),
+    )
+    expect(clicked).toEqual(['r1', 'r2'])
+
+    // unmount #rail dynamically: rail disappears and headerHeight returns to 56
+    showRail.value = false
+    await nextTick()
+    expect(wrapper.find('.dou-gantt__rail').exists()).toBe(false)
+    // y = 56 + 18 => body y = 18 => hits r1 again (would be negative if stale headerHeight stayed 96)
+    body.dispatchEvent(new MouseEvent('click', { clientX: 300, clientY: 56 + 18, bubbles: true }))
+    expect(clicked).toEqual(['r1', 'r2', 'r1'])
     wrapper.unmount()
   })
 })

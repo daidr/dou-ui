@@ -22,6 +22,7 @@ export type {
   GanttPrintOptions,
   GanttProps,
   GanttSlots,
+  GanttViewport,
 } from './types'
 export { GanttCSVError } from './core/csv'
 export { useGantt } from './context'
@@ -36,7 +37,14 @@ export type {
 export { ganttLocales, useGanttMessages } from './locale'
 export type { GanttMessages, GanttMessagesOverride } from './locale'
 export { spanOf, writeSpan } from './core/model'
-export type { GanttData, GanttLink, GanttLinkType, GanttTask, TaskSpan } from './core/model'
+export type {
+  GanttClassValue,
+  GanttData,
+  GanttLink,
+  GanttLinkType,
+  GanttTask,
+  TaskSpan,
+} from './core/model'
 export type { GanttRow } from './core/tree'
 export { resolveCalendar, workdaysBetween, workingMinutes } from './core/calendar'
 export type { GanttCalendar, WorkCalendar } from './core/calendar'

@@ -45,7 +45,9 @@ export interface DrawInput {
   weekStart: 0 | 1
   /** The current time, or `null` to leave the today line out. */
   now: number | null
-  markers: readonly { at: number; label?: string; tone?: Tone }[]
+  markers: readonly { at: number; label?: string; tone?: Tone; band?: boolean }[]
+  /** Shaded time bands spanning `[start, end]`, optionally scoped to a single `row` index. */
+  bands?: readonly { start: number; end: number; row?: number; tone?: Tone }[]
   /** Row-scoped discrete event markers: `row` is the index in `rows`. */
   events?: readonly { row: number; at: number; tone?: Tone }[]
   critical: { tasks: ReadonlySet<string>; links: ReadonlySet<string> } | null
@@ -263,13 +265,26 @@ export function drawGantt(input: DrawInput, theme: ExportTheme): GanttDrawing {
     }
   })
 
+  for (const band of input.bands ?? []) {
+    const from = Math.max(start, band.start)
+    const to = Math.min(end, band.end)
+    if (to <= from) continue
+    const x = xOf(from)
+    const w = Math.max(2, round((to - from) * ppm))
+    const y = band.row != null ? band.row * rh : 0
+    const h = band.row != null ? rh : bodyHeight
+    const color = theme.marker[band.tone ?? 'neutral'].line
+    body.push(
+      `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${color}" fill-opacity="0.12"/>`,
+    )
+  }
   const now = input.now
   if (now != null && now >= start && now <= end)
     body.push(
       `<rect x="${xOf(now)}" y="0" width="1" height="${bodyHeight}" fill="${theme.today}"/>`,
     )
   for (const marker of input.markers)
-    if (marker.at >= start && marker.at <= end)
+    if (!marker.band && marker.at >= start && marker.at <= end)
       body.push(
         `<line x1="${xOf(marker.at) + 0.5}" y1="0" x2="${xOf(marker.at) + 0.5}" y2="${bodyHeight}" stroke="${theme.marker[marker.tone ?? 'neutral'].line}" stroke-dasharray="4 4"/>`,
       )

@@ -398,7 +398,7 @@ onBeforeUnmount(() => {
 .viewport-pill {
   margin-left: auto;
   color: var(--dou-color-text-secondary);
-  font-size: var(--dou-font-size-xs);
+  font-size: var(--dou-font-size-sm);
   font-variant-numeric: tabular-nums;
 }
 
@@ -472,7 +472,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  font-size: var(--dou-font-size-xs);
+  font-size: var(--dou-font-size-sm);
 }
 
 .handoff-svg {
